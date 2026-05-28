@@ -11,7 +11,7 @@ export const navItems = [
   { label: "CRM", href: "/crm", icon: "crm" },
   { label: "AI Studio", href: "/ai-studio", icon: "ai" },
   { label: "Agent Operations", href: "/agent-operations", icon: "agents" },
-  { label: "Persona Intelligence", href: "/persona-intelligence", icon: "intake" },
+  { label: "Persona Intelligence", href: "/persona-intelligence", icon: "persona" },
   { label: "Lead Intake", href: "/lead-ingestion", icon: "intake" },
   { label: "Customer Types", href: "/customer-types", icon: "people" },
   { label: "Loss Routing", href: "/loss-routing", icon: "routing" },

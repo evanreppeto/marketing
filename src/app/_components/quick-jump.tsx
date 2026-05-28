@@ -52,7 +52,7 @@ export function QuickJump() {
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const allItems = useMemo(buildItems, []);
+  const allItems = useMemo(() => buildItems(), []);
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -62,11 +62,20 @@ export function QuickJump() {
       .slice(0, 12);
   }, [allItems, query]);
 
+  const selectedIndex = Math.min(activeIndex, Math.max(0, items.length - 1));
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setOpen((value) => !value);
+        setOpen((value) => {
+          const nextOpen = !value;
+          if (nextOpen) {
+            setQuery("");
+            setActiveIndex(0);
+          }
+          return nextOpen;
+        });
         return;
       }
       if (event.key === "Escape" && open) {
@@ -80,17 +89,9 @@ export function QuickJump() {
 
   useEffect(() => {
     if (!open) return;
-    setQuery("");
-    setActiveIndex(0);
     const id = window.setTimeout(() => inputRef.current?.focus(), 0);
     return () => window.clearTimeout(id);
   }, [open]);
-
-  useEffect(() => {
-    if (activeIndex >= items.length) {
-      setActiveIndex(Math.max(0, items.length - 1));
-    }
-  }, [items, activeIndex]);
 
   function handleInputKey(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") {
@@ -101,7 +102,7 @@ export function QuickJump() {
       setActiveIndex((current) => Math.max(0, current - 1));
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const item = items[activeIndex];
+      const item = items[selectedIndex];
       if (item) {
         setOpen(false);
         router.push(item.href);
@@ -113,7 +114,11 @@ export function QuickJump() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setQuery("");
+          setActiveIndex(0);
+          setOpen(true);
+        }}
         className="inline-flex items-center gap-1.5 rounded px-1 text-xs text-[#9fb0c3] transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5bb7e8]"
         aria-label="Open quick jump (Ctrl or Cmd + K)"
       >
@@ -159,7 +164,7 @@ export function QuickJump() {
                 </li>
               ) : (
                 items.map((item, index) => {
-                  const isActive = index === activeIndex;
+                  const isActive = index === selectedIndex;
                   return (
                     <li key={item.key} role="option" aria-selected={isActive}>
                       <Link
