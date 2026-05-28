@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { navItems } from "../_data/growth-engine";
+import { QuickJump } from "./quick-jump";
 
 type AppShellProps = {
   active: string;
@@ -83,11 +84,7 @@ export function AppShell({ active, children }: AppShellProps) {
               <span className="font-semibold text-[#151515]">{activeItem?.label ?? "Workspace"}</span>
             </nav>
             <div className="flex items-center gap-2 text-xs text-[#6e6962]">
-              <kbd className="hidden items-center gap-1 rounded border border-[#ddd6cd] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#6e6962] sm:inline-flex">
-                <span>⌘</span>
-                <span>K</span>
-              </kbd>
-              <span className="hidden sm:inline">Quick jump</span>
+              <QuickJump />
             </div>
           </div>
 
