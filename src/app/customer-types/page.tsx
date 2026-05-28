@@ -1,10 +1,20 @@
+import Link from "next/link";
+
 import { AppShell } from "../_components/app-shell";
-import { PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { audienceSegments, customerTypes, partnerSegments, segmentHealthRows } from "../_data/growth-engine";
 
 const groups = ["Homeowner", "Professional", "Partner"] as const;
 
-export default function CustomerTypesPage() {
+export default async function CustomerTypesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ action?: string | string[]; group?: string | string[] }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  const action = getValue(query.action);
+  const group = getValue(query.group);
+
   return (
     <AppShell active="/customer-types">
       <PageHeader
@@ -12,6 +22,35 @@ export default function CustomerTypesPage() {
         title="Approved customer and partner segments"
         description="The audience map keeps AI copy, routing, and reporting aligned to Big Shoulders' approved personas."
         aside={<StatusPill tone="green">12 approved types</StatusPill>}
+      />
+
+      <OperatorBar
+        task="Keep every customer and partner in an approved segment."
+        detail="Use this page to confirm the plain-language audience labels that routing, reports, and future AI copy are allowed to use."
+        status={group ? `${group} focus` : "12 approved"}
+        secondary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href="/customer-types?group=Partner"
+          >
+            Partner focus
+          </Link>
+        }
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="/customer-types?action=add-partner-type"
+          >
+            Add partner type
+          </Link>
+        }
+      />
+      <ActionFeedback
+        action={action ?? group}
+        messages={{
+          "add-partner-type": "Partner type creation is previewed. New records are not written in scaffold mode.",
+          Partner: "Partner segments are the focus for this preview.",
+        }}
       />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(360px,0.78fr)]">
@@ -96,9 +135,12 @@ export default function CustomerTypesPage() {
             <h2 className="text-xl font-semibold tracking-[-0.02em]">Partner segments</h2>
             <p className="mt-1 text-sm text-[#6e6962]">Referral and trade channels that should produce repeatable work.</p>
           </div>
-          <button className="min-h-11 rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition active:-translate-y-px">
+          <Link
+            className="inline-flex min-h-11 items-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="/customer-types?action=add-partner-type"
+          >
             Add partner type
-          </button>
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm">
@@ -133,4 +175,8 @@ export default function CustomerTypesPage() {
       </Panel>
     </AppShell>
   );
+}
+
+function getValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }

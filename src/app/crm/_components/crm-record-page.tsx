@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { getPersistedPersonaIntelligenceForRecord } from "@/lib/persona-intelligence/read-model";
+
 import { AppShell } from "../../_components/app-shell";
 import { PageHeader, Panel, StatusPill } from "../../_components/page-header";
-import { crmObjects } from "../../_data/growth-engine";
+import {
+  crmObjects,
+  crmPersonaSnapshots,
+  crmRecordEngagementEvents,
+  leadEngagementEvents,
+  leadHyperPersonaSnapshot,
+  leadNextBestActions,
+} from "../../_data/growth-engine";
 
 type CrmObjectKey = (typeof crmObjects)[number]["key"];
-type CrmRecord = (typeof crmObjects)[number]["sampleRows"][number];
-
 type CrmRecordPageProps = {
   action?: string;
   objectKey: CrmObjectKey;
@@ -55,9 +62,20 @@ const objectRelationships: Record<CrmObjectKey, Array<{ label: string; value: st
   ],
 };
 
-export function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProps) {
+export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProps) {
   const crmObject = crmObjects.find((object) => object.key === objectKey);
-  const record = crmObject?.sampleRows.find((row) => row.id === recordId);
+  const record =
+    crmObject?.sampleRows.find((row) => row.id === recordId) ??
+    (crmObject && isUuid(recordId)
+      ? {
+          id: recordId,
+          name: `${crmObject.label} record ${recordId.slice(0, 8)}`,
+          detail: "Persisted Supabase record",
+          status: "Active",
+          owner: "Supabase",
+          updated: "Live",
+        }
+      : undefined);
 
   if (!crmObject || !record) {
     notFound();
@@ -66,6 +84,19 @@ export function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProp
   const actionMessage = action
     ? `Scaffold only: "${actionLabels[action] ?? action}" is previewed for this record.`
     : "No changes are written. These actions only prove the record layout.";
+  const persistedPersonaIntelligence = await getPersistedPersonaIntelligenceForRecord(record.id);
+  const personaSnapshot =
+    persistedPersonaIntelligence.status === "live" && persistedPersonaIntelligence.snapshot
+      ? persistedPersonaIntelligence.snapshot
+      : (crmPersonaSnapshots[record.id] ?? leadHyperPersonaSnapshot);
+  const engagementEvents =
+    persistedPersonaIntelligence.status === "live" && persistedPersonaIntelligence.engagementEvents.length > 0
+      ? persistedPersonaIntelligence.engagementEvents
+      : (crmRecordEngagementEvents[record.id] ?? leadEngagementEvents);
+  const nextBestActions =
+    persistedPersonaIntelligence.status === "live" && persistedPersonaIntelligence.nextBestActions.length > 0
+      ? persistedPersonaIntelligence.nextBestActions
+      : leadNextBestActions;
 
   return (
     <AppShell active="/crm">
@@ -107,23 +138,81 @@ export function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProp
           </Link>
         </Panel>
 
-        <Panel className="module-rise p-0 [animation-delay:120ms]">
-          <div className="border-b border-[#e7e0d8] px-5 py-5">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Activity timeline</h2>
-            <p className="mt-1 text-sm text-[#6e6962]">Future notes, calls, routing decisions, and approvals will land here.</p>
-          </div>
-          <div className="divide-y divide-[#eee8e1]">
-            {timelineFor(record).map((item) => (
-              <div className="grid gap-4 px-5 py-5 md:grid-cols-[120px_1fr]" key={item.title}>
-                <div className="text-sm font-semibold text-[#6e6962]">{item.time}</div>
+        <div className="min-w-0 space-y-4">
+          <Panel className="module-rise p-0 [animation-delay:120ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-5">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="font-semibold">{item.title}</div>
-                  <p className="mt-2 text-sm leading-6 text-[#6e6962]">{item.detail}</p>
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">Persona snapshot</h2>
+                  <p className="mt-1 text-sm text-[#6e6962]">Living profile context that should drive message and action choices.</p>
                 </div>
+                <StatusPill tone="blue">{personaSnapshot.confidence}</StatusPill>
               </div>
-            ))}
-          </div>
-        </Panel>
+              <div className="mt-3 rounded-md border border-[#eee8e1] bg-[#fbfaf8] px-3 py-2 text-xs leading-5 text-[#6e6962]">
+                {persistedPersonaIntelligence.message}
+              </div>
+            </div>
+            <div className="grid border-b border-[#eee8e1] lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="border-b border-[#eee8e1] p-5 lg:border-b-0 lg:border-r">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#a07423]">
+                  {personaSnapshot.basePersona}
+                </div>
+                <div className="mt-2 text-2xl font-semibold tracking-[-0.04em]">
+                  {personaSnapshot.nextBestAction}
+                </div>
+                <p className="mt-3 text-sm leading-6 text-[#6e6962]">{personaSnapshot.messagePosture}</p>
+              </div>
+              <div className="grid sm:grid-cols-2">
+                {[
+                  ["Relationship", personaSnapshot.relationshipStage],
+                  ["Value tier", personaSnapshot.valueTier],
+                  ["Loss pattern", personaSnapshot.dominantLossPattern],
+                  ["Channel", personaSnapshot.preferredChannel],
+                ].map(([label, value]) => (
+                  <div className="border-b border-[#eee8e1] p-4 even:sm:border-l sm:[&:nth-last-child(-n+2)]:border-b-0" key={label}>
+                    <div className="text-xs text-[#6e6962]">{label}</div>
+                    <div className="mt-1 font-semibold">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-2 p-5 sm:grid-cols-2">
+              <Link
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+                href="/persona-intelligence"
+              >
+                Open persona intelligence
+              </Link>
+              <Link
+                className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+                href="/ai-studio?action=generate-asset"
+              >
+                Create approved asset
+              </Link>
+            </div>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:150ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-5">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Engagement timeline</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">Events that feed the profile and future next-best-action engine.</p>
+            </div>
+            <div className="divide-y divide-[#eee8e1]">
+              {engagementEvents.map((item) => (
+                <div className="grid gap-4 px-5 py-5 md:grid-cols-[120px_1fr]" key={`${item.event}-${item.time}`}>
+                  <div className="text-sm font-semibold text-[#6e6962]">{item.time}</div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="font-semibold">{item.event}</div>
+                      <StatusPill tone="blue">{item.channel}</StatusPill>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[#6e6962]">{item.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
 
         <div className="min-w-0 space-y-4">
           <Panel className="module-rise [animation-delay:170ms]">
@@ -143,9 +232,24 @@ export function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProp
           </Panel>
 
           <Panel className="module-rise [animation-delay:220ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Next actions</h2>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold tracking-[-0.02em]">Next Best Actions</h2>
+                <p className="mt-1 text-sm text-[#6e6962]">Preview recommendations until Supabase persistence is wired.</p>
+              </div>
+              <StatusPill tone="gray">Scaffold</StatusPill>
+            </div>
             <p className="mt-2 text-sm leading-6 text-[#6e6962]">{actionMessage}</p>
-            <div className="mt-5 grid gap-2">
+            <div className="mt-5 grid gap-3">
+              {nextBestActions.map((item) => (
+                <div className="rounded-md border border-[#eee8e1] bg-[#fbfaf8] p-3" key={item.action}>
+                  <div className="font-semibold">{item.action}</div>
+                  <p className="mt-1 text-sm leading-5 text-[#6e6962]">{item.reason}</p>
+                  <div className="mt-2 text-xs font-semibold text-[#a07423]">{item.approval}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 grid gap-2 border-t border-[#eee8e1] pt-5">
               {[
                 ["note", "Add note"],
                 ["owner", "Assign owner"],
@@ -178,26 +282,6 @@ export function getCrmRecordParams(objectKey: CrmObjectKey) {
   return crmObject?.sampleRows.map((record) => ({ recordId: record.id })) ?? [];
 }
 
-function timelineFor(record: CrmRecord) {
-  return [
-    {
-      time: record.updated,
-      title: "Record touched",
-      detail: `${record.owner} owns this sample record in scaffold mode. Live audit events are not connected yet.`,
-    },
-    {
-      time: "Today",
-      title: "Relationship map previewed",
-      detail: "The CRM backbone can show how this record connects across contacts, properties, leads, jobs, and outcomes.",
-    },
-    {
-      time: "Next",
-      title: "Persistence gate",
-      detail: "Supabase reads and guarded writes can be wired after the record layout and navigation feel right.",
-    },
-  ];
-}
-
 function statusTone(status: string): "amber" | "green" | "red" {
   if (["Active", "Ready", "Won", "High priority"].includes(status)) {
     return "green";
@@ -208,4 +292,8 @@ function statusTone(status: string): "amber" | "green" | "red" {
   }
 
   return "amber";
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

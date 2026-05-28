@@ -5,12 +5,18 @@ export const TARGET_LOSS_KEYWORDS = [
   "water backup",
   "storm surge",
   "burst pipe",
+  "mold",
+  "sewage",
+  "fire",
 ] as const;
 
 export const NON_TARGET_LOSS_KEYWORDS = [
   "hail",
   "hail damage",
   "wind-only roof loss",
+  "exterior-only roof",
+  "roof remodeling",
+  "unrelated remodeling",
 ] as const;
 
 export type TargetLossKeyword = (typeof TARGET_LOSS_KEYWORDS)[number];

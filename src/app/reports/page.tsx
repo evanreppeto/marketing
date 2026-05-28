@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { AppShell } from "../_components/app-shell";
-import { PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { reportMetrics, reportRows, responseRows } from "../_data/growth-engine";
 
 const attributionNotes = [
@@ -27,7 +29,14 @@ const revenueMix = [
   { source: "Online / Website", share: "10%", width: "w-[20%]" },
 ];
 
-export default function ReportsPage() {
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ action?: string | string[] }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  const action = getAction(query.action);
+
   return (
     <AppShell active="/reports">
       <PageHeader
@@ -35,6 +44,26 @@ export default function ReportsPage() {
         title="Channel attribution and revenue"
         description="Connect leads, partners, jobs, outcomes, and response time to see which channels convert."
         aside={<StatusPill tone="amber">Persistence not connected</StatusPill>}
+      />
+
+      <OperatorBar
+        task="Decide which channels deserve more attention."
+        detail="Use response time, conversion, and revenue attribution to spot partner channels worth investing in once live outcomes are connected."
+        status="Sample report"
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="/reports?action=export-view"
+          >
+            Export view
+          </Link>
+        }
+      />
+      <ActionFeedback
+        action={action}
+        messages={{
+          "export-view": "Report export previewed. A real export will be connected after persistence.",
+        }}
       />
 
       {(() => {
@@ -77,9 +106,12 @@ export default function ReportsPage() {
               <h2 className="text-xl font-semibold tracking-[-0.02em]">Revenue attribution</h2>
               <p className="mt-1 text-sm text-[#6e6962]">Sample view of channel value until live outcomes are connected.</p>
             </div>
-            <button className="min-h-11 rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition active:-translate-y-px">
+            <Link
+              className="inline-flex min-h-11 items-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+              href="/reports?action=export-view"
+            >
               Export view
-            </button>
+            </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm">
@@ -222,4 +254,8 @@ export default function ReportsPage() {
       </div>
     </AppShell>
   );
+}
+
+function getAction(action: string | string[] | undefined) {
+  return Array.isArray(action) ? action[0] : action;
 }

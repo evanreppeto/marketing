@@ -38,6 +38,76 @@ export function Panel({
   );
 }
 
+export function OperatorBar({
+  task,
+  detail,
+  status = "Scaffold mode",
+  primary,
+  secondary,
+}: {
+  task: string;
+  detail: string;
+  status?: string;
+  primary?: React.ReactNode;
+  secondary?: React.ReactNode;
+}) {
+  return (
+    <div className="module-rise mb-4 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] px-4 py-3 shadow-[0_18px_45px_-38px_rgba(52,43,34,0.36)] [animation-delay:40ms]">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a07423]">Operator task</span>
+            <StatusPill tone="gray">{status}</StatusPill>
+          </div>
+          <div className="mt-1 font-semibold text-[#151515]">{task}</div>
+          <p className="mt-1 max-w-[74ch] text-sm leading-6 text-[#6e6962]">{detail}</p>
+        </div>
+        {primary || secondary ? (
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+            {secondary}
+            {primary}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function ActionFeedback({
+  action,
+  messages,
+}: {
+  action?: string;
+  messages: Record<string, string>;
+}) {
+  if (!action) return null;
+
+  return (
+    <div className="module-rise mb-4 rounded-md border border-[#cdddee] bg-[#f0f5fc] px-4 py-3 text-sm text-[#21558a] [animation-delay:60ms]">
+      <span className="font-semibold">Preview: </span>
+      {messages[action] ?? "Scaffold action previewed. No data was changed."}
+    </div>
+  );
+}
+
+export function EmptyState({
+  title,
+  detail,
+  action,
+}: {
+  title: string;
+  detail: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-md border border-dashed border-[#d8d0c7] bg-[#fbfaf8] p-5">
+      <div className="text-sm font-semibold text-[#151515]">{title}</div>
+      <p className="mt-2 text-sm leading-6 text-[#6e6962]">{detail}</p>
+      {action ? <div className="mt-4">{action}</div> : null}
+    </div>
+  );
+}
+
 export function StatusPill({
   children,
   tone = "amber",

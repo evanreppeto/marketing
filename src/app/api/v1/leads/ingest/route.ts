@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { parseLeadIngestionPayload } from "@/domain";
 import { persistLeadIngestion } from "@/lib/lead-ingestion/persistence";
+import { persistPersonaIntelligenceForLead } from "@/lib/persona-intelligence/persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
@@ -47,10 +48,17 @@ export async function POST(request: Request) {
   }
 
   try {
+    const supabase = getSupabaseAdminClient();
     const persisted = await persistLeadIngestion({
       input: normalizedInput,
       result,
-      supabase: getSupabaseAdminClient(),
+      supabase,
+    });
+    const personaIntelligence = await persistOptionalPersonaIntelligence({
+      input: normalizedInput,
+      result,
+      persisted,
+      supabase,
     });
 
     return NextResponse.json(
@@ -59,6 +67,7 @@ export async function POST(request: Request) {
         persistence: {
           status: "persisted",
           ...persisted,
+          personaIntelligence,
         },
       },
       { status: 201 },
@@ -78,4 +87,23 @@ export async function POST(request: Request) {
     );
   }
 
+}
+
+type OptionalPersonaIntelligenceInput = Parameters<typeof persistPersonaIntelligenceForLead>[0];
+
+async function persistOptionalPersonaIntelligence(input: OptionalPersonaIntelligenceInput) {
+  try {
+    return {
+      status: "persisted" as const,
+      ...(await persistPersonaIntelligenceForLead(input)),
+    };
+  } catch (error) {
+    return {
+      status: "not_ready" as const,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Persona intelligence tables are not ready for persistence yet.",
+    };
+  }
 }

@@ -120,6 +120,15 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
     );
   }
 
+  if (name === "ai") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 4.5 13.6 9l4.4 1.6-4.4 1.6L12 16.7l-1.6-4.5L6 10.6 10.4 9 12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M18 15.5 18.8 18l2.2.8-2.2.8-.8 2.4-.8-2.4-2.2-.8 2.2-.8.8-2.5ZM5.5 3 6.1 4.7 7.8 5.3 6.1 5.9 5.5 7.6 4.9 5.9 3.2 5.3 4.9 4.7 5.5 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
   if (name === "intake") {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">

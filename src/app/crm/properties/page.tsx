@@ -1,5 +1,14 @@
 import { CrmObjectPage } from "../_components/crm-object-page";
 
-export default function PropertiesCrmPage() {
-  return <CrmObjectPage objectKey="properties" />;
+export default async function PropertiesCrmPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ action?: string | string[] }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  return <CrmObjectPage action={getAction(query.action)} objectKey="properties" />;
+}
+
+function getAction(action: string | string[] | undefined) {
+  return Array.isArray(action) ? action[0] : action;
 }

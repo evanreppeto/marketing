@@ -1,145 +1,250 @@
-import { AppShell } from "../_components/app-shell";
-import { PageHeader, Panel, StatusPill } from "../_components/page-header";
-import { intakeChannels, intakeLeads, intakeOutcomes, personaDisplay, validationGateRows } from "../_data/growth-engine";
+import Link from "next/link";
 
-const steps = [
-  ["Receive", "Submission captured from form, partner, phone, or internal intake."],
-  ["Validate", "Customer type, relationship, and loss details are checked."],
-  ["Classify", "Water-loss signals are separated from non-target work."],
-  ["Route", "Priority, next action, and persistence state are returned."],
+import { AppShell } from "../_components/app-shell";
+import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import {
+  intakeChannels,
+  intakeLeads,
+  intakeOutcomes,
+  personaDisplay,
+  validationGateRows,
+} from "../_data/growth-engine";
+
+const intakeSteps = [
+  ["Receive", "Capture source, contact, property, and loss context."],
+  ["Validate", "Check relationships, customer type, and required fields."],
+  ["Classify", "Separate water, fire, mold, and sewage from out-of-scope work."],
+  ["Route", "Send ready records to the right queue with score context."],
 ];
 
-export default function LeadIngestionPage() {
+export default async function LeadIngestionPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ action?: string | string[]; view?: string | string[] }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  const action = getValue(query.action);
+  const view = getValue(query.view) ?? "needs-review";
+  const selectedLeads =
+    view === "ready"
+      ? intakeLeads.filter((lead) => lead.status === "Ready for team")
+      : view === "blocked"
+        ? intakeLeads.filter((lead) => lead.status === "Archive")
+        : intakeLeads;
+
   return (
     <AppShell active="/lead-ingestion">
       <PageHeader
         eyebrow="Lead Intake"
         title="Validate and classify incoming submissions"
-        description="The intake gate rejects incomplete records, checks customer type, and classifies loss signals before routing."
+        description="This is the intake gate. It checks contact data, customer type, relationship links, and restoration scope before a lead can feed routing, CRM, or campaign intelligence."
         aside={<StatusPill tone="blue">Validation gate active</StatusPill>}
       />
 
-      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.44fr)_minmax(360px,0.76fr)]">
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise p-0 [animation-delay:70ms]">
-            <div className="flex flex-col gap-3 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-[-0.02em]">Intake queue</h2>
-                <p className="mt-1 text-sm text-[#6e6962]">Examples using the same validation boundary as the API.</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="min-h-11 rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition active:-translate-y-px">
-                  Filter
-                </button>
-                <button className="min-h-11 rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition active:-translate-y-px">
-                  Validate selected
-                </button>
-              </div>
+      <OperatorBar
+        task="Decide which submissions are ready for routing."
+        detail="New leads must include an approved persona, a usable relationship, and a target restoration signal. Unassigned personas and off-scope losses stay out of automation."
+        status="Mock intake"
+        secondary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href="/lead-ingestion?action=needs-review"
+          >
+            Needs review
+          </Link>
+        }
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="/lead-ingestion?action=validate-selected"
+          >
+            Validate selected
+          </Link>
+        }
+      />
+      <ActionFeedback
+        action={action}
+        messages={{
+          "needs-review": "Needs-review queue previewed. No intake records were changed.",
+          "validate-selected": "Validation previewed. Accepted records would move to routing after persistence is connected.",
+          "open-persona-intelligence": "Persona Intelligence is a separate workspace for acceleration and campaign signals.",
+        }}
+      />
+
+      <div className="grid gap-4 md:grid-cols-4">
+        {intakeOutcomes.map((stat) => (
+          <Panel className="module-rise [animation-delay:70ms]" key={stat.label}>
+            <div className="text-sm text-[#6e6962]">{stat.label}</div>
+            <div className="mt-2 font-mono text-3xl font-semibold tracking-[-0.05em]">{stat.value}</div>
+            <div
+              className={`mt-3 inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
+                stat.tone === "green"
+                  ? "bg-[#eef7f1] text-[#117343]"
+                  : stat.tone === "red"
+                    ? "bg-[#fdf1ef] text-[#c5261f]"
+                    : "bg-[#fff3d9] text-[#875a07]"
+              }`}
+            >
+              {stat.delta}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[660px] border-separate border-spacing-0 text-left text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
-                    <th className="w-[30%] px-5 py-4">Lead</th>
-                    <th className="w-[25%] px-4 py-4">Customer</th>
-                    <th className="w-[20%] px-4 py-4">Issue</th>
-                    <th className="w-[25%] px-4 py-4">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {intakeLeads.map((lead) => (
-                    <tr key={lead.name}>
+          </Panel>
+        ))}
+      </div>
+
+      <div className="mt-4 grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Panel className="module-rise overflow-hidden p-0 [animation-delay:120ms]">
+          <div className="flex flex-col gap-3 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Intake queue</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">
+                Submissions using the same validation boundary as the API.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ["needs-review", "All"],
+                ["ready", "Ready"],
+                ["blocked", "Blocked"],
+              ].map(([key, label]) => (
+                <Link
+                  className={`inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold transition active:-translate-y-px ${
+                    view === key
+                      ? "border-[#151515] bg-[#151515] text-white"
+                      : "border-[#ddd6cd] bg-white text-[#151515] hover:border-[#151515]"
+                  }`}
+                  href={`/lead-ingestion?view=${key}`}
+                  key={key}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
+                  <th className="px-5 py-4">Lead</th>
+                  <th className="px-4 py-4">Customer</th>
+                  <th className="px-4 py-4">Signal</th>
+                  <th className="px-4 py-4">Validation</th>
+                  <th className="px-5 py-4">Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedLeads.map((lead) => {
+                  const persona = personaDisplay[lead.customerType];
+                  const isTarget = lead.classification.classification === "target_water_loss";
+
+                  return (
+                    <tr className="transition hover:bg-[#fbfaf8]" key={lead.name}>
                       <td className="border-t border-[#eee8e1] px-5 py-4">
                         <div className="font-semibold">{lead.name}</div>
-                        <div className="mt-1 text-xs text-[#6e6962]">{lead.received} from {lead.source}</div>
+                        <div className="mt-1 text-xs text-[#6e6962]">
+                          {lead.received} from {lead.source}
+                        </div>
                       </td>
                       <td className="border-t border-[#eee8e1] px-4 py-4">
                         <div className="font-semibold">{lead.contact}</div>
-                        <div className="mt-1 text-xs text-[#6e6962]">{personaDisplay[lead.customerType].label}</div>
+                        <div className="mt-1 text-xs text-[#6e6962]">{persona.label}</div>
                       </td>
-                      <td className="border-t border-[#eee8e1] px-4 py-4">{lead.issue}</td>
                       <td className="border-t border-[#eee8e1] px-4 py-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <StatusPill tone={lead.action === "High priority" ? "red" : "gray"}>{lead.action}</StatusPill>
-                          <span className="font-mono text-lg font-semibold">{lead.score}</span>
-                        </div>
+                        <div className="font-medium">{lead.issue}</div>
+                        <div className="mt-1 text-xs text-[#6e6962]">{lead.address}</div>
+                      </td>
+                      <td className="border-t border-[#eee8e1] px-4 py-4">
+                        <StatusPill tone={isTarget ? "green" : "red"}>{lead.action}</StatusPill>
+                        <div className="mt-2 text-xs text-[#6e6962]">{lead.status}</div>
+                      </td>
+                      <td className="border-t border-[#eee8e1] px-5 py-4 font-mono text-lg font-semibold">
+                        {lead.score}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
 
-          <Panel className="module-rise p-0 [animation-delay:220ms]">
-            <div className="grid grid-cols-2 divide-x divide-[#eee8e1] md:grid-cols-4">
-              {intakeOutcomes.map((metric) => (
-                <div className="px-5 py-4" key={metric.label}>
-                  <div className="text-xs text-[#7a736b]">{metric.label}</div>
-                  <div className="mt-1.5 flex items-baseline gap-2">
-                    <span className="font-mono text-xl font-semibold tabular-nums tracking-[-0.02em]">
-                      {metric.value}
-                    </span>
-                    <StatusPill tone={metric.tone}>{metric.delta}</StatusPill>
-                  </div>
-                </div>
-              ))}
+        <aside className="min-w-0 space-y-4">
+          <Panel className="module-rise p-0 [animation-delay:150ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-5">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Validation gate</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">Required checks before routing or AI use.</p>
             </div>
-          </Panel>
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise [animation-delay:120ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Validation gate</h2>
-            <div className="mt-5 space-y-4">
+            <div className="divide-y divide-[#eee8e1]">
               {validationGateRows.map((row) => (
-                <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={row.label}>
-                  <div>
-                    <div className="font-semibold">{row.label}</div>
-                    <div className="mt-1 text-sm text-[#6e6962]">{row.detail}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-mono text-lg font-semibold">{row.completion}</div>
+                <div className="px-5 py-4" key={row.label}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold">{row.label}</div>
+                      <div className="mt-1 text-sm text-[#6e6962]">{row.detail}</div>
+                    </div>
                     <StatusPill tone={row.status === "Review" ? "amber" : "green"}>{row.status}</StatusPill>
                   </div>
+                  <div className="mt-2 font-mono text-sm font-semibold">{row.completion}</div>
                 </div>
               ))}
             </div>
           </Panel>
 
-          <Panel className="module-rise [animation-delay:170ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Source mix</h2>
-            <div className="mt-5 space-y-3">
-              {intakeChannels.map((channel) => (
-                <div key={channel.label}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold">{channel.label}</span>
-                    <span className="font-mono">{channel.value} / {channel.share}</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-[#eee8e1]">
-                    <div className="h-2 rounded-full bg-[#e7352f]" style={{ width: channel.share }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+          <Panel className="module-rise [animation-delay:190ms]">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Persona handoff</h2>
+            <p className="mt-2 text-sm leading-6 text-[#6e6962]">
+              Once a lead is accepted, its profile and behavior can inform Persona Intelligence and AI Studio. Intake
+              still owns the hard gate.
+            </p>
+            <Link
+              className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+              href="/persona-intelligence?action=open-persona-intelligence"
+            >
+              Open persona intelligence
+            </Link>
           </Panel>
-        </div>
+        </aside>
       </div>
 
-      <Panel className="module-rise mt-4 [animation-delay:260ms]">
-        <h2 className="text-xl font-semibold tracking-[-0.02em]">Intake path</h2>
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
-          {steps.map(([title, body], index) => (
-            <div className="rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-4" key={title}>
-              <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-md bg-[#151515] font-mono text-sm font-semibold text-white">
-                {index + 1}
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <Panel className="module-rise p-0 [animation-delay:220ms]">
+          <div className="border-b border-[#e7e0d8] px-5 py-5">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Intake path</h2>
+            <p className="mt-1 text-sm text-[#6e6962]">The operational path from raw submission to routed lead.</p>
+          </div>
+          <div className="grid gap-0 md:grid-cols-4">
+            {intakeSteps.map(([step, detail], index) => (
+              <div className="border-b border-[#eee8e1] p-5 md:border-r md:last:border-r-0" key={step}>
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#151515] font-mono text-xs font-semibold text-white">
+                  {index + 1}
+                </div>
+                <div className="mt-4 font-semibold">{step}</div>
+                <p className="mt-2 text-sm leading-6 text-[#6e6962]">{detail}</p>
               </div>
-              <h3 className="font-semibold">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-[#6e6962]">{body}</p>
-            </div>
-          ))}
-        </div>
-      </Panel>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel className="module-rise p-0 [animation-delay:250ms]">
+          <div className="border-b border-[#e7e0d8] px-5 py-5">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Source mix</h2>
+            <p className="mt-1 text-sm text-[#6e6962]">Sample intake channels that will feed CRM persistence.</p>
+          </div>
+          <div className="grid gap-0 sm:grid-cols-2">
+            {intakeChannels.map((channel) => (
+              <div className="border-b border-[#eee8e1] p-5 even:sm:border-l" key={channel.label}>
+                <div className="text-sm text-[#6e6962]">{channel.label}</div>
+                <div className="mt-2 font-mono text-2xl font-semibold tracking-[-0.05em]">{channel.value}</div>
+                <div className="mt-2 text-xs font-semibold text-[#21558a]">{channel.share}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
     </AppShell>
   );
+}
+
+function getValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }

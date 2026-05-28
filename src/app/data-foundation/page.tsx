@@ -1,8 +1,24 @@
-import { AppShell } from "../_components/app-shell";
-import { PageHeader, Panel, StatusPill } from "../_components/page-header";
-import { coreObjects, foundationIssues, pipelineStatus, validationRows } from "../_data/growth-engine";
+import Link from "next/link";
 
-export default function DataFoundationPage() {
+import { AppShell } from "../_components/app-shell";
+import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import {
+  coreObjects,
+  foundationIssues,
+  integrityScannerRules,
+  integrityScanStats,
+  pipelineStatus,
+  validationRows,
+} from "../_data/growth-engine";
+
+export default async function DataFoundationPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ action?: string | string[] }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  const action = getAction(query.action);
+
   return (
     <AppShell active="/data-foundation">
       <PageHeader
@@ -10,6 +26,37 @@ export default function DataFoundationPage() {
         title="Records, relationships, and integrity"
         description="Every company, person, property, lead, job, and result is checked before automations can run."
         aside={<HeaderStatus />}
+      />
+
+      <OperatorBar
+        task="Clean the records that would block routing or reporting."
+        detail="Start with missing contact fields, duplicate companies, and orphaned properties before connecting live automation."
+        status="5 cleanup items"
+        secondary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href="/crm"
+          >
+            Open CRM
+          </Link>
+        }
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="/data-foundation?action=review-queue"
+          >
+            Review queue
+          </Link>
+        }
+      />
+      <ActionFeedback
+        action={action}
+        messages={{
+          "review-queue": "Integrity queue is in review mode. This is a scaffold preview; no records were changed.",
+          "fix-record": "Record cleanup action previewed. Persistence is not connected yet.",
+          "run-integrity-scan": "Automated integrity scan previewed. The scanner would inspect CRM records and refresh this queue.",
+          "configure-scanner": "Scanner rule configuration previewed. Rules are still mock-only until persistence is connected.",
+        }}
       />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(360px,0.78fr)]">
@@ -93,24 +140,83 @@ export default function DataFoundationPage() {
         </Panel>
       </div>
 
+      <Panel className="module-rise mt-4 p-0 [animation-delay:150ms]">
+        <div className="flex flex-col gap-3 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Automated integrity scanner</h2>
+            <p className="mt-1 text-sm text-[#6e6962]">
+              Searches the CRM model for missing fields, duplicate records, orphaned relationships, and routing blockers.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+              href="/data-foundation?action=configure-scanner"
+            >
+              Configure rules
+            </Link>
+            <Link
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+              href="/data-foundation?action=run-integrity-scan"
+            >
+              Run scan
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid border-b border-[#eee8e1] md:grid-cols-4">
+          {integrityScanStats.map((stat) => (
+            <div className="border-b border-[#eee8e1] px-5 py-4 md:border-b-0 md:border-r last:md:border-r-0" key={stat.label}>
+              <div className="text-xs text-[#6e6962]">{stat.label}</div>
+              <div className="mt-1.5 font-mono text-2xl font-semibold tracking-[-0.04em]">{stat.value}</div>
+              <div className="mt-2 inline-flex rounded-md bg-[#fff3d9] px-2 py-1 text-xs font-semibold text-[#875a07]">
+                {stat.delta}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-0 lg:grid-cols-4">
+          {integrityScannerRules.map((rule) => (
+            <div className="border-b border-[#eee8e1] p-5 lg:border-r lg:last:border-r-0" key={rule.rule}>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="font-semibold">{rule.rule}</h3>
+                <StatusPill tone="green">{rule.status}</StatusPill>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-[#6e6962]">{rule.searches}</p>
+              <div className="mt-4 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-3">
+                <div className="text-xs text-[#6e6962]">Objects scanned</div>
+                <div className="mt-1 text-sm font-semibold">{rule.objects}</div>
+                <div className="mt-2 text-xs text-[#6e6962]">Cadence: {rule.cadence}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
       <div className="mt-4 grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Panel className="module-rise p-0 [animation-delay:170ms]">
           <div className="flex flex-col gap-3 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Integrity queue</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">Records that need operator cleanup before automation.</p>
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Detected integrity queue</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">Findings generated by scanner rules before automation can trust the record.</p>
             </div>
-            <button className="min-h-11 rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition active:-translate-y-px">
-              Review queue
-            </button>
+            <Link
+              className="inline-flex min-h-11 items-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+              href="/data-foundation?action=run-integrity-scan"
+            >
+              Run scan
+            </Link>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
                   <th className="px-5 py-4">Issue</th>
                   <th className="px-4 py-4">Affected records</th>
+                  <th className="px-4 py-4">Detected by</th>
                   <th className="px-4 py-4">Impact</th>
+                  <th className="px-4 py-4">Confidence</th>
                   <th className="px-4 py-4">Last found</th>
                   <th className="px-5 py-4 text-right">Action</th>
                 </tr>
@@ -120,10 +226,14 @@ export default function DataFoundationPage() {
                   <tr key={row.issue}>
                     <td className="border-t border-[#eee8e1] px-5 py-4 font-semibold">{row.issue}</td>
                     <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{row.affected}</td>
+                    <td className="border-t border-[#eee8e1] px-4 py-4">{row.detector}</td>
                     <td className="border-t border-[#eee8e1] px-4 py-4">{row.impact}</td>
+                    <td className="border-t border-[#eee8e1] px-4 py-4 font-mono">{row.confidence}</td>
                     <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{row.lastFound}</td>
                     <td className="border-t border-[#eee8e1] px-5 py-4 text-right">
-                      <StatusPill tone={row.action === "Fix" ? "red" : "amber"}>{row.action}</StatusPill>
+                      <Link href="/data-foundation?action=fix-record">
+                        <StatusPill tone={row.action === "Fix" ? "red" : "amber"}>{row.action}</StatusPill>
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -151,6 +261,10 @@ export default function DataFoundationPage() {
       </div>
     </AppShell>
   );
+}
+
+function getAction(action: string | string[] | undefined) {
+  return Array.isArray(action) ? action[0] : action;
 }
 
 function HeaderStatus() {

@@ -1,5 +1,5 @@
 import { AppShell } from "../_components/app-shell";
-import { PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   exampleScore,
   exampleScoreBreakdown,
@@ -15,7 +15,13 @@ export default function ScoreRulesPage() {
         eyebrow="Priority Rules"
         title="How leads are scored, 0 to 100"
         description="Urgency, evidence, and partner strength combine into a bounded score that drives the next action."
-        aside={<StatusPill tone="gray">0–100 lead score</StatusPill>}
+        aside={<StatusPill tone="gray">0-100 lead score</StatusPill>}
+      />
+
+      <OperatorBar
+        task="Review the exact signals that move a lead into action."
+        detail="Keep scoring understandable for the operations team: active water, photos, timing, and partner strength should explain every next step."
+        status="Deterministic rules"
       />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
@@ -81,7 +87,7 @@ export default function ScoreRulesPage() {
               <div className="px-5 py-4">
                 <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Next action</div>
                 <div className="mt-1.5 text-lg font-semibold">Call now</div>
-                <div className="mt-1 text-xs text-[#6e6962]">Score ≥ 70 triggers immediate outreach.</div>
+                <div className="mt-1 text-xs text-[#6e6962]">Score 70+ triggers immediate outreach.</div>
               </div>
             </div>
           </Panel>
