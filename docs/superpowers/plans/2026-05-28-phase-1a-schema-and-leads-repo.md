@@ -234,7 +234,7 @@ export const EventRowSchema = z.object({
   type: z.string().min(1),
   payload: z.record(z.string(), z.unknown()),
   occurred_at: z.string(),
-  created_at: z.string(),
+  created_at: z.string().datetime({ offset: true }),
 });
 
 export const EventSchema = EventRowSchema.transform((row) => ({
@@ -294,8 +294,8 @@ import { RoutingDecisionSchema } from "../routing-decisions";
 describe("RoutingDecisionSchema", () => {
   it("parses a snake_case row into a camelCase domain RoutingDecision", () => {
     const row = {
-      id: "aaaa1111-1111-1111-1111-111111111111",
-      lead_id: "bbbb2222-2222-2222-2222-222222222222",
+      id: "aaaa1111-1111-4111-8111-111111111111",
+      lead_id: "bbbb2222-2222-4222-8222-222222222222",
       decision: "mitigation",
       confidence: 92,
       sla_target_minutes: 15,
@@ -306,8 +306,8 @@ describe("RoutingDecisionSchema", () => {
     };
 
     expect(RoutingDecisionSchema.parse(row)).toEqual({
-      id: "aaaa1111-1111-1111-1111-111111111111",
-      leadId: "bbbb2222-2222-2222-2222-222222222222",
+      id: "aaaa1111-1111-4111-8111-111111111111",
+      leadId: "bbbb2222-2222-4222-8222-222222222222",
       decision: "mitigation",
       confidence: 92,
       slaTargetMinutes: 15,
@@ -321,8 +321,8 @@ describe("RoutingDecisionSchema", () => {
   it("rejects an out-of-range confidence", () => {
     expect(() =>
       RoutingDecisionSchema.parse({
-        id: "aaaa1111-1111-1111-1111-111111111111",
-        lead_id: "bbbb2222-2222-2222-2222-222222222222",
+        id: "aaaa1111-1111-4111-8111-111111111111",
+        lead_id: "bbbb2222-2222-4222-8222-222222222222",
         decision: "mitigation",
         confidence: 250,
         sla_target_minutes: null,
@@ -358,9 +358,9 @@ export const RoutingDecisionRowSchema = z.object({
   confidence: z.number().int().min(0).max(100),
   sla_target_minutes: z.number().int().min(0).nullable(),
   decided_by: z.string().min(1),
-  decided_at: z.string(),
+  decided_at: z.string().datetime({ offset: true }),
   rationale: z.record(z.string(), z.unknown()),
-  created_at: z.string(),
+  created_at: z.string().datetime({ offset: true }),
 });
 
 export const RoutingDecisionSchema = RoutingDecisionRowSchema.transform((row) => ({
@@ -419,10 +419,10 @@ import { IntegrityFindingSchema } from "../integrity-findings";
 describe("IntegrityFindingSchema", () => {
   it("parses a snake_case row with an unresolved finding", () => {
     const row = {
-      id: "cccc1111-1111-1111-1111-111111111111",
+      id: "cccc1111-1111-4111-8111-111111111111",
       rule_key: "missing_email",
       subject_type: "contact",
-      subject_id: "dddd2222-2222-2222-2222-222222222222",
+      subject_id: "dddd2222-2222-4222-8222-222222222222",
       severity: "warning",
       detail: { field: "email" },
       detected_at: "2026-05-28T11:00:00.000Z",
@@ -432,10 +432,10 @@ describe("IntegrityFindingSchema", () => {
     };
 
     expect(IntegrityFindingSchema.parse(row)).toEqual({
-      id: "cccc1111-1111-1111-1111-111111111111",
+      id: "cccc1111-1111-4111-8111-111111111111",
       ruleKey: "missing_email",
       subjectType: "contact",
-      subjectId: "dddd2222-2222-2222-2222-222222222222",
+      subjectId: "dddd2222-2222-4222-8222-222222222222",
       severity: "warning",
       detail: { field: "email" },
       detectedAt: "2026-05-28T11:00:00.000Z",
@@ -447,12 +447,12 @@ describe("IntegrityFindingSchema", () => {
 
   it("parses a resolved finding", () => {
     const parsed = IntegrityFindingSchema.parse({
-      id: "cccc1111-1111-1111-1111-111111111111",
+      id: "cccc1111-1111-4111-8111-111111111111",
       rule_key: "duplicate_company",
       subject_type: "company",
-      subject_id: "eeee3333-3333-3333-3333-333333333333",
+      subject_id: "eeee3333-3333-4333-8333-333333333333",
       severity: "blocking",
-      detail: { duplicate_of: "ffff4444-4444-4444-4444-444444444444" },
+      detail: { duplicate_of: "ffff4444-4444-4444-8444-444444444444" },
       detected_at: "2026-05-27T10:00:00.000Z",
       resolved_at: "2026-05-28T12:00:00.000Z",
       created_at: "2026-05-27T10:00:00.000Z",
@@ -489,10 +489,10 @@ export const IntegrityFindingRowSchema = z.object({
   subject_id: z.string().uuid(),
   severity: IntegritySeveritySchema,
   detail: z.record(z.string(), z.unknown()),
-  detected_at: z.string(),
-  resolved_at: z.string().nullable(),
-  created_at: z.string(),
-  updated_at: z.string(),
+  detected_at: z.string().datetime({ offset: true }),
+  resolved_at: z.string().datetime({ offset: true }).nullable(),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
 });
 
 export const IntegrityFindingSchema = IntegrityFindingRowSchema.transform((row) => ({
@@ -554,10 +554,10 @@ import { LeadSchema } from "../leads";
 describe("LeadSchema", () => {
   it("parses a stored lead row into a camelCase domain Lead", () => {
     const row = {
-      id: "10000000-0000-0000-0000-000000000001",
-      company_id: "10000000-0000-0000-0000-000000000002",
-      contact_id: "10000000-0000-0000-0000-000000000003",
-      property_id: "10000000-0000-0000-0000-000000000004",
+      id: "10000000-0000-4000-8000-000000000001",
+      company_id: "10000000-0000-4000-8000-000000000002",
+      contact_id: "10000000-0000-4000-8000-000000000003",
+      property_id: "10000000-0000-4000-8000-000000000004",
       persona: "persona_homeowner_emergency",
       status: "validated",
       routing_recommendation: "elevated",
@@ -575,10 +575,10 @@ describe("LeadSchema", () => {
     };
 
     expect(LeadSchema.parse(row)).toEqual({
-      id: "10000000-0000-0000-0000-000000000001",
-      companyId: "10000000-0000-0000-0000-000000000002",
-      contactId: "10000000-0000-0000-0000-000000000003",
-      propertyId: "10000000-0000-0000-0000-000000000004",
+      id: "10000000-0000-4000-8000-000000000001",
+      companyId: "10000000-0000-4000-8000-000000000002",
+      contactId: "10000000-0000-4000-8000-000000000003",
+      propertyId: "10000000-0000-4000-8000-000000000004",
       persona: "persona_homeowner_emergency",
       status: "validated",
       routingRecommendation: "elevated",
@@ -599,7 +599,7 @@ describe("LeadSchema", () => {
   it("rejects lead_score above 100", () => {
     expect(() =>
       LeadSchema.parse({
-        id: "10000000-0000-0000-0000-000000000001",
+        id: "10000000-0000-4000-8000-000000000001",
         company_id: null,
         contact_id: null,
         property_id: null,
@@ -672,10 +672,10 @@ export const LeadRowSchema = z.object({
   matched_target_keywords: z.array(z.string()),
   matched_non_target_keywords: z.array(z.string()),
   lead_score: z.number().int().min(0).max(100),
-  received_at: z.string(),
+  received_at: z.string().datetime({ offset: true }),
   metadata: z.record(z.string(), z.unknown()),
-  created_at: z.string(),
-  updated_at: z.string(),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
 });
 
 export const LeadSchema = LeadRowSchema.transform((row) => ({
@@ -900,9 +900,9 @@ import { createSupabaseQueryMock } from "./__tests__/test-helpers";
 import { listLeads } from "./leads";
 
 const validLeadRow = {
-  id: "10000000-0000-0000-0000-000000000001",
+  id: "10000000-0000-4000-8000-000000000001",
   company_id: null,
-  contact_id: "10000000-0000-0000-0000-000000000003",
+  contact_id: "10000000-0000-4000-8000-000000000003",
   property_id: null,
   persona: "persona_homeowner_emergency",
   status: "validated",
