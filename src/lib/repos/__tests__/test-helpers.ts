@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 export type MockResponse = {
   data: unknown;
   error: { message: string } | null;
+  count?: number | null;
 };
 
 export type MockSupabase = SupabaseClient & {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "./__tests__/test-helpers";
-import { getLead, listLeads, type ListLeadsFilter } from "./leads";
+import { countLeads, getLead, listLeads, type ListLeadsFilter } from "./leads";
 
 const validLeadRow = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -130,5 +130,45 @@ describe("getLead", () => {
     });
 
     await expect(getLead("any-id", supabase)).rejects.toThrow(/getLead failed: db down/);
+  });
+});
+
+describe("countLeads", () => {
+  it("returns the count value from a head select", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null, count: 42 } as unknown as Parameters<typeof createSupabaseQueryMock>[0]["leads"],
+    });
+
+    const count = await countLeads({}, supabase);
+
+    expect(count).toBe(42);
+    expect(supabase.calls).toContainEqual(["from", "leads"]);
+    expect(supabase.calls).toContainEqual(["select", "*", { count: "exact", head: true }]);
+  });
+
+  it("applies a status filter", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null, count: 7 } as unknown as Parameters<typeof createSupabaseQueryMock>[0]["leads"],
+    });
+
+    await countLeads({ status: "validated" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "status", "validated"]);
+  });
+
+  it("returns 0 when count is null or missing", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null },
+    });
+
+    await expect(countLeads({}, supabase)).resolves.toBe(0);
+  });
+
+  it("throws when Supabase returns an error", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: null, error: { message: "boom" } },
+    });
+
+    await expect(countLeads({}, supabase)).rejects.toThrow(/countLeads failed: boom/);
   });
 });

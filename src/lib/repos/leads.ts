@@ -59,3 +59,28 @@ export async function getLead(
 
   return LeadSchema.parse(data);
 }
+
+export async function countLeads(
+  filter: ListLeadsFilter = {},
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<number> {
+  let query = client.from("leads").select("*", { count: "exact", head: true });
+
+  if (filter.status) {
+    query = query.eq("status", filter.status);
+  }
+  if (filter.persona) {
+    query = query.eq("persona", filter.persona);
+  }
+  if (filter.source) {
+    query = query.eq("source", filter.source);
+  }
+
+  const { count, error } = (await query) as { count: number | null; error: { message: string } | null };
+
+  if (error) {
+    throw new Error(`countLeads failed: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
