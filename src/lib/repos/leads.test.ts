@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "./__tests__/test-helpers";
-import { listLeads, type ListLeadsFilter } from "./leads";
+import { getLead, listLeads, type ListLeadsFilter } from "./leads";
 
 const validLeadRow = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -99,5 +99,36 @@ describe("listLeads filters", () => {
     await listLeads({ limit: 25 }, supabase);
 
     expect(supabase.calls).toContainEqual(["limit", 25]);
+  });
+});
+
+describe("getLead", () => {
+  it("returns a single parsed Lead when one is found", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: validLeadRow, error: null },
+    });
+
+    const lead = await getLead(validLeadRow.id, supabase);
+
+    expect(lead).toMatchObject({ id: validLeadRow.id, leadScore: 85 });
+    expect(supabase.calls).toContainEqual(["from", "leads"]);
+    expect(supabase.calls).toContainEqual(["eq", "id", validLeadRow.id]);
+    expect(supabase.calls).toContainEqual(["maybeSingle"]);
+  });
+
+  it("returns null when no row is found", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: null, error: null },
+    });
+
+    await expect(getLead("missing-id", supabase)).resolves.toBeNull();
+  });
+
+  it("throws when Supabase returns an error", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: null, error: { message: "db down" } },
+    });
+
+    await expect(getLead("any-id", supabase)).rejects.toThrow(/getLead failed: db down/);
   });
 });

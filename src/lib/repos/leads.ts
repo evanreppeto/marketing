@@ -38,3 +38,24 @@ export async function listLeads(
   const rows = (data ?? []) as unknown[];
   return rows.map((row) => LeadSchema.parse(row));
 }
+
+export async function getLead(
+  id: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<Lead | null> {
+  const { data, error } = await client
+    .from("leads")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`getLead failed: ${error.message}`);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return LeadSchema.parse(data);
+}
