@@ -9,6 +9,25 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
+const navSections = [
+  {
+    label: "Core",
+    items: ["/data-foundation", "/crm"],
+  },
+  {
+    label: "Marketing",
+    items: ["/ai-studio", "/persona-intelligence", "/customer-types"],
+  },
+  {
+    label: "Daily work",
+    items: ["/agent-operations", "/lead-ingestion", "/loss-routing"],
+  },
+  {
+    label: "Controls",
+    items: ["/score-rules", "/reports"],
+  },
+];
+
 export function AppShell({ active, children }: AppShellProps) {
   const activeItem = navItems.find((item) => item.href === active);
 
@@ -52,28 +71,59 @@ export function AppShell({ active, children }: AppShellProps) {
           </Link>
 
           <nav
-            className="grid grid-cols-1 gap-1 text-[14px] sm:grid-cols-3 xl:block xl:space-y-[clamp(0.1rem,0.28vh,0.25rem)] xl:text-[clamp(0.75rem,1.55vh,0.875rem)]"
+            className="grid grid-cols-1 gap-2 text-[14px] sm:grid-cols-2 xl:block xl:space-y-[clamp(0.35rem,0.8vh,0.55rem)] xl:text-[clamp(0.75rem,1.55vh,0.875rem)]"
             aria-label="Main navigation"
           >
-            {navItems.map((item) => {
-              const isActive = item.href === active;
-
+            {(() => {
+              const today = navItems.find((item) => item.href === "/");
+              if (!today) return null;
+              const isActive = active === "/";
               return (
                 <Link
                   aria-current={isActive ? "page" : undefined}
-                  className={`group flex min-h-10 items-center gap-3 rounded-md border px-3 transition-colors duration-150 hover:bg-white/8 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5bb7e8] active:-translate-y-px xl:min-h-[clamp(1.85rem,4.2vh,2.25rem)] xl:gap-[clamp(0.45rem,1.05vh,0.75rem)] xl:px-[clamp(0.5rem,1.2vh,0.75rem)] ${
+                  className={`group flex min-h-10 items-center gap-3 rounded-md border px-3 transition-colors duration-150 hover:bg-white/8 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5bb7e8] active:-translate-y-px xl:min-h-[clamp(1.95rem,4vh,2.25rem)] xl:gap-[clamp(0.45rem,1.05vh,0.75rem)] xl:px-[clamp(0.5rem,1.2vh,0.75rem)] ${
                     isActive
-                      ? "border-[#5bb7e8]/45 bg-[#102a43] font-semibold text-white shadow-[inset_4px_0_0_#5bb7e8,0_16px_32px_-26px_rgba(91,183,232,0.9)]"
-                      : "border-transparent text-white/70"
+                      ? "border-[#e7352f]/55 bg-[#2a0c0c] font-semibold text-white shadow-[inset_4px_0_0_#e7352f,0_16px_32px_-26px_rgba(231,53,47,0.9)]"
+                      : "border-[#5bb7e8]/15 bg-[#07111f]/30 text-white/85"
                   }`}
-                  href={item.href}
-                  key={item.href}
+                  href="/"
                 >
-                  <NavIcon name={item.icon} active={isActive} />
-                  {item.label}
+                  <NavIcon name={today.icon} active={isActive} />
+                  {today.label}
                 </Link>
               );
-            })}
+            })()}
+            {navSections.map((section) => (
+              <div className="min-w-0 rounded-md border border-[#5bb7e8]/10 bg-[#07111f]/18 p-1.5" key={section.label}>
+                <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5bb7e8]">
+                  {section.label}
+                </div>
+                <div className="grid gap-1">
+                  {section.items.map((href) => {
+                    const item = navItems.find((navItem) => navItem.href === href);
+                    if (!item) return null;
+
+                    const isActive = item.href === active;
+
+                    return (
+                      <Link
+                        aria-current={isActive ? "page" : undefined}
+                        className={`group flex min-h-10 items-center gap-3 rounded-md border px-3 transition-colors duration-150 hover:bg-white/8 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5bb7e8] active:-translate-y-px xl:min-h-[clamp(1.75rem,3.65vh,2.1rem)] xl:gap-[clamp(0.45rem,1.05vh,0.75rem)] xl:px-[clamp(0.5rem,1.2vh,0.75rem)] ${
+                          isActive
+                            ? "border-[#5bb7e8]/45 bg-[#102a43] font-semibold text-white shadow-[inset_4px_0_0_#5bb7e8,0_16px_32px_-26px_rgba(91,183,232,0.9)]"
+                            : "border-transparent text-white/70"
+                        }`}
+                        href={item.href}
+                        key={item.href}
+                      >
+                        <NavIcon name={item.icon} active={isActive} />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           <div className="mt-auto hidden pt-3 xl:block xl:w-full xl:pt-[clamp(0.35rem,1vh,0.75rem)]">
@@ -112,6 +162,20 @@ export function AppShell({ active, children }: AppShellProps) {
 
 function NavIcon({ name, active }: { name: string; active: boolean }) {
   const className = `h-5 w-5 xl:h-[clamp(1rem,2.4vh,1.25rem)] xl:w-[clamp(1rem,2.4vh,1.25rem)] ${active ? "text-white" : "text-white/62 group-hover:text-white"}`;
+
+  if (name === "today") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="13" r="4.5" stroke="currentColor" strokeWidth="1.8" />
+        <path
+          d="M12 3v2M12 21v.5M3.5 13H2M22 13h-1.5M5.4 6.4 4.4 5.4M19.6 6.4l-1 1M5.4 19.6l-1 1M19.6 19.6l-1-1"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
 
   if (name === "database") {
     return (

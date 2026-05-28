@@ -7,6 +7,7 @@ import {
 } from "@/domain";
 
 export const navItems = [
+  { label: "Today", href: "/", icon: "today" },
   { label: "Data Foundation", href: "/data-foundation", icon: "database" },
   { label: "CRM", href: "/crm", icon: "crm" },
   { label: "AI Studio", href: "/ai-studio", icon: "ai" },
