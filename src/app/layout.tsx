@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Big Shoulders Growth Engine",
-  description: "Typed CRM foundation and lead routing cockpit for Big Shoulders Restoration.",
+  title: "Signal | Big Shoulders",
+  description: "AI-native CRM, persona intelligence, routing, and campaign operations for Big Shoulders Restoration.",
+  icons: {
+    icon: "/brand/signal-mark-transparent.png",
+    apple: "/brand/signal-mark-original.png",
+  },
 };
 
 export default function RootLayout({
