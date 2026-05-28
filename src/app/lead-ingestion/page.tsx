@@ -14,8 +14,8 @@ export default function LeadIngestionPage() {
     <AppShell active="/lead-ingestion">
       <PageHeader
         eyebrow="Lead Intake"
-        title="Turn raw submissions into team-ready leads"
-        description="The intake gate rejects incomplete records, validates customer type, classifies the loss, and tells operators what should happen before any outbound workflow starts."
+        title="Validate and classify incoming submissions"
+        description="The intake gate rejects incomplete records, checks customer type, and classifies loss signals before routing."
         aside={<StatusPill tone="blue">Validation gate active</StatusPill>}
       />
 
@@ -71,17 +71,21 @@ export default function LeadIngestionPage() {
             </div>
           </Panel>
 
-          <div className="grid gap-4 md:grid-cols-4">
-            {intakeOutcomes.map((metric) => (
-              <Panel className="module-rise [animation-delay:220ms]" key={metric.label}>
-                <div className="text-sm text-[#6e6962]">{metric.label}</div>
-                <div className="mt-2 flex items-end justify-between gap-3">
-                  <span className="font-mono text-3xl font-semibold tracking-[-0.04em]">{metric.value}</span>
-                  <StatusPill tone={metric.tone}>{metric.delta}</StatusPill>
+          <Panel className="module-rise p-0 [animation-delay:220ms]">
+            <div className="grid grid-cols-2 divide-x divide-[#eee8e1] md:grid-cols-4">
+              {intakeOutcomes.map((metric) => (
+                <div className="px-5 py-4" key={metric.label}>
+                  <div className="text-xs text-[#7a736b]">{metric.label}</div>
+                  <div className="mt-1.5 flex items-baseline gap-2">
+                    <span className="font-mono text-xl font-semibold tabular-nums tracking-[-0.02em]">
+                      {metric.value}
+                    </span>
+                    <StatusPill tone={metric.tone}>{metric.delta}</StatusPill>
+                  </div>
                 </div>
-              </Panel>
-            ))}
-          </div>
+              ))}
+            </div>
+          </Panel>
         </div>
 
         <div className="min-w-0 space-y-4">

@@ -9,8 +9,8 @@ export default function CrmOverviewPage() {
     <AppShell active="/crm">
       <PageHeader
         eyebrow="CRM Scaffold"
-        title="Build the CRM backbone without wiring live data yet"
-        description="This scaffolding gives every core CRM object a route, list shell, mock records, detail pages, relationship previews, and action placeholders. Supabase reads, writes, and edit forms come later."
+        title="Companies, contacts, properties, jobs"
+        description="Every core CRM object has a route, list shell, and detail page. Supabase reads, writes, and edit forms come later."
         aside={<StatusPill tone="amber">Mock preview</StatusPill>}
       />
 

@@ -8,6 +8,8 @@ type AppShellProps = {
 };
 
 export function AppShell({ active, children }: AppShellProps) {
+  const activeItem = navItems.find((item) => item.href === active);
+
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#f7f5f1] text-[#151515]">
       <div className="grid min-h-screen w-full max-w-full grid-cols-1 overflow-x-hidden xl:block xl:bg-[linear-gradient(90deg,#111214_0_244px,#f7f5f1_244px_100%)]">
@@ -19,18 +21,21 @@ export function AppShell({ active, children }: AppShellProps) {
             <div className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#ff4a43]">
               Big Shoulders
             </div>
-            <div className="mt-2 text-[24px] font-semibold leading-none tracking-[-0.04em]">
+            <div className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.04em]">
               Growth Engine
             </div>
           </Link>
 
-          <nav className="grid grid-cols-1 gap-1 text-[14px] sm:grid-cols-3 xl:block xl:space-y-1 xl:text-[15px]" aria-label="Main navigation">
+          <nav
+            className="grid grid-cols-1 gap-1 text-[14px] sm:grid-cols-3 xl:block xl:space-y-0.5 xl:text-[14px]"
+            aria-label="Main navigation"
+          >
             {navItems.map((item) => {
               const isActive = item.href === active;
 
               return (
                 <Link
-                  className={`group flex min-h-11 items-center gap-3 rounded-md px-3 transition-all duration-200 hover:bg-white/8 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f04438] active:-translate-y-px xl:min-h-12 ${
+                  className={`group flex min-h-10 items-center gap-3 rounded-md px-3 transition-colors duration-150 hover:bg-white/8 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f04438] active:-translate-y-px xl:min-h-11 ${
                     isActive
                       ? "bg-[#e7352f] font-semibold text-white shadow-[0_18px_34px_-20px_rgba(231,53,47,0.8)]"
                       : "text-white/70"
@@ -46,20 +51,19 @@ export function AppShell({ active, children }: AppShellProps) {
           </nav>
 
           <div className="mt-8 hidden xl:fixed xl:bottom-5 xl:left-3 xl:block xl:w-[220px] xl:space-y-3">
-            <div className="rounded-md border border-white/10 bg-white/[0.03] p-4 text-xs text-white/66">
-              <div className="font-semibold text-white">MVP Scope</div>
-              <p className="mt-2 leading-5 text-white/62">
-                Clean records, clear customer types, water-loss routing, and priority scores.
-              </p>
-              <div className="mt-4 inline-flex items-center gap-2 font-semibold text-white">
-                <span className="h-2 w-2 rounded-full bg-[#30b85b] status-breathe" />
+            <div className="rounded-md border border-white/10 bg-white/[0.03] p-3 text-xs text-white/66">
+              <div className="flex items-center gap-2 font-semibold text-white">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#30b85b] status-breathe" />
                 System drafting
               </div>
+              <p className="mt-2 leading-5 text-white/55">
+                MVP: clean records, customer types, water-loss routing, priority scores.
+              </p>
             </div>
 
-            <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
+            <div className="rounded-md border border-white/10 bg-white/[0.04] p-2.5">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/12 text-sm font-semibold">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/12 text-xs font-semibold">
                   BS
                 </div>
                 <div className="min-w-0">
@@ -71,7 +75,24 @@ export function AppShell({ active, children }: AppShellProps) {
           </div>
         </aside>
 
-        <section className="min-w-0 max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8 xl:ml-[244px] xl:px-9 xl:py-8">{children}</section>
+        <div className="min-w-0 max-w-full overflow-x-hidden xl:ml-[244px]">
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-[#ddd6cd] bg-[#f7f5f1]/85 px-4 py-2.5 backdrop-blur sm:px-6 lg:px-8 xl:px-9">
+            <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-[#6e6962]">
+              <span className="font-medium text-[#6e6962]">Growth Engine</span>
+              <span aria-hidden="true" className="text-[#c8bfb3]">/</span>
+              <span className="font-semibold text-[#151515]">{activeItem?.label ?? "Workspace"}</span>
+            </nav>
+            <div className="flex items-center gap-2 text-xs text-[#6e6962]">
+              <kbd className="hidden items-center gap-1 rounded border border-[#ddd6cd] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#6e6962] sm:inline-flex">
+                <span>⌘</span>
+                <span>K</span>
+              </kbd>
+              <span className="hidden sm:inline">Quick jump</span>
+            </div>
+          </div>
+
+          <section className="px-4 py-5 sm:px-6 lg:px-8 xl:px-9 xl:py-7">{children}</section>
+        </div>
       </div>
     </main>
   );

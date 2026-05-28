@@ -7,8 +7,8 @@ export default function DataFoundationPage() {
     <AppShell active="/data-foundation">
       <PageHeader
         eyebrow="Data Foundation"
-        title="Keep every growth record connected"
-        description="Before AI drafts, routes, or scores anything, the data foundation checks that every company, person, property, lead, job, and result has the relationships operators need."
+        title="Records, relationships, and integrity"
+        description="Every company, person, property, lead, job, and result is checked before automations can run."
         aside={<HeaderStatus />}
       />
 
@@ -155,13 +155,11 @@ export default function DataFoundationPage() {
 
 function HeaderStatus() {
   return (
-    <div className="rounded-md border border-[#ddd6cd] bg-white px-5 py-4 shadow-[0_18px_45px_-34px_rgba(52,43,34,0.42)]">
-      <div className="flex items-center gap-3">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#23a455] status-breathe" />
-        <div>
-          <div className="text-sm font-semibold">Data contracts: Ready</div>
-          <div className="mt-1 text-sm text-[#6e6962]">Six objects protected</div>
-        </div>
+    <div className="flex items-center gap-2.5 rounded-md border border-[#ddd6cd] bg-white px-3.5 py-2 shadow-[0_18px_45px_-34px_rgba(52,43,34,0.42)]">
+      <span className="h-2 w-2 rounded-full bg-[#23a455] status-breathe" />
+      <div className="text-xs">
+        <span className="font-semibold text-[#151515]">Data contracts ready</span>
+        <span className="ml-2 text-[#6e6962]">6 objects</span>
       </div>
     </div>
   );

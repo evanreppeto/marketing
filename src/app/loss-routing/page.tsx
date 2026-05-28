@@ -48,16 +48,14 @@ export default async function LossRoutingPage({
     <AppShell active="/loss-routing">
       <PageHeader
         eyebrow="Loss Routing"
-        title="Route water losses with confidence"
-        description="Surface signal, intent, and context. The system routes water-related structural losses to the right team while keeping hail-only and exterior-only work out of the priority lane."
+        title="Route water losses to the right team"
+        description="Water-related structural losses go to mitigation. Hail-only and exterior-only work stays out of the priority lane."
         aside={
-          <div className="rounded-md border border-[#ddd6cd] bg-white px-5 py-4 shadow-[0_18px_45px_-34px_rgba(52,43,34,0.42)]">
-            <div className="flex items-center gap-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#23a455] status-breathe" />
-              <div>
-                <div className="text-sm font-semibold">Routing system: Healthy</div>
-                <div className="mt-1 text-sm text-[#6e6962]">Last updated 2 min ago</div>
-              </div>
+          <div className="flex items-center gap-2.5 rounded-md border border-[#ddd6cd] bg-white px-3.5 py-2 shadow-[0_18px_45px_-34px_rgba(52,43,34,0.42)]">
+            <span className="h-2 w-2 rounded-full bg-[#23a455] status-breathe" />
+            <div className="text-xs">
+              <span className="font-semibold text-[#151515]">Routing healthy</span>
+              <span className="ml-2 text-[#6e6962]">Updated 2m ago</span>
             </div>
           </div>
         }

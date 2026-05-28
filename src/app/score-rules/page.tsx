@@ -13,9 +13,9 @@ export default function ScoreRulesPage() {
     <AppShell active="/score-rules">
       <PageHeader
         eyebrow="Priority Rules"
-        title="Make every score explain the next move"
-        description="Priority rules turn urgency, evidence, and partner strength into a bounded score operators can trust and managers can audit."
-        aside={<StatusPill tone="green">0 to 100 lead score</StatusPill>}
+        title="How leads are scored, 0 to 100"
+        description="Urgency, evidence, and partner strength combine into a bounded score that drives the next action."
+        aside={<StatusPill tone="gray">0–100 lead score</StatusPill>}
       />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
@@ -26,11 +26,13 @@ export default function ScoreRulesPage() {
           </div>
           <div className="divide-y divide-[#eee8e1]">
             {scoreRules.map((rule) => (
-              <div className="grid gap-4 px-5 py-5 sm:grid-cols-[110px_1fr]" key={rule.label}>
-                <div className="font-mono text-3xl font-semibold tracking-[-0.05em] text-[#e7352f]">{rule.value}</div>
+              <div className="grid items-center gap-4 px-5 py-4 sm:grid-cols-[72px_1fr]" key={rule.label}>
+                <div className="inline-flex h-9 w-14 items-center justify-center rounded-md border border-[#ddd6cd] bg-[#fbfaf8] font-mono text-sm font-semibold tabular-nums text-[#151515]">
+                  {rule.value}
+                </div>
                 <div>
-                  <div className="font-semibold">{rule.label}</div>
-                  <p className="mt-1 text-sm leading-6 text-[#6e6962]">{rule.note}</p>
+                  <div className="text-sm font-semibold text-[#151515]">{rule.label}</div>
+                  <p className="mt-0.5 text-sm leading-6 text-[#6e6962]">{rule.note}</p>
                 </div>
               </div>
             ))}
@@ -39,33 +41,47 @@ export default function ScoreRulesPage() {
 
         <div className="min-w-0 space-y-4">
           <Panel className="module-rise p-0 [animation-delay:120ms]">
-            <div className="bg-[#151515] p-6 text-white">
-              <div className="text-sm uppercase tracking-[0.16em] text-white/55">Example lead</div>
-              <div className="mt-4 font-mono text-7xl font-semibold tracking-[-0.08em]">{exampleScore.leadScore}</div>
-              <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-sm text-white/72">
+            <div className="flex items-center justify-between border-b border-[#eee8e1] px-5 py-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6e6962]">
+                Example lead
+              </div>
+              <StatusPill tone="dark">Sample</StatusPill>
+            </div>
+            <div className="grid grid-cols-[auto_1fr] items-center gap-5 px-5 py-5">
+              <div className="font-mono text-[64px] font-semibold leading-none tabular-nums tracking-[-0.06em] text-[#151515]">
+                {exampleScore.leadScore}
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-xs text-[#6e6962]">
                 {exampleScoreBreakdown.lead.map((part, index) => (
-                  <span className="inline-flex items-center gap-2" key={part.label}>
-                    {index > 0 ? <span className="text-white/40">+</span> : null}
-                    <span className="rounded-sm bg-white/10 px-2 py-0.5 text-white">{part.value}</span>
-                    <span className="text-white/60">{part.label}</span>
+                  <span className="inline-flex items-center gap-1.5" key={part.label}>
+                    {index > 0 ? <span className="text-[#a8a098]">+</span> : null}
+                    <span className="rounded border border-[#ddd6cd] bg-[#fbfaf8] px-1.5 py-0.5 tabular-nums text-[#151515]">
+                      {part.value}
+                    </span>
+                    <span className="text-[#6e6962]">{part.label}</span>
                   </span>
                 ))}
-                <span className="text-white/40">=</span>
-                <span className="rounded-sm bg-[#e7352f] px-2 py-0.5 font-semibold text-white">{exampleScore.leadScore}</span>
+                <span className="text-[#a8a098]">=</span>
+                <span className="rounded bg-[#151515] px-1.5 py-0.5 font-semibold tabular-nums text-white">
+                  {exampleScore.leadScore}
+                </span>
               </div>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-[#eee8e1]">
-              <div className="p-5">
-                <div className="text-sm text-[#6e6962]">Partner score</div>
-                <div className="mt-2 font-mono text-3xl font-semibold">{exampleScore.partnerScore}</div>
-                <div className="mt-2 font-mono text-xs text-[#6e6962]">
-                  {exampleScoreBreakdown.partner.map((part) => part.value).join(" + ")} = {exampleScore.partnerScore}
+            <div className="grid grid-cols-2 divide-x divide-[#eee8e1] border-t border-[#eee8e1]">
+              <div className="px-5 py-4">
+                <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Partner score</div>
+                <div className="mt-1.5 font-mono text-2xl font-semibold tabular-nums">
+                  {exampleScore.partnerScore}
+                </div>
+                <div className="mt-1 font-mono text-xs text-[#6e6962]">
+                  {exampleScoreBreakdown.partner.map((part) => part.value).join(" + ")} ={" "}
+                  {exampleScore.partnerScore}
                 </div>
               </div>
-              <div className="p-5">
-                <div className="text-sm text-[#6e6962]">Next action</div>
-                <div className="mt-2 text-2xl font-semibold">Call now</div>
-                <div className="mt-2 text-xs text-[#6e6962]">Score ≥ 70 triggers immediate outreach.</div>
+              <div className="px-5 py-4">
+                <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Next action</div>
+                <div className="mt-1.5 text-lg font-semibold">Call now</div>
+                <div className="mt-1 text-xs text-[#6e6962]">Score ≥ 70 triggers immediate outreach.</div>
               </div>
             </div>
           </Panel>

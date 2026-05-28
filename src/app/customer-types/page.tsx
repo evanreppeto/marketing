@@ -9,8 +9,8 @@ export default function CustomerTypesPage() {
     <AppShell active="/customer-types">
       <PageHeader
         eyebrow="Customer Types"
-        title="Know exactly who each lead belongs to"
-        description="The audience map keeps AI copy, routing, and reporting aligned to approved Big Shoulders customer and partner segments."
+        title="Approved customer and partner segments"
+        description="The audience map keeps AI copy, routing, and reporting aligned to Big Shoulders' approved personas."
         aside={<StatusPill tone="green">12 approved types</StatusPill>}
       />
 
