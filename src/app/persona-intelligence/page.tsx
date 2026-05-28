@@ -42,8 +42,8 @@ export default async function PersonaIntelligencePage({
     <AppShell active="/persona-intelligence">
       <PageHeader
         eyebrow="Persona Intelligence"
-        title="Living profiles for every customer and partner"
-        description="Move beyond static customer types. Combine persona, urgency, behavior, relationship value, content needs, and approval risk into one explainable profile."
+        title="Track who's ready and what they need next"
+        description="One operating view across urgency, behavior, relationship value, and content needs."
         aside={<StatusPill tone="blue">Hyper-persona layer</StatusPill>}
       />
 
@@ -78,17 +78,38 @@ export default async function PersonaIntelligencePage({
         }}
       />
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {personaAccelerationStats.map((stat) => (
-          <Panel className="module-rise [animation-delay:70ms]" key={stat.label}>
-            <div className="text-sm text-[#6e6962]">{stat.label}</div>
-            <div className="mt-2 font-mono text-3xl font-semibold tracking-[-0.05em]">{stat.value}</div>
-            <div className="mt-3 inline-flex rounded-md bg-[#f0f5fc] px-2 py-1 text-xs font-semibold text-[#21558a]">
-              {stat.delta}
+      {(() => {
+        const [primary, ...supporting] = personaAccelerationStats;
+        return (
+          <Panel className="module-rise p-0 [animation-delay:70ms]">
+            <div className="grid items-stretch gap-0 md:grid-cols-[minmax(220px,1.1fr)_minmax(0,2.4fr)]">
+              <div className="border-b border-[#eee8e1] px-5 py-5 md:border-b-0 md:border-r">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">
+                  {primary.label}
+                </div>
+                <div className="mt-2 font-mono text-[44px] font-semibold leading-none tabular-nums tracking-[-0.05em] text-[#151515]">
+                  {primary.value}
+                </div>
+                <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#cdddee] bg-[#f0f5fc] px-2 py-0.5 text-[11px] font-medium text-[#21558a]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#3877c1]" aria-hidden="true" />
+                  {primary.delta}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 divide-x divide-[#eee8e1]">
+                {supporting.map((stat) => (
+                  <div className="px-4 py-4" key={stat.label}>
+                    <div className="text-xs text-[#7a736b]">{stat.label}</div>
+                    <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums tracking-[-0.02em]">
+                      {stat.value}
+                    </div>
+                    <div className="mt-1.5 text-[11px] font-medium text-[#21558a]">{stat.delta}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </Panel>
-        ))}
-      </div>
+        );
+      })()}
 
       <div className="mt-4 grid min-w-0 items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_410px]">
         <Panel className="module-rise overflow-hidden p-0 [animation-delay:110ms]">
@@ -117,15 +138,14 @@ export default async function PersonaIntelligencePage({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[820px] border-separate border-spacing-0 text-left text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
-                  <th className="px-5 py-4">Persona</th>
-                  <th className="px-4 py-4">Stage</th>
-                  <th className="px-4 py-4">Intent</th>
-                  <th className="px-4 py-4">Accelerator</th>
-                  <th className="px-4 py-4">Content need</th>
-                  <th className="px-5 py-4">Score</th>
+                  <th className="px-5 py-3">Persona</th>
+                  <th className="px-4 py-3">Stage &amp; intent</th>
+                  <th className="px-4 py-3">Accelerator</th>
+                  <th className="px-4 py-3">Content need</th>
+                  <th className="w-[120px] px-5 py-3 text-right">Score</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,7 +156,7 @@ export default async function PersonaIntelligencePage({
                     }`}
                     key={row.key}
                   >
-                    <td className="border-t border-[#eee8e1] px-5 py-4">
+                    <td className="border-t border-[#eee8e1] px-5 py-3 align-top">
                       <Link
                         className="font-semibold transition hover:text-[#e7352f]"
                         href={`/persona-intelligence/${row.key}?view=${activeView}`}
@@ -148,22 +168,36 @@ export default async function PersonaIntelligencePage({
                         <StatusPill tone={row.tone}>{row.nextAction}</StatusPill>
                       </div>
                     </td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4 font-medium">{row.stage}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{row.intent}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{row.accelerator}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4">
-                      <Link className="font-semibold text-[#21558a] transition hover:text-[#153b62]" href={row.aiStudioPath}>
+                    <td className="border-t border-[#eee8e1] px-4 py-3 align-top">
+                      <div className="font-medium text-[#151515]">{row.stage}</div>
+                      <div className="mt-0.5 text-xs leading-5 text-[#6e6962]">{row.intent}</div>
+                    </td>
+                    <td className="border-t border-[#eee8e1] px-4 py-3 align-top text-sm text-[#6e6962]">
+                      {row.accelerator}
+                    </td>
+                    <td className="border-t border-[#eee8e1] px-4 py-3 align-top">
+                      <Link
+                        className="text-sm font-medium text-[#21558a] transition hover:text-[#153b62]"
+                        href={row.aiStudioPath}
+                      >
                         {row.contentNeed}
                       </Link>
                     </td>
-                    <td className="border-t border-[#eee8e1] px-5 py-4">
-                      <div className="font-mono text-lg font-semibold">{row.score}</div>
-                      <Link
-                        className="mt-2 inline-flex min-h-8 items-center rounded-md border border-[#ddd6cd] bg-white px-2.5 text-xs font-semibold text-[#151515] transition hover:border-[#151515] active:-translate-y-px"
-                        href={`/persona-intelligence/${row.key}?view=${activeView}`}
-                      >
-                        Open profile
-                      </Link>
+                    <td className="border-t border-[#eee8e1] px-5 py-3 align-top text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div
+                          aria-hidden="true"
+                          className="h-1.5 w-12 overflow-hidden rounded-full bg-[#eee8e1]"
+                        >
+                          <div
+                            className="h-full rounded-full bg-[#e7352f]"
+                            style={{ width: `${Math.min(100, Math.max(0, row.score))}%` }}
+                          />
+                        </div>
+                        <span className="font-mono text-base font-semibold tabular-nums text-[#151515]">
+                          {row.score}
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -173,22 +207,24 @@ export default async function PersonaIntelligencePage({
         </Panel>
 
         <aside className="min-w-0 space-y-4">
-          <Panel className="module-rise [animation-delay:150ms]">
-            <div className="flex items-start justify-between gap-3">
+          <Panel className="module-rise p-0 [animation-delay:150ms]">
+            <div className="flex items-start justify-between gap-3 border-b border-[#eee8e1] px-5 py-4">
               <div>
-                <h2 className="text-xl font-semibold tracking-[-0.02em]">Hyper-persona snapshot</h2>
-                <p className="mt-1 text-sm text-[#6e6962]">{activePersona.persona}</p>
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">
+                  Hyper-persona snapshot
+                </div>
+                <div className="mt-1 text-sm font-semibold text-[#151515]">{activePersona.persona}</div>
               </div>
               <StatusPill tone={activePersona.tone}>{activeSnapshot.confidence}</StatusPill>
             </div>
-            <div className="mt-5 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">
-                {activeSnapshot.basePersona}
+            <div className="border-b border-[#eee8e1] px-5 py-4">
+              <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Next best action</div>
+              <div className="mt-1.5 text-base font-semibold leading-snug text-[#151515]">
+                {activeSnapshot.nextBestAction}
               </div>
-              <div className="mt-2 text-2xl font-semibold tracking-[-0.04em]">{activeSnapshot.nextBestAction}</div>
-              <p className="mt-3 text-sm leading-6 text-[#6e6962]">{activeSnapshot.messagePosture}</p>
+              <p className="mt-2 text-sm leading-6 text-[#6e6962]">{activeSnapshot.messagePosture}</p>
             </div>
-            <div className="mt-4 grid gap-3">
+            <dl className="divide-y divide-[#eee8e1]">
               {[
                 ["Relationship", activeSnapshot.relationshipStage],
                 ["Value tier", activeSnapshot.valueTier],
@@ -196,24 +232,18 @@ export default async function PersonaIntelligencePage({
                 ["Channel", activeSnapshot.preferredChannel],
                 ["Offer", activeSnapshot.recommendedOffer],
               ].map(([label, value]) => (
-                <div className="rounded-md border border-[#eee8e1] bg-white p-3" key={label}>
-                  <div className="text-xs text-[#6e6962]">{label}</div>
-                  <div className="mt-1 font-semibold">{value}</div>
+                <div className="grid grid-cols-[110px_1fr] items-baseline gap-3 px-5 py-2.5" key={label}>
+                  <dt className="text-xs text-[#7a736b]">{label}</dt>
+                  <dd className="text-sm font-medium text-[#151515]">{value}</dd>
                 </div>
               ))}
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            </dl>
+            <div className="border-t border-[#eee8e1] px-5 py-3">
               <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-3 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+                className="inline-flex min-h-9 w-full items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-3 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
                 href={`/persona-intelligence?action=create-acceleration-plan&view=${activeView}&persona=${activePersona.key}`}
               >
-                Plan
-              </Link>
-              <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#151515] px-3 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-                href={activePersona.aiStudioPath}
-              >
-                Build content
+                Create acceleration plan
               </Link>
             </div>
           </Panel>
@@ -275,50 +305,61 @@ export default async function PersonaIntelligencePage({
         </Panel>
       </div>
 
-      <Panel className="module-rise mt-4 overflow-hidden p-0 [animation-delay:300ms]">
-        <div className="border-b border-[#e7e0d8] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Software intelligence references</h2>
-          <p className="mt-1 text-sm text-[#6e6962]">
-            Competitive patterns worth borrowing, adapted for restoration-specific persona workflows.
-          </p>
+      <section className="module-rise mt-6 border-t border-[#ddd6cd] pt-6 [animation-delay:300ms]">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a736b]">Reference</div>
+            <h2 className="mt-1 text-base font-semibold tracking-[-0.01em] text-[#151515]">
+              Playbooks &amp; software patterns
+            </h2>
+          </div>
         </div>
-        <div className="grid gap-0 md:grid-cols-2 xl:grid-cols-4">
-          {competitorSoftwareReferences.map((reference) => (
-            <div
-              className="border-b border-[#eee8e1] p-5 md:border-r md:even:border-r-0 xl:even:border-r xl:last:border-r-0"
-              key={reference.app}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold">{reference.app}</h3>
-                  <div className="mt-1 text-xs text-[#6e6962]">{reference.category}</div>
-                </div>
-                <StatusPill tone={reference.status === "Research" ? "amber" : "blue"}>{reference.status}</StatusPill>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-[#6e6962]">{reference.pattern}</p>
-              <p className="mt-3 text-sm leading-6 text-[#3b3834]">{reference.applyToGrowthEngine}</p>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="rounded-md border border-[#e7e0d8] bg-[#fbfaf8]">
+            <div className="border-b border-[#eee8e1] px-4 py-3">
+              <h3 className="text-sm font-semibold text-[#151515]">Acceleration playbooks</h3>
+              <p className="mt-0.5 text-xs text-[#6e6962]">
+                Profile signals → sales actions &amp; campaign briefs.
+              </p>
             </div>
-          ))}
-        </div>
-      </Panel>
+            <ul className="divide-y divide-[#eee8e1]">
+              {personaAccelerationPlaybooks.map((playbook) => (
+                <li className="px-4 py-3" key={playbook.playbook}>
+                  <div className="text-sm font-semibold text-[#151515]">{playbook.playbook}</div>
+                  <p className="mt-1 text-xs leading-5 text-[#6e6962]">
+                    <span className="font-semibold text-[#7a736b]">When </span>
+                    {playbook.trigger}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-5 text-[#6e6962]">
+                    <span className="font-semibold text-[#7a736b]">Then </span>
+                    {playbook.action}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-      <Panel className="module-rise mt-4 overflow-hidden p-0 [animation-delay:330ms]">
-        <div className="border-b border-[#e7e0d8] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Acceleration playbooks</h2>
-          <p className="mt-1 text-sm text-[#6e6962]">Rules that connect profile signals to sales actions and campaign briefs.</p>
-        </div>
-        <div className="grid gap-0 md:grid-cols-3">
-          {personaAccelerationPlaybooks.map((playbook) => (
-            <div className="border-b border-[#eee8e1] p-5 md:border-r md:last:border-r-0" key={playbook.playbook}>
-              <h3 className="font-semibold">{playbook.playbook}</h3>
-              <div className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">Trigger</div>
-              <p className="mt-1 text-sm leading-6 text-[#6e6962]">{playbook.trigger}</p>
-              <div className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">Action</div>
-              <p className="mt-1 text-sm leading-6 text-[#6e6962]">{playbook.action}</p>
+          <div className="rounded-md border border-[#e7e0d8] bg-[#fbfaf8]">
+            <div className="border-b border-[#eee8e1] px-4 py-3">
+              <h3 className="text-sm font-semibold text-[#151515]">Software patterns to borrow</h3>
+              <p className="mt-0.5 text-xs text-[#6e6962]">
+                Competitor moves worth adapting for restoration.
+              </p>
             </div>
-          ))}
+            <ul className="divide-y divide-[#eee8e1]">
+              {competitorSoftwareReferences.map((reference) => (
+                <li className="px-4 py-3" key={reference.app}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="text-sm font-semibold text-[#151515]">{reference.app}</div>
+                    <div className="text-[11px] text-[#7a736b]">{reference.category}</div>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-[#6e6962]">{reference.applyToGrowthEngine}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-      </Panel>
+      </section>
     </AppShell>
   );
 }
