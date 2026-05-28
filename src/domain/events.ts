@@ -23,8 +23,8 @@ export const EventRowSchema = z.object({
   subject_id: z.string().uuid(),
   type: z.string().min(1),
   payload: z.record(z.string(), z.unknown()),
-  occurred_at: z.string(),
-  created_at: z.string(),
+  occurred_at: z.string().datetime({ offset: true }),
+  created_at: z.string().datetime({ offset: true }),
 });
 
 export const EventSchema = EventRowSchema.transform((row) => ({
