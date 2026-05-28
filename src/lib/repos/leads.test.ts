@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "./__tests__/test-helpers";
-import { listLeads } from "./leads";
+import { listLeads, type ListLeadsFilter } from "./leads";
 
 const validLeadRow = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -57,5 +57,47 @@ describe("listLeads", () => {
     });
 
     await expect(listLeads({}, supabase)).resolves.toEqual([]);
+  });
+});
+
+describe("listLeads filters", () => {
+  it("applies a status filter via .eq", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null },
+    });
+
+    await listLeads({ status: "validated" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "status", "validated"]);
+  });
+
+  it("applies a persona filter via .eq", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null },
+    });
+
+    await listLeads({ persona: "persona_insurance_agent" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "persona", "persona_insurance_agent"]);
+  });
+
+  it("applies a source filter via .eq", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null },
+    });
+
+    await listLeads({ source: "website" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "source", "website"]);
+  });
+
+  it("applies a numeric limit via .limit", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null },
+    });
+
+    await listLeads({ limit: 25 }, supabase);
+
+    expect(supabase.calls).toContainEqual(["limit", 25]);
   });
 });
