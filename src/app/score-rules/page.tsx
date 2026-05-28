@@ -1,5 +1,5 @@
 import { AppShell } from "../_components/app-shell";
-import { OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   exampleScore,
   exampleScoreBreakdown,
@@ -36,12 +36,6 @@ export default function ScoreRulesPage() {
         title="How leads are scored, 0 to 100"
         description="Urgency, evidence, and partner strength combine into a bounded score that drives the next action."
         aside={<StatusPill tone="gray">0-100 lead score</StatusPill>}
-      />
-
-      <OperatorBar
-        task="Review the exact signals that move a lead into action."
-        detail="Keep scoring understandable for the operations team: active water, photos, timing, and partner strength should explain every next step."
-        status="Deterministic rules"
       />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AppShell } from "../../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../../_components/page-header";
 import {
   competitorSoftwareReferences,
   crmPersonaSnapshots,
@@ -52,27 +52,6 @@ export default async function PersonaProfilePage({ params, searchParams }: Perso
         aside={<StatusPill tone={persona.tone}>{persona.score}/100</StatusPill>}
       />
 
-      <OperatorBar
-        task="Decide the next sales and marketing move for this persona."
-        detail={`${persona.blocker}. Recommended offer: ${persona.offer}.`}
-        status="Profile scaffold"
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href={`/persona-intelligence?view=${returnView}&persona=${persona.key}`}
-          >
-            Back to tracker
-          </Link>
-        }
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href={`/persona-intelligence/${persona.key}?action=generate-content-brief&view=${returnView}`}
-          >
-            Generate brief
-          </Link>
-        }
-      />
       <ActionFeedback
         action={action}
         messages={{

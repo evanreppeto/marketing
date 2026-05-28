@@ -1,11 +1,10 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   competitorSoftwareReferences,
   crmPersonaSnapshots,
-  hyperPersonalizationReference,
   leadEngagementEvents,
   leadNextBestActions,
   personaAccelerationPlaybooks,
@@ -47,27 +46,6 @@ export default async function PersonaIntelligencePage({
         aside={<StatusPill tone="blue">Hyper-persona layer</StatusPill>}
       />
 
-      <OperatorBar
-        task="Decide what this person or segment needs next."
-        detail={hyperPersonalizationReference.thesis}
-        status="Mock intelligence"
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href={activePersona.crmPath}
-          >
-            Open CRM
-          </Link>
-        }
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href={`/persona-intelligence?action=generate-content-brief&view=${activeView}&persona=${activePersona.key}`}
-          >
-            Generate brief
-          </Link>
-        }
-      />
       <ActionFeedback
         action={action}
         messages={{
@@ -263,47 +241,55 @@ export default async function PersonaIntelligencePage({
         </aside>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <Panel className="module-rise p-0 [animation-delay:230ms]">
-          <div className="border-b border-[#e7e0d8] px-5 py-5">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Engagement signal preview</h2>
-            <p className="mt-1 text-sm text-[#6e6962]">These events become the fuel for living profiles.</p>
-          </div>
-          <div className="divide-y divide-[#eee8e1]">
-            {leadEngagementEvents.map((event) => (
-              <div className="grid gap-3 px-5 py-4 sm:grid-cols-[120px_1fr]" key={event.event}>
-                <div className="text-sm font-semibold text-[#6e6962]">{event.time}</div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="font-semibold">{event.event}</div>
-                    <StatusPill tone="blue">{event.channel}</StatusPill>
+      <section className="module-rise mt-6 border-t border-[#ddd6cd] pt-6 [animation-delay:230ms]">
+        <div className="mb-4">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a736b]">Reference</div>
+          <h2 className="mt-1 text-base font-semibold tracking-[-0.01em] text-[#151515]">
+            Signals &amp; intelligence
+          </h2>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="rounded-md border border-[#e7e0d8] bg-[#fbfaf8]">
+            <div className="border-b border-[#eee8e1] px-4 py-3">
+              <h3 className="text-sm font-semibold text-[#151515]">Engagement signal preview</h3>
+              <p className="mt-0.5 text-xs text-[#6e6962]">Events that fuel living profiles.</p>
+            </div>
+            <ul className="divide-y divide-[#eee8e1]">
+              {leadEngagementEvents.map((event) => (
+                <li className="grid gap-1 px-4 py-3 sm:grid-cols-[90px_1fr]" key={event.event}>
+                  <div className="text-xs text-[#7a736b]">{event.time}</div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="text-sm font-semibold text-[#151515]">{event.event}</div>
+                      <span className="text-[11px] text-[#7a736b]">{event.channel}</span>
+                    </div>
+                    <p className="mt-0.5 text-xs leading-5 text-[#6e6962]">{event.detail}</p>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-[#6e6962]">{event.detail}</p>
-                </div>
-              </div>
-            ))}
+                </li>
+              ))}
+            </ul>
           </div>
-        </Panel>
 
-        <Panel className="module-rise p-0 [animation-delay:260ms]">
-          <div className="border-b border-[#e7e0d8] px-5 py-5">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Marketing intelligence feed</h2>
-            <p className="mt-1 text-sm text-[#6e6962]">Content signals that should flow into AI Studio after approval.</p>
+          <div className="rounded-md border border-[#e7e0d8] bg-[#fbfaf8]">
+            <div className="border-b border-[#eee8e1] px-4 py-3">
+              <h3 className="text-sm font-semibold text-[#151515]">Marketing intelligence feed</h3>
+              <p className="mt-0.5 text-xs text-[#6e6962]">Content signals to flow into AI Studio after approval.</p>
+            </div>
+            <ul className="divide-y divide-[#eee8e1]">
+              {personaContentSignals.map((signal) => (
+                <li className="px-4 py-3" key={signal.signal}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="text-sm font-semibold text-[#151515]">{signal.signal}</div>
+                    <span className="text-[11px] text-[#7a736b]">{signal.priority}</span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-[#7a736b]">{signal.source}</div>
+                  <p className="mt-1 text-xs leading-5 text-[#6e6962]">{signal.engineUse}</p>
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="grid gap-0 md:grid-cols-2">
-            {personaContentSignals.map((signal) => (
-              <div className="border-b border-[#eee8e1] p-5 md:border-r even:md:border-r-0" key={signal.signal}>
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-semibold">{signal.signal}</h3>
-                  <StatusPill tone={signal.priority === "High" ? "red" : "amber"}>{signal.priority}</StatusPill>
-                </div>
-                <div className="mt-2 text-sm text-[#6e6962]">{signal.source}</div>
-                <p className="mt-3 text-sm leading-6 text-[#6e6962]">{signal.engineUse}</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </div>
+        </div>
+      </section>
 
       <section className="module-rise mt-6 border-t border-[#ddd6cd] pt-6 [animation-delay:300ms]">
         <div className="mb-4 flex items-center justify-between">

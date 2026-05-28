@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   coreObjects,
   foundationIssues,
@@ -28,27 +28,6 @@ export default async function DataFoundationPage({
         aside={<HeaderStatus />}
       />
 
-      <OperatorBar
-        task="Clean the records that would block routing or reporting."
-        detail="Start with missing contact fields, duplicate companies, and orphaned properties before connecting live automation."
-        status="5 cleanup items"
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href="/crm"
-          >
-            Open CRM
-          </Link>
-        }
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="/data-foundation?action=review-queue"
-          >
-            Review queue
-          </Link>
-        }
-      />
       <ActionFeedback
         action={action}
         messages={{
@@ -128,12 +107,21 @@ export default async function DataFoundationPage({
           <h2 className="text-xl font-semibold tracking-[-0.02em]">Pipeline health</h2>
           <div className="mt-5 space-y-4">
             {pipelineStatus.map((item) => (
-              <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={item.label}>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(112px,148px)] items-center gap-4 border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={item.label}>
                 <div>
                   <div className="font-semibold">{item.label}</div>
                   <div className="mt-1 text-sm text-[#6e6962]">{item.meta}</div>
                 </div>
-                <StatusPill tone={item.value === "Ready" ? "amber" : "green"}>{item.value}</StatusPill>
+                <div
+                  className={`inline-flex min-h-8 w-full items-center justify-between rounded-full border px-3 text-xs font-semibold ${
+                    item.value === "Ready"
+                      ? "border-[#d6a933]/45 bg-[#2a2616] text-[#ffd37a]"
+                      : "border-[#35c878]/45 bg-[#0f2c26] text-[#7ee2a8]"
+                  }`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${item.value === "Ready" ? "bg-[#d6a933]" : "bg-[#35c878]"}`} aria-hidden="true" />
+                  <span>{item.value}</span>
+                </div>
               </div>
             ))}
           </div>

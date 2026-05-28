@@ -110,7 +110,7 @@ export function EmptyState({
 
 export function StatusPill({
   children,
-  tone = "amber",
+  tone = "gray",
 }: {
   children: React.ReactNode;
   tone?: "amber" | "green" | "red" | "gray" | "blue" | "dark";

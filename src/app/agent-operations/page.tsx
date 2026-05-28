@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   agentApprovalQueue,
   agentOperationMetrics,
@@ -24,7 +24,6 @@ export default async function AgentOperationsPage({ searchParams }: AgentOperati
   const query = searchParams ? await searchParams : {};
   const action = getValue(query.action);
   const blockedCount = agentTaskQueue.filter((task) => task.status === "blocked").length;
-  const approvalCount = agentApprovalQueue.filter((item) => item.status !== "Blocked").length;
 
   return (
     <AppShell active="/agent-operations">
@@ -35,27 +34,6 @@ export default async function AgentOperationsPage({ searchParams }: AgentOperati
         aside={<StatusPill tone="blue">Scaffold only</StatusPill>}
       />
 
-      <OperatorBar
-        task="Coordinate agent work without hiding the reasoning."
-        detail="Every task shows its objective, source records, generated output, risk flags, and approval requirement before the work can affect campaigns."
-        status={`${approvalCount} approvals waiting`}
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href="/approvals"
-          >
-            Open approvals
-          </Link>
-        }
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="/agent-operations?action=run-preview"
-          >
-            Preview agent run
-          </Link>
-        }
-      />
       <ActionFeedback action={action} messages={actionMessages} />
 
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">

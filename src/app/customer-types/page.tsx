@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { audienceSegments, customerTypes, partnerSegments, segmentHealthRows } from "../_data/growth-engine";
 
 const groups = ["Homeowner", "Professional", "Partner"] as const;
@@ -30,27 +30,6 @@ export default async function CustomerTypesPage({
         aside={<StatusPill tone="green">12 approved types</StatusPill>}
       />
 
-      <OperatorBar
-        task="Keep every customer and partner in an approved segment."
-        detail="Use this page to confirm the plain-language audience labels that routing, reports, and future AI copy are allowed to use."
-        status={group ? `${group} focus` : "12 approved"}
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href="/customer-types?group=Partner"
-          >
-            Partner focus
-          </Link>
-        }
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="/customer-types?action=add-partner-type"
-          >
-            Add partner type
-          </Link>
-        }
-      />
       <ActionFeedback
         action={action ?? group}
         messages={{

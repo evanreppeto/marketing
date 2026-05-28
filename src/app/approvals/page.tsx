@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { agentApprovalQueue } from "../_data/growth-engine";
 
 type ApprovalsPageProps = {
@@ -30,11 +30,6 @@ export default async function ApprovalsPage({ searchParams }: ApprovalsPageProps
         aside={<StatusPill tone="amber">No auto-send</StatusPill>}
       />
 
-      <OperatorBar
-        task="Approve, reject, revise, or archive generated work."
-        detail="This page is scaffold-only. Actions update the preview URL and show how the workflow will behave once persistence is connected."
-        status={`${agentApprovalQueue.length} mock items`}
-      />
       <ActionFeedback action={action} messages={actionMessages} />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">

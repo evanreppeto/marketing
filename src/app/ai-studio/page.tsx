@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   aiAgents,
   aiStudioStats,
@@ -51,27 +51,6 @@ export default async function AiStudioPage({ searchParams }: AiStudioPageProps) 
         aside={<StatusPill tone="amber">In-house production hub</StatusPill>}
       />
 
-      <OperatorBar
-        task="Build and maintain one campaign from brief to approved assets."
-        detail="Campaigns are the center of the workflow. AI agents, creative tools, documents, code, approvals, and ad assets connect around the selected campaign."
-        status={activeCampaign.status}
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href={`/ai-studio?action=review-asset&campaign=${activeCampaign.key}`}
-          >
-            Review assets
-          </Link>
-        }
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="/ai-studio?action=new-campaign"
-          >
-            New campaign
-          </Link>
-        }
-      />
       <ActionFeedback action={action} messages={actionMessages} />
 
       <div className="grid gap-4 md:grid-cols-4">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { reportMetrics, reportRows, responseRows } from "../_data/growth-engine";
 
 const attributionNotes = [
@@ -46,19 +46,6 @@ export default async function ReportsPage({
         aside={<StatusPill tone="amber">Persistence not connected</StatusPill>}
       />
 
-      <OperatorBar
-        task="Decide which channels deserve more attention."
-        detail="Use response time, conversion, and revenue attribution to spot partner channels worth investing in once live outcomes are connected."
-        status="Sample report"
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="/reports?action=export-view"
-          >
-            Export view
-          </Link>
-        }
-      />
       <ActionFeedback
         action={action}
         messages={{
@@ -173,7 +160,7 @@ export default async function ReportsPage({
                       <span className="font-mono text-[#6e6962]">{row.share}</span>
                     </div>
                     <div className="mt-2 h-2 rounded-full bg-[#eee8e1]">
-                      <div className={`h-full rounded-full bg-[#e7352f] ${row.width}`} />
+                      <div className={`h-full rounded-full bg-[#b42318] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] ${row.width}`} />
                     </div>
                   </div>
                 ))}

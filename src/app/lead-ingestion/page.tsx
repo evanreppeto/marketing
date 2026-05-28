@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   intakeChannels,
   intakeLeads,
@@ -42,27 +42,6 @@ export default async function LeadIngestionPage({
         aside={<StatusPill tone="blue">Validation gate active</StatusPill>}
       />
 
-      <OperatorBar
-        task="Decide which submissions are ready for routing."
-        detail="New leads must include an approved persona, a usable relationship, and a target restoration signal. Unassigned personas and off-scope losses stay out of automation."
-        status="Mock intake"
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href="/lead-ingestion?action=needs-review"
-          >
-            Needs review
-          </Link>
-        }
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="/lead-ingestion?action=validate-selected"
-          >
-            Validate selected
-          </Link>
-        }
-      />
       <ActionFeedback
         action={action}
         messages={{
