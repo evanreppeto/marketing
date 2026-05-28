@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
+import { CountUp } from "../_components/count-up";
 import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   intakeChannels,
@@ -55,7 +56,7 @@ export default async function LeadIngestionPage({
         {intakeOutcomes.map((stat) => (
           <Panel className="module-rise [animation-delay:70ms]" key={stat.label}>
             <div className="text-sm text-[#6e6962]">{stat.label}</div>
-            <div className="mt-2 font-mono text-3xl font-semibold tracking-[-0.05em]">{stat.value}</div>
+            <div className="mt-2 font-mono text-3xl font-semibold tracking-[-0.05em]"><CountUp value={stat.value} /></div>
             <div
               className={`mt-3 inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
                 stat.tone === "green"

@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
+import { CountUp } from "../_components/count-up";
+import { LiveTime } from "../_components/live-time";
 import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   competitorSoftwareReferences,
@@ -66,7 +68,7 @@ export default async function PersonaIntelligencePage({
                   {primary.label}
                 </div>
                 <div className="mt-2 font-mono text-[44px] font-semibold leading-none tabular-nums tracking-[-0.05em] text-[#151515]">
-                  {primary.value}
+                  <CountUp value={primary.value} />
                 </div>
                 <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#cdddee] bg-[#f0f5fc] px-2 py-0.5 text-[11px] font-medium text-[#21558a]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#3877c1]" aria-hidden="true" />
@@ -78,7 +80,7 @@ export default async function PersonaIntelligencePage({
                   <div className="px-4 py-4" key={stat.label}>
                     <div className="text-xs text-[#7a736b]">{stat.label}</div>
                     <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums tracking-[-0.02em]">
-                      {stat.value}
+                      <CountUp value={stat.value} />
                     </div>
                     <div className="mt-1.5 text-[11px] font-medium text-[#21558a]">{stat.delta}</div>
                   </div>
@@ -168,8 +170,12 @@ export default async function PersonaIntelligencePage({
                           className="h-1.5 w-12 overflow-hidden rounded-full bg-[#eee8e1]"
                         >
                           <div
-                            className="h-full rounded-full bg-[#e7352f]"
-                            style={{ width: `${Math.min(100, Math.max(0, row.score))}%` }}
+                            className="bar-fill h-full rounded-full bg-[#e7352f]"
+                            style={
+                              {
+                                "--bar-target": `${Math.min(100, Math.max(0, row.score))}%`,
+                              } as React.CSSProperties
+                            }
                           />
                         </div>
                         <span className="font-mono text-base font-semibold tabular-nums text-[#151515]">
@@ -257,7 +263,7 @@ export default async function PersonaIntelligencePage({
             <ul className="divide-y divide-[#eee8e1]">
               {leadEngagementEvents.map((event) => (
                 <li className="grid gap-1 px-4 py-3 sm:grid-cols-[90px_1fr]" key={event.event}>
-                  <div className="text-xs text-[#7a736b]">{event.time}</div>
+                  <div className="text-xs text-[#7a736b]"><LiveTime baseline={event.time} /></div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="text-sm font-semibold text-[#151515]">{event.event}</div>

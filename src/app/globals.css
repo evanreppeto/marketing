@@ -296,6 +296,21 @@ body {
   animation: status-ripple 2400ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
+@keyframes bar-fill {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: var(--bar-target, 100%);
+  }
+}
+
+.bar-fill {
+  width: var(--bar-target, 100%);
+  animation: bar-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .signal-radar {
   position: relative;
 }
@@ -332,7 +347,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .module-rise,
   .status-breathe,
-  .status-ripple {
+  .status-ripple,
+  .bar-fill {
     animation: none;
   }
 

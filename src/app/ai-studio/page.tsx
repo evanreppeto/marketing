@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { CountUp } from "../_components/count-up";
+import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   aiAgents,
   aiStudioStats,
@@ -26,11 +27,35 @@ type AiStudioPageProps = {
 const actionMessages: Record<string, string> = {
   "new-campaign": "New campaign workspace previewed. This does not create records yet.",
   "generate-asset": "Asset generation previewed. Drafts stay inside the campaign library until approved.",
+  "send-approval": "Approval handoff previewed. Draft assets would be queued for human review.",
   "connect-tool": "Tool connection previewed. We will embed only tools that allow secure embedding.",
   "review-asset": "Approval workflow previewed. Public-facing assets remain blocked until reviewed.",
   "agent-run": "Agent orchestration previewed. No provider calls were made.",
   "prompt-library": "Prompt library previewed. Guardrails stay attached to every campaign brief.",
 };
+
+const campaignWizardSteps = [
+  {
+    step: "Audience",
+    value: "Plumbing partners",
+    detail: "Trade partners who stop the source and need a fast restoration handoff.",
+  },
+  {
+    step: "Loss focus",
+    value: "Water backup / burst pipe",
+    detail: "Inside the approved restoration scope. Hail-only and exterior-only work stay blocked.",
+  },
+  {
+    step: "Offer",
+    value: "Fast mitigation handoff",
+    detail: "Coverage-neutral promise: quick call, clear documentation, next-step clarity.",
+  },
+  {
+    step: "Channels",
+    value: "Landing page, email, one-pager",
+    detail: "Draft assets stay internal until an owner approves them.",
+  },
+];
 
 export default async function AiStudioPage({ searchParams }: AiStudioPageProps) {
   const query = searchParams ? await searchParams : {};
@@ -53,11 +78,72 @@ export default async function AiStudioPage({ searchParams }: AiStudioPageProps) 
 
       <ActionFeedback action={action} messages={actionMessages} />
 
+      <OperatorBar
+        task="Build one campaign from audience to approval."
+        detail="Choose the audience, confirm the loss focus, generate draft assets, then send everything to the approval inbox before any external use."
+        status="Guided builder"
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href={`/ai-studio?action=generate-asset&campaign=${activeCampaign.key}`}
+          >
+            Generate draft assets
+          </Link>
+        }
+        secondary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href="/approvals"
+          >
+            Open approvals
+          </Link>
+        }
+      />
+
+      <Panel className="module-rise p-0 [animation-delay:60ms]">
+        <div className="border-b border-[#e7e0d8] px-5 py-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Campaign Builder Wizard</h2>
+              <p className="mt-1 text-sm leading-6 text-[#6e6962]">
+                A simple path from report insight to campaign drafts. This is scaffold mode; no live records are created yet.
+              </p>
+            </div>
+            <StatusPill tone="amber">Approval required</StatusPill>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-4">
+          {campaignWizardSteps.map((item, index) => (
+            <div className="border-b border-[#eee8e1] p-5 md:border-b-0 md:border-r md:last:border-r-0" key={item.step}>
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#5bb7e8]/35 bg-[#07111f] font-mono text-xs font-semibold text-[#5bb7e8]">
+                  {index + 1}
+                </span>
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">{item.step}</div>
+              </div>
+              <div className="mt-3 font-semibold">{item.value}</div>
+              <p className="mt-2 text-sm leading-6 text-[#6e6962]">{item.detail}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-3 border-t border-[#e7e0d8] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm leading-6 text-[#6e6962]">
+            Next: generate draft assets, run compliance checks, then send the package to approvals.
+          </p>
+          <Link
+            className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href={`/ai-studio?action=send-approval&campaign=${activeCampaign.key}`}
+          >
+            Send to approval preview
+          </Link>
+        </div>
+      </Panel>
+
       <div className="grid gap-4 md:grid-cols-4">
         {aiStudioStats.map((stat) => (
           <Panel className="module-rise [animation-delay:70ms]" key={stat.label}>
             <div className="text-sm text-[#6e6962]">{stat.label}</div>
-            <div className="mt-2 font-mono text-3xl font-semibold tracking-[-0.05em]">{stat.value}</div>
+            <div className="mt-2 font-mono text-3xl font-semibold tracking-[-0.05em]"><CountUp value={stat.value} /></div>
             <div className="mt-3 inline-flex rounded-md bg-[#fff3d9] px-2 py-1 text-xs font-semibold text-[#875a07]">
               {stat.delta}
             </div>

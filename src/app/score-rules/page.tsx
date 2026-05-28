@@ -1,5 +1,8 @@
+import Link from "next/link";
+
 import { AppShell } from "../_components/app-shell";
-import { PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { CountUp } from "../_components/count-up";
+import { OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   exampleScore,
   exampleScoreBreakdown,
@@ -38,22 +41,44 @@ export default function ScoreRulesPage() {
         aside={<StatusPill tone="gray">0-100 lead score</StatusPill>}
       />
 
+      <OperatorBar
+        task="Check that scoring still sends the right work to the right team."
+        detail="Start with the audit checklist, then review routing rules. The detailed weights are here when you need to explain why a lead moved up or down."
+        status="Operator view"
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="#routing-rules"
+          >
+            Review routing rules
+          </Link>
+        }
+        secondary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href="#audit-checklist"
+          >
+            Check audit
+          </Link>
+        }
+      />
+
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
         <div className="min-w-0 space-y-4">
           <Panel className="module-rise p-0 [animation-delay:70ms]">
             <div className="border-b border-[#e7e0d8] px-5 py-5">
               <h2 className="text-xl font-semibold tracking-[-0.02em]">Signal weights</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">Plain-language inputs that increase urgency.</p>
+              <p className="mt-1 text-sm text-[#6e6962]">Plain-language inputs that move a lead up the queue.</p>
             </div>
-            <div className="divide-y divide-[#eee8e1]">
+            <div className="grid gap-3 p-4 md:grid-cols-2">
               {scoreRules.map((rule) => (
-                <div className="grid items-center gap-4 px-5 py-4 sm:grid-cols-[72px_1fr]" key={rule.label}>
-                  <div className="inline-flex h-9 w-14 items-center justify-center rounded-md border border-[#ddd6cd] bg-[#fbfaf8] font-mono text-sm font-semibold tabular-nums text-[#151515]">
+                <div className="grid grid-cols-[64px_1fr] gap-3 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-3" key={rule.label}>
+                  <div className="inline-flex h-10 w-14 items-center justify-center rounded-md border border-[#ddd6cd] bg-[#07111f] font-mono text-sm font-semibold tabular-nums text-white">
                     {rule.value}
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-[#151515]">{rule.label}</div>
-                    <p className="mt-0.5 text-sm leading-6 text-[#6e6962]">{rule.note}</p>
+                    <p className="mt-0.5 text-sm leading-5 text-[#6e6962]">{rule.note}</p>
                   </div>
                 </div>
               ))}
@@ -102,7 +127,7 @@ export default function ScoreRulesPage() {
             </div>
             <div className="grid grid-cols-[auto_1fr] items-center gap-5 px-5 py-5">
               <div className="font-mono text-[64px] font-semibold leading-none tabular-nums tracking-[-0.06em] text-[#151515]">
-                {exampleScore.leadScore}
+                <CountUp value={exampleScore.leadScore} />
               </div>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-xs text-[#6e6962]">
                 {exampleScoreBreakdown.lead.map((part, index) => (
@@ -124,7 +149,7 @@ export default function ScoreRulesPage() {
               <div className="px-5 py-4">
                 <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Partner score</div>
                 <div className="mt-1.5 font-mono text-2xl font-semibold tabular-nums">
-                  {exampleScore.partnerScore}
+                  <CountUp value={exampleScore.partnerScore} />
                 </div>
                 <div className="mt-1 font-mono text-xs text-[#6e6962]">
                   {exampleScoreBreakdown.partner.map((part) => part.value).join(" + ")} ={" "}
@@ -139,22 +164,10 @@ export default function ScoreRulesPage() {
             </div>
           </Panel>
 
-          <Panel className="module-rise [animation-delay:170ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Recent rule changes</h2>
-            <div className="mt-5 space-y-4">
-              {scoreChanges.map((change) => (
-                <div className="border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={change.label}>
-                  <div className="font-semibold">{change.label}</div>
-                  <div className="mt-1 text-sm text-[#6e6962]">{change.detail}</div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel className="module-rise p-0 [animation-delay:190ms]">
+          <Panel className="module-rise p-0 [animation-delay:170ms]" id="audit-checklist">
             <div className="border-b border-[#e7e0d8] px-5 py-4">
               <h2 className="text-xl font-semibold tracking-[-0.02em]">Rule audit checklist</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">The checks that keep automation understandable.</p>
+              <p className="mt-1 text-sm text-[#6e6962]">The checks that keep automation understandable and safe.</p>
             </div>
             <div className="divide-y divide-[#eee8e1]">
               {auditRows.map(([label, detail]) => (
@@ -168,10 +181,23 @@ export default function ScoreRulesPage() {
               ))}
             </div>
           </Panel>
+
+          <Panel className="module-rise [animation-delay:190ms]">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Recent rule changes</h2>
+            <p className="mt-1 text-sm text-[#6e6962]">Recent edits stay visible so the team knows what changed.</p>
+            <div className="mt-5 space-y-4">
+              {scoreChanges.map((change) => (
+                <div className="border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={change.label}>
+                  <div className="font-semibold">{change.label}</div>
+                  <div className="mt-1 text-sm text-[#6e6962]">{change.detail}</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
         </div>
       </div>
 
-      <Panel className="module-rise mt-4 p-0 [animation-delay:220ms]">
+      <Panel className="module-rise mt-4 p-0 [animation-delay:220ms]" id="routing-rules">
         <div className="border-b border-[#e7e0d8] px-5 py-5">
           <h2 className="text-xl font-semibold tracking-[-0.02em]">Routing rules</h2>
           <p className="mt-1 text-sm text-[#6e6962]">How priority score translates into team action.</p>

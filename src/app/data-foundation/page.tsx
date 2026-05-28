@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
+import { CountUp } from "../_components/count-up";
+import { LiveTime } from "../_components/live-time";
 import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   coreObjects,
@@ -68,7 +70,7 @@ export default async function DataFoundationPage({
                         <p className="mt-2 max-w-md text-sm leading-6 text-[#6e6962]">{hero.note}</p>
                       </div>
                       <div className="text-right">
-                        <div className="font-mono text-6xl font-semibold leading-none tracking-[-0.07em]">{hero.count}</div>
+                        <div className="font-mono text-6xl font-semibold leading-none tracking-[-0.07em]"><CountUp value={hero.count} /></div>
                         <div className="mt-2 text-xs uppercase tracking-[0.14em] text-[#6e6962]">awaiting review</div>
                       </div>
                     </div>
@@ -83,7 +85,7 @@ export default async function DataFoundationPage({
                           <h3 className="text-lg font-semibold">{object.name}</h3>
                           <p className="mt-2 text-sm leading-6 text-[#6e6962]">{object.note}</p>
                         </div>
-                        <div className="font-mono text-3xl font-semibold tracking-[-0.05em]">{object.count}</div>
+                        <div className="font-mono text-3xl font-semibold tracking-[-0.05em]"><CountUp value={object.count} /></div>
                       </div>
                     </div>
                   ))}
@@ -95,7 +97,7 @@ export default async function DataFoundationPage({
                       <div className="text-sm font-semibold">{footer.name}</div>
                       <div className="mt-0.5 text-xs text-[#6e6962]">{footer.note}</div>
                     </div>
-                    <div className="font-mono text-2xl font-semibold tracking-[-0.04em]">{footer.count}</div>
+                    <div className="font-mono text-2xl font-semibold tracking-[-0.04em]"><CountUp value={footer.count} /></div>
                   </div>
                 ) : null}
               </>
@@ -156,7 +158,7 @@ export default async function DataFoundationPage({
           {integrityScanStats.map((stat) => (
             <div className="border-b border-[#eee8e1] px-5 py-4 md:border-b-0 md:border-r last:md:border-r-0" key={stat.label}>
               <div className="text-xs text-[#6e6962]">{stat.label}</div>
-              <div className="mt-1.5 font-mono text-2xl font-semibold tracking-[-0.04em]">{stat.value}</div>
+              <div className="mt-1.5 font-mono text-2xl font-semibold tracking-[-0.04em]"><CountUp value={stat.value} /></div>
               <div className="mt-2 inline-flex rounded-md bg-[#fff3d9] px-2 py-1 text-xs font-semibold text-[#875a07]">
                 {stat.delta}
               </div>
@@ -217,7 +219,7 @@ export default async function DataFoundationPage({
                     <td className="border-t border-[#eee8e1] px-4 py-4">{row.detector}</td>
                     <td className="border-t border-[#eee8e1] px-4 py-4">{row.impact}</td>
                     <td className="border-t border-[#eee8e1] px-4 py-4 font-mono">{row.confidence}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{row.lastFound}</td>
+                    <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]"><LiveTime baseline={row.lastFound} /></td>
                     <td className="border-t border-[#eee8e1] px-5 py-4 text-right">
                       <Link href="/data-foundation?action=fix-record">
                         <StatusPill tone={row.action === "Fix" ? "red" : "amber"}>{row.action}</StatusPill>

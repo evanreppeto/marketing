@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
+import { CountUp } from "../_components/count-up";
+import { LiveTime } from "../_components/live-time";
 import { PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { routingMetrics, routingQueue, targetLossKeywords } from "../_data/growth-engine";
 
@@ -61,7 +63,7 @@ export default async function LossRoutingPage({
             <span className="h-2 w-2 rounded-full bg-[#23a455] status-breathe" />
             <div className="text-xs">
               <span className="font-semibold text-[#151515]">Routing healthy</span>
-              <span className="ml-2 text-[#6e6962]">Updated 2m ago</span>
+              <span className="ml-2 text-[#6e6962]">Updated <LiveTime baseline="2 min ago" /></span>
             </div>
           </div>
         }
@@ -224,7 +226,7 @@ export default async function LossRoutingPage({
               <div className="border-t border-[#eee8e1] px-5 py-4 md:border-l md:border-t-0 first:md:border-l-0" key={metric.label}>
                 <div className="text-xs text-[#6e6962]">{metric.label}</div>
                 <div className="mt-2 flex items-end gap-2">
-                  <span className="text-3xl font-semibold tracking-[-0.04em]">{metric.value}</span>
+                  <span className="text-3xl font-semibold tracking-[-0.04em]"><CountUp value={metric.value} /></span>
                   <span className="mb-1 rounded-md bg-[#e4f5eb] px-2 py-0.5 text-xs font-semibold text-[#117343]">
                     {metric.delta}
                   </span>

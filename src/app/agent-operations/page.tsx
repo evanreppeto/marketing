@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { CountUp } from "../_components/count-up";
+import { LiveTime } from "../_components/live-time";
+import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   agentApprovalQueue,
   agentOperationMetrics,
@@ -36,17 +38,39 @@ export default async function AgentOperationsPage({ searchParams }: AgentOperati
 
       <ActionFeedback action={action} messages={actionMessages} />
 
-      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        {agentOperationMetrics.map((metric) => (
-          <Panel className="module-rise [animation-delay:70ms]" key={metric.label}>
-            <div className="text-sm text-[#6e6962]">{metric.label}</div>
-            <div className="mt-2 font-mono text-3xl font-semibold tracking-[-0.05em]">{metric.value}</div>
-            <div className="mt-3 inline-flex rounded-md bg-[#fff3d9] px-2 py-1 text-xs font-semibold text-[#875a07]">
-              {metric.delta}
+      <OperatorBar
+        task="Start with the work that needs a human decision."
+        detail="Review approvals first, then check blocked drafts. Agent work stays in preview mode until someone approves the next step."
+        status={`${agentApprovalQueue.length} approvals`}
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="/approvals"
+          >
+            Review approvals
+          </Link>
+        }
+        secondary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href="/agent-operations?action=review-blocked"
+          >
+            Check blocked
+          </Link>
+        }
+      />
+
+      <Panel className="module-rise p-0 [animation-delay:70ms]">
+        <div className="grid divide-y divide-[#eee8e1] md:grid-cols-3 md:divide-x md:divide-y-0 xl:grid-cols-6">
+          {agentOperationMetrics.map((metric) => (
+            <div className="px-4 py-4" key={metric.label}>
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7a736b]">{metric.label}</div>
+              <div className="mt-2 font-mono text-2xl font-semibold tracking-[-0.04em]"><CountUp value={metric.value} /></div>
+              <div className="mt-1.5 text-xs font-semibold text-[#5bb7e8]">{metric.delta}</div>
             </div>
-          </Panel>
-        ))}
-      </div>
+          ))}
+        </div>
+      </Panel>
 
       <div className="mt-4 grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
         <div className="min-w-0 space-y-4">
@@ -119,7 +143,7 @@ export default async function AgentOperationsPage({ searchParams }: AgentOperati
                         <Link className="font-semibold text-[#5bb7e8] hover:text-[#d4ecfb]" href={task.href}>
                           {task.task}
                         </Link>
-                        <div className="mt-1 font-mono text-xs text-[#6e6962]">{task.id} / {task.updated}</div>
+                        <div className="mt-1 font-mono text-xs text-[#6e6962]">{task.id} / <LiveTime baseline={task.updated} /></div>
                       </td>
                       <td className="border-t border-[#eee8e1] px-4 py-4">{findAgent(task.agentKey)?.name ?? task.agentKey}</td>
                       <td className="border-t border-[#eee8e1] px-4 py-4">
@@ -175,7 +199,7 @@ export default async function AgentOperationsPage({ searchParams }: AgentOperati
                   <div className="font-semibold">{output.output}</div>
                   <div className="mt-1 text-sm text-[#6e6962]">{output.agent}</div>
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <span className="text-xs text-[#7a736b]">{output.time}</span>
+                    <span className="text-xs text-[#7a736b]"><LiveTime baseline={output.time} /></span>
                     <span className="rounded-full border border-[#5bb7e8]/35 px-2 py-0.5 text-xs font-semibold text-[#d4ecfb]">
                       {output.status}
                     </span>

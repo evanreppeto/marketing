@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { CountUp } from "../_components/count-up";
+import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { reportMetrics, reportRows, responseRows } from "../_data/growth-engine";
 
 const attributionNotes = [
@@ -29,6 +30,33 @@ const revenueMix = [
   { source: "Online / Website", share: "10%", width: "w-[20%]" },
 ];
 
+const channelActions = [
+  {
+    label: "Invest next",
+    channel: "Plumbing Partners",
+    detail: "Best conversion signal. Build the next referral campaign around clean water-loss handoffs.",
+    href: "/ai-studio?action=new-campaign",
+    action: "Build campaign",
+    tone: "green" as const,
+  },
+  {
+    label: "Needs proof",
+    channel: "Online / Website",
+    detail: "Lower conversion until live outcomes are connected. Add job outcomes before scaling spend.",
+    href: "/crm/outcomes",
+    action: "Open outcomes",
+    tone: "amber" as const,
+  },
+  {
+    label: "Protect volume",
+    channel: "Insurance Agents",
+    detail: "Largest lead pool. Keep messaging coverage-neutral and route partner-ready leads faster.",
+    href: "/persona-intelligence?view=partner-candidates",
+    action: "View partners",
+    tone: "blue" as const,
+  },
+];
+
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -53,6 +81,28 @@ export default async function ReportsPage({
         }}
       />
 
+      <OperatorBar
+        task="Act on the strongest channel signal first."
+        detail="Plumbing partners are the best sample converter. Build the next partner campaign, then connect outcomes so future reports show true margin instead of sample rows."
+        status="Recommended next step"
+        primary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+            href="/ai-studio?action=new-campaign"
+          >
+            Build partner campaign
+          </Link>
+        }
+        secondary={
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+            href="/crm/outcomes"
+          >
+            Connect outcomes
+          </Link>
+        }
+      />
+
       {(() => {
         const [primary, ...supporting] = reportMetrics;
         return (
@@ -63,7 +113,7 @@ export default async function ReportsPage({
                   {primary.label}
                 </div>
                 <div className="mt-2 font-mono text-[44px] font-semibold leading-none tabular-nums tracking-[-0.05em] text-[#151515]">
-                  {primary.value}
+                  <CountUp value={primary.value} />
                 </div>
                 <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#bfe3cc] bg-[#eef7f1] px-2 py-0.5 text-[11px] font-medium text-[#117343]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#23a455]" aria-hidden="true" />
@@ -75,7 +125,7 @@ export default async function ReportsPage({
                   <div className="px-4 py-4" key={metric.label}>
                     <div className="text-xs text-[#7a736b]">{metric.label}</div>
                     <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums tracking-[-0.02em]">
-                      {metric.value}
+                      <CountUp value={metric.value} />
                     </div>
                     <div className="mt-1.5 text-[11px] font-medium text-[#117343]">{metric.delta}</div>
                   </div>
@@ -85,6 +135,27 @@ export default async function ReportsPage({
           </Panel>
         );
       })()}
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        {channelActions.map((item) => (
+          <Panel className="module-rise [animation-delay:100ms]" key={item.label}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">{item.label}</div>
+                <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">{item.channel}</h2>
+              </div>
+              <StatusPill tone={item.tone}>{item.label}</StatusPill>
+            </div>
+            <p className="mt-3 min-h-[72px] text-sm leading-6 text-[#6e6962]">{item.detail}</p>
+            <Link
+              className="mt-5 inline-flex min-h-10 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+              href={item.href}
+            >
+              {item.action}
+            </Link>
+          </Panel>
+        ))}
+      </div>
 
       <div className="mt-4 grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
         <Panel className="module-rise p-0 [animation-delay:120ms]">
@@ -213,16 +284,17 @@ export default async function ReportsPage({
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.3fr]">
         <Panel className="module-rise [animation-delay:260ms]">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold tracking-[-0.01em]">Best channel this week</h2>
-            <StatusPill tone="green">Leader</StatusPill>
+            <h2 className="text-base font-semibold tracking-[-0.01em]">Plain-English takeaway</h2>
+            <StatusPill tone="green">Actionable</StatusPill>
           </div>
           <div className="mt-4 grid gap-4">
             <div className="flex items-baseline justify-between gap-4 border-b border-[#eee8e1] pb-3">
-              <div className="text-lg font-semibold text-[#151515]">Plumbing partners</div>
+              <div className="text-lg font-semibold text-[#151515]">Build around partner referrals</div>
               <div className="font-mono text-sm font-semibold tabular-nums text-[#117343]">23.0%</div>
             </div>
             <p className="text-sm leading-6 text-[#6e6962]">
-              Highest job conversion with faster response time and cleaner loss descriptions.
+              Plumbing partners show the cleanest sample conversion. Keep the offer simple:
+              fast water-loss handoff, clear documentation, and coverage-neutral language.
             </p>
           </div>
         </Panel>
