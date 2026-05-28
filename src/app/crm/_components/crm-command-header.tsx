@@ -10,8 +10,8 @@ type CrmCommandHeaderProps = {
 
 export function CrmCommandHeader({ activeObject }: CrmCommandHeaderProps) {
   return (
-    <section className="module-rise overflow-hidden rounded-md border border-[#d8dfe8] bg-[#f8fbff] shadow-[0_22px_60px_-44px_rgba(21,35,51,0.42)]">
-      <div className="border-b border-[#d8dfe8] bg-white px-4 py-3">
+    <section className="module-rise overflow-hidden rounded-md border border-[#5bb7e8]/20 bg-[#0d1b2e] shadow-[0_22px_60px_-44px_rgba(91,183,232,0.42)]">
+      <div className="border-b border-[#5bb7e8]/20 bg-[#0d1b2e] px-4 py-3">
         <div className="grid gap-3 xl:grid-cols-[minmax(260px,0.75fr)_minmax(360px,1fr)_auto] xl:items-center">
           <div className="min-w-0">
             <h1 className="text-[26px] font-semibold leading-none tracking-[-0.03em] text-[#0f1720]">
@@ -27,14 +27,14 @@ export function CrmCommandHeader({ activeObject }: CrmCommandHeaderProps) {
               <SearchIcon />
             </span>
             <input
-              className="h-11 w-full rounded-md border border-[#cfd8e3] bg-[#f8fbff] pl-10 pr-3 text-sm font-medium text-[#162231] outline-none transition placeholder:text-[#7d8b9b] focus:border-[#1769aa] focus:bg-white focus:ring-4 focus:ring-[#1769aa]/10"
+              className="h-11 w-full rounded-md border border-[#5bb7e8]/24 bg-[#07111f] pl-10 pr-3 text-sm font-medium text-[#f7fbff] outline-none transition placeholder:text-[#9fb0c3] focus:border-[#5bb7e8] focus:bg-[#0b1a2a] focus:ring-4 focus:ring-[#5bb7e8]/10"
               placeholder="Search companies, contacts, properties, leads, jobs"
               readOnly
             />
           </label>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <Link
-              className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#cfd8e3] bg-white px-4 text-sm font-semibold text-[#1f3247] transition hover:border-[#7c8da0] active:-translate-y-px"
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#5bb7e8]/28 bg-[#0b1a2a] px-4 text-sm font-semibold text-[#f7fbff] transition hover:border-[#5bb7e8] active:-translate-y-px"
               href="/crm?action=import"
             >
               Import
@@ -49,12 +49,16 @@ export function CrmCommandHeader({ activeObject }: CrmCommandHeaderProps) {
         </div>
 
         <div className="mt-3">
-          <nav aria-label="CRM object navigation" className="flex gap-1 overflow-x-auto rounded-md border border-[#d8dfe8] bg-[#eef4fb] p-1">
+          <nav
+            aria-label="CRM object navigation"
+            className="flex flex-wrap gap-1 rounded-md border border-[#5bb7e8]/24 bg-[#07111f] p-1"
+          >
             <Link
+              aria-current={!activeObject ? "page" : undefined}
               className={`inline-flex min-h-9 shrink-0 items-center rounded px-3 text-sm font-semibold transition ${
                 activeObject
-                  ? "text-[#35506c] hover:bg-white hover:text-[#1769aa]"
-                  : "bg-white text-[#1769aa] shadow-sm"
+                  ? "text-[#9fb0c3] hover:bg-[#12233a] hover:text-[#f7fbff]"
+                  : "bg-[#e53935] text-white shadow-sm"
               }`}
               href="/crm"
             >
@@ -65,16 +69,19 @@ export function CrmCommandHeader({ activeObject }: CrmCommandHeaderProps) {
 
               return (
                 <Link
+                  aria-current={isActive ? "page" : undefined}
                   className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded px-3 text-sm font-semibold transition ${
                     isActive
-                      ? "bg-white text-[#1769aa] shadow-sm"
-                      : "text-[#35506c] hover:bg-white hover:text-[#1769aa]"
+                      ? "bg-[#e53935] text-white shadow-sm"
+                      : "text-[#9fb0c3] hover:bg-[#12233a] hover:text-[#f7fbff]"
                   }`}
                   href={object.href}
                   key={object.key}
                 >
                   {object.label}
-                  <span className="font-mono text-[11px] text-[#7d8b9b]">{object.count}</span>
+                  <span className={`font-mono text-[11px] ${isActive ? "text-white/72" : "text-[#5bb7e8]"}`}>
+                    {object.count}
+                  </span>
                 </Link>
               );
             })}

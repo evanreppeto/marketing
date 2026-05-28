@@ -28,6 +28,12 @@ const actionLabels: Record<string, string> = {
   "needs-selection": "Select a lead first",
 };
 
+const routingReviewLanes = [
+  ["Mitigation-ready", "Water, sewage, mold, fire, or burst pipe with a usable contact path.", "15 min"],
+  ["Dispatcher review", "Water context exists, but property access, source, or severity needs confirmation.", "1 hr"],
+  ["Scope isolation", "Hail-only, wind-only, exterior-only roof, or unrelated remodeling stays out.", "Archive"],
+];
+
 export default async function LossRoutingPage({
   searchParams,
 }: {
@@ -61,21 +67,24 @@ export default async function LossRoutingPage({
         }
       />
 
-      <div className="grid min-w-0 items-start gap-4 pb-24 xl:grid-cols-[minmax(0,1.68fr)_minmax(360px,0.72fr)] xl:pb-28">
-        <Panel className="module-rise p-0 [animation-delay:70ms]">
+      <div className="grid min-w-0 items-start gap-4 pb-2 xl:grid-cols-[minmax(0,1.68fr)_minmax(360px,0.72fr)]">
+        <div className="min-w-0 space-y-4">
+          <Panel className="module-rise p-0 [animation-delay:70ms]">
           <div className="flex flex-col gap-4 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-semibold tracking-[-0.02em]">Incoming leads</h2>
-                <StatusPill tone="red">24</StatusPill>
+                <span className="rounded-full border border-[#5bb7e8]/40 bg-[#5bb7e8]/14 px-2 py-0.5 text-[11px] font-semibold text-[#d4ecfb]">
+                  24
+                </span>
               </div>
               <div className="mt-4 flex flex-wrap gap-5 text-sm" role="tablist" aria-label="Lead queue filters">
                 {leadTabs.map((tab) => (
                   <Link
                     aria-selected={activeTab === tab.key}
-                    className={`border-b-2 pb-2 text-left transition hover:text-[#151515] ${
+                    className={`border-l-2 py-1 pl-3 pr-1 text-left transition hover:text-[#5bb7e8] ${
                       activeTab === tab.key
-                        ? "border-[#e7352f] font-semibold text-[#151515]"
+                        ? "border-[#5bb7e8] font-semibold text-[#f7fbff]"
                         : "border-transparent text-[#6e6962]"
                     }`}
                     href={lossRoutingHref({ tab: tab.key, selected: getDefaultLeadIdForTab(tab.key), filters: filtersOpen })}
@@ -223,7 +232,92 @@ export default async function LossRoutingPage({
               </div>
             ))}
           </div>
-        </Panel>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:135ms]">
+            <div className="flex flex-col gap-3 border-b border-[#eee8e1] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold tracking-[-0.02em]">Routing workbench</h2>
+                <p className="mt-1 text-sm text-[#6e6962]">Selected lead context, proof requirements, and the next safe operator move.</p>
+              </div>
+              <span className="rounded-full border border-[#5bb7e8]/40 bg-[#5bb7e8]/12 px-3 py-1 text-xs font-semibold text-[#d4ecfb]">
+                Scaffold preview
+              </span>
+            </div>
+            <div className="grid md:grid-cols-3">
+              <div className="border-b border-[#eee8e1] p-5 md:border-b-0 md:border-r">
+                <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Selected lead</div>
+                <div className="mt-3 font-mono text-sm font-semibold">{selectedLead?.id ?? "No lead selected"}</div>
+                <div className="mt-1 text-lg font-semibold">{selectedLead?.lead ?? "Choose a record"}</div>
+                <p className="mt-2 text-sm leading-6 text-[#6e6962]">
+                  {selectedLead ? `${selectedLead.source} / ${selectedLead.issue} / ${selectedLead.location}` : "Routing details will load here."}
+                </p>
+              </div>
+              <div className="border-b border-[#eee8e1] p-5 md:border-b-0 md:border-r">
+                <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Proof needed</div>
+                <div className="mt-3 space-y-2 text-sm">
+                  {["Interior water confirmed", "Property access known", "Photo or call note attached"].map((item) => (
+                    <div className="flex items-center justify-between gap-3" key={item}>
+                      <span>{item}</span>
+                      <span className="rounded-full border border-[#5bb7e8]/35 px-2 py-0.5 text-[11px] font-semibold text-[#d4ecfb]">Check</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Next operator move</div>
+                <div className="mt-3 text-lg font-semibold">
+                  {selectedLead?.tone === "red" ? "Hold for scope review" : "Call and dispatch mitigation"}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#6e6962]">
+                  {selectedLead?.tone === "red"
+                    ? "Confirm whether there is interior water before any campaign or dispatch action."
+                    : "Keep copy coverage-neutral and route only the water-loss context to the mitigation team."}
+                </p>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:165ms]">
+            <div className="border-b border-[#eee8e1] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Next queue after this lead</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">Keeps the dispatcher oriented without needing to scroll back to the top.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] border-separate border-spacing-0 text-left text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
+                    <th className="px-5 py-3">Lead</th>
+                    <th className="px-4 py-3">Signal</th>
+                    <th className="px-4 py-3">Owner</th>
+                    <th className="px-4 py-3">Next step</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {routingQueue
+                    .filter((lead) => lead.id !== selectedLead?.id)
+                    .slice(0, 4)
+                    .map((lead) => (
+                      <tr key={lead.id}>
+                        <td className="border-t border-[#eee8e1] px-5 py-3">
+                          <div className="font-mono text-xs font-semibold">{lead.id}</div>
+                          <div className="mt-1 font-semibold">{lead.lead}</div>
+                        </td>
+                        <td className="border-t border-[#eee8e1] px-4 py-3">
+                          <div className="font-semibold">{lead.issue}</div>
+                          <div className="mt-1 text-xs text-[#6e6962]">{lead.location}</div>
+                        </td>
+                        <td className="border-t border-[#eee8e1] px-4 py-3">{lead.source}</td>
+                        <td className="border-t border-[#eee8e1] px-4 py-3">
+                          {lead.tone === "red" ? "Confirm interior water" : "Prepare mitigation handoff"}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </div>
 
         <div className="min-w-0 space-y-4">
           <Panel className="module-rise [animation-delay:120ms]">
@@ -260,7 +354,7 @@ export default async function LossRoutingPage({
             <div className="mt-5 space-y-4">
               {buildDecisionPath(selectedLead).map((step) => (
                 <div className="grid grid-cols-[28px_1fr] gap-3" key={step.label}>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#efeeeb] text-[#151515]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#5bb7e8]/45 bg-[#5bb7e8]/18 text-[#5bb7e8]">
                     <CheckIcon />
                   </span>
                   <div>
@@ -302,6 +396,24 @@ export default async function LossRoutingPage({
                 <div className="p-4" key={label}>
                   <div className="text-xs text-[#6e6962]">{label}</div>
                   <div className="mt-1 font-semibold">{value}</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:245ms]">
+            <div className="border-b border-[#eee8e1] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Review lanes</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">Where the selected record goes after the routing check.</p>
+            </div>
+            <div className="divide-y divide-[#eee8e1]">
+              {routingReviewLanes.map(([lane, detail, sla]) => (
+                <div className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4" key={lane}>
+                  <div>
+                    <div className="font-semibold">{lane}</div>
+                    <p className="mt-1 text-sm leading-5 text-[#6e6962]">{detail}</p>
+                  </div>
+                  <div className="font-mono text-sm font-semibold">{sla}</div>
                 </div>
               ))}
             </div>
@@ -366,7 +478,7 @@ function getVisibleLeads(activeTab: LeadTab) {
   if (activeTab === "all") return routingQueue;
   if (activeTab === "review") return routingQueue.filter((lead) => lead.tone === "red");
   if (activeTab === "routed") return routingQueue.filter((lead) => lead.tone === "green");
-  return routingQueue.slice(0, 3);
+  return routingQueue.slice(0, 5);
 }
 
 function getDefaultLeadIdForTab(activeTab: LeadTab) {

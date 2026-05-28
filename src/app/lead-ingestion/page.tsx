@@ -7,6 +7,7 @@ import {
   intakeLeads,
   intakeOutcomes,
   personaDisplay,
+  routingExamples,
   validationGateRows,
 } from "../_data/growth-engine";
 
@@ -202,6 +203,37 @@ export default async function LeadIngestionPage({
             >
               Open persona intelligence
             </Link>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:210ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Decision examples</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">What the intake gate is looking for before routing.</p>
+            </div>
+            <div className="divide-y divide-[#eee8e1]">
+              {routingExamples.map((example) => (
+                <div className="px-5 py-4" key={example.lead}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold">{example.lead}</div>
+                      <div className="mt-1 text-sm text-[#6e6962]">{example.issue}</div>
+                    </div>
+                    <StatusPill
+                      tone={
+                        example.strength === "Strong"
+                          ? "green"
+                          : example.strength === "Medium"
+                            ? "amber"
+                            : "red"
+                      }
+                    >
+                      {example.action}
+                    </StatusPill>
+                  </div>
+                  <p className="mt-2 text-sm leading-5 text-[#6e6962]">{example.reason}</p>
+                </div>
+              ))}
+            </div>
           </Panel>
         </aside>
       </div>

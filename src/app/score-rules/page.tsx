@@ -8,6 +8,26 @@ import {
   scoreRules,
 } from "../_data/growth-engine";
 
+const auditRows = [
+  ["Explainability", "Every score must show the signals that moved it."],
+  ["Bounded output", "Lead and partner scores stay inside the 0 to 100 range."],
+  ["Scope guardrail", "Non-target exterior-only work cannot become a campaign trigger."],
+  ["Approval state", "Outbound copy stays pending until a human approves it."],
+];
+
+const scoreBands = [
+  ["90-100", "Dispatch now", "Water confirmed, severe loss, clean contact path."],
+  ["70-89", "Call first", "Likely water loss with enough context to move quickly."],
+  ["40-69", "Review", "Useful signal, but needs proof, access, or scope confirmation."],
+  ["0-39", "Hold", "Low urgency or outside the target restoration lane."],
+];
+
+const guardrailExamples = [
+  ["Hail-only roof", "Blocked from campaign generation"],
+  ["Wind-only siding", "Isolated from water-loss queue"],
+  ["Coverage promise", "Requires rewrite before approval"],
+];
+
 export default function ScoreRulesPage() {
   return (
     <AppShell active="/score-rules">
@@ -25,25 +45,58 @@ export default function ScoreRulesPage() {
       />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
-        <Panel className="module-rise p-0 [animation-delay:70ms]">
-          <div className="border-b border-[#e7e0d8] px-5 py-5">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Signal weights</h2>
-            <p className="mt-1 text-sm text-[#6e6962]">Plain-language inputs that increase urgency.</p>
-          </div>
-          <div className="divide-y divide-[#eee8e1]">
-            {scoreRules.map((rule) => (
-              <div className="grid items-center gap-4 px-5 py-4 sm:grid-cols-[72px_1fr]" key={rule.label}>
-                <div className="inline-flex h-9 w-14 items-center justify-center rounded-md border border-[#ddd6cd] bg-[#fbfaf8] font-mono text-sm font-semibold tabular-nums text-[#151515]">
-                  {rule.value}
+        <div className="min-w-0 space-y-4">
+          <Panel className="module-rise p-0 [animation-delay:70ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-5">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Signal weights</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">Plain-language inputs that increase urgency.</p>
+            </div>
+            <div className="divide-y divide-[#eee8e1]">
+              {scoreRules.map((rule) => (
+                <div className="grid items-center gap-4 px-5 py-4 sm:grid-cols-[72px_1fr]" key={rule.label}>
+                  <div className="inline-flex h-9 w-14 items-center justify-center rounded-md border border-[#ddd6cd] bg-[#fbfaf8] font-mono text-sm font-semibold tabular-nums text-[#151515]">
+                    {rule.value}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-[#151515]">{rule.label}</div>
+                    <p className="mt-0.5 text-sm leading-6 text-[#6e6962]">{rule.note}</p>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-semibold text-[#151515]">{rule.label}</div>
-                  <p className="mt-0.5 text-sm leading-6 text-[#6e6962]">{rule.note}</p>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:110ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Score bands</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">What the number means for operations.</p>
+            </div>
+            <div className="grid md:grid-cols-2">
+              {scoreBands.map(([band, action, detail]) => (
+                <div className="border-b border-[#eee8e1] p-5 even:md:border-l" key={band}>
+                  <div className="font-mono text-2xl font-semibold tabular-nums">{band}</div>
+                  <div className="mt-2 font-semibold">{action}</div>
+                  <p className="mt-1 text-sm leading-6 text-[#6e6962]">{detail}</p>
                 </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:140ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Scoring guardrails</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">Signals that should not become priority marketing or dispatch triggers.</p>
+            </div>
+            <div className="divide-y divide-[#eee8e1]">
+              {guardrailExamples.map(([signal, result]) => (
+                <div className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4" key={signal}>
+                  <div className="font-semibold">{signal}</div>
+                  <div className="text-right text-sm text-[#6e6962]">{result}</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
 
         <div className="min-w-0 space-y-4">
           <Panel className="module-rise p-0 [animation-delay:120ms]">
@@ -99,6 +152,24 @@ export default function ScoreRulesPage() {
                 <div className="border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={change.label}>
                   <div className="font-semibold">{change.label}</div>
                   <div className="mt-1 text-sm text-[#6e6962]">{change.detail}</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:190ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Rule audit checklist</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">The checks that keep automation understandable.</p>
+            </div>
+            <div className="divide-y divide-[#eee8e1]">
+              {auditRows.map(([label, detail]) => (
+                <div className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4" key={label}>
+                  <div>
+                    <div className="font-semibold">{label}</div>
+                    <p className="mt-1 text-sm leading-5 text-[#6e6962]">{detail}</p>
+                  </div>
+                  <StatusPill tone="green">Ready</StatusPill>
                 </div>
               ))}
             </div>

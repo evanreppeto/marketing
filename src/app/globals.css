@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #07111f;
+  --foreground: #f7fbff;
+  --chicago-navy: #07111f;
+  --chicago-ink: #081521;
+  --chicago-panel: #0d1b2e;
+  --chicago-panel-soft: #12233a;
+  --chicago-blue: #5bb7e8;
+  --chicago-blue-soft: #d4ecfb;
+  --chicago-red: #e53935;
+  --chicago-white: #f7fbff;
+  --chicago-muted: #9fb0c3;
+  --chicago-border: rgba(91, 183, 232, 0.22);
 }
 
 @theme inline {
@@ -16,6 +26,210 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: "Geist", "Satoshi", "Aptos", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+.chicago-dark {
+  background:
+    radial-gradient(circle at 17% 0%, rgba(91, 183, 232, 0.18), transparent 28rem),
+    radial-gradient(circle at 88% 14%, rgba(229, 57, 53, 0.12), transparent 24rem),
+    linear-gradient(180deg, var(--chicago-ink) 0%, var(--chicago-navy) 100%);
+  color: var(--chicago-white);
+}
+
+.chicago-dark::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0 48%, rgba(91, 183, 232, 0.15) 48% 49%, transparent 49% 52%, rgba(91, 183, 232, 0.15) 52% 53%, transparent 53% 100%),
+    repeating-linear-gradient(0deg, rgba(247, 251, 255, 0.035) 0 1px, transparent 1px 36px);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.72), transparent 68%);
+}
+
+.chicago-dark > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chicago-dark [class*="bg-[#f7f5f1]"],
+.chicago-dark [class*="bg-[#fbfaf8]"],
+.chicago-dark [class*="bg-[#f8fbff]"],
+.chicago-dark [class*="bg-[#f6f8fb]"],
+.chicago-dark [class*="bg-[#f3f7fc]"],
+.chicago-dark [class*="bg-white"],
+.chicago-dark [class*="bg-[#fff"],
+.chicago-dark section,
+.chicago-dark header {
+  background-color: rgba(13, 27, 46, 0.92) !important;
+  color: var(--chicago-white) !important;
+}
+
+.chicago-dark section,
+.chicago-dark header,
+.chicago-dark table,
+.chicago-dark tr,
+.chicago-dark td,
+.chicago-dark th,
+.chicago-dark div[class*="border"],
+.chicago-dark a[class*="border"],
+.chicago-dark button[class*="border"],
+.chicago-dark input,
+.chicago-dark kbd {
+  border-color: var(--chicago-border) !important;
+}
+
+.chicago-dark h1,
+.chicago-dark h2,
+.chicago-dark h3,
+.chicago-dark h4,
+.chicago-dark [class*="text-[#151515]"],
+.chicago-dark [class*="text-[#0f1720]"],
+.chicago-dark [class*="text-[#162231]"],
+.chicago-dark [class*="text-[#1f3247]"],
+.chicago-dark [class*="text-[#3b3834]"],
+.chicago-dark [class*="text-[#35506c]"] {
+  color: var(--chicago-white) !important;
+}
+
+.chicago-dark p,
+.chicago-dark td,
+.chicago-dark th,
+.chicago-dark label,
+.chicago-dark input,
+.chicago-dark [class*="text-[#6e6962]"],
+.chicago-dark [class*="text-[#7a736b]"],
+.chicago-dark [class*="text-[#63758a]"],
+.chicago-dark [class*="text-[#7d8b9b]"] {
+  color: var(--chicago-muted) !important;
+}
+
+.chicago-dark [class*="text-[#a07423]"],
+.chicago-dark [class*="text-[#21558a]"],
+.chicago-dark [class*="text-[#1769aa]"] {
+  color: var(--chicago-blue) !important;
+}
+
+.chicago-dark [class*="text-[#e7352f]"],
+.chicago-dark [class*="text-[#c5261f]"] {
+  color: #ff615d !important;
+}
+
+.chicago-dark [class*="bg-[#151515]"] {
+  background-color: var(--chicago-red) !important;
+  color: white !important;
+}
+
+.chicago-dark [class*="bg-[#e7352f]"],
+.chicago-dark [class*="bg-[#fdf1ef]"] {
+  background-color: rgba(229, 57, 53, 0.18) !important;
+  color: #ffb8b6 !important;
+  border-color: rgba(229, 57, 53, 0.44) !important;
+}
+
+.chicago-dark [class*="bg-[#f0f5fc]"],
+.chicago-dark [class*="bg-[#eaf4ff]"] {
+  background-color: rgba(91, 183, 232, 0.16) !important;
+  color: var(--chicago-blue-soft) !important;
+  border-color: rgba(91, 183, 232, 0.34) !important;
+}
+
+.chicago-dark [class*="bg-[#eef7f1]"] {
+  background-color: rgba(91, 183, 232, 0.12) !important;
+  color: var(--chicago-blue-soft) !important;
+  border-color: rgba(91, 183, 232, 0.26) !important;
+}
+
+.chicago-dark [class*="bg-[#fff3d9]"],
+.chicago-dark [class*="bg-[#fdf7e7]"] {
+  background-color: rgba(247, 251, 255, 0.08) !important;
+  color: #f7fbff !important;
+  border-color: rgba(247, 251, 255, 0.16) !important;
+}
+
+.chicago-dark a:hover,
+.chicago-dark button:hover {
+  border-color: rgba(91, 183, 232, 0.56) !important;
+}
+
+.chicago-dark input {
+  background-color: rgba(7, 17, 31, 0.82) !important;
+}
+
+.chicago-dark :where(a, button)[class*="rounded"] {
+  position: relative;
+  transform: translateY(0) scale(1);
+  transition:
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    outline-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chicago-dark :where(a, button)[class*="rounded"]:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(91, 183, 232, 0.22),
+    0 10px 24px -20px rgba(91, 183, 232, 0.78);
+}
+
+.chicago-dark :where(a, button)[class*="rounded"]:active {
+  transform: translateY(2px) scale(0.975) !important;
+  border-color: rgba(247, 251, 255, 0.82) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(247, 251, 255, 0.32),
+    inset 0 0 24px rgba(91, 183, 232, 0.18),
+    0 0 0 3px rgba(91, 183, 232, 0.22) !important;
+}
+
+.chicago-dark :where(a, button)[class*="rounded"]:focus-visible {
+  outline: 3px solid rgba(91, 183, 232, 0.9) !important;
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 6px rgba(91, 183, 232, 0.18),
+    0 16px 30px -22px rgba(91, 183, 232, 0.9) !important;
+}
+
+.chicago-dark :where(a, button)[aria-current="page"],
+.chicago-dark :where(a, button)[aria-selected="true"],
+.chicago-dark :where(a, button)[aria-pressed="true"] {
+  border-color: rgba(247, 251, 255, 0.7) !important;
+  box-shadow:
+    inset 4px 0 0 var(--chicago-blue),
+    inset 0 0 0 1px rgba(247, 251, 255, 0.16),
+    0 18px 34px -26px rgba(91, 183, 232, 0.78) !important;
+}
+
+.chicago-dark a[aria-current="page"] {
+  background-color: rgba(91, 183, 232, 0.14) !important;
+  color: var(--chicago-white) !important;
+  border-color: rgba(91, 183, 232, 0.48) !important;
+}
+
+.chicago-dark a[aria-current="page"] :where(span, svg) {
+  color: rgba(247, 251, 255, 0.82) !important;
+}
+
+.chicago-dark nav[aria-label="CRM object navigation"] {
+  background-color: rgba(7, 17, 31, 0.96) !important;
+  border-color: rgba(91, 183, 232, 0.28) !important;
+}
+
+.chicago-dark [role="tab"][aria-selected="true"] {
+  position: relative;
+  background-color: transparent !important;
+  color: var(--chicago-white) !important;
+}
+
+.chicago-dark :where(a, button)[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--chicago-blue);
 }
 
 @keyframes module-rise {
@@ -48,6 +262,24 @@ body {
 
 .status-breathe {
   animation: status-breathe 1900ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.chicago-flag-mark {
+  display: grid;
+  grid-template-columns: repeat(4, 0.72rem);
+  gap: 0.38rem;
+  width: max-content;
+  border-top: 2px solid var(--chicago-blue);
+  border-bottom: 2px solid var(--chicago-blue);
+  padding: 0.26rem 0.15rem;
+}
+
+.chicago-flag-mark span {
+  display: block;
+  width: 0.58rem;
+  height: 0.58rem;
+  background: var(--chicago-red);
+  clip-path: polygon(50% 0%, 60% 32%, 91% 18%, 72% 47%, 100% 62%, 66% 66%, 70% 100%, 50% 72%, 30% 100%, 34% 66%, 0% 62%, 28% 47%, 9% 18%, 40% 32%);
 }
 
 @media (prefers-reduced-motion: reduce) {

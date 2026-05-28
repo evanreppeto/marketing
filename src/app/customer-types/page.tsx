@@ -6,6 +6,12 @@ import { audienceSegments, customerTypes, partnerSegments, segmentHealthRows } f
 
 const groups = ["Homeowner", "Professional", "Partner"] as const;
 
+const audienceBoundaries = [
+  ["Emergency", "Water, sewage, mold, fire, and active structural loss language is allowed."],
+  ["Partner", "Referral and handoff content can be generated after approval-safe context is present."],
+  ["Blocked", "Hail-only, wind-only, exterior roof, and unrelated remodeling content stays isolated."],
+];
+
 export default async function CustomerTypesPage({
   searchParams,
 }: {
@@ -122,6 +128,26 @@ export default async function CustomerTypesPage({
                   <StatusPill tone={row.status === "Good" ? "green" : row.status === "Action needed" ? "red" : "amber"}>
                     {row.status}
                   </StatusPill>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="module-rise p-0 [animation-delay:190ms]">
+            <div className="border-b border-[#e7e0d8] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Content boundaries</h2>
+              <p className="mt-1 text-sm text-[#6e6962]">How segments are allowed to feed AI Studio.</p>
+            </div>
+            <div className="divide-y divide-[#eee8e1]">
+              {audienceBoundaries.map(([label, detail]) => (
+                <div className="px-5 py-4" key={label}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-semibold">{label}</div>
+                    <StatusPill tone={label === "Blocked" ? "red" : label === "Partner" ? "blue" : "green"}>
+                      {label === "Blocked" ? "Isolate" : "Allowed"}
+                    </StatusPill>
+                  </div>
+                  <p className="mt-2 text-sm leading-5 text-[#6e6962]">{detail}</p>
                 </div>
               ))}
             </div>

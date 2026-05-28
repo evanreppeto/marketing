@@ -154,6 +154,19 @@ export function CrmObjectPage({ action, objectKey }: CrmObjectPageProps) {
               </tbody>
             </table>
           </div>
+
+          <div className="grid border-t border-[#e1e7ef] md:grid-cols-3">
+            {[
+              ["Completeness", objectKey === "leads" ? "Validation + persona required" : "Required fields mapped"],
+              ["Relationship rule", crmObject.relationships],
+              ["Next connection", "Persist list filters and create forms"],
+            ].map(([label, detail]) => (
+              <div className="border-b border-[#e1e7ef] px-5 py-4 md:border-r md:last:border-r-0" key={label}>
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#63758a]">{label}</div>
+                <div className="mt-2 text-sm font-semibold text-[#0f1720]">{detail}</div>
+              </div>
+            ))}
+          </div>
         </Panel>
 
         <aside className="min-w-0 space-y-4">

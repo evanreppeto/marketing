@@ -81,7 +81,7 @@ export default async function DataFoundationPage({
             return (
               <>
                 {hero ? (
-                  <div className="border-b border-[#eee8e1] bg-[#fbf6ee] px-5 py-6">
+                  <div className="border-b border-[#5bb7e8]/25 bg-[#123250] px-5 py-6 shadow-[inset_4px_0_0_#5bb7e8]">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <div className="text-xs uppercase tracking-[0.16em] text-[#a07423]">Actionable now</div>

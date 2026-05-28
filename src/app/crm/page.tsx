@@ -10,8 +10,25 @@ import {
 } from "../_data/growth-engine";
 import { CrmCommandHeader } from "./_components/crm-command-header";
 
-export default function CrmOverviewPage() {
-  const selectedRecord = crmPipelineRows[0];
+type CrmViewKey = "my-open-work" | "water-losses" | "partners" | "due-today";
+
+const crmViews: Array<{ key: CrmViewKey; label: string; detail: string }> = [
+  { key: "my-open-work", label: "My open work", detail: "All assigned records needing operator attention." },
+  { key: "water-losses", label: "Water losses", detail: "Mitigation-ready and water-context records only." },
+  { key: "partners", label: "Partners", detail: "Referral and trade partner relationship work." },
+  { key: "due-today", label: "Due today", detail: "Records with an immediate or same-day next step." },
+];
+
+export default async function CrmOverviewPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ view?: string | string[] }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  const activeView = normalizeView(query.view);
+  const visibleRows = getVisibleRows(activeView);
+  const selectedRecord = visibleRows[0] ?? crmPipelineRows[0];
+  const activeViewMeta = crmViews.find((view) => view.key === activeView) ?? crmViews[0];
 
   return (
     <AppShell active="/crm">
@@ -36,21 +53,22 @@ export default function CrmOverviewPage() {
             <div>
               <h2 className="text-xl font-semibold tracking-[-0.02em] text-[#0f1720]">Active CRM list view</h2>
               <p className="mt-1 text-sm text-[#63758a]">
-                Shared queue across leads, accounts, properties, jobs, and revenue records.
+                {activeViewMeta.detail}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {["My open work", "Water losses", "Partners", "Due today"].map((view, index) => (
+              {crmViews.map((view) => (
                 <Link
+                  aria-current={activeView === view.key ? "page" : undefined}
                   className={`inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold transition active:-translate-y-px ${
-                    index === 0
-                      ? "border-[#1769aa] bg-[#eaf4ff] text-[#1769aa]"
+                    activeView === view.key
+                      ? "border-[#e53935] bg-[#e53935] text-white"
                       : "border-[#d8dfe8] bg-white text-[#35506c] hover:border-[#9aabbc]"
                   }`}
-                  href={`/crm?view=${view.toLowerCase().replaceAll(" ", "-")}`}
-                  key={view}
+                  href={`/crm?view=${view.key}`}
+                  key={view.key}
                 >
-                  {view}
+                  {view.label}
                 </Link>
               ))}
             </div>
@@ -72,7 +90,7 @@ export default function CrmOverviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {crmPipelineRows.map((row) => (
+                {visibleRows.map((row) => (
                   <tr className="group transition hover:bg-[#f8fbff]" key={row.id}>
                     <td className="border-t border-[#e1e7ef] px-5 py-4">
                       <span className="block h-4 w-4 rounded border border-[#bdc9d7] bg-white group-hover:border-[#1769aa]" />
@@ -117,7 +135,7 @@ export default function CrmOverviewPage() {
                 {selectedRecord.record}
               </div>
               <div className="mt-2 text-sm leading-6 text-[#35506c]">
-                {selectedRecord.account} is ready for {selectedRecord.stage.toLowerCase()}.
+                {selectedRecord.account} is ready for {selectedRecord.nextStep.toLowerCase()}.
               </div>
             </div>
             <div className="mt-4 grid grid-cols-3 divide-x divide-[#e1e7ef] rounded-md border border-[#e1e7ef] bg-white text-center">
@@ -182,6 +200,35 @@ export default function CrmOverviewPage() {
       </div>
     </AppShell>
   );
+}
+
+function normalizeView(value: string | string[] | undefined): CrmViewKey {
+  const view = Array.isArray(value) ? value[0] : value;
+
+  if (view === "water-losses" || view === "partners" || view === "due-today") {
+    return view;
+  }
+
+  return "my-open-work";
+}
+
+function getVisibleRows(activeView: CrmViewKey) {
+  if (activeView === "water-losses") {
+    return crmPipelineRows.filter((row) => row.tone === "green" || row.type.toLowerCase().includes("job"));
+  }
+
+  if (activeView === "partners") {
+    return crmPipelineRows.filter((row) => {
+      const text = `${row.record} ${row.account} ${row.type} ${row.stage}`.toLowerCase();
+      return text.includes("partner") || text.includes("referral") || text.includes("insurance");
+    });
+  }
+
+  if (activeView === "due-today") {
+    return crmPipelineRows.filter((row) => row.updated === "Today" || row.nextStep.toLowerCase().includes("call"));
+  }
+
+  return crmPipelineRows;
 }
 
 function activityDot(tone: string) {
