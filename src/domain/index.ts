@@ -4,3 +4,4 @@ export * from "./personas";
 export * from "./scoring";
 export * from "./events";
 export * from "./routing-decisions";
+export * from "./integrity-findings";
