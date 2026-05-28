@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { AppShell } from "./_components/app-shell";
+import { CountUp } from "./_components/count-up";
+import { LiveTime } from "./_components/live-time";
 import { PageHeader, Panel, StatusPill } from "./_components/page-header";
 import {
   agentApprovalQueue,
@@ -30,12 +32,22 @@ export default function HomePage() {
         eyebrow="Today"
         title="Here's what needs you next"
         description="The most urgent item on top, then everything else still waiting on a human. Specialized pages have the full context when you want to dig in."
-        aside={<StatusPill tone="gray">{totalWaiting} waiting</StatusPill>}
+        aside={
+          <StatusPill tone="gray">
+            <CountUp value={totalWaiting} /> waiting
+          </StatusPill>
+        }
       />
 
       <Panel className="module-rise p-0 [animation-delay:60ms]">
         <div className="flex items-center gap-2 border-b border-[#eee8e1] px-5 py-3">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#d52f28] status-breathe" aria-hidden="true" />
+          <span
+            aria-hidden="true"
+            className="relative inline-flex h-1.5 w-1.5 items-center justify-center"
+          >
+            <span className="absolute inset-0 rounded-full bg-[#d52f28] status-breathe" />
+            <span className="absolute inset-0 rounded-full bg-[#d52f28]/45 status-ripple" />
+          </span>
           <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a07423]">
             Right now · Most urgent
           </span>
@@ -47,8 +59,11 @@ export default function HomePage() {
               {rightNow.lead} — {rightNow.issue.toLowerCase()} in {rightNow.location.toLowerCase()}
             </h2>
             <p className="mt-2 max-w-[60ch] text-sm leading-6 text-[#6e6962]">
-              Waiting <span className="font-semibold text-[#151515]">{rightNow.age}</span> for a routing
-              decision. Score{" "}
+              Waiting{" "}
+              <span className="font-semibold text-[#151515]">
+                <LiveTime baseline={`${rightNow.age} ago`} compact />
+              </span>{" "}
+              for a routing decision. Score{" "}
               <span className="font-mono font-semibold tabular-nums text-[#151515]">{rightNow.score}</span>,
               source <span className="font-semibold text-[#151515]">{rightNow.source}</span>. Recommended
               action: {rightNow.decision.toLowerCase()}.
@@ -77,9 +92,10 @@ export default function HomePage() {
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">
               Approvals
             </div>
-            <div className="font-mono text-2xl font-semibold tabular-nums text-[#151515]">
-              {pendingApprovals.length}
-            </div>
+            <CountUp
+              className="font-mono text-2xl font-semibold tabular-nums text-[#151515]"
+              value={pendingApprovals.length}
+            />
           </div>
           <p className="mt-3 text-sm leading-6 text-[#6e6962]">
             {firstApproval
@@ -99,9 +115,10 @@ export default function HomePage() {
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">
               Intake validation
             </div>
-            <div className="font-mono text-2xl font-semibold tabular-nums text-[#151515]">
-              {intakeReviewCount}
-            </div>
+            <CountUp
+              className="font-mono text-2xl font-semibold tabular-nums text-[#151515]"
+              value={intakeReviewCount}
+            />
           </div>
           <p className="mt-3 text-sm leading-6 text-[#6e6962]">
             Submissions held at the intake gate because customer type, relationship, or loss scope still
@@ -120,9 +137,10 @@ export default function HomePage() {
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a736b]">
               Integrity issues
             </div>
-            <div className="font-mono text-2xl font-semibold tabular-nums text-[#151515]">
-              {blockingIssueCount}
-            </div>
+            <CountUp
+              className="font-mono text-2xl font-semibold tabular-nums text-[#151515]"
+              value={blockingIssueCount}
+            />
           </div>
           <p className="mt-3 text-sm leading-6 text-[#6e6962]">
             Data-quality findings (duplicates, invalid phones, missing addresses) that would block routing
@@ -158,7 +176,9 @@ export default function HomePage() {
               className="grid grid-cols-[80px_1fr_auto] items-baseline gap-4 px-4 py-2.5"
               key={`${entry.output}-${entry.time}`}
             >
-              <span className="text-xs text-[#7a736b]">{entry.time}</span>
+              <span className="text-xs text-[#7a736b]">
+                <LiveTime baseline={entry.time} />
+              </span>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-[#151515]">{entry.output}</div>
                 <div className="truncate text-xs text-[#6e6962]">{entry.agent}</div>

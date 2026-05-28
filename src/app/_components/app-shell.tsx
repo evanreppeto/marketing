@@ -48,15 +48,17 @@ export function AppShell({ active, children }: AppShellProps) {
                   Signal
                 </div>
               </div>
-              <Image
-                alt=""
-                aria-hidden="true"
-                className="h-14 w-14 shrink-0 object-contain drop-shadow-[0_0_14px_rgba(91,183,232,0.34)] transition-transform duration-200 group-hover:scale-[1.04] xl:h-[clamp(2.7rem,6.2vh,3.5rem)] xl:w-[clamp(2.7rem,6.2vh,3.5rem)]"
-                height={128}
-                priority
-                src="/brand/signal-mark-transparent.png"
-                width={128}
-              />
+              <span className="signal-radar relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full xl:h-[clamp(2.7rem,6.2vh,3.5rem)] xl:w-[clamp(2.7rem,6.2vh,3.5rem)]">
+                <Image
+                  alt=""
+                  aria-hidden="true"
+                  className="h-full w-full object-contain drop-shadow-[0_0_14px_rgba(91,183,232,0.34)] transition-transform duration-200 group-hover:scale-[1.04]"
+                  height={128}
+                  priority
+                  src="/brand/signal-mark-transparent.png"
+                  width={128}
+                />
+              </span>
             </div>
             <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2" aria-hidden="true">
               <span className="h-px rounded-full bg-[#5bb7e8] shadow-[0_0_14px_rgba(91,183,232,0.75)]" />

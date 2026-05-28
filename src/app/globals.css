@@ -256,12 +256,59 @@ body {
   }
 }
 
+@keyframes status-ripple {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes radar-sweep {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+
+  35% {
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
 .module-rise {
   animation: module-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .status-breathe {
   animation: status-breathe 1900ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.status-ripple {
+  animation: status-ripple 2400ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.signal-radar {
+  position: relative;
+}
+
+.signal-radar::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 1px solid rgba(91, 183, 232, 0.7);
+  box-shadow: 0 0 18px rgba(91, 183, 232, 0.35);
+  pointer-events: none;
+  animation: radar-sweep 3600ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 .chicago-flag-mark {
@@ -284,7 +331,13 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .module-rise,
-  .status-breathe {
+  .status-breathe,
+  .status-ripple {
     animation: none;
+  }
+
+  .signal-radar::after {
+    animation: none;
+    opacity: 0;
   }
 }
