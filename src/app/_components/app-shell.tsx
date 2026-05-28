@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import { navItems } from "../_data/growth-engine";
 import { QuickJump } from "./quick-jump";
@@ -17,19 +18,36 @@ export function AppShell({ active, children }: AppShellProps) {
         <aside className="flex flex-col border-r border-[#5bb7e8]/20 bg-[linear-gradient(180deg,#07111f_0%,#0d1b2e_58%,#07111f_100%)] px-2.5 py-3 text-white xl:fixed xl:left-0 xl:top-0 xl:h-[100dvh] xl:w-[244px] xl:overflow-hidden xl:px-[clamp(0.35rem,0.75vh,0.625rem)] xl:py-[clamp(0.45rem,1.35vh,1rem)]">
           <Link
             href="/data-foundation"
-            className="mx-2 mb-3 block rounded-md px-2 py-1 transition-transform active:-translate-y-px xl:mb-[clamp(0.35rem,1.3vh,1rem)] xl:py-[clamp(0.1rem,0.35vh,0.25rem)]"
+            className="group mx-1 mb-3 block overflow-hidden rounded-lg border border-[#5bb7e8]/25 bg-[radial-gradient(circle_at_82%_18%,rgba(91,183,232,0.22),transparent_34%),linear-gradient(135deg,#0b1a2a_0%,#07111f_100%)] p-3 shadow-[0_22px_55px_-42px_rgba(91,183,232,0.95)] transition-transform active:-translate-y-px xl:mb-[clamp(0.35rem,1.3vh,0.85rem)] xl:p-[clamp(0.55rem,1.35vh,0.75rem)]"
           >
-            <div className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#e53935] xl:text-[clamp(0.55rem,1.25vh,0.6875rem)]">
-              Big Shoulders
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#ff625d] xl:text-[clamp(0.5rem,1.15vh,0.625rem)]">
+                  Big Shoulders
+                </div>
+                <div className="mt-1 text-[31px] font-semibold leading-none tracking-[-0.07em] text-white xl:text-[clamp(1.55rem,3.8vh,2rem)]">
+                  Signal
+                </div>
+              </div>
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="h-14 w-14 shrink-0 object-contain drop-shadow-[0_0_14px_rgba(91,183,232,0.34)] transition-transform duration-200 group-hover:scale-[1.04] xl:h-[clamp(2.7rem,6.2vh,3.5rem)] xl:w-[clamp(2.7rem,6.2vh,3.5rem)]"
+                height={128}
+                priority
+                src="/brand/signal-mark-transparent.png"
+                width={128}
+              />
             </div>
-            <div className="mt-1.5 text-[21px] font-semibold leading-none tracking-[-0.04em] xl:mt-[clamp(0.25rem,0.75vh,0.375rem)] xl:text-[clamp(1rem,2.45vh,1.3125rem)]">
-              Growth Engine
-            </div>
-            <div className="chicago-flag-mark mt-2 xl:mt-[clamp(0.35rem,0.9vh,0.5rem)]" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
+            <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2" aria-hidden="true">
+              <span className="h-px rounded-full bg-[#5bb7e8] shadow-[0_0_14px_rgba(91,183,232,0.75)]" />
+              <span className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rotate-45 bg-[#e53935]" />
+                <span className="h-1.5 w-1.5 rotate-45 bg-[#e53935]" />
+                <span className="h-1.5 w-1.5 rotate-45 bg-[#e53935]" />
+                <span className="h-1.5 w-1.5 rotate-45 bg-[#e53935]" />
+              </span>
+              <span className="h-px rounded-full bg-[#5bb7e8] shadow-[0_0_14px_rgba(91,183,232,0.75)]" />
             </div>
           </Link>
 
@@ -76,7 +94,7 @@ export function AppShell({ active, children }: AppShellProps) {
         <div className="min-w-0 max-w-full overflow-x-hidden xl:ml-[244px]">
           <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-[#5bb7e8]/20 bg-[#081521]/88 px-4 py-2.5 backdrop-blur sm:px-6 lg:px-8 xl:px-9">
             <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-[#9fb0c3]">
-              <span className="font-medium text-[#9fb0c3]">Growth Engine</span>
+              <span className="font-medium text-[#9fb0c3]">Signal</span>
               <span aria-hidden="true" className="text-[#5bb7e8]">/</span>
               <span className="font-semibold text-[#f7fbff]">{activeItem?.label ?? "Workspace"}</span>
             </nav>
