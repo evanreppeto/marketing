@@ -1,0 +1,67 @@
+import { type SupabaseClient } from "@supabase/supabase-js";
+
+export type MockResponse = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
+export type MockSupabase = SupabaseClient & {
+  calls: Array<[string, ...unknown[]]>;
+};
+
+const CHAIN_METHODS = [
+  "select",
+  "insert",
+  "update",
+  "delete",
+  "upsert",
+  "eq",
+  "neq",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "in",
+  "is",
+  "like",
+  "ilike",
+  "order",
+  "limit",
+  "range",
+  "single",
+  "maybeSingle",
+] as const;
+
+export function createSupabaseQueryMock(
+  responses: Record<string, MockResponse>,
+): MockSupabase {
+  const calls: Array<[string, ...unknown[]]> = [];
+
+  const makeChain = (tableName: string) => {
+    const chain: Record<string, unknown> = {};
+
+    for (const method of CHAIN_METHODS) {
+      chain[method] = (...args: unknown[]) => {
+        calls.push([method, ...args]);
+        return chain;
+      };
+    }
+
+    chain.then = (
+      onFulfilled?: (value: MockResponse) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) => {
+      const response = responses[tableName] ?? { data: [], error: null };
+      return Promise.resolve(response).then(onFulfilled, onRejected);
+    };
+
+    return chain;
+  };
+
+  const from = (tableName: string) => {
+    calls.push(["from", tableName]);
+    return makeChain(tableName);
+  };
+
+  return { from, calls } as unknown as MockSupabase;
+}
