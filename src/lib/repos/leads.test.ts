@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "./__tests__/test-helpers";
-import { countLeads, getLead, listLeads, type ListLeadsFilter } from "./leads";
+import { countLeads, getLead, listLeads } from "./leads";
 
 const validLeadRow = {
   id: "10000000-0000-4000-8000-000000000001",
