@@ -1,22 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// Kept self-contained (no next/headers imports) so it stays proxy-safe.
-const OPERATOR_COOKIE = "signal_operator";
+import {
+  OPERATOR_COOKIE,
+  getSafeOperatorReturnPath,
+  isOperatorGateEnabled,
+  isValidOperatorValue,
+} from "@/lib/auth/operator-shared";
 
 export function proxy(request: NextRequest) {
-  const token = process.env.OPERATOR_ACCESS_TOKEN;
-
   // Gate disabled (no token configured): let everything through.
-  if (!token) {
+  if (!isOperatorGateEnabled()) {
     return NextResponse.next();
   }
 
-  if (request.cookies.get(OPERATOR_COOKIE)?.value === token) {
+  if (isValidOperatorValue(request.cookies.get(OPERATOR_COOKIE)?.value)) {
     return NextResponse.next();
   }
 
   const url = new URL("/login", request.url);
-  url.searchParams.set("from", request.nextUrl.pathname);
+  url.searchParams.set("from", getSafeOperatorReturnPath(`${request.nextUrl.pathname}${request.nextUrl.search}`));
   return NextResponse.redirect(url);
 }
 

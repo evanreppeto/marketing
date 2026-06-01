@@ -45,3 +45,49 @@ export function parseFrontmatter(raw: string): ParsedFrontmatter {
 
   return { frontmatter, body: raw.slice(match[0].length) };
 }
+
+export type LinkKind = "note" | "record" | "persona" | "unresolved";
+
+export type ResolvedLink = {
+  kind: LinkKind;
+  target: string;
+  label: string;
+  href: string;
+};
+
+export type LinkResolutionContext = {
+  notes: Map<string, string>; // slug -> /notebook/<slug>
+  records: Map<string, string>; // record id -> /crm/<object>/<id>
+  personas: Map<string, string>; // persona key -> href
+};
+
+const WIKI_LINK_RE = /\[\[([^\]]+)\]\]/g;
+
+export function resolveWikiTarget(
+  target: string,
+  label: string,
+  ctx: LinkResolutionContext,
+): ResolvedLink {
+  const note = ctx.notes.get(target);
+  if (note) return { kind: "note", target, label, href: note };
+
+  const record = ctx.records.get(target);
+  if (record) return { kind: "record", target, label, href: record };
+
+  const persona = ctx.personas.get(target);
+  if (persona) return { kind: "persona", target, label, href: persona };
+
+  return { kind: "unresolved", target, label, href: `unresolved:${target}` };
+}
+
+export function extractLinks(body: string, ctx: LinkResolutionContext): ResolvedLink[] {
+  const links: ResolvedLink[] = [];
+  for (const match of body.matchAll(WIKI_LINK_RE)) {
+    const inner = match[1];
+    const pipe = inner.indexOf("|");
+    const target = (pipe === -1 ? inner : inner.slice(0, pipe)).trim();
+    const label = (pipe === -1 ? inner : inner.slice(pipe + 1)).trim();
+    links.push(resolveWikiTarget(target, label, ctx));
+  }
+  return links;
+}

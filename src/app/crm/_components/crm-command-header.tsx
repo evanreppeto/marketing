@@ -28,9 +28,9 @@ export function CrmCommandHeader({ activeObject }: CrmCommandHeaderProps) {
               <SearchIcon />
             </span>
             <input
-              className="h-11 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-10 pr-3 text-sm font-medium text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:bg-[var(--surface-raised)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              type="search"
+              className="h-11 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-10 pr-3 text-sm font-medium text-[var(--text-primary)] caret-[var(--accent-strong)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:bg-[var(--surface-raised)] focus:ring-4 focus:ring-[var(--accent-soft)]"
               placeholder="Search companies, contacts, properties, leads, jobs"
-              readOnly
             />
           </label>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">

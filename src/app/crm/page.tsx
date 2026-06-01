@@ -107,25 +107,19 @@ export default async function CrmOverviewPage({
                   const isSelected = selectedRecord?.id === row.id;
                   return (
                     <Link
-                      aria-label={`Select ${row.record}`}
-                      aria-pressed={isSelected}
-                      className={`group/selector flex h-8 w-8 items-center justify-center rounded-full border transition active:translate-y-px ${
-                        isSelected
-                          ? "border-[var(--accent)] bg-[var(--accent)]"
-                          : "border-[var(--border-strong)] bg-[var(--surface-inset)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
-                      }`}
+                      aria-current={isSelected ? "true" : undefined}
+                      aria-label={`${isSelected ? "Selected" : "Select"} ${row.record}`}
+                      className="group/selector grid h-6 w-6 place-items-center transition active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)]"
                       href={`/crm?view=${activeView}&selected=${row.id}`}
                     >
                       <span
-                        className={`flex h-4 w-4 items-center justify-center rounded-full border transition ${
+                        className={`h-2.5 w-2.5 rounded-full border transition ${
                           isSelected
-                            ? "border-[var(--on-accent)] bg-[var(--on-accent)]"
+                            ? "border-[var(--accent)] bg-[var(--accent)]"
                             : "border-[var(--border-strong)] bg-transparent group-hover/selector:border-[var(--accent)]"
                         }`}
                         aria-hidden="true"
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full bg-[var(--accent)] transition ${isSelected ? "scale-100 opacity-100" : "scale-0 opacity-0"}`} />
-                      </span>
+                      />
                     </Link>
                   );
                 },
