@@ -1,234 +1,176 @@
-import Link from "next/link";
-
 import { AppShell } from "../_components/app-shell";
 import { CountUp } from "../_components/count-up";
-import { OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
-import {
-  exampleScore,
-  exampleScoreBreakdown,
-  routingRules,
-  scoreChanges,
-  scoreRules,
-} from "../_data/growth-engine";
+import { PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { exampleScore, routingRules, scoreRules } from "../_data/growth-engine";
 
-const auditRows = [
-  ["Explainability", "Every score must show the signals that moved it."],
-  ["Bounded output", "Lead and partner scores stay inside the 0 to 100 range."],
-  ["Scope guardrail", "Non-target exterior-only work cannot become a campaign trigger."],
-  ["Approval state", "Outbound copy stays pending until a human approves it."],
+const settingGroups = [
+  {
+    title: "Hermes autonomy",
+    description: "The MVP posture: Hermes can draft and write internal records, but outbound action stays locked.",
+    badge: "Level 2",
+    tone: "blue" as const,
+    rows: [
+      ["Internal enrichment", "Allowed", "Deduplicate, classify personas, score leads, and add audit notes."],
+      ["Draft generation", "Allowed", "Create campaign ideas, copy, lead lists, and approval cards."],
+      ["Outbound execution", "Blocked", "No email, SMS, posting, ads, or spend changes without approval."],
+    ],
+  },
+  {
+    title: "Approval requirements",
+    description: "Every agent-created item that could leave the system becomes reviewable first.",
+    badge: "Human gate",
+    tone: "green" as const,
+    rows: [
+      ["Campaign assets", "Required", "Email, SMS, ads, landing copy, social posts, and scripts."],
+      ["Lead lists", "Required", "Bulk outreach audiences and partner recommendations."],
+      ["Budget or dispatch", "Blocked", "Future controls only after account integrations exist."],
+    ],
+  },
+  {
+    title: "Guardrail scope",
+    description: "Rules that prevent risky language and off-scope campaigns before review.",
+    badge: "Active",
+    tone: "amber" as const,
+    rows: [
+      ["Coverage language", "Blocked", "No claim approval, payout, or insurance-will-cover promises."],
+      ["Restoration focus", "Water first", "Flood, backup, burst pipe, standing water, mold, sewage, fire."],
+      ["Exterior-only work", "Blocked", "Hail-only, wind-only, and roof-only campaigns stay out of scope."],
+    ],
+  },
 ];
 
-const scoreBands = [
-  ["90-100", "Dispatch now", "Water confirmed, severe loss, clean contact path."],
-  ["70-89", "Call first", "Likely water loss with enough context to move quickly."],
-  ["40-69", "Review", "Useful signal, but needs proof, access, or scope confirmation."],
-  ["0-39", "Hold", "Low urgency or outside the target restoration lane."],
-];
-
-const guardrailExamples = [
-  ["Hail-only roof", "Blocked from campaign generation"],
-  ["Wind-only siding", "Isolated from water-loss queue"],
-  ["Coverage promise", "Requires rewrite before approval"],
+const settingsAreas = [
+  ["Data foundation", "Ready", "Inspect table health and missing CRM fields."],
+  ["Reports", "Planned", "Review attribution and future outcome loops."],
+  ["Lead intake", "Mapped", "Check incoming lead validation rules."],
+  ["Loss routing", "Active", "Review target and non-target loss handling."],
 ];
 
 export default function ScoreRulesPage() {
   return (
     <AppShell active="/score-rules">
       <PageHeader
-        eyebrow="Priority Rules"
-        title="How leads are scored, 0 to 100"
-        description="Urgency, evidence, and partner strength combine into a bounded score that drives the next action."
-        aside={<StatusPill tone="gray">0-100 lead score</StatusPill>}
+        eyebrow="Settings"
+        title="Hermes controls, scoring, and safety rules"
+        description="This is the control surface for how much Hermes can do, what requires approval, and how lead priority is explained."
+        aside={<StatusPill tone="blue">Backend-first settings</StatusPill>}
       />
 
-      <OperatorBar
-        task="Check that scoring still sends the right work to the right team."
-        detail="Start with the audit checklist, then review routing rules. The detailed weights are here when you need to explain why a lead moved up or down."
-        status="Operator view"
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="#routing-rules"
-          >
-            Review routing rules
-          </Link>
-        }
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href="#audit-checklist"
-          >
-            Check audit
-          </Link>
-        }
-      />
-
-      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise p-0 [animation-delay:70ms]">
-            <div className="border-b border-[#e7e0d8] px-5 py-5">
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Signal weights</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">Plain-language inputs that move a lead up the queue.</p>
-            </div>
-            <div className="grid gap-3 p-4 md:grid-cols-2">
-              {scoreRules.map((rule) => (
-                <div className="grid grid-cols-[64px_1fr] gap-3 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-3" key={rule.label}>
-                  <div className="inline-flex h-10 w-14 items-center justify-center rounded-md border border-[#ddd6cd] bg-[#07111f] font-mono text-sm font-semibold tabular-nums text-white">
-                    {rule.value}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4">
+          {settingGroups.map((group, groupIndex) => (
+            <Panel className="module-rise overflow-hidden p-0" key={group.title}>
+              <div className="grid gap-4 border-b border-[var(--border-hairline)] px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-start">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl font-semibold tracking-[-0.02em]">{group.title}</h2>
+                    <StatusPill tone={group.tone}>{group.badge}</StatusPill>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[#151515]">{rule.label}</div>
-                    <p className="mt-0.5 text-sm leading-5 text-[#6e6962]">{rule.note}</p>
+                  <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{group.description}</p>
+                </div>
+                <div className="font-mono text-xs text-[var(--text-muted)]">0{groupIndex + 1}</div>
+              </div>
+              <div className="divide-y divide-[var(--border-hairline)]">
+                {group.rows.map(([label, state, detail]) => (
+                  <div className="grid gap-3 px-5 py-4 md:grid-cols-[190px_120px_1fr]" key={label}>
+                    <div className="font-semibold">{label}</div>
+                    <div className="min-w-0">
+                      <span className="token-value rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-1 font-mono text-xs font-semibold text-[var(--chicago-blue-soft)]">
+                        {state}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
                   </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel className="module-rise p-0 [animation-delay:110ms]">
-            <div className="border-b border-[#e7e0d8] px-5 py-4">
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Score bands</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">What the number means for operations.</p>
-            </div>
-            <div className="grid md:grid-cols-2">
-              {scoreBands.map(([band, action, detail]) => (
-                <div className="border-b border-[#eee8e1] p-5 even:md:border-l" key={band}>
-                  <div className="font-mono text-2xl font-semibold tabular-nums">{band}</div>
-                  <div className="mt-2 font-semibold">{action}</div>
-                  <p className="mt-1 text-sm leading-6 text-[#6e6962]">{detail}</p>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel className="module-rise p-0 [animation-delay:140ms]">
-            <div className="border-b border-[#e7e0d8] px-5 py-4">
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Scoring guardrails</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">Signals that should not become priority marketing or dispatch triggers.</p>
-            </div>
-            <div className="divide-y divide-[#eee8e1]">
-              {guardrailExamples.map(([signal, result]) => (
-                <div className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4" key={signal}>
-                  <div className="font-semibold">{signal}</div>
-                  <div className="text-right text-sm text-[#6e6962]">{result}</div>
-                </div>
-              ))}
-            </div>
-          </Panel>
+                ))}
+              </div>
+            </Panel>
+          ))}
         </div>
 
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise p-0 [animation-delay:120ms]">
-            <div className="flex items-center justify-between border-b border-[#eee8e1] px-5 py-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6e6962]">
-                Example lead
-              </div>
-              <StatusPill tone="dark">Sample</StatusPill>
+        <aside className="space-y-4">
+          <Panel className="module-rise p-0 [animation-delay:80ms]">
+            <div className="border-b border-[var(--border-hairline)] px-5 py-4">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Lead scoring</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">Bounded 0 to 100, always explainable.</p>
             </div>
-            <div className="grid grid-cols-[auto_1fr] items-center gap-5 px-5 py-5">
-              <div className="font-mono text-[64px] font-semibold leading-none tabular-nums tracking-[-0.06em] text-[#151515]">
+            <div className="px-5 py-5">
+              <div className="font-mono text-[56px] font-semibold leading-none tracking-[-0.06em]">
                 <CountUp value={exampleScore.leadScore} />
               </div>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-xs text-[#6e6962]">
-                {exampleScoreBreakdown.lead.map((part, index) => (
-                  <span className="inline-flex items-center gap-1.5" key={part.label}>
-                    {index > 0 ? <span className="text-[#a8a098]">+</span> : null}
-                    <span className="rounded border border-[#ddd6cd] bg-[#fbfaf8] px-1.5 py-0.5 tabular-nums text-[#151515]">
-                      {part.value}
-                    </span>
-                    <span className="text-[#6e6962]">{part.label}</span>
+              <div className="mt-2 text-sm text-[var(--text-secondary)]">Example score from standing water, photo upload, and partner context.</div>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-[var(--border-hairline)] border-t border-[var(--border-hairline)]">
+              {[
+                ["Partner", exampleScore.partnerScore],
+                ["Max", 100],
+              ].map(([label, value]) => (
+                <div className="px-5 py-4" key={label}>
+                  <div className="text-xs text-[var(--text-muted)]">{label}</div>
+                  <div className="mt-1 font-mono text-2xl font-semibold">{value}</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="module-rise [animation-delay:110ms]">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Configuration areas</h2>
+            <div className="mt-4 grid gap-2">
+              {settingsAreas.map(([label, state, detail]) => (
+                <article className="settings-action" key={label}>
+                  <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+                  <span>
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-[var(--text-secondary)]">{detail}</span>
                   </span>
-                ))}
-                <span className="text-[#a8a098]">=</span>
-                <span className="rounded bg-[#151515] px-1.5 py-0.5 font-semibold tabular-nums text-white">
-                  {exampleScore.leadScore}
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 divide-x divide-[#eee8e1] border-t border-[#eee8e1]">
-              <div className="px-5 py-4">
-                <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Partner score</div>
-                <div className="mt-1.5 font-mono text-2xl font-semibold tabular-nums">
-                  <CountUp value={exampleScore.partnerScore} />
-                </div>
-                <div className="mt-1 font-mono text-xs text-[#6e6962]">
-                  {exampleScoreBreakdown.partner.map((part) => part.value).join(" + ")} ={" "}
-                  {exampleScore.partnerScore}
-                </div>
-              </div>
-              <div className="px-5 py-4">
-                <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Next action</div>
-                <div className="mt-1.5 text-lg font-semibold">Call now</div>
-                <div className="mt-1 text-xs text-[#6e6962]">Score 70+ triggers immediate outreach.</div>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel className="module-rise p-0 [animation-delay:170ms]" id="audit-checklist">
-            <div className="border-b border-[#e7e0d8] px-5 py-4">
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Rule audit checklist</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">The checks that keep automation understandable and safe.</p>
-            </div>
-            <div className="divide-y divide-[#eee8e1]">
-              {auditRows.map(([label, detail]) => (
-                <div className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4" key={label}>
-                  <div>
-                    <div className="font-semibold">{label}</div>
-                    <p className="mt-1 text-sm leading-5 text-[#6e6962]">{detail}</p>
-                  </div>
-                  <StatusPill tone="green">Ready</StatusPill>
-                </div>
+                  <span className="rounded-full border border-[var(--border-hairline)] px-2 py-1 text-xs font-semibold text-[var(--chicago-blue-soft)]">{state}</span>
+                </article>
               ))}
             </div>
           </Panel>
-
-          <Panel className="module-rise [animation-delay:190ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Recent rule changes</h2>
-            <p className="mt-1 text-sm text-[#6e6962]">Recent edits stay visible so the team knows what changed.</p>
-            <div className="mt-5 space-y-4">
-              {scoreChanges.map((change) => (
-                <div className="border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={change.label}>
-                  <div className="font-semibold">{change.label}</div>
-                  <div className="mt-1 text-sm text-[#6e6962]">{change.detail}</div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-        </div>
+        </aside>
       </div>
 
-      <Panel className="module-rise mt-4 p-0 [animation-delay:220ms]" id="routing-rules">
-        <div className="border-b border-[#e7e0d8] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Routing rules</h2>
-          <p className="mt-1 text-sm text-[#6e6962]">How priority score translates into team action.</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
-                <th className="px-5 py-4">Rule</th>
-                <th className="px-4 py-4">Condition</th>
-                <th className="px-4 py-4">Target</th>
-                <th className="px-4 py-4">SLA</th>
-                <th className="px-5 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {routingRules.map((rule) => (
-                <tr key={rule.rule}>
-                  <td className="border-t border-[#eee8e1] px-5 py-4 font-semibold">{rule.rule}</td>
-                  <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{rule.condition}</td>
-                  <td className="border-t border-[#eee8e1] px-4 py-4">{rule.target}</td>
-                  <td className="border-t border-[#eee8e1] px-4 py-4 font-mono">{rule.sla}</td>
-                  <td className="border-t border-[#eee8e1] px-5 py-4">
-                    <StatusPill tone="green">{rule.status}</StatusPill>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Panel className="module-rise p-0 [animation-delay:150ms]">
+          <div className="border-b border-[var(--border-hairline)] px-5 py-5">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Signal weights</h2>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">Plain-language inputs that move a lead up the queue.</p>
+          </div>
+          <div className="grid gap-3 p-4 md:grid-cols-2">
+            {scoreRules.map((rule) => (
+              <div className="grid grid-cols-[64px_1fr] gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={rule.label}>
+                <div className="inline-flex h-10 w-14 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--accent)] font-mono text-sm font-semibold tabular-nums text-[oklch(0.18_0.03_248)]">
+                  {rule.value}
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">{rule.label}</div>
+                  <p className="mt-0.5 text-sm leading-5 text-[var(--text-secondary)]">{rule.note}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel className="module-rise p-0 [animation-delay:180ms]">
+          <div className="border-b border-[var(--border-hairline)] px-5 py-5">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Routing rules</h2>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">How priority score translates into team action.</p>
+          </div>
+          <div className="divide-y divide-[var(--border-hairline)]">
+            {routingRules.slice(0, 5).map((rule) => (
+              <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_140px_auto]" key={rule.rule}>
+                <div>
+                  <div className="font-semibold">{rule.rule}</div>
+                  <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{rule.condition}</p>
+                </div>
+                <div className="text-sm text-[var(--text-secondary)]">{rule.target}</div>
+                <StatusPill tone="green">{rule.status}</StatusPill>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
     </AppShell>
   );
 }

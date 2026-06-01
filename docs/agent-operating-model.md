@@ -2,7 +2,9 @@
 
 ## Goal
 
-Build the Big Shoulders Growth Engine around visible, accountable AI agents that help plan, generate, check, approve, and measure marketing work.
+Build the Big Shoulders Growth Engine as a backend-first operating layer for the Hermes agent, with visible, accountable AI work that humans can inspect, approve, decline, revise, and measure.
+
+Hermes is the primary operator. The web UI is the control room: it helps Hermes, Robby, and the team see the work, understand why it happened, and intervene when a human decision is required.
 
 The app should not hide AI behind a generic "generate" button. It should show agent work clearly:
 
@@ -20,6 +22,42 @@ The Growth Engine should become an agentic marketing operations system for resto
 Generic marketing software automates tasks. The Big Shoulders system should coordinate specialized agents that understand water-loss urgency, partner relationships, persona context, local demand, compliance rules, and owner approval gates.
 
 The important difference is accountability. Every agent output should be inspectable, editable, and tied back to source data.
+
+This app should not be designed as a traditional dashboard where humans drive every workflow. Most value should live in the backend contract: durable records, task queues, approvals, reasoning logs, compliance checks, and integration-ready APIs that Hermes can call. The UI exists for detailed views, approvals, debugging, and occasional operator control.
+
+## Hermes Backend Contract
+
+Hermes should be able to use the app as an operational backend:
+
+- Read CRM, persona, campaign, approval, and task context through stable APIs.
+- Create or update draft tasks, campaign briefs, and generated assets in non-public states.
+- Attach prompt inputs, source records, reasoning summaries, compliance flags, and draft outputs.
+- Route anything public-facing into approval instead of dispatching it directly.
+- Receive clear machine-readable decisions after humans approve, decline, request revision, or archive an item.
+- Treat UI actions as state transitions that update backend records, not as cosmetic preview actions once persistence is enabled.
+
+The UI should expose the same contract humans need:
+
+- What Hermes or a sub-agent did.
+- Which data it used.
+- What it produced.
+- Why the output is recommended or blocked.
+- What approval decision is needed.
+- What happens after approval, decline, revision, or archive.
+
+## ContentEngine-Style Approval Pattern
+
+Use the ContentEngine-style review model for campaigns, ads, and other generated assets:
+
+1. Hermes or an agent creates a draft campaign, ad, script, one-pager, post, or message.
+2. The draft enters an approval queue with prompt input, source records, generated output, risk flags, and compliance notes.
+3. A human can approve, decline, request revision, or archive.
+4. Approve unlocks the asset for the next backend step, such as export, scheduling, dispatch eligibility, or campaign activation.
+5. Decline keeps the asset blocked and records decision notes.
+6. Request revision creates a new agent task linked to the original draft and approval item.
+7. Archive removes the item from active review without making it usable.
+
+Approval and decline are product-critical state changes. They should eventually be persisted as auditable records, not only URL query previews.
 
 ## Core Principle
 

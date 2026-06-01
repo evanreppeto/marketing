@@ -1,11 +1,27 @@
 import { NextResponse } from "next/server";
 
+import { checkBearerToken } from "@/lib/auth/api-token";
 import { parseLeadIngestionPayload } from "@/domain";
 import { persistLeadIngestion } from "@/lib/lead-ingestion/persistence";
 import { persistPersonaIntelligenceForLead } from "@/lib/persona-intelligence/persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
+  // Enforced only when LEADS_INGEST_API_TOKEN is set, so the documented dev/contract
+  // flow keeps working while any configured deployment requires a valid token.
+  const auth = checkBearerToken(request, "LEADS_INGEST_API_TOKEN", { required: false });
+
+  if (!auth.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        status: "unauthorized",
+        errors: [{ code: "unauthorized", message: "Lead ingestion requires a valid bearer token." }],
+      },
+      { status: auth.status },
+    );
+  }
+
   let payload: unknown;
 
   try {

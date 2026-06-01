@@ -3,11 +3,10 @@ import Link from "next/link";
 import { AppShell } from "../_components/app-shell";
 import { CountUp } from "../_components/count-up";
 import { LiveTime } from "../_components/live-time";
-import { ActionFeedback, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, buttonClasses, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import {
   coreObjects,
   foundationIssues,
-  integrityScannerRules,
   integrityScanStats,
   pipelineStatus,
   validationRows,
@@ -33,20 +32,20 @@ export default async function DataFoundationPage({
       <ActionFeedback
         action={action}
         messages={{
-          "review-queue": "Integrity queue is in review mode. This is a scaffold preview; no records were changed.",
-          "fix-record": "Record cleanup action previewed. Persistence is not connected yet.",
-          "run-integrity-scan": "Automated integrity scan previewed. The scanner would inspect CRM records and refresh this queue.",
-          "configure-scanner": "Scanner rule configuration previewed. Rules are still mock-only until persistence is connected.",
+          "review-queue": "Integrity queue opened for review.",
+          "fix-record": "Record cleanup requires the live write workflow.",
+          "run-integrity-scan": "Integrity scan requires the live scanner workflow.",
+          "configure-scanner": "Scanner rules require the live configuration workflow.",
         }}
       />
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(360px,0.78fr)]">
         <Panel className="module-rise p-0 [animation-delay:70ms]">
-          <div className="border-b border-[#e7e0d8] px-5 py-5">
+          <div className="border-b border-[var(--border-hairline)] px-5 py-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-xl font-semibold tracking-[-0.02em]">Relationship model</h2>
-                <p className="mt-1 text-sm text-[#6e6962]">Six core objects, one attribution path.</p>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">Six core objects, one attribution path.</p>
               </div>
               <StatusPill tone="green">Migration drafted</StatusPill>
             </div>
@@ -62,28 +61,28 @@ export default async function DataFoundationPage({
             return (
               <>
                 {hero ? (
-                  <div className="border-b border-[#5bb7e8]/25 bg-[#123250] px-5 py-6 shadow-[inset_4px_0_0_#5bb7e8]">
+                  <div className="border-b border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] px-5 py-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <div className="text-xs uppercase tracking-[0.16em] text-[#a07423]">Actionable now</div>
+                        <div className="signal-eyebrow">Actionable now</div>
                         <h3 className="mt-2 text-2xl font-semibold tracking-[-0.02em]">{hero.name}</h3>
-                        <p className="mt-2 max-w-md text-sm leading-6 text-[#6e6962]">{hero.note}</p>
+                        <p className="mt-2 max-w-md text-sm leading-6 text-[var(--text-secondary)]">{hero.note}</p>
                       </div>
                       <div className="text-right">
                         <div className="font-mono text-6xl font-semibold leading-none tracking-[-0.07em]"><CountUp value={hero.count} /></div>
-                        <div className="mt-2 text-xs uppercase tracking-[0.14em] text-[#6e6962]">awaiting review</div>
+                        <div className="mt-2 text-xs uppercase tracking-[0.14em] text-[var(--text-secondary)]">awaiting review</div>
                       </div>
                     </div>
                   </div>
                 ) : null}
 
-                <div className="grid divide-y divide-[#eee8e1] md:grid-cols-2 md:divide-x md:divide-y-0">
+                <div className="grid divide-y divide-[var(--border-hairline)] md:grid-cols-2 md:divide-x md:divide-y-0">
                   {supporting.map((object) => (
-                    <div className="border-b border-[#eee8e1] p-5 even:md:border-r-0" key={object.name}>
+                    <div className="border-b border-[var(--border-hairline)] p-5 even:md:border-r-0" key={object.name}>
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <h3 className="text-lg font-semibold">{object.name}</h3>
-                          <p className="mt-2 text-sm leading-6 text-[#6e6962]">{object.note}</p>
+                          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{object.note}</p>
                         </div>
                         <div className="font-mono text-3xl font-semibold tracking-[-0.05em]"><CountUp value={object.count} /></div>
                       </div>
@@ -92,10 +91,10 @@ export default async function DataFoundationPage({
                 </div>
 
                 {footer ? (
-                  <div className="flex items-center justify-between gap-4 border-t border-[#eee8e1] bg-[#fbfaf8] px-5 py-4">
+                  <div className="flex items-center justify-between gap-4 border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4">
                     <div>
                       <div className="text-sm font-semibold">{footer.name}</div>
-                      <div className="mt-0.5 text-xs text-[#6e6962]">{footer.note}</div>
+                      <div className="mt-0.5 text-xs text-[var(--text-secondary)]">{footer.note}</div>
                     </div>
                     <div className="font-mono text-2xl font-semibold tracking-[-0.04em]"><CountUp value={footer.count} /></div>
                   </div>
@@ -109,19 +108,19 @@ export default async function DataFoundationPage({
           <h2 className="text-xl font-semibold tracking-[-0.02em]">Pipeline health</h2>
           <div className="mt-5 space-y-4">
             {pipelineStatus.map((item) => (
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(112px,148px)] items-center gap-4 border-b border-[#eee8e1] pb-4 last:border-0 last:pb-0" key={item.label}>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(112px,148px)] items-center gap-4 border-b border-[var(--border-hairline)] pb-4 last:border-0 last:pb-0" key={item.label}>
                 <div>
                   <div className="font-semibold">{item.label}</div>
-                  <div className="mt-1 text-sm text-[#6e6962]">{item.meta}</div>
+                  <div className="mt-1 text-sm text-[var(--text-secondary)]">{item.meta}</div>
                 </div>
                 <div
                   className={`inline-flex min-h-8 w-full items-center justify-between rounded-full border px-3 text-xs font-semibold ${
                     item.value === "Ready"
-                      ? "border-[#d6a933]/45 bg-[#2a2616] text-[#ffd37a]"
-                      : "border-[#35c878]/45 bg-[#0f2c26] text-[#7ee2a8]"
+                      ? "border-[oklch(0.82_0.13_85/0.3)] bg-[oklch(0.82_0.13_85/0.12)] text-[oklch(0.9_0.09_85)]"
+                      : "border-[oklch(0.78_0.14_158/0.3)] bg-[oklch(0.78_0.14_158/0.14)] text-[oklch(0.88_0.1_158)]"
                   }`}
                 >
-                  <span className={`h-1.5 w-1.5 rounded-full ${item.value === "Ready" ? "bg-[#d6a933]" : "bg-[#35c878]"}`} aria-hidden="true" />
+                  <span className={`h-1.5 w-1.5 rounded-full ${item.value === "Ready" ? "bg-[oklch(0.82_0.13_85)]" : "bg-[oklch(0.78_0.14_158)]"}`} aria-hidden="true" />
                   <span>{item.value}</span>
                 </div>
               </div>
@@ -131,22 +130,22 @@ export default async function DataFoundationPage({
       </div>
 
       <Panel className="module-rise mt-4 p-0 [animation-delay:150ms]">
-        <div className="flex flex-col gap-3 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-xl font-semibold tracking-[-0.02em]">Automated integrity scanner</h2>
-            <p className="mt-1 text-sm text-[#6e6962]">
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
               Searches the CRM model for missing fields, duplicate records, orphaned relationships, and routing blockers.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+              className={buttonClasses({ variant: "ghost" })}
               href="/data-foundation?action=configure-scanner"
             >
               Configure rules
             </Link>
             <Link
-              className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+              className={buttonClasses({ variant: "primary" })}
               href="/data-foundation?action=run-integrity-scan"
             >
               Run scan
@@ -154,45 +153,29 @@ export default async function DataFoundationPage({
           </div>
         </div>
 
-        <div className="grid border-b border-[#eee8e1] md:grid-cols-4">
+        <div className="grid border-b border-[var(--border-hairline)] md:grid-cols-4">
           {integrityScanStats.map((stat) => (
-            <div className="border-b border-[#eee8e1] px-5 py-4 md:border-b-0 md:border-r last:md:border-r-0" key={stat.label}>
-              <div className="text-xs text-[#6e6962]">{stat.label}</div>
+            <div className="border-b border-[var(--border-hairline)] px-5 py-4 md:border-b-0 md:border-r last:md:border-r-0" key={stat.label}>
+              <div className="text-xs text-[var(--text-secondary)]">{stat.label}</div>
               <div className="mt-1.5 font-mono text-2xl font-semibold tracking-[-0.04em]"><CountUp value={stat.value} /></div>
-              <div className="mt-2 inline-flex rounded-md bg-[#fff3d9] px-2 py-1 text-xs font-semibold text-[#875a07]">
+              <div className="mt-2 inline-flex rounded-md border border-[oklch(0.82_0.13_85/0.3)] bg-[oklch(0.82_0.13_85/0.12)] px-2 py-1 text-xs font-semibold text-[oklch(0.9_0.09_85)]">
                 {stat.delta}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="grid gap-0 lg:grid-cols-4">
-          {integrityScannerRules.map((rule) => (
-            <div className="border-b border-[#eee8e1] p-5 lg:border-r lg:last:border-r-0" key={rule.rule}>
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-semibold">{rule.rule}</h3>
-                <StatusPill tone="green">{rule.status}</StatusPill>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-[#6e6962]">{rule.searches}</p>
-              <div className="mt-4 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-3">
-                <div className="text-xs text-[#6e6962]">Objects scanned</div>
-                <div className="mt-1 text-sm font-semibold">{rule.objects}</div>
-                <div className="mt-2 text-xs text-[#6e6962]">Cadence: {rule.cadence}</div>
-              </div>
-            </div>
-          ))}
-        </div>
       </Panel>
 
       <div className="mt-4 grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Panel className="module-rise p-0 [animation-delay:170ms]">
-          <div className="flex flex-col gap-3 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-xl font-semibold tracking-[-0.02em]">Detected integrity queue</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">Findings generated by scanner rules before automation can trust the record.</p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">Findings generated by scanner rules before automation can trust the record.</p>
             </div>
             <Link
-              className="inline-flex min-h-11 items-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+              className={buttonClasses({ variant: "primary" })}
               href="/data-foundation?action=run-integrity-scan"
             >
               Run scan
@@ -201,7 +184,7 @@ export default async function DataFoundationPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
+                <tr className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">
                   <th className="px-5 py-4">Issue</th>
                   <th className="px-4 py-4">Affected records</th>
                   <th className="px-4 py-4">Detected by</th>
@@ -214,13 +197,13 @@ export default async function DataFoundationPage({
               <tbody>
                 {foundationIssues.map((row) => (
                   <tr key={row.issue}>
-                    <td className="border-t border-[#eee8e1] px-5 py-4 font-semibold">{row.issue}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{row.affected}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4">{row.detector}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4">{row.impact}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4 font-mono">{row.confidence}</td>
-                    <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]"><LiveTime baseline={row.lastFound} /></td>
-                    <td className="border-t border-[#eee8e1] px-5 py-4 text-right">
+                    <td className="border-t border-[var(--border-hairline)] px-5 py-4 font-semibold">{row.issue}</td>
+                    <td className="border-t border-[var(--border-hairline)] px-4 py-4 text-[var(--text-secondary)]">{row.affected}</td>
+                    <td className="border-t border-[var(--border-hairline)] px-4 py-4">{row.detector}</td>
+                    <td className="border-t border-[var(--border-hairline)] px-4 py-4">{row.impact}</td>
+                    <td className="border-t border-[var(--border-hairline)] px-4 py-4 font-mono">{row.confidence}</td>
+                    <td className="border-t border-[var(--border-hairline)] px-4 py-4 text-[var(--text-secondary)]"><LiveTime baseline={row.lastFound} /></td>
+                    <td className="border-t border-[var(--border-hairline)] px-5 py-4 text-right">
                       <Link href="/data-foundation?action=fix-record">
                         <StatusPill tone={row.action === "Fix" ? "red" : "amber"}>{row.action}</StatusPill>
                       </Link>
@@ -234,12 +217,12 @@ export default async function DataFoundationPage({
 
         <Panel className="module-rise [animation-delay:220ms]">
           <h2 className="text-xl font-semibold tracking-[-0.02em]">Gate checks</h2>
-          <div className="mt-5 divide-y divide-[#eee8e1]">
+          <div className="mt-5 divide-y divide-[var(--border-hairline)]">
             {validationRows.map((row) => (
               <div className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0" key={row.label}>
                 <div>
                   <div className="font-semibold">{row.label}</div>
-                  <div className="mt-1 text-sm text-[#6e6962]">{row.value}</div>
+                  <div className="mt-1 text-sm text-[var(--text-secondary)]">{row.value}</div>
                 </div>
                 <StatusPill tone={row.status.includes("Blocked") ? "amber" : row.status.includes("review") ? "amber" : "green"}>
                   {row.status}
@@ -259,11 +242,11 @@ function getAction(action: string | string[] | undefined) {
 
 function HeaderStatus() {
   return (
-    <div className="flex items-center gap-2.5 rounded-md border border-[#ddd6cd] bg-white px-3.5 py-2 shadow-[0_18px_45px_-34px_rgba(52,43,34,0.42)]">
-      <span className="h-2 w-2 rounded-full bg-[#23a455] status-breathe" />
+    <div className="flex items-center gap-2.5 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3.5 py-2 shadow-[0_18px_45px_-34px_rgba(52,43,34,0.42)]">
+      <span className="h-2 w-2 rounded-full bg-[oklch(0.78_0.14_158)] status-breathe" />
       <div className="text-xs">
-        <span className="font-semibold text-[#151515]">Data contracts ready</span>
-        <span className="ml-2 text-[#6e6962]">6 objects</span>
+        <span className="font-semibold text-[var(--text-primary)]">Data contracts ready</span>
+        <span className="ml-2 text-[var(--text-secondary)]">6 objects</span>
       </div>
     </div>
   );

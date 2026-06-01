@@ -119,10 +119,10 @@ export function QuickJump() {
           setActiveIndex(0);
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 rounded px-1 text-xs text-[#9fb0c3] transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5bb7e8]"
+        className="inline-flex items-center gap-1.5 rounded px-1 text-xs text-[var(--text-muted)] transition hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         aria-label="Open quick jump (Ctrl or Cmd + K)"
       >
-        <kbd className="hidden items-center gap-1 rounded border border-[#5bb7e8]/25 bg-[#0e1b2d] px-1.5 py-0.5 font-mono text-[10px] text-[#9fb0c3] sm:inline-flex">
+        <kbd className="hidden items-center gap-1 rounded border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)] sm:inline-flex">
           <span>⌘</span>
           <span>K</span>
         </kbd>
@@ -136,7 +136,7 @@ export function QuickJump() {
           role="presentation"
         >
           <div
-            className="w-full max-w-lg overflow-hidden rounded-lg border border-[#5bb7e8]/20 bg-[#0e1b2d] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]"
+            className="signal-panel w-full max-w-lg overflow-hidden"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -152,14 +152,14 @@ export function QuickJump() {
                 }}
                 onKeyDown={handleInputKey}
                 placeholder="Jump to a section, CRM object, or persona…"
-                className="w-full bg-transparent px-1 py-2 text-sm text-white placeholder:text-[#6e7a8a] focus:outline-none"
+                className="w-full bg-transparent px-1 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
                 aria-label="Search"
               />
             </div>
 
             <ul className="max-h-[55vh] overflow-y-auto py-1" role="listbox">
               {items.length === 0 ? (
-                <li className="px-4 py-6 text-center text-sm text-[#9fb0c3]">
+                <li className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">
                   No matches for &ldquo;{query}&rdquo;.
                 </li>
               ) : (
@@ -173,12 +173,12 @@ export function QuickJump() {
                         onMouseEnter={() => setActiveIndex(index)}
                         className={`flex items-baseline justify-between gap-3 px-4 py-2 text-sm transition ${
                           isActive
-                            ? "bg-[#e7352f]/15 text-white"
-                            : "text-white/85 hover:bg-white/5"
+                            ? "bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                            : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]"
                         }`}
                       >
                         <span className="font-medium">{item.label}</span>
-                        <span className="text-[11px] text-[#9fb0c3]">{item.subtitle}</span>
+                        <span className="text-[11px] text-[var(--text-muted)]">{item.subtitle}</span>
                       </Link>
                     </li>
                   );
@@ -186,7 +186,7 @@ export function QuickJump() {
               )}
             </ul>
 
-            <div className="flex items-center justify-between border-t border-white/10 bg-black/30 px-3 py-2 text-[10px] text-[#7a8a9a]">
+            <div className="flex items-center justify-between border-t border-[var(--border-hairline)] bg-[var(--canvas-deep)] px-3 py-2 text-[10px] text-[var(--text-muted)]">
               <div className="flex items-center gap-3">
                 <span>
                   <kbd className="rounded border border-white/15 bg-white/5 px-1 font-mono">↑↓</kbd> navigate

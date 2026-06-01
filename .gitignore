@@ -46,3 +46,8 @@ next-env.d.ts
 /screenshots/
 /screenshots-after/
 /screenshots-tablet/
+
+# local dev + verification artifacts
+/screenshots-current/
+.chrome-pid
+.codex-dev-server*.log

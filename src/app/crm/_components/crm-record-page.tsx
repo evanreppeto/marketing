@@ -4,15 +4,13 @@ import { notFound } from "next/navigation";
 import { getPersistedPersonaIntelligenceForRecord } from "@/lib/persona-intelligence/read-model";
 
 import { AppShell } from "../../_components/app-shell";
-import { PageHeader, Panel, StatusPill } from "../../_components/page-header";
-import {
-  crmObjects,
-  crmPersonaSnapshots,
-  crmRecordEngagementEvents,
-  leadEngagementEvents,
-  leadHyperPersonaSnapshot,
-  leadNextBestActions,
-} from "../../_data/growth-engine";
+import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill } from "../../_components/page-header";
+import { crmObjects } from "../../_data/growth-engine";
+import { CrmRecordForm } from "./crm-record-form";
+import { isCrmEntityKey } from "../entity-keys";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+const RECORD_FEEDBACK = ["created", "updated", "crm-error", "not-configured"];
 
 type CrmObjectKey = (typeof crmObjects)[number]["key"];
 type CrmRecordPageProps = {
@@ -29,11 +27,54 @@ const actionLabels: Record<string, string> = {
   property: "Link property",
 };
 
+const actionCards = [
+  {
+    key: "note",
+    label: "Add note",
+    detail: "Log internal context for Hermes and the CRM timeline.",
+    state: "Locked",
+    tone: "blue",
+    icon: "N",
+  },
+  {
+    key: "owner",
+    label: "Assign owner",
+    detail: "Route the record to a human operator before action.",
+    state: "Locked",
+    tone: "gray",
+    icon: "O",
+  },
+  {
+    key: "convert",
+    label: "Convert to job",
+    detail: "Create an operations handoff only after the lead is qualified.",
+    state: "Locked",
+    tone: "red",
+    icon: "J",
+  },
+  {
+    key: "approve",
+    label: "Approve message",
+    detail: "Use the approval queue for outbound copy decisions.",
+    state: "Use approvals",
+    tone: "green",
+    icon: "A",
+  },
+  {
+    key: "property",
+    label: "Link property",
+    detail: "Attach address context for scoring and routing.",
+    state: "Locked",
+    tone: "blue",
+    icon: "P",
+  },
+] as const;
+
 const objectRelationships: Record<CrmObjectKey, Array<{ label: string; value: string; href: string }>> = {
   companies: [
     { label: "Primary contact", value: "Emilia Davi", href: "/crm/contacts/emilia-davi" },
-    { label: "Open leads", value: "2 sample leads", href: "/crm/leads" },
-    { label: "Revenue attribution", value: "$18,420 sample", href: "/crm/outcomes/18420-closed" },
+    { label: "Open leads", value: "Needs live link", href: "/crm/leads" },
+    { label: "Revenue attribution", value: "Needs live attribution", href: "/crm/outcomes/18420-closed" },
   ],
   contacts: [
     { label: "Company", value: "North Branch Insurance", href: "/crm/companies/north-branch-insurance" },
@@ -64,56 +105,69 @@ const objectRelationships: Record<CrmObjectKey, Array<{ label: string; value: st
 
 export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProps) {
   const crmObject = crmObjects.find((object) => object.key === objectKey);
-  const record =
-    crmObject?.sampleRows.find((row) => row.id === recordId) ??
-    (crmObject && isUuid(recordId)
-      ? {
-          id: recordId,
-          name: `${crmObject.label} record ${recordId.slice(0, 8)}`,
-          detail: "Persisted Supabase record",
-          status: "Active",
-          owner: "Supabase",
-          updated: "Live",
-        }
-      : undefined);
 
-  if (!crmObject || !record) {
+  if (!crmObject || !isUuid(recordId)) {
     notFound();
   }
 
+  const record = {
+    id: recordId,
+    name: `${crmObject.label} record ${recordId.slice(0, 8)}`,
+    detail: "Persisted Supabase record",
+    status: "Active",
+    owner: "Supabase",
+    updated: "Live",
+  };
   const actionMessage = action
-    ? `Scaffold only: "${actionLabels[action] ?? action}" is previewed for this record.`
-    : "No changes are written. These actions only prove the record layout.";
+    ? `"${actionLabels[action] ?? action}" is not connected to a write workflow yet.`
+    : "Record write actions stay locked until the Hermes workflow API is finished.";
+  const showEditForm = action === "edit" && isCrmEntityKey(objectKey);
+  const feedbackAction = RECORD_FEEDBACK.includes(action ?? "") ? action : undefined;
+  let editValues: Record<string, unknown> | undefined;
+  if (showEditForm && isCrmEntityKey(objectKey) && isSupabaseAdminConfigured()) {
+    const { data } = await getSupabaseAdminClient().from(objectKey).select("*").eq("id", recordId).maybeSingle();
+    editValues = (data as Record<string, unknown> | null) ?? undefined;
+  }
+
   const persistedPersonaIntelligence = await getPersistedPersonaIntelligenceForRecord(record.id);
-  const personaSnapshot =
-    persistedPersonaIntelligence.status === "live" && persistedPersonaIntelligence.snapshot
-      ? persistedPersonaIntelligence.snapshot
-      : (crmPersonaSnapshots[record.id] ?? leadHyperPersonaSnapshot);
+  const personaSnapshot = persistedPersonaIntelligence.snapshot;
   const engagementEvents =
-    persistedPersonaIntelligence.status === "live" && persistedPersonaIntelligence.engagementEvents.length > 0
-      ? persistedPersonaIntelligence.engagementEvents
-      : (crmRecordEngagementEvents[record.id] ?? leadEngagementEvents);
+    persistedPersonaIntelligence.status === "live" ? persistedPersonaIntelligence.engagementEvents : [];
   const nextBestActions =
-    persistedPersonaIntelligence.status === "live" && persistedPersonaIntelligence.nextBestActions.length > 0
-      ? persistedPersonaIntelligence.nextBestActions
-      : leadNextBestActions;
+    persistedPersonaIntelligence.status === "live" ? persistedPersonaIntelligence.nextBestActions : [];
 
   return (
     <AppShell active="/crm">
       <PageHeader
         eyebrow={`${crmObject.label} Record`}
         title={record.name}
-        description={`${record.detail}. This detail page is mock-only scaffolding for the future CRM workspace.`}
+        description={record.detail}
         aside={<StatusPill tone={statusTone(record.status)}>{record.status}</StatusPill>}
       />
 
+      <ActionFeedback
+        action={feedbackAction}
+        messages={{
+          created: `${crmObject.label} record created.`,
+          updated: "Changes saved.",
+          "crm-error": "That change could not be saved. Check the fields and try again.",
+          "not-configured": "Supabase is not connected, so nothing was written.",
+        }}
+      />
+
+      {showEditForm && isCrmEntityKey(objectKey) ? (
+        <div className="mb-4">
+          <CrmRecordForm objectKey={objectKey} mode="edit" recordId={recordId} values={editValues} />
+        </div>
+      ) : null}
+
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.25fr)_minmax(340px,0.78fr)]">
         <Panel className="module-rise [animation-delay:70ms]">
-          <div className="text-sm uppercase tracking-[0.16em] text-[#e7352f]">Record summary</div>
-          <div className="mt-5 rounded-md bg-[#151515] p-5 text-white">
-            <div className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">{record.id}</div>
-            <div className="mt-3 text-2xl font-semibold tracking-[-0.04em]">{record.name}</div>
-            <p className="mt-3 text-sm leading-6 text-white/68">{record.detail}</p>
+          <div className="signal-eyebrow">Record summary</div>
+          <div className="mt-5 rounded-md border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5">
+            <div className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">{record.id}</div>
+            <div className="mt-3 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</div>
+            <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{record.detail}</p>
           </div>
 
           <div className="mt-4 grid gap-3">
@@ -121,70 +175,89 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
               ["Owner", record.owner],
               ["Updated", record.updated],
               ["Object", crmObject.label],
-              ["Mode", "Mock scaffold"],
+              ["Mode", isUuid(record.id) ? "Supabase record" : "Legacy local record"],
             ].map(([label, value]) => (
-              <div className="rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-4" key={label}>
-                <div className="text-sm text-[#6e6962]">{label}</div>
-                <div className="mt-2 font-semibold">{value}</div>
+              <div className="signal-inset rounded-md border p-4" key={label}>
+                <div className="text-sm text-[var(--text-muted)]">{label}</div>
+                <div className="mt-2 font-semibold text-[var(--text-primary)]">{value}</div>
               </div>
             ))}
           </div>
 
-          <Link
-            className="mt-4 inline-flex min-h-11 items-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition active:-translate-y-px"
-            href={crmObject.href}
-          >
-            Back to {crmObject.label}
-          </Link>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            {isCrmEntityKey(objectKey) ? (
+              <Link
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] active:-translate-y-px"
+                href={`${crmObject.href}/${recordId}?action=edit`}
+              >
+                Edit details
+              </Link>
+            ) : null}
+            <Link
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] active:-translate-y-px"
+              href={crmObject.href}
+            >
+              Back to {crmObject.label}
+            </Link>
+          </div>
         </Panel>
 
         <div className="min-w-0 space-y-4">
           <Panel className="module-rise p-0 [animation-delay:120ms]">
-            <div className="border-b border-[#e7e0d8] px-5 py-5">
+            <div className="border-b border-[var(--border-hairline)] px-5 py-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-semibold tracking-[-0.02em]">Persona snapshot</h2>
-                  <p className="mt-1 text-sm text-[#6e6962]">Living profile context that should drive message and action choices.</p>
+                  <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Persona snapshot</h2>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Living profile context that should drive message and action choices.</p>
                 </div>
-                <StatusPill tone="blue">{personaSnapshot.confidence}</StatusPill>
+                {personaSnapshot ? <StatusPill tone="blue">{personaSnapshot.confidence}</StatusPill> : null}
               </div>
-              <div className="mt-3 rounded-md border border-[#eee8e1] bg-[#fbfaf8] px-3 py-2 text-xs leading-5 text-[#6e6962]">
+              <div className="signal-inset mt-3 rounded-md border px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
                 {persistedPersonaIntelligence.message}
               </div>
             </div>
-            <div className="grid border-b border-[#eee8e1] lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="border-b border-[#eee8e1] p-5 lg:border-b-0 lg:border-r">
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#a07423]">
-                  {personaSnapshot.basePersona}
-                </div>
-                <div className="mt-2 text-2xl font-semibold tracking-[-0.04em]">
-                  {personaSnapshot.nextBestAction}
-                </div>
-                <p className="mt-3 text-sm leading-6 text-[#6e6962]">{personaSnapshot.messagePosture}</p>
-              </div>
-              <div className="grid sm:grid-cols-2">
-                {[
-                  ["Relationship", personaSnapshot.relationshipStage],
-                  ["Value tier", personaSnapshot.valueTier],
-                  ["Loss pattern", personaSnapshot.dominantLossPattern],
-                  ["Channel", personaSnapshot.preferredChannel],
-                ].map(([label, value]) => (
-                  <div className="border-b border-[#eee8e1] p-4 even:sm:border-l sm:[&:nth-last-child(-n+2)]:border-b-0" key={label}>
-                    <div className="text-xs text-[#6e6962]">{label}</div>
-                    <div className="mt-1 font-semibold">{value}</div>
+            {personaSnapshot ? (
+              <div className="grid border-b border-[var(--border-hairline)] lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="border-b border-[var(--border-hairline)] p-5 lg:border-b-0 lg:border-r">
+                  <div className="signal-eyebrow">
+                    {personaSnapshot.basePersona}
                   </div>
-                ))}
+                  <div className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
+                    {personaSnapshot.nextBestAction}
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{personaSnapshot.messagePosture}</p>
+                </div>
+                <div className="grid sm:grid-cols-2">
+                  {[
+                    ["Relationship", personaSnapshot.relationshipStage],
+                    ["Value tier", personaSnapshot.valueTier],
+                    ["Loss pattern", personaSnapshot.dominantLossPattern],
+                    ["Channel", personaSnapshot.preferredChannel],
+                  ].map(([label, value]) => (
+                    <div className="min-w-0 border-b border-[var(--border-hairline)] p-4 even:sm:border-l sm:[&:nth-last-child(-n+2)]:border-b-0" key={label}>
+                      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+                      <div className="token-value mt-1 font-semibold text-[var(--text-primary)]">{value}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="border-b border-[var(--border-hairline)] p-5">
+                <EmptyState
+                  title="No persona snapshot"
+                  detail="This record does not have a live persona snapshot yet. Mark can create one through a queued persona classification task."
+                />
+              </div>
+            )}
             <div className="grid gap-2 p-5 sm:grid-cols-2">
               <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] active:-translate-y-px"
                 href="/persona-intelligence"
               >
                 Open persona intelligence
               </Link>
               <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
+                className="inline-flex min-h-10 items-center justify-center rounded-md bg-[var(--accent)] px-4 text-sm font-semibold text-[oklch(0.18_0.03_248)] transition hover:bg-[var(--accent-strong)] active:-translate-y-px"
                 href="/ai-studio?action=generate-asset"
               >
                 Create approved asset
@@ -193,39 +266,43 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
           </Panel>
 
           <Panel className="module-rise p-0 [animation-delay:150ms]">
-            <div className="border-b border-[#e7e0d8] px-5 py-5">
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Engagement timeline</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">Events that feed the profile and future next-best-action engine.</p>
+            <div className="border-b border-[var(--border-hairline)] px-5 py-5">
+              <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Engagement timeline</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">Events that feed the profile and future next-best-action engine.</p>
             </div>
-            <div className="divide-y divide-[#eee8e1]">
-              {engagementEvents.map((item) => (
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {engagementEvents.length > 0 ? engagementEvents.map((item) => (
                 <div className="grid gap-4 px-5 py-5 md:grid-cols-[120px_1fr]" key={`${item.event}-${item.time}`}>
-                  <div className="text-sm font-semibold text-[#6e6962]">{item.time}</div>
+                  <div className="font-mono text-sm font-semibold text-[var(--text-muted)]">{item.time}</div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-semibold">{item.event}</div>
+                      <div className="font-semibold text-[var(--text-primary)]">{item.event}</div>
                       <StatusPill tone="blue">{item.channel}</StatusPill>
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-[#6e6962]">{item.detail}</p>
+                    <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{item.detail}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="p-5">
+                  <EmptyState title="No engagement events" detail="Live calls, emails, notes, and agent actions will appear here once they are written to Supabase." />
+                </div>
+              )}
             </div>
           </Panel>
         </div>
 
         <div className="min-w-0 space-y-4">
           <Panel className="module-rise [animation-delay:170ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Related records</h2>
+            <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Related records</h2>
             <div className="mt-5 space-y-3">
               {objectRelationships[objectKey].map((relationship) => (
                 <Link
-                  className="block rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-4 transition hover:border-[#151515] hover:bg-white active:-translate-y-px"
+                  className="block rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] active:-translate-y-px"
                   href={relationship.href}
                   key={relationship.label}
                 >
-                  <div className="text-sm text-[#6e6962]">{relationship.label}</div>
-                  <div className="mt-2 font-semibold">{relationship.value}</div>
+                  <div className="text-sm text-[var(--text-muted)]">{relationship.label}</div>
+                  <div className="mt-2 font-semibold text-[var(--text-primary)]">{relationship.value}</div>
                 </Link>
               ))}
             </div>
@@ -234,39 +311,47 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
           <Panel className="module-rise [animation-delay:220ms]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold tracking-[-0.02em]">Next Best Actions</h2>
-                <p className="mt-1 text-sm text-[#6e6962]">Preview recommendations until Supabase persistence is wired.</p>
+                <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Next Best Actions</h2>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  Record tools are staged here, but write actions stay disabled until the Hermes workflow API is finished.
+                </p>
               </div>
-              <StatusPill tone="gray">Scaffold</StatusPill>
+              <StatusPill tone="amber">Locked</StatusPill>
             </div>
-            <p className="mt-2 text-sm leading-6 text-[#6e6962]">{actionMessage}</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{actionMessage}</p>
             <div className="mt-5 grid gap-3">
-              {nextBestActions.map((item) => (
-                <div className="rounded-md border border-[#eee8e1] bg-[#fbfaf8] p-3" key={item.action}>
-                  <div className="font-semibold">{item.action}</div>
-                  <p className="mt-1 text-sm leading-5 text-[#6e6962]">{item.reason}</p>
-                  <div className="mt-2 text-xs font-semibold text-[#a07423]">{item.approval}</div>
+              {nextBestActions.length > 0 ? nextBestActions.map((item) => (
+                <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={item.action}>
+                  <div className="font-semibold text-[var(--text-primary)]">{item.action}</div>
+                  <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{item.reason}</p>
+                  <div className="mt-2 text-xs font-semibold text-[var(--accent)]">{item.approval}</div>
                 </div>
-              ))}
+              )) : (
+                <EmptyState title="No next best actions" detail="Live recommendations will appear here after Mark or Hermes writes them for this record." />
+              )}
             </div>
-            <div className="mt-5 grid gap-2 border-t border-[#eee8e1] pt-5">
-              {[
-                ["note", "Add note"],
-                ["owner", "Assign owner"],
-                ["convert", "Convert to job"],
-                ["approve", "Approve message"],
-                ["property", "Link property"],
-              ].map(([key, label]) => (
+            <div className="mt-5 grid gap-2 border-t border-[var(--border-hairline)] pt-5">
+              {actionCards.map((item) => (
                 <Link
-                  className={`inline-flex min-h-11 items-center justify-center rounded-md border px-4 text-sm font-semibold transition active:-translate-y-px ${
-                    action === key
-                      ? "border-[#151515] bg-[#151515] text-white"
-                      : "border-[#ddd6cd] bg-white text-[#151515] hover:border-[#151515]"
+                  aria-disabled="true"
+                  className={`grid min-h-[76px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-md border px-3 py-3 text-left transition active:-translate-y-px ${
+                    action === item.key
+                      ? actionCardActiveClass(item.tone)
+                      : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] hover:border-[var(--border-strong)]"
                   }`}
-                  href={`${crmObject.href}/${record.id}?action=${key}`}
-                  key={key}
+                  href={`${crmObject.href}/${record.id}?action=${item.key}`}
+                  key={item.key}
                 >
-                  {label}
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-md border text-sm font-bold ${actionIconClass(item.tone)}`}>
+                    {item.icon}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{item.label}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-[var(--text-secondary)]">{item.detail}</span>
+                  </span>
+                  <StatusPill tone={item.tone === "red" ? "red" : item.tone === "green" ? "green" : item.tone === "blue" ? "blue" : "gray"}>
+                    {item.state}
+                  </StatusPill>
                 </Link>
               ))}
             </div>
@@ -278,8 +363,8 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
 }
 
 export function getCrmRecordParams(objectKey: CrmObjectKey) {
-  const crmObject = crmObjects.find((object) => object.key === objectKey);
-  return crmObject?.sampleRows.map((record) => ({ recordId: record.id })) ?? [];
+  void objectKey;
+  return [];
 }
 
 function statusTone(status: string): "amber" | "green" | "red" {
@@ -292,6 +377,20 @@ function statusTone(status: string): "amber" | "green" | "red" {
   }
 
   return "amber";
+}
+
+function actionIconClass(tone: string) {
+  if (tone === "red") return "border-[oklch(0.68_0.2_26/0.4)] bg-[oklch(0.68_0.2_26/0.16)] text-[oklch(0.86_0.09_26)]";
+  if (tone === "green") return "border-[oklch(0.78_0.14_158/0.4)] bg-[oklch(0.78_0.14_158/0.14)] text-[oklch(0.88_0.1_158)]";
+  if (tone === "blue") return "border-[oklch(0.74_0.115_232/0.4)] bg-[var(--accent-soft)] text-[var(--accent)]";
+  return "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-secondary)]";
+}
+
+function actionCardActiveClass(tone: string) {
+  if (tone === "red") return "border-[oklch(0.68_0.2_26/0.5)] bg-[oklch(0.68_0.2_26/0.14)] text-[var(--text-primary)]";
+  if (tone === "green") return "border-[oklch(0.78_0.14_158/0.5)] bg-[oklch(0.78_0.14_158/0.12)] text-[var(--text-primary)]";
+  if (tone === "blue") return "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--accent-soft)] text-[var(--text-primary)]";
+  return "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]";
 }
 
 function isUuid(value: string) {

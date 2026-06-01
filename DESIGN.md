@@ -1,42 +1,55 @@
-# Design System: Big Shoulders Growth Engine
+# Design System: Signal (Big Shoulders Growth Engine)
 
 ## 1. Visual Theme & Atmosphere
 
-A disciplined restoration-operations command center: charcoal navigation, warm white work surface, precise type, restrained red accents, and dense but readable operating modules. The interface should feel executive and field-aware, not developer-first.
+A dark operations command center: layered navy surfaces, a single blue "signal" accent, restoration red reserved for priority/decision moments, and dense-but-readable operating modules. Surfaces step up in lightness (canvas → panel → inset → raised) so modules visibly lift off the background. Executive and field-aware, instrument-like — not developer-first, not a neon dashboard.
 
-## 2. Color Palette & Roles
+Tokens live in `src/app/globals.css` (`:root`). Always build from the tokens below rather than hard-coding new hex values.
 
-- **Command Charcoal** (#111214) - Sidebar, high-contrast actions, primary text depth.
-- **Canvas White** (#F7F5F1) - Main app background with a warm, physical paper quality.
-- **Surface White** (#FFFFFF) - Product panels and table surfaces.
-- **Ink** (#151515) - Primary text.
-- **Muted Graphite** (#6E6962) - Supporting text, timestamps, helper copy.
-- **Hairline** (#DDD6CD) - Structural borders and dividers.
-- **Restoration Red** (#E7352F) - Single accent for active navigation, priority actions, destructive/out-of-scope state.
+## 2. Color Palette & Roles (OKLCH, tinted toward brand hue ~248)
 
-## 3. Typography Rules
+- **Canvas** `--canvas` — page background, deepest navy.
+- **Surface / Panel** `--surface-panel` — cards and modules (use the `.signal-panel` class or the `Panel` primitive).
+- **Inset** `--surface-inset` — panel headers, form fields, sub-blocks inside a panel.
+- **Soft** `--surface-soft` — quiet list/strip backgrounds.
+- **Raised** `--surface-raised` — hover, popovers, selected.
+- **Text** `--text-primary` / `--text-secondary` / `--text-muted` — three legible tiers.
+- **Borders** `--border-hairline` / `--border-panel` / `--border-strong`.
+- **Accent (signal blue)** `--accent` / `--accent-strong` / `--accent-soft` — active nav, links, primary non-destructive actions, focus rings.
+- **Priority (restoration red)** `--priority` / `--priority-bright` — decision-required, primary CTAs, destructive/out-of-scope state.
+- **Status** `--ok` (green), `--warn` (amber) — calibrated for dark surfaces.
+- **Elevation** `--elev-panel` / `--elev-raised` — dark, faintly blue-tinted shadows.
 
-- **Display:** Geist/Satoshi-style sans stack, tight tracking, controlled scale, confident weight.
-- **Body:** Same sans stack, relaxed leading, max 65ch for explanatory copy.
-- **Mono:** Geist Mono/Cascadia Mono stack for identifiers and operational IDs.
-- **Banned:** Inter as an explicit design choice, generic serif fonts, neon gradients, and oversized dashboard headlines.
+Max one accent + one priority hue. No purple/neon, no pure black/white.
+
+## 3. Typography
+
+Loaded via `next/font` in `src/app/layout.tsx`; exposed as Tailwind families.
+
+- **Display:** Archivo (`font-display`, `--ff-display`) — engineered grotesk, tight tracking, weight-driven hierarchy. Headings, the Signal wordmark, key metrics.
+- **Body:** Hanken Grotesk (`font-sans`, `--ff-body`) — warm humanist grotesk, relaxed leading, ~65–74ch max for explanatory copy.
+- **Mono:** JetBrains Mono (`font-mono`, `--ff-mono`) — identifiers, scores, timestamps, tabular metrics (`tabular-nums`).
+- **Banned:** Inter, generic serifs, system-default-only stacks, gradient text, monospace as lazy "tech" shorthand.
 
 ## 4. Component Stylings
 
-- **Buttons:** 6px radius, clear contrast, tactile active translate, focus-visible ring.
-- **Panels:** 6px radius, 1px hairline border, subtle diffusion shadow. Use cards only for meaningful grouped modules.
-- **Tables:** Strong row rhythm, selected state, action cells, visible source/context metadata.
-- **Status Pills:** Small, readable, plain-language state labels. No decorative filler.
-- **Inputs:** Label above, helper/error below, 44px minimum touch target.
+- **Panel** (`.signal-panel`): 0.75rem radius, 1px `--border-panel`, panel surface + subtle top highlight, `--elev-panel` shadow. The primary grouping primitive — don't nest panels.
+- **Eyebrow** (`.signal-eyebrow`): display font, uppercase, 0.2em tracking, accent color; pair with a short accent tick, not a heading restatement.
+- **Button** (`Button` / `buttonClasses` in `page-header.tsx`): the canonical button. Variants `primary` (solid `--accent`, `--on-accent` text), `priority` (solid `--priority-solid` red, `--on-priority` text — both AA ≥4.5:1), `ghost` (inset + hairline border). Sizes `md` (44px touch target) / `sm`. Use `<Button>` for buttons, `buttonClasses({variant})` on a `<Link>`. Never hand-roll button classes or wash a CTA into a faint tint.
+- **DataTable** (`data-table.tsx`): config-driven table (columns with custom `cell` renderers, `isSelected`, `minWidth`, `emptyState`). Centralizes thead, row rhythm, hover/selected states, and `scope="col"`. Use for any tabular data.
+- **On-fill tokens:** `--on-accent` / `--on-priority` are the only correct text colors on solid accent/priority fills (contrast-verified). `--priority-solid` is the button-fill red; `--priority` stays for tints/dots/text.
+- **Status Pills** (`StatusPill`): tinted bg + matching border + colored dot, bright readable text. Tones: amber/green/red/gray/blue/dark.
+- **Inputs:** label above, helper/error below, inset surface, 44px min touch target.
+- **Empty states:** composed and instructive, dashed `--border-strong` on soft surface.
 
 ## 5. Layout Principles
 
-Use a persistent command rail and asymmetric content grids. Avoid repeated equal 3-column rows. Route pages should lead with the operational task, then expose supporting guidance, queues, and next actions.
+Persistent command rail + asymmetric content grids. Avoid repeated equal 3-column rows. Lead each route with the operational task, then supporting guidance, queues, and next actions. Constrain explanatory copy to ~65–74ch.
 
 ## 6. Motion & Interaction
 
-Use CSS-only transform and opacity transitions. Stagger large modules with subtle load-in. Active status indicators may breathe softly. Avoid expensive global animation and avoid animating layout dimensions.
+CSS-only transform/opacity. Stagger modules on load (`.module-rise` + `animation-delay`). Active status indicators may breathe (`.status-breathe`/`.status-ripple`). No animating layout dimensions, no bounce/elastic easing. Respect `prefers-reduced-motion`.
 
 ## 7. Anti-Patterns
 
-No emojis, no pure black, no purple/neon AI palette, no generic fake names, no fake round metrics, no stock-photo hero, no floating blobs, no nested card stacks, no developer jargon in primary UI, and no placeholder-looking buttons or tables.
+No emojis, no pure black, no purple/neon AI palette, no gradient text, no side-stripe (`border-left`/`right` > 1px) accent borders on cards/lists/callouts, no nested cards, no equal 3-column dashboard rows, no fake round metrics or placeholder names, no glassmorphism-everywhere, no developer jargon in primary UI.

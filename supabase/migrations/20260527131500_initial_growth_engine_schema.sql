@@ -268,3 +268,10 @@ for each row execute function public.set_updated_at();
 create trigger outcomes_set_updated_at
 before update on public.outcomes
 for each row execute function public.set_updated_at();
+
+alter table public.companies enable row level security;
+alter table public.contacts enable row level security;
+alter table public.properties enable row level security;
+alter table public.leads enable row level security;
+alter table public.jobs enable row level security;
+alter table public.outcomes enable row level security;

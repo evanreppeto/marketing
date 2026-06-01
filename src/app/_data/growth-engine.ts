@@ -8,16 +8,11 @@ import {
 
 export const navItems = [
   { label: "Today", href: "/", icon: "today" },
-  { label: "Data Foundation", href: "/data-foundation", icon: "database" },
+  { label: "Approvals", href: "/approvals", icon: "approval" },
   { label: "CRM", href: "/crm", icon: "crm" },
-  { label: "AI Studio", href: "/ai-studio", icon: "ai" },
-  { label: "Agent Operations", href: "/agent-operations", icon: "agents" },
-  { label: "Persona Intelligence", href: "/persona-intelligence", icon: "persona" },
-  { label: "Lead Intake", href: "/lead-ingestion", icon: "intake" },
-  { label: "Customer Types", href: "/customer-types", icon: "people" },
-  { label: "Loss Routing", href: "/loss-routing", icon: "routing" },
-  { label: "Priority Rules", href: "/score-rules", icon: "sliders" },
-  { label: "Reports", href: "/reports", icon: "reports" },
+  { label: "Personas", href: "/persona-intelligence", icon: "persona" },
+  { label: "Hermes", href: "/agent-operations", icon: "agents" },
+  { label: "Settings", href: "/score-rules", icon: "sliders" },
 ];
 
 export const coreObjects = [
@@ -128,18 +123,38 @@ export const crmObjects = [
   },
 ];
 
-export const crmScaffoldStats = [
-  { label: "Objects scaffolded", value: "6", delta: "Six core objects" },
-  { label: "Mock records", value: "18", delta: "Mock preview" },
+export const crmObjectStats = [
+  { label: "Objects mapped", value: "6", delta: "Six core objects" },
+  { label: "Local records", value: "18", delta: "Reference data" },
   { label: "Live writes", value: "Off", delta: "Persistence not connected" },
-  { label: "Detail pages", value: "18", delta: "Mock preview" },
+  { label: "Detail pages", value: "18", delta: "Reference views" },
 ];
 
 export const crmWorkspaceStats = [
-  { label: "Open pipeline", value: "$46.8K", delta: "5 active jobs" },
-  { label: "New leads", value: "19", delta: "2 min refresh" },
-  { label: "Partner accounts", value: "42", delta: "14 producing" },
-  { label: "Data health", value: "86%", delta: "35 findings" },
+  {
+    label: "Calls this week",
+    value: "19",
+    delta: "+4 calls vs last week",
+    forecast: "Forecast: 8 inspections from current call volume",
+  },
+  {
+    label: "Inspections scheduled",
+    value: "8",
+    delta: "5 scheduled today",
+    forecast: "Forecast: 5 closed projects if hold rate stays steady",
+  },
+  {
+    label: "Call -> inspection",
+    value: "42%",
+    delta: "+7 pts vs last week",
+    forecast: "Forecast: 8 inspections from 19 calls",
+  },
+  {
+    label: "Inspection -> closed",
+    value: "63%",
+    delta: "+4 pts vs last week",
+    forecast: "Forecast: 5 closed projects from 8 inspections",
+  },
 ];
 
 export const crmPipelineRows = [
@@ -148,10 +163,10 @@ export const crmPipelineRows = [
     record: "Basement flooding",
     account: "Marlene Vega",
     type: "Emergency homeowner",
-    stage: "Mitigation dispatch",
+    stage: "Call scheduled",
     owner: "Mitigation",
     value: "$8,400",
-    nextStep: "Call within 15 min",
+    nextStep: "Book inspection",
     updated: "2 min ago",
     score: 92,
     href: "/crm/leads/basement-flooding",
@@ -162,10 +177,10 @@ export const crmPipelineRows = [
     record: "Agent client water backup",
     account: "North Branch Insurance",
     type: "Insurance referral",
-    stage: "Intake review",
+    stage: "Call completed",
     owner: "Robby",
     value: "$6,200",
-    nextStep: "Confirm property access",
+    nextStep: "Schedule inspection",
     updated: "8 min ago",
     score: 88,
     href: "/crm/leads/water-backup",
@@ -176,10 +191,10 @@ export const crmPipelineRows = [
     record: "J-2044 Basement mitigation",
     account: "1234 W Addison St",
     type: "Active job",
-    stage: "Dry-out in progress",
+    stage: "Inspection complete",
     owner: "Field",
     value: "$18,420",
-    nextStep: "Upload moisture readings",
+    nextStep: "Move to closed project",
     updated: "Today",
     score: 81,
     href: "/crm/jobs/j-2044-basement-mitigation",
@@ -190,10 +205,10 @@ export const crmPipelineRows = [
     record: "Apex Plumbing Co.",
     account: "Trade partner",
     type: "Plumbing partner",
-    stage: "Referral nurture",
+    stage: "Partner call",
     owner: "Robby",
     value: "$9,875",
-    nextStep: "Send partner packet",
+    nextStep: "Book referral inspection",
     updated: "2 days ago",
     score: 74,
     href: "/crm/companies/apex-plumbing-co",
@@ -204,7 +219,7 @@ export const crmPipelineRows = [
     record: "Roof hail inspection",
     account: "HomeAdvisor",
     type: "Out of scope",
-    stage: "Archive review",
+    stage: "Scope blocked",
     owner: "Ops",
     value: "$0",
     nextStep: "Confirm no interior water",
@@ -216,17 +231,17 @@ export const crmPipelineRows = [
 ];
 
 export const crmActivityFeed = [
-  { title: "Lead routed", detail: "Basement flooding moved to Mitigation dispatch.", time: "2 min ago", tone: "green" },
-  { title: "Relationship linked", detail: "North Branch Insurance connected to agent client water backup.", time: "8 min ago", tone: "blue" },
-  { title: "Data health finding", detail: "Apex Plumbing Co. missing partner owner email.", time: "12 min ago", tone: "amber" },
+  { title: "Call scheduled", detail: "Basement flooding is ready to become an inspection.", time: "2 min ago", tone: "green" },
+  { title: "Inspection requested", detail: "North Branch Insurance client needs property access confirmed.", time: "8 min ago", tone: "blue" },
+  { title: "Project closeout", detail: "J-2044 inspection is complete and ready for closed-project handoff.", time: "12 min ago", tone: "amber" },
   { title: "Scope guardrail", detail: "Roof hail inspection marked out of scope pending water confirmation.", time: "16 min ago", tone: "red" },
 ];
 
 export const crmTaskQueue = [
-  { task: "Call Marlene Vega", object: "Lead", due: "Now", owner: "Mitigation", priority: "High" },
-  { task: "Confirm agency contact", object: "Company", due: "Today", owner: "Robby", priority: "Medium" },
-  { task: "Attach property photos", object: "Job", due: "Today", owner: "Field", priority: "Medium" },
-  { task: "Resolve duplicate company", object: "Company", due: "Tomorrow", owner: "Ops", priority: "Low" },
+  { task: "Call Marlene Vega", object: "Call", due: "Now", owner: "Mitigation", priority: "High" },
+  { task: "Schedule inspection", object: "Inspection", due: "Today", owner: "Robby", priority: "Medium" },
+  { task: "Close project file", object: "Closed project", due: "Today", owner: "Field", priority: "Medium" },
+  { task: "Confirm no interior water", object: "Scope review", due: "Tomorrow", owner: "Ops", priority: "Low" },
 ];
 
 export const hyperPersonalizationReference = {
@@ -290,13 +305,13 @@ export const leadEngagementEvents = [
   { event: "Website form submitted", channel: "Form", detail: "Standing water and burst pipe selected.", time: "2 min ago" },
   { event: "Source captured", channel: "Web", detail: "Organic basement flooding intent.", time: "2 min ago" },
   { event: "Routing score calculated", channel: "System", detail: "High urgency water-loss score: 92.", time: "1 min ago" },
-  { event: "Content signal queued", channel: "AI Studio", detail: "Emergency landing page and SMS reassurance needed.", time: "Now" },
+  { event: "Content signal queued", channel: "Campaign generation", detail: "Emergency landing page and SMS reassurance needed.", time: "Now" },
 ];
 
 export const leadNextBestActions = [
   { action: "Call now", reason: "Active water and high urgency signal.", approval: "No approval needed" },
   { action: "Send reassurance SMS draft", reason: "Homeowner needs fast next-step clarity.", approval: "Human approval required" },
-  { action: "Create campaign content brief", reason: "Repeated basement flooding demand should inform AI Studio.", approval: "Review before generation" },
+  { action: "Create campaign content brief", reason: "Repeated basement flooding demand should inform campaign generation.", approval: "Review before generation" },
 ];
 
 export const crmPersonaSnapshots: Record<
@@ -378,12 +393,12 @@ export const crmRecordEngagementEvents: Record<
   "water-backup": [
     { event: "Referral logged", channel: "Partner", detail: "Insurance agent submitted a lower-level water backup.", time: "8 min ago" },
     { event: "Routing score calculated", channel: "System", detail: "High urgency water-loss score: 88.", time: "7 min ago" },
-    { event: "Approval-safe email queued", channel: "AI Studio", detail: "Coverage-neutral handoff copy needs owner review.", time: "Now" },
+    { event: "Approval-safe email queued", channel: "Campaign generation", detail: "Coverage-neutral handoff copy needs owner review.", time: "Now" },
   ],
   "apex-plumbing-co": [
     { event: "Partner referral converted", channel: "CRM", detail: "Referral produced a closed water-loss job.", time: "2 days ago" },
     { event: "Partner score refreshed", channel: "System", detail: "Warm intro and tier B partner signals calculated.", time: "Today" },
-    { event: "Campaign signal queued", channel: "AI Studio", detail: "Plumbing partner referral campaign needs new asset variants.", time: "Now" },
+    { event: "Campaign signal queued", channel: "Campaign generation", detail: "Plumbing partner referral campaign needs new asset variants.", time: "Now" },
   ],
   "north-branch-insurance": [
     { event: "Referral source linked", channel: "CRM", detail: "Agency connected to active water backup lead.", time: "Today" },
@@ -414,7 +429,7 @@ export const foundationIssues = [
 ];
 
 export const integrityScanStats = [
-  { label: "Records scanned", value: "259", delta: "Mock pass" },
+  { label: "Records scanned", value: "259", delta: "Modeled pass" },
   { label: "Rules active", value: "6", delta: "Ready" },
   { label: "Issues found", value: "35", delta: "Needs cleanup" },
   { label: "Last scan", value: "2m", delta: "Auto cadence" },
@@ -571,6 +586,7 @@ export const segmentHealthRows = [
 
 export const intakeLeads = [
   {
+    id: "L-journey-001",
     name: "Basement flooding",
     contact: "Marlene Vega",
     address: "1234 W. Addison St., Chicago",
@@ -578,12 +594,20 @@ export const intakeLeads = [
     issue: "standing water, burst pipe",
     source: "Web form",
     received: "Today, 9:15 AM",
+    journeyStage: "Decision urgency",
+    touchpoint: "Emergency web form",
+    customerNeed: "Needs immediate reassurance that help is real and fast.",
+    friction: "High stress, property damage unclear, needs proof before committing.",
+    emotion: "Anxious",
+    nextMove: "Call within 15 minutes and request photos.",
+    contentTrigger: "Emergency SMS reassurance",
     action: "High priority",
     score: 100,
     status: "Ready for team",
     classification: classifyLossSignals(["Basement flooding", "standing water", "burst pipe"]),
   },
   {
+    id: "L-journey-002",
     name: "Water backup in basement",
     contact: "Emilia Davi",
     address: "2746 N. Kedzie Ave., Chicago",
@@ -591,12 +615,20 @@ export const intakeLeads = [
     issue: "water backup",
     source: "Insurance agent",
     received: "Today, 8:15 AM",
+    journeyStage: "Referral handoff",
+    touchpoint: "Agent referral",
+    customerNeed: "Needs a neutral, professional handoff for their client.",
+    friction: "Coverage language risk and unclear property access.",
+    emotion: "Careful",
+    nextMove: "Send agent handoff packet and confirm property access.",
+    contentTrigger: "Coverage-neutral one-pager",
     action: "High priority",
     score: 76,
     status: "Ready for team",
     classification: classifyLossSignals("water backup in lower level"),
   },
   {
+    id: "L-journey-003",
     name: "Wind damage to fence",
     contact: "Leona Price",
     address: "410 S. Michigan Ave., Chicago",
@@ -604,12 +636,20 @@ export const intakeLeads = [
     issue: "wind-only, no interior water",
     source: "Web form",
     received: "Today, 7:05 AM",
+    journeyStage: "Scope mismatch",
+    touchpoint: "General web form",
+    customerNeed: "Needs to understand whether Big Shoulders is the right fit.",
+    friction: "Exterior-only issue with no water, fire, mold, or sewage signal.",
+    emotion: "Unclear",
+    nextMove: "Archive from campaign generation and provide non-target note.",
+    contentTrigger: "No marketing follow-up",
     action: "Not a fit",
     score: 10,
     status: "Archive",
     classification: classifyLossSignals("wind-only roof loss no interior water"),
   },
   {
+    id: "L-journey-004",
     name: "Sewage backup in utility room",
     contact: "Anton Bell",
     address: "1818 W. Foster Ave., Chicago",
@@ -617,12 +657,20 @@ export const intakeLeads = [
     issue: "sewage backup, lower level",
     source: "Property manager call",
     received: "Today, 6:42 AM",
+    journeyStage: "Decision urgency",
+    touchpoint: "Phone intake",
+    customerNeed: "Needs fast response that protects residents and owner confidence.",
+    friction: "Tenant disruption, health concern, needs documented next steps.",
+    emotion: "Pressed",
+    nextMove: "Route to mitigation and attach documentation checklist.",
+    contentTrigger: "Property manager response packet",
     action: "High priority",
     score: 92,
     status: "Ready for team",
     classification: classifyLossSignals(["sewage backup", "lower level water"]),
   },
   {
+    id: "L-journey-005",
     name: "Kitchen supply line leak",
     contact: "Nadia Rosario",
     address: "3520 W. Diversey Ave., Chicago",
@@ -630,12 +678,20 @@ export const intakeLeads = [
     issue: "active leak, water under cabinets",
     source: "Google Local",
     received: "Yesterday, 5:18 PM",
+    journeyStage: "Consideration",
+    touchpoint: "Google Local search",
+    customerNeed: "Needs to know if this is serious enough for restoration help.",
+    friction: "Source may still be active; severity is not fully described.",
+    emotion: "Concerned",
+    nextMove: "Ask source-control questions and offer inspection path.",
+    contentTrigger: "Inspection checklist",
     action: "Needs review",
     score: 68,
     status: "Needs dispatcher review",
     classification: classifyLossSignals(["active leak", "water under cabinets"]),
   },
   {
+    id: "L-journey-006",
     name: "Mold concern after pipe leak",
     contact: "Iris Nakamura",
     address: "2238 N. Sawyer Ave., Chicago",
@@ -643,12 +699,20 @@ export const intakeLeads = [
     issue: "mold, previous pipe leak",
     source: "Tenant referral",
     received: "Yesterday, 3:55 PM",
+    journeyStage: "Consideration",
+    touchpoint: "Tenant referral",
+    customerNeed: "Needs confidence on risk, responsibility, and next inspection step.",
+    friction: "Past leak timing is unclear and landlord may need tenant coordination.",
+    emotion: "Cautious",
+    nextMove: "Confirm leak history and schedule inspection review.",
+    contentTrigger: "Mold concern explainer",
     action: "Needs review",
     score: 61,
     status: "Needs dispatcher review",
     classification: classifyLossSignals(["mold", "previous pipe leak"]),
   },
   {
+    id: "L-journey-007",
     name: "Exterior siding estimate",
     contact: "Mateo Klein",
     address: "4911 N. Milwaukee Ave., Chicago",
@@ -656,12 +720,20 @@ export const intakeLeads = [
     issue: "exterior remodeling only",
     source: "Partner form",
     received: "Yesterday, 2:11 PM",
+    journeyStage: "Scope mismatch",
+    touchpoint: "Partner form",
+    customerNeed: "Needs a clear boundary on what Big Shoulders handles.",
+    friction: "Remodeling-only request would pollute campaign and routing signals.",
+    emotion: "Neutral",
+    nextMove: "Block from restoration campaigns unless water damage appears.",
+    contentTrigger: "No marketing follow-up",
     action: "Not a fit",
     score: 7,
     status: "Archive",
     classification: classifyLossSignals("exterior remodeling only no water"),
   },
   {
+    id: "L-journey-008",
     name: "Fire cleanup after small kitchen loss",
     contact: "Priya Shah",
     address: "640 W. 18th St., Chicago",
@@ -669,6 +741,13 @@ export const intakeLeads = [
     issue: "fire cleanup, smoke, water used",
     source: "Phone intake",
     received: "Yesterday, 12:28 PM",
+    journeyStage: "Decision urgency",
+    touchpoint: "Phone intake",
+    customerNeed: "Needs immediate cleanup guidance and a calm next step.",
+    friction: "Smoke, fire, and water context needs clear triage.",
+    emotion: "Overwhelmed",
+    nextMove: "Route to mitigation and send cleanup expectation message.",
+    contentTrigger: "Fire cleanup reassurance",
     action: "High priority",
     score: 84,
     status: "Ready for team",
@@ -676,11 +755,56 @@ export const intakeLeads = [
   },
 ];
 
+export const customerJourneyStages = [
+  {
+    stage: "Awareness",
+    count: 7,
+    signal: "Search, form, referral, phone call",
+    operatorQuestion: "What caused this person to reach out?",
+    nextAction: "Capture source and first concern",
+  },
+  {
+    stage: "Consideration",
+    count: 2,
+    signal: "Researching severity or fit",
+    operatorQuestion: "What are they unsure about?",
+    nextAction: "Answer friction with proof or checklist",
+  },
+  {
+    stage: "Decision urgency",
+    count: 3,
+    signal: "Active water, sewage, fire, or urgent loss",
+    operatorQuestion: "What proof moves them to a call?",
+    nextAction: "Call, reassure, collect photos",
+  },
+  {
+    stage: "Referral handoff",
+    count: 1,
+    signal: "Agent, manager, or trade partner involved",
+    operatorQuestion: "Who needs confidence before the customer acts?",
+    nextAction: "Send neutral handoff kit",
+  },
+  {
+    stage: "Scope mismatch",
+    count: 2,
+    signal: "Hail-only, wind-only, exterior-only, remodeling",
+    operatorQuestion: "Should this be blocked from marketing?",
+    nextAction: "Archive or isolate",
+  },
+];
+
+export const journeyFrictionSignals = [
+  { label: "Trust gap", detail: "Customer needs proof, speed, or reassurance before taking action.", count: 4 },
+  { label: "Missing context", detail: "Property access, severity, source control, or loss timing needs confirmation.", count: 3 },
+  { label: "Scope risk", detail: "Request may be outside restoration focus and should not trigger campaigns.", count: 2 },
+  { label: "Partner influence", detail: "Agent, manager, landlord, or trade partner affects the next message.", count: 2 },
+];
+
 export const personaAccelerationStats = [
   { label: "Tracked personas", value: "118", delta: "CRM contacts" },
   { label: "Ready to convert", value: "24", delta: "Needs action" },
   { label: "Partner candidates", value: "17", delta: "Referral focus" },
-  { label: "Content briefs", value: "9", delta: "AI Studio feed" },
+  { label: "Content briefs", value: "9", delta: "Campaign feed" },
 ];
 
 export const personaTrackerRows = [
@@ -1225,8 +1349,8 @@ export const promptGuardrails = [
 ];
 
 export const agentOperationMetrics = [
-  { label: "Active agents", value: "5", delta: "Scaffolded roles" },
-  { label: "Tasks running", value: "4", delta: "Mock queue" },
+  { label: "Active agents", value: "5", delta: "Configured roles" },
+  { label: "Tasks running", value: "4", delta: "Local queue" },
   { label: "Awaiting approval", value: "7", delta: "Owner gate" },
   { label: "Blocked outputs", value: "2", delta: "Scope / claims risk" },
   { label: "Approved this week", value: "11", delta: "Draft assets" },

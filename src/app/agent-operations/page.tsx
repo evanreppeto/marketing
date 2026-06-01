@@ -1,232 +1,199 @@
 import Link from "next/link";
+import { connection } from "next/server";
 
 import { AppShell } from "../_components/app-shell";
-import { CountUp } from "../_components/count-up";
-import { LiveTime } from "../_components/live-time";
-import { ActionFeedback, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
-import {
-  agentApprovalQueue,
-  agentOperationMetrics,
-  agentOperations,
-  agentRecentOutputs,
-  agentTaskQueue,
-} from "../_data/growth-engine";
+import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { createMarkTaskAction } from "./actions";
+import { getAgentOperationsDashboard } from "@/lib/agent-operations/read-model";
 
 type AgentOperationsPageProps = {
-  searchParams?: Promise<{ action?: string | string[] }>;
+  searchParams?: Promise<{ action?: string | string[]; approval?: string | string[]; task?: string | string[] }>;
 };
 
 const actionMessages: Record<string, string> = {
-  "run-preview": "Agent run previewed. No model provider was called and no records were changed.",
-  "open-approvals": "Approval queue previewed. Generated drafts remain locked until owner review.",
-  "review-blocked": "Blocked output previewed. Off-scope and coverage-risk assets stay unavailable for launch.",
+  "mark-task-created": "Mark task queued. The Mac mini runner can pick this up when it is connected.",
+  "mark-task-error": "Mark task could not be queued because the task template was not recognized.",
+  "not-configured": "Supabase admin env vars are not connected, so this action was skipped. No records were changed.",
 };
 
 export default async function AgentOperationsPage({ searchParams }: AgentOperationsPageProps) {
+  await connection();
+
   const query = searchParams ? await searchParams : {};
   const action = getValue(query.action);
-  const blockedCount = agentTaskQueue.filter((task) => task.status === "blocked").length;
+  const approvalId = getValue(query.approval);
+  const taskId = getValue(query.task);
+  const dashboard = await getAgentOperationsDashboard();
+  const isLive = dashboard.status === "live";
+  const tasks = isLive ? dashboard.tasks : [];
+  const approvals = isLive ? dashboard.approvals : [];
+  const outputs = isLive ? dashboard.recentOutputs : [];
+  const markRunner = isLive ? dashboard.markRunner : null;
+  const nextTask = tasks.find((task) => ["queued", "running", "needs_approval", "blocked"].includes(task.status)) ?? tasks[0] ?? null;
 
   return (
     <AppShell active="/agent-operations">
       <PageHeader
-        eyebrow="Agent Operations"
-        title="Visible AI work, approvals, and audit trails"
-        description="Specialized agents can plan, draft, check, and recommend. Nothing publishes, sends, or changes CRM records without human approval."
-        aside={<StatusPill tone="blue">Scaffold only</StatusPill>}
+        eyebrow="Mark"
+        title="Queue work and check status"
+        description="This page is the simple control room for Mark. Queue one task, see what is open, and jump to approvals when human review is needed."
+        aside={<StatusPill tone={isLive ? "green" : "amber"}>{isLive ? "Live" : "Unavailable"}</StatusPill>}
       />
 
       <ActionFeedback action={action} messages={actionMessages} />
 
-      <OperatorBar
-        task="Start with the work that needs a human decision."
-        detail="Review approvals first, then check blocked drafts. Agent work stays in preview mode until someone approves the next step."
-        status={`${agentApprovalQueue.length} approvals`}
-        primary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-            href="/approvals"
-          >
-            Review approvals
+      {approvalId ? (
+        <div className="mb-4 rounded-md border border-[oklch(0.78_0.14_158/0.3)] bg-[oklch(0.78_0.14_158/0.14)] px-4 py-3 text-sm text-[oklch(0.88_0.1_158)]">
+          New approval item created.{" "}
+          <Link className="font-semibold underline underline-offset-2" href={`/approvals?item=${approvalId}`}>
+            Open review
           </Link>
-        }
-        secondary={
-          <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-            href="/agent-operations?action=review-blocked"
-          >
-            Check blocked
-          </Link>
-        }
-      />
-
-      <Panel className="module-rise p-0 [animation-delay:70ms]">
-        <div className="grid divide-y divide-[#eee8e1] md:grid-cols-3 md:divide-x md:divide-y-0 xl:grid-cols-6">
-          {agentOperationMetrics.map((metric) => (
-            <div className="px-4 py-4" key={metric.label}>
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7a736b]">{metric.label}</div>
-              <div className="mt-2 font-mono text-2xl font-semibold tracking-[-0.04em]"><CountUp value={metric.value} /></div>
-              <div className="mt-1.5 text-xs font-semibold text-[#5bb7e8]">{metric.delta}</div>
-            </div>
-          ))}
+          .
         </div>
-      </Panel>
+      ) : null}
 
-      <div className="mt-4 grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise p-0 [animation-delay:120ms]">
-            <div className="border-b border-[#e7e0d8] px-5 py-5">
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Active agents</h2>
-              <p className="mt-1 text-sm text-[#6e6962]">The first scaffolded workforce for marketing operations.</p>
-            </div>
-            <div className="grid md:grid-cols-2">
-              {agentOperations.map((agent) => (
-                <Link
-                  className="border-b border-[#eee8e1] p-5 transition hover:bg-[#fbfaf8] md:border-r even:md:border-r-0 active:-translate-y-px"
-                  href={agent.href}
-                  key={agent.key}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-lg font-semibold">{agent.name}</div>
-                      <p className="mt-2 text-sm leading-6 text-[#6e6962]">{agent.purpose}</p>
-                    </div>
-                    <StatusPill tone={agent.status === "Required" || agent.status === "Needs approval" ? "amber" : "green"}>
-                      {agent.status}
-                    </StatusPill>
-                  </div>
-                  <div className="mt-4 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] p-3">
-                    <div className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">Current task</div>
-                    <div className="mt-2 text-sm font-semibold leading-6">{agent.currentTask}</div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {agent.riskFlags.map((flag) => (
-                      <span className="rounded-full border border-[#5bb7e8]/35 px-2 py-0.5 text-xs font-semibold text-[#d4ecfb]" key={flag}>
-                        {flag}
-                      </span>
-                    ))}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Panel>
+      {!isLive ? (
+        <div className="mb-4 rounded-md border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-4 py-3 text-sm text-[oklch(0.9_0.09_85)]">
+          <span className="font-semibold">Live data unavailable: </span>
+          {dashboard.message}
+        </div>
+      ) : null}
 
-          <Panel className="module-rise p-0 [animation-delay:170ms]">
-            <div className="flex flex-col gap-3 border-b border-[#e7e0d8] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-[-0.02em]">Agent work queue</h2>
-                <p className="mt-1 text-sm text-[#6e6962]">Tasks show the source object, risk, approval requirement, and audit trail.</p>
-              </div>
-              <Link
-                className="inline-flex min-h-11 items-center rounded-md border border-[#ddd6cd] bg-white px-4 text-sm font-semibold transition hover:border-[#151515] active:-translate-y-px"
-                href="/agent-operations?action=review-blocked"
-              >
-                Review blocked ({blockedCount})
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Panel>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="signal-eyebrow">Current state</div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{markRunner?.status ?? "Mark is not connected yet"}</h2>
+              <p className="mt-2 max-w-[60ch] text-sm leading-6 text-[var(--text-secondary)]">
+                {markRunner?.mode ?? "The app can queue tasks now. Mark still runs outside the app on your Mac mini."}
+              </p>
+            </div>
+            <StatusPill tone="amber">{markRunner?.killSwitch ?? "Outbound locked"}</StatusPill>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
+            <MarkStat label="Queued" value={markRunner?.queuedTasks ?? 0} />
+            <MarkStat label="Running" value={markRunner?.runningTasks ?? 0} />
+            <MarkStat label="Review" value={markRunner?.approvalTasks ?? approvals.length} />
+            <MarkStat label="Blocked" value={markRunner?.blockedTasks ?? 0} />
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="signal-eyebrow">Queue one task</div>
+          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">These create tasks for Mark. They do not send, publish, call, text, or spend.</p>
+          <div className="mt-4 grid gap-2">
+            {[
+              ["find_plumbing_partners", "Find plumbing partners"],
+              ["draft_property_manager_campaign", "Draft property manager campaign"],
+              ["refresh_persona_snapshot", "Refresh persona intelligence"],
+            ].map(([taskKey, label]) => (
+              <form action={createMarkTaskAction} key={taskKey}>
+                <input name="taskKey" type="hidden" value={taskKey} />
+                <button className="settings-action transition hover:border-[var(--border-strong)]" type="submit">
+                  <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+                  <span className="text-sm font-semibold">{label}</span>
+                  <span className="text-xs font-semibold text-[var(--accent)]">Queue</span>
+                </button>
+              </form>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Panel>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="signal-eyebrow">Next task</div>
+              <h2 className="mt-1 text-lg font-semibold tracking-[-0.01em]">What Mark is working on</h2>
+            </div>
+            {taskId ? (
+              <Link className="text-sm font-semibold text-[var(--accent)]" href={`/agent-operations/tasks/${taskId}`}>
+                Open queued task
               </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-[0.14em] text-[#7a736b]">
-                    <th className="px-5 py-4">Task</th>
-                    <th className="px-4 py-4">Agent</th>
-                    <th className="px-4 py-4">Linked record</th>
-                    <th className="px-4 py-4">Risk</th>
-                    <th className="px-4 py-4">Approval</th>
-                    <th className="px-5 py-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {agentTaskQueue.map((task) => (
-                    <tr key={task.id}>
-                      <td className="border-t border-[#eee8e1] px-5 py-4">
-                        <Link className="font-semibold text-[#5bb7e8] hover:text-[#d4ecfb]" href={task.href}>
-                          {task.task}
-                        </Link>
-                        <div className="mt-1 font-mono text-xs text-[#6e6962]">{task.id} / <LiveTime baseline={task.updated} /></div>
-                      </td>
-                      <td className="border-t border-[#eee8e1] px-4 py-4">{findAgent(task.agentKey)?.name ?? task.agentKey}</td>
-                      <td className="border-t border-[#eee8e1] px-4 py-4">
-                        <Link className="font-semibold text-[#5bb7e8] hover:text-[#d4ecfb]" href={task.linkedHref}>
-                          {task.linkedObject}
-                        </Link>
-                      </td>
-                      <td className="border-t border-[#eee8e1] px-4 py-4">{task.risk}</td>
-                      <td className="border-t border-[#eee8e1] px-4 py-4 text-[#6e6962]">{task.approval}</td>
-                      <td className="border-t border-[#eee8e1] px-5 py-4">
-                        <StatusPill tone={statusTone(task.status)}>{task.status.replaceAll("_", " ")}</StatusPill>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </div>
+            ) : null}
+          </div>
 
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise [animation-delay:145ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Approval required</h2>
-            <div className="mt-5 divide-y divide-[#eee8e1]">
-              {agentApprovalQueue.slice(0, 3).map((item) => (
-                <Link className="block py-4 first:pt-0 last:pb-0 active:-translate-y-px" href={item.href} key={item.id}>
+          {nextTask ? (
+            <Link className="block rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:border-[var(--border-strong)]" href={nextTask.href}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="font-semibold">{nextTask.task}</div>
+                  <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{nextTask.objective}</p>
+                </div>
+                <StatusPill tone={statusTone(nextTask.status)}>{nextTask.status.replaceAll("_", " ")}</StatusPill>
+              </div>
+            </Link>
+          ) : (
+            <EmptyState title="No open task" detail="Queue a task when you want Mark to prepare the next growth action." />
+          )}
+        </Panel>
+
+        <Panel>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="signal-eyebrow">Human review</div>
+              <h2 className="mt-1 text-lg font-semibold tracking-[-0.01em]">Approvals</h2>
+            </div>
+            <Link className="text-sm font-semibold text-[var(--accent)]" href="/approvals">
+              Open
+            </Link>
+          </div>
+          {approvals.length > 0 ? (
+            <div className="space-y-3">
+              {approvals.slice(0, 3).map((item) => (
+                <Link className="block rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--border-strong)]" href={item.href} key={item.id}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-semibold">{item.source}</div>
-                      <div className="mt-1 text-sm text-[#6e6962]">{item.campaign}</div>
+                      <div className="text-sm font-semibold">{item.source}</div>
+                      <div className="mt-1 text-xs text-[var(--text-secondary)]">{item.channel} / risk {item.risk}</div>
                     </div>
-                    <StatusPill tone={item.status === "Blocked" ? "red" : item.status === "Needs compliance" ? "amber" : "green"}>
-                      {item.status}
-                    </StatusPill>
+                    <StatusPill tone={item.status === "Blocked" ? "red" : "amber"}>{item.status}</StatusPill>
                   </div>
-                  <div className="mt-2 text-xs text-[#7a736b]">Risk: {item.risk} / Channel: {item.channel}</div>
                 </Link>
               ))}
             </div>
-            <Link
-              className="mt-5 inline-flex min-h-11 items-center rounded-md bg-[#151515] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2a2a] active:-translate-y-px"
-              href="/approvals"
-            >
-              Review all approvals
-            </Link>
-          </Panel>
-
-          <Panel className="module-rise [animation-delay:190ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Recent outputs</h2>
-            <div className="mt-5 divide-y divide-[#eee8e1]">
-              {agentRecentOutputs.map((output) => (
-                <div className="py-4 first:pt-0 last:pb-0" key={output.output}>
-                  <div className="font-semibold">{output.output}</div>
-                  <div className="mt-1 text-sm text-[#6e6962]">{output.agent}</div>
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <span className="text-xs text-[#7a736b]"><LiveTime baseline={output.time} /></span>
-                    <span className="rounded-full border border-[#5bb7e8]/35 px-2 py-0.5 text-xs font-semibold text-[#d4ecfb]">
-                      {output.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel className="module-rise [animation-delay:220ms]">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Agent safety</h2>
-            <div className="mt-4 grid gap-2 text-sm">
-              {[
-                "No publishing without approval",
-                "No SMS or email dispatch",
-                "No coverage, claim approval, or payout promises",
-                "No hail-only or exterior-roof campaign generation",
-              ].map((rule) => (
-                <div className="rounded-md border border-[#ddd6cd] bg-[#fbfaf8] px-3 py-2 font-semibold" key={rule}>
-                  {rule}
-                </div>
-              ))}
-            </div>
-          </Panel>
-        </div>
+          ) : (
+            <EmptyState title="No approvals waiting" detail="When Mark creates reviewable work, it will appear here." />
+          )}
+        </Panel>
       </div>
+
+      <Panel className="mt-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <div className="signal-eyebrow">Recent output</div>
+            <h2 className="mt-1 text-lg font-semibold tracking-[-0.01em]">What Mark produced</h2>
+          </div>
+        </div>
+        {outputs.length > 0 ? (
+          <div className="divide-y divide-[var(--border-hairline)]">
+            {outputs.slice(0, 5).map((output) => (
+              <div className="grid gap-2 py-3 sm:grid-cols-[1fr_auto]" key={`${output.output}-${output.time}`}>
+                <div>
+                  <div className="font-semibold">{output.output}</div>
+                  <div className="mt-1 text-sm text-[var(--text-secondary)]">{output.agent}</div>
+                </div>
+                <StatusPill tone="gray">{output.status}</StatusPill>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No output yet" detail="Completed task output will appear here after Mark writes it to Supabase." />
+        )}
+      </Panel>
     </AppShell>
+  );
+}
+
+function MarkStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 font-display text-3xl font-black tabular-nums tracking-[-0.04em]">{value}</div>
+    </div>
   );
 }
 
@@ -234,13 +201,9 @@ function getValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function findAgent(agentKey: string) {
-  return agentOperations.find((agent) => agent.key === agentKey);
-}
-
 function statusTone(status: string): "amber" | "green" | "red" | "blue" {
-  if (status === "blocked") return "red";
-  if (status === "needs_approval") return "amber";
+  if (status === "blocked" || status === "failed") return "red";
+  if (status === "needs_approval" || status === "queued") return "amber";
   if (status === "running") return "blue";
   return "green";
 }

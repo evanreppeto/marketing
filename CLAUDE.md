@@ -16,6 +16,7 @@ pnpm lint           # eslint (flat config in eslint.config.mjs)
 
 ## Architecture
 
+- Product posture: this app is primarily a backend/control plane for the Hermes agent. Build durable APIs, records, queues, approvals, logs, and state transitions first. UI pages are detailed operator views for humans and Hermes debugging, not the main source of product value.
 - `src/domain/` — pure, deterministic business logic (Zod schemas, persona validation, loss-keyword classifier, lead/partner scoring). No I/O. Heavily unit-tested in `src/domain/__tests__/`.
 - `src/app/api/v1/leads/ingest/route.ts` — the only live API surface. Calls `parseLeadIngestionPayload` from `@/domain`, then `persistLeadIngestion` from `@/lib/lead-ingestion/persistence` only if Supabase env vars are set.
 - `src/lib/supabase/server.ts` — admin client, lazily created from `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
@@ -32,6 +33,8 @@ Most pages are async server components that destructure `searchParams.action` an
 - `<ActionFeedback action={action} messages={{ foo: "Preview: ..." }} />` — inline preview banner keyed by the active `action`.
 
 No data is written. This is intentional until persistence is wired. Don't replace these links with form submissions or mutations.
+
+When persistence is wired, approval actions should become real backend state transitions. Use the ContentEngine-style pattern for campaigns and ads: Hermes creates a draft, the item enters approval with prompt inputs/source records/output/risk flags, and the human can approve, decline, request revision, or archive. Approved items unlock the next backend step; declined or blocked items stay unavailable.
 
 ## Lead Ingestion Contract (don't break this)
 

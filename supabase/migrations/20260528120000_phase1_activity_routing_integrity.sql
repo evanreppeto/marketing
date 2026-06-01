@@ -83,3 +83,7 @@ create index integrity_findings_severity_idx
 create trigger integrity_findings_set_updated_at
 before update on public.integrity_findings
 for each row execute function public.set_updated_at();
+
+alter table public.events enable row level security;
+alter table public.routing_decisions enable row level security;
+alter table public.integrity_findings enable row level security;

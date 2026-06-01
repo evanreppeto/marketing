@@ -1,3 +1,52 @@
+type ButtonVariant = "primary" | "priority" | "ghost";
+type ButtonSize = "sm" | "md";
+
+const BUTTON_BASE =
+  "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition active:translate-y-px focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60";
+
+const BUTTON_SIZES: Record<ButtonSize, string> = {
+  // md meets the 44px touch target; sm is for dense inline toolbars
+  md: "min-h-11 px-4 text-sm",
+  sm: "min-h-9 px-3 text-xs",
+};
+
+const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
+  primary: "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]",
+  priority: "bg-[var(--priority-solid)] text-[var(--on-priority)] hover:bg-[oklch(0.5_0.2_26)]",
+  ghost:
+    "border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] hover:border-[var(--border-strong)]",
+};
+
+/**
+ * Canonical button styling. Use `<Button>` for real buttons, or
+ * `buttonClasses({...})` on a `<Link>` / form-bound element so the visual
+ * language stays identical everywhere. Replaces the per-page inline strings.
+ */
+export function buttonClasses({
+  variant = "primary",
+  size = "md",
+  className = "",
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}) {
+  return `${BUTTON_BASE} ${BUTTON_SIZES[size]} ${BUTTON_VARIANTS[variant]} ${className}`.trim();
+}
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  className = "",
+  type = "button",
+  ...props
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+} & React.ComponentPropsWithoutRef<"button">) {
+  return <button type={type} className={buttonClasses({ variant, size, className })} {...props} />;
+}
+
 type PageHeaderProps = {
   eyebrow: string;
   title: string;
@@ -7,17 +56,31 @@ type PageHeaderProps = {
 
 export function PageHeader({ eyebrow, title, description, aside }: PageHeaderProps) {
   return (
-    <header className="module-rise mb-6 flex flex-col gap-4 border-b border-[#e7e0d8] pb-5 xl:flex-row xl:items-end xl:justify-between">
-      <div className="min-w-0 max-w-full">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a07423]">{eyebrow}</p>
-        <h1 className="mt-2 text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-[#151515] sm:text-[30px]">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mt-2 max-w-[65ch] text-sm leading-6 text-[#6e6962]">{description}</p>
-        ) : null}
+    <header className="module-rise relative mb-5 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-5 py-5 shadow-[var(--elev-panel)]">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-cover bg-[65%_center] opacity-45"
+        style={{ backgroundImage: "url('/brand/signal-command-header.png')" }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[linear-gradient(90deg,var(--surface-panel)_0%,oklch(0.16_0.04_250/0.9)_46%,oklch(0.11_0.03_250/0.62)_100%)]"
+      />
+      <div className="relative flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0 max-w-full">
+          <p className="flex items-center gap-2.5 signal-eyebrow">
+            <span aria-hidden="true" className="h-2.5 w-0.5 rounded-full bg-[var(--accent)]" />
+            {eyebrow}
+          </p>
+          <h1 className="mt-2 text-[clamp(1.65rem,3vw,2.25rem)] font-extrabold leading-[1.06] tracking-[-0.03em] text-[var(--text-primary)]">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-2 max-w-[62ch] text-sm leading-6 text-[var(--text-secondary)]">{description}</p>
+          ) : null}
+        </div>
+        {aside ? <div className="shrink-0">{aside}</div> : null}
       </div>
-      {aside ? <div className="shrink-0">{aside}</div> : null}
     </header>
   );
 }
@@ -25,14 +88,13 @@ export function PageHeader({ eyebrow, title, description, aside }: PageHeaderPro
 export function Panel({
   children,
   className = "",
+  ...sectionProps
 }: {
   children: React.ReactNode;
   className?: string;
-}) {
+} & React.ComponentPropsWithoutRef<"section">) {
   return (
-    <section
-      className={`min-w-0 rounded-md border border-[#ddd6cd] bg-white p-5 shadow-[0_18px_45px_-34px_rgba(52,43,34,0.42)] ${className}`}
-    >
+    <section {...sectionProps} className={`signal-panel min-w-0 p-4 ${className}`}>
       {children}
     </section>
   );
@@ -41,7 +103,7 @@ export function Panel({
 export function OperatorBar({
   task,
   detail,
-  status = "Scaffold mode",
+  status = "Active",
   primary,
   secondary,
 }: {
@@ -52,15 +114,15 @@ export function OperatorBar({
   secondary?: React.ReactNode;
 }) {
   return (
-    <div className="module-rise mb-4 rounded-md border border-[#ddd6cd] bg-[#fbfaf8] px-4 py-3 shadow-[0_18px_45px_-38px_rgba(52,43,34,0.36)] [animation-delay:40ms]">
+    <div className="signal-inset module-rise mb-4 rounded-lg border px-4 py-3.5 [animation-delay:40ms]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a07423]">Operator task</span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="signal-eyebrow">Operator task</span>
             <StatusPill tone="gray">{status}</StatusPill>
           </div>
-          <div className="mt-1 font-semibold text-[#151515]">{task}</div>
-          <p className="mt-1 max-w-[74ch] text-sm leading-6 text-[#6e6962]">{detail}</p>
+          <div className="mt-1.5 font-semibold text-[var(--text-primary)]">{task}</div>
+          <p className="mt-1 max-w-[74ch] text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
         </div>
         {primary || secondary ? (
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
@@ -83,9 +145,12 @@ export function ActionFeedback({
   if (!action) return null;
 
   return (
-    <div className="module-rise mb-4 rounded-md border border-[#cdddee] bg-[#f0f5fc] px-4 py-3 text-sm text-[#21558a] [animation-delay:60ms]">
-      <span className="font-semibold">Preview: </span>
-      {messages[action] ?? "Scaffold action previewed. No data was changed."}
+    <div className="module-rise mb-4 flex items-start gap-3 rounded-lg border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--chicago-blue-soft)] [animation-delay:60ms]">
+      <span aria-hidden="true" className="mt-0.5 inline-flex h-2 w-2 shrink-0 rounded-full bg-[var(--accent)] status-breathe" />
+      <span>
+        <span className="font-semibold text-[var(--text-primary)]">Update: </span>
+        {messages[action] ?? "Action recorded."}
+      </span>
     </div>
   );
 }
@@ -100,44 +165,44 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-dashed border-[#d8d0c7] bg-[#fbfaf8] p-5">
-      <div className="text-sm font-semibold text-[#151515]">{title}</div>
-      <p className="mt-2 text-sm leading-6 text-[#6e6962]">{detail}</p>
+    <div className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-center sm:text-left">
+      <div className="font-display text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{title}</div>
+      <p className="mx-auto mt-2 max-w-[58ch] text-sm leading-6 text-[var(--text-secondary)] sm:mx-0">{detail}</p>
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }
+
+const PILL_TONES = {
+  amber: "text-[oklch(0.9_0.09_85)] border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)]",
+  green: "text-[oklch(0.88_0.1_158)] border-[oklch(0.78_0.14_158/0.4)] bg-[oklch(0.78_0.14_158/0.14)]",
+  red: "text-[oklch(0.86_0.09_26)] border-[oklch(0.68_0.2_26/0.45)] bg-[oklch(0.68_0.2_26/0.16)]",
+  gray: "text-[var(--text-secondary)] border-[var(--border-strong)] bg-[var(--surface-raised)]",
+  blue: "text-[var(--chicago-blue-soft)] border-[oklch(0.74_0.115_232/0.4)] bg-[var(--accent-soft)]",
+  dark: "text-[oklch(0.18_0.03_248)] border-transparent bg-[var(--accent)]",
+} as const;
+
+const PILL_DOTS = {
+  amber: "bg-[oklch(0.82_0.13_85)]",
+  green: "bg-[oklch(0.78_0.14_158)]",
+  red: "bg-[oklch(0.74_0.19_26)]",
+  gray: "bg-[var(--text-muted)]",
+  blue: "bg-[var(--accent)]",
+  dark: "bg-[oklch(0.18_0.03_248)]",
+} as const;
 
 export function StatusPill({
   children,
   tone = "gray",
 }: {
   children: React.ReactNode;
-  tone?: "amber" | "green" | "red" | "gray" | "blue" | "dark";
+  tone?: keyof typeof PILL_TONES;
 }) {
-  const toneClass = {
-    amber: "text-[#875a07] border-[#f0d99a]/70 bg-[#fdf7e7]",
-    green: "text-[#117343] border-[#bfe3cc] bg-[#eef7f1]",
-    red: "text-[#c5261f] border-[#f3c8c4] bg-[#fdf1ef]",
-    gray: "text-[#595551] border-[#dcd5cc] bg-[#f3f1ec]",
-    blue: "text-[#21558a] border-[#cdddee] bg-[#f0f5fc]",
-    dark: "text-white border-[#151515] bg-[#151515]",
-  }[tone];
-
-  const dotClass = {
-    amber: "bg-[#c98a16]",
-    green: "bg-[#23a455]",
-    red: "bg-[#d52f28]",
-    gray: "bg-[#8a8581]",
-    blue: "bg-[#3877c1]",
-    dark: "bg-white",
-  }[tone];
-
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${toneClass}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.01em] ${PILL_TONES[tone]}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} aria-hidden="true" />
+      <span className={`h-1.5 w-1.5 rounded-full ${PILL_DOTS[tone]}`} aria-hidden="true" />
       {children}
     </span>
   );
