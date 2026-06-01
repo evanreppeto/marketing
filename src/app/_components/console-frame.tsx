@@ -41,10 +41,10 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
   }
 
   return (
-    <main className="chicago-dark min-h-screen w-full overflow-x-hidden bg-[var(--canvas)] text-[var(--text-primary)]">
-      <div className="min-h-screen lg:grid lg:grid-cols-[236px_minmax(0,1fr)]">
-        <aside className="border-b border-[var(--border-panel)] bg-[oklch(0.145_0.03_250/0.96)] px-4 py-3 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-b-0 lg:border-r lg:px-3 lg:py-4">
-          <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:flex-1 lg:flex-col lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+    <main className="chicago-dark min-h-screen w-full overflow-x-hidden bg-[var(--canvas)] text-[var(--text-primary)] lg:h-screen lg:overflow-hidden">
+      <div className="min-h-screen lg:grid lg:h-screen lg:min-h-0 lg:grid-cols-[236px_minmax(0,1fr)]">
+        <aside className="border-b border-[var(--border-panel)] bg-[oklch(0.145_0.03_250/0.96)] px-4 py-3 lg:flex lg:h-screen lg:min-h-0 lg:flex-col lg:border-b-0 lg:border-r lg:px-3 lg:py-4">
+          <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:pr-1 [&::-webkit-scrollbar]:hidden">
             <Link
               href="/"
               className="group relative flex h-24 min-w-[190px] shrink-0 items-center justify-center overflow-hidden transition hover:opacity-95 lg:h-44 lg:min-w-0"
@@ -66,7 +66,7 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
           <OperatorProfile gateEnabled={gateEnabled} />
         </aside>
 
-        <section className="min-w-0 px-4 py-4 sm:px-6 lg:px-8 lg:py-5 xl:px-10">
+        <section className="min-w-0 px-4 py-4 sm:px-6 lg:h-screen lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
           <ShellContent>{children}</ShellContent>
         </section>
       </div>
