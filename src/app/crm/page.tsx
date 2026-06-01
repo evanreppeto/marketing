@@ -2,18 +2,19 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { AppShell } from "../_components/app-shell";
-import { EmptyState, Panel, StatusPill, buttonClasses } from "../_components/page-header";
 import { DataTable } from "../_components/data-table";
-import { CrmCommandHeader } from "./_components/crm-command-header";
+import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
+import { DetailStack, MetricStrip, WorkspaceHeader, WorkspacePanel } from "../_components/workspace";
 import { getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
 
-type CrmViewKey = "calls" | "inspections" | "closed-projects" | "partners";
+type CrmViewKey = "leads" | "companies" | "contacts" | "campaign-ready" | "jobs";
 
-const crmViews: Array<{ key: CrmViewKey; label: string; detail: string }> = [
-  { key: "calls", label: "Calls", detail: "People who need a call before the next step is clear." },
-  { key: "inspections", label: "Inspections", detail: "Calls that are ready to become inspection appointments." },
-  { key: "closed-projects", label: "Closed projects", detail: "Inspections or jobs ready for closed-project handoff." },
-  { key: "partners", label: "Partners", detail: "Referral and trade partner relationship work." },
+const crmViews: Array<{ key: CrmViewKey; label: string; detail: string; href: string }> = [
+  { key: "leads", label: "Leads", detail: "New, validated, qualified, and routed opportunities.", href: "/crm/leads" },
+  { key: "companies", label: "Companies", detail: "Partners, referral sources, and target accounts.", href: "/crm/companies" },
+  { key: "contacts", label: "Contacts", detail: "People Mark can enrich or recommend follow-up for.", href: "/crm/contacts" },
+  { key: "campaign-ready", label: "Campaign ready", detail: "Records with enough context for Mark to draft.", href: "/approvals" },
+  { key: "jobs", label: "Jobs", detail: "Outcome loop and future BSR Manager sync.", href: "/crm/jobs" },
 ];
 
 export default async function CrmOverviewPage({
@@ -29,7 +30,7 @@ export default async function CrmOverviewPage({
   const workspaceStats = isLive ? liveCrm.stats : [];
   const pipelineRows = isLive ? liveCrm.rows : [];
   const requestedView = getValue(query.view);
-  const activeView = requestedView ? normalizeView(requestedView) : pickDefaultCrmView(pipelineRows);
+  const activeView = normalizeView(requestedView);
   const selectedId = getValue(query.selected);
   const visibleRows = getVisibleRows(activeView, pipelineRows);
   const selectedRecord = visibleRows.find((row) => row.id === selectedId) ?? visibleRows[0] ?? pipelineRows[0] ?? null;
@@ -37,187 +38,161 @@ export default async function CrmOverviewPage({
 
   return (
     <AppShell active="/crm">
-      <CrmCommandHeader />
+      <WorkspaceHeader
+        eyebrow="CRM workbench"
+        title="The memory layer for growth work."
+        description="Companies, contacts, leads, jobs, and outcomes are organized as operational records Mark can use, but humans still own approval decisions."
+        status={isLive ? "Live Supabase CRM" : "Supabase unavailable"}
+        statusTone={isLive ? "green" : "amber"}
+        primary={{ label: "Review leads", href: "/crm/leads" }}
+        secondary={{ label: "Approval queue", href: "/approvals" }}
+      />
+
       {!isLive ? (
-        <div className="module-rise mt-4 rounded-md border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-4 py-3 text-sm text-[oklch(0.9_0.09_85)]">
+        <div className="module-rise mb-5 rounded-lg border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-4 py-3 text-sm text-[oklch(0.9_0.09_85)]">
           <span className="font-semibold">Live CRM unavailable: </span>
           {liveCrm.message}
         </div>
       ) : null}
-      <section className="signal-panel module-rise mt-4 overflow-hidden">
-        <div className="border-b border-[var(--border-hairline)] px-4 py-3">
-          <StatusPill tone={isLive ? "green" : "amber"}>{isLive ? "Live Supabase CRM" : "Supabase unavailable"}</StatusPill>
-        </div>
-        <div className="signal-inset grid gap-3 border-b border-[var(--border-hairline)] p-4 md:grid-cols-4">
-          {workspaceStats.map((stat) => (
-            <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-4" key={stat.label}>
-              <div className="text-xs font-medium text-[var(--text-muted)]">{stat.label}</div>
-              <div className="mt-2 font-display text-2xl font-extrabold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">
-                {stat.value}
-              </div>
-              <div className="mt-2 text-xs font-semibold text-[var(--accent)]">{stat.delta}</div>
-              <div className="mt-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-medium leading-5 text-[var(--text-secondary)]">
-                {stat.forecast}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      <div className="mt-4 grid min-w-0 items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_390px]">
-        <Panel className="module-rise overflow-hidden p-0 [animation-delay:80ms]">
-          <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Active CRM list view</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                {activeViewMeta.detail}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {crmViews.map((view) => (
-                <Link
-                  aria-current={activeView === view.key ? "page" : undefined}
-                  className={`inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold transition active:-translate-y-px ${
-                    activeView === view.key
-                      ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
-                      : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
-                  }`}
-                  href={`/crm?view=${view.key}`}
-                  key={view.key}
-                >
-                  {view.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+      <MetricStrip
+        metrics={
+          workspaceStats.length > 0
+            ? workspaceStats.map((stat, index) => ({
+                label: stat.label,
+                value: stat.value,
+                detail: `${stat.delta}. ${stat.forecast}`,
+                tone: index === 0 ? ("amber" as const) : index === 3 ? ("green" as const) : ("blue" as const),
+              }))
+            : [
+                { label: "Leads", value: 0, detail: "Waiting on live CRM connection", tone: "amber" as const },
+                { label: "Companies", value: 0, detail: "No live data", tone: "gray" as const },
+                { label: "Jobs", value: 0, detail: "No live data", tone: "gray" as const },
+                { label: "Revenue", value: "$0", detail: "No live data", tone: "gray" as const },
+              ]
+        }
+      />
 
-          <DataTable
-            rows={visibleRows}
-            rowKey={(row) => row.id}
-            minWidth="min-w-[900px]"
-            isSelected={(row) => selectedRecord?.id === row.id}
-            columns={[
-              {
-                key: "select",
-                header: <span className="sr-only">Select</span>,
-                width: "w-10",
-                headClassName: "px-5",
-                cellClassName: "px-5",
-                cell: (row) => {
-                  const isSelected = selectedRecord?.id === row.id;
-                  return (
-                    <Link
-                      aria-label={`Select ${row.record}`}
-                      aria-pressed={isSelected}
-                      className={`group/selector flex h-8 w-8 items-center justify-center rounded-full border transition active:translate-y-px ${
-                        isSelected
-                          ? "border-[var(--accent)] bg-[var(--accent)]"
-                          : "border-[var(--border-strong)] bg-[var(--surface-inset)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
-                      }`}
-                      href={`/crm?view=${activeView}&selected=${row.id}`}
-                    >
-                      <span
-                        className={`flex h-4 w-4 items-center justify-center rounded-full border transition ${
-                          isSelected
-                            ? "border-[var(--on-accent)] bg-[var(--on-accent)]"
-                            : "border-[var(--border-strong)] bg-transparent group-hover/selector:border-[var(--accent)]"
-                        }`}
-                        aria-hidden="true"
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full bg-[var(--accent)] transition ${isSelected ? "scale-100 opacity-100" : "scale-0 opacity-0"}`} />
-                      </span>
-                    </Link>
-                  );
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
+        <div className="min-w-0 space-y-5">
+          <WorkspacePanel
+            eyebrow="Record tabs"
+            title="Choose the operating view"
+            description="The CRM is split by the way Mark and the team actually use the data."
+          >
+            <div className="grid gap-2 p-4 md:grid-cols-5">
+              {crmViews.map((view) => {
+                const isActive = activeView === view.key;
+                return (
+                  <Link
+                    aria-current={isActive ? "page" : undefined}
+                    className={`rounded-lg border px-3 py-3 transition ${
+                      isActive
+                        ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--accent-soft)]"
+                        : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:bg-[var(--surface-raised)]"
+                    }`}
+                    href={`/crm?view=${view.key}`}
+                    key={view.key}
+                  >
+                    <div className="text-sm font-bold text-[var(--text-primary)]">{view.label}</div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{view.detail}</p>
+                  </Link>
+                );
+              })}
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel
+            className="p-0"
+            eyebrow={activeViewMeta.label}
+            title="Active records"
+            description={activeViewMeta.detail}
+            aside={<StatusPill tone={visibleRows.length > 0 ? "blue" : "gray"}>{visibleRows.length} visible</StatusPill>}
+          >
+            <DataTable
+              rows={visibleRows}
+              rowKey={(row) => row.id}
+              minWidth="min-w-[920px]"
+              isSelected={(row) => selectedRecord?.id === row.id}
+              columns={[
+                {
+                  key: "record",
+                  header: "Record",
+                  cell: (row) => (
+                    <>
+                      <Link className="font-bold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`/crm?view=${activeView}&selected=${row.id}`}>
+                        {row.record}
+                      </Link>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">{row.type}</div>
+                    </>
+                  ),
                 },
-              },
-              {
-                key: "record",
-                header: "Record",
-                cell: (row) => (
-                  <>
-                    <Link className="font-semibold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`/crm?view=${activeView}&selected=${row.id}`}>
-                      {row.record}
-                    </Link>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">{row.type}</div>
-                  </>
-                ),
-              },
-              { key: "account", header: "Account / contact", cellClassName: "font-medium text-[var(--text-secondary)]", cell: (row) => row.account },
-              { key: "stage", header: "Pipeline step", cell: (row) => <StatusPill tone={row.tone}>{row.stage}</StatusPill> },
-              { key: "owner", header: "Owner", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.owner },
-              { key: "value", header: "Est. value", cellClassName: "font-mono font-semibold tabular-nums text-[var(--text-primary)]", cell: (row) => row.value },
-              {
-                key: "next",
-                header: "Next step",
-                cellClassName: "text-[var(--text-secondary)]",
-                cell: (row) => (
-                  <>
-                    <div className="font-medium">{row.nextStep}</div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">{row.updated}</div>
-                  </>
-                ),
-              },
-            ]}
-            emptyState={<EmptyState title="No CRM records found" detail="Supabase is connected, but this view has no matching records yet." />}
-          />
-        </Panel>
+                { key: "account", header: "Account", cellClassName: "font-medium text-[var(--text-secondary)]", cell: (row) => row.account },
+                { key: "stage", header: "Stage", cell: (row) => <StatusPill tone={row.tone}>{row.stage}</StatusPill> },
+                { key: "owner", header: "Owner", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.owner },
+                { key: "score", header: "Score / value", cellClassName: "font-mono font-semibold tabular-nums", cell: (row) => row.value },
+                {
+                  key: "next",
+                  header: "Next action",
+                  cellClassName: "text-[var(--text-secondary)]",
+                  cell: (row) => (
+                    <>
+                      <div className="font-medium text-[var(--text-primary)]">{row.nextStep}</div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">{row.updated}</div>
+                    </>
+                  ),
+                },
+              ]}
+              emptyState={<EmptyState title="No records in this view" detail="The database is connected, but this slice has no matching CRM records yet." />}
+            />
+          </WorkspacePanel>
+        </div>
 
-        <aside className="min-w-0 space-y-4">
-          <Panel className="module-rise [animation-delay:120ms]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Record preview</h2>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">Pinned from the active list view.</p>
-              </div>
-              {selectedRecord ? <StatusPill tone={selectedRecord.tone}>Selected</StatusPill> : null}
-            </div>
+        <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
+          <WorkspacePanel
+            eyebrow="Selected record"
+            title={selectedRecord?.record ?? "No record selected"}
+            description={selectedRecord ? `${selectedRecord.account} / ${selectedRecord.type}` : "Select a row to see record context."}
+            aside={selectedRecord ? <StatusPill tone={selectedRecord.tone}>{selectedRecord.stage}</StatusPill> : null}
+          >
             {selectedRecord ? (
               <>
-                <div className="mt-5 rounded-md border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] p-4">
-                  <div className="signal-eyebrow">Selected record</div>
-                  <div className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
-                    {selectedRecord.record}
-                  </div>
-                  <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                    {selectedRecord.account} is ready for {selectedRecord.nextStep.toLowerCase()}.
-                  </div>
+                <DetailStack
+                  items={[
+                    { label: "Owner", value: selectedRecord.owner },
+                    { label: "Value", value: selectedRecord.value },
+                    { label: "Score", value: `${selectedRecord.score}/100` },
+                    { label: "Next action", value: selectedRecord.nextStep },
+                    { label: "Updated", value: selectedRecord.updated },
+                  ]}
+                />
+                <div className="border-t border-[var(--border-hairline)] p-4">
+                  <Link className={buttonClasses({ variant: "primary", className: "w-full" })} href={selectedRecord.href}>
+                    Open full record
+                  </Link>
                 </div>
-                <div className="signal-inset mt-4 grid grid-cols-3 divide-x divide-[var(--border-hairline)] rounded-md border text-center">
-                  {[
-                    ["Score", selectedRecord.score],
-                    ["Value", selectedRecord.value],
-                    ["Owner", selectedRecord.owner],
-                  ].map(([label, value]) => (
-                    <div className="p-3" key={label}>
-                      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-                      <div className="mt-1 font-mono text-sm font-semibold text-[var(--text-primary)]">{value}</div>
-                    </div>
-                  ))}
-                </div>
-                <Link className={buttonClasses({ variant: "primary", className: "mt-4 w-full" })} href={selectedRecord.href}>
-                  Open full record
-                </Link>
               </>
             ) : (
-              <div className="mt-5">
+              <div className="p-4">
                 <EmptyState title="No record selected" detail="Create or import CRM records, then this panel will show the selected record context." />
               </div>
             )}
-          </Panel>
+          </WorkspacePanel>
 
-          <Panel className="module-rise [animation-delay:170ms]">
-            <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Activity timeline</h2>
-            <div className="mt-5">
-              <EmptyState title="No CRM events yet" detail="Live engagement events will appear here after event capture is connected." />
+          <WorkspacePanel eyebrow="Mark can use this" title="Recommended follow-up">
+            <div className="space-y-3 p-4">
+              {[
+                ["Enrich", "Fill missing company, contact, and source evidence."],
+                ["Classify", "Attach persona and relationship stage."],
+                ["Draft", "Create approval-ready outreach only after enough context exists."],
+              ].map(([label, detail]) => (
+                <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-3" key={label}>
+                  <div className="text-sm font-bold text-[var(--text-primary)]">{label}</div>
+                  <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{detail}</p>
+                </div>
+              ))}
             </div>
-          </Panel>
-
-          <Panel className="module-rise [animation-delay:220ms]">
-            <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Tasks due</h2>
-            <div className="mt-5">
-              <EmptyState title="No CRM tasks due" detail="Mark-created follow-up tasks will appear here once the enrichment workflow creates them." />
-            </div>
-          </Panel>
+          </WorkspacePanel>
         </aside>
       </div>
     </AppShell>
@@ -227,17 +202,11 @@ export default async function CrmOverviewPage({
 function normalizeView(value: string | string[] | undefined): CrmViewKey {
   const view = Array.isArray(value) ? value[0] : value;
 
-  if (view === "inspections" || view === "closed-projects" || view === "partners") {
+  if (view === "companies" || view === "contacts" || view === "campaign-ready" || view === "jobs") {
     return view;
   }
 
-  return "calls";
-}
-
-// When no view is chosen, land on the first list that actually has records so
-// the page never opens on an empty "no records" state.
-function pickDefaultCrmView(rows: CrmPipelineRow[]): CrmViewKey {
-  return crmViews.find((view) => getVisibleRows(view.key, rows).length > 0)?.key ?? "calls";
+  return "leads";
 }
 
 function getValue(value: string | string[] | undefined) {
@@ -245,31 +214,35 @@ function getValue(value: string | string[] | undefined) {
 }
 
 function getVisibleRows(activeView: CrmViewKey, rows: CrmPipelineRow[]) {
-  if (activeView === "calls") {
-    return rows.filter((row) => {
-      const text = `${row.stage} ${row.nextStep}`.toLowerCase();
-      return text.includes("call") || text.includes("book");
-    });
-  }
-
-  if (activeView === "inspections") {
-    return rows.filter((row) => {
-      const text = `${row.stage} ${row.nextStep}`.toLowerCase();
-      return text.includes("inspection") || text.includes("schedule");
-    });
-  }
-
-  if (activeView === "closed-projects") {
+  if (activeView === "leads") {
     return rows.filter((row) => {
       const text = `${row.stage} ${row.nextStep} ${row.type}`.toLowerCase();
-      return text.includes("closed project") || text.includes("close") || text.includes("job");
+      return text.includes("lead") || text.includes("review") || text.includes("qualified") || text.includes("book");
     });
   }
 
-  if (activeView === "partners") {
+  if (activeView === "companies") {
     return rows.filter((row) => {
-      const text = `${row.record} ${row.account} ${row.type} ${row.stage}`.toLowerCase();
-      return text.includes("partner") || text.includes("referral") || text.includes("insurance");
+      const text = `${row.record} ${row.account} ${row.type}`.toLowerCase();
+      return text.includes("company") || text.includes("partner") || text.includes("referral") || text.includes("insurance");
+    });
+  }
+
+  if (activeView === "contacts") {
+    return rows.filter((row) => {
+      const text = `${row.record} ${row.account} ${row.type}`.toLowerCase();
+      return text.includes("contact") || text.includes("manager") || text.includes("agent");
+    });
+  }
+
+  if (activeView === "campaign-ready") {
+    return rows.filter((row) => row.score >= 70);
+  }
+
+  if (activeView === "jobs") {
+    return rows.filter((row) => {
+      const text = `${row.record} ${row.stage} ${row.type} ${row.nextStep}`.toLowerCase();
+      return text.includes("job") || text.includes("inspection") || text.includes("outcome") || text.includes("completed");
     });
   }
 
