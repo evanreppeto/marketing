@@ -316,7 +316,7 @@ export default async function PersonaIntelligencePage({
           <div className="mb-4">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Live Guardrails</div>
             <h2 className="mt-1 text-base font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
-              Rules Hermes must respect before outbound approval
+              Rules Mark must respect before outbound approval
             </h2>
           </div>
           <div className="grid gap-3 lg:grid-cols-2">

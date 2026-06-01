@@ -11,7 +11,7 @@ export const navItems = [
   { label: "Approvals", href: "/approvals", icon: "approval" },
   { label: "CRM", href: "/crm", icon: "crm" },
   { label: "Personas", href: "/persona-intelligence", icon: "persona" },
-  { label: "Hermes", href: "/agent-operations", icon: "agents" },
+  { label: "Mark", href: "/agent-operations", icon: "agents" },
   { label: "Settings", href: "/score-rules", icon: "sliders" },
 ];
 

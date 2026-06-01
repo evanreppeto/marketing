@@ -67,7 +67,7 @@ export default async function AgentTaskDetailPage({ params }: AgentTaskDetailPag
           <Panel className="module-rise p-0 [animation-delay:110ms]">
             <div className="border-b border-[var(--border-hairline)] px-5 py-4">
               <h2 className="text-xl font-semibold tracking-[-0.02em]">Source records and prompt inputs</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">The context Mark or Hermes is allowed to use.</p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">The context Mark is allowed to use.</p>
             </div>
             <div className="divide-y divide-[var(--border-hairline)]">
               {detail.inputs.map((input) => (

@@ -5,8 +5,8 @@ import { exampleScore, routingRules, scoreRules } from "../_data/growth-engine";
 
 const settingGroups = [
   {
-    title: "Hermes autonomy",
-    description: "The MVP posture: Hermes can draft and write internal records, but outbound action stays locked.",
+    title: "Mark autonomy",
+    description: "The MVP posture: Mark can draft and write internal records, but outbound action stays locked.",
     badge: "Level 2",
     tone: "blue" as const,
     rows: [
@@ -51,8 +51,8 @@ export default function ScoreRulesPage() {
     <AppShell active="/score-rules">
       <PageHeader
         eyebrow="Settings"
-        title="Hermes controls, scoring, and safety rules"
-        description="This is the control surface for how much Hermes can do, what requires approval, and how lead priority is explained."
+        title="Mark controls, scoring, and safety rules"
+        description="This is the control surface for how much Mark can do, what requires approval, and how lead priority is explained."
         aside={<StatusPill tone="blue">Backend-first settings</StatusPill>}
       />
 

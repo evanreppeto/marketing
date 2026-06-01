@@ -32,13 +32,15 @@ export default async function LossRoutingPage({
   searchParams?: Promise<Record<string, SearchValue>>;
 }) {
   const query = searchParams ? await searchParams : {};
-  const activeTab = normalizeTab(query.tab);
   const action = getSingle(query.action);
 
   const data = await getLossRoutingData();
   const isLive = data.status === "live";
   const queue = isLive ? data.queue : [];
   const metrics = isLive ? data.metrics : [];
+
+  const requestedTab = getSingle(query.tab);
+  const activeTab = requestedTab ? normalizeTab(requestedTab) : pickDefaultTab(queue);
 
   const visibleLeads = getVisibleLeads(queue, activeTab).slice(0, 12);
   const selectedLeadId = getSingle(query.selected) ?? visibleLeads[0]?.id ?? queue[0]?.id;
@@ -432,6 +434,12 @@ function normalizeTab(value: SearchValue): LeadTab {
   const tab = getSingle(value);
   if (tab === "review" || tab === "routed" || tab === "all") return tab;
   return "new";
+}
+
+// With no tab chosen, open the first tab that has leads so the queue is never
+// empty on landing.
+function pickDefaultTab(queue: RoutingQueueLead[]): LeadTab {
+  return (["new", "review", "routed", "all"] as const).find((tab) => getVisibleLeads(queue, tab).length > 0) ?? "new";
 }
 
 function lossRoutingHref({ tab, selected }: { tab: LeadTab; selected?: string }) {

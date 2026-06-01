@@ -23,11 +23,11 @@ type AiStudioPageProps = {
 
 const actionMessages: Record<string, string> = {
   "new-campaign": "Campaign creation requires the live campaign workflow.",
-  "generate-asset": "Asset generation requires the live Hermes workflow.",
+  "generate-asset": "Asset generation requires the live Mark workflow.",
   "send-approval": "Approval handoff requires a persisted campaign asset.",
   "connect-tool": "Tool connections require a configured integration.",
   "review-asset": "Public-facing assets remain blocked until reviewed.",
-  "agent-run": "Agent orchestration runs from the Hermes operations queue.",
+  "agent-run": "Agent orchestration runs from the Mark operations queue.",
   "prompt-library": "Guardrails stay attached to every campaign brief.",
 };
 

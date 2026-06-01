@@ -301,7 +301,7 @@ function mapApprovalCard(input: {
     riskLevel: item.risk_level,
     persona: campaign?.persona ?? company?.persona ?? getString(promptInputs.persona) ?? "unassigned",
     channel: asset?.channel ?? getString(promptInputs.channel) ?? "review",
-    sourceAgent: item.requested_by ?? getString(item.audit_payload?.created_by_agent_id) ?? "Hermes",
+    sourceAgent: (item.requested_by ?? getString(item.audit_payload?.created_by_agent_id) ?? "Mark").replace(/hermes/gi, "Mark"),
     submittedAt: item.submitted_at,
     campaign: {
       id: campaign?.id ?? null,
@@ -497,7 +497,20 @@ function buildPreviewText(structuredDraft: ApprovalStructuredDraft | null, fallb
     return `${structuredDraft.candidates.length} partner candidates: ${topCandidates}`;
   }
 
-  return fallback;
+  // Never surface a raw JSON blob in the inbox preview — pull a human field out
+  // of it, or fall back to a plain label.
+  const parsed = getObject(parseDraftJson(fallback));
+  if (Object.keys(parsed).length > 0) {
+    const summary =
+      getString(parsed.summary) ??
+      getString(parsed.headline) ??
+      getString(parsed.target_market) ??
+      getString(parsed.message) ??
+      getString(parsed.body);
+    return summary ?? "Generated draft — open to review the details.";
+  }
+
+  return fallback.trim() ? fallback : "Generated draft — open to review the details.";
 }
 
 function buildEvidence(leadMetadata: JsonObject, sourceData: JsonObject, structuredDraft?: ApprovalStructuredDraft | null) {

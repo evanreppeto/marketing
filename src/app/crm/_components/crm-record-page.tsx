@@ -31,7 +31,7 @@ const actionCards = [
   {
     key: "note",
     label: "Add note",
-    detail: "Log internal context for Hermes and the CRM timeline.",
+    detail: "Log internal context for Mark and the CRM timeline.",
     state: "Locked",
     tone: "blue",
     icon: "N",
@@ -120,7 +120,7 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
   };
   const actionMessage = action
     ? `"${actionLabels[action] ?? action}" is not connected to a write workflow yet.`
-    : "Record write actions stay locked until the Hermes workflow API is finished.";
+    : "Record write actions stay locked until the Mark workflow API is finished.";
   const showEditForm = action === "edit" && isCrmEntityKey(objectKey);
   const feedbackAction = RECORD_FEEDBACK.includes(action ?? "") ? action : undefined;
   let editValues: Record<string, unknown> | undefined;
@@ -313,7 +313,7 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
               <div>
                 <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Next Best Actions</h2>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  Record tools are staged here, but write actions stay disabled until the Hermes workflow API is finished.
+                  Record tools are staged here, but write actions stay disabled until the Mark workflow API is finished.
                 </p>
               </div>
               <StatusPill tone="amber">Locked</StatusPill>
@@ -327,7 +327,7 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
                   <div className="mt-2 text-xs font-semibold text-[var(--accent)]">{item.approval}</div>
                 </div>
               )) : (
-                <EmptyState title="No next best actions" detail="Live recommendations will appear here after Mark or Hermes writes them for this record." />
+                <EmptyState title="No next best actions" detail="Live recommendations will appear here after Mark writes them for this record." />
               )}
             </div>
             <div className="mt-5 grid gap-2 border-t border-[var(--border-hairline)] pt-5">

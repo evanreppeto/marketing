@@ -28,7 +28,8 @@ export default async function CrmOverviewPage({
   const isLive = liveCrm.status === "live";
   const workspaceStats = isLive ? liveCrm.stats : [];
   const pipelineRows = isLive ? liveCrm.rows : [];
-  const activeView = normalizeView(query.view);
+  const requestedView = getValue(query.view);
+  const activeView = requestedView ? normalizeView(requestedView) : pickDefaultCrmView(pipelineRows);
   const selectedId = getValue(query.selected);
   const visibleRows = getVisibleRows(activeView, pipelineRows);
   const selectedRecord = visibleRows.find((row) => row.id === selectedId) ?? visibleRows[0] ?? pipelineRows[0] ?? null;
@@ -231,6 +232,12 @@ function normalizeView(value: string | string[] | undefined): CrmViewKey {
   }
 
   return "calls";
+}
+
+// When no view is chosen, land on the first list that actually has records so
+// the page never opens on an empty "no records" state.
+function pickDefaultCrmView(rows: CrmPipelineRow[]): CrmViewKey {
+  return crmViews.find((view) => getVisibleRows(view.key, rows).length > 0)?.key ?? "calls";
 }
 
 function getValue(value: string | string[] | undefined) {

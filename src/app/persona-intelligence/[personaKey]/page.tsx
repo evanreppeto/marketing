@@ -55,7 +55,7 @@ export default async function PersonaProfilePage({ params, searchParams }: Perso
       <ActionFeedback
         action={action}
         messages={{
-          "generate-content-brief": `Content brief generation requires the live Hermes workflow for ${persona.persona}.`,
+          "generate-content-brief": `Content brief generation requires the live Mark workflow for ${persona.persona}.`,
           "create-acceleration-plan": `Acceleration plans require the live persona workflow for ${persona.persona}.`,
           "sync-ai-studio": "Campaign handoff requires a persisted campaign record.",
         }}

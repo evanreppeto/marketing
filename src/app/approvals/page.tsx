@@ -12,7 +12,7 @@ type ApprovalsPageProps = {
 const actionMessages: Record<string, string> = {
   approve: "Approved. The asset is unlocked for the next backend step, but nothing was sent or published.",
   reject: "Rejected. The asset stays blocked and the decision was recorded.",
-  revise: "Changes requested. Hermes has a revision task linked to this item.",
+  revise: "Changes requested. Mark has a revision task linked to this item.",
   archive: "Archived. The item left the active approval inbox.",
   error: "The decision failed. Check the details or server logs before trying again.",
 };
@@ -31,7 +31,7 @@ export default async function ApprovalsPage({ searchParams }: ApprovalsPageProps
     <AppShell active="/approvals">
       <PageHeader
         eyebrow="Approvals"
-        title="Review the work Hermes prepared"
+        title="Review the work Mark prepared"
         description="Approve, reject, or request changes on generated assets before they can move anywhere near an outbound channel."
         aside={<StatusPill tone="dark">{cards.length} in review</StatusPill>}
       />
@@ -172,16 +172,23 @@ function ApprovalInbox({
                 </div>
               </details>
             ) : (
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]" htmlFor="editedOutput">
-                  Draft
-                </label>
-                <textarea
-                  className="mt-3 min-h-[300px] w-full resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 text-sm leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)]"
-                  defaultValue={selected.draftOutput}
-                  id="editedOutput"
-                  name="editedOutput"
-                />
+              <div className="space-y-3">
+                <div className="signal-eyebrow">Draft</div>
+                <ReadableDraft raw={selected.draftOutput} />
+                <details className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
+                  <summary className="cursor-pointer px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                    Edit raw draft
+                  </summary>
+                  <div className="border-t border-[var(--border-hairline)] p-4">
+                    <label className="sr-only" htmlFor="editedOutput">Raw draft</label>
+                    <textarea
+                      className="min-h-[200px] w-full resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 font-mono text-xs leading-5 text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)]"
+                      defaultValue={selected.draftOutput}
+                      id="editedOutput"
+                      name="editedOutput"
+                    />
+                  </div>
+                </details>
               </div>
             )}
             <div>
@@ -192,7 +199,7 @@ function ApprovalInbox({
                 className="mt-3 min-h-11 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)]"
                 id="approveNotes"
                 name="notes"
-                placeholder="Optional note for Hermes or the team"
+                placeholder="Optional note for Mark or the team"
               />
             </div>
           </form>
@@ -421,6 +428,75 @@ async function loadApprovalCards() {
       error: error instanceof Error ? error.message : "Approval queue is unavailable.",
     };
   }
+}
+
+// Renders a draft as readable labeled fields. JSON drafts become key/value rows
+// (humanized keys, formatted values); plain-text drafts render as prose.
+function ReadableDraft({ raw }: { raw: string }) {
+  const parsed = tryParseDraftObject(raw);
+
+  if (!parsed) {
+    return (
+      <p className="whitespace-pre-wrap rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 text-sm leading-6 text-[var(--text-primary)]">
+        {raw.trim() ? raw : "No draft content yet."}
+      </p>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-[var(--border-hairline)] overflow-hidden rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+      {Object.entries(parsed).map(([key, value]) => (
+        <div className="px-4 py-3" key={key}>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{humanizeKey(key)}</div>
+          <div className="mt-1 text-sm leading-6 text-[var(--text-primary)]">{renderDraftValue(value)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function tryParseDraftObject(value: string): Record<string, unknown> | null {
+  const first = value.indexOf("{");
+  const last = value.lastIndexOf("}");
+  if (first === -1 || last <= first) return null;
+  try {
+    const parsed = JSON.parse(value.slice(first, last + 1));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function humanizeKey(key: string) {
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function renderDraftValue(value: unknown): React.ReactNode {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    if (value.every((item) => typeof item === "string" || typeof item === "number")) {
+      return value.join(", ");
+    }
+    return (
+      <ul className="space-y-1.5">
+        {value.map((item, index) => (
+          <li className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm" key={index}>
+            {typeof item === "object" && item
+              ? Object.entries(item as Record<string, unknown>)
+                  .map(([k, v]) => `${humanizeKey(k)}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+                  .join(" · ")
+              : String(item)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return JSON.stringify(value);
 }
 
 function statusTone(status: string) {

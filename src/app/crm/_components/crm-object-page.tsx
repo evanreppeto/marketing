@@ -63,7 +63,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
               </div>
               <p className="mt-2 max-w-[78ch] text-sm leading-6 text-[var(--text-secondary)]">
                 {crmObject.description} List views, record preview, relationship context, and actions are ready for
-                Hermes-created CRM records.
+                Mark-created CRM records.
               </p>
               {!isLive && liveMessage ? (
                 <div className="mt-3 rounded-md border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-3 py-2 text-sm leading-6 text-[oklch(0.9_0.09_85)]">
