@@ -1642,11 +1642,36 @@ export const targetLossKeywords = TARGET_LOSS_KEYWORDS;
 // ---------------------------------------------------------------------------
 
 export const settingsSections = [
-  { key: "mark", label: "Mark agent", detail: "Autonomy level, capabilities, approval gates, and guardrails." },
-  { key: "integrations", label: "Integrations", detail: "Persistence, the ingest API, and connected tools." },
-  { key: "access", label: "Workspace & access", detail: "Business profile, team, default queues, and notifications." },
-  { key: "scoring", label: "Scoring & routing", detail: "Signal weights and how priority becomes team action." },
-  { key: "data", label: "Data & system", detail: "Customer types, integrity scans, retention, and export." },
+  {
+    key: "mark",
+    label: "Mark agent",
+    headline: "How much Mark can do on its own",
+    detail: "Autonomy level, capabilities, approval gates, and guardrails.",
+  },
+  {
+    key: "integrations",
+    label: "Integrations",
+    headline: "What is connected to the system",
+    detail: "Persistence, the ingest API, and connected tools.",
+  },
+  {
+    key: "access",
+    label: "Workspace & access",
+    headline: "Who is in the workspace and how they are reached",
+    detail: "Business profile, team, default queues, and notifications.",
+  },
+  {
+    key: "scoring",
+    label: "Scoring & routing",
+    headline: "How leads are scored and routed to a team",
+    detail: "Signal weights and how priority becomes team action.",
+  },
+  {
+    key: "data",
+    label: "Data & system",
+    headline: "Customer types, data health, and retention",
+    detail: "Customer types, integrity scans, retention, and export.",
+  },
 ] as const;
 
 export type SettingsSectionKey = (typeof settingsSections)[number]["key"];

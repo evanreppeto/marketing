@@ -42,10 +42,36 @@ const actionMessages: Record<string, string> = {
   "edit-guardrail": "Preview: guardrails stay locked until the approval pipeline can record changes.",
 };
 
+const PANEL = "module-rise overflow-hidden p-0";
+
 const sectionKeys = settingsSections.map((section) => section.key);
 
 function isSectionKey(value: string | undefined): value is SettingsSectionKey {
   return value !== undefined && (sectionKeys as readonly string[]).includes(value);
+}
+
+/** Inset panel header — the surface step (panel → inset) is what makes each
+ *  module read as its own instrument instead of one continuous slab. */
+function PanelHead({
+  title,
+  description,
+  aside,
+}: {
+  title: string;
+  description?: string;
+  aside?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
+      <div className="min-w-0">
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
+        {description ? (
+          <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">{description}</p>
+        ) : null}
+      </div>
+      {aside ? <div className="shrink-0">{aside}</div> : null}
+    </div>
+  );
 }
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
@@ -54,6 +80,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const sectionParam = getValue(query.section);
   const activeSection: SettingsSectionKey = isSectionKey(sectionParam) ? sectionParam : "mark";
   const selectedLevel = getValue(query.level) ?? markCurrentAutonomyLevel;
+  const activeIndex = settingsSections.findIndex((section) => section.key === activeSection);
+  const activeMeta = settingsSections[activeIndex];
 
   const persistenceConnected = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -63,37 +91,57 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     <AppShell active="/settings">
       <PageHeader
         eyebrow="Settings"
-        title="Control panel for Mark, integrations, and the workspace"
-        description="Configure how much the agent can do, what connects to the system, who has access, and how leads are scored and retained."
-        aside={<StatusPill tone="blue">Backend-first controls</StatusPill>}
+        title={activeMeta.headline}
+        description={activeMeta.detail}
+        aside={
+          <StatusPill tone="blue">
+            Section 0{activeIndex + 1} / 0{settingsSections.length}
+          </StatusPill>
+        }
       />
 
       <ActionFeedback action={action} messages={actionMessages} />
 
-      <div className="grid gap-4 xl:grid-cols-[224px_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="xl:sticky xl:top-5 xl:self-start">
+          <p className="signal-eyebrow mb-2.5 flex items-center gap-2 px-1">
+            <span aria-hidden="true" className="h-2.5 w-0.5 rounded-full bg-[var(--accent)]" />
+            Sections
+          </p>
           <ul className="grid gap-1.5">
-            {settingsSections.map((section) => {
+            {settingsSections.map((section, index) => {
               const isActive = section.key === activeSection;
               return (
                 <li key={section.key}>
                   <Link
                     href={`/settings?section=${section.key}`}
                     aria-current={isActive ? "page" : undefined}
-                    className={`block rounded-lg border px-3.5 py-3 transition ${
+                    className={`group block rounded-lg border px-3.5 py-3 transition ${
                       isActive
-                        ? "border-[oklch(0.74_0.115_232/0.4)] bg-[var(--accent-soft)]"
-                        : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"
+                        ? "border-[oklch(0.74_0.115_232/0.45)] bg-[var(--accent-soft)] shadow-[var(--elev-panel)]"
+                        : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
                     }`}
                   >
-                    <span
-                      className={`block text-sm font-semibold ${
-                        isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
-                      }`}
-                    >
-                      {section.label}
+                    <span className="flex items-center gap-2.5">
+                      <span
+                        className={`font-mono text-[11px] font-semibold tabular-nums ${
+                          isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
+                        }`}
+                      >
+                        0{index + 1}
+                      </span>
+                      <span
+                        className={`text-sm font-semibold ${
+                          isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
+                        }`}
+                      >
+                        {section.label}
+                      </span>
+                      {isActive ? (
+                        <span aria-hidden="true" className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)] status-breathe" />
+                      ) : null}
                     </span>
-                    <span className="mt-0.5 block text-xs leading-5 text-[var(--text-muted)]">{section.detail}</span>
+                    <span className="mt-1 block pl-[26px] text-xs leading-5 text-[var(--text-muted)]">{section.detail}</span>
                   </Link>
                 </li>
               );
@@ -118,16 +166,12 @@ function MarkSection({ selectedLevel }: { selectedLevel: string }) {
 
   return (
     <>
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Autonomy level</h2>
-            <StatusPill tone="blue">Current: Level {markCurrentAutonomyLevel}</StatusPill>
-          </div>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            How far Mark can act on its own. Outbound always stays behind a human gate.
-          </p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead
+          title="Autonomy level"
+          description="How far Mark can act on its own. Outbound always stays behind a human gate."
+          aside={<StatusPill tone="blue">Current · Level {markCurrentAutonomyLevel}</StatusPill>}
+        />
 
         <div className="grid gap-2 p-4 md:grid-cols-3">
           {markAutonomyLevels.map((level) => {
@@ -140,7 +184,7 @@ function MarkSection({ selectedLevel }: { selectedLevel: string }) {
                 className={`block rounded-lg border p-3.5 transition ${
                   isActive
                     ? "border-[oklch(0.74_0.115_232/0.45)] bg-[var(--accent-soft)]"
-                    : "border-[var(--border-hairline)] bg-[var(--surface-soft)] hover:border-[var(--border-strong)]"
+                    : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -154,26 +198,28 @@ function MarkSection({ selectedLevel }: { selectedLevel: string }) {
           })}
         </div>
 
-        <div className="border-t border-[var(--border-hairline)] px-5 py-4">
+        <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4">
           <p className="text-sm leading-6 text-[var(--text-secondary)]">
-            <span className="font-semibold text-[var(--text-primary)]">L{activeLevel.level} · {activeLevel.name}. </span>
+            <span className="font-semibold text-[var(--text-primary)]">
+              L{activeLevel.level} · {activeLevel.name}.{" "}
+            </span>
             {activeLevel.detail}
           </p>
         </div>
       </Panel>
 
       {markControlGroups.map((group, groupIndex) => (
-        <Panel className="module-rise overflow-hidden p-0" key={group.title}>
-          <div className="grid gap-4 border-b border-[var(--border-hairline)] px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-start">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold tracking-[-0.02em]">{group.title}</h2>
+        <Panel className={PANEL} key={group.title}>
+          <PanelHead
+            title={group.title}
+            description={group.description}
+            aside={
+              <div className="flex items-center gap-2.5">
                 <StatusPill tone={group.tone}>{group.badge}</StatusPill>
+                <span className="font-mono text-xs text-[var(--text-muted)]">0{groupIndex + 1}</span>
               </div>
-              <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{group.description}</p>
-            </div>
-            <div className="font-mono text-xs text-[var(--text-muted)]">0{groupIndex + 1}</div>
-          </div>
+            }
+          />
           <div className="divide-y divide-[var(--border-hairline)]">
             {group.rows.map(([label, state, detail]) => (
               <div className="grid gap-3 px-5 py-4 md:grid-cols-[190px_120px_1fr]" key={label}>
@@ -196,16 +242,16 @@ function MarkSection({ selectedLevel }: { selectedLevel: string }) {
 function IntegrationsSection({ persistenceConnected }: { persistenceConnected: boolean }) {
   return (
     <>
-      <Panel className="module-rise p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-5">
-          <div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Persistence</h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">Supabase admin client, lazily created from environment.</p>
-          </div>
-          <StatusPill tone={persistenceConnected ? "green" : "amber"}>
-            {persistenceConnected ? "Connected" : "Not configured"}
-          </StatusPill>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead
+          title="Persistence"
+          description="Supabase admin client, lazily created from environment."
+          aside={
+            <StatusPill tone={persistenceConnected ? "green" : "amber"}>
+              {persistenceConnected ? "Connected" : "Not configured"}
+            </StatusPill>
+          }
+        />
         <div className="px-5 py-4 text-sm leading-6 text-[var(--text-secondary)]">
           {persistenceConnected
             ? "Supabase is configured. Accepted leads persist and the ingest API can return 201."
@@ -213,16 +259,16 @@ function IntegrationsSection({ persistenceConnected }: { persistenceConnected: b
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-5">
-          <div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Lead ingestion API</h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">{leadIngestionEndpoint.description}</p>
-          </div>
-          <span className="token-value rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1.5 font-mono text-xs font-semibold text-[var(--chicago-blue-soft)]">
-            {leadIngestionEndpoint.method} {leadIngestionEndpoint.path}
-          </span>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead
+          title="Lead ingestion API"
+          description={leadIngestionEndpoint.description}
+          aside={
+            <span className="token-value rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-2.5 py-1.5 font-mono text-xs font-semibold text-[var(--chicago-blue-soft)]">
+              {leadIngestionEndpoint.method} {leadIngestionEndpoint.path}
+            </span>
+          }
+        />
         <div className="divide-y divide-[var(--border-hairline)]">
           {leadIngestionEndpoint.responses.map(([code, meaning]) => (
             <div className="grid gap-3 px-5 py-3 md:grid-cols-[80px_1fr]" key={code}>
@@ -233,11 +279,8 @@ function IntegrationsSection({ persistenceConnected }: { persistenceConnected: b
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Connected tools</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Workspace tools Mark and the operator launch into.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Connected tools" description="Workspace tools Mark and the operator launch into." />
         <div className="grid gap-2 p-4 md:grid-cols-2">
           {workspaceTools.map((tool) => (
             <div
@@ -250,7 +293,7 @@ function IntegrationsSection({ persistenceConnected }: { persistenceConnected: b
               </div>
               <Link
                 href={`/settings?section=integrations&action=connect-tool&tool=${tool.key}`}
-                className="shrink-0 rounded-full border border-[var(--border-hairline)] px-2.5 py-1 text-xs font-semibold text-[var(--chicago-blue-soft)] transition hover:border-[var(--border-strong)]"
+                className="shrink-0 rounded-full border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-xs font-semibold text-[var(--chicago-blue-soft)] transition hover:border-[var(--border-strong)]"
               >
                 {tool.embed}
               </Link>
@@ -265,16 +308,16 @@ function IntegrationsSection({ persistenceConnected }: { persistenceConnected: b
 function AccessSection() {
   return (
     <>
-      <Panel className="module-rise p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-5">
-          <div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Business profile</h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">Identity and scope the agent operates within.</p>
-          </div>
-          <Link href="/settings?section=access&action=edit-profile" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            Edit
-          </Link>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead
+          title="Business profile"
+          description="Identity and scope the agent operates within."
+          aside={
+            <Link href="/settings?section=access&action=edit-profile" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+              Edit
+            </Link>
+          }
+        />
         <div className="divide-y divide-[var(--border-hairline)]">
           {businessProfile.map((field) => (
             <div className="grid gap-2 px-5 py-4 md:grid-cols-[180px_1fr]" key={field.label}>
@@ -288,16 +331,16 @@ function AccessSection() {
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-5">
-          <div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Team & roles</h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">Who can see and act on operator surfaces.</p>
-          </div>
-          <Link href="/settings?section=access&action=manage-team" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            Manage
-          </Link>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead
+          title="Team & roles"
+          description="Who can see and act on operator surfaces."
+          aside={
+            <Link href="/settings?section=access&action=manage-team" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+              Manage
+            </Link>
+          }
+        />
         <div className="divide-y divide-[var(--border-hairline)]">
           {teamMembers.map((member) => (
             <div className="flex items-center gap-3 px-5 py-3.5" key={member.name}>
@@ -314,11 +357,8 @@ function AccessSection() {
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Default queues</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Where routed leads land and the response target.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Default queues" description="Where routed leads land and the response target." />
         <div className="divide-y divide-[var(--border-hairline)]">
           {defaultQueues.map((queue) => (
             <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_120px]" key={queue.queue}>
@@ -332,11 +372,8 @@ function AccessSection() {
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Notifications</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">What the operator gets pinged about.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Notifications" description="What the operator gets pinged about." />
         <div className="divide-y divide-[var(--border-hairline)]">
           {notificationPreferences.map((pref) => (
             <div className="flex items-center gap-3 px-5 py-3.5" key={pref.event}>
@@ -367,11 +404,8 @@ function AccessSection() {
 function ScoringSection() {
   return (
     <>
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Lead scoring</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Bounded 0 to 100, always explainable.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Lead scoring" description="Bounded 0 to 100, always explainable." />
         <div className="grid gap-4 p-5 md:grid-cols-[200px_1fr] md:items-center">
           <div>
             <div className="font-mono text-[56px] font-semibold leading-none tracking-[-0.06em]">
@@ -390,11 +424,8 @@ function ScoringSection() {
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Signal weights</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Plain-language inputs that move a lead up the queue.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Signal weights" description="Plain-language inputs that move a lead up the queue." />
         <div className="grid gap-3 p-4 md:grid-cols-2">
           {scoreRules.map((rule) => (
             <div className="grid grid-cols-[64px_1fr] gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={rule.label}>
@@ -410,11 +441,8 @@ function ScoringSection() {
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Routing rules</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">How priority score translates into team action.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Routing rules" description="How priority score translates into team action." />
         <div className="divide-y divide-[var(--border-hairline)]">
           {routingRules.map((rule) => (
             <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_140px_auto]" key={rule.rule}>
@@ -435,16 +463,16 @@ function ScoringSection() {
 function DataSection() {
   return (
     <>
-      <Panel className="module-rise p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-5">
-          <div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">Customer types</h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">The {customerTypes.length} approved personas leads route to.</p>
-          </div>
-          <Link href="/customer-types" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            Manage personas
-          </Link>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead
+          title="Customer types"
+          description={`The ${customerTypes.length} approved personas leads route to.`}
+          aside={
+            <Link href="/customer-types" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+              Manage personas
+            </Link>
+          }
+        />
         <div className="grid gap-2 p-4 md:grid-cols-2">
           {customerTypes.map((type) => (
             <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2.5" key={type.key}>
@@ -455,11 +483,8 @@ function DataSection() {
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Integrity scans</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Automated data-health rules and their cadence.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Integrity scans" description="Automated data-health rules and their cadence." />
         <div className="divide-y divide-[var(--border-hairline)]">
           {integrityScannerRules.map((rule) => (
             <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_140px_auto]" key={rule.rule}>
@@ -474,11 +499,8 @@ function DataSection() {
         </div>
       </Panel>
 
-      <Panel className="module-rise p-0">
-        <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-          <h2 className="text-xl font-semibold tracking-[-0.02em]">Retention & export</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">How long records are kept and how to pull them out.</p>
-        </div>
+      <Panel className={PANEL}>
+        <PanelHead title="Retention & export" description="How long records are kept and how to pull them out." />
         <div className="divide-y divide-[var(--border-hairline)]">
           {retentionOptions.map((option) => (
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4" key={option.label}>
@@ -492,7 +514,7 @@ function DataSection() {
             </div>
           ))}
         </div>
-        <div className="border-t border-[var(--border-hairline)] px-5 py-4">
+        <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4">
           <Link href="/settings?section=data&action=export-data" className={buttonClasses({ variant: "ghost", size: "sm" })}>
             Export data
           </Link>
