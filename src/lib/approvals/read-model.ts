@@ -73,6 +73,9 @@ export type ApprovalLeadCandidate = {
   persona: string;
   targetZips: string[];
   sourceUrl: string | null;
+  sourceUrls: string[];
+  phone: string | null;
+  confidence: string | null;
   evidenceSummary: string;
   partnerScore: number | null;
   scoreFactors: string[];
@@ -427,13 +430,16 @@ function buildStructuredDraft(input: {
   const payloadDraft = getObject(input.structuredPayload?.draft_output);
   const reasoningDraft = getObject(input.reasoningPayload.draft_output);
   const parsedDraft = getObject(parseDraftJson(input.draftOutput));
-  const candidateSource = [payloadDraft, reasoningDraft, parsedDraft].find((draft) => Array.isArray(draft.candidates));
+  const candidateSource = [payloadDraft, reasoningDraft, parsedDraft].find(
+    (draft) => Array.isArray(draft.candidates) || Array.isArray(draft.top_candidates),
+  );
 
   if (!candidateSource) {
     return null;
   }
 
-  const candidates = getArray(candidateSource.candidates)
+  const rawCandidates = getArray(candidateSource.candidates).length > 0 ? getArray(candidateSource.candidates) : getArray(candidateSource.top_candidates);
+  const candidates = rawCandidates
     .map(mapLeadCandidate)
     .filter((candidate): candidate is ApprovalLeadCandidate => Boolean(candidate));
 
@@ -443,8 +449,12 @@ function buildStructuredDraft(input: {
 
   return {
     kind: "partner_lead_list",
-    leadListType: getString(candidateSource.lead_list_type) ?? "Partner lead recommendations",
-    targetMarket: getString(candidateSource.target_market) ?? "Review partner lead recommendations before any external use.",
+    leadListType:
+      getString(candidateSource.lead_list_type) ??
+      (getString(candidateSource.bucket) ? `${getString(candidateSource.bucket)} recommendations` : "Partner lead recommendations"),
+    targetMarket:
+      getString(candidateSource.target_market) ??
+      (getString(candidateSource.bucket) ? `Review ${humanize(getString(candidateSource.bucket) ?? "partner")} candidates before any external use.` : "Review partner lead recommendations before any external use."),
     targetZips: getArray(candidateSource.target_zips_used).filter(isString),
     suggestedOwnerAction: getString(candidateSource.suggested_owner_action) ?? "Review the list, approve enrichment, or request revisions.",
     candidates,
@@ -456,18 +466,27 @@ function mapLeadCandidate(value: unknown): ApprovalLeadCandidate | null {
     return null;
   }
 
-  const companyName = getString(value.company_name);
+  const companyName = getString(value.company_name) ?? getString(value.name);
   if (!companyName) {
     return null;
   }
+
+  const sourceUrls = [
+    getString(value.source_url),
+    getString(value.website),
+    ...getArray(value.sources).filter(isString),
+  ].filter((url): url is string => Boolean(url));
 
   return {
     companyName,
     persona: getString(value.persona) ?? "Unassigned",
     targetZips: getArray(value.target_zips).filter(isString),
-    sourceUrl: getString(value.source_url) ?? null,
-    evidenceSummary: getString(value.evidence_summary) ?? "No evidence summary was provided.",
-    partnerScore: getNumber(value.partner_score),
+    sourceUrl: sourceUrls[0] ?? null,
+    sourceUrls: [...new Set(sourceUrls)],
+    phone: getString(value.phone) ?? null,
+    confidence: getString(value.confidence) ?? null,
+    evidenceSummary: getString(value.evidence_summary) ?? getString(value.notes) ?? "No evidence summary was provided.",
+    partnerScore: getNumber(value.partner_score) ?? getNumber(value.score),
     scoreFactors: getArray(value.score_factors).filter(isString),
     recommendedNextAction: getString(value.recommended_next_action) ?? "Review before next action.",
   };
@@ -531,8 +550,8 @@ function buildEvidence(leadMetadata: JsonObject, sourceData: JsonObject, structu
 
   if (structuredDraft?.kind === "partner_lead_list") {
     for (const candidate of structuredDraft.candidates) {
-      if (candidate.sourceUrl) {
-        evidence.add(candidate.sourceUrl);
+      for (const url of candidate.sourceUrls) {
+        evidence.add(url);
       }
     }
   }

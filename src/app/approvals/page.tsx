@@ -291,13 +291,15 @@ function StructuredDraftReview({ selected }: { selected: ApprovalCard }) {
             <div className="mt-1 font-mono text-xl font-semibold text-[var(--accent)]">{draft.candidates.length}</div>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {draft.targetZips.map((zip) => (
-            <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs font-semibold text-[var(--text-secondary)]" key={zip}>
-              {zip}
-            </span>
-          ))}
-        </div>
+        {draft.targetZips.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {draft.targetZips.map((zip) => (
+              <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs font-semibold text-[var(--text-secondary)]" key={zip}>
+                {zip}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="divide-y divide-[var(--border-hairline)]">
@@ -316,22 +318,30 @@ function StructuredDraftReview({ selected }: { selected: ApprovalCard }) {
 
 function LeadCandidateReview({ candidate }: { candidate: ApprovalLeadCandidate }) {
   return (
-    <article className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_120px]">
+    <article className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_160px]">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h4 className="text-base font-semibold text-[var(--text-primary)]">{candidate.companyName}</h4>
           <StatusPill tone={candidate.partnerScore && candidate.partnerScore >= 80 ? "green" : candidate.partnerScore && candidate.partnerScore >= 70 ? "amber" : "blue"}>
             {candidate.partnerScore ? `${candidate.partnerScore} score` : "Unscored"}
           </StatusPill>
+          {candidate.confidence ? <StatusPill tone="blue">{candidate.confidence} confidence</StatusPill> : null}
         </div>
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{candidate.evidenceSummary}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {candidate.targetZips.map((zip) => (
-            <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs text-[var(--text-secondary)]" key={`${candidate.companyName}-${zip}`}>
-              {zip}
-            </span>
-          ))}
-        </div>
+        {candidate.phone || candidate.targetZips.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {candidate.phone ? (
+              <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                {candidate.phone}
+              </span>
+            ) : null}
+            {candidate.targetZips.map((zip) => (
+              <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-xs text-[var(--text-secondary)]" key={`${candidate.companyName}-${zip}`}>
+                {zip}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {candidate.scoreFactors.length > 0 ? (
           <ul className="mt-3 grid gap-1 text-sm leading-6 text-[var(--text-secondary)] md:grid-cols-2">
             {candidate.scoreFactors.map((factor) => (
@@ -346,11 +356,13 @@ function LeadCandidateReview({ candidate }: { candidate: ApprovalLeadCandidate }
           {candidate.recommendedNextAction}
         </p>
       </div>
-      <div className="flex lg:justify-end">
-        {candidate.sourceUrl ? (
-          <a className="inline-flex h-9 items-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-3 text-xs font-semibold text-[var(--accent)] transition hover:border-[var(--border-strong)]" href={candidate.sourceUrl} rel="noreferrer" target="_blank">
-            Source
-          </a>
+      <div className="flex flex-wrap gap-2 lg:justify-end">
+        {candidate.sourceUrls.length > 0 ? (
+          candidate.sourceUrls.slice(0, 3).map((sourceUrl, index) => (
+            <a className="inline-flex h-9 items-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-3 text-xs font-semibold text-[var(--accent)] transition hover:border-[var(--border-strong)]" href={sourceUrl} key={sourceUrl} rel="noreferrer" target="_blank">
+              {index === 0 ? "Website" : `Source ${index + 1}`}
+            </a>
+          ))
         ) : (
           <span className="text-xs text-[var(--text-muted)]">No source</span>
         )}
@@ -443,14 +455,20 @@ function ReadableDraft({ raw }: { raw: string }) {
     );
   }
 
+  const readableEntries = Object.entries(parsed).filter(([key]) => isReadableDraftKey(key));
+
   return (
     <div className="divide-y divide-[var(--border-hairline)] overflow-hidden rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
-      {Object.entries(parsed).map(([key, value]) => (
-        <div className="px-4 py-3" key={key}>
-          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{humanizeKey(key)}</div>
-          <div className="mt-1 text-sm leading-6 text-[var(--text-primary)]">{renderDraftValue(value)}</div>
-        </div>
-      ))}
+      {readableEntries.length > 0 ? (
+        readableEntries.map(([key, value]) => (
+          <div className="px-4 py-3" key={key}>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{humanizeKey(key)}</div>
+            <div className="mt-1 text-sm leading-6 text-[var(--text-primary)]">{renderDraftValue(value)}</div>
+          </div>
+        ))
+      ) : (
+        <div className="px-4 py-3 text-sm leading-6 text-[var(--text-secondary)]">Review details are available in the raw audit payload.</div>
+      )}
     </div>
   );
 }
@@ -475,9 +493,15 @@ function humanizeKey(key: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function isReadableDraftKey(key: string) {
+  const normalized = key.toLowerCase();
+  return !normalized.endsWith("_id") && !normalized.endsWith("_ids") && normalized !== "id";
+}
+
 function renderDraftValue(value: unknown): React.ReactNode {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (value === null || value === undefined || value === "") return "Not provided";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" || typeof value === "number") return String(value);
   if (Array.isArray(value)) {
     if (value.every((item) => typeof item === "string" || typeof item === "number")) {
       return value.join(", ");
