@@ -1,7 +1,14 @@
 # Vault — Obsidian-style linked knowledge base tab
 
 **Date:** 2026-06-01
-**Status:** Approved design, ready for implementation planning
+**Status:** Approved design — **REVISED 2026-06-01 to be editable with real Supabase persistence (see Revision 1 at the bottom).**
+
+> **Revision 1 supersedes the "scaffold-mode / preview-only / no persistence" decisions
+> throughout this document.** The Vault tab is now a *real, editable, Supabase-persisted*
+> surface — the app's first editable page beyond the lead-ingestion API. The original
+> sections below are kept for history; where they say "preview-only," "no persistence,"
+> or "no writes," read the Revision 1 section as authoritative. Scope of editability is
+> the Vault tab ONLY — every other page stays scaffold-mode per `CLAUDE.md`.
 
 ## Summary
 
@@ -174,3 +181,76 @@ adding any new layout primitive.
 - Persistence: notes become real records; preview actions (`Sync vault`, `New note`,
   `Edit`, `Publish`, `Archive`) become real backend state transitions per the
   ContentEngine approval pattern.
+
+---
+
+# Revision 1 — Editable Vault with real Supabase persistence (2026-06-01)
+
+**Change:** The Vault tab is no longer preview-only. Notes are **created, edited, published,
+and deleted for real**, persisted in Supabase. This pulls the "Persistence" future-phase
+above into this build. **Scope is the Vault tab only**; all other pages remain scaffold-mode.
+
+This aligns with `CLAUDE.md`'s product posture ("build durable records, approvals, and
+state transitions first") and reuses the app's established persistence patterns rather than
+inventing new ones.
+
+## What stays the same
+
+- All **pure domain logic** (`src/domain/notebook.ts`): `parseFrontmatter`, `extractLinks`,
+  `resolveWikiTarget`, `computeBacklinks`, `toRenderableMarkdown`, `computeGraphLayout`.
+  Unchanged and still unit-tested.
+- **Rendering**: `react-markdown` + `remark-gfm`, wiki-links resolved by our domain code.
+- **Note shape** (`VaultNote`): identical fields, now also persisted as a DB row.
+- The graph view, backlinks panel, note cards, and collections grouping.
+
+## New persistence architecture (mirrors existing patterns)
+
+- **Migration** `supabase/migrations/<timestamp>_vault_notes.sql`:
+  - `vault_note_status` enum: `draft`, `needs_review`, `published`, `archived`.
+  - `vault_notes` table: `id uuid pk`, `slug text unique not null`, `title text not null`,
+    `folder text not null`, `tags text[] not null default '{}'`, `author text not null`,
+    `status vault_note_status not null default 'draft'`, `body text not null default ''`,
+    `created_at`, `updated_at timestamptz`. RLS enabled; `set_updated_at()` trigger;
+    indexes on `slug`, `folder`, `status`. Seeds the same example notes as the fallback data.
+- **`src/lib/vault/persistence.ts`** — takes an untyped `SupabaseClient` (like
+  `lead-ingestion/persistence.ts`, avoiding `database.types.ts` regeneration):
+  `listVaultNotes`, `getVaultNoteBySlug`, `upsertVaultNote`, `setVaultNoteStatus`,
+  `deleteVaultNote`, plus pure `rowToVaultNote` / `vaultNoteToRow` mappers (unit-tested).
+- **`src/lib/vault/read-model.ts`** — `getVaultNotes()` / `getVaultNote(slug)` return a
+  discriminated result: `{ status: "live", notes }` when Supabase is configured and healthy;
+  `{ status: "fallback", notes, message }` using the seeded notes when env vars are absent
+  (parallels the ingest route's `202 not_configured`); `{ status: "error", notes, message }`
+  on a query failure (still renders seeds, shows a banner). Pages always render `result.notes`.
+- **`src/app/notebook/actions.ts`** (`"use server"`) — `saveNoteAction` (create or update by
+  slug), `publishNoteAction`, `archiveNoteAction`/`deleteNoteAction`. Each: `requireOperator()`,
+  `isSupabaseAdminConfigured()` guard → `redirect("/notebook?action=not-configured")` if unset,
+  perform the write, `revalidatePath("/notebook")` (+ the note path), then `redirect`.
+
+## New editing UI
+
+- **`src/app/notebook/_components/note-editor.tsx`** — a form (`action={saveNoteAction}`):
+  title, folder (select over `vaultCollections`), tags (comma input), status (select over the
+  enum), and a `<textarea>` for the raw markdown body. Reused by create and edit.
+- **`src/app/notebook/new/page.tsx`** — blank editor to create a note.
+- **`src/app/notebook/[noteSlug]/edit/page.tsx`** — editor pre-filled from the note.
+- **Note detail page** wires real actions: `Edit` links to `…/edit`; `Publish` and
+  `Archive`/`Delete` are form buttons posting to the server actions; the Mark "Needs review"
+  banner remains and `Publish` performs the real `draft/needs_review → published` transition.
+- **Vault home**: `New note` links to `/notebook/new` (not a preview); a banner shows when the
+  read-model status is `fallback` (Supabase not configured) or `error`.
+
+## Behavior without Supabase configured
+
+The tab still renders (seeded fallback notes, read-only). Any write action redirects to
+`/notebook?action=not-configured` with an explanatory banner — it does **not** error. Real
+editing requires `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (and the migration
+applied). This matches how the ingest route degrades.
+
+## Testing additions
+
+- Pure mappers `rowToVaultNote` / `vaultNoteToRow` unit-tested (tags array handling, status
+  enum ↔ display mapping, slug/title).
+- Read-model fallback path unit-tested by calling `getVaultNotes()` with Supabase env unset and
+  asserting `status: "fallback"` with seeded notes.
+- Server actions verified manually against a configured Supabase project (create → edit →
+  publish → archive round-trip), since they perform real I/O.
