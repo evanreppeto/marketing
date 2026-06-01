@@ -1,6 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import {
+  OPERATOR_COOKIE,
+  isOperatorGateEnabled,
+  isValidOperatorValue,
+} from "./operator-shared";
+
 /**
  * Operator access gate. A single shared-secret cookie protects the human-facing
  * console. The gate is OPT-IN: when OPERATOR_ACCESS_TOKEN is unset (local dev),
@@ -8,16 +14,7 @@ import { redirect } from "next/navigation";
  * login. The API endpoints are not covered here; they carry their own bearer
  * tokens (see lib/auth/api-token.ts) for programmatic callers.
  */
-export const OPERATOR_COOKIE = "signal_operator";
-
-export function isOperatorGateEnabled() {
-  return Boolean(process.env.OPERATOR_ACCESS_TOKEN);
-}
-
-export function isValidOperatorValue(value: string | undefined) {
-  const token = process.env.OPERATOR_ACCESS_TOKEN;
-  return Boolean(token) && value === token;
-}
+export { OPERATOR_COOKIE, isOperatorGateEnabled, isValidOperatorValue };
 
 /**
  * Defense-in-depth check for mutating server actions. Redirects to /login when

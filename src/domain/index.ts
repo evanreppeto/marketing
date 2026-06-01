@@ -6,3 +6,4 @@ export * from "./events";
 export * from "./routing-decisions";
 export * from "./integrity-findings";
 export * from "./leads";
+export * from "./notebook";

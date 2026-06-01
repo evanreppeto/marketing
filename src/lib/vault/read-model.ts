@@ -1,0 +1,34 @@
+import { seedVaultNotes } from "./seed-notes";
+import { getVaultNoteBySlug, listVaultNotes } from "./persistence";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import type { VaultNote } from "@/domain";
+
+const NOT_CONFIGURED = "Supabase is not configured. Showing example notes — saving is disabled until env vars are set.";
+
+export type VaultNotesModel =
+  | { status: "live"; notes: VaultNote[] }
+  | { status: "fallback"; notes: VaultNote[]; message: string }
+  | { status: "error"; notes: VaultNote[]; message: string };
+
+export async function getVaultNotes(): Promise<VaultNotesModel> {
+  if (!isSupabaseAdminConfigured()) {
+    return { status: "fallback", notes: seedVaultNotes, message: NOT_CONFIGURED };
+  }
+  try {
+    const notes = await listVaultNotes(getSupabaseAdminClient());
+    return { status: "live", notes };
+  } catch (error) {
+    return { status: "error", notes: seedVaultNotes, message: error instanceof Error ? error.message : "Vault is unavailable." };
+  }
+}
+
+export async function getVaultNote(slug: string): Promise<VaultNote | null> {
+  if (!isSupabaseAdminConfigured()) {
+    return seedVaultNotes.find((note) => note.slug === slug) ?? null;
+  }
+  try {
+    return await getVaultNoteBySlug(getSupabaseAdminClient(), slug);
+  } catch {
+    return seedVaultNotes.find((note) => note.slug === slug) ?? null;
+  }
+}

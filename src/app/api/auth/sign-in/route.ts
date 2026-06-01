@@ -1,17 +1,34 @@
 import { NextResponse } from "next/server";
 
-import { OPERATOR_COOKIE } from "@/lib/auth/operator";
+import {
+  OPERATOR_COOKIE,
+  getConfiguredOperatorCredentials,
+  getConfiguredOperatorToken,
+  getSafeOperatorReturnPath,
+  isValidOperatorCredentials,
+} from "@/lib/auth/operator-shared";
 
 export async function POST(request: Request) {
   const form = await request.formData();
-  const token = String(form.get("token") ?? "");
-  const fromRaw = String(form.get("from") ?? "/");
-  const from = fromRaw.startsWith("/") && !fromRaw.startsWith("//") ? fromRaw : "/";
+  const email = String(form.get("email") ?? "");
+  const password = String(form.get("password") ?? "");
+  const from = getSafeOperatorReturnPath(String(form.get("from") ?? "/"));
   const origin = new URL(request.url).origin;
 
-  const configured = process.env.OPERATOR_ACCESS_TOKEN;
+  const configured = getConfiguredOperatorToken();
 
-  if (!configured || token !== configured) {
+  if (!configured) {
+    return NextResponse.redirect(new URL(from, origin), { status: 303 });
+  }
+
+  if (!getConfiguredOperatorCredentials()) {
+    return NextResponse.redirect(
+      new URL(`/login?error=config&from=${encodeURIComponent(from)}`, origin),
+      { status: 303 },
+    );
+  }
+
+  if (!isValidOperatorCredentials(email, password)) {
     return NextResponse.redirect(
       new URL(`/login?error=1&from=${encodeURIComponent(from)}`, origin),
       { status: 303 },

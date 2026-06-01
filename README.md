@@ -22,6 +22,10 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+To require sign-in for the human-facing app, set `OPERATOR_ACCESS_TOKEN`, `OPERATOR_EMAIL`, and `OPERATOR_PASSWORD` in `.env.local`.
+The app redirects page routes to `/login`, then creates a cookie session after the email and password match.
+API routes keep using their separate bearer tokens.
+
 ## Verification
 
 ```bash
