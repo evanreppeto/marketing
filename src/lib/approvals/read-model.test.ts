@@ -21,7 +21,7 @@ const approvalItemRow = {
   },
   draft_output: "Approval item draft output",
   edited_output: null,
-  requested_by: "Hermes Demo Orchestrator",
+  requested_by: "Mark Demo Orchestrator",
   locked_until_approved: true,
   submitted_at: "2026-05-29T18:02:38.000Z",
   risk_level: "medium",
@@ -176,7 +176,7 @@ describe("listApprovalCards", () => {
       riskLevel: "medium",
       persona: "persona_plumbing_partner",
       channel: "email",
-      sourceAgent: "Hermes Demo Orchestrator",
+      sourceAgent: "Mark Demo Orchestrator",
       campaign: {
         name: "Plumbing Partner Outreach Demo",
         objective: "Create a referral relationship.",

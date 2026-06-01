@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
   if (!configured || token !== configured) {
     return NextResponse.redirect(
-      new URL(`/sign-in?error=1&from=${encodeURIComponent(from)}`, origin),
+      new URL(`/login?error=1&from=${encodeURIComponent(from)}`, origin),
       { status: 303 },
     );
   }

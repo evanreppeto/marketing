@@ -125,14 +125,14 @@ function matchesItem(item: ShellNavItem, path: string) {
 /**
  * The persistent application chrome. Rendered ONCE in the root layout so the
  * sidebar and SideNav's pending state survive navigations; only the page
- * content swaps. `/sign-in` opts out and renders
+ * content swaps. Auth pages opt out and render
  * bare (it provides its own full-screen layout). `gateEnabled` comes from the
  * server layout because the operator gate reads server-only env.
  */
 export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
 
-  if (pathname === "/sign-in") {
+  if (pathname === "/login" || pathname === "/sign-in") {
     return <>{children}</>;
   }
 
