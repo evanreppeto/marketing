@@ -32,6 +32,13 @@ describe("parseFrontmatter", () => {
     expect(result.frontmatter).toEqual({});
     expect(result.body.trim().startsWith("# Just a heading")).toBe(true);
   });
+
+  it("parses CRLF-delimited frontmatter (real Windows Obsidian files)", () => {
+    const raw = "---\r\ntitle: Win Note\r\nauthor: Mark\r\n---\r\n\r\n# Win Note\r\nBody.";
+    const result = parseFrontmatter(raw);
+    expect(result.frontmatter).toEqual({ title: "Win Note", author: "Mark" });
+    expect(result.body.trim().startsWith("# Win Note")).toBe(true);
+  });
 });
 
 function context(): LinkResolutionContext {
@@ -76,6 +83,15 @@ describe("extractLinks", () => {
       ["record", "apex-plumbing-co"],
       ["unresolved", "nonexistent"],
     ]);
+  });
+
+  it("returns an empty array when the body has no wiki-links", () => {
+    expect(extractLinks("Just prose, no links.", context())).toEqual([]);
+  });
+
+  it("falls back to the target as label when the alias is empty", () => {
+    const [link] = extractLinks("[[apex-plumbing-co-intel|]]", context());
+    expect(link.label).toBe("apex-plumbing-co-intel");
   });
 });
 

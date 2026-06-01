@@ -7,7 +7,7 @@ export type VaultNote = {
   tags: string[];
   author: string; // "Mark" or an operator name
   status: NoteStatus;
-  updated: string;
+  updated: string; // human-readable display string; persistence maps updated_at into this
   body: string; // raw markdown body (no frontmatter)
 };
 
@@ -19,9 +19,11 @@ export type ParsedFrontmatter = {
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
 
 export function parseFrontmatter(raw: string): ParsedFrontmatter {
-  const match = raw.match(FRONTMATTER_RE);
+  // Normalize CRLF so real Windows Obsidian vault files parse like LF fixtures.
+  const normalized = raw.replace(/\r\n/g, "\n");
+  const match = normalized.match(FRONTMATTER_RE);
   if (!match) {
-    return { frontmatter: {}, body: raw };
+    return { frontmatter: {}, body: normalized };
   }
 
   const frontmatter: Record<string, string | string[]> = {};
@@ -43,7 +45,7 @@ export function parseFrontmatter(raw: string): ParsedFrontmatter {
     }
   }
 
-  return { frontmatter, body: raw.slice(match[0].length) };
+  return { frontmatter, body: normalized.slice(match[0].length) };
 }
 
 export type LinkKind = "note" | "record" | "persona" | "unresolved";
@@ -86,7 +88,7 @@ export function extractLinks(body: string, ctx: LinkResolutionContext): Resolved
     const inner = match[1];
     const pipe = inner.indexOf("|");
     const target = (pipe === -1 ? inner : inner.slice(0, pipe)).trim();
-    const label = (pipe === -1 ? inner : inner.slice(pipe + 1)).trim();
+    const label = (pipe === -1 ? inner : inner.slice(pipe + 1)).trim() || target;
     links.push(resolveWikiTarget(target, label, ctx));
   }
   return links;
@@ -110,7 +112,7 @@ export function toRenderableMarkdown(body: string, ctx: LinkResolutionContext): 
   return body.replace(WIKI_LINK_RE, (_full, inner: string) => {
     const pipe = inner.indexOf("|");
     const target = (pipe === -1 ? inner : inner.slice(0, pipe)).trim();
-    const label = (pipe === -1 ? inner : inner.slice(pipe + 1)).trim();
+    const label = (pipe === -1 ? inner : inner.slice(pipe + 1)).trim() || target;
     const link = resolveWikiTarget(target, label, ctx);
     return `[${link.label}](${link.href})`;
   });
