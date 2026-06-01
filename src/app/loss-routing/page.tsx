@@ -40,7 +40,7 @@ export default async function LossRoutingPage({
   const queue = isLive ? data.queue : [];
   const metrics = isLive ? data.metrics : [];
 
-  const visibleLeads = getVisibleLeads(queue, activeTab);
+  const visibleLeads = getVisibleLeads(queue, activeTab).slice(0, 12);
   const selectedLeadId = getSingle(query.selected) ?? visibleLeads[0]?.id ?? queue[0]?.id;
   const selectedLead = queue.find((lead) => lead.id === selectedLeadId);
   const tabCounts = countTabs(queue);

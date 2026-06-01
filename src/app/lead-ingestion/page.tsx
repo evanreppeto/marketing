@@ -35,6 +35,8 @@ export default async function LeadIngestionPage({
 
   const viewLeads = filterByView(allLeads, view);
   const selectedLeads = journey === "all" ? viewLeads : viewLeads.filter((lead) => lead.status === journey);
+  const QUEUE_LIMIT = 10;
+  const displayedLeads = selectedLeads.slice(0, QUEUE_LIMIT);
   const selectedLead = selectedLeads.find((lead) => lead.id === leadId) ?? selectedLeads[0] ?? viewLeads[0] ?? allLeads[0];
 
   return (
@@ -146,7 +148,7 @@ export default async function LeadIngestionPage({
           <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-xl font-semibold tracking-[-0.02em]">Lead queue</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">Live leads with source, persona, loss summary, score, and routing recommendation.</p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">Showing {displayedLeads.length} of {selectedLeads.length} leads — source, persona, loss summary, score, and routing.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {(["all", "ready", "blocked"] as const).map((key) => (
@@ -166,7 +168,7 @@ export default async function LeadIngestionPage({
           </div>
 
           <div className="divide-y divide-[var(--border-hairline)]">
-            {selectedLeads.map((lead) => (
+            {displayedLeads.map((lead) => (
               <Link
                 className={`grid gap-4 px-5 py-4 transition hover:bg-[var(--surface-inset)] active:-translate-y-px lg:grid-cols-[minmax(180px,0.85fr)_minmax(180px,0.9fr)_minmax(220px,1fr)_120px] ${
                   selectedLead?.id === lead.id ? "bg-[var(--accent-soft)]" : ""
@@ -179,15 +181,15 @@ export default async function LeadIngestionPage({
                   <div className="mt-1 text-xs text-[var(--text-secondary)]"><LiveTime baseline={lead.receivedAt} /> · {lead.source}</div>
                   <div className="mt-2 text-xs font-semibold text-[var(--accent)]">{lead.persona}</div>
                 </div>
-                <div>
-                  <div className="font-semibold">{lead.contact}</div>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold">{lead.contact}</div>
                   <div className="mt-2">
                     <StatusPill tone={lead.tone}>{lead.statusLabel}</StatusPill>
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Loss summary</div>
-                  <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{lead.need}</p>
+                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{lead.need}</p>
                 </div>
                 <div className="lg:text-right">
                   <div className="font-mono text-2xl font-semibold tabular-nums tracking-[-0.05em]">{lead.score}</div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type ShellNavItem = {
   label: string;
@@ -28,23 +28,23 @@ export function SideNav({ active, items }: SideNavProps) {
   const currentPath = pathname ?? active;
   const pendingHref = pending?.fromPath === currentPath ? pending.href : null;
 
-  function announcePendingNavigation(href: string) {
-    const navigationPendingEvent = new CustomEvent("signal:navigation-pending", {
-      detail: { fromPath: currentPath, href },
-    });
-
-    window.dispatchEvent(navigationPendingEvent);
-  }
+  useEffect(() => {
+    for (const item of items) {
+      if (!matchesItem(item, currentPath)) {
+        router.prefetch(item.href);
+      }
+    }
+  }, [currentPath, items, router]);
 
   return (
-    <nav aria-busy={pendingHref ? "true" : undefined} aria-label="Main navigation" className="flex gap-1.5 lg:flex-col">
+    <nav aria-busy={pendingHref ? "true" : undefined} aria-label="Main navigation" className="flex gap-2 lg:flex-col">
       {items.map((item) => {
         const isActive = pendingHref ? item.href === pendingHref : matchesItem(item, currentPath);
 
         return (
           <Link
             aria-current={isActive ? "page" : undefined}
-            className={`group inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:w-full ${
+            className={`group inline-flex min-h-14 shrink-0 items-center gap-3 rounded-lg border px-4 text-base font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:w-full ${
               isActive
                 ? "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_3px_0_0_var(--accent)]"
                 : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
@@ -54,7 +54,6 @@ export function SideNav({ active, items }: SideNavProps) {
             onClick={() => {
               if (!matchesItem(item, currentPath)) {
                 setPending({ fromPath: currentPath, href: item.href });
-                announcePendingNavigation(item.href);
               }
             }}
             onFocus={() => router.prefetch(item.href)}
@@ -64,10 +63,10 @@ export function SideNav({ active, items }: SideNavProps) {
             <Image
               alt=""
               aria-hidden="true"
-              className={`h-5 w-5 shrink-0 object-contain transition ${isActive ? "opacity-100" : "opacity-65 group-hover:opacity-90"}`}
-              height={40}
+              className={`h-8 w-8 shrink-0 object-contain transition ${isActive ? "opacity-100" : "opacity-75 group-hover:opacity-95"}`}
+              height={64}
               src={item.iconSrc}
-              width={40}
+              width={64}
             />
             <span>{item.label}</span>
           </Link>

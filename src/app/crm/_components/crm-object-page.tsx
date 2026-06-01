@@ -44,6 +44,8 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
   const activeView = normalizeListView(view);
   const activeViewMeta = crmListViews.find((item) => item.key === activeView) ?? crmListViews[0];
   const filteredRows = getRowsForListView(crmObject.sampleRows, activeView);
+  const LIST_LIMIT = 10;
+  const displayedRows = filteredRows.slice(0, LIST_LIMIT);
   const selectedRow = filteredRows[0] ?? crmObject.sampleRows[0];
   const showCreateForm = action === "new" && isCrmEntityKey(objectKey);
 
@@ -134,7 +136,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
             <div>
               <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{crmObject.label} list view</h2>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                {activeViewMeta.description} {filteredRows.length} shown.
+                {activeViewMeta.description} Showing {displayedRows.length} of {filteredRows.length}.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -157,7 +159,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
           </div>
 
           <DataTable
-            rows={filteredRows}
+            rows={displayedRows}
             rowKey={(row) => row.id}
             columns={[
               {
@@ -173,13 +175,14 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
               {
                 key: "primary",
                 header: crmObject.primaryField,
+                cellClassName: "max-w-[34ch]",
                 cell: (row) => (
-                  <Link className="font-semibold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`${crmObject.href}/${row.id}`}>
+                  <Link className="line-clamp-1 font-semibold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`${crmObject.href}/${row.id}`}>
                     {row.name}
                   </Link>
                 ),
               },
-              { key: "secondary", header: crmObject.secondaryField, cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.detail },
+              { key: "secondary", header: crmObject.secondaryField, cellClassName: "max-w-[30ch] text-[var(--text-secondary)]", cell: (row) => <span className="line-clamp-2">{row.detail}</span> },
               { key: "owner", header: "Owner", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.owner },
               { key: "updated", header: "Updated", cellClassName: "text-[var(--text-muted)]", cell: (row) => row.updated },
               {
