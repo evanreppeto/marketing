@@ -30,46 +30,91 @@ const sectionDetails: Record<
   string,
   {
     detail: string;
-    nextLabel: string;
-    nextHref: string;
-    checks: string[];
+    primaryLabel: string;
+    primaryHref: string;
+    secondaryLabel: string;
+    secondaryHref: string;
+    checks: Array<{ label: string; value: string }>;
+    markHelp: string;
   }
 > = {
   Today: {
     detail: "Human decisions, review counts, and the next best place to start.",
-    nextLabel: "Open approvals",
-    nextHref: "/approvals",
-    checks: ["Human gate", "Outbound locked", "Live CRM"],
+    primaryLabel: "Open approvals",
+    primaryHref: "/approvals",
+    secondaryLabel: "Check Mark",
+    secondaryHref: "/agent-operations",
+    checks: [
+      { label: "Human gate", value: "On" },
+      { label: "Outbound", value: "Locked" },
+      { label: "CRM source", value: "Live" },
+    ],
+    markHelp: "Mark can prepare the next review packet, but approvals stay with the operator.",
   },
   Review: {
     detail: "Approve, reject, or request changes on work Mark prepared.",
-    nextLabel: "Go to Mark",
-    nextHref: "/agent-operations",
-    checks: ["Draft review", "Risk flags", "Decision log"],
+    primaryLabel: "Review queue",
+    primaryHref: "/approvals",
+    secondaryLabel: "Go to Mark",
+    secondaryHref: "/agent-operations",
+    checks: [
+      { label: "Drafts", value: "Queued" },
+      { label: "Risk flags", value: "Visible" },
+      { label: "Decision log", value: "Tracked" },
+    ],
+    markHelp: "Mark can revise drafts or create evidence summaries after you request changes.",
   },
   CRM: {
     detail: "Companies, contacts, leads, properties, jobs, and outcomes.",
-    nextLabel: "View leads",
-    nextHref: "/crm/leads",
-    checks: ["Lead memory", "Relationships", "Attribution"],
+    primaryLabel: "View leads",
+    primaryHref: "/crm/leads",
+    secondaryLabel: "Companies",
+    secondaryHref: "/crm/companies",
+    checks: [
+      { label: "Lead memory", value: "On" },
+      { label: "Relationships", value: "Mapped" },
+      { label: "Attribution", value: "Ready" },
+    ],
+    markHelp: "Mark can enrich records, score fit, and prepare partner recommendations for review.",
   },
   Personas: {
     detail: "Persona intelligence, messaging angles, and revenue context.",
-    nextLabel: "Open personas",
-    nextHref: "/persona-intelligence",
-    checks: ["Audiences", "Angles", "Guardrails"],
+    primaryLabel: "Open personas",
+    primaryHref: "/persona-intelligence",
+    secondaryLabel: "Customer types",
+    secondaryHref: "/customer-types",
+    checks: [
+      { label: "Audiences", value: "Defined" },
+      { label: "Angles", value: "Ready" },
+      { label: "Guardrails", value: "Applied" },
+    ],
+    markHelp: "Mark can classify leads and draft persona-specific campaign briefs.",
   },
   Mark: {
     detail: "Queue one task, inspect run status, and keep dispatch locked.",
-    nextLabel: "Queue task",
-    nextHref: "/agent-operations",
-    checks: ["Draft only", "Approval first", "Run logs"],
+    primaryLabel: "Queue task",
+    primaryHref: "/agent-operations",
+    secondaryLabel: "Approvals",
+    secondaryHref: "/approvals",
+    checks: [
+      { label: "Mode", value: "Draft" },
+      { label: "Approval", value: "Required" },
+      { label: "Run logs", value: "On" },
+    ],
+    markHelp: "Mark should find, enrich, score, and draft. He should not send or publish.",
   },
   Settings: {
     detail: "Scoring rules, data health, reports, and operating controls.",
-    nextLabel: "Review rules",
-    nextHref: "/score-rules",
-    checks: ["Weights", "Health", "Reports"],
+    primaryLabel: "Review rules",
+    primaryHref: "/score-rules",
+    secondaryLabel: "Data health",
+    secondaryHref: "/data-foundation",
+    checks: [
+      { label: "Weights", value: "Editable" },
+      { label: "Health", value: "Watch" },
+      { label: "Reports", value: "Linked" },
+    ],
+    markHelp: "Mark follows these controls when scoring, drafting, and preparing approval items.",
   },
 };
 
@@ -137,12 +182,20 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
                 </div>
               </div>
               {activeDetails ? (
-                <Link
-                  className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:text-[var(--accent)]"
-                  href={activeDetails.nextHref}
-                >
-                  {activeDetails.nextLabel}
-                </Link>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Link
+                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:text-[var(--accent)]"
+                    href={activeDetails.primaryHref}
+                  >
+                    {activeDetails.primaryLabel}
+                  </Link>
+                  <Link
+                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:text-[var(--accent)]"
+                    href={activeDetails.secondaryHref}
+                  >
+                    {activeDetails.secondaryLabel}
+                  </Link>
+                </div>
               ) : null}
             </div>
 
@@ -151,12 +204,19 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
                 <div className="signal-eyebrow text-[10px]">Operating state</div>
                 <div className="mt-3 grid gap-2">
                   {activeDetails.checks.map((check) => (
-                    <div className="flex items-center justify-between gap-3 rounded-md bg-[var(--surface-inset)] px-3 py-2" key={check}>
-                      <span className="text-xs font-semibold text-[var(--text-secondary)]">{check}</span>
-                      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                    <div className="flex items-center justify-between gap-3 rounded-md bg-[var(--surface-inset)] px-3 py-2" key={check.label}>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)]">{check.label}</span>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">{check.value}</span>
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : null}
+
+            {activeDetails ? (
+              <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-3.5">
+                <div className="signal-eyebrow text-[10px]">Mark can help</div>
+                <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{activeDetails.markHelp}</p>
               </div>
             ) : null}
 
