@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AppShell } from "../_components/app-shell";
 import { ActionFeedback, Button, EmptyState, OperatorBar, PageHeader, Panel, StatusPill, buttonClasses } from "../_components/page-header";
 import { decideApprovalItemAction } from "./actions";
-import { type ApprovalCard, type ApprovalLeadCandidate, type RelatedRecord, listApprovalCards } from "@/lib/approvals/read-model";
+import { type ApprovalCard, type ApprovalCreativeAsset, type ApprovalLeadCandidate, type RelatedRecord, listApprovalCards } from "@/lib/approvals/read-model";
 
 type ApprovalsPageProps = {
   searchParams?: Promise<{ action?: string | string[]; item?: string | string[]; message?: string | string[] }>;
@@ -156,6 +156,7 @@ function ApprovalInbox({
             <input name="approvalItemId" type="hidden" value={selected.id} />
             <input name="decisionAction" type="hidden" value="approve" />
             {selected.structuredDraft ? <StructuredDraftReview selected={selected} /> : null}
+            <CreativePreview assets={selected.creativeAssets} />
             {selected.structuredDraft ? (
               <details className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
                 <summary className="cursor-pointer px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -268,6 +269,114 @@ function ApprovalInbox({
       </div>
     </div>
   );
+}
+
+function CreativePreview({ assets }: { assets: ApprovalCreativeAsset[] }) {
+  if (assets.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+      <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Creative preview</div>
+          <h3 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-[var(--text-primary)]">Media Mark attached</h3>
+          <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">Review images, videos, ad mockups, files, and creative links before approval.</p>
+        </div>
+        <StatusPill tone="blue">{assets.length} asset{assets.length === 1 ? "" : "s"}</StatusPill>
+      </div>
+
+      <div className="grid gap-3 p-4 lg:grid-cols-2">
+        {assets.map((asset) => (
+          <CreativeAssetCard asset={asset} key={asset.id} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CreativeAssetCard({ asset }: { asset: ApprovalCreativeAsset }) {
+  return (
+    <article className="overflow-hidden rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-3 py-2">
+        <div className="min-w-0">
+          <h4 className="truncate text-sm font-semibold text-[var(--text-primary)]">{asset.title}</h4>
+          <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{humanize(asset.type)} / {asset.source}</p>
+        </div>
+        <a className="shrink-0 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2 py-1 text-xs font-semibold text-[var(--accent)] transition hover:border-[var(--border-strong)]" href={asset.url} rel="noreferrer" target="_blank">
+          Open
+        </a>
+      </div>
+
+      <div className="bg-[var(--surface-inset)]">
+        {asset.type === "image" ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Mark can attach arbitrary media URLs that are not known at build time.
+          <img alt={asset.title} className="h-auto max-h-[420px] w-full object-contain" src={asset.url} />
+        ) : null}
+        {asset.type === "video" ? (
+          <video className="max-h-[420px] w-full bg-black" controls poster={asset.thumbnailUrl ?? undefined} preload="metadata">
+            <source src={asset.url} type={asset.mimeType ?? undefined} />
+            <a href={asset.url}>Open video</a>
+          </video>
+        ) : null}
+        {asset.type === "embed" ? <EmbedPreview asset={asset} /> : null}
+        {asset.type === "file" || asset.type === "link" ? <LinkPreview asset={asset} /> : null}
+      </div>
+
+      {asset.description ? <p className="border-t border-[var(--border-hairline)] px-3 py-2 text-sm leading-6 text-[var(--text-secondary)]">{asset.description}</p> : null}
+    </article>
+  );
+}
+
+function EmbedPreview({ asset }: { asset: ApprovalCreativeAsset }) {
+  const embedUrl = getEmbedUrl(asset.url);
+
+  if (!embedUrl) {
+    return <LinkPreview asset={asset} />;
+  }
+
+  return (
+    <div className="aspect-video w-full">
+      <iframe
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        className="h-full w-full"
+        src={embedUrl}
+        title={asset.title}
+      />
+    </div>
+  );
+}
+
+function LinkPreview({ asset }: { asset: ApprovalCreativeAsset }) {
+  return (
+    <div className="flex min-h-36 flex-col justify-center p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{humanize(asset.type)}</div>
+      <p className="mt-2 break-words text-sm leading-6 text-[var(--text-secondary)]">{asset.url}</p>
+    </div>
+  );
+}
+
+function getEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (parsed.hostname.includes("youtube.com")) {
+      const id = parsed.searchParams.get("v") ?? parsed.pathname.split("/").filter(Boolean).at(-1);
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (parsed.hostname.includes("vimeo.com")) {
+      const id = parsed.pathname.split("/").filter(Boolean).at(-1);
+      return id ? `https://player.vimeo.com/video/${id}` : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function StructuredDraftReview({ selected }: { selected: ApprovalCard }) {

@@ -76,7 +76,22 @@ describe("listApprovalCards", () => {
             edited_body: null,
             approved_body: null,
             compliance_notes: "No claim promise.",
-            reasoning_payload: {},
+            reasoning_payload: {
+              creative_assets: [
+                {
+                  title: "Plumbing partner display ad",
+                  type: "image",
+                  image_url: "https://cdn.example.test/plumbing-ad.png",
+                  description: "Square ad concept for partner outreach.",
+                },
+                {
+                  title: "Referral motion concept",
+                  type: "video",
+                  video_url: "https://cdn.example.test/plumbing-video.mp4",
+                  thumbnail_url: "https://cdn.example.test/plumbing-video-poster.jpg",
+                },
+              ],
+            },
           },
         ],
         error: null,
@@ -233,6 +248,22 @@ describe("listApprovalCards", () => {
         "https://example-plumbing.local",
         "https://www.maddensewer.net/service-area-plumbing",
         "https://www.fullcircleplumbing.com/",
+      ]),
+    );
+    expect(cards[0].creativeAssets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "image",
+          title: "Plumbing partner display ad",
+          url: "https://cdn.example.test/plumbing-ad.png",
+          description: "Square ad concept for partner outreach.",
+        }),
+        expect.objectContaining({
+          type: "video",
+          title: "Referral motion concept",
+          url: "https://cdn.example.test/plumbing-video.mp4",
+          thumbnailUrl: "https://cdn.example.test/plumbing-video-poster.jpg",
+        }),
       ]),
     );
   });

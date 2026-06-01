@@ -50,6 +50,7 @@ export type ApprovalCard = {
   riskFlags: string[];
   recommendedAction: string;
   evidence: string[];
+  creativeAssets: ApprovalCreativeAsset[];
 };
 
 export type RelatedRecord = {
@@ -80,6 +81,17 @@ export type ApprovalLeadCandidate = {
   partnerScore: number | null;
   scoreFactors: string[];
   recommendedNextAction: string;
+};
+
+export type ApprovalCreativeAsset = {
+  id: string;
+  type: "image" | "video" | "embed" | "file" | "link";
+  title: string;
+  url: string;
+  thumbnailUrl: string | null;
+  mimeType: string | null;
+  description: string | null;
+  source: string;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -351,6 +363,14 @@ function mapApprovalCard(input: {
       getString(leadMetadata.recommended_action) ??
       "Review the source data, edit if needed, then approve or request revision.",
     evidence: buildEvidence(leadMetadata, sourceData, structuredDraft),
+    creativeAssets: buildCreativeAssets({
+      promptInputs,
+      reasoningPayload,
+      auditPayload: item.audit_payload ?? {},
+      assetReasoningPayload: asset?.reasoning_payload ?? {},
+      agentStructuredPayload: agentOutput?.structured_payload ?? {},
+      draftOutput,
+    }),
   };
 }
 
@@ -505,6 +525,173 @@ function parseDraftJson(value: string) {
   } catch {
     return null;
   }
+}
+
+function buildCreativeAssets(input: {
+  promptInputs: JsonObject;
+  reasoningPayload: JsonObject;
+  auditPayload: JsonObject;
+  assetReasoningPayload: JsonObject;
+  agentStructuredPayload: JsonObject;
+  draftOutput: string;
+}): ApprovalCreativeAsset[] {
+  const candidates: ApprovalCreativeAsset[] = [];
+  const objects = [
+    input.promptInputs,
+    input.reasoningPayload,
+    input.auditPayload,
+    input.assetReasoningPayload,
+    input.agentStructuredPayload,
+    getObject(parseDraftJson(input.draftOutput)),
+  ];
+
+  for (const object of objects) {
+    collectCreativeAssetsFromObject(object, candidates, "Mark output");
+  }
+
+  for (const url of extractUrls(input.draftOutput)) {
+    if (isMediaLikeUrl(url)) {
+      candidates.push(createCreativeAsset({ url, source: "Draft body" }));
+    }
+  }
+
+  const byUrl = new Map<string, ApprovalCreativeAsset>();
+  for (const candidate of candidates) {
+    if (!byUrl.has(candidate.url)) {
+      byUrl.set(candidate.url, candidate);
+    }
+  }
+
+  return [...byUrl.values()];
+}
+
+function collectCreativeAssetsFromObject(object: JsonObject, assets: ApprovalCreativeAsset[], source: string) {
+  for (const [key, value] of Object.entries(object)) {
+    if (Array.isArray(value) && isCreativeCollectionKey(key)) {
+      for (const item of value) {
+        const asset = mapCreativeAsset(item, source);
+        if (asset) assets.push(asset);
+      }
+      continue;
+    }
+
+    if (isObject(value)) {
+      const asset = isCreativeObjectKey(key) ? mapCreativeAsset(value, source) : null;
+      if (asset) {
+        assets.push(asset);
+      }
+      collectCreativeAssetsFromObject(value, assets, source);
+      continue;
+    }
+
+    if (typeof value === "string" && isCreativeUrlKey(key) && isUrl(value)) {
+      assets.push(createCreativeAsset({ url: value, source, title: humanize(key) }));
+    }
+  }
+}
+
+function mapCreativeAsset(value: unknown, source: string): ApprovalCreativeAsset | null {
+  if (typeof value === "string" && isUrl(value)) {
+    return createCreativeAsset({ url: value, source });
+  }
+  if (!isObject(value)) {
+    return null;
+  }
+
+  const url =
+    getString(value.url) ??
+    getString(value.asset_url) ??
+    getString(value.media_url) ??
+    getString(value.image_url) ??
+    getString(value.video_url) ??
+    getString(value.preview_url) ??
+    getString(value.file_url);
+
+  if (!url || !isUrl(url)) {
+    return null;
+  }
+
+  return createCreativeAsset({
+    url,
+    source,
+    title: getString(value.title) ?? getString(value.name) ?? getString(value.label),
+    description: getString(value.description) ?? getString(value.notes) ?? getString(value.caption),
+    thumbnailUrl: getString(value.thumbnail_url) ?? getString(value.thumbnailUrl) ?? getString(value.poster_url) ?? null,
+    mimeType: getString(value.mime_type) ?? getString(value.mimeType) ?? null,
+    hintedType: getString(value.type) ?? getString(value.asset_type) ?? getString(value.media_type),
+  });
+}
+
+function createCreativeAsset(input: {
+  url: string;
+  source: string;
+  title?: string;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  mimeType?: string | null;
+  hintedType?: string;
+}): ApprovalCreativeAsset {
+  const type = classifyCreativeAsset(input.url, input.mimeType, input.hintedType);
+
+  return {
+    id: stableId(input.url),
+    type,
+    title: input.title ?? defaultCreativeTitle(type),
+    url: input.url,
+    thumbnailUrl: input.thumbnailUrl ?? null,
+    mimeType: input.mimeType ?? null,
+    description: input.description ?? null,
+    source: input.source,
+  };
+}
+
+function classifyCreativeAsset(url: string, mimeType?: string | null, hintedType?: string): ApprovalCreativeAsset["type"] {
+  const hint = `${mimeType ?? ""} ${hintedType ?? ""}`.toLowerCase();
+  const lowerUrl = url.toLowerCase();
+  if (hint.includes("image") || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/.test(lowerUrl)) return "image";
+  if (hint.includes("video") || /\.(mp4|webm|mov|m4v)(\?|#|$)/.test(lowerUrl)) return "video";
+  if (/youtube\.com|youtu\.be|vimeo\.com/.test(lowerUrl)) return "embed";
+  if (/\.(pdf|docx?|pptx?)(\?|#|$)/.test(lowerUrl)) return "file";
+  return "link";
+}
+
+function defaultCreativeTitle(type: ApprovalCreativeAsset["type"]) {
+  if (type === "image") return "Image preview";
+  if (type === "video" || type === "embed") return "Video preview";
+  if (type === "file") return "Attached file";
+  return "Creative link";
+}
+
+function isCreativeCollectionKey(key: string) {
+  return /^(media|media_assets|creative_assets|creatives|attachments|previews|files|generated_assets|ad_assets)$/i.test(key);
+}
+
+function isCreativeObjectKey(key: string) {
+  return /^(media|creative|attachment|preview|asset|image|video|file)$/i.test(key);
+}
+
+function isCreativeUrlKey(key: string) {
+  return /^(image_url|video_url|media_url|asset_url|creative_url|preview_url|file_url)$/i.test(key);
+}
+
+function isMediaLikeUrl(url: string) {
+  return classifyCreativeAsset(url) !== "link";
+}
+
+function extractUrls(value: string) {
+  return value.match(/https?:\/\/[^\s"'<>),]+/g) ?? [];
+}
+
+function isUrl(value: string) {
+  return /^https?:\/\//i.test(value);
+}
+
+function stableId(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return `creative-${hash.toString(36)}`;
 }
 
 function buildPreviewText(structuredDraft: ApprovalStructuredDraft | null, fallback: string) {
