@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   title: "Signal | Big Shoulders",
   description: "AI-native CRM, persona intelligence, routing, and campaign operations for Big Shoulders Restoration.",
   icons: {
-    icon: "/brand/signal-mark-transparent.png",
+    icon: "/icon.svg",
     apple: "/brand/signal-mark-original.png",
   },
 };
