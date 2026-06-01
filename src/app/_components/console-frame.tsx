@@ -63,19 +63,7 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
             <SideNav active={pathname} items={navItems} />
           </div>
 
-          {gateEnabled ? (
-            <div className="mt-5 hidden border-t border-[var(--border-hairline)] pt-4 lg:block">
-              <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Operator session</div>
-              <form action="/api/auth/sign-out" method="post" className="mt-2">
-                <button
-                  type="submit"
-                  className="rounded-md text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                >
-                  Sign out
-                </button>
-              </form>
-            </div>
-          ) : null}
+          <OperatorProfile gateEnabled={gateEnabled} />
         </aside>
 
         <section className="min-w-0 px-4 py-4 sm:px-6 lg:px-8 lg:py-5 xl:px-10">
@@ -83,5 +71,44 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
         </section>
       </div>
     </main>
+  );
+}
+
+function OperatorProfile({ gateEnabled }: { gateEnabled: boolean }) {
+  return (
+    <div className="mt-5 hidden border-t border-[var(--border-hairline)] pt-4 lg:block">
+      <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3.5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--surface-raised)] font-display text-sm font-black text-[var(--accent)]">
+            ER
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-bold text-[var(--text-primary)]">Evan</div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+              Operator
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--border-hairline)] pt-3">
+          <span className="text-xs font-semibold text-[var(--text-muted)]">{gateEnabled ? "Session active" : "Local mode"}</span>
+          {gateEnabled ? (
+            <form action="/api/auth/sign-out" method="post">
+              <button
+                type="submit"
+                className="rounded-md text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              >
+                Sign out
+              </button>
+            </form>
+          ) : (
+            <Link className="rounded-md text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]" href="/score-rules">
+              Settings
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
