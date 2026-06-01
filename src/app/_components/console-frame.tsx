@@ -20,9 +20,9 @@ const navItems: ShellNavItem[] = [
   { label: "Mark", href: "/agent-operations", iconSrc: "/brand/nav-icons/mark-icon.png", matches: ["/agent-operations", "/ai-studio"] },
   {
     label: "Settings",
-    href: "/score-rules",
+    href: "/settings",
     iconSrc: "/brand/nav-icons/settings-icon.png",
-    matches: ["/score-rules", "/data-foundation", "/reports"],
+    matches: ["/settings", "/data-foundation", "/reports"],
   },
 ];
 
@@ -103,7 +103,7 @@ function OperatorProfile({ gateEnabled }: { gateEnabled: boolean }) {
               </button>
             </form>
           ) : (
-            <Link className="rounded-md text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]" href="/score-rules">
+            <Link className="rounded-md text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]" href="/settings">
               Settings
             </Link>
           )}

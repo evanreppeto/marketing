@@ -86,7 +86,7 @@ export default async function HomePage() {
         <HomeLink title="Review queue" detail="Approve or reject Mark's output." href="/approvals" />
         <HomeLink title="CRM" detail="Companies, contacts, leads, and outcomes." href="/crm" />
         <HomeLink title="Personas" detail="Audience memory and messaging rules." href="/persona-intelligence" />
-        <HomeLink title="Settings" detail="Scoring rules, guardrails, and controls." href="/score-rules" />
+        <HomeLink title="Settings" detail="Mark controls, integrations, access, and scoring." href="/settings" />
       </div>
 
       <Panel className="mt-4">

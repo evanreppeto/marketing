@@ -20,7 +20,7 @@ pnpm lint           # eslint (flat config in eslint.config.mjs)
 - `src/domain/` — pure, deterministic business logic (Zod schemas, persona validation, loss-keyword classifier, lead/partner scoring). No I/O. Heavily unit-tested in `src/domain/__tests__/`.
 - `src/app/api/v1/leads/ingest/route.ts` — the only live API surface. Calls `parseLeadIngestionPayload` from `@/domain`, then `persistLeadIngestion` from `@/lib/lead-ingestion/persistence` only if Supabase env vars are set.
 - `src/lib/supabase/server.ts` — admin client, lazily created from `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
-- `src/app/` route folders (`crm`, `data-foundation`, `lead-ingestion`, `loss-routing`, `score-rules`, `reports`, `customer-types`, `ai-studio`) are UI views over the same domain model. `_components/` and `_data/` are colocated, private (underscore-prefixed).
+- `src/app/` route folders (`crm`, `data-foundation`, `lead-ingestion`, `loss-routing`, `settings`, `reports`, `customer-types`, `ai-studio`) are UI views over the same domain model. `_components/` and `_data/` are colocated, private (underscore-prefixed).
 - `src/app/_components/page-header.tsx` is the shared UI primitives module — exports `PageHeader`, `Panel`, `StatusPill`, `OperatorBar`, `ActionFeedback`, `EmptyState`. Reuse these before adding new layout components.
 - `src/app/_components/app-shell.tsx` reads `navItems` from `src/app/_data/growth-engine.ts`. Adding a top-level page = add an entry to `navItems`.
 - `src/app/crm/_components/{crm-command-header,crm-object-page,crm-record-page}.tsx` are shared across all six CRM subroutes (companies, contacts, properties, leads, jobs, outcomes). `[recordId]` pages are dynamic; list pages are static.

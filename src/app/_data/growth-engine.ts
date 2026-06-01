@@ -12,7 +12,7 @@ export const navItems = [
   { label: "CRM", href: "/crm", icon: "crm" },
   { label: "Personas", href: "/persona-intelligence", icon: "persona" },
   { label: "Mark", href: "/agent-operations", icon: "agents" },
-  { label: "Settings", href: "/score-rules", icon: "sliders" },
+  { label: "Settings", href: "/settings", icon: "sliders" },
 ];
 
 export const coreObjects = [
@@ -1632,3 +1632,129 @@ export const exampleScoreBreakdown = {
 };
 
 export const targetLossKeywords = TARGET_LOSS_KEYWORDS;
+
+// ---------------------------------------------------------------------------
+// Settings surface (/settings)
+//
+// Scaffold-mode configuration data. Like the rest of the app, the Settings page
+// previews controls without writing — selectors set a query param and surface an
+// ActionFeedback banner. Real persistence lands with the backend approval pipeline.
+// ---------------------------------------------------------------------------
+
+export const settingsSections = [
+  { key: "mark", label: "Mark agent", detail: "Autonomy level, capabilities, approval gates, and guardrails." },
+  { key: "integrations", label: "Integrations", detail: "Persistence, the ingest API, and connected tools." },
+  { key: "access", label: "Workspace & access", detail: "Business profile, team, default queues, and notifications." },
+  { key: "scoring", label: "Scoring & routing", detail: "Signal weights and how priority becomes team action." },
+  { key: "data", label: "Data & system", detail: "Customer types, integrity scans, retention, and export." },
+] as const;
+
+export type SettingsSectionKey = (typeof settingsSections)[number]["key"];
+
+export const markAutonomyLevels = [
+  {
+    level: "1",
+    name: "Observe",
+    summary: "Read and classify only.",
+    detail: "Mark deduplicates, classifies personas, and scores leads. No drafts, no records written.",
+    tone: "gray" as const,
+  },
+  {
+    level: "2",
+    name: "Draft",
+    summary: "Draft and write internal records.",
+    detail: "Mark adds enrichment and audit notes and drafts campaigns, copy, and approval cards. Outbound stays locked.",
+    tone: "blue" as const,
+  },
+  {
+    level: "3",
+    name: "Dispatch",
+    summary: "Act outbound after approval.",
+    detail: "Reserved. Unlocks once account integrations and the approval pipeline exist. Outbound still requires a human gate.",
+    tone: "amber" as const,
+  },
+];
+
+export const markCurrentAutonomyLevel = "2";
+
+export const markControlGroups = [
+  {
+    title: "Capabilities",
+    description: "What Mark may do today at the active autonomy level.",
+    badge: "Level 2",
+    tone: "blue" as const,
+    rows: [
+      ["Internal enrichment", "Allowed", "Deduplicate, classify personas, score leads, and add audit notes."],
+      ["Draft generation", "Allowed", "Create campaign ideas, copy, lead lists, and approval cards."],
+      ["Outbound execution", "Blocked", "No email, SMS, posting, ads, or spend changes without approval."],
+    ],
+  },
+  {
+    title: "Approval requirements",
+    description: "Every agent-created item that could leave the system becomes reviewable first.",
+    badge: "Human gate",
+    tone: "green" as const,
+    rows: [
+      ["Campaign assets", "Required", "Email, SMS, ads, landing copy, social posts, and scripts."],
+      ["Lead lists", "Required", "Bulk outreach audiences and partner recommendations."],
+      ["Budget or dispatch", "Blocked", "Future controls only after account integrations exist."],
+    ],
+  },
+  {
+    title: "Guardrail scope",
+    description: "Rules that prevent risky language and off-scope campaigns before review.",
+    badge: "Active",
+    tone: "amber" as const,
+    rows: [
+      ["Coverage language", "Blocked", "No claim approval, payout, or insurance-will-cover promises."],
+      ["Restoration focus", "Water first", "Flood, backup, burst pipe, standing water, mold, sewage, fire."],
+      ["Exterior-only work", "Blocked", "Hail-only, wind-only, and roof-only campaigns stay out of scope."],
+    ],
+  },
+];
+
+export const leadIngestionEndpoint = {
+  method: "POST",
+  path: "/api/v1/leads/ingest",
+  description: "The only live API surface. Validates and scores every payload, then persists when Supabase is configured.",
+  responses: [
+    ["201", "Accepted and persisted to Supabase."],
+    ["202", "Accepted and scored, but Supabase is not configured — no row written."],
+    ["400", "Validation or persona rejection (including internal-only unassigned_persona)."],
+    ["502", "Persistence error while writing to Supabase."],
+  ],
+};
+
+export const businessProfile = [
+  { label: "Business", value: "Big Shoulders Restoration M&P", detail: "Mitigation and property restoration." },
+  { label: "Market", value: "Chicago, IL", detail: "Primary service territory." },
+  { label: "Restoration focus", value: "Water-loss first", detail: "Flood, backup, burst pipe, standing water, mold, sewage, fire." },
+  { label: "Out of scope", value: "Exterior-only", detail: "Hail-only, wind-only, and roof-only work stay out of campaigns." },
+];
+
+export const teamMembers = [
+  { name: "Evan Reppeto", role: "Operator / Owner", access: "Full control", initials: "ER", tone: "blue" as const },
+  { name: "Robby", role: "Referral & partner lead", access: "CRM + approvals", initials: "RB", tone: "green" as const },
+  { name: "Ops", role: "Dispatch & review", access: "CRM + routing", initials: "OP", tone: "gray" as const },
+  { name: "Field", role: "Job execution", access: "Jobs + outcomes", initials: "FD", tone: "gray" as const },
+];
+
+export const defaultQueues = [
+  { queue: "Mitigation team", handles: "Top and high priority water loss", sla: "15–30 min" },
+  { queue: "Estimator queue", handles: "Mid-intent leads, score 40–69", sla: "1 hr" },
+  { queue: "Review queue", handles: "Low priority and scope checks", sla: "4 hrs" },
+];
+
+export const notificationPreferences = [
+  { event: "High-priority lead", detail: "Score 90+ with active water loss.", channel: "Push + email", state: "On" },
+  { event: "Approval pending", detail: "An agent draft is waiting on owner review.", channel: "Email", state: "On" },
+  { event: "Compliance block", detail: "An asset was blocked for coverage or scope risk.", channel: "Push", state: "On" },
+  { event: "Daily digest", detail: "Morning summary of pipeline, jobs, and approvals.", channel: "Email", state: "Off" },
+];
+
+export const retentionOptions = [
+  { label: "Lead & CRM records", value: "Retain indefinitely", detail: "Core operating data is kept until manually archived." },
+  { label: "Engagement events", value: "24 months", detail: "Timeline and signal history used for persona snapshots." },
+  { label: "Agent audit log", value: "12 months", detail: "Mark's drafts, decisions, and approval trail." },
+  { label: "Export", value: "CSV / JSON", detail: "Operator-initiated export of any CRM object or audit slice." },
+];
