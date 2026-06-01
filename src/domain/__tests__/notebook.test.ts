@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseFrontmatter, extractLinks, resolveWikiTarget, computeBacklinks, toRenderableMarkdown, type LinkResolutionContext, type VaultNote } from "../notebook";
+import { parseFrontmatter, extractLinks, resolveWikiTarget, computeBacklinks, toRenderableMarkdown, computeGraphLayout, type LinkResolutionContext, type VaultNote, type GraphNode } from "../notebook";
 
 describe("parseFrontmatter", () => {
   it("splits YAML frontmatter from the body and parses scalars and lists", () => {
@@ -104,5 +104,30 @@ describe("toRenderableMarkdown", () => {
   it("rewrites unresolved wiki-links with the sentinel href", () => {
     const ctx = { notes: new Map(), records: new Map(), personas: new Map() };
     expect(toRenderableMarkdown("Missing [[ghost]].", ctx)).toBe("Missing [ghost](unresolved:ghost).");
+  });
+});
+
+describe("computeGraphLayout", () => {
+  it("places the focus node at the center and others on a deterministic ring", () => {
+    const nodes: GraphNode[] = [
+      { id: "focus", label: "Focus", kind: "note" },
+      { id: "n1", label: "One", kind: "note" },
+      { id: "n2", label: "Two", kind: "record" },
+    ];
+    const layout = computeGraphLayout(nodes, "focus", 100, 100);
+
+    const focus = layout.find((n) => n.id === "focus")!;
+    expect([focus.x, focus.y]).toEqual([50, 50]);
+    const others = layout.filter((n) => n.id !== "focus");
+    const radii = others.map((n) => Math.round(Math.hypot(n.x - 50, n.y - 50)));
+    expect(new Set(radii).size).toBe(1);
+  });
+
+  it("is deterministic across calls", () => {
+    const nodes: GraphNode[] = [
+      { id: "a", label: "A", kind: "note" },
+      { id: "b", label: "B", kind: "note" },
+    ];
+    expect(computeGraphLayout(nodes, "a", 200, 200)).toEqual(computeGraphLayout(nodes, "a", 200, 200));
   });
 });

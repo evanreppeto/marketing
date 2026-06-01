@@ -115,3 +115,40 @@ export function toRenderableMarkdown(body: string, ctx: LinkResolutionContext): 
     return `[${link.label}](${link.href})`;
   });
 }
+
+export type GraphNode = {
+  id: string;
+  label: string;
+  kind: LinkKind;
+};
+
+export type PlacedNode = GraphNode & { x: number; y: number };
+
+export type GraphEdge = { from: string; to: string };
+
+// Deterministic radial layout: focus node centered, the rest evenly spaced
+// on a ring. No randomness, no physics — safe for server rendering.
+export function computeGraphLayout(
+  nodes: GraphNode[],
+  focusId: string,
+  width: number,
+  height: number,
+): PlacedNode[] {
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = Math.min(width, height) * 0.38;
+  const ring = nodes.filter((n) => n.id !== focusId);
+
+  return nodes.map((node) => {
+    if (node.id === focusId) {
+      return { ...node, x: cx, y: cy };
+    }
+    const index = ring.findIndex((n) => n.id === node.id);
+    const angle = (index / Math.max(ring.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    return {
+      ...node,
+      x: cx + Math.cos(angle) * radius,
+      y: cy + Math.sin(angle) * radius,
+    };
+  });
+}
