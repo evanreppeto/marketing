@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseFrontmatter, extractLinks, resolveWikiTarget, type LinkResolutionContext } from "../notebook";
+import { parseFrontmatter, extractLinks, resolveWikiTarget, computeBacklinks, toRenderableMarkdown, type LinkResolutionContext, type VaultNote } from "../notebook";
 
 describe("parseFrontmatter", () => {
   it("splits YAML frontmatter from the body and parses scalars and lists", () => {
@@ -76,5 +76,33 @@ describe("extractLinks", () => {
       ["record", "apex-plumbing-co"],
       ["unresolved", "nonexistent"],
     ]);
+  });
+});
+
+const NOTES: VaultNote[] = [
+  { slug: "a", title: "A", folder: "Playbooks", tags: [], author: "Evan", status: "Published", updated: "Today", body: "Links to [[b]]." },
+  { slug: "b", title: "B", folder: "Playbooks", tags: [], author: "Mark", status: "Published", updated: "Today", body: "No links." },
+  { slug: "c", title: "C", folder: "SOPs", tags: [], author: "Evan", status: "Published", updated: "Today", body: "Also links to [[b|Bee]]." },
+];
+
+describe("computeBacklinks", () => {
+  it("returns every note linking to the slug, sorted by title", () => {
+    expect(computeBacklinks(NOTES, "b").map((n) => n.slug)).toEqual(["a", "c"]);
+  });
+
+  it("returns an empty array when nothing links to the slug", () => {
+    expect(computeBacklinks(NOTES, "a")).toEqual([]);
+  });
+});
+
+describe("toRenderableMarkdown", () => {
+  it("rewrites wiki-links to markdown links with resolved hrefs", () => {
+    const ctx = { notes: new Map([["b", "/notebook/b"]]), records: new Map(), personas: new Map() };
+    expect(toRenderableMarkdown("Go to [[b|Bee]] now.", ctx)).toBe("Go to [Bee](/notebook/b) now.");
+  });
+
+  it("rewrites unresolved wiki-links with the sentinel href", () => {
+    const ctx = { notes: new Map(), records: new Map(), personas: new Map() };
+    expect(toRenderableMarkdown("Missing [[ghost]].", ctx)).toBe("Missing [ghost](unresolved:ghost).");
   });
 });

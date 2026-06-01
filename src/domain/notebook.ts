@@ -91,3 +91,27 @@ export function extractLinks(body: string, ctx: LinkResolutionContext): Resolved
   }
   return links;
 }
+
+export function computeBacklinks(allNotes: VaultNote[], slug: string): VaultNote[] {
+  return allNotes
+    .filter((note) => note.slug !== slug)
+    .filter((note) =>
+      [...note.body.matchAll(WIKI_LINK_RE)].some((match) => {
+        const inner = match[1];
+        const pipe = inner.indexOf("|");
+        const target = (pipe === -1 ? inner : inner.slice(0, pipe)).trim();
+        return target === slug;
+      }),
+    )
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+
+export function toRenderableMarkdown(body: string, ctx: LinkResolutionContext): string {
+  return body.replace(WIKI_LINK_RE, (_full, inner: string) => {
+    const pipe = inner.indexOf("|");
+    const target = (pipe === -1 ? inner : inner.slice(0, pipe)).trim();
+    const label = (pipe === -1 ? inner : inner.slice(pipe + 1)).trim();
+    const link = resolveWikiTarget(target, label, ctx);
+    return `[${link.label}](${link.href})`;
+  });
+}
