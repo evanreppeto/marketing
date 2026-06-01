@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { ActionFeedback, Button, EmptyState, OperatorBar, PageHeader, Panel, StatusPill, buttonClasses } from "../_components/page-header";
+import { ActionFeedback, Button, EmptyState, OperatorBar, Panel, StatusPill, buttonClasses } from "../_components/page-header";
+import { MetricStrip, WorkspaceHeader, WorkspacePanel } from "../_components/workspace";
 import { decideApprovalItemAction } from "./actions";
 import { type ApprovalCard, type ApprovalCreativeAsset, type ApprovalLeadCandidate, type RelatedRecord, listApprovalCards } from "@/lib/approvals/read-model";
 
@@ -26,14 +27,28 @@ export default async function ApprovalsPage({ searchParams }: ApprovalsPageProps
   const selected = cards.find((item) => item.id === itemId) ?? cards[0] ?? null;
   const selectedIndex = selected ? cards.findIndex((item) => item.id === selected.id) : -1;
   const blockedCount = cards.filter((item) => item.riskLevel === "blocked" || item.status === "needs_compliance").length;
+  const creativeCount = cards.reduce((sum, item) => sum + item.creativeAssets.length, 0);
+  const revisionCount = cards.filter((item) => item.status === "revision_requested").length;
 
   return (
     <AppShell active="/approvals">
-      <PageHeader
-        eyebrow="Approvals"
-        title="Review the work Mark prepared"
-        description="Approve, reject, or request changes on generated assets before they can move anywhere near an outbound channel."
-        aside={<StatusPill tone="dark">{cards.length} in review</StatusPill>}
+      <WorkspaceHeader
+        eyebrow="Review studio"
+        title="Approve the work before it moves."
+        description="Campaigns, ads, lead lists, copy, images, videos, and recommendations land here as readable review packets. No outbound action happens from this page without a human decision."
+        status={`${cards.length} in review`}
+        statusTone={cards.length > 0 ? "amber" : "green"}
+        primary={selected ? { label: "Approve selected", href: `#approve-selected` } : { label: "Queue Mark", href: "/agent-operations" }}
+        secondary={{ label: "Mark operations", href: "/agent-operations" }}
+      />
+
+      <MetricStrip
+        metrics={[
+          { label: "Review items", value: cards.length, detail: "Active approval records", tone: cards.length > 0 ? "amber" : "green" },
+          { label: "Media assets", value: creativeCount, detail: "Images, video, files, links", tone: creativeCount > 0 ? "blue" : "gray" },
+          { label: "Guardrail flags", value: blockedCount, detail: "Need extra care", tone: blockedCount > 0 ? "red" : "green" },
+          { label: "Revisions", value: revisionCount, detail: "Waiting on Mark changes", tone: revisionCount > 0 ? "amber" : "gray" },
+        ]}
       />
 
       <ActionFeedback action={action} messages={actionMessages} />
@@ -106,38 +121,59 @@ function ApprovalInbox({
   const reviewFlags = [...selected.complianceFlags, ...selected.riskFlags];
 
   return (
-    <div className="grid min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <Panel className="p-0">
-        <div className="border-b border-[var(--border-hairline)] px-4 py-4">
-          <div className="signal-eyebrow">Inbox</div>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{cards.length} item{cards.length === 1 ? "" : "s"} waiting.</p>
+    <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_520px]">
+      <WorkspacePanel
+        className="p-0"
+        eyebrow="Approval planner"
+        title="Queue"
+        description="Select a packet to inspect draft content, media, source evidence, and guardrails."
+        aside={<StatusPill tone="blue">Quick review enabled</StatusPill>}
+      >
+        <div className="hidden grid-cols-[minmax(260px,1fr)_160px_150px_142px] gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-soft)] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] xl:grid">
+          <div>Post</div>
+          <div>Status</div>
+          <div>Submitted</div>
+          <div className="text-right">Quick review</div>
         </div>
         <div className="divide-y divide-[var(--border-hairline)]">
           {cards.map((item) => {
             const isSelected = selected.id === item.id;
+            const firstAsset = item.creativeAssets[0] ?? null;
 
             return (
-              <Link
-                aria-current={isSelected ? "page" : undefined}
-                className={`block px-4 py-4 transition hover:bg-[var(--surface-inset)] ${isSelected ? "bg-[var(--accent-soft)]" : ""}`}
-                href={`/approvals?item=${item.id}`}
+              <div
+                className={`grid gap-3 px-4 py-4 transition hover:bg-[var(--surface-inset)] xl:grid-cols-[minmax(260px,1fr)_160px_150px_142px] xl:items-center ${
+                  isSelected ? "bg-[var(--accent-soft)]" : ""
+                }`}
                 key={item.id}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="line-clamp-2 text-sm font-semibold leading-5">{item.previewText}</div>
-                    <div className="mt-1 truncate text-xs text-[var(--text-muted)]">{item.channel} / {item.sourceAgent}</div>
-                  </div>
+                <Link
+                  aria-current={isSelected ? "page" : undefined}
+                  className="grid min-w-0 grid-cols-[58px_minmax(0,1fr)] gap-3"
+                  href={`/approvals?item=${item.id}`}
+                >
+                  <CreativeQueueThumb asset={firstAsset} label={item.channel} />
+                  <span className="min-w-0">
+                    <span className="line-clamp-2 text-sm font-bold leading-5 text-[var(--text-primary)]">{item.previewText}</span>
+                    <span className="mt-1 block truncate text-xs text-[var(--text-muted)]">{item.channel} / {item.persona} / {item.sourceAgent}</span>
+                  </span>
+                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill tone={statusTone(item.status)}>{item.statusLabel}</StatusPill>
                   <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
                 </div>
-              </Link>
+                <div className="text-sm text-[var(--text-secondary)]">{item.submittedAt}</div>
+                <div className="flex justify-start xl:justify-end">
+                  <QuickReviewActions item={item} />
+                </div>
+              </div>
             );
           })}
         </div>
-      </Panel>
+      </WorkspacePanel>
 
-      <div className="min-w-0 space-y-4">
-        <Panel className="overflow-hidden p-0">
+      <div className="min-w-0 space-y-4 2xl:sticky 2xl:top-5 2xl:self-start">
+        <WorkspacePanel className="overflow-hidden p-0">
           <div className="border-b border-[var(--border-hairline)] px-5 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
@@ -214,7 +250,7 @@ function ApprovalInbox({
               <DecisionButton action="archive" itemId={selected.id} label="Archive" />
             </div>
           </div>
-        </Panel>
+        </WorkspacePanel>
 
         <Panel>
           <div className="grid gap-4 md:grid-cols-3">
@@ -293,6 +329,31 @@ function CreativePreview({ assets }: { assets: ApprovalCreativeAsset[] }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function CreativeQueueThumb({ asset, label }: { asset: ApprovalCreativeAsset | null; label: string }) {
+  if (!asset) {
+    return (
+      <span className="grid h-14 w-14 place-items-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+        {label.slice(0, 3)}
+      </span>
+    );
+  }
+
+  if (asset.type === "image" && asset.url) {
+    return (
+      <span className="h-14 w-14 overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+        {/* eslint-disable-next-line @next/next/no-img-element -- Mark can attach arbitrary media URLs that are not known at build time. */}
+        <img alt={asset.title} className="h-full w-full object-cover" src={asset.url} />
+      </span>
+    );
+  }
+
+  return (
+    <span className="grid h-14 w-14 place-items-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent)]">
+      {asset.type}
+    </span>
   );
 }
 

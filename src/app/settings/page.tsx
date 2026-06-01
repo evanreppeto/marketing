@@ -1,11 +1,9 @@
 import Link from "next/link";
 
 import { AppShell } from "../_components/app-shell";
-import { CountUp } from "../_components/count-up";
-import { ActionFeedback, buttonClasses, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { ActionFeedback, StatusPill, buttonClasses } from "../_components/page-header";
+import { DetailStack, MetricStrip, WorkspaceHeader, WorkspacePanel } from "../_components/workspace";
 import {
-  businessProfile,
-  customerTypes,
   defaultQueues,
   exampleScore,
   exampleScoreBreakdown,
@@ -18,10 +16,7 @@ import {
   retentionOptions,
   routingRules,
   scoreRules,
-  settingsSections,
-  teamMembers,
   workspaceTools,
-  type SettingsSectionKey,
 } from "../_data/growth-engine";
 
 type SettingsPageProps = {
@@ -36,491 +31,239 @@ const actionMessages: Record<string, string> = {
   "set-level": "Preview: changing Mark's autonomy level requires the live agent-config pipeline.",
   "toggle-notification": "Preview: notification routing is saved once account settings persist.",
   "connect-tool": "Preview: tool connections require a configured integration.",
-  "edit-profile": "Preview: business profile edits are saved once settings persistence is wired.",
-  "manage-team": "Preview: team and role management requires the access-control backend.",
   "export-data": "Preview: export runs once the data pipeline and storage are connected.",
   "edit-guardrail": "Preview: guardrails stay locked until the approval pipeline can record changes.",
 };
 
-const PANEL = "module-rise overflow-hidden p-0";
-
-const sectionKeys = settingsSections.map((section) => section.key);
-
-function isSectionKey(value: string | undefined): value is SettingsSectionKey {
-  return value !== undefined && (sectionKeys as readonly string[]).includes(value);
-}
-
-/** Inset panel header — the surface step (panel → inset) is what makes each
- *  module read as its own instrument instead of one continuous slab. */
-function PanelHead({
-  title,
-  description,
-  aside,
-}: {
-  title: string;
-  description?: string;
-  aside?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-      <div className="min-w-0">
-        <h2 className="text-lg font-semibold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
-        {description ? (
-          <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">{description}</p>
-        ) : null}
-      </div>
-      {aside ? <div className="shrink-0">{aside}</div> : null}
-    </div>
-  );
-}
-
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const query = searchParams ? await searchParams : {};
   const action = getValue(query.action);
-  const sectionParam = getValue(query.section);
-  const activeSection: SettingsSectionKey = isSectionKey(sectionParam) ? sectionParam : "mark";
   const selectedLevel = getValue(query.level) ?? markCurrentAutonomyLevel;
-  const activeIndex = settingsSections.findIndex((section) => section.key === activeSection);
-  const activeMeta = settingsSections[activeIndex];
-
-  const persistenceConnected = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
-  );
+  const activeLevel = markAutonomyLevels.find((level) => level.level === selectedLevel) ?? markAutonomyLevels[1];
+  const persistenceConnected = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   return (
     <AppShell active="/settings">
-      <PageHeader
-        eyebrow="Settings"
-        title={activeMeta.headline}
-        description={activeMeta.detail}
-        aside={
-          <StatusPill tone="blue">
-            Section 0{activeIndex + 1} / 0{settingsSections.length}
-          </StatusPill>
-        }
+      <WorkspaceHeader
+        eyebrow="Operating controls"
+        title="The rules Mark must operate inside."
+        description="Settings are not decoration anymore. This page groups approval policy, autonomy, guardrails, scoring, data health, and integrations around the way the Hermes Growth Engine actually works."
+        status={persistenceConnected ? "Live config source" : "Local preview"}
+        statusTone={persistenceConnected ? "green" : "amber"}
+        primary={{ label: "Review approvals", href: "/approvals" }}
+        secondary={{ label: "Open Mark", href: "/agent-operations" }}
       />
 
       <ActionFeedback action={action} messages={actionMessages} />
 
-      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-        <nav aria-label="Settings sections" className="xl:sticky xl:top-5 xl:self-start">
-          <p className="signal-eyebrow mb-2.5 flex items-center gap-2 px-1">
-            <span aria-hidden="true" className="h-2.5 w-0.5 rounded-full bg-[var(--accent)]" />
-            Sections
-          </p>
-          <ul className="grid gap-1.5">
-            {settingsSections.map((section, index) => {
-              const isActive = section.key === activeSection;
-              return (
-                <li key={section.key}>
+      <MetricStrip
+        metrics={[
+          { label: "Autonomy", value: `L${activeLevel.level}`, detail: activeLevel.name, tone: "blue" },
+          { label: "Human gate", value: "On", detail: "Outbound approval required", tone: "green" },
+          { label: "Dispatch", value: "Locked", detail: "No send, publish, launch, or spend", tone: "amber" },
+          { label: "Supabase", value: persistenceConnected ? "Live" : "Preview", detail: persistenceConnected ? "Admin env connected" : "Persistence not configured", tone: persistenceConnected ? "green" : "amber" },
+        ]}
+      />
+
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 space-y-5">
+          <WorkspacePanel
+            eyebrow="Autonomy levels"
+            title="How much Mark can do"
+            description="MVP behavior stays around draft and human-approval-required modes. Internal data work can become more automatic later."
+          >
+            <div className="grid gap-3 p-4 lg:grid-cols-3">
+              {markAutonomyLevels.map((level) => {
+                const isActive = level.level === activeLevel.level;
+                return (
                   <Link
-                    href={`/settings?section=${section.key}`}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`group block rounded-lg border px-3.5 py-3 transition ${
+                    key={level.level}
+                    href={`/settings?level=${level.level}&action=set-level`}
+                    className={`rounded-xl border p-4 transition ${
                       isActive
-                        ? "border-[oklch(0.74_0.115_232/0.45)] bg-[var(--accent-soft)] shadow-[var(--elev-panel)]"
-                        : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
+                        ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--accent-soft)]"
+                        : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:bg-[var(--surface-raised)]"
                     }`}
                   >
-                    <span className="flex items-center gap-2.5">
-                      <span
-                        className={`font-mono text-[11px] font-semibold tabular-nums ${
-                          isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
-                        }`}
-                      >
-                        0{index + 1}
-                      </span>
-                      <span
-                        className={`text-sm font-semibold ${
-                          isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
-                        }`}
-                      >
-                        {section.label}
-                      </span>
-                      {isActive ? (
-                        <span aria-hidden="true" className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)] status-breathe" />
-                      ) : null}
-                    </span>
-                    <span className="mt-1 block pl-[26px] text-xs leading-5 text-[var(--text-muted)]">{section.detail}</span>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-mono text-xs font-bold text-[var(--accent)]">L{level.level}</span>
+                      {isActive ? <StatusPill tone={level.tone}>Selected</StatusPill> : null}
+                    </div>
+                    <div className="mt-3 text-sm font-bold text-[var(--text-primary)]">{level.name}</div>
+                    <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{level.summary}</p>
                   </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+                );
+              })}
+            </div>
+            <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4 text-sm leading-6 text-[var(--text-secondary)]">
+              <span className="font-bold text-[var(--text-primary)]">Current policy: L{activeLevel.level} / {activeLevel.name}. </span>
+              {activeLevel.detail}
+            </div>
+          </WorkspacePanel>
 
-        <div className="min-w-0 space-y-4">
-          {activeSection === "mark" ? <MarkSection selectedLevel={selectedLevel} /> : null}
-          {activeSection === "integrations" ? <IntegrationsSection persistenceConnected={persistenceConnected} /> : null}
-          {activeSection === "access" ? <AccessSection /> : null}
-          {activeSection === "scoring" ? <ScoringSection /> : null}
-          {activeSection === "data" ? <DataSection /> : null}
+          <WorkspacePanel
+            eyebrow="Approval rules"
+            title="What requires a human"
+            description="These rules keep Mark useful without letting the agent accidentally become an outbound automation system."
+          >
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {[
+                ["Outbound communication", "Required", "Emails, SMS, social posts, ads, landing pages, and sequences need approval before dispatch."],
+                ["Spend or budget change", "Required", "No launch, budget shift, or platform spend without an owner decision."],
+                ["Lead enrichment", "Internal allowed", "Record cleanup, dedupe, scoring, and classification can be prepared as internal work."],
+                ["Guardrail failures", "Blocked", "Risky language needs revision before it can be approved."],
+              ].map(([label, state, detail]) => (
+                <ControlRow key={label} label={label} state={state} detail={detail} />
+              ))}
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel
+            eyebrow="Brand and guardrails"
+            title="Safety controls"
+            description="Rules Mark must respect while drafting restoration marketing."
+          >
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {markControlGroups.flatMap((group) =>
+                group.rows.map(([label, state, detail]) => <ControlRow key={`${group.title}-${label}`} label={label} state={state} detail={detail} />),
+              )}
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel
+            eyebrow="Scoring weights"
+            title="How leads move up the queue"
+            description="These are the explainable inputs that should shape Mark's lead and partner prioritization."
+          >
+            <div className="grid gap-4 p-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-5">
+                <div className="signal-eyebrow">Example lead score</div>
+                <div className="mt-4 font-mono text-6xl font-black tracking-[-0.08em] text-[var(--text-primary)]">{exampleScore.leadScore}</div>
+                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">Standing water, photo upload, and partner context.</p>
+              </div>
+              <div className="grid gap-2">
+                {[...exampleScoreBreakdown.lead, ...exampleScoreBreakdown.partner, ...scoreRules].slice(0, 10).map((item) => (
+                  <div className="grid grid-cols-[minmax(0,1fr)_80px] items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5" key={item.label}>
+                    <div>
+                      <div className="text-sm font-bold text-[var(--text-primary)]">{item.label}</div>
+                      {"note" in item ? <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{item.note}</p> : null}
+                    </div>
+                    <div className="text-right font-mono text-sm font-bold text-[var(--accent)]">+{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel eyebrow="Routing and queues" title="Where records go">
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              <ControlList title="Default queues" rows={defaultQueues.map((queue) => [queue.queue, queue.sla, queue.handles])} />
+              <ControlList title="Routing rules" rows={routingRules.map((rule) => [rule.rule, rule.status, `${rule.condition} / ${rule.target}`])} />
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel eyebrow="Data health" title="Integrity scans and retention">
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              <ControlList title="Integrity scans" rows={integrityScannerRules.map((rule) => [rule.rule, rule.status, `${rule.searches} / ${rule.cadence}`])} />
+              <ControlList title="Retention" rows={retentionOptions.map((option) => [option.label, option.value, option.detail])} />
+            </div>
+          </WorkspacePanel>
         </div>
+
+        <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
+          <WorkspacePanel eyebrow="Safety summary" title="Outbound locked" description="This is the default operating state until explicit approval is recorded.">
+            <DetailStack
+              items={[
+                { label: "Approval gate", value: "Human approval required" },
+                { label: "Current autonomy", value: `Level ${activeLevel.level} / ${activeLevel.name}` },
+                { label: "Lead API", value: `${leadIngestionEndpoint.method} ${leadIngestionEndpoint.path}` },
+                { label: "Persistence", value: persistenceConnected ? "Supabase connected" : "Preview only" },
+              ]}
+            />
+          </WorkspacePanel>
+
+          <WorkspacePanel eyebrow="Connected systems" title="Tools Mark can reference">
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {workspaceTools.map((tool) => (
+                <div className="px-5 py-3" key={tool.key}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-bold text-[var(--text-primary)]">{tool.name}</div>
+                      <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{tool.purpose}</p>
+                    </div>
+                    <Link href={`/settings?action=connect-tool&tool=${tool.key}`} className="shrink-0 text-xs font-bold text-[var(--accent)]">
+                      {tool.embed}
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel eyebrow="Notifications" title="Operator alerts">
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {notificationPreferences.map((pref) => (
+                <div className="grid grid-cols-[1fr_auto] gap-3 px-5 py-3" key={pref.event}>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-[var(--text-primary)]">{pref.event}</div>
+                    <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{pref.detail}</p>
+                  </div>
+                  <Link
+                    href={`/settings?action=toggle-notification&event=${encodeURIComponent(pref.event)}`}
+                    aria-label={`Toggle ${pref.event}`}
+                    className={`h-fit rounded-md border px-2 py-1 text-xs font-bold ${
+                      pref.state === "On"
+                        ? "border-[oklch(0.78_0.14_158/0.4)] bg-[oklch(0.78_0.14_158/0.14)] text-[oklch(0.88_0.1_158)]"
+                        : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-muted)]"
+                    }`}
+                  >
+                    {pref.state}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel eyebrow="Audit" title="Data export">
+            <div className="p-4">
+              <p className="text-sm leading-6 text-[var(--text-secondary)]">Exports should include decisions, agent tasks, approval items, CRM records, and guardrail results.</p>
+              <Link href="/settings?action=export-data" className={buttonClasses({ variant: "ghost", size: "sm", className: "mt-4 w-full" })}>
+                Export data
+              </Link>
+            </div>
+          </WorkspacePanel>
+        </aside>
       </div>
     </AppShell>
   );
 }
 
-function MarkSection({ selectedLevel }: { selectedLevel: string }) {
-  const activeLevel = markAutonomyLevels.find((level) => level.level === selectedLevel) ?? markAutonomyLevels[1];
-
+function ControlRow({ label, state, detail }: { label: string; state: string; detail: string }) {
   return (
-    <>
-      <Panel className={PANEL}>
-        <PanelHead
-          title="Autonomy level"
-          description="How far Mark can act on its own. Outbound always stays behind a human gate."
-          aside={<StatusPill tone="blue">Current · Level {markCurrentAutonomyLevel}</StatusPill>}
-        />
+    <div className="grid gap-3 px-5 py-4 md:grid-cols-[210px_130px_minmax(0,1fr)]">
+      <div className="font-bold text-[var(--text-primary)]">{label}</div>
+      <div className="font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--accent)]">{state}</div>
+      <p className="text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
+    </div>
+  );
+}
 
-        <div className="grid gap-2 p-4 md:grid-cols-3">
-          {markAutonomyLevels.map((level) => {
-            const isActive = level.level === activeLevel.level;
-            return (
-              <Link
-                key={level.level}
-                href={`/settings?section=mark&level=${level.level}&action=set-level`}
-                aria-current={isActive ? "true" : undefined}
-                className={`block rounded-lg border p-3.5 transition ${
-                  isActive
-                    ? "border-[oklch(0.74_0.115_232/0.45)] bg-[var(--accent-soft)]"
-                    : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs font-semibold text-[var(--text-muted)]">L{level.level}</span>
-                  {isActive ? <StatusPill tone={level.tone}>Selected</StatusPill> : null}
-                </div>
-                <div className="mt-2 text-sm font-semibold text-[var(--text-primary)]">{level.name}</div>
-                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{level.summary}</p>
-              </Link>
-            );
-          })}
-        </div>
-
-        <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4">
-          <p className="text-sm leading-6 text-[var(--text-secondary)]">
-            <span className="font-semibold text-[var(--text-primary)]">
-              L{activeLevel.level} · {activeLevel.name}.{" "}
-            </span>
-            {activeLevel.detail}
-          </p>
-        </div>
-      </Panel>
-
-      {markControlGroups.map((group, groupIndex) => (
-        <Panel className={PANEL} key={group.title}>
-          <PanelHead
-            title={group.title}
-            description={group.description}
-            aside={
-              <div className="flex items-center gap-2.5">
-                <StatusPill tone={group.tone}>{group.badge}</StatusPill>
-                <span className="font-mono text-xs text-[var(--text-muted)]">0{groupIndex + 1}</span>
-              </div>
-            }
-          />
-          <div className="divide-y divide-[var(--border-hairline)]">
-            {group.rows.map(([label, state, detail]) => (
-              <div className="grid gap-3 px-5 py-4 md:grid-cols-[190px_120px_1fr]" key={label}>
-                <div className="font-semibold">{label}</div>
-                <div className="min-w-0">
-                  <span className="token-value rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-1 font-mono text-xs font-semibold text-[var(--chicago-blue-soft)]">
-                    {state}
-                  </span>
-                </div>
-                <p className="text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
-              </div>
-            ))}
+function ControlList({ title, rows }: { title: string; rows: string[][] }) {
+  return (
+    <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+      <div className="border-b border-[var(--border-hairline)] px-4 py-3 text-sm font-bold text-[var(--text-primary)]">{title}</div>
+      <div className="divide-y divide-[var(--border-hairline)]">
+        {rows.map(([label, state, detail]) => (
+          <div className="px-4 py-3" key={`${title}-${label}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-sm font-bold text-[var(--text-primary)]">{label}</div>
+              <span className="text-xs font-bold text-[var(--accent)]">{state}</span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{detail}</p>
           </div>
-        </Panel>
-      ))}
-    </>
-  );
-}
-
-function IntegrationsSection({ persistenceConnected }: { persistenceConnected: boolean }) {
-  return (
-    <>
-      <Panel className={PANEL}>
-        <PanelHead
-          title="Persistence"
-          description="Supabase admin client, lazily created from environment."
-          aside={
-            <StatusPill tone={persistenceConnected ? "green" : "amber"}>
-              {persistenceConnected ? "Connected" : "Not configured"}
-            </StatusPill>
-          }
-        />
-        <div className="px-5 py-4 text-sm leading-6 text-[var(--text-secondary)]">
-          {persistenceConnected
-            ? "Supabase is configured. Accepted leads persist and the ingest API can return 201."
-            : "Without NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY, the app still validates and scores leads but returns 202 with persistence not connected."}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead
-          title="Lead ingestion API"
-          description={leadIngestionEndpoint.description}
-          aside={
-            <span className="token-value rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-2.5 py-1.5 font-mono text-xs font-semibold text-[var(--chicago-blue-soft)]">
-              {leadIngestionEndpoint.method} {leadIngestionEndpoint.path}
-            </span>
-          }
-        />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {leadIngestionEndpoint.responses.map(([code, meaning]) => (
-            <div className="grid gap-3 px-5 py-3 md:grid-cols-[80px_1fr]" key={code}>
-              <div className="font-mono text-sm font-semibold text-[var(--text-primary)]">{code}</div>
-              <p className="text-sm leading-6 text-[var(--text-secondary)]">{meaning}</p>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead title="Connected tools" description="Workspace tools Mark and the operator launch into." />
-        <div className="grid gap-2 p-4 md:grid-cols-2">
-          {workspaceTools.map((tool) => (
-            <div
-              className="flex items-start justify-between gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3"
-              key={tool.key}
-            >
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-[var(--text-primary)]">{tool.name}</div>
-                <p className="mt-0.5 text-xs leading-5 text-[var(--text-secondary)]">{tool.purpose}</p>
-              </div>
-              <Link
-                href={`/settings?section=integrations&action=connect-tool&tool=${tool.key}`}
-                className="shrink-0 rounded-full border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-xs font-semibold text-[var(--chicago-blue-soft)] transition hover:border-[var(--border-strong)]"
-              >
-                {tool.embed}
-              </Link>
-            </div>
-          ))}
-        </div>
-      </Panel>
-    </>
-  );
-}
-
-function AccessSection() {
-  return (
-    <>
-      <Panel className={PANEL}>
-        <PanelHead
-          title="Business profile"
-          description="Identity and scope the agent operates within."
-          aside={
-            <Link href="/settings?section=access&action=edit-profile" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Edit
-            </Link>
-          }
-        />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {businessProfile.map((field) => (
-            <div className="grid gap-2 px-5 py-4 md:grid-cols-[180px_1fr]" key={field.label}>
-              <div className="text-sm text-[var(--text-muted)]">{field.label}</div>
-              <div>
-                <div className="font-semibold text-[var(--text-primary)]">{field.value}</div>
-                <p className="mt-0.5 text-sm leading-6 text-[var(--text-secondary)]">{field.detail}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead
-          title="Team & roles"
-          description="Who can see and act on operator surfaces."
-          aside={
-            <Link href="/settings?section=access&action=manage-team" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Manage
-            </Link>
-          }
-        />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {teamMembers.map((member) => (
-            <div className="flex items-center gap-3 px-5 py-3.5" key={member.name}>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--surface-raised)] font-display text-xs font-black text-[var(--accent)]">
-                {member.initials}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-[var(--text-primary)]">{member.name}</div>
-                <div className="text-xs text-[var(--text-secondary)]">{member.role}</div>
-              </div>
-              <StatusPill tone={member.tone}>{member.access}</StatusPill>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead title="Default queues" description="Where routed leads land and the response target." />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {defaultQueues.map((queue) => (
-            <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_120px]" key={queue.queue}>
-              <div>
-                <div className="font-semibold text-[var(--text-primary)]">{queue.queue}</div>
-                <p className="mt-0.5 text-sm leading-6 text-[var(--text-secondary)]">{queue.handles}</p>
-              </div>
-              <div className="text-sm text-[var(--text-secondary)] md:text-right">{queue.sla}</div>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead title="Notifications" description="What the operator gets pinged about." />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {notificationPreferences.map((pref) => (
-            <div className="flex items-center gap-3 px-5 py-3.5" key={pref.event}>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-[var(--text-primary)]">{pref.event}</div>
-                <p className="mt-0.5 text-xs leading-5 text-[var(--text-secondary)]">{pref.detail}</p>
-              </div>
-              <div className="hidden text-xs text-[var(--text-muted)] sm:block">{pref.channel}</div>
-              <Link
-                href={`/settings?section=access&action=toggle-notification&event=${encodeURIComponent(pref.event)}`}
-                aria-label={`Toggle ${pref.event}`}
-                className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                  pref.state === "On"
-                    ? "border-[oklch(0.78_0.14_158/0.4)] bg-[oklch(0.78_0.14_158/0.14)] text-[oklch(0.88_0.1_158)]"
-                    : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-muted)]"
-                }`}
-              >
-                {pref.state}
-              </Link>
-            </div>
-          ))}
-        </div>
-      </Panel>
-    </>
-  );
-}
-
-function ScoringSection() {
-  return (
-    <>
-      <Panel className={PANEL}>
-        <PanelHead title="Lead scoring" description="Bounded 0 to 100, always explainable." />
-        <div className="grid gap-4 p-5 md:grid-cols-[200px_1fr] md:items-center">
-          <div>
-            <div className="font-mono text-[56px] font-semibold leading-none tracking-[-0.06em]">
-              <CountUp value={exampleScore.leadScore} />
-            </div>
-            <div className="mt-2 text-sm text-[var(--text-secondary)]">Example: standing water, photo upload, and partner context.</div>
-          </div>
-          <div className="grid gap-2">
-            {[...exampleScoreBreakdown.lead, ...exampleScoreBreakdown.partner].map((item) => (
-              <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2" key={item.label}>
-                <span className="text-sm text-[var(--text-secondary)]">{item.label}</span>
-                <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">+{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead title="Signal weights" description="Plain-language inputs that move a lead up the queue." />
-        <div className="grid gap-3 p-4 md:grid-cols-2">
-          {scoreRules.map((rule) => (
-            <div className="grid grid-cols-[64px_1fr] gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={rule.label}>
-              <div className="inline-flex h-10 w-14 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--accent)] font-mono text-sm font-semibold tabular-nums text-[oklch(0.18_0.03_248)]">
-                {rule.value}
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-[var(--text-primary)]">{rule.label}</div>
-                <p className="mt-0.5 text-sm leading-5 text-[var(--text-secondary)]">{rule.note}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead title="Routing rules" description="How priority score translates into team action." />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {routingRules.map((rule) => (
-            <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_140px_auto]" key={rule.rule}>
-              <div>
-                <div className="font-semibold">{rule.rule}</div>
-                <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{rule.condition}</p>
-              </div>
-              <div className="text-sm text-[var(--text-secondary)]">{rule.target}</div>
-              <StatusPill tone="green">{rule.status}</StatusPill>
-            </div>
-          ))}
-        </div>
-      </Panel>
-    </>
-  );
-}
-
-function DataSection() {
-  return (
-    <>
-      <Panel className={PANEL}>
-        <PanelHead
-          title="Customer types"
-          description={`The ${customerTypes.length} approved personas leads route to.`}
-          aside={
-            <Link href="/customer-types" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Manage personas
-            </Link>
-          }
-        />
-        <div className="grid gap-2 p-4 md:grid-cols-2">
-          {customerTypes.map((type) => (
-            <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2.5" key={type.key}>
-              <span className="text-sm font-semibold text-[var(--text-primary)]">{type.label}</span>
-              <span className="shrink-0 text-xs text-[var(--text-muted)]">{type.group}</span>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead title="Integrity scans" description="Automated data-health rules and their cadence." />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {integrityScannerRules.map((rule) => (
-            <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_140px_auto]" key={rule.rule}>
-              <div>
-                <div className="font-semibold text-[var(--text-primary)]">{rule.rule}</div>
-                <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{rule.searches}</p>
-              </div>
-              <div className="text-sm text-[var(--text-secondary)]">{rule.cadence}</div>
-              <StatusPill tone="green">{rule.status}</StatusPill>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className={PANEL}>
-        <PanelHead title="Retention & export" description="How long records are kept and how to pull them out." />
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {retentionOptions.map((option) => (
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4" key={option.label}>
-              <div className="min-w-0">
-                <div className="font-semibold text-[var(--text-primary)]">{option.label}</div>
-                <p className="mt-0.5 text-sm leading-6 text-[var(--text-secondary)]">{option.detail}</p>
-              </div>
-              <span className="token-value shrink-0 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-1 font-mono text-xs font-semibold text-[var(--chicago-blue-soft)]">
-                {option.value}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4">
-          <Link href="/settings?section=data&action=export-data" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            Export data
-          </Link>
-        </div>
-      </Panel>
-    </>
+        ))}
+      </div>
+    </div>
   );
 }
 
