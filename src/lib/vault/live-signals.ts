@@ -135,3 +135,70 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
     };
   }
 }
+
+import { crmObjects, personaDisplay } from "@/app/_data/growth-engine";
+import { OFFICIAL_PERSONA_MAPPINGS, type OfficialPersonaMapping } from "@/domain";
+
+export type RecordSignal = {
+  target: string;
+  label: string;
+  stat: string;
+  tone: StatusTone;
+  live: boolean;
+};
+
+type WikiLinkLike = { kind: string; target: string; label: string };
+
+function recordReference(target: string): RecordSignal | null {
+  for (const object of crmObjects) {
+    const row = object.sampleRows.find((r) => r.id === target);
+    if (row) {
+      return { target, label: row.name, stat: `${row.status} · ${row.owner}`, tone: "gray", live: false };
+    }
+  }
+  return null;
+}
+
+const PERSONA_KEYS = new Set<string>(OFFICIAL_PERSONA_MAPPINGS);
+
+export async function getRecordSignals(links: WikiLinkLike[]): Promise<Map<string, RecordSignal>> {
+  const signals = new Map<string, RecordSignal>();
+
+  const personaTargets = [...new Set(links.filter((l) => l.kind === "persona" && PERSONA_KEYS.has(l.target)).map((l) => l.target))];
+  const recordTargets = [...new Set(links.filter((l) => l.kind === "record").map((l) => l.target))];
+
+  for (const target of recordTargets) {
+    const ref = recordReference(target);
+    if (ref) signals.set(target, ref);
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    for (const target of personaTargets) {
+      const label = personaDisplay[target as OfficialPersonaMapping]?.label ?? target;
+      signals.set(target, { target, label, stat: "reference", tone: "amber", live: false });
+    }
+    return signals;
+  }
+
+  try {
+    const supabase = getSupabaseAdminClient();
+    const weekAgoIso = new Date(Date.now() - 7 * 86400000).toISOString();
+    await Promise.all(
+      personaTargets.map(async (target) => {
+        const label = personaDisplay[target as OfficialPersonaMapping]?.label ?? target;
+        const personaKey = target as OfficialPersonaMapping;
+        const [totalResult, recentResult] = await Promise.all([
+          supabase.from("leads").select("id", { count: "exact", head: true }).eq("persona", personaKey),
+          supabase.from("leads").select("id", { count: "exact", head: true }).eq("persona", personaKey).gte("created_at", weekAgoIso),
+        ]);
+        const total = totalResult.count ?? 0;
+        const recent = recentResult.count ?? 0;
+        signals.set(target, { target, label, stat: personaSignalLabel(total, recent), tone: "amber", live: true });
+      }),
+    );
+  } catch {
+    // best-effort: leave persona links without chips rather than erroring the page
+  }
+
+  return signals;
+}
