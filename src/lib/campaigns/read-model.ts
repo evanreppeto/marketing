@@ -310,7 +310,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
       const preview = pickPreview(campaignAssets);
       return {
         id: campaign.id,
-        name: campaign.name,
+        name: cleanCampaignName(campaign.name),
         persona: humanize(campaign.persona),
         status: statusLabel(campaign.status),
         objective: campaign.objective ?? "No objective captured yet.",
@@ -396,7 +396,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       status: "live",
       campaign: {
         id: campaign.id,
-        name: campaign.name,
+        name: cleanCampaignName(campaign.name),
         persona: humanize(campaign.persona),
         restorationFocus: humanize(campaign.restoration_focus),
         status: statusLabel(campaign.status),
@@ -799,7 +799,9 @@ function createMediaAsset(input: {
 function classifyMediaAsset(url: string, mimeType?: string | null, hintedType?: string): CampaignMediaAsset["type"] {
   const hint = `${mimeType ?? ""} ${hintedType ?? ""}`.toLowerCase();
   const lowerUrl = url.toLowerCase();
-  if (hint.includes("image") || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/.test(lowerUrl)) return "image";
+  // ad / postcard / photo creative are visual — render them as images even
+  // when the URL carries no file extension (e.g. dynamic image endpoints).
+  if (/image|photo|postcard|\bad\b|mockup/.test(hint) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/.test(lowerUrl)) return "image";
   if (hint.includes("video") || /\.(mp4|webm|mov|m4v)(\?|#|$)/.test(lowerUrl)) return "video";
   if (/youtube\.com|youtu\.be|vimeo\.com/.test(lowerUrl)) return "embed";
   if (/\.(pdf|docx?|pptx?)(\?|#|$)/.test(lowerUrl)) return "file";
@@ -1008,6 +1010,15 @@ function humanize(value: string) {
     .replaceAll("_", " ")
     .replaceAll("-", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+/** Strip machine-generated run-id / date suffixes Mark appends to campaign
+ *  names (e.g. " 20260529203258", " - 2026-06-01") for cleaner display. */
+function cleanCampaignName(name: string) {
+  return name
+    .replace(/\s*[-–]\s*\d{4}-\d{2}-\d{2}\s*$/, "")
+    .replace(/\s+\d{12,}\s*$/, "")
+    .trim() || name;
 }
 
 function formatDate(value: string | null | undefined) {

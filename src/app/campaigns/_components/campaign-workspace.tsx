@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 
+import { MetricStrip } from "@/app/_components/workspace";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
 import { ApprovalsTab } from "./approvals-tab";
 import { AudienceLeadsTab } from "./audience-leads-tab";
+import { CampaignHeader } from "./campaign-header";
 import { CreativeTab } from "./creative-tab";
 import { MarkRail } from "./mark-rail";
 import { OverviewTab } from "./overview-tab";
 import { ReasoningTab } from "./reasoning-tab";
-import { SlimHeader } from "./slim-header";
-import { statusTone } from "./status-tone";
 
 type TabKey = "creative" | "overview" | "audience" | "reasoning" | "approvals";
 
@@ -35,7 +35,16 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
 
   return (
     <>
-      <SlimHeader title={campaign.name} status={campaign.status} statusTone={statusTone(campaign.status)} backHref="/campaigns" />
+      <CampaignHeader campaign={campaign} />
+
+      <MetricStrip
+        metrics={[
+          { label: "Assets", value: metrics.assets, detail: "Creative + copy", tone: metrics.assets > 0 ? "blue" : "gray" },
+          { label: "Approvals", value: metrics.approvals, detail: "Human-gate records", tone: metrics.approvals > 0 ? "amber" : "green" },
+          { label: "Media", value: metrics.media, detail: "Images, video, files", tone: metrics.media > 0 ? "blue" : "gray" },
+          { label: "Sources", value: metrics.sources, detail: "Leads & evidence", tone: metrics.sources > 0 ? "blue" : "gray" },
+        ]}
+      />
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0">
