@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed:hermes-demo": "node scripts/seed-hermes-demo.mjs",
+    "seed:test-campaign": "node scripts/seed-test-campaign.mjs",
     "test": "vitest run"
   },
   "dependencies": {
