@@ -1,3 +1,9 @@
+import { crmObjects, personaDisplay } from "@/app/_data/growth-engine";
+import { OFFICIAL_PERSONA_MAPPINGS, type OfficialPersonaMapping } from "@/domain";
+
+import { seedVaultNotes } from "./seed-notes";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+
 export type StatusTone = "amber" | "green" | "red" | "gray" | "blue" | "dark";
 
 export type MarkActivity = {
@@ -77,9 +83,6 @@ export function toMarkActivity(
   };
 }
 
-import { seedVaultNotes } from "./seed-notes";
-import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
-
 const NOT_CONFIGURED = "Supabase is not configured — Mark activity is offline. Showing static counts.";
 
 export type VaultLiveSignals =
@@ -135,9 +138,6 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
     };
   }
 }
-
-import { crmObjects, personaDisplay } from "@/app/_data/growth-engine";
-import { OFFICIAL_PERSONA_MAPPINGS, type OfficialPersonaMapping } from "@/domain";
 
 export type RecordSignal = {
   target: string;
