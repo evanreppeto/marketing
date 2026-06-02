@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { ApprovalInbox, type InboxItem } from "./_components/approval-inbox";
 import { IntelligenceLinkList, IntelligencePanel } from "./_components/intelligence-panel";
 import { EmptyState, StatusPill, buttonClasses } from "./_components/page-header";
 import { MetricStrip, WorkspacePanel } from "./_components/workspace";
@@ -35,6 +36,14 @@ export default async function TodayPage() {
     .filter((row) => row.score >= 60 && row.missingTags.length === 0 && (row.objectType === "lead" || row.objectType === "partner"))
     .slice(0, 4);
   const totalWaiting = (liveCounts?.approvalsWaiting ?? 0) + (liveCounts?.leadsAwaitingReview ?? 0) + (liveCounts?.agentTasksOpen ?? 0);
+
+  const inboxItems: InboxItem[] = approvals.map((card) => ({
+    id: card.id,
+    title: card.title,
+    persona: card.persona,
+    riskLevel: card.riskLevel,
+    campaignId: card.campaign.id,
+  }));
 
   return (
     <>
@@ -94,12 +103,19 @@ export default async function TodayPage() {
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
         <div className="min-w-0 space-y-5">
           <WorkspacePanel
+            eyebrow="Decide next"
+            title="Needs your approval"
+            description="Low and medium risk can be decided here; high or blocked items open the campaign so you see the full draft first. Outbound stays locked."
+          >
+            <ApprovalInbox items={inboxItems} />
+          </WorkspacePanel>
+
+          <WorkspacePanel
             eyebrow="Prioritized opportunities"
             title="Needs attention now"
             description="The queue is split by what an operator can safely decide next. Mark can prepare and revise; outbound stays locked."
           >
             <div className="grid gap-3 p-4 lg:grid-cols-3">
-              <OpportunityBucket title="Waiting on approval" count={approvals.length} href="/approvals" tone="amber" detail="Generated work needs a human decision." />
               <OpportunityBucket title="High-value urgent" count={highValueRows.length} href="/crm" tone="green" detail="Lead, partner, or job records scoring 75+." />
               <OpportunityBucket title="Needs enrichment" count={enrichmentRows.length} href="/crm" tone="blue" detail="Useful records with missing confidence or context." />
               <OpportunityBucket title="Best partner opportunities" count={bestPartnerRows.length} href="/partners" tone="green" detail="Partner records with stronger review scores." />
