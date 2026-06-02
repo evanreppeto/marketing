@@ -46,7 +46,7 @@ export default async function HomePage() {
           { label: "Needs approval", value: <CountUp value={approvalsWaiting} />, detail: "Human decisions waiting", tone: approvalsWaiting > 0 ? "amber" : "green", href: "/approvals" },
           { label: "Lead review", value: <CountUp value={leadsAwaitingReview} />, detail: "CRM items to qualify", tone: leadsAwaitingReview > 0 ? "blue" : "gray", href: "/crm/leads" },
           { label: "Open Mark tasks", value: <CountUp value={agentTasksOpen} />, detail: "Queued, running, blocked", tone: agentTasksOpen > 0 ? "amber" : "green", href: "/agent-operations" },
-          { label: "Campaign drafts", value: <CountUp value={campaignsDrafted} />, detail: "Ideas or assets not yet live", tone: campaignsDrafted > 0 ? "blue" : "gray", href: "/approvals" },
+          { label: "Campaign drafts", value: <CountUp value={campaignsDrafted} />, detail: "Ideas or assets not yet live", tone: campaignsDrafted > 0 ? "blue" : "gray", href: "/campaigns" },
         ]}
       />
 
@@ -136,6 +136,7 @@ export default async function HomePage() {
             <div className="grid gap-2 p-4">
               {[
                 ["Review", "Approve campaigns, ads, lead lists, and copy.", "/approvals"],
+                ["Campaigns", "Open Mark's campaign workspaces and media.", "/campaigns"],
                 ["CRM", "Leads, companies, contacts, jobs, and outcomes.", "/crm"],
                 ["Personas", "Messaging, revenue fit, and guardrails.", "/persona-intelligence"],
                 ["Settings", "Approval rules, scoring, integrations, and safety.", "/settings"],

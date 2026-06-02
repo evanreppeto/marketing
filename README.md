@@ -24,6 +24,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 To require sign-in for the human-facing app, set `OPERATOR_ACCESS_TOKEN`, `OPERATOR_EMAIL`, and `OPERATOR_PASSWORD` in `.env.local`.
 The app redirects page routes to `/login`, then creates a cookie session after the email and password match.
+Set `OPERATOR_SUPPORT_EMAIL` if the forgot-password screen should send reset requests somewhere other than the operator email.
 API routes keep using their separate bearer tokens.
 
 ## Verification

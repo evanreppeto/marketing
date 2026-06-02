@@ -10,6 +10,7 @@ import { SideNav, type ShellNavItem } from "./side-nav";
 const navItems: ShellNavItem[] = [
   { label: "Today", href: "/", iconSrc: "/brand/nav-icons/today-icon.png", matches: ["/"] },
   { label: "Review", href: "/approvals", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/approvals"] },
+  { label: "Campaigns", href: "/campaigns", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/campaigns"] },
   { label: "CRM", href: "/crm", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/crm", "/lead-ingestion", "/loss-routing"] },
   {
     label: "Personas",
@@ -18,6 +19,7 @@ const navItems: ShellNavItem[] = [
     matches: ["/persona-intelligence", "/customer-types"],
   },
   { label: "Mark", href: "/agent-operations", iconSrc: "/brand/nav-icons/mark-icon.png", matches: ["/agent-operations", "/ai-studio"] },
+  { label: "Vault", href: "/vault", iconSrc: "/brand/nav-icons/vault-icon.png", matches: ["/vault"] },
   {
     label: "Settings",
     href: "/settings",
@@ -36,7 +38,7 @@ const navItems: ShellNavItem[] = [
 export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
 
-  if (pathname === "/login" || pathname === "/sign-in") {
+  if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
     return <>{children}</>;
   }
 
