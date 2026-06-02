@@ -34,6 +34,7 @@ that will build on the same "agent findings intake" foundation.
 - Feeding competitor intel into the campaign draft engine (the link is stored, but
   consumption is out of scope).
 - Auto-publishing notes, scheduled/recurring scrapes, dashboards/charts.
+- Seeded "Competitor Intel SOP" vault note (deferred to a later iteration).
 - A new auth token (we reuse `HERMES_AGENT_API_TOKEN`).
 - Any outbound action — this feature is read-only intel and never triggers outbound.
 
@@ -177,9 +178,9 @@ folder `Competitor Intel`, `author='Mark'`, `status='needs_review'`.
   **exact POST endpoint + payload shape**. Includes a ToS caution for SimilarWeb:
   prefer spot-checks, respect rate limits / robots, and treat output as `needs_review`.
   This is the "prompt" that steers Mark.
-- **Optional seeded vault note** ("Competitor Intel SOP"): durable domain context —
-  target competitors, priority ZIPs, and what "good signal" looks like — so Mark has
-  reference material beyond the procedure.
+- **Deferred — seeded vault note** ("Competitor Intel SOP"): durable domain context
+  (target competitors, priority ZIPs, what "good signal" looks like). Deferred to a
+  later iteration; not built in v1.
 
 Skill authoring will follow the `writing-skills` skill when we get to implementation.
 
@@ -206,5 +207,4 @@ Skill authoring will follow the `writing-skills` skill when we get to implementa
 
 - Exact placement + visual treatment of the Competitor Intel panel within
   agent-operations (resolve during implementation against `DESIGN.md`).
-- Whether to seed the "Competitor Intel SOP" vault note in v1 or defer.
 - Lead discovery sub-project: separate spec after this ships.
