@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getPersistedPersonaIntelligenceForRecord } from "@/lib/persona-intelligence/read-model";
-
 import { AppShell } from "../../_components/app-shell";
-import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill } from "../../_components/page-header";
-import { crmObjects } from "../../_data/growth-engine";
+import { IntelligencePanel } from "../../_components/intelligence-panel";
+import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "../../_components/page-header";
 import { CrmRecordForm } from "./crm-record-form";
 import { isCrmEntityKey } from "../entity-keys";
+import { getCrmRecordData, type CrmObjectKey, type CrmRecordData } from "@/lib/crm/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 const RECORD_FEEDBACK = ["created", "updated", "crm-error", "not-configured"];
 
-type CrmObjectKey = (typeof crmObjects)[number]["key"];
 type CrmRecordPageProps = {
   action?: string;
   objectKey: CrmObjectKey;
@@ -47,15 +45,15 @@ const actionCards = [
   {
     key: "convert",
     label: "Convert to job",
-    detail: "Create an operations handoff only after the lead is qualified.",
+    detail: "Create an operations handoff only after qualification.",
     state: "Locked",
     tone: "red",
     icon: "J",
   },
   {
     key: "approve",
-    label: "Approve message",
-    detail: "Use the approval queue for outbound copy decisions.",
+    label: "Approval queue",
+    detail: "Outbound copy decisions belong in the approval queue.",
     state: "Use approvals",
     tone: "green",
     icon: "A",
@@ -70,85 +68,57 @@ const actionCards = [
   },
 ] as const;
 
-const objectRelationships: Record<CrmObjectKey, Array<{ label: string; value: string; href: string }>> = {
-  companies: [
-    { label: "Primary contact", value: "Emilia Davi", href: "/crm/contacts/emilia-davi" },
-    { label: "Open leads", value: "Needs live link", href: "/crm/leads" },
-    { label: "Revenue attribution", value: "Needs live attribution", href: "/crm/outcomes/18420-closed" },
-  ],
-  contacts: [
-    { label: "Company", value: "North Branch Insurance", href: "/crm/companies/north-branch-insurance" },
-    { label: "Latest lead", value: "Basement flooding", href: "/crm/leads/basement-flooding" },
-    { label: "Property", value: "1234 W Addison St", href: "/crm/properties/1234-w-addison-st" },
-  ],
-  properties: [
-    { label: "Owner/contact", value: "Marlene Vega", href: "/crm/contacts/marlene-vega" },
-    { label: "Latest lead", value: "Basement flooding", href: "/crm/leads/basement-flooding" },
-    { label: "Active job", value: "J-2044 Basement mitigation", href: "/crm/jobs/j-2044-basement-mitigation" },
-  ],
-  leads: [
-    { label: "Contact", value: "Marlene Vega", href: "/crm/contacts/marlene-vega" },
-    { label: "Property", value: "1234 W Addison St", href: "/crm/properties/1234-w-addison-st" },
-    { label: "Potential job", value: "J-2044 Basement mitigation", href: "/crm/jobs/j-2044-basement-mitigation" },
-  ],
-  jobs: [
-    { label: "Origin lead", value: "Basement flooding", href: "/crm/leads/basement-flooding" },
-    { label: "Property", value: "1234 W Addison St", href: "/crm/properties/1234-w-addison-st" },
-    { label: "Outcome", value: "$18,420 closed", href: "/crm/outcomes/18420-closed" },
-  ],
-  outcomes: [
-    { label: "Source company", value: "North Branch Insurance", href: "/crm/companies/north-branch-insurance" },
-    { label: "Origin lead", value: "Basement flooding", href: "/crm/leads/basement-flooding" },
-    { label: "Completed job", value: "J-2044 Basement mitigation", href: "/crm/jobs/j-2044-basement-mitigation" },
-  ],
-};
-
 export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProps) {
-  const crmObject = crmObjects.find((object) => object.key === objectKey);
-
-  if (!crmObject || !isUuid(recordId)) {
+  if (!isUuid(recordId)) {
     notFound();
   }
 
-  const record = {
-    id: recordId,
-    name: `${crmObject.label} record ${recordId.slice(0, 8)}`,
-    detail: "Persisted Supabase record",
-    status: "Active",
-    owner: "Supabase",
-    updated: "Live",
-  };
+  const recordResult = await getCrmRecordData(objectKey, recordId);
+
+  if (recordResult.status === "not_found") {
+    notFound();
+  }
+
+  if (recordResult.status === "unavailable") {
+    return (
+      <AppShell active="/crm">
+        <PageHeader eyebrow="CRM record" title="Record unavailable" description={recordResult.message} />
+        <EmptyState title="Could not load this record" detail="The CRM database connection or table query failed." />
+      </AppShell>
+    );
+  }
+
+  const record = recordResult;
   const actionMessage = action
     ? `"${actionLabels[action] ?? action}" is not connected to a write workflow yet.`
-    : "Record write actions stay locked until the Mark workflow API is finished.";
+    : "Record write actions stay locked until a human-approved workflow is available.";
   const showEditForm = action === "edit" && isCrmEntityKey(objectKey);
   const feedbackAction = RECORD_FEEDBACK.includes(action ?? "") ? action : undefined;
   let editValues: Record<string, unknown> | undefined;
-  if (showEditForm && isCrmEntityKey(objectKey) && isSupabaseAdminConfigured()) {
+
+  if (showEditForm && isSupabaseAdminConfigured()) {
     const { data } = await getSupabaseAdminClient().from(objectKey).select("*").eq("id", recordId).maybeSingle();
     editValues = (data as Record<string, unknown> | null) ?? undefined;
   }
 
-  const persistedPersonaIntelligence = await getPersistedPersonaIntelligenceForRecord(record.id);
-  const personaSnapshot = persistedPersonaIntelligence.snapshot;
-  const engagementEvents =
-    persistedPersonaIntelligence.status === "live" ? persistedPersonaIntelligence.engagementEvents : [];
-  const nextBestActions =
-    persistedPersonaIntelligence.status === "live" ? persistedPersonaIntelligence.nextBestActions : [];
-
   return (
     <AppShell active="/crm">
       <PageHeader
-        eyebrow={`${crmObject.label} Record`}
+        eyebrow={`${record.label} record`}
         title={record.name}
         description={record.detail}
-        aside={<StatusPill tone={statusTone(record.status)}>{record.status}</StatusPill>}
+        aside={
+          <div className="flex flex-wrap gap-2">
+            <StatusPill tone={statusTone(record.lifecycleStatus)}>{record.lifecycleStatus}</StatusPill>
+            <StatusPill tone="amber">Outbound locked</StatusPill>
+          </div>
+        }
       />
 
       <ActionFeedback
         action={feedbackAction}
         messages={{
-          created: `${crmObject.label} record created.`,
+          created: `${record.label} record created.`,
           updated: "Changes saved.",
           "crm-error": "That change could not be saved. Check the fields and try again.",
           "not-configured": "Supabase is not connected, so nothing was written.",
@@ -161,202 +131,40 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
         </div>
       ) : null}
 
-      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.25fr)_minmax(340px,0.78fr)]">
-        <Panel className="module-rise [animation-delay:70ms]">
-          <div className="signal-eyebrow">Record summary</div>
-          <div className="mt-5 rounded-md border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5">
-            <div className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">{record.id}</div>
-            <div className="mt-3 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</div>
-            <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{record.detail}</p>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {[
-              ["Owner", record.owner],
-              ["Updated", record.updated],
-              ["Object", crmObject.label],
-              ["Mode", isUuid(record.id) ? "Supabase record" : "Legacy local record"],
-            ].map(([label, value]) => (
-              <div className="signal-inset rounded-md border p-4" key={label}>
-                <div className="text-sm text-[var(--text-muted)]">{label}</div>
-                <div className="mt-2 font-semibold text-[var(--text-primary)]">{value}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            {isCrmEntityKey(objectKey) ? (
-              <Link
-                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] active:-translate-y-px"
-                href={`${crmObject.href}/${recordId}?action=edit`}
-              >
-                Edit details
-              </Link>
-            ) : null}
-            <Link
-              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] active:-translate-y-px"
-              href={crmObject.href}
-            >
-              Back to {crmObject.label}
-            </Link>
-          </div>
-        </Panel>
-
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise p-0 [animation-delay:120ms]">
-            <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Persona snapshot</h2>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Living profile context that should drive message and action choices.</p>
-                </div>
-                {personaSnapshot ? <StatusPill tone="blue">{personaSnapshot.confidence}</StatusPill> : null}
-              </div>
-              <div className="signal-inset mt-3 rounded-md border px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
-                {persistedPersonaIntelligence.message}
-              </div>
-            </div>
-            {personaSnapshot ? (
-              <div className="grid border-b border-[var(--border-hairline)] lg:grid-cols-[0.9fr_1.1fr]">
-                <div className="border-b border-[var(--border-hairline)] p-5 lg:border-b-0 lg:border-r">
-                  <div className="signal-eyebrow">
-                    {personaSnapshot.basePersona}
-                  </div>
-                  <div className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
-                    {personaSnapshot.nextBestAction}
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{personaSnapshot.messagePosture}</p>
-                </div>
-                <div className="grid sm:grid-cols-2">
-                  {[
-                    ["Relationship", personaSnapshot.relationshipStage],
-                    ["Value tier", personaSnapshot.valueTier],
-                    ["Loss pattern", personaSnapshot.dominantLossPattern],
-                    ["Channel", personaSnapshot.preferredChannel],
-                  ].map(([label, value]) => (
-                    <div className="min-w-0 border-b border-[var(--border-hairline)] p-4 even:sm:border-l sm:[&:nth-last-child(-n+2)]:border-b-0" key={label}>
-                      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-                      <div className="token-value mt-1 font-semibold text-[var(--text-primary)]">{value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="border-b border-[var(--border-hairline)] p-5">
-                <EmptyState
-                  title="No persona snapshot"
-                  detail="This record does not have a live persona snapshot yet. Mark can create one through a queued persona classification task."
-                />
-              </div>
-            )}
-            <div className="grid gap-2 p-5 sm:grid-cols-2">
-              <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] active:-translate-y-px"
-                href="/persona-intelligence"
-              >
-                Open persona intelligence
-              </Link>
-              <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-md bg-[var(--accent)] px-4 text-sm font-semibold text-[oklch(0.18_0.03_248)] transition hover:bg-[var(--accent-strong)] active:-translate-y-px"
-                href="/ai-studio?action=generate-asset"
-              >
-                Create approved asset
-              </Link>
-            </div>
-          </Panel>
-
-          <Panel className="module-rise p-0 [animation-delay:150ms]">
-            <div className="border-b border-[var(--border-hairline)] px-5 py-5">
-              <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Engagement timeline</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">Events that feed the profile and future next-best-action engine.</p>
-            </div>
-            <div className="divide-y divide-[var(--border-hairline)]">
-              {engagementEvents.length > 0 ? engagementEvents.map((item) => (
-                <div className="grid gap-4 px-5 py-5 md:grid-cols-[120px_1fr]" key={`${item.event}-${item.time}`}>
-                  <div className="font-mono text-sm font-semibold text-[var(--text-muted)]">{item.time}</div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-semibold text-[var(--text-primary)]">{item.event}</div>
-                      <StatusPill tone="blue">{item.channel}</StatusPill>
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{item.detail}</p>
-                  </div>
-                </div>
-              )) : (
-                <div className="p-5">
-                  <EmptyState title="No engagement events" detail="Live calls, emails, notes, and agent actions will appear here once they are written to Supabase." />
-                </div>
-              )}
-            </div>
-          </Panel>
+      <div className="grid min-w-0 items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 space-y-5">
+          <RecordSummary record={record} />
+          <RecordFields record={record} />
+          <RelatedRecords record={record} />
         </div>
 
-        <div className="min-w-0 space-y-4">
-          <Panel className="module-rise [animation-delay:170ms]">
-            <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Related records</h2>
-            <div className="mt-5 space-y-3">
-              {objectRelationships[objectKey].map((relationship) => (
-                <Link
-                  className="block rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] active:-translate-y-px"
-                  href={relationship.href}
-                  key={relationship.label}
-                >
-                  <div className="text-sm text-[var(--text-muted)]">{relationship.label}</div>
-                  <div className="mt-2 font-semibold text-[var(--text-primary)]">{relationship.value}</div>
-                </Link>
-              ))}
-            </div>
-          </Panel>
+        <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
+          <IntelligencePanel
+            model={{
+              title: `${record.label} intelligence`,
+              persona: record.persona,
+              confidence: record.confidence,
+              journeyStage: record.journeyStage,
+              urgency: record.urgency,
+              attentionReason: record.attentionReason,
+              nextBestAction: record.nextBestAction,
+              cta: record.cta,
+              messageAngle: record.messageAngle,
+              guardrailStatus: record.guardrailStatus,
+              scores: [
+                { label: "Lead", value: record.leadScore, detail: "Lead score", tone: record.leadScore === null ? "gray" : undefined },
+                { label: "Partner", value: record.partnerScore, detail: "Partner fit", tone: record.partnerScore === null ? "gray" : undefined },
+                { label: "Revenue", value: record.revenueScore, detail: "Revenue signal", tone: record.revenueScore ? "green" : "gray" },
+              ],
+              proofPoints: record.proofPoints,
+              evidence: record.evidence,
+              outboundLocked: true,
+            }}
+          />
 
-          <Panel className="module-rise [animation-delay:220ms]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Next Best Actions</h2>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  Record tools are staged here, but write actions stay disabled until the Mark workflow API is finished.
-                </p>
-              </div>
-              <StatusPill tone="amber">Locked</StatusPill>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{actionMessage}</p>
-            <div className="mt-5 grid gap-3">
-              {nextBestActions.length > 0 ? nextBestActions.map((item) => (
-                <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={item.action}>
-                  <div className="font-semibold text-[var(--text-primary)]">{item.action}</div>
-                  <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{item.reason}</p>
-                  <div className="mt-2 text-xs font-semibold text-[var(--accent)]">{item.approval}</div>
-                </div>
-              )) : (
-                <EmptyState title="No next best actions" detail="Live recommendations will appear here after Mark writes them for this record." />
-              )}
-            </div>
-            <div className="mt-5 grid gap-2 border-t border-[var(--border-hairline)] pt-5">
-              {actionCards.map((item) => (
-                <Link
-                  aria-disabled="true"
-                  className={`grid min-h-[76px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-md border px-3 py-3 text-left transition active:-translate-y-px ${
-                    action === item.key
-                      ? actionCardActiveClass(item.tone)
-                      : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] hover:border-[var(--border-strong)]"
-                  }`}
-                  href={`${crmObject.href}/${record.id}?action=${item.key}`}
-                  key={item.key}
-                >
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-md border text-sm font-bold ${actionIconClass(item.tone)}`}>
-                    {item.icon}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">{item.label}</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-[var(--text-secondary)]">{item.detail}</span>
-                  </span>
-                  <StatusPill tone={item.tone === "red" ? "red" : item.tone === "green" ? "green" : item.tone === "blue" ? "blue" : "gray"}>
-                    {item.state}
-                  </StatusPill>
-                </Link>
-              ))}
-            </div>
-          </Panel>
-        </div>
+          <MissingFields record={record} />
+          <NextActions record={record} action={action} actionMessage={actionMessage} />
+        </aside>
       </div>
     </AppShell>
   );
@@ -367,15 +175,167 @@ export function getCrmRecordParams(objectKey: CrmObjectKey) {
   return [];
 }
 
+function RecordSummary({ record }: { record: CrmRecordData }) {
+  return (
+    <Panel className="module-rise">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="signal-eyebrow">Record summary</div>
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</h2>
+          <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{record.detail}</p>
+        </div>
+        <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/crm/${record.key}`}>
+          Back to {record.label}
+        </Link>
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Owner", record.owner],
+          ["Updated", formatDate(record.updated)],
+          ["Object", record.label],
+          ["Record id", record.id],
+        ].map(([label, value]) => (
+          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={label}>
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+            <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{value}</div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function RecordFields({ record }: { record: CrmRecordData }) {
+  return (
+    <Panel className="module-rise p-0">
+      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
+        <div className="signal-eyebrow">Stored fields</div>
+        <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">What the database knows</h2>
+      </div>
+      <dl className="divide-y divide-[var(--border-hairline)]">
+        {record.fields.map((field) => (
+          <div key={field.label} className="grid gap-3 px-5 py-3 sm:grid-cols-[180px_minmax(0,1fr)]">
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{field.label}</dt>
+            <dd className={`min-w-0 text-sm font-semibold leading-6 ${field.value === "Missing" ? "text-[var(--warn)]" : "text-[var(--text-primary)]"}`}>
+              {field.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </Panel>
+  );
+}
+
+function RelatedRecords({ record }: { record: CrmRecordData }) {
+  return (
+    <Panel className="module-rise">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="signal-eyebrow">Relationships</div>
+          <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Connected CRM records</h2>
+        </div>
+        <StatusPill tone={record.relationships.length > 0 ? "blue" : "gray"}>{record.relationships.length}</StatusPill>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {record.relationships.length > 0 ? (
+          record.relationships.map((relationship) => (
+            <Link
+              className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
+              href={relationship.href}
+              key={`${relationship.label}-${relationship.href}`}
+            >
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{relationship.label}</div>
+              <div className="mt-1 font-bold text-[var(--text-primary)]">{relationship.value}</div>
+            </Link>
+          ))
+        ) : (
+          <EmptyState title="No relationships linked" detail="This record needs relationship mapping before Mark can use it confidently." />
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function MissingFields({ record }: { record: CrmRecordData }) {
+  return (
+    <Panel className="module-rise">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="signal-eyebrow">Data contract</div>
+          <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Missing fields</h2>
+        </div>
+        <StatusPill tone={record.missingFields.length > 0 ? "amber" : "green"}>
+          {record.missingFields.length > 0 ? "Needs enrichment" : "Ready"}
+        </StatusPill>
+      </div>
+      <div className="mt-4 grid gap-2">
+        {record.missingFields.length > 0 ? (
+          record.missingFields.map((field) => (
+            <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)]" key={field}>
+              {field}
+            </div>
+          ))
+        ) : (
+          <p className="text-sm leading-6 text-[var(--text-secondary)]">No obvious required fields are missing for this record type.</p>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function NextActions({
+  record,
+  action,
+  actionMessage,
+}: {
+  record: CrmRecordData;
+  action?: string;
+  actionMessage: string;
+}) {
+  return (
+    <Panel className="module-rise">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="signal-eyebrow">Human gate</div>
+          <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Locked record tools</h2>
+        </div>
+        <StatusPill tone="amber">Locked</StatusPill>
+      </div>
+      <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{actionMessage}</p>
+      <div className="mt-4 grid gap-3">
+        {actionCards.map((item) => (
+          <Link
+            aria-disabled="true"
+            className={`grid min-h-[76px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-lg border px-3 py-3 text-left transition active:-translate-y-px ${
+              action === item.key
+                ? actionCardActiveClass(item.tone)
+                : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] hover:border-[var(--border-strong)]"
+            }`}
+            href={`/crm/${record.key}/${record.id}?action=${item.key}`}
+            key={item.key}
+          >
+            <span className={`flex h-10 w-10 items-center justify-center rounded-md border text-sm font-bold ${actionIconClass(item.tone)}`}>
+              {item.icon}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">{item.label}</span>
+              <span className="mt-0.5 block text-xs leading-5 text-[var(--text-secondary)]">{item.detail}</span>
+            </span>
+            <StatusPill tone={item.tone === "red" ? "red" : item.tone === "green" ? "green" : item.tone === "blue" ? "blue" : "gray"}>
+              {item.state}
+            </StatusPill>
+          </Link>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 function statusTone(status: string): "amber" | "green" | "red" {
-  if (["Active", "Ready", "Won", "High priority"].includes(status)) {
-    return "green";
-  }
-
-  if (["Out of scope", "Fix"].includes(status)) {
-    return "red";
-  }
-
+  const lower = status.toLowerCase();
+  if (["active", "ready", "won", "high priority", "qualified", "converted", "completed"].includes(lower)) return "green";
+  if (["out of scope", "lost", "inactive", "do not contact", "do_not_contact"].includes(lower)) return "red";
   return "amber";
 }
 
@@ -391,6 +351,12 @@ function actionCardActiveClass(tone: string) {
   if (tone === "green") return "border-[oklch(0.78_0.14_158/0.5)] bg-[oklch(0.78_0.14_158/0.12)] text-[var(--text-primary)]";
   if (tone === "blue") return "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--accent-soft)] text-[var(--text-primary)]";
   return "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]";
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 function isUuid(value: string) {

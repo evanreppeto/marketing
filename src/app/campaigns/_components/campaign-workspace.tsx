@@ -8,29 +8,31 @@ import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import { ApprovalsTab } from "./approvals-tab";
 import { AudienceLeadsTab } from "./audience-leads-tab";
 import { CampaignHeader } from "./campaign-header";
+import { CampaignMediaBoard } from "./campaign-media-board";
+import { CampaignPackagePanel } from "./campaign-package-panel";
 import { CreativeTab } from "./creative-tab";
-import { DecisionControls } from "./decision-controls";
 import { MarkRail } from "./mark-rail";
 import { OverviewTab } from "./overview-tab";
 import { ReasoningTab } from "./reasoning-tab";
 
-type TabKey = "creative" | "overview" | "audience" | "reasoning" | "approvals";
+type TabKey = "creative" | "media" | "overview" | "audience" | "reasoning" | "approvals";
 
 function isDecided(status: string) {
   return /approved|declined|archived|rejected/i.test(status);
 }
 
 export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace }) {
-  const { campaign, groupedAssets, assets, sources, reasoning, approvals, metrics } = detail;
+  const { campaign, groupedAssets, assets, media, sources, reasoning, approvals, metrics, activity, events } = detail;
   const [activeTab, setActiveTab] = useState<TabKey>("creative");
   const [targetAssetId, setTargetAssetId] = useState<string | null>(assets[0]?.id ?? null);
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
-    { key: "creative", label: "Creative", count: assets.length },
-    { key: "overview", label: "Overview" },
-    { key: "audience", label: "Audience & Leads", count: metrics.sources },
-    { key: "reasoning", label: "Reasoning" },
-    { key: "approvals", label: "Approvals", count: approvals.length },
+    { key: "creative", label: "Deliverables", count: assets.length },
+    { key: "media", label: "Media", count: media.length },
+    { key: "overview", label: "Brief" },
+    { key: "audience", label: "Targets & sources", count: metrics.sources },
+    { key: "reasoning", label: "Mark notes", count: activity.length + events.length },
+    { key: "approvals", label: "Approval gate", count: approvals.length },
   ];
 
   const pendingApproval = approvals.find((approval) => !isDecided(approval.status)) ?? null;
@@ -44,6 +46,8 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
     <>
       <CampaignHeader campaign={campaign} />
 
+      <CampaignPackagePanel detail={detail} pendingApproval={pendingApproval} onOpenTab={setActiveTab} onPickAsset={pickAsset} />
+
       <MetricStrip
         metrics={[
           { label: "Assets", value: metrics.assets, detail: "Creative + copy", tone: metrics.assets > 0 ? "blue" : "gray" },
@@ -52,18 +56,6 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
           { label: "Sources", value: metrics.sources, detail: "Leads & evidence", tone: metrics.sources > 0 ? "blue" : "gray" },
         ]}
       />
-
-      {pendingApproval ? (
-        <div className="module-rise mb-5 flex flex-col gap-3 rounded-xl border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.1)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="text-sm font-bold text-[var(--text-primary)]">This campaign is awaiting your decision</div>
-            <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
-              {pendingApproval.title} · risk {pendingApproval.riskLevel}. Approving marks it ready — outbound stays locked.
-            </p>
-          </div>
-          <DecisionControls approvalItemId={pendingApproval.id} campaignId={campaign.id} size="md" />
-        </div>
-      ) : null}
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0">
@@ -94,9 +86,10 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
 
           <div role="tabpanel">
             {activeTab === "creative" ? <CreativeTab groups={groupedAssets} targetAssetId={targetAssetId} onPickAsset={pickAsset} /> : null}
+            {activeTab === "media" ? <CampaignMediaBoard media={media} /> : null}
             {activeTab === "overview" ? <OverviewTab campaign={campaign} metrics={metrics} /> : null}
             {activeTab === "audience" ? <AudienceLeadsTab sources={sources} /> : null}
-            {activeTab === "reasoning" ? <ReasoningTab reasoning={reasoning} /> : null}
+            {activeTab === "reasoning" ? <ReasoningTab reasoning={reasoning} activity={activity} events={events} /> : null}
             {activeTab === "approvals" ? <ApprovalsTab approvals={approvals} campaignId={campaign.id} /> : null}
           </div>
         </div>

@@ -7,10 +7,18 @@ import { usePathname } from "next/navigation";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 
-// Frontend reset: rebuilding one tab at a time. Campaigns is the first (and
-// currently only) surface back online. Re-add entries here as routes return.
 const navItems: ShellNavItem[] = [
+  { label: "Today", href: "/", iconSrc: "/brand/nav-icons/today-icon.png", matches: ["/"], exact: true },
+  { label: "Review", href: "/approvals", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/approvals"] },
+  { label: "CRM Home", href: "/crm", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/crm"], exact: true },
+  { label: "Companies", href: "/crm/companies", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/crm/companies"] },
+  { label: "Contacts", href: "/crm/contacts", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/crm/contacts"] },
+  { label: "Leads", href: "/crm/leads", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/crm/leads", "/lead-ingestion", "/loss-routing"] },
+  { label: "Partners", href: "/partners", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/partners"] },
   { label: "Campaigns", href: "/campaigns", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/campaigns"] },
+  { label: "Mark", href: "/agent-operations", iconSrc: "/brand/nav-icons/mark-icon.png", matches: ["/agent-operations"] },
+  { label: "Intelligence", href: "/reports", iconSrc: "/brand/nav-icons/personas-icon.png", matches: ["/reports", "/persona-intelligence"] },
+  { label: "Settings", href: "/settings", iconSrc: "/brand/nav-icons/settings-icon.png", matches: ["/settings", "/data-foundation"] },
 ];
 
 /**

@@ -4,7 +4,6 @@ import type { CampaignWorkspaceApproval } from "@/lib/campaigns/read-model";
 import { DecisionControls } from "./decision-controls";
 import { statusTone } from "./status-tone";
 
-/** An approval item is still actionable unless it's already been decided. */
 function isDecided(status: string) {
   return /approved|declined|archived|rejected/i.test(status);
 }
@@ -30,7 +29,7 @@ export function ApprovalsTab({ approvals, campaignId }: { approvals: CampaignWor
             <div className="min-w-0">
               <div className="truncate font-semibold text-[var(--text-primary)]">{approval.title}</div>
               <div className="mt-1 text-sm text-[var(--text-muted)]">
-                {approval.type} · risk {approval.riskLevel} · by {approval.requestedBy} · {approval.submittedAt}
+                {approval.type} / risk {approval.riskLevel} / by {approval.requestedBy} / {approval.submittedAt}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">

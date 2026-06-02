@@ -295,6 +295,66 @@ describe("listApprovalCards", () => {
     expect(supabase.calls).toContainEqual(["limit", 5]);
   });
 
+  it("turns generic structured draft JSON into readable approval sections", async () => {
+    const supabase = createSupabaseQueryMock({
+      approval_items: {
+        data: [
+          {
+            ...approvalItemRow,
+            campaign_asset_id: null,
+            company_id: null,
+            contact_id: null,
+            lead_id: null,
+            item_type: "ad",
+            draft_output: JSON.stringify({
+              headline: "Fast water-loss handoff",
+              primary_text: "When your team stops the source, BSR can help document mitigation and rebuild next steps.",
+              cta: "Become a Partner",
+              guardrail_note: "No coverage promise.",
+            }),
+          },
+        ],
+        error: null,
+      },
+      campaigns: {
+        data: [
+          {
+            id: approvalItemRow.campaign_id,
+            name: "Plumbing Partner Outreach Demo",
+            persona: "persona_plumbing_partner",
+            status: "pending_approval",
+            objective: "Create a referral relationship.",
+            audience_summary: "Chicago plumbing operators",
+            offer_summary: "Fast handoff",
+            compliance_notes: "Coverage-neutral.",
+          },
+        ],
+        error: null,
+      },
+      campaign_assets: { data: [], error: null },
+      companies: { data: [], error: null },
+      contacts: { data: [], error: null },
+      leads: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+    });
+
+    const cards = await listApprovalCards({}, supabase);
+
+    expect(cards[0].previewText).toBe("Fast water-loss handoff");
+    expect(cards[0].structuredDraft).toEqual(
+      expect.objectContaining({
+        kind: "structured_fields",
+        title: "Fast water-loss handoff",
+        summary: "Fast water-loss handoff",
+        sections: expect.arrayContaining([
+          { label: "Headline", value: "Fast water-loss handoff" },
+          { label: "Primary Text", value: "When your team stops the source, BSR can help document mitigation and rebuild next steps." },
+          { label: "Cta", value: "Become a Partner" },
+        ]),
+      }),
+    );
+  });
+
   it("throws when approval item lookup fails", async () => {
     const supabase = createSupabaseQueryMock({
       approval_items: { data: null, error: { message: "db down" } },

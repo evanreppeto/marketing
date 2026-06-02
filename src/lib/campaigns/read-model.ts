@@ -287,6 +287,8 @@ type LeadRow = {
   metadata: unknown;
 };
 
+const EMPTY_READABLE_PREVIEW = "No readable draft content has been attached yet.";
+
 export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise<CampaignWorkspaceList> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
@@ -438,7 +440,8 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
 }
 
 function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
-  const body = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
+  const rawBody = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
+  const readableBody = buildReadablePreview(rawBody, asset.prompt_inputs, asset.reasoning_payload);
   const media = collectMediaFromAsset(asset);
   return {
     id: asset.id,
@@ -447,8 +450,8 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     category: classifyAssetCategory(asset),
     channel: humanize(asset.channel ?? asset.asset_type),
     status: statusLabel(asset.status),
-    body,
-    preview: buildReadablePreview(body, asset.prompt_inputs, asset.reasoning_payload),
+    body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
+    preview: readableBody,
     complianceNotes: asset.compliance_notes ?? "No asset-level compliance notes captured.",
     dispatchLocked: asset.dispatch_locked,
     toolSource: getString(asset.tool_source),
@@ -799,7 +802,7 @@ function createMediaAsset(input: {
 function classifyMediaAsset(url: string, mimeType?: string | null, hintedType?: string): CampaignMediaAsset["type"] {
   const hint = `${mimeType ?? ""} ${hintedType ?? ""}`.toLowerCase();
   const lowerUrl = url.toLowerCase();
-  // ad / postcard / photo creative are visual — render them as images even
+  // ad / postcard / photo creative are visual; render them as images even
   // when the URL carries no file extension (e.g. dynamic image endpoints).
   if (/image|photo|postcard|\bad\b|mockup/.test(hint) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/.test(lowerUrl)) return "image";
   if (hint.includes("video") || /\.(mp4|webm|mov|m4v)(\?|#|$)/.test(lowerUrl)) return "video";
@@ -813,7 +816,7 @@ function buildReadablePreview(...values: unknown[]) {
     const preview = previewValue(value);
     if (preview) return preview;
   }
-  return "No readable draft content has been attached yet.";
+  return EMPTY_READABLE_PREVIEW;
 }
 
 function previewValue(value: unknown): string | null {
@@ -826,7 +829,7 @@ function previewValue(value: unknown): string | null {
     return trimmed;
   }
   if (Array.isArray(value)) {
-    return value.map(previewValue).filter(Boolean).slice(0, 4).join("\n");
+    return value.map((entry) => (isObject(entry) ? previewRecord(entry) : previewValue(entry))).filter(Boolean).slice(0, 6).join("\n\n");
   }
   if (!isObject(value)) {
     return String(value);
@@ -843,12 +846,70 @@ function previewValue(value: unknown): string | null {
     getString(value.suggested_owner_action);
   if (direct) return direct;
 
-  const entries = Object.entries(value)
+  const collection = Object.entries(value).find(([key, entry]) => isReadableCollectionKey(key) && Array.isArray(entry) && entry.length > 0);
+  if (collection) {
+    const [collectionKey, rawCollectionValue] = collection;
+    const collectionValue = Array.isArray(rawCollectionValue) ? rawCollectionValue : [];
+    const scalarIntro = readableScalarEntries(value)
+      .filter((entry) => !entry.startsWith(`${humanize(collectionKey)}:`))
+      .slice(0, 4);
+    const rows = collectionValue
+      .map((entry) => (isObject(entry) ? previewRecord(entry) : previewValue(entry)))
+      .filter(Boolean)
+      .slice(0, 8);
+
+    return [...scalarIntro, `${humanize(collectionKey)}:\n${rows.join("\n\n")}`].filter(Boolean).join("\n");
+  }
+
+  const entries = readableScalarEntries(value);
+
+  return entries.length > 0 ? entries.join("\n") : null;
+}
+
+function readableScalarEntries(value: JsonObject) {
+  return Object.entries(value)
     .filter(([key, entry]) => isReadableKey(key) && entry !== null && entry !== undefined && typeof entry !== "object")
     .slice(0, 6)
     .map(([key, entry]) => `${humanize(key)}: ${String(entry)}`);
+}
 
-  return entries.length > 0 ? entries.join("\n") : null;
+function previewRecord(value: JsonObject) {
+  const title =
+    getString(value.name) ??
+    getString(value.company_name) ??
+    getString(value.business_name) ??
+    getString(value.title) ??
+    getString(value.subject) ??
+    getString(value.headline) ??
+    "Record";
+
+  const fields: string[] = [];
+  for (const key of [
+    "score",
+    "partner_score",
+    "lead_score",
+    "channel",
+    "website",
+    "website_url",
+    "phone",
+    "email",
+    "confidence",
+    "status",
+    "recommended_action",
+    "notes",
+    "reason",
+    "fit",
+  ]) {
+    const valueForKey = value[key];
+    if (valueForKey !== null && valueForKey !== undefined && typeof valueForKey !== "object") {
+      fields.push(`${humanize(key)}: ${String(valueForKey)}`);
+    }
+  }
+
+  const urls = uniqueStrings(extractUrlsFromObject(value)).slice(0, 3);
+  if (urls.length > 0) fields.push(`Sources: ${urls.join(", ")}`);
+
+  return [title, ...fields].filter(Boolean).join("\n");
 }
 
 function parseDraftJson(value: string) {
@@ -931,6 +992,10 @@ function isReadableKey(key: string) {
   return !normalized.endsWith("_id") && !normalized.endsWith("_ids") && normalized !== "id" && !/payload|metadata|audit/.test(normalized);
 }
 
+function isReadableCollectionKey(key: string) {
+  return /candidate|lead|company|contact|asset|creative|deliverable|source|evidence|campaign|ad|email|sms|post|item/i.test(key);
+}
+
 function isCreativeCollectionKey(key: string) {
   return /^(media|media_assets|creative_assets|creatives|attachments|previews|files|generated_assets|ad_assets)$/i.test(key);
 }
@@ -957,7 +1022,7 @@ function pickPreview(assets: CampaignAssetRow[]): { text: string; label: string 
   for (const asset of assets) {
     const body = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
     const text = buildReadablePreview(body, asset.prompt_inputs, asset.reasoning_payload);
-    if (text && text !== "No readable draft content has been attached yet.") {
+    if (text && text !== EMPTY_READABLE_PREVIEW) {
       return { text: text.slice(0, 360), label: humanize(asset.channel ?? asset.asset_type) };
     }
   }

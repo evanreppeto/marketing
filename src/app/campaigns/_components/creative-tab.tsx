@@ -7,11 +7,11 @@ import { AssetPreview } from "./asset-preview";
 import { statusTone } from "./status-tone";
 
 const SECTIONS: Array<{ key: CampaignWorkspaceAssetCategory; title: string; detail: string }> = [
-  { key: "physical", title: "Physical", detail: "Postcards, mailers, leave-behinds, and call scripts." },
-  { key: "virtual", title: "Virtual", detail: "Email, SMS, landing pages, social, and sequences." },
-  { key: "ads", title: "Ads", detail: "Paid concepts and platform-ready ad drafts." },
-  { key: "media", title: "Media", detail: "Images, video, and generated creative." },
-  { key: "other", title: "Other", detail: "Supporting pieces." },
+  { key: "physical", title: "Physical campaign pieces", detail: "Postcards, mailers, leave-behinds, and call scripts." },
+  { key: "virtual", title: "Digital outreach", detail: "Email, SMS, landing pages, social, and sequences." },
+  { key: "ads", title: "Paid ads", detail: "Meta, Google, display, search, and platform-ready drafts." },
+  { key: "media", title: "Images and video", detail: "Generated visuals, videos, mockups, and creative references." },
+  { key: "other", title: "Supporting items", detail: "Research notes and supporting pieces." },
 ];
 
 export function CreativeTab({
@@ -28,7 +28,7 @@ export function CreativeTab({
   if (populated.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
-        Mark hasn&apos;t attached any creative to this campaign yet.
+        Mark has not attached any campaign deliverables yet.
       </p>
     );
   }
@@ -37,18 +37,21 @@ export function CreativeTab({
     <div className="space-y-6">
       {populated.map((section) => (
         <section key={section.key}>
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]">{section.title}</h3>
-            <span className="text-xs text-[var(--text-muted)]">{section.detail}</span>
+          <div className="mb-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h3 className="text-base font-black tracking-[-0.03em] text-[var(--text-primary)]">{section.title}</h3>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">{section.detail}</p>
+              </div>
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                {groups[section.key].length} item{groups[section.key].length === 1 ? "" : "s"}
+              </span>
+            </div>
           </div>
+
           <div className="grid gap-4 lg:grid-cols-2">
             {groups[section.key].map((asset) => (
-              <AssetCard
-                key={asset.id}
-                asset={asset}
-                isTarget={targetAssetId === asset.id}
-                onPick={() => onPickAsset(asset.id)}
-              />
+              <AssetCard key={asset.id} asset={asset} isTarget={targetAssetId === asset.id} onPick={() => onPickAsset(asset.id)} />
             ))}
           </div>
         </section>
@@ -67,7 +70,9 @@ function AssetCard({ asset, isTarget, onPick }: { asset: CampaignWorkspaceAsset;
       <div className="flex items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
         <div className="min-w-0">
           <div className="truncate font-bold text-[var(--text-primary)]">{asset.title}</div>
-          <div className="mt-0.5 text-xs text-[var(--text-muted)]">{asset.channel}</div>
+          <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+            {asset.channel} / {asset.assetType}
+          </div>
         </div>
         <StatusPill tone={statusTone(asset.status)}>{asset.status}</StatusPill>
       </div>
@@ -82,7 +87,7 @@ function AssetCard({ asset, isTarget, onPick }: { asset: CampaignWorkspaceAsset;
           {asset.dispatchLocked ? <StatusPill tone="gray">Outbound locked</StatusPill> : null}
         </span>
         <button type="button" onClick={onPick} className={buttonClasses({ variant: isTarget ? "primary" : "ghost", size: "sm" })}>
-          {isTarget ? "Targeted ✓" : "Ask Mark to revise"}
+          {isTarget ? "Selected" : "Ask Mark to revise"}
         </button>
       </div>
     </article>

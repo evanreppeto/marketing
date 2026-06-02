@@ -55,7 +55,7 @@ export async function requestRevisionAction(
 
   return {
     ok: true,
-    message: "Sent to Mark. The asset is now 'revision requested' — outbound stays locked.",
+    message: "Sent to Mark. The asset is now 'revision requested'; outbound stays locked.",
   };
 }
 

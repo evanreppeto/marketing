@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { IntelligencePanel } from "@/app/_components/intelligence-panel";
 import { Button } from "@/app/_components/page-header";
 
 import { requestRevisionAction } from "../actions";
@@ -31,23 +32,26 @@ export function MarkRail({
 
   return (
     <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
-      <section className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]">
-        <div className="flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-          <span className="font-display text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Mark</span>
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">Outbound locked</span>
-        </div>
-
-        <dl className="space-y-2.5 px-4 py-4 text-sm">
-          <Row label="Persona" value={context.persona} />
-          <Row label="Leads used" value={String(context.leadsCount)} />
-          <Row label="Tools" value={context.tools.length > 0 ? context.tools.join(", ") : "—"} />
-        </dl>
-
-        <div className="border-t border-[var(--border-hairline)] px-4 py-3">
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Why Mark built this</div>
-          <p className="mt-1.5 text-sm leading-6 text-[var(--text-secondary)]">{context.whyBuilt}</p>
-        </div>
-      </section>
+      <IntelligencePanel
+        model={{
+          title: "Campaign decision context",
+          persona: context.persona,
+          confidence: context.leadsCount > 0 ? "Evidence linked" : "Needs source records",
+          journeyStage: "Campaign review",
+          urgency: "Human gate",
+          attentionReason: context.whyBuilt,
+          nextBestAction: "Review the creative, source evidence, and guardrails before approving any next step.",
+          cta: "Trade partners: Become a Partner. Property managers: Request Vendor Packet. Homeowners: Call Now / Upload Photos.",
+          messageAngle: "Fast restoration handoff, mitigation documentation, and coverage-neutral next-step clarity.",
+          guardrailStatus: "Outbound locked. Mark can revise, but no send, publish, launch, or spend action is enabled here.",
+          scores: [
+            { label: "Leads", value: context.leadsCount, detail: "Linked audience records", tone: context.leadsCount > 0 ? "blue" : "gray" },
+            { label: "Tools", value: context.tools.length, detail: context.tools.length > 0 ? context.tools.join(", ") : "No tools recorded", tone: context.tools.length > 0 ? "blue" : "gray" },
+          ],
+          proofPoints: context.tools.length > 0 ? context.tools.map((tool) => `${tool} used by Mark`) : [],
+          outboundLocked: true,
+        }}
+      />
 
       <section className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]">
         <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
@@ -70,7 +74,7 @@ export function MarkRail({
               {hasAssets ? (
                 assets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
-                    {asset.title} · {asset.channel}
+                    {asset.title} / {asset.channel}
                   </option>
                 ))
               ) : (
@@ -91,7 +95,7 @@ export function MarkRail({
           </label>
 
           <Button type="submit" variant="primary" size="sm" disabled={!hasAssets || isPending} className="w-full">
-            {isPending ? "Sending to Mark…" : "Send to Mark"}
+            {isPending ? "Sending to Mark..." : "Send to Mark"}
           </Button>
 
           {state ? (
@@ -108,14 +112,5 @@ export function MarkRail({
         </form>
       </section>
     </aside>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{label}</dt>
-      <dd className="min-w-0 truncate text-right font-medium text-[var(--text-primary)]">{value}</dd>
-    </div>
   );
 }

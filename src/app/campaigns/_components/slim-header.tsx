@@ -4,8 +4,9 @@ import { StatusPill } from "@/app/_components/page-header";
 
 import type { PillTone } from "./status-tone";
 
-/** Compact one-line header — campaign name + status + optional back link.
- *  Intentionally low-profile to replace the oversized hero. */
+/**
+ * Compact campaign header for list, unavailable, and not-found states.
+ */
 export function SlimHeader({
   title,
   subtitle,
@@ -28,7 +29,7 @@ export function SlimHeader({
           href={backHref}
           className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"
         >
-          ← {backLabel}
+          Back to {backLabel}
         </Link>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">

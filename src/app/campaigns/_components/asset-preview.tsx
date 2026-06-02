@@ -1,9 +1,5 @@
 import type { CampaignMediaAsset, CampaignWorkspaceAsset } from "@/lib/campaigns/read-model";
 
-/**
- * Renders a single asset's preview: any attached creative media (image, video,
- * embed, file, link) plus the readable draft body for copy assets.
- */
 export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
   const hasMedia = asset.media.length > 0;
 
@@ -18,14 +14,35 @@ export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
       ) : null}
 
       {asset.body ? (
-        <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 font-sans text-sm leading-6 text-[var(--text-secondary)]">
-          {asset.body}
-        </pre>
+        <ReadableCopy body={asset.body} />
       ) : !hasMedia ? (
         <p className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-3 text-sm text-[var(--text-muted)]">
           {asset.preview}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function ReadableCopy({ body }: { body: string }) {
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="max-h-80 overflow-auto rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
+      {paragraphs.length > 0 ? (
+        <div className="space-y-3">
+          {paragraphs.map((paragraph, index) => (
+            <p key={`${index}-${paragraph.slice(0, 18)}`} className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]">
+              {paragraph}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm leading-6 text-[var(--text-secondary)]">{body}</p>
+      )}
     </div>
   );
 }
@@ -41,7 +58,7 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
         title={media.description ?? media.title}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
-        <img src={media.thumbnailUrl ?? media.url} alt={media.title} className="h-36 w-full object-cover transition group-hover:scale-[1.02]" />
+        <img src={media.thumbnailUrl ?? media.url} alt={media.title} className="h-36 w-full object-contain transition group-hover:scale-[1.02]" />
       </a>
     );
   }
@@ -52,7 +69,7 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
         src={media.url}
         poster={media.thumbnailUrl ?? undefined}
         controls
-        className="h-36 w-full rounded-lg border border-[var(--border-hairline)] bg-black object-cover"
+        className="h-36 w-full rounded-lg border border-[var(--border-hairline)] bg-black object-contain"
       />
     );
   }
@@ -68,7 +85,7 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
         {media.type === "embed" ? "Video" : media.type === "file" ? "File" : "Link"}
       </span>
       <span className="line-clamp-2 text-sm font-semibold text-[var(--text-primary)]">{media.title}</span>
-      <span className="truncate text-xs text-[var(--accent)]">Open ↗</span>
+      <span className="truncate text-xs text-[var(--accent)]">Open original</span>
     </a>
   );
 }

@@ -21,7 +21,7 @@ export type RevisionRequestResult = {
  * This is a real backend state transition, not a send: it logs an approval
  * decision (revision_requested), flips the asset + approval item to
  * revision_requested, writes a campaign event, and queues a task for Mark.
- * Outbound dispatch is never unlocked here — `dispatch_locked` is left intact.
+ * Outbound dispatch is never unlocked here; `dispatch_locked` is left intact.
  */
 export async function requestAssetRevision(
   input: RevisionRequestInput,

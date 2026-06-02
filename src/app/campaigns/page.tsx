@@ -15,7 +15,7 @@ export default async function CampaignsPage() {
   if (list.status === "unavailable") {
     return (
       <>
-        <SlimHeader title="Campaigns" subtitle="Everything Mark builds — outbound stays locked." />
+        <SlimHeader title="Campaigns" subtitle="Everything Mark builds; outbound stays locked." />
         <EmptyState title="Campaign workspace unavailable" detail={list.message} />
       </>
     );
@@ -25,7 +25,7 @@ export default async function CampaignsPage() {
 
   return (
     <>
-      <SlimHeader title="Campaigns" subtitle="Everything Mark builds — preview the creative, trace the reasoning, and ask Mark to revise." />
+      <SlimHeader title="Campaigns" subtitle="Everything Mark builds: preview the creative, trace the reasoning, and ask Mark to revise." />
 
       <MetricStrip
         metrics={[

@@ -537,7 +537,7 @@ function mapAgent(agent: ReturnType<typeof normalizeAgentRow>, tasks: ReturnType
     status: titleize(agent.status),
     currentTask: currentTask?.objective ?? "No active task assigned.",
     riskFlags: riskFlags.length > 0 ? riskFlags : [agent.default_approval_policy ?? "Approval policy pending"],
-    href: "/agent-operations",
+    href: `/agent-operations/${agent.key}`,
   };
 }
 

@@ -19,14 +19,14 @@ export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }
         href="/campaigns"
         className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"
       >
-        ← All campaigns
+        Back to campaigns
       </Link>
 
       <div className="relative overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-6 py-5 shadow-[var(--elev-panel)]">
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,oklch(0.74_0.115_232/0.16),transparent_46%)]" />
         <div className="relative">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="signal-eyebrow">Campaign</span>
+            <span className="signal-eyebrow">Campaign package</span>
             <StatusPill tone={statusTone(campaign.status)}>{campaign.status}</StatusPill>
             {campaign.launchLocked ? (
               <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">Outbound locked</span>

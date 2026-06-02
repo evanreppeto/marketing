@@ -39,7 +39,7 @@ export function CampaignGallery({ campaigns }: { campaigns: CampaignWorkspaceLis
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search campaigns…"
+            placeholder="Search campaigns..."
             aria-label="Search campaigns"
             className="w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           />

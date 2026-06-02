@@ -10,6 +10,7 @@ export type ShellNavItem = {
   href: string;
   iconSrc: string;
   matches: string[];
+  exact?: boolean;
 };
 
 type SideNavProps = {
@@ -18,6 +19,9 @@ type SideNavProps = {
 };
 
 function matchesItem(item: ShellNavItem, path: string) {
+  if (item.exact) {
+    return item.matches.some((match) => path === match);
+  }
   return item.matches.some((match) => path === match || (match !== "/" && path.startsWith(match)));
 }
 
