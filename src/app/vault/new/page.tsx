@@ -7,7 +7,7 @@ import { NoteEditor } from "../_components/note-editor";
 export default async function NewNotePage() {
   await connection();
   return (
-    <AppShell active="/notebook">
+    <AppShell active="/vault">
       <PageHeader eyebrow="Vault" title="New note" description="Create a note. Use [[wiki-links]] to connect it to other notes, CRM records, and personas." />
       <Panel>
         <NoteEditor />

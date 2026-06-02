@@ -14,7 +14,7 @@ export function BacklinksPanel({ backlinks }: { backlinks: VaultNote[] }) {
         <li key={note.slug}>
           <Link
             className="block rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--border-strong)]"
-            href={`/notebook/${note.slug}`}
+            href={`/vault/${note.slug}`}
           >
             <div className="text-sm font-semibold text-[var(--text-primary)]">{note.title}</div>
             <div className="mt-0.5 text-xs text-[var(--text-muted)]">{note.folder}</div>

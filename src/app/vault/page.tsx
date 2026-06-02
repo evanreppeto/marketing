@@ -53,7 +53,7 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
   ];
 
   return (
-    <AppShell active="/notebook">
+    <AppShell active="/vault">
       <PageHeader
         eyebrow="Vault"
         title="The shared brain for Mark and the team"
@@ -72,7 +72,7 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
         task="Keep the vault in sync"
         detail="Create a note now, or import from your Obsidian vault. New note and edits persist to Supabase; Sync vault is still a preview."
         status={model.status === "live" ? "Live" : "Read-only"}
-        primary={<Link className={buttonClasses({ variant: "primary" })} href="/notebook/new">New note</Link>}
+        primary={<Link className={buttonClasses({ variant: "primary" })} href="/vault/new">New note</Link>}
         secondary={<Link className={buttonClasses({ variant: "ghost" })} href="?action=sync">Sync vault</Link>}
       />
       <ActionFeedback action={action} messages={actionMessages} />

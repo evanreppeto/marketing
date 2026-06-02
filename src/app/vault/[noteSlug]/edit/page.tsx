@@ -13,7 +13,7 @@ export default async function EditNotePage({ params }: EditPageProps) {
   if (!note) notFound();
 
   return (
-    <AppShell active="/notebook">
+    <AppShell active="/vault">
       <PageHeader eyebrow={note.folder} title={`Edit: ${note.title}`} description="Update the note and save. Changes persist to Supabase." />
       <Panel>
         <NoteEditor note={note} />

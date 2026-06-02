@@ -13,7 +13,7 @@ export function NoteCard({ note }: { note: VaultNote }) {
   return (
     <Link
       className="block rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:border-[var(--border-strong)]"
-      href={`/notebook/${note.slug}`}
+      href={`/vault/${note.slug}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
