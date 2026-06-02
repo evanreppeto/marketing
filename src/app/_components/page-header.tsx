@@ -2,7 +2,7 @@ type ButtonVariant = "primary" | "priority" | "ghost";
 type ButtonSize = "sm" | "md";
 
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition active:translate-y-px focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60";
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md font-semibold transition duration-200 ease-out hover:-translate-y-0.5 active:translate-y-px focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60";
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
   // md meets the 44px touch target; sm is for dense inline toolbars
@@ -11,10 +11,10 @@ const BUTTON_SIZES: Record<ButtonSize, string> = {
 };
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]",
-  priority: "bg-[var(--priority-solid)] text-[var(--on-priority)] hover:bg-[oklch(0.5_0.2_26)]",
+  primary: "bg-[var(--accent)] text-[var(--on-accent)] shadow-[0_0_0_0_oklch(0.74_0.115_232/0)] hover:bg-[var(--accent-strong)] hover:shadow-[0_0_22px_oklch(0.74_0.115_232/0.34)]",
+  priority: "bg-[var(--priority-solid)] text-[var(--on-priority)] shadow-[0_0_0_0_oklch(0.68_0.2_26/0)] hover:bg-[oklch(0.5_0.2_26)] hover:shadow-[0_0_22px_oklch(0.68_0.2_26/0.32)]",
   ghost:
-    "border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] hover:border-[var(--border-strong)]",
+    "border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] shadow-[0_0_0_0_oklch(0.74_0.115_232/0)] hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--chicago-blue-soft)] hover:shadow-[0_0_18px_oklch(0.74_0.115_232/0.22)]",
 };
 
 /**

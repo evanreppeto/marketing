@@ -178,9 +178,15 @@ export type AgentTaskDetail =
         title: string;
         outputType: string;
         body: string;
+        readableBody: string;
+        structuredSections: Array<{ label: string; value: string }>;
+        evidence: Array<{ label: string; href: string }>;
+        media: Array<{ label: string; href: string; type: "image" | "video" | "file" | "link" }>;
         riskLevel: string;
         complianceStatus: string;
         approvalStatus: string;
+        approvalHref: string | null;
+        campaignAssetId: string | null;
         createdAt: string | null;
       }>;
       logs: Array<{
@@ -188,10 +194,15 @@ export type AgentTaskDetail =
         runStatus: string;
         modelProvider: string | null;
         modelName: string | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        costEstimate: string | null;
+        retryCount: number;
         reasoningSummary: string | null;
         errorMessage: string | null;
         startedAt: string | null;
         completedAt: string | null;
+        metadata: Record<string, unknown>;
       }>;
     }
   | {
@@ -220,8 +231,12 @@ type AgentOutputRow = {
   id: string;
   task_id: string | null;
   approval_item_id: string | null;
+  campaign_asset_id?: string | null;
   title: string | null;
   output_type: string | null;
+  body?: string | null;
+  edited_body?: string | null;
+  structured_payload?: unknown;
   risk_level: string | null;
   compliance_status: string | null;
   approval_status: string | null;
@@ -354,12 +369,12 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
         .order("created_at", { ascending: true }),
       supabase
         .from("agent_outputs")
-        .select("id,title,output_type,body,risk_level,compliance_status,approval_status,created_at")
+        .select("id,title,output_type,body,edited_body,structured_payload,approval_item_id,campaign_asset_id,risk_level,compliance_status,approval_status,created_at")
         .eq("task_id", taskId)
         .order("created_at", { ascending: false }),
       supabase
         .from("agent_run_logs")
-        .select("id,run_status,model_provider,model_name,reasoning_summary,error_message,started_at,completed_at")
+        .select("id,run_status,model_provider,model_name,input_token_count,output_token_count,cost_estimate_cents,reasoning_summary,error_message,started_at,completed_at,retry_count,metadata")
         .eq("task_id", taskId)
         .order("created_at", { ascending: false }),
       taskData.campaign_id
@@ -441,25 +456,21 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
         summary: getString(input.summary) ?? "No input summary captured.",
         payload: asRecord(input.payload),
       })),
-      outputs: ((outputsResult.data ?? []) as Array<Record<string, unknown>>).map((output) => ({
-        id: String(output.id),
-        title: getString(output.title) ?? "Agent output",
-        outputType: getString(output.output_type) ?? "output",
-        body: getString(output.body) ?? "",
-        riskLevel: getString(output.risk_level) ?? "medium",
-        complianceStatus: getString(output.compliance_status) ?? "pending_approval",
-        approvalStatus: getString(output.approval_status) ?? "pending_approval",
-        createdAt: getString(output.created_at),
-      })),
+      outputs: ((outputsResult.data ?? []) as Array<Record<string, unknown>>).map(mapTaskOutputDetail),
       logs: ((logsResult.data ?? []) as Array<Record<string, unknown>>).map((log) => ({
         id: String(log.id),
         runStatus: getString(log.run_status) ?? "queued",
         modelProvider: getString(log.model_provider),
         modelName: getString(log.model_name),
+        inputTokens: getNumber(log.input_token_count),
+        outputTokens: getNumber(log.output_token_count),
+        costEstimate: formatCents(getNumber(log.cost_estimate_cents)),
+        retryCount: getNumber(log.retry_count) ?? 0,
         reasoningSummary: getString(log.reasoning_summary),
         errorMessage: getString(log.error_message),
         startedAt: getString(log.started_at),
         completedAt: getString(log.completed_at),
+        metadata: asRecord(log.metadata),
       })),
     };
   } catch (error) {
@@ -648,6 +659,226 @@ function countRiskFlags(approvals: ReturnType<typeof normalizeApprovalRow>[], ou
   return riskyApprovals + riskyOutputs;
 }
 
+function mapTaskOutputDetail(output: Record<string, unknown>) {
+  const structuredPayload = asRecord(output.structured_payload);
+  const rawBody = getString(output.edited_body) ?? getString(output.body) ?? "";
+  const readableBody = buildReadableOutput(rawBody, structuredPayload);
+  const evidence = buildEvidenceLinks(rawBody, structuredPayload);
+  const media = buildMediaLinks(rawBody, structuredPayload);
+  const approvalItemId = getString(output.approval_item_id);
+
+  return {
+    id: String(output.id),
+    title: getString(output.title) ?? "Agent output",
+    outputType: getString(output.output_type) ?? "output",
+    body: rawBody,
+    readableBody,
+    structuredSections: buildStructuredSections(structuredPayload),
+    evidence,
+    media,
+    riskLevel: getString(output.risk_level) ?? "medium",
+    complianceStatus: getString(output.compliance_status) ?? "pending_approval",
+    approvalStatus: getString(output.approval_status) ?? "pending_approval",
+    approvalHref: approvalItemId ? `/approvals?item=${approvalItemId}` : null,
+    campaignAssetId: getString(output.campaign_asset_id),
+    createdAt: getString(output.created_at),
+  };
+}
+
+function buildReadableOutput(rawBody: string, structuredPayload: Record<string, unknown>) {
+  const fromPayload = previewValue(structuredPayload);
+  if (fromPayload) return fromPayload;
+
+  const parsed = parseDraftJson(rawBody);
+  if (parsed) {
+    const parsedPreview = previewValue(parsed);
+    if (parsedPreview) return parsedPreview;
+  }
+
+  return rawBody.trim() || "No readable output body captured.";
+}
+
+function buildStructuredSections(payload: Record<string, unknown>) {
+  return Object.entries(payload)
+    .filter(([key, value]) => isReadableKey(key) && value !== null && value !== undefined)
+    .flatMap(([key, value]) => sectionsForValue(key, value))
+    .slice(0, 10);
+}
+
+function sectionsForValue(key: string, value: unknown): Array<{ label: string; value: string }> {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return [{ label: titleize(key), value: String(value) }];
+  }
+
+  if (Array.isArray(value)) {
+    const readableItems = value.map((item) => (isObject(item) ? previewRecord(item) : typeof item === "string" ? item : null)).filter(Boolean);
+    return readableItems.length > 0 ? [{ label: titleize(key), value: readableItems.slice(0, 5).join("\n\n") }] : [];
+  }
+
+  if (isObject(value)) {
+    const nested = previewRecord(value);
+    return nested ? [{ label: titleize(key), value: nested }] : [];
+  }
+
+  return [];
+}
+
+function previewValue(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (Array.isArray(value)) {
+    const rows = value.map((entry) => (isObject(entry) ? previewRecord(entry) : typeof entry === "string" ? entry : null)).filter(Boolean);
+    return rows.length > 0 ? rows.slice(0, 6).join("\n\n") : null;
+  }
+  if (!isObject(value)) return String(value);
+
+  const direct =
+    getString(value.summary) ??
+    getString(value.title) ??
+    getString(value.headline) ??
+    getString(value.message) ??
+    getString(value.body) ??
+    getString(value.recommended_action) ??
+    getString(value.suggested_owner_action);
+  if (direct) return direct;
+
+  const collection = Object.entries(value).find(([key, entry]) => isReadableCollectionKey(key) && Array.isArray(entry) && entry.length > 0);
+  if (collection) {
+    const [collectionKey, collectionValue] = collection;
+    const records = (Array.isArray(collectionValue) ? collectionValue : [])
+      .map((entry) => (isObject(entry) ? previewRecord(entry) : typeof entry === "string" ? entry : null))
+      .filter(Boolean)
+      .slice(0, 6);
+    return records.length > 0 ? `${titleize(collectionKey)}:\n${records.join("\n\n")}` : null;
+  }
+
+  const scalar = Object.entries(value)
+    .filter(([key, entry]) => isReadableKey(key) && entry !== null && entry !== undefined && typeof entry !== "object")
+    .slice(0, 8)
+    .map(([key, entry]) => `${titleize(key)}: ${String(entry)}`);
+  return scalar.length > 0 ? scalar.join("\n") : null;
+}
+
+function previewRecord(value: Record<string, unknown>) {
+  const title =
+    getString(value.company_name) ??
+    getString(value.name) ??
+    getString(value.title) ??
+    getString(value.subject) ??
+    getString(value.headline) ??
+    "Record";
+  const fields = [
+    "score",
+    "partner_score",
+    "lead_score",
+    "confidence",
+    "status",
+    "channel",
+    "website",
+    "phone",
+    "recommended_action",
+    "recommended_next_action",
+    "notes",
+    "reason",
+    "fit",
+  ]
+    .map((key) => {
+      const valueForKey = value[key];
+      return valueForKey !== null && valueForKey !== undefined && typeof valueForKey !== "object"
+        ? `${titleize(key)}: ${String(valueForKey)}`
+        : null;
+    })
+    .filter(Boolean);
+
+  const urls = uniqueStrings(extractUrlsFromObject(value)).slice(0, 3);
+  if (urls.length > 0) fields.push(`Sources: ${urls.join(", ")}`);
+
+  return [title, ...fields].join("\n");
+}
+
+function buildEvidenceLinks(rawBody: string, payload: Record<string, unknown>) {
+  return uniqueStrings([...extractUrls(rawBody), ...extractUrlsFromObject(payload)])
+    .filter((url) => !isMediaUrl(url))
+    .slice(0, 8)
+    .map((url) => ({ label: sourceLabel(url), href: url }));
+}
+
+function buildMediaLinks(rawBody: string, payload: Record<string, unknown>) {
+  return uniqueStrings([...extractUrls(rawBody), ...extractUrlsFromObject(payload)])
+    .filter(isMediaUrl)
+    .slice(0, 8)
+    .map((url) => ({ label: sourceLabel(url), href: url, type: mediaType(url) }));
+}
+
+function extractUrlsFromObject(value: Record<string, unknown>): string[] {
+  const urls: string[] = [];
+  for (const entry of Object.values(value)) {
+    if (typeof entry === "string") {
+      urls.push(...extractUrls(entry));
+    } else if (Array.isArray(entry)) {
+      for (const item of entry) {
+        if (typeof item === "string") urls.push(...extractUrls(item));
+        if (isObject(item)) urls.push(...extractUrlsFromObject(item));
+      }
+    } else if (isObject(entry)) {
+      urls.push(...extractUrlsFromObject(entry));
+    }
+  }
+  return urls;
+}
+
+function extractUrls(value: string) {
+  return value.match(/https?:\/\/[^\s"'<>),\]]+/g) ?? [];
+}
+
+function parseDraftJson(value: string) {
+  const firstBrace = value.indexOf("{");
+  const lastBrace = value.lastIndexOf("}");
+  if (firstBrace === -1 || lastBrace <= firstBrace) return null;
+
+  try {
+    return JSON.parse(value.slice(firstBrace, lastBrace + 1)) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isReadableCollectionKey(key: string) {
+  return /candidate|lead|company|contact|asset|creative|deliverable|source|evidence|campaign|ad|email|sms|post|item/i.test(key);
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isMediaUrl(url: string) {
+  return /\.(png|jpe?g|gif|webp|svg|mp4|webm|mov|m4v|pdf|docx?|pptx?)(\?|#|$)/i.test(url);
+}
+
+function mediaType(url: string): "image" | "video" | "file" | "link" {
+  if (/\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(url)) return "image";
+  if (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(url)) return "video";
+  if (/\.(pdf|docx?|pptx?)(\?|#|$)/i.test(url)) return "file";
+  return "link";
+}
+
+function sourceLabel(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "Source link";
+  }
+}
+
+function uniqueStrings(values: Array<string | null | undefined>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function formatCents(cents: number | null) {
+  if (typeof cents !== "number") return null;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(cents / 100);
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -659,8 +890,17 @@ function getString(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+function getNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function getStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function isReadableKey(key: string) {
+  const normalized = key.toLowerCase();
+  return !normalized.endsWith("_id") && !normalized.endsWith("_ids") && normalized !== "id" && !/payload|metadata|audit/.test(normalized);
 }
 
 function titleize(value: string) {

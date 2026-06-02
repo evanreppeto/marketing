@@ -40,54 +40,49 @@ export default async function TodayPage() {
   const inboxItems: InboxItem[] = approvals.map((card) => ({
     id: card.id,
     title: card.title,
+    previewText: card.previewText,
     persona: card.persona,
+    statusLabel: card.statusLabel,
     riskLevel: card.riskLevel,
+    channel: card.channel,
+    sourceAgent: card.sourceAgent,
+    recommendedAction: card.recommendedAction,
+    evidenceCount: card.evidence.length,
+    mediaCount: card.creativeAssets.length,
     campaignId: card.campaign.id,
+    campaignName: card.campaign.name,
+    relatedCount: [
+      card.relatedRecords.company,
+      card.relatedRecords.contact,
+      card.relatedRecords.lead,
+    ].filter(Boolean).length,
   }));
 
   return (
     <>
-      <header className="module-rise mb-5 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
-        <div className="grid min-h-[190px] lg:grid-cols-[minmax(0,1fr)_330px]">
-          <div className="relative px-5 py-5 sm:px-6">
-            <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,oklch(0.74_0.115_232/0.16),transparent_34%)]" />
-            <div className="relative">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="signal-eyebrow">Today</span>
-                <StatusPill tone={totalWaiting > 0 ? "amber" : "green"}>{totalWaiting > 0 ? `${totalWaiting} waiting` : "Clear"}</StatusPill>
-              </div>
-              <h1 className="mt-5 max-w-4xl text-[clamp(2rem,4vw,4rem)] font-black leading-[0.96] tracking-[-0.055em] text-[var(--text-primary)]">
-                Mark prepares growth work. Humans approve what moves.
-              </h1>
-              <p className="mt-4 max-w-[68ch] text-base leading-7 text-[var(--text-secondary)]">
-                The Growth Intelligence CRM is organized around attention, evidence, partner development, campaign packages, and a hard outbound lock.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Link className={buttonClasses({ variant: "primary" })} href={topApproval ? `/approvals?item=${topApproval.id}` : "/approvals"}>
-                  Review approvals
-                </Link>
-                <Link className={buttonClasses({ variant: "ghost" })} href="/agent-operations">
-                  Open Mark tasks
-                </Link>
-              </div>
+      <header className="module-rise mb-5 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-4 py-4 shadow-[var(--elev-panel)] sm:px-5">
+        <div className="min-w-0">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="signal-eyebrow">Today</span>
+              <StatusPill tone={totalWaiting > 0 ? "amber" : "green"}>{totalWaiting > 0 ? `${totalWaiting} waiting` : "Clear"}</StatusPill>
+              <StatusPill tone="blue">Outbound locked</StatusPill>
+            </div>
+            <h1 className="mt-3 max-w-3xl text-[clamp(1.65rem,2.6vw,2.55rem)] font-black leading-[1.04] tracking-[-0.035em] text-[var(--text-primary)]">
+              Mark prepares the work. You approve the move.
+            </h1>
+            <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
+              Start with the queue, inspect the CRM evidence, then open campaign packages when Mark creates deliverables.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link className={buttonClasses({ variant: "primary", size: "sm" })} href={topApproval ? `/approvals?item=${topApproval.id}` : "/approvals"}>
+                Review approvals
+              </Link>
+              <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/agent-operations">
+                Open Mark tasks
+              </Link>
             </div>
           </div>
-          <aside className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] p-5 lg:border-l lg:border-t-0">
-            <div className="signal-eyebrow">Operating rule</div>
-            <div className="mt-5 space-y-3">
-              {[
-                ["Human gate", "On"],
-                ["Outbound", "Locked"],
-                ["CRM source", "Supabase"],
-                ["Mark runner", mark?.status ?? "Unknown"],
-              ].map(([label, value]) => (
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2.5" key={label}>
-                  <span className="text-sm font-semibold text-[var(--text-secondary)]">{label}</span>
-                  <span className="font-mono text-xs font-bold uppercase tracking-[0.08em] text-[var(--accent)]">{value}</span>
-                </div>
-              ))}
-            </div>
-          </aside>
         </div>
       </header>
 

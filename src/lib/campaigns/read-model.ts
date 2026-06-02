@@ -303,13 +303,25 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
     const campaignIds = campaigns.map((campaign) => campaign.id);
     const assets = await selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at");
     const approvals = await selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at");
-    const mediaByCampaign = buildMediaByCampaign(campaigns, assets, approvals, []);
-    const sourceCountByCampaign = buildSourceCountByCampaign(campaigns, approvals);
+    const approvalOutputs = await selectIn<AgentOutputRow>(
+      supabase,
+      "agent_outputs",
+      OUTPUT_SELECT,
+      "approval_item_id",
+      approvals.map((approval) => approval.id),
+      "created_at",
+    );
+    const mediaByCampaign = buildMediaByCampaign(campaigns, assets, approvals, approvalOutputs);
+    const sourceCountByCampaign = buildSourceCountByCampaign(campaigns, approvals, approvalOutputs);
 
     const items = campaigns.map((campaign) => {
-      const campaignAssets = assets.filter((asset) => asset.campaign_id === campaign.id);
       const campaignApprovals = approvals.filter((approval) => approval.campaign_id === campaign.id);
-      const preview = pickPreview(campaignAssets);
+      const campaignAssets = buildWorkspaceAssets(
+        assets.filter((asset) => asset.campaign_id === campaign.id),
+        campaignApprovals,
+        approvalOutputs.filter((output) => output.approval_item_id && campaignApprovals.some((approval) => approval.id === output.approval_item_id)),
+      );
+      const preview = pickWorkspacePreview(campaignAssets);
       return {
         id: campaign.id,
         name: cleanCampaignName(campaign.name),
@@ -323,7 +335,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         mediaCount: mediaByCampaign.get(campaign.id)?.length ?? 0,
         sourceCount: sourceCountByCampaign.get(campaign.id) ?? 0,
         thumbnailUrl: pickThumbnail(mediaByCampaign.get(campaign.id) ?? []),
-        assetTypes: uniqueStrings(campaignAssets.map((asset) => humanize(asset.asset_type))).slice(0, 4),
+        assetTypes: uniqueStrings(campaignAssets.map((asset) => asset.assetType)).slice(0, 4),
         previewText: preview?.text ?? null,
         previewLabel: preview?.label ?? null,
         updatedAt: formatDate(campaign.updated_at),
@@ -385,7 +397,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       selectIn<LeadRow>(supabase, "leads", "id,source,status,loss_summary,lead_score,metadata", "id", relatedIds.leadIds),
     ]);
 
-    const assetsView = assets.map((asset) => mapAsset(asset));
+    const assetsView = buildWorkspaceAssets(assets, approvals, outputs);
     const media = uniqueMedia([
       ...collectMediaFromCampaign(campaign),
       ...assetsView.flatMap((asset) => asset.media),
@@ -456,6 +468,72 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     dispatchLocked: asset.dispatch_locked,
     toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
+    media,
+  };
+}
+
+function buildWorkspaceAssets(
+  assets: CampaignAssetRow[],
+  approvals: ApprovalItemRow[],
+  outputs: AgentOutputRow[],
+): CampaignWorkspaceAsset[] {
+  const assetIds = new Set(assets.map((asset) => asset.id));
+  const outputApprovalIds = new Set(outputs.map((output) => output.approval_item_id).filter((id): id is string => Boolean(id)));
+
+  const mappedAssets = assets.map((asset) => mapAsset(asset));
+  const outputAssets = outputs
+    .filter((output) => !output.campaign_asset_id || !assetIds.has(output.campaign_asset_id))
+    .map(mapOutputAsAsset);
+  const approvalAssets = approvals
+    .filter((approval) => !approval.campaign_asset_id && !outputApprovalIds.has(approval.id))
+    .map(mapApprovalAsAsset);
+
+  return uniqueById([...mappedAssets, ...outputAssets, ...approvalAssets]);
+}
+
+function mapOutputAsAsset(output: AgentOutputRow): CampaignWorkspaceAsset {
+  const rawBody = output.edited_body ?? output.body ?? "";
+  const readableBody = buildReadablePreview(rawBody, output.structured_payload);
+  const media = collectMediaFromOutput(output);
+  const type = output.output_type || "mark_output";
+
+  return {
+    id: `output-${output.id}`,
+    title: output.title || humanize(type),
+    assetType: humanize(type),
+    category: classifyAssetText(`${type} ${output.title}`),
+    channel: channelLabelFromType(type),
+    status: statusLabel(output.approval_status),
+    body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
+    preview: readableBody,
+    complianceNotes: output.compliance_status ? `Compliance: ${humanize(output.compliance_status)}` : "No output-level compliance notes captured.",
+    dispatchLocked: true,
+    toolSource: "Mark output",
+    updatedAt: formatDate(output.updated_at),
+    media,
+  };
+}
+
+function mapApprovalAsAsset(approval: ApprovalItemRow): CampaignWorkspaceAsset {
+  const rawBody = approval.edited_output ?? approval.draft_output ?? "";
+  const readableBody = buildReadablePreview(rawBody, approval.prompt_inputs, approval.reasoning_payload);
+  const type = approval.item_type || "approval_item";
+  const channel = getString(asObject(approval.prompt_inputs).channel) ?? type;
+  const media = collectMediaFromApproval(approval);
+
+  return {
+    id: `approval-${approval.id}`,
+    title: buildApprovalTitle(approval),
+    assetType: humanize(type),
+    category: classifyAssetText(`${type} ${channel} ${buildApprovalTitle(approval)}`),
+    channel: humanize(channel),
+    status: statusLabel(approval.status),
+    body: readableBody === EMPTY_READABLE_PREVIEW ? rawBody : readableBody,
+    preview: readableBody,
+    complianceNotes: approval.compliance_notes ?? "No approval-level compliance notes captured.",
+    dispatchLocked: approval.locked_until_approved,
+    toolSource: approval.requested_by ?? "Mark",
+    updatedAt: formatDate(approval.updated_at),
     media,
   };
 }
@@ -533,11 +611,15 @@ function groupAssets(assets: CampaignWorkspaceAsset[]) {
 }
 
 function classifyAssetCategory(asset: CampaignAssetRow): CampaignWorkspaceAssetCategory {
-  const value = `${asset.asset_type} ${asset.channel ?? ""} ${asset.title}`.toLowerCase();
-  if (/postcard|mailer|direct.?mail|print|flyer|leave.?behind|door.?hanger|script|call/.test(value)) return "physical";
-  if (/ad|meta|facebook|instagram|google|paid|display|search/.test(value)) return "ads";
-  if (/image|video|photo|creative|mockup|asset/.test(value)) return "media";
-  if (/email|sms|text|landing|social|sequence|web|newsletter/.test(value)) return "virtual";
+  return classifyAssetText(`${asset.asset_type} ${asset.channel ?? ""} ${asset.title}`);
+}
+
+function classifyAssetText(value: string): CampaignWorkspaceAssetCategory {
+  const normalized = value.toLowerCase();
+  if (/postcard|mailer|direct.?mail|print|flyer|leave.?behind|door.?hanger|script|call/.test(normalized)) return "physical";
+  if (/ad|meta|facebook|instagram|google|paid|display|search/.test(normalized)) return "ads";
+  if (/image|video|photo|creative|mockup|asset/.test(normalized)) return "media";
+  if (/email|sms|text|landing|social|sequence|web|newsletter/.test(normalized)) return "virtual";
   return "other";
 }
 
@@ -659,15 +741,20 @@ function buildMediaByCampaign(campaigns: CampaignRow[], assets: CampaignAssetRow
   return mediaByCampaign;
 }
 
-function buildSourceCountByCampaign(campaigns: CampaignRow[], approvals: ApprovalItemRow[]) {
+function buildSourceCountByCampaign(campaigns: CampaignRow[], approvals: ApprovalItemRow[], outputs: AgentOutputRow[]) {
   const sourceCountByCampaign = new Map<string, number>();
 
   for (const campaign of campaigns) {
+    const campaignApprovals = approvals.filter((approval) => approval.campaign_id === campaign.id);
+    const campaignApprovalIds = new Set(campaignApprovals.map((approval) => approval.id));
     const values = [
       ...extractUrlsFromObject(asObject(campaign.source_signal)),
       ...extractUrlsFromObject(asObject(campaign.reasoning_payload)),
       ...extractUrlsFromObject(asObject(campaign.audit_payload)),
-      ...approvals.filter((approval) => approval.campaign_id === campaign.id).flatMap((approval) => extractUrlsFromObject(asObject(approval.prompt_inputs))),
+      ...campaignApprovals.flatMap((approval) => extractUrlsFromObject(asObject(approval.prompt_inputs))),
+      ...outputs
+        .filter((output) => output.approval_item_id && campaignApprovalIds.has(output.approval_item_id))
+        .flatMap((output) => extractUrlsFromObject(asObject(output.structured_payload))),
     ];
     sourceCountByCampaign.set(campaign.id, uniqueStrings(values).length);
   }
@@ -1016,17 +1103,25 @@ function isUrl(value: string) {
   return /^https?:\/\//i.test(value);
 }
 
-/** Pick the primary asset's readable copy for a rendered preview cover.
- *  `assets` arrive newest-first; returns the first asset with real copy. */
-function pickPreview(assets: CampaignAssetRow[]): { text: string; label: string } | null {
+function pickWorkspacePreview(assets: CampaignWorkspaceAsset[]): { text: string; label: string } | null {
   for (const asset of assets) {
-    const body = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
-    const text = buildReadablePreview(body, asset.prompt_inputs, asset.reasoning_payload);
+    const text = asset.preview && asset.preview !== EMPTY_READABLE_PREVIEW ? asset.preview : asset.body;
     if (text && text !== EMPTY_READABLE_PREVIEW) {
-      return { text: text.slice(0, 360), label: humanize(asset.channel ?? asset.asset_type) };
+      return { text: text.slice(0, 360), label: asset.channel || asset.assetType };
     }
   }
   return null;
+}
+
+function channelLabelFromType(type: string) {
+  if (/email/i.test(type)) return "Email";
+  if (/sms|text/i.test(type)) return "SMS";
+  if (/ad|meta|google|search|display/i.test(type)) return "Ads";
+  if (/video/i.test(type)) return "Video";
+  if (/image|creative|media/i.test(type)) return "Media";
+  if (/lead|candidate|partner/i.test(type)) return "Lead list";
+  if (/landing|web/i.test(type)) return "Landing page";
+  return humanize(type);
 }
 
 /** Pick a representative thumbnail for a campaign card: first image, else a

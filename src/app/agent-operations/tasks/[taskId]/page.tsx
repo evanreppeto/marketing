@@ -191,7 +191,26 @@ function TaskInputs({ inputs }: { inputs: Array<{ id: string; inputType: string;
   );
 }
 
-function TaskOutputs({ outputs }: { outputs: Array<{ id: string; title: string; outputType: string; body: string; riskLevel: string; complianceStatus: string; approvalStatus: string; createdAt: string | null }> }) {
+function TaskOutputs({
+  outputs,
+}: {
+  outputs: Array<{
+    id: string;
+    title: string;
+    outputType: string;
+    body: string;
+    readableBody: string;
+    structuredSections: Array<{ label: string; value: string }>;
+    evidence: Array<{ label: string; href: string }>;
+    media: Array<{ label: string; href: string; type: "image" | "video" | "file" | "link" }>;
+    riskLevel: string;
+    complianceStatus: string;
+    approvalStatus: string;
+    approvalHref: string | null;
+    campaignAssetId: string | null;
+    createdAt: string | null;
+  }>;
+}) {
   return (
     <Panel className="module-rise p-0">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
@@ -213,12 +232,54 @@ function TaskOutputs({ outputs }: { outputs: Array<{ id: string; title: string; 
                   {humanize(output.approvalStatus)}
                 </StatusPill>
               </div>
-              {output.body ? (
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]">{output.body}</p>
+              {output.readableBody ? (
+                <p className="mt-3 whitespace-pre-wrap rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 text-sm leading-6 text-[var(--text-secondary)]">
+                  {output.readableBody}
+                </p>
               ) : (
                 <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">No readable output body captured.</p>
               )}
-              <div className="mt-3 text-xs font-semibold text-[var(--accent)]">Compliance: {humanize(output.complianceStatus)}</div>
+              {output.structuredSections.length > 0 ? (
+                <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {output.structuredSections.slice(0, 6).map((section) => (
+                    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2" key={section.label}>
+                      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{section.label}</dt>
+                      <dd className="mt-1 whitespace-pre-wrap text-sm font-semibold leading-6 text-[var(--text-primary)]">{section.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+              {output.evidence.length > 0 || output.media.length > 0 || output.approvalHref ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {output.approvalHref ? (
+                    <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={output.approvalHref}>
+                      Linked approval
+                    </Link>
+                  ) : null}
+                  {output.evidence.slice(0, 4).map((item) => (
+                    <a className={buttonClasses({ variant: "ghost", size: "sm" })} href={item.href} key={item.href} rel="noreferrer" target="_blank">
+                      {item.label}
+                    </a>
+                  ))}
+                  {output.media.slice(0, 4).map((item) => (
+                    <a className={buttonClasses({ variant: "ghost", size: "sm" })} href={item.href} key={item.href} rel="noreferrer" target="_blank">
+                      {humanize(item.type)} preview
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+              {output.body && output.body !== output.readableBody ? (
+                <details className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                    Raw output packet
+                  </summary>
+                  <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-[var(--text-secondary)]">{output.body}</pre>
+                </details>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--accent)]">
+                <span>Compliance: {humanize(output.complianceStatus)}</span>
+                {output.campaignAssetId ? <span className="text-[var(--text-muted)]">Asset: {output.campaignAssetId.slice(0, 8)}</span> : null}
+              </div>
             </article>
           ))
         ) : (
@@ -231,7 +292,25 @@ function TaskOutputs({ outputs }: { outputs: Array<{ id: string; title: string; 
   );
 }
 
-function TaskLogs({ logs }: { logs: Array<{ id: string; runStatus: string; modelProvider: string | null; modelName: string | null; reasoningSummary: string | null; errorMessage: string | null; startedAt: string | null; completedAt: string | null }> }) {
+function TaskLogs({
+  logs,
+}: {
+  logs: Array<{
+    id: string;
+    runStatus: string;
+    modelProvider: string | null;
+    modelName: string | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    costEstimate: string | null;
+    retryCount: number;
+    reasoningSummary: string | null;
+    errorMessage: string | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    metadata: Record<string, unknown>;
+  }>;
+}) {
   return (
     <Panel className="module-rise p-0">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
@@ -257,6 +336,13 @@ function TaskLogs({ logs }: { logs: Array<{ id: string; runStatus: string; model
               <div className="mt-3 text-xs text-[var(--text-muted)]">
                 Started {formatDate(log.startedAt)} / Completed {formatDate(log.completedAt)}
               </div>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-4">
+                <SmallLogStat label="Input tokens" value={log.inputTokens ?? "Missing"} />
+                <SmallLogStat label="Output tokens" value={log.outputTokens ?? "Missing"} />
+                <SmallLogStat label="Cost" value={log.costEstimate ?? "Missing"} />
+                <SmallLogStat label="Retries" value={log.retryCount} />
+              </dl>
+              <KeyValuePreview payload={log.metadata} />
             </div>
           ))
         ) : (
@@ -266,6 +352,15 @@ function TaskLogs({ logs }: { logs: Array<{ id: string; runStatus: string; model
         )}
       </div>
     </Panel>
+  );
+}
+
+function SmallLogStat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
+      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</dt>
+      <dd className="mt-1 truncate text-sm font-bold tabular-nums text-[var(--text-primary)]">{value}</dd>
+    </div>
   );
 }
 
