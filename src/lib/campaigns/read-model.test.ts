@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { buildReasoning } from "./read-model";
+import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
+
+import { buildReasoning, getCampaignWorkspaceDetail } from "./read-model";
 
 // buildReasoning only reads a handful of fields; cast minimal fixtures to the
 // row shapes to keep the test focused on the distillation logic.
@@ -44,5 +46,71 @@ describe("buildReasoning", () => {
     expect(result.guardrailFlags).toEqual([]);
     expect(result.toolsUsed).toEqual([]);
     expect(result.promptInputs).toEqual([]);
+  });
+});
+
+describe("getCampaignWorkspaceDetail creative media", () => {
+  it("renders a media_assets payload as a categorized, previewable asset", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: {
+        data: {
+          id: "camp-1",
+          name: "Plumbing Partner",
+          persona: "persona_plumbing_partner",
+          restoration_focus: "water_backup",
+          status: "pending_approval",
+          company_id: null,
+          contact_id: null,
+          lead_id: null,
+          owner: "Mark",
+          objective: "Referral campaign",
+          audience_summary: null,
+          offer_summary: null,
+          compliance_notes: null,
+          launch_locked: true,
+          source_signal: {},
+          reasoning_payload: {},
+          audit_payload: {},
+          created_at: "2026-06-02T12:00:00.000Z",
+          updated_at: "2026-06-02T12:00:00.000Z",
+        },
+        error: null,
+      },
+      campaign_assets: {
+        data: [
+          {
+            id: "asset-img",
+            campaign_id: "camp-1",
+            asset_type: "image_prompt",
+            channel: "image",
+            title: "Hero image",
+            status: "pending_owner_approval",
+            tool_source: "Hermes Orchestrator",
+            prompt_input: null,
+            prompt_inputs: {},
+            draft_body: null,
+            edited_body: null,
+            approved_body: null,
+            dispatch_locked: true,
+            compliance_notes: null,
+            reasoning_payload: {},
+            audit_payload: { media_assets: [{ url: "https://cdn.example/hero.png", type: "image", title: "Hero" }] },
+            created_at: "2026-06-02T12:00:00.000Z",
+            updated_at: "2026-06-02T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const detail = await getCampaignWorkspaceDetail("camp-1", supabase);
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+
+    const asset = detail.assets[0];
+    expect(asset.category).toBe("media");
+    expect(asset.media[0]).toMatchObject({ type: "image", url: "https://cdn.example/hero.png" });
+    expect(detail.metrics.media).toBeGreaterThan(0);
   });
 });

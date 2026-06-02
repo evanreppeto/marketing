@@ -78,6 +78,17 @@ export const hermesPartnerCampaignRequestSchema = z.object({
       cta: "Set up a simple referral handoff process",
       tone: "professional, direct, partner-protective",
     }),
+  creativeAssets: z
+    .array(
+      z.object({
+        type: z.enum(["image", "video", "ad", "postcard", "file", "link"]).default("image"),
+        url: z.string().trim().url(),
+        title: optionalText,
+        description: optionalText,
+        thumbnailUrl: z.string().trim().url().optional(),
+      }),
+    )
+    .default([]),
   operator: z.string().trim().min(1).default("Hermes Agent"),
 });
 

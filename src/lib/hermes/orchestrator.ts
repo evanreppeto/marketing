@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { parseHermesPartnerCampaignRequest } from "./contracts";
+import { parseHermesPartnerCampaignRequest, type HermesPartnerCampaignRequest } from "./contracts";
 import { createPartnerCampaignDraft } from "./draft-engine";
 import { getSupabaseAdminClient } from "../supabase/server";
 
@@ -166,6 +166,14 @@ export async function runHermesPartnerCampaign(
       run_id: runId,
       blocked_phrases: draft.guardrails.blockedPhrases,
     },
+  });
+
+  await insertCreativeAssets(client, {
+    campaignId,
+    agentId,
+    runId,
+    approvalStatus: draft.guardrails.approvalStatus,
+    creativeAssets: request.creativeAssets,
   });
 
   const approvalItemId = await insertOne(client, "approval_items", {
@@ -342,6 +350,81 @@ async function upsertHermesAgent(client: SupabaseClient) {
   }
 
   return data.id;
+}
+
+// Map a request creative type to an allowed campaign_asset_type enum value.
+// The detail view's category (Physical / Ads / Media) is derived from
+// asset_type + channel + title, so these land in the right section.
+const CREATIVE_ASSET_TYPE: Record<HermesCreativeAsset["type"], string> = {
+  image: "image_prompt",
+  video: "video_prompt",
+  ad: "social_ad",
+  postcard: "other",
+  file: "other",
+  link: "other",
+};
+
+type HermesCreativeAsset = HermesPartnerCampaignRequest["creativeAssets"][number];
+
+function defaultCreativeTitle(type: HermesCreativeAsset["type"]) {
+  const titles: Record<HermesCreativeAsset["type"], string> = {
+    image: "Image creative",
+    video: "Video creative",
+    ad: "Ad creative",
+    postcard: "Postcard",
+    file: "Attached file",
+    link: "Creative link",
+  };
+  return titles[type];
+}
+
+/**
+ * Persist each attached creative as its own campaign_asset. The media URL is
+ * stored under `audit_payload.media_assets` — a key the campaigns read-model
+ * already scans — so it renders as an image/video/file preview in the gallery
+ * cover and the Creative tab. Dispatch stays locked; status mirrors the draft.
+ */
+async function insertCreativeAssets(
+  client: SupabaseClient,
+  input: {
+    campaignId: string;
+    agentId: string;
+    runId: string;
+    approvalStatus: string;
+    creativeAssets: HermesPartnerCampaignRequest["creativeAssets"];
+  },
+) {
+  for (const [index, creative] of input.creativeAssets.entries()) {
+    const title = creative.title ?? defaultCreativeTitle(creative.type);
+
+    await insertOne(client, "campaign_assets", {
+      campaign_id: input.campaignId,
+      asset_type: CREATIVE_ASSET_TYPE[creative.type],
+      channel: creative.type,
+      title,
+      status: input.approvalStatus,
+      source_system: sourceSystem,
+      external_asset_id: `hermes-agent-creative-${creative.type}-${input.runId}-${index}`,
+      tool_source: "Hermes Orchestrator",
+      prompt_inputs: {},
+      draft_body: creative.description ?? null,
+      dispatch_locked: true,
+      reasoning_payload: {},
+      audit_payload: {
+        created_by_agent_id: input.agentId,
+        run_id: input.runId,
+        media_assets: [
+          {
+            url: creative.url,
+            type: creative.type,
+            title,
+            description: creative.description ?? null,
+            thumbnail_url: creative.thumbnailUrl ?? null,
+          },
+        ],
+      },
+    });
+  }
 }
 
 async function insertOne(client: SupabaseClient, table: string, values: Record<string, unknown>) {
