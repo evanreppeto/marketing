@@ -67,7 +67,18 @@ export type ApprovalStructuredDraft =
       targetZips: string[];
       suggestedOwnerAction: string;
       candidates: ApprovalLeadCandidate[];
+    }
+  | {
+      kind: "structured_fields";
+      title: string;
+      summary: string;
+      sections: ApprovalStructuredSection[];
     };
+
+export type ApprovalStructuredSection = {
+  label: string;
+  value: string;
+};
 
 export type ApprovalLeadCandidate = {
   companyName: string;
@@ -455,7 +466,7 @@ function buildStructuredDraft(input: {
   );
 
   if (!candidateSource) {
-    return null;
+    return buildGenericStructuredDraft([payloadDraft, reasoningDraft, parsedDraft].find((draft) => Object.keys(draft).length > 0));
   }
 
   const rawCandidates = getArray(candidateSource.candidates).length > 0 ? getArray(candidateSource.candidates) : getArray(candidateSource.top_candidates);
@@ -510,6 +521,68 @@ function mapLeadCandidate(value: unknown): ApprovalLeadCandidate | null {
     scoreFactors: getArray(value.score_factors).filter(isString),
     recommendedNextAction: getString(value.recommended_next_action) ?? "Review before next action.",
   };
+}
+
+function buildGenericStructuredDraft(source: JsonObject | undefined): ApprovalStructuredDraft | null {
+  if (!source) {
+    return null;
+  }
+
+  const sections = Object.entries(source)
+    .filter(([key, value]) => isReadableDraftKey(key) && value !== null && value !== undefined)
+    .flatMap(([key, value]) => readableSectionsForValue(key, value))
+    .slice(0, 12);
+
+  if (sections.length === 0) {
+    return null;
+  }
+
+  const summary =
+    getString(source.summary) ??
+    getString(source.headline) ??
+    getString(source.title) ??
+    getString(source.message) ??
+    getString(source.body) ??
+    sections[0]?.value ??
+    "Structured draft captured.";
+
+  return {
+    kind: "structured_fields",
+    title: getString(source.title) ?? getString(source.headline) ?? "Structured draft",
+    summary,
+    sections,
+  };
+}
+
+function readableSectionsForValue(key: string, value: unknown): ApprovalStructuredSection[] {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return [{ label: humanize(key), value: String(value) }];
+  }
+
+  if (Array.isArray(value)) {
+    const readable = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return readable.length > 0 ? [{ label: humanize(key), value: readable.join("\n") }] : [];
+  }
+
+  if (isObject(value)) {
+    const nested = Object.entries(value)
+      .filter(([nestedKey, nestedValue]) => isReadableDraftKey(nestedKey) && nestedValue !== null && nestedValue !== undefined && typeof nestedValue !== "object")
+      .map(([nestedKey, nestedValue]) => `${humanize(nestedKey)}: ${String(nestedValue)}`)
+      .join("\n");
+    return nested ? [{ label: humanize(key), value: nested }] : [];
+  }
+
+  return [];
+}
+
+function isReadableDraftKey(key: string) {
+  const normalized = key.toLowerCase();
+  return (
+    !normalized.endsWith("_id") &&
+    !normalized.endsWith("_ids") &&
+    normalized !== "id" &&
+    !/payload|metadata|audit|candidate|top_candidates|media|creative|asset|attachment/.test(normalized)
+  );
 }
 
 function parseDraftJson(value: string) {
@@ -703,7 +776,11 @@ function buildPreviewText(structuredDraft: ApprovalStructuredDraft | null, fallb
     return `${structuredDraft.candidates.length} partner candidates: ${topCandidates}`;
   }
 
-  // Never surface a raw JSON blob in the inbox preview — pull a human field out
+  if (structuredDraft?.kind === "structured_fields") {
+    return structuredDraft.summary;
+  }
+
+  // Never surface a raw JSON blob in the inbox preview; pull a human field out
   // of it, or fall back to a plain label.
   const parsed = getObject(parseDraftJson(fallback));
   if (Object.keys(parsed).length > 0) {
@@ -713,10 +790,10 @@ function buildPreviewText(structuredDraft: ApprovalStructuredDraft | null, fallb
       getString(parsed.target_market) ??
       getString(parsed.message) ??
       getString(parsed.body);
-    return summary ?? "Generated draft — open to review the details.";
+    return summary ?? "Generated draft - open to review the details.";
   }
 
-  return fallback.trim() ? fallback : "Generated draft — open to review the details.";
+  return fallback.trim() ? fallback : "Generated draft - open to review the details.";
 }
 
 function buildEvidence(leadMetadata: JsonObject, sourceData: JsonObject, structuredDraft?: ApprovalStructuredDraft | null) {
@@ -786,4 +863,123 @@ function isString(value: unknown): value is string {
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export type ApprovalHistoryEntry = {
+  id: string;
+  approvalItemId: string;
+  itemType: string;
+  decision: string;
+  decidedBy: string;
+  decidedAt: string;
+  decisionNotes: string | null;
+  previousStatus: string | null;
+  nextStatus: string;
+  campaignId: string | null;
+  campaignName: string | null;
+  riskLevel: string | null;
+};
+
+export type ApprovalHistoryFilter = {
+  campaignId?: string;
+  limit?: number;
+};
+
+/**
+ * Read-only ledger of approval decisions, newest first. Powers the Activity page
+ * and GET /api/v1/approvals/history. Two-step fetch (decisions -> items ->
+ * campaigns) indexed by id, mirroring listApprovalCards; no outbound side effects.
+ */
+export async function listApprovalHistory(
+  filter: ApprovalHistoryFilter = {},
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ApprovalHistoryEntry[]> {
+  const limit = filter.limit ?? 100;
+
+  // When filtering by campaign, resolve that campaign's item ids first.
+  let itemIdFilter: string[] | null = null;
+  if (filter.campaignId) {
+    const { data: campaignItems, error: campaignItemsError } = await client
+      .from("approval_items")
+      .select("id")
+      .eq("campaign_id", filter.campaignId);
+    if (campaignItemsError) {
+      throw new Error(`approval_items by campaign failed: ${campaignItemsError.message}`);
+    }
+    itemIdFilter = (campaignItems ?? []).map((row: { id: string }) => row.id);
+    if (itemIdFilter.length === 0) return [];
+  }
+
+  let decisionsQuery = client
+    .from("approval_decisions")
+    .select("id,approval_item_id,decision,decided_by,decided_at,decision_notes,previous_status,next_status")
+    .order("decided_at", { ascending: false })
+    .limit(limit);
+  if (itemIdFilter) {
+    decisionsQuery = decisionsQuery.in("approval_item_id", itemIdFilter);
+  }
+
+  const { data: decisions, error: decisionsError } = await decisionsQuery;
+  if (decisionsError) {
+    throw new Error(`approval_decisions query failed: ${decisionsError.message}`);
+  }
+  const decisionRows = (decisions ?? []) as Array<{
+    id: string;
+    approval_item_id: string;
+    decision: string;
+    decided_by: string;
+    decided_at: string;
+    decision_notes: string | null;
+    previous_status: string | null;
+    next_status: string;
+  }>;
+  if (decisionRows.length === 0) return [];
+
+  const itemIds = Array.from(new Set(decisionRows.map((row) => row.approval_item_id)));
+  const { data: items, error: itemsError } = await client
+    .from("approval_items")
+    .select("id,item_type,risk_level,campaign_id")
+    .in("id", itemIds);
+  if (itemsError) {
+    throw new Error(`approval_items lookup failed: ${itemsError.message}`);
+  }
+  const itemById = new Map<string, { item_type: string; risk_level: string | null; campaign_id: string | null }>(
+    (items ?? []).map((row: { id: string; item_type: string; risk_level: string | null; campaign_id: string | null }) => [
+      row.id,
+      { item_type: row.item_type, risk_level: row.risk_level, campaign_id: row.campaign_id },
+    ]),
+  );
+
+  const campaignIds = Array.from(
+    new Set(Array.from(itemById.values()).map((i) => i.campaign_id).filter((id): id is string => Boolean(id))),
+  );
+  const campaignById = new Map<string, string>();
+  if (campaignIds.length > 0) {
+    const { data: campaigns, error: campaignsError } = await client.from("campaigns").select("id,name").in("id", campaignIds);
+    if (campaignsError) {
+      throw new Error(`campaigns lookup failed: ${campaignsError.message}`);
+    }
+    for (const row of (campaigns ?? []) as Array<{ id: string; name: string }>) {
+      campaignById.set(row.id, row.name);
+    }
+  }
+
+  return decisionRows.map((row) => {
+    const item = itemById.get(row.approval_item_id) ?? null;
+    const campaignId = item?.campaign_id ?? null;
+    return {
+      id: row.id,
+      approvalItemId: row.approval_item_id,
+      itemType: item?.item_type ?? "unknown",
+      decision: row.decision,
+      decidedBy: row.decided_by,
+      decidedAt: row.decided_at,
+      decisionNotes: row.decision_notes,
+      previousStatus: row.previous_status,
+      nextStatus: row.next_status,
+      campaignId,
+      campaignName: campaignId ? campaignById.get(campaignId) ?? null : null,
+      riskLevel: item?.risk_level ?? null,
+    };
+  });
 }
