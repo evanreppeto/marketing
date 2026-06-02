@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { personaSignalLabel, shortTime, toMarkActivity } from "./live-signals";
+import { getVaultLiveSignals, personaSignalLabel, shortTime, toMarkActivity } from "./live-signals";
 
 const NOW = Date.parse("2026-06-02T12:00:00.000Z");
 
@@ -40,5 +40,24 @@ describe("toMarkActivity", () => {
       awaitingReview: 2,
       recentOutputs: [{ title: "Partner intel draft", status: "Pending Approval", time: "20m ago" }],
     });
+  });
+});
+
+describe("getVaultLiveSignals (no Supabase configured)", () => {
+  it("returns fallback with an Offline Mark when env vars are unset", async () => {
+    const prevUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    try {
+      const model = await getVaultLiveSignals();
+      expect(model.status).toBe("fallback");
+      expect(model.activity.name).toBe("Mark");
+      expect(model.activity.status).toBe("Offline");
+      expect(model.activity.drafting).toEqual([]);
+    } finally {
+      if (prevUrl) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;
+      if (prevKey) process.env.SUPABASE_SERVICE_ROLE_KEY = prevKey;
+    }
   });
 });

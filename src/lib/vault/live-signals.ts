@@ -76,3 +76,62 @@ export function toMarkActivity(
     })),
   };
 }
+
+import { seedVaultNotes } from "./seed-notes";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+
+const NOT_CONFIGURED = "Supabase is not configured — Mark activity is offline. Showing static counts.";
+
+export type VaultLiveSignals =
+  | { status: "live"; activity: MarkActivity; generatedAt: string }
+  | { status: "fallback"; activity: MarkActivity; message: string }
+  | { status: "error"; activity: MarkActivity; message: string };
+
+function seedReviewCount(): number {
+  return seedVaultNotes.filter((n) => n.status === "Needs review").length;
+}
+
+function offlineActivity(now: number): MarkActivity {
+  return toMarkActivity({ name: "Mark", status: "offline", metadata: {} }, [], [], seedReviewCount(), now);
+}
+
+export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
+  const now = Date.now();
+  if (!isSupabaseAdminConfigured()) {
+    return { status: "fallback", activity: offlineActivity(now), message: NOT_CONFIGURED };
+  }
+  try {
+    const supabase = getSupabaseAdminClient();
+    const [agentResult, tasksResult, outputsResult, reviewResult] = await Promise.all([
+      supabase.from("agents").select("name,status,metadata").eq("key", "mark").maybeSingle(),
+      supabase
+        .from("agent_tasks")
+        .select("objective,task_type,status,updated_at")
+        .in("status", ["queued", "running", "needs_approval"])
+        .order("updated_at", { ascending: false })
+        .limit(4),
+      supabase
+        .from("agent_outputs")
+        .select("title,approval_status,created_at")
+        .order("created_at", { ascending: false })
+        .limit(4),
+      supabase.from("vault_notes").select("slug", { count: "exact", head: true }).eq("status", "needs_review"),
+    ]);
+
+    const reviewCount = reviewResult.count ?? 0;
+    const activity = toMarkActivity(
+      agentResult.data ?? null,
+      tasksResult.data ?? [],
+      outputsResult.data ?? [],
+      reviewCount,
+      now,
+    );
+    return { status: "live", activity, generatedAt: new Date(now).toISOString() };
+  } catch (error) {
+    return {
+      status: "error",
+      activity: offlineActivity(now),
+      message: error instanceof Error ? error.message : "Mark activity is unavailable.",
+    };
+  }
+}
