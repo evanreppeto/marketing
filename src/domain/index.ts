@@ -7,3 +7,4 @@ export * from "./routing-decisions";
 export * from "./integrity-findings";
 export * from "./leads";
 export * from "./notebook";
+export * from "./campaign-revisions";

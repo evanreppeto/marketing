@@ -7,10 +7,11 @@ import { usePathname } from "next/navigation";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 
-// Frontend reset: all navigation tabs are intentionally hidden. The app shell
-// (logo, sidebar, operator profile, content slot) remains as the framework to
-// build on. Re-add entries here to surface routes as they are rebuilt.
-const navItems: ShellNavItem[] = [];
+// Frontend reset: rebuilding one tab at a time. Campaigns is the first (and
+// currently only) surface back online. Re-add entries here as routes return.
+const navItems: ShellNavItem[] = [
+  { label: "Campaigns", href: "/campaigns", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/campaigns"] },
+];
 
 /**
  * The persistent application chrome. Rendered ONCE in the root layout so the

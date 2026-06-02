@@ -67,8 +67,17 @@ export type CampaignWorkspaceAsset = {
   preview: string;
   complianceNotes: string;
   dispatchLocked: boolean;
+  toolSource: string | null;
   updatedAt: string;
   media: CampaignMediaAsset[];
+};
+
+export type CampaignWorkspaceReasoning = {
+  whyBuilt: string;
+  recommendedAction: string;
+  guardrailFlags: string[];
+  toolsUsed: string[];
+  promptInputs: Array<{ label: string; value: string }>;
 };
 
 export type CampaignWorkspaceApproval = {
@@ -108,37 +117,44 @@ export type CampaignWorkspaceEvent = {
   occurredAt: string;
 };
 
+export type CampaignWorkspaceMeta = {
+  id: string;
+  name: string;
+  persona: string;
+  restorationFocus: string;
+  status: string;
+  objective: string;
+  audienceSummary: string;
+  offerSummary: string;
+  complianceNotes: string;
+  owner: string;
+  launchLocked: boolean;
+  updatedAt: string;
+};
+
+export type CampaignWorkspaceMetrics = {
+  assets: number;
+  approvals: number;
+  media: number;
+  sources: number;
+};
+
+export type LiveCampaignWorkspace = {
+  status: "live";
+  campaign: CampaignWorkspaceMeta;
+  assets: CampaignWorkspaceAsset[];
+  groupedAssets: Record<CampaignWorkspaceAssetCategory, CampaignWorkspaceAsset[]>;
+  approvals: CampaignWorkspaceApproval[];
+  media: CampaignMediaAsset[];
+  sources: CampaignWorkspaceSource[];
+  activity: CampaignWorkspaceActivity[];
+  events: CampaignWorkspaceEvent[];
+  reasoning: CampaignWorkspaceReasoning;
+  metrics: CampaignWorkspaceMetrics;
+};
+
 export type CampaignWorkspaceDetail =
-  | {
-      status: "live";
-      campaign: {
-        id: string;
-        name: string;
-        persona: string;
-        restorationFocus: string;
-        status: string;
-        objective: string;
-        audienceSummary: string;
-        offerSummary: string;
-        complianceNotes: string;
-        owner: string;
-        launchLocked: boolean;
-        updatedAt: string;
-      };
-      assets: CampaignWorkspaceAsset[];
-      groupedAssets: Record<CampaignWorkspaceAssetCategory, CampaignWorkspaceAsset[]>;
-      approvals: CampaignWorkspaceApproval[];
-      media: CampaignMediaAsset[];
-      sources: CampaignWorkspaceSource[];
-      activity: CampaignWorkspaceActivity[];
-      events: CampaignWorkspaceEvent[];
-      metrics: {
-        assets: number;
-        approvals: number;
-        media: number;
-        sources: number;
-      };
-    }
+  | LiveCampaignWorkspace
   | {
       status: "not_found";
     }
@@ -388,6 +404,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       approvals: approvals.map(mapApproval),
       media,
       sources,
+      reasoning: buildReasoning(campaign, assets),
       activity: outputs.map(mapOutput),
       events: events.map((event) => ({
         id: event.id,
@@ -425,9 +442,47 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     preview: buildReadablePreview(body, asset.prompt_inputs, asset.reasoning_payload),
     complianceNotes: asset.compliance_notes ?? "No asset-level compliance notes captured.",
     dispatchLocked: asset.dispatch_locked,
+    toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
     media,
   };
+}
+
+/**
+ * Pure: distill the "thinking behind it" for the Reasoning tab from Mark's
+ * stored reasoning/audit payloads and the tools each asset was built with.
+ */
+export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[]): CampaignWorkspaceReasoning {
+  const reasoning = asObject(campaign.reasoning_payload);
+  const audit = asObject(campaign.audit_payload);
+
+  const toolsUsed = uniqueStrings([
+    ...assets.map((asset) => asset.tool_source),
+    getString(audit.provider),
+  ]).map(humanize);
+
+  return {
+    whyBuilt: getString(reasoning.why_hermes_created_it) ?? "Mark has not recorded reasoning for this campaign yet.",
+    recommendedAction: getString(reasoning.recommended_action) ?? "No recommended action recorded.",
+    guardrailFlags: asStringArray(reasoning.guardrail_flags),
+    toolsUsed,
+    promptInputs: buildPromptInputs(assets),
+  };
+}
+
+function buildPromptInputs(assets: CampaignAssetRow[]): Array<{ label: string; value: string }> {
+  const source = assets.find((asset) => Object.keys(asObject(asset.prompt_inputs)).length > 0);
+  if (!source) return [];
+
+  return Object.entries(asObject(source.prompt_inputs))
+    .filter(([key, value]) => isReadableKey(key) && value !== null && value !== undefined && typeof value !== "object")
+    .slice(0, 8)
+    .map(([key, value]) => ({ label: humanize(key), value: String(value) }));
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
 }
 
 function mapApproval(approval: ApprovalItemRow): CampaignWorkspaceApproval {

@@ -1,5 +1,6 @@
-import { BlankPage } from "@/app/_components/blank-page";
+import { redirect } from "next/navigation";
 
+// Campaigns is the single surface of the app right now; the root lands there.
 export default function Page() {
-  return <BlankPage />;
+  redirect("/campaigns");
 }
