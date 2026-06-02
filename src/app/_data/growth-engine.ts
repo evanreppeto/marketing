@@ -8,7 +8,7 @@ import {
 
 export const navItems = [
   { label: "Today", href: "/", icon: "today" },
-  { label: "Approvals", href: "/approvals", icon: "approval" },
+  { label: "Activity", href: "/approvals", icon: "approval" },
   { label: "CRM", href: "/crm", icon: "crm" },
   { label: "Personas", href: "/persona-intelligence", icon: "persona" },
   { label: "Mark", href: "/agent-operations", icon: "agents" },
