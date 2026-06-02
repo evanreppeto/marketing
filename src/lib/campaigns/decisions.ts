@@ -16,7 +16,7 @@ export type DecideApprovalInput = {
  * transition: logs an approval_decision, moves the approval item + linked asset
  * + campaign to the decided status, and writes a campaign event.
  *
- * Outbound dispatch is NEVER unlocked here — approval marks the work ready for a
+ * Outbound dispatch is NEVER unlocked here; approval marks the work ready for a
  * human-gated next step; it does not send anything (`dispatch_locked` /
  * `launch_locked` are left intact).
  */
@@ -81,6 +81,94 @@ export async function decideApprovalItem(
   }
 
   return { approvalItemId: item.id, decision, status: decision };
+}
+
+export type UndoDecisionInput = {
+  approvalItemId: string;
+  operator: string;
+};
+
+/**
+ * Append-only reversal of the most recent decision on an approval item. Restores
+ * the item (and any linked asset/campaign) to the decision's previous_status and
+ * records a `reverted` approval_decisions row. Never deletes history; never
+ * unlocks outbound. Throws if there is nothing to undo or the last decision was
+ * already a reversal.
+ */
+export async function undoDecision(
+  input: UndoDecisionInput,
+  client: SupabaseClient = getSupabaseAdminClient(),
+) {
+  const { approvalItemId, operator } = input;
+
+  const { data: last, error: lastError } = await client
+    .from("approval_decisions")
+    .select("id,decision,previous_status,next_status")
+    .eq("approval_item_id", approvalItemId)
+    .order("decided_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; decision: string; previous_status: string | null; next_status: string }>();
+  assertOk("approval_decisions lookup", lastError);
+  if (!last) {
+    throw new Error("No decision to undo for this approval item.");
+  }
+  if (last.decision === "reverted") {
+    throw new Error("The last action was already an undo; nothing to revert.");
+  }
+
+  const restoredStatus = last.previous_status ?? "pending_approval";
+
+  const { data: item, error: itemError } = await client
+    .from("approval_items")
+    .select("id,status,campaign_id,campaign_asset_id")
+    .eq("id", approvalItemId)
+    .maybeSingle<{ id: string; status: string; campaign_id: string | null; campaign_asset_id: string | null }>();
+  assertOk("approval_items lookup", itemError);
+  if (!item) {
+    throw new Error("Approval item not found.");
+  }
+
+  const { error: decisionError } = await client.from("approval_decisions").insert({
+    approval_item_id: approvalItemId,
+    decision: "reverted",
+    decided_by: operator,
+    previous_status: last.next_status,
+    next_status: restoredStatus,
+    metadata: { source: "approval_inbox_undo", reverted_decision_id: last.id, outbound_locked: true },
+  });
+  assertOk("approval_decisions insert (revert)", decisionError);
+
+  const { error: updateItemError } = await client
+    .from("approval_items")
+    .update({ status: restoredStatus, reviewed_by: null, reviewed_at: null })
+    .eq("id", approvalItemId);
+  assertOk("approval_items update (revert)", updateItemError);
+
+  if (item.campaign_asset_id) {
+    const { error: assetError } = await client
+      .from("campaign_assets")
+      .update({ status: restoredStatus, approved_by: null, approved_at: null })
+      .eq("id", item.campaign_asset_id);
+    assertOk("campaign_assets update (revert)", assetError);
+  }
+
+  if (item.campaign_id) {
+    const { error: campaignError } = await client.from("campaigns").update({ status: restoredStatus }).eq("id", item.campaign_id);
+    assertOk("campaigns update (revert)", campaignError);
+
+    const { error: eventError } = await client.from("campaign_events").insert({
+      campaign_id: item.campaign_id,
+      campaign_asset_id: item.campaign_asset_id,
+      approval_item_id: approvalItemId,
+      event_type: "decision_reverted",
+      actor: operator,
+      detail: `Decision undone by ${operator}; restored to ${restoredStatus}.`,
+      payload: { reverted_decision_id: last.id, outbound_locked: true },
+    });
+    assertOk("campaign_events insert (revert)", eventError);
+  }
+
+  return { approvalItemId, restoredStatus };
 }
 
 function assertOk(label: string, error: { message: string } | null) {
