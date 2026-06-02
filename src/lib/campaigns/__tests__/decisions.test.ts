@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { undoDecision } from "../decisions";
+import { decideApprovalItem, undoDecision } from "../decisions";
 
 /**
  * Minimal awaitable Supabase stub. Each `.from(table)` returns a builder whose
@@ -74,5 +74,58 @@ describe("undoDecision", () => {
     });
 
     await expect(undoDecision({ approvalItemId: "i1", operator: "Evan" }, client)).rejects.toThrow(/already/i);
+  });
+});
+
+describe("decideApprovalItem campaign status mapping", () => {
+  it("maps a declined decision to a valid campaign_status (not 'declined')", async () => {
+    const calls: { table: string; op: string; payload?: unknown }[] = [];
+    const item = { id: "i1", status: "pending_approval", campaign_id: "c1", campaign_asset_id: "a1" };
+    function builder(table: string) {
+      const api: Record<string, unknown> = {
+        select: () => api,
+        eq: () => api,
+        order: () => api,
+        limit: () => api,
+        insert: (payload: unknown) => { calls.push({ table, op: "insert", payload }); return api; },
+        update: (payload: unknown) => { calls.push({ table, op: "update", payload }); return api; },
+        maybeSingle: async () => (table === "approval_items" ? { data: item, error: null } : { data: null, error: null }),
+        single: async () => ({ data: { id: "x" }, error: null }),
+        then: (resolve: (v: { data: null; error: null }) => unknown) => resolve({ data: null, error: null }),
+      };
+      return api;
+    }
+    const client = { from: (t: string) => builder(t) } as never;
+
+    await decideApprovalItem({ approvalItemId: "i1", decision: "declined", operator: "Evan" }, client);
+
+    const campaignUpdate = calls.find((c) => c.table === "campaigns" && c.op === "update");
+    const valid = ["draft","briefing","generating","pending_approval","approved","active","paused","archived","blocked"];
+    expect(campaignUpdate).toBeTruthy();
+    expect(valid).toContain((campaignUpdate!.payload as { status: string }).status);
+    // declined campaign work should be unavailable -> blocked
+    expect((campaignUpdate!.payload as { status: string }).status).toBe("blocked");
+  });
+
+  it("maps approved -> approved and archived -> archived for the campaign", async () => {
+    for (const [decision, expected] of [["approved","approved"],["archived","archived"]] as const) {
+      const calls: { table: string; op: string; payload?: unknown }[] = [];
+      const item = { id: "i1", status: "pending_approval", campaign_id: "c1", campaign_asset_id: null };
+      function builder(table: string) {
+        const api: Record<string, unknown> = {
+          select: () => api, eq: () => api, order: () => api, limit: () => api,
+          insert: (payload: unknown) => { calls.push({ table, op: "insert", payload }); return api; },
+          update: (payload: unknown) => { calls.push({ table, op: "update", payload }); return api; },
+          maybeSingle: async () => (table === "approval_items" ? { data: item, error: null } : { data: null, error: null }),
+          single: async () => ({ data: { id: "x" }, error: null }),
+          then: (resolve: (v: { data: null; error: null }) => unknown) => resolve({ data: null, error: null }),
+        };
+        return api;
+      }
+      const client = { from: (t: string) => builder(t) } as never;
+      await decideApprovalItem({ approvalItemId: "i1", decision, operator: "Evan" }, client);
+      const campaignUpdate = calls.find((c) => c.table === "campaigns" && c.op === "update");
+      expect((campaignUpdate!.payload as { status: string }).status).toBe(expected);
+    }
   });
 });

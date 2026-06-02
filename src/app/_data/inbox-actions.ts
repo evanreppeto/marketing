@@ -37,10 +37,21 @@ export async function decideFromInboxAction(_previous: InboxActionState, formDat
     return { ok: false, message: "Inbox supports approve or decline only." };
   }
 
+  const client = getSupabaseAdminClient();
+
+  const { data: itemRow } = await client
+    .from("approval_items")
+    .select("risk_level")
+    .eq("id", approvalItemId)
+    .maybeSingle<{ risk_level: string | null }>();
+  if (itemRow && /high|blocked/i.test(itemRow.risk_level ?? "")) {
+    return { ok: false, message: "High-risk items must be reviewed inside the campaign before deciding." };
+  }
+
   try {
     await decideApprovalItem(
       { approvalItemId, decision: decision as ApprovalDecision, operator: "Operator" },
-      getSupabaseAdminClient(),
+      client,
     );
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't record the decision." };

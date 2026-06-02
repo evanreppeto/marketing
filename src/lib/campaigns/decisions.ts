@@ -11,6 +11,22 @@ export type DecideApprovalInput = {
   notes?: string;
 };
 
+const VALID_CAMPAIGN_STATUSES = new Set([
+  "draft", "briefing", "generating", "pending_approval", "approved", "active", "paused", "archived", "blocked",
+]);
+
+/** Map an approval decision to a valid campaign_status. Declined work becomes unavailable (blocked). */
+function decisionToCampaignStatus(decision: ApprovalDecision): string {
+  if (decision === "approved") return "approved";
+  if (decision === "archived") return "archived";
+  return "blocked"; // declined
+}
+
+/** Coerce an arbitrary approval_status into a valid campaign_status, defaulting to pending_approval. */
+function toCampaignStatus(status: string): string {
+  return VALID_CAMPAIGN_STATUSES.has(status) ? status : "pending_approval";
+}
+
 /**
  * Record a human decision on a campaign approval item. A real backend state
  * transition: logs an approval_decision, moves the approval item + linked asset
@@ -65,7 +81,7 @@ export async function decideApprovalItem(
   }
 
   if (item.campaign_id) {
-    const { error: campaignError } = await client.from("campaigns").update({ status: decision }).eq("id", item.campaign_id);
+    const { error: campaignError } = await client.from("campaigns").update({ status: decisionToCampaignStatus(decision) }).eq("id", item.campaign_id);
     assertOk("campaigns update", campaignError);
 
     const { error: eventError } = await client.from("campaign_events").insert({
@@ -153,7 +169,7 @@ export async function undoDecision(
   }
 
   if (item.campaign_id) {
-    const { error: campaignError } = await client.from("campaigns").update({ status: restoredStatus }).eq("id", item.campaign_id);
+    const { error: campaignError } = await client.from("campaigns").update({ status: toCampaignStatus(restoredStatus) }).eq("id", item.campaign_id);
     assertOk("campaigns update (revert)", campaignError);
 
     const { error: eventError } = await client.from("campaign_events").insert({
