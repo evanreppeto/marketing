@@ -17,7 +17,7 @@ export const vaultCollections = [
 // real CRM records and personas, not just other notes. Pass the active notes
 // (from Supabase or the seeds) so note-to-note links resolve correctly.
 export function buildLinkContext(notes: VaultNote[] = vaultNotes): LinkResolutionContext {
-  const noteMap = new Map(notes.map((n) => [n.slug, `/notebook/${n.slug}`]));
+  const noteMap = new Map(notes.map((n) => [n.slug, `/vault/${n.slug}`]));
 
   const recordMap = new Map<string, string>();
   for (const object of crmObjects) {

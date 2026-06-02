@@ -18,6 +18,7 @@ const navItems: ShellNavItem[] = [
     matches: ["/persona-intelligence", "/customer-types"],
   },
   { label: "Mark", href: "/agent-operations", iconSrc: "/brand/nav-icons/mark-icon.png", matches: ["/agent-operations", "/ai-studio"] },
+  { label: "Vault", href: "/vault", iconSrc: "/brand/nav-icons/vault-icon.png", matches: ["/vault"] },
   {
     label: "Settings",
     href: "/settings",

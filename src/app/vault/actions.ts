@@ -22,7 +22,7 @@ export async function saveNoteAction(formData: FormData): Promise<void> {
   await requireOperator();
 
   if (!isSupabaseAdminConfigured()) {
-    redirect("/notebook?action=not-configured");
+    redirect("/vault?action=not-configured");
   }
 
   const title = String(formData.get("title") ?? "").trim();
@@ -40,42 +40,42 @@ export async function saveNoteAction(formData: FormData): Promise<void> {
   const slug = existingSlug || slugify(title);
 
   if (!title || !folder || !slug) {
-    redirect("/notebook?action=invalid");
+    redirect("/vault?action=invalid");
   }
 
   const note: VaultNote = { slug, title, folder, tags, author, status, updated: "", body };
   await upsertVaultNote(getSupabaseAdminClient(), note);
 
-  revalidatePath("/notebook");
-  revalidatePath(`/notebook/${slug}`);
-  redirect(`/notebook/${slug}?action=saved`);
+  revalidatePath("/vault");
+  revalidatePath(`/vault/${slug}`);
+  redirect(`/vault/${slug}?action=saved`);
 }
 
 export async function publishNoteAction(formData: FormData): Promise<void> {
   await requireOperator();
   const slug = String(formData.get("slug") ?? "").trim();
-  if (!slug) redirect("/notebook?action=invalid");
+  if (!slug) redirect("/vault?action=invalid");
 
   if (!isSupabaseAdminConfigured()) {
-    redirect("/notebook?action=not-configured");
+    redirect("/vault?action=not-configured");
   }
 
   await setVaultNoteStatus(getSupabaseAdminClient(), slug, "Published");
-  revalidatePath("/notebook");
-  revalidatePath(`/notebook/${slug}`);
-  redirect(`/notebook/${slug}?action=published`);
+  revalidatePath("/vault");
+  revalidatePath(`/vault/${slug}`);
+  redirect(`/vault/${slug}?action=published`);
 }
 
 export async function archiveNoteAction(formData: FormData): Promise<void> {
   await requireOperator();
   const slug = String(formData.get("slug") ?? "").trim();
-  if (!slug) redirect("/notebook?action=invalid");
+  if (!slug) redirect("/vault?action=invalid");
 
   if (!isSupabaseAdminConfigured()) {
-    redirect("/notebook?action=not-configured");
+    redirect("/vault?action=not-configured");
   }
 
   await archiveVaultNote(getSupabaseAdminClient(), slug);
-  revalidatePath("/notebook");
-  redirect("/notebook?action=archived");
+  revalidatePath("/vault");
+  redirect("/vault?action=archived");
 }

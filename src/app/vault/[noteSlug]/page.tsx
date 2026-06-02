@@ -49,7 +49,7 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
   };
 
   return (
-    <AppShell active="/notebook">
+    <AppShell active="/vault">
       <PageHeader
         eyebrow={note.folder}
         title={note.title}
@@ -63,7 +63,7 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
       />
 
       <div className="mb-4">
-        <Link className="text-sm font-semibold text-[var(--accent)]" href="/notebook">← All notes</Link>
+        <Link className="text-sm font-semibold text-[var(--accent)]" href="/vault">← All notes</Link>
       </div>
 
       {needsReview ? (
@@ -85,13 +85,13 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
               <button className={buttonClasses({ variant: "primary" })} type="submit">Publish</button>
             </form>
           ) : (
-            <Link className={buttonClasses({ variant: "primary" })} href={`/notebook/${note.slug}/edit`}>Edit</Link>
+            <Link className={buttonClasses({ variant: "primary" })} href={`/vault/${note.slug}/edit`}>Edit</Link>
           )
         }
         secondary={
           <>
             {note.status !== "Published" ? (
-              <Link className={buttonClasses({ variant: "ghost" })} href={`/notebook/${note.slug}/edit`}>Edit</Link>
+              <Link className={buttonClasses({ variant: "ghost" })} href={`/vault/${note.slug}/edit`}>Edit</Link>
             ) : null}
             <form action={archiveNoteAction}>
               <input name="slug" type="hidden" value={note.slug} />
