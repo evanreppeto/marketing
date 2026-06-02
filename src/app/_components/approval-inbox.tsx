@@ -3,15 +3,24 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { Button, StatusPill } from "./page-header";
+import { Button, EmptyState, StatusPill, buttonClasses } from "./page-header";
 import { decideFromInboxAction, undoInboxDecisionAction } from "../_data/inbox-actions";
 
 export type InboxItem = {
   id: string;
   title: string;
+  previewText: string;
   persona: string;
+  statusLabel: string;
   riskLevel: string;
+  channel: string;
+  sourceAgent: string;
+  recommendedAction: string;
+  evidenceCount: number;
+  mediaCount: number;
   campaignId: string | null;
+  campaignName: string;
+  relatedCount: number;
 };
 
 function isHighRisk(risk: string) {
@@ -52,45 +61,91 @@ export function ApprovalInbox({ items }: { items: InboxItem[] }) {
 
   async function undo() {
     if (!toast) return;
+    const target = toast;
     const form = new FormData();
-    form.set("approvalItemId", toast.approvalItemId);
-    form.set("campaignId", toast.campaignId ?? "");
-    await undoInboxDecisionAction(null, form);
-    setDecided((prev) => ({ ...prev, [toast.approvalItemId]: false }));
-    setToast(null);
+    form.set("approvalItemId", target.approvalItemId);
+    form.set("campaignId", target.campaignId ?? "");
+    const result = await undoInboxDecisionAction(null, form);
+    if (result?.ok) {
+      setDecided((prev) => ({ ...prev, [target.approvalItemId]: false }));
+      setToast(null);
+    } else {
+      setToast({ ...target, message: result?.message ?? "Undo failed." });
+    }
   }
 
   if (visible.length === 0) {
-    return <p className="px-5 py-6 text-sm text-[var(--text-secondary)]">Nothing waiting on your approval. Mark will surface new work here.</p>;
+    return <EmptyState title="Nothing waiting on your approval" detail="When Mark prepares new work that needs a decision, it shows up here." />;
   }
 
   return (
     <div className="relative">
+      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Quick decisions are for readable, lower-risk packets only.</p>
+          <StatusPill tone="amber">Outbound locked</StatusPill>
+        </div>
+        <p className="mt-1 max-w-[78ch] text-xs leading-5 text-[var(--text-secondary)]">
+          Approval records a human decision. It does not send email, SMS, launch ads, publish pages, change spend, or contact anyone.
+        </p>
+      </div>
+
       <ul className="divide-y divide-[var(--border-hairline)]">
         {visible.map((item) => (
-          <li key={item.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-bold text-[var(--text-primary)]">{item.title}</div>
-              <div className="mt-0.5 text-sm text-[var(--text-secondary)]">{item.persona}</div>
-            </div>
-            <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
-            {isHighRisk(item.riskLevel) ? (
-              <Link
-                href={item.campaignId ? `/campaigns/${item.campaignId}` : "/approvals"}
-                className="text-sm font-semibold text-[var(--accent)] hover:underline"
-              >
-                Open &rarr;
-              </Link>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button type="button" size="sm" variant="primary" disabled={pending === item.id} onClick={() => decide(item, "approved")}>
-                  Approve
-                </Button>
-                <Button type="button" size="sm" variant="ghost" disabled={pending === item.id} onClick={() => decide(item, "declined")}>
-                  Decline
-                </Button>
+          <li key={item.id} className="px-5 py-4">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
+                  <StatusPill tone="blue">{item.channel}</StatusPill>
+                  <StatusPill tone="gray">{item.statusLabel}</StatusPill>
+                </div>
+                <div className="mt-3 truncate font-bold text-[var(--text-primary)]">{item.title}</div>
+                <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{item.previewText}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <InboxDetail label="Persona" value={item.persona} />
+                  <InboxDetail label="Created by" value={item.sourceAgent} />
+                  <InboxDetail label="Campaign" value={item.campaignName} />
+                  <InboxDetail label="Recommended" value={item.recommendedAction} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
+                  <span>{item.evidenceCount} evidence link{item.evidenceCount === 1 ? "" : "s"}</span>
+                  <span>{item.mediaCount} media item{item.mediaCount === 1 ? "" : "s"}</span>
+                  <span>{item.relatedCount} related record{item.relatedCount === 1 ? "" : "s"}</span>
+                </div>
               </div>
-            )}
+
+              <div className="flex flex-col justify-between gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Human action</div>
+                  <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+                    {isHighRisk(item.riskLevel) ? "Open the full packet before deciding." : "Review the packet summary, then decide or open details."}
+                  </p>
+                </div>
+                {isHighRisk(item.riskLevel) ? (
+                  <Link
+                    href={item.campaignId ? `/campaigns/${item.campaignId}` : `/approvals?item=${item.id}`}
+                    className={buttonClasses({ variant: "primary", size: "sm", className: "w-full" })}
+                  >
+                    Review packet
+                  </Link>
+                ) : (
+                  <div className="grid gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button type="button" size="sm" variant="primary" disabled={pending === item.id} onClick={() => decide(item, "approved")}>
+                        Approve
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" disabled={pending === item.id} onClick={() => decide(item, "declined")}>
+                        Decline
+                      </Button>
+                    </div>
+                    <Link className={buttonClasses({ variant: "ghost", size: "sm", className: "w-full" })} href={`/approvals?item=${item.id}`}>
+                      Open details
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
           </li>
         ))}
       </ul>
@@ -103,6 +158,15 @@ export function ApprovalInbox({ items }: { items: InboxItem[] }) {
           </button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function InboxDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value || "Missing"}</div>
     </div>
   );
 }
