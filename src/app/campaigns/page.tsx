@@ -1,10 +1,11 @@
 import { connection } from "next/server";
 
 import { EmptyState } from "../_components/page-header";
-import { MetricStrip, WorkspaceHeader } from "../_components/workspace";
+import { MetricStrip } from "../_components/workspace";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 
 import { CampaignGallery } from "./_components/campaign-gallery";
+import { SlimHeader } from "./_components/slim-header";
 
 export default async function CampaignsPage() {
   await connection();
@@ -14,17 +15,8 @@ export default async function CampaignsPage() {
   if (list.status === "unavailable") {
     return (
       <>
-        <WorkspaceHeader
-          eyebrow="Campaigns"
-          title="Every campaign Mark builds lives here."
-          description="Preview the creative, trace the leads and reasoning behind each one, and ask Mark to revise — outbound stays locked."
-          status="Supabase unavailable"
-          statusTone="amber"
-        />
-        <EmptyState
-          title="Campaign workspace unavailable"
-          detail={list.message}
-        />
+        <SlimHeader title="Campaigns" subtitle="Everything Mark builds — outbound stays locked." />
+        <EmptyState title="Campaign workspace unavailable" detail={list.message} />
       </>
     );
   }
@@ -33,13 +25,7 @@ export default async function CampaignsPage() {
 
   return (
     <>
-      <WorkspaceHeader
-        eyebrow="Campaigns"
-        title="Every campaign Mark builds lives here."
-        description="Preview the creative, trace the leads and reasoning behind each one, and ask Mark to revise — outbound stays locked."
-        status={totals.campaigns > 0 ? `${totals.campaigns} campaigns` : "No campaigns yet"}
-        statusTone={totals.campaigns > 0 ? "green" : "gray"}
-      />
+      <SlimHeader title="Campaigns" subtitle="Everything Mark builds — preview the creative, trace the reasoning, and ask Mark to revise." />
 
       <MetricStrip
         metrics={[

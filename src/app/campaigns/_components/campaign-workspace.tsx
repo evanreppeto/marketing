@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { WorkspaceHeader } from "@/app/_components/workspace";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
 import { ApprovalsTab } from "./approvals-tab";
@@ -11,6 +10,7 @@ import { CreativeTab } from "./creative-tab";
 import { MarkRail } from "./mark-rail";
 import { OverviewTab } from "./overview-tab";
 import { ReasoningTab } from "./reasoning-tab";
+import { SlimHeader } from "./slim-header";
 import { statusTone } from "./status-tone";
 
 type TabKey = "creative" | "overview" | "audience" | "reasoning" | "approvals";
@@ -35,14 +35,7 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
 
   return (
     <>
-      <WorkspaceHeader
-        eyebrow="Campaign"
-        title={campaign.name}
-        description={campaign.objective}
-        status={campaign.status}
-        statusTone={statusTone(campaign.status)}
-        secondary={{ label: "All campaigns", href: "/campaigns" }}
-      />
+      <SlimHeader title={campaign.name} status={campaign.status} statusTone={statusTone(campaign.status)} backHref="/campaigns" />
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0">

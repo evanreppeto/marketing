@@ -36,6 +36,10 @@ export type CampaignWorkspaceListItem = {
   approvalCount: number;
   mediaCount: number;
   sourceCount: number;
+  thumbnailUrl: string | null;
+  assetTypes: string[];
+  previewText: string | null;
+  previewLabel: string | null;
   updatedAt: string;
   href: string;
 };
@@ -303,6 +307,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
     const items = campaigns.map((campaign) => {
       const campaignAssets = assets.filter((asset) => asset.campaign_id === campaign.id);
       const campaignApprovals = approvals.filter((approval) => approval.campaign_id === campaign.id);
+      const preview = pickPreview(campaignAssets);
       return {
         id: campaign.id,
         name: campaign.name,
@@ -315,6 +320,10 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         approvalCount: campaignApprovals.length,
         mediaCount: mediaByCampaign.get(campaign.id)?.length ?? 0,
         sourceCount: sourceCountByCampaign.get(campaign.id) ?? 0,
+        thumbnailUrl: pickThumbnail(mediaByCampaign.get(campaign.id) ?? []),
+        assetTypes: uniqueStrings(campaignAssets.map((asset) => humanize(asset.asset_type))).slice(0, 4),
+        previewText: preview?.text ?? null,
+        previewLabel: preview?.label ?? null,
         updatedAt: formatDate(campaign.updated_at),
         href: `/campaigns/${campaign.id}`,
       };
@@ -938,6 +947,29 @@ function isMediaLikeUrl(url: string) {
 
 function isUrl(value: string) {
   return /^https?:\/\//i.test(value);
+}
+
+/** Pick the primary asset's readable copy for a rendered preview cover.
+ *  `assets` arrive newest-first; returns the first asset with real copy. */
+function pickPreview(assets: CampaignAssetRow[]): { text: string; label: string } | null {
+  for (const asset of assets) {
+    const body = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
+    const text = buildReadablePreview(body, asset.prompt_inputs, asset.reasoning_payload);
+    if (text && text !== "No readable draft content has been attached yet.") {
+      return { text: text.slice(0, 360), label: humanize(asset.channel ?? asset.asset_type) };
+    }
+  }
+  return null;
+}
+
+/** Pick a representative thumbnail for a campaign card: first image, else a
+ *  video/embed poster if present. Returns null when there's no visual media. */
+function pickThumbnail(media: CampaignMediaAsset[]): string | null {
+  const image = media.find((asset) => asset.type === "image");
+  if (image) return image.thumbnailUrl ?? image.url;
+
+  const posterized = media.find((asset) => (asset.type === "video" || asset.type === "embed") && asset.thumbnailUrl);
+  return posterized?.thumbnailUrl ?? null;
 }
 
 function defaultMediaTitle(type: CampaignMediaAsset["type"]) {
