@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export type Column<T> = {
@@ -21,6 +22,7 @@ export function DataTable<T>({
   columns,
   rows,
   rowKey,
+  rowHref,
   minWidth = "min-w-[880px]",
   isSelected,
   emptyState,
@@ -28,6 +30,7 @@ export function DataTable<T>({
   columns: Array<Column<T>>;
   rows: T[];
   rowKey: (row: T) => string;
+  rowHref?: (row: T) => string | null | undefined;
   minWidth?: string;
   isSelected?: (row: T) => boolean;
   emptyState?: ReactNode;
@@ -51,19 +54,29 @@ export function DataTable<T>({
         <tbody>
           {rows.map((row) => {
             const selected = isSelected?.(row) ?? false;
+            const href = rowHref?.(row) ?? null;
 
             return (
               <tr
                 key={rowKey(row)}
                 aria-current={selected ? "page" : undefined}
-                className={`group transition hover:bg-[var(--surface-inset)] ${selected ? "bg-[var(--accent-soft)]" : ""}`}
+                className={`group transition ${href ? "cursor-pointer hover:bg-[var(--surface-inset)]" : "hover:bg-[var(--surface-inset)]"} ${selected ? "bg-[var(--accent-soft)]" : ""}`}
               >
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className={`border-t border-[var(--border-hairline)] px-3 py-4 align-top ${column.align === "right" ? "text-right" : ""} ${column.cellClassName ?? ""}`}
+                    className={`border-t border-[var(--border-hairline)] align-top ${href ? "p-0" : "px-3 py-4"} ${column.align === "right" ? "text-right" : ""} ${column.cellClassName ?? ""}`}
                   >
-                    {column.cell(row)}
+                    {href ? (
+                      <Link
+                        className={`block h-full px-3 py-4 text-inherit no-underline ${column.align === "right" ? "text-right" : "text-left"}`}
+                        href={href}
+                      >
+                        {column.cell(row)}
+                      </Link>
+                    ) : (
+                      column.cell(row)
+                    )}
                   </td>
                 ))}
               </tr>

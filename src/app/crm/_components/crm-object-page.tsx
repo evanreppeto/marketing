@@ -13,26 +13,27 @@ import {
 import { CrmCommandHeader } from "./crm-command-header";
 import { CrmRecordForm } from "./crm-record-form";
 import { isCrmEntityKey } from "../entity-keys";
-import { type CrmObjectData, type CrmObjectRow } from "@/lib/crm/read-model";
+import { type CrmNavCounts, type CrmObjectData, type CrmObjectRow } from "@/lib/crm/read-model";
 
 type CrmObjectKey = (typeof crmObjects)[number]["key"];
-type CrmListViewKey = "recently-viewed" | "my-records" | "needs-review";
+type CrmListViewKey = "all-records" | "recently-updated" | "needs-review";
 
 type CrmObjectPageProps = {
   action?: string;
   liveObject?: CrmObjectData;
   liveMessage?: string;
   objectKey: CrmObjectKey;
+  navCounts?: Extract<CrmNavCounts, { status: "live" }>["counts"];
   view?: string;
 };
 
 const crmListViews: Array<{ key: CrmListViewKey; label: string; description: string }> = [
-  { key: "recently-viewed", label: "Recently viewed", description: "Recently touched CRM records." },
-  { key: "my-records", label: "My records", description: "Records owned by Robby." },
+  { key: "all-records", label: "All records", description: "Every record in this CRM object." },
+  { key: "recently-updated", label: "Recently updated", description: "Newest records first." },
   { key: "needs-review", label: "Needs review", description: "Records that need cleanup or operator review." },
 ];
 
-export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view }: CrmObjectPageProps) {
+export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, objectKey, view }: CrmObjectPageProps) {
   const fallbackObject = crmObjects.find((object) => object.key === objectKey);
   const crmObject = liveObject ?? (fallbackObject ? { ...fallbackObject, count: 0, relationships: "No linked records", lastActivity: "No activity", sampleRows: [] } : undefined);
   const isLive = Boolean(liveObject);
@@ -44,14 +45,13 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
   const activeView = normalizeListView(view);
   const activeViewMeta = crmListViews.find((item) => item.key === activeView) ?? crmListViews[0];
   const filteredRows = getRowsForListView(crmObject.sampleRows, activeView);
-  const LIST_LIMIT = 10;
-  const displayedRows = filteredRows.slice(0, LIST_LIMIT);
+  const displayedRows = filteredRows;
   const selectedRow = filteredRows[0] ?? crmObject.sampleRows[0];
   const showCreateForm = action === "new" && isCrmEntityKey(objectKey);
 
   return (
     <AppShell active="/crm">
-      <CrmCommandHeader activeObject={objectKey} />
+      <CrmCommandHeader activeObject={objectKey} counts={navCounts} />
 
       <section className="signal-panel module-rise mt-4 overflow-hidden">
         <div className="signal-inset border-b border-[var(--border-hairline)] px-4 py-4">
@@ -80,9 +80,6 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
               ) : null}
             </div>
             <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-              <Link className={buttonClasses({ variant: "ghost" })} href={`${crmObject.href}?action=filter`}>
-                Filter
-              </Link>
               <Link className={buttonClasses({ variant: "primary" })} href={`${crmObject.href}?action=new`}>
                 New {singularLabel(crmObject.label)}
               </Link>
@@ -161,30 +158,17 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
           <DataTable
             rows={displayedRows}
             rowKey={(row) => row.id}
+            rowHref={(row) => `${crmObject.href}/${row.id}`}
             columns={[
-              {
-                key: "select",
-                header: <span className="sr-only">Select</span>,
-                width: "w-10",
-                headClassName: "px-5",
-                cellClassName: "px-5",
-                cell: () => (
-                  <span className="block h-4 w-4 rounded border border-[var(--border-strong)] bg-[var(--surface-raised)] group-hover:border-[var(--accent)]" />
-                ),
-              },
               {
                 key: "primary",
                 header: crmObject.primaryField,
                 cellClassName: "max-w-[34ch]",
-                cell: (row) => (
-                  <Link className="line-clamp-1 font-semibold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`${crmObject.href}/${row.id}`}>
-                    {row.name}
-                  </Link>
-                ),
+                cell: (row) => <span className="line-clamp-1 font-semibold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.name}</span>,
               },
               { key: "secondary", header: crmObject.secondaryField, cellClassName: "max-w-[30ch] text-[var(--text-secondary)]", cell: (row) => <span className="line-clamp-2">{row.detail}</span> },
               { key: "owner", header: "Owner", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.owner },
-              { key: "updated", header: "Updated", cellClassName: "text-[var(--text-muted)]", cell: (row) => row.updated },
+                { key: "updated", header: "Updated", cellClassName: "text-[var(--text-muted)]", cell: (row) => formatCrmDate(row.updated) },
               {
                 key: "status",
                 header: "Status",
@@ -239,7 +223,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
                   </div>
                   <div className="signal-inset rounded-md border p-3">
                     <div className="text-xs text-[var(--text-muted)]">Updated</div>
-                    <div className="mt-1 font-semibold text-[var(--text-primary)]">{selectedRow.updated}</div>
+                    <div className="mt-1 break-words font-semibold text-[var(--text-primary)]">{formatCrmDate(selectedRow.updated)}</div>
                   </div>
                 </div>
                 <Link className={buttonClasses({ variant: "primary", className: "mt-4 w-full" })} href={`${crmObject.href}/${selectedRow.id}`}>
@@ -258,38 +242,38 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
 
           {objectKey === "leads" ? (
             <Panel className="module-rise [animation-delay:150ms]">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div>
+              <div className="flex min-w-0 flex-col gap-3">
+                <div className="min-w-0">
                   <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">
                     Hyper-persona snapshot
                   </h2>
-                  <p className="mt-1 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
+                  <p className="mt-1 max-w-[64ch] text-sm leading-6 text-[var(--text-secondary)]">
                     {hyperPersonalizationReference.thesis}
                   </p>
                 </div>
-                <div className="signal-inset shrink-0 rounded-md border px-3 py-2 font-mono text-xs text-[var(--text-secondary)]">
+                <div className="signal-inset w-fit max-w-full rounded-md border px-3 py-2 font-mono text-xs text-[var(--text-secondary)]">
                   {hyperPersonalizationReference.source}
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 lg:grid-cols-4">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {[
                   ["Base persona", leadHyperPersonaSnapshot.basePersona],
                   ["Relationship stage", leadHyperPersonaSnapshot.relationshipStage],
                   ["Loss pattern", leadHyperPersonaSnapshot.dominantLossPattern],
                   ["Preferred channel", leadHyperPersonaSnapshot.preferredChannel],
                 ].map(([label, value]) => (
-                  <div className="signal-inset rounded-md border p-3" key={label}>
+                  <div className="signal-inset min-w-0 rounded-md border p-3" key={label}>
                     <div className="text-xs text-[var(--text-muted)]">{label}</div>
-                    <div className="mt-1 font-mono text-sm font-semibold text-[var(--text-primary)]">{value}</div>
+                    <div className="mt-1 break-words text-sm font-semibold leading-5 text-[var(--text-primary)]">{humanizeCrmToken(value)}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
-                <div className="signal-inset rounded-md border p-4">
+              <div className="mt-5 grid gap-4">
+                <div className="signal-inset min-w-0 rounded-md border p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-semibold text-[var(--text-primary)]">Next best action</h3>
                       <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
                         {leadHyperPersonaSnapshot.nextBestAction}
@@ -299,7 +283,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-3">
                     {leadNextBestActions.map((item) => (
-                      <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={item.action}>
+                      <div className="min-w-0 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={item.action}>
                         <div className="font-semibold text-[var(--text-primary)]">{item.action}</div>
                         <p className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">{item.reason}</p>
                         <div className="mt-3 text-xs font-semibold text-[var(--accent)]">{item.approval}</div>
@@ -308,12 +292,12 @@ export function CrmObjectPage({ action, liveMessage, liveObject, objectKey, view
                   </div>
                 </div>
 
-                <div className="signal-inset rounded-md border p-4">
+                <div className="signal-inset min-w-0 rounded-md border p-4">
                   <h3 className="font-semibold text-[var(--text-primary)]">Approval guardrails</h3>
                   <div className="mt-3 space-y-2">
                     {leadHyperPersonaSnapshot.riskFlags.map((flag) => (
-                      <div className="flex items-center justify-between gap-3 rounded-md border border-[oklch(0.82_0.13_85/0.3)] bg-[oklch(0.82_0.13_85/0.12)] px-3 py-2 text-sm" key={flag}>
-                        <span className="font-mono text-xs text-[oklch(0.9_0.09_85)]">{flag}</span>
+                      <div className="grid min-w-0 gap-2 rounded-md border border-[oklch(0.82_0.13_85/0.3)] bg-[oklch(0.82_0.13_85/0.12)] px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" key={flag}>
+                        <span className="break-words text-xs font-semibold leading-5 text-[oklch(0.9_0.09_85)]">{humanizeCrmToken(flag)}</span>
                         <StatusPill tone="amber">Required</StatusPill>
                       </div>
                     ))}
@@ -389,23 +373,23 @@ function singularLabel(label: string) {
 }
 
 function normalizeListView(view: string | undefined): CrmListViewKey {
-  if (view === "my-records" || view === "needs-review") {
+  if (view === "recently-updated" || view === "needs-review") {
     return view;
   }
 
-  return "recently-viewed";
+  return "all-records";
 }
 
 function getRowsForListView(rows: readonly CrmObjectRow[], view: CrmListViewKey) {
-  if (view === "my-records") {
-    return rows.filter((row) => row.owner === "Robby");
-  }
-
   if (view === "needs-review") {
     return rows.filter((row) => ["Review", "Out of scope", "Pending"].includes(row.status));
   }
 
-  return [...rows].sort((a, b) => activityRank(a.updated) - activityRank(b.updated));
+  if (view === "recently-updated") {
+    return [...rows].sort((a, b) => activityRank(a.updated) - activityRank(b.updated));
+  }
+
+  return [...rows];
 }
 
 function activityRank(updated: string) {
@@ -419,4 +403,24 @@ function activityRank(updated: string) {
 
   const match = updated.match(/^(\d+)/);
   return match ? Number(match[1]) + 1 : 99;
+}
+
+function humanizeCrmToken(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatCrmDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }

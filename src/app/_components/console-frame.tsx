@@ -33,12 +33,12 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
 
   return (
     <main className="chicago-dark min-h-screen w-full overflow-x-hidden bg-[var(--canvas)] text-[var(--text-primary)] lg:h-screen lg:overflow-hidden">
-      <div className="min-h-screen lg:grid lg:h-screen lg:min-h-0 lg:grid-cols-[236px_minmax(0,1fr)]">
-        <aside className="border-b border-[var(--border-panel)] bg-[oklch(0.145_0.03_250/0.96)] px-4 py-3 lg:flex lg:h-screen lg:min-h-0 lg:flex-col lg:border-b-0 lg:border-r lg:px-3 lg:py-4">
+      <div className="min-h-screen lg:grid lg:h-screen lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="border-b border-[var(--border-panel)] bg-[oklch(0.145_0.03_250/0.96)] px-4 py-3 lg:flex lg:h-screen lg:min-h-0 lg:flex-col lg:border-b-0 lg:border-r lg:px-4 lg:py-5">
           <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:pr-1 [&::-webkit-scrollbar]:hidden">
             <Link
               href="/"
-              className="group relative flex h-24 min-w-[190px] shrink-0 items-center justify-center overflow-hidden transition hover:opacity-95 lg:h-44 lg:min-w-0"
+              className="group relative flex h-24 min-w-[190px] shrink-0 items-center justify-center overflow-hidden transition hover:opacity-95 lg:h-36 lg:min-w-0"
             >
               <Image
                 alt="Big Shoulders Restoration M&P"
@@ -67,34 +67,40 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
 
 function OperatorProfile({ gateEnabled }: { gateEnabled: boolean }) {
   return (
-    <div className="mt-5 hidden border-t border-[var(--border-hairline)] pt-4 lg:block">
-      <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3.5">
+    <div className="mt-4 hidden border-t border-[var(--border-hairline)] pb-7 pt-4 lg:block">
+      <div className="rounded-2xl border border-[var(--border-panel)] bg-[linear-gradient(180deg,var(--surface-inset),var(--surface-soft))] p-4 shadow-[var(--elev-panel)]">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--surface-raised)] font-display text-sm font-black text-[var(--accent)]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--surface-raised)] font-display text-sm font-black text-[var(--accent)] shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.08)]">
             ER
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold text-[var(--text-primary)]">Evan</div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+            <div className="truncate text-base font-black tracking-[-0.02em] text-[var(--text-primary)]">Evan</div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
               Operator
             </div>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--border-hairline)] pt-3">
-          <span className="text-xs font-semibold text-[var(--text-muted)]">{gateEnabled ? "Session active" : "Local mode"}</span>
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-[var(--border-hairline)] pt-3">
+          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2">
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Mode</div>
+            <div className="mt-0.5 text-xs font-bold text-[var(--text-primary)]">{gateEnabled ? "Secured" : "Local"}</div>
+          </div>
           {gateEnabled ? (
             <form action="/api/auth/sign-out" method="post">
               <button
                 type="submit"
-                className="rounded-md text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                className="h-full w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2 text-left text-xs font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               >
                 Sign out
               </button>
             </form>
           ) : (
-            <Link className="rounded-md text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]" href="/settings">
+            <Link
+              className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
+              href="/settings"
+            >
               Settings
             </Link>
           )}

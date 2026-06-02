@@ -7,9 +7,10 @@ type CrmObjectKey = (typeof crmObjects)[number]["key"];
 
 type CrmCommandHeaderProps = {
   activeObject?: CrmObjectKey;
+  counts?: Partial<Record<CrmObjectKey, number>>;
 };
 
-export function CrmCommandHeader({ activeObject }: CrmCommandHeaderProps) {
+export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps) {
   return (
     <section className="signal-panel module-rise overflow-hidden">
       <div className="border-b border-[var(--border-hairline)] px-4 py-3">
@@ -75,7 +76,7 @@ export function CrmCommandHeader({ activeObject }: CrmCommandHeaderProps) {
                 >
                   {object.label}
                   <span className={`font-mono text-[11px] ${isActive ? "text-white/75" : "text-[var(--accent)]"}`}>
-                    {object.count}
+                    {counts?.[object.key] ?? object.count}
                   </span>
                 </Link>
               );

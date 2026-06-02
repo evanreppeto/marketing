@@ -69,6 +69,16 @@ export type CrmOverviewData =
       message: string;
     };
 
+export type CrmNavCounts =
+  | {
+      status: "live";
+      counts: Record<CrmObjectKey, number>;
+    }
+  | {
+      status: "unavailable";
+      message: string;
+    };
+
 export type CrmObjectReadResult =
   | CrmObjectData
   | {
@@ -297,6 +307,31 @@ export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClien
   }
 }
 
+export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCounts> {
+  if (!client && !isSupabaseAdminConfigured()) {
+    return { status: "unavailable", message: "Supabase env vars are not configured." };
+  }
+
+  try {
+    const supabase = client ?? getSupabaseAdminClient();
+    const [companies, contacts, properties, leads, jobs, outcomes] = await Promise.all([
+      countRows(supabase, "companies"),
+      countRows(supabase, "contacts"),
+      countRows(supabase, "properties"),
+      countRows(supabase, "leads"),
+      countRows(supabase, "jobs"),
+      countRows(supabase, "outcomes"),
+    ]);
+
+    return {
+      status: "live",
+      counts: { companies, contacts, properties, leads, jobs, outcomes },
+    };
+  } catch (error) {
+    return { status: "unavailable", message: error instanceof Error ? error.message : "CRM nav counts are unavailable." };
+  }
+}
+
 export async function getCrmRecordData(key: CrmObjectKey, recordId: string, client?: SupabaseClient): Promise<CrmRecordReadResult> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
@@ -409,6 +444,12 @@ function assertResult(table: string, error: { message?: string } | null) {
   if (error) {
     throw new Error(`${table} lookup failed: ${error.message ?? "Unknown Supabase error"}`);
   }
+}
+
+async function countRows(client: SupabaseClient, table: CrmObjectKey) {
+  const { count, error } = await client.from(table).select("id", { count: "exact", head: true });
+  assertResult(table, error);
+  return count ?? 0;
 }
 
 function buildPipelineRows(data: Awaited<ReturnType<typeof getCrmTableBundle>>): CrmPipelineRow[] {

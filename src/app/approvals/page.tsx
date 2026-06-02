@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import type { ReactNode } from "react";
 
 import { PageHeader, StatusPill, EmptyState } from "@/app/_components/page-header";
 import { listApprovalHistory, type ApprovalHistoryEntry } from "@/lib/approvals/read-model";
@@ -40,24 +41,38 @@ export default async function ActivityPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-hairline)]">
-              {decisions.map((row: ApprovalHistoryEntry) => (
-                <tr key={row.id} className="align-top">
-                  <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-[var(--text-secondary)]">{formatWhen(row.decidedAt)}</td>
-                  <td className="px-5 py-3"><StatusPill tone={decisionTone(row.decision)}>{row.decision}</StatusPill></td>
-                  <td className="px-5 py-3 text-[var(--text-primary)]">{row.itemType}</td>
-                  <td className="px-5 py-3">
-                    {row.campaignId ? (
-                      <Link className="font-semibold text-[var(--accent)] hover:underline" href={`/campaigns/${row.campaignId}`}>
-                        {row.campaignName ?? row.campaignId}
-                      </Link>
-                    ) : (
-                      <span className="text-[var(--text-muted)]">&mdash;</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-[var(--text-secondary)]">{row.decidedBy}</td>
-                  <td className="px-5 py-3 text-[var(--text-secondary)]">{row.decisionNotes ?? ""}</td>
-                </tr>
-              ))}
+              {decisions.map((row: ApprovalHistoryEntry) => {
+                const href = row.campaignId ? `/campaigns/${row.campaignId}` : `/approvals?item=${row.approvalItemId}`;
+
+                return (
+                  <tr key={row.id} className="group cursor-pointer align-top transition hover:bg-[var(--surface-inset)]">
+                    <HistoryCell href={href} className="whitespace-nowrap font-mono text-xs text-[var(--text-secondary)]">
+                      {formatWhen(row.decidedAt)}
+                    </HistoryCell>
+                    <HistoryCell href={href}>
+                      <StatusPill tone={decisionTone(row.decision)}>{row.decision}</StatusPill>
+                    </HistoryCell>
+                    <HistoryCell href={href} className="font-semibold text-[var(--text-primary)]">
+                      {row.itemType}
+                    </HistoryCell>
+                    <HistoryCell href={href}>
+                      {row.campaignId ? (
+                        <span className="font-semibold text-[var(--accent)] transition group-hover:text-[var(--accent-strong)]">
+                          {row.campaignName ?? row.campaignId}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--text-muted)]">&mdash;</span>
+                      )}
+                    </HistoryCell>
+                    <HistoryCell href={href} className="text-[var(--text-secondary)]">
+                      {row.decidedBy}
+                    </HistoryCell>
+                    <HistoryCell href={href} className="text-[var(--text-secondary)]">
+                      {row.decisionNotes ?? ""}
+                    </HistoryCell>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -81,4 +96,22 @@ async function loadHistory() {
 
 function formatWhen(iso: string) {
   return iso.replace("T", " ").replace(/\.\d+Z$/, "Z");
+}
+
+function HistoryCell({
+  children,
+  className = "",
+  href,
+}: {
+  children: ReactNode;
+  className?: string;
+  href: string;
+}) {
+  return (
+    <td className="p-0">
+      <Link className={`block h-full px-5 py-3 ${className}`} href={href}>
+        {children}
+      </Link>
+    </td>
+  );
 }

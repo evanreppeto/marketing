@@ -61,6 +61,7 @@ export default async function Page({ params }: PageProps) {
             <DataTable
               rows={tasks}
               rowKey={(row) => row.fullId}
+              rowHref={(row) => row.href}
               minWidth="min-w-[920px]"
               columns={[
                 {
@@ -68,9 +69,7 @@ export default async function Page({ params }: PageProps) {
                   header: "Objective",
                   cell: (row) => (
                     <>
-                      <Link className="font-bold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={row.href}>
-                        {row.task}
-                      </Link>
+                      <div className="font-bold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.task}</div>
                       <div className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{row.objective}</div>
                     </>
                   ),
@@ -80,11 +79,7 @@ export default async function Page({ params }: PageProps) {
                 {
                   key: "linked",
                   header: "Linked work",
-                  cell: (row) => (
-                    <Link className="text-sm font-semibold text-[var(--accent)] transition hover:text-[var(--accent-strong)]" href={row.linkedHref}>
-                      {row.linkedObject}
-                    </Link>
-                  ),
+                  cell: (row) => <span className="text-sm font-semibold text-[var(--accent)]">{row.linkedObject}</span>,
                 },
                 { key: "updated", header: "Updated", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.updated },
               ]}

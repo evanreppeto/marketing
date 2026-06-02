@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { AppShell } from "../_components/app-shell";
 import { DataTable } from "../_components/data-table";
 import { EmptyState, Panel, StatusPill, buttonClasses } from "../_components/page-header";
-import { getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
+import { getCrmNavCounts, getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
 
 import { CrmCommandHeader } from "./_components/crm-command-header";
 
@@ -35,7 +35,7 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
   await connection();
 
   const query = searchParams ? await searchParams : {};
-  const liveCrm = await getCrmOverviewData();
+  const [liveCrm, navCounts] = await Promise.all([getCrmOverviewData(), getCrmNavCounts()]);
   const isLive = liveCrm.status === "live";
   const workspaceStats = isLive ? liveCrm.stats : [];
   const pipelineRows = isLive ? liveCrm.rows : [];
@@ -49,7 +49,7 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
 
   return (
     <AppShell active="/crm">
-      <CrmCommandHeader />
+      <CrmCommandHeader counts={navCounts.status === "live" ? navCounts.counts : undefined} />
 
       {!isLive ? (
         <div className="module-rise mt-4 rounded-md border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-4 py-3 text-sm text-[oklch(0.9_0.09_85)]">
@@ -212,6 +212,7 @@ function CrmPipeline({
       <DataTable
         rows={rows}
         rowKey={(row) => row.id}
+        rowHref={(row) => `/crm?tab=record&view=${activeView}&selected=${row.id}`}
         minWidth="min-w-[900px]"
         isSelected={(row) => selectedRecord?.id === row.id}
         columns={[
@@ -220,13 +221,7 @@ function CrmPipeline({
             header: "Record",
             cell: (row) => (
               <>
-                <Link
-                  aria-current={selectedRecord?.id === row.id ? "page" : undefined}
-                  className="inline-flex rounded-md px-2 py-1 font-semibold text-[var(--text-primary)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-                  href={`/crm?tab=record&view=${activeView}&selected=${row.id}`}
-                >
-                  {row.record}
-                </Link>
+                <div className="font-semibold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.record}</div>
                 <div className="mt-1 text-xs text-[var(--text-muted)]">{row.type}</div>
               </>
             ),
@@ -256,13 +251,13 @@ function CrmPipeline({
 function CrmRecordPreview({ selectedRecord }: { selectedRecord: CrmPipelineRow | null }) {
   return (
     <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel className="module-rise">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-display text-2xl font-bold tracking-[-0.035em] text-[var(--text-primary)]">
+      <Panel className="module-rise overflow-hidden">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="break-words font-display text-2xl font-bold tracking-[-0.035em] text-[var(--text-primary)]">
               {selectedRecord?.record ?? "No record selected"}
             </h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            <p className="mt-1 break-words text-sm text-[var(--text-secondary)]">
               {selectedRecord ? `${selectedRecord.account} / ${selectedRecord.type}` : "Select a pipeline row to inspect it here."}
             </p>
           </div>
@@ -277,16 +272,18 @@ function CrmRecordPreview({ selectedRecord }: { selectedRecord: CrmPipelineRow |
                 ["Value", selectedRecord.value],
                 ["Owner", selectedRecord.owner],
               ].map(([label, value]) => (
-                <div className="border-b border-r border-[var(--border-hairline)] p-4" key={label}>
+                <div className="min-w-0 border-b border-r border-[var(--border-hairline)] p-4" key={label}>
                   <div className="text-xs text-[var(--text-muted)]">{label}</div>
-                  <div className="mt-1 font-mono text-sm font-semibold text-[var(--text-primary)]">{value}</div>
+                  <div className="mt-1 break-words font-mono text-sm font-semibold leading-5 text-[var(--text-primary)]">{value}</div>
                 </div>
               ))}
             </div>
             <div className="mt-5 rounded-md border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] p-4">
               <div className="signal-eyebrow">Next step</div>
               <p className="mt-2 text-base font-semibold leading-6 text-[var(--text-primary)]">{selectedRecord.nextStep}</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Updated {selectedRecord.updated}. Outbound remains locked from this record view.</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                Updated {formatCrmDate(selectedRecord.updated)}. Outbound remains locked from this record view.
+              </p>
             </div>
             <Link className={buttonClasses({ variant: "primary", className: "mt-5" })} href={selectedRecord.href}>
               Open full record
@@ -374,6 +371,18 @@ function crmHref(query: CrmSearchParams, next: { tab?: CrmTabKey; view?: CrmView
 
   const serialized = params.toString();
   return serialized ? `/crm?${serialized}` : "/crm";
+}
+
+function formatCrmDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function getVisibleRows(activeView: CrmViewKey, rows: CrmPipelineRow[]) {
