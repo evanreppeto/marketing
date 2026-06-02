@@ -89,6 +89,13 @@ function CampaignCard({ campaign }: { campaign: CampaignWorkspaceListItem }) {
     >
       <CardCover campaign={campaign} />
 
+      {campaign.status === "pending_approval" ? (
+        <div className="flex items-center gap-1.5 border-b border-[var(--border-hairline)] bg-[oklch(0.82_0.13_85/0.12)] px-4 py-1.5 text-xs font-semibold text-[var(--text-primary)]">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[oklch(0.78_0.14_70)]" />
+          Awaiting approval
+        </div>
+      ) : null}
+
       <div className="flex flex-1 flex-col p-4">
         <h3 className="font-bold leading-tight text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{campaign.name}</h3>
         <p className="mt-1.5 line-clamp-2 flex-1 text-sm leading-6 text-[var(--text-secondary)]">{campaign.objective}</p>
