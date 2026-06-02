@@ -531,7 +531,7 @@ function groupAssets(assets: CampaignWorkspaceAsset[]) {
 
 function classifyAssetCategory(asset: CampaignAssetRow): CampaignWorkspaceAssetCategory {
   const value = `${asset.asset_type} ${asset.channel ?? ""} ${asset.title}`.toLowerCase();
-  if (/postcard|mailer|mail|print|flyer|leave.?behind|door.?hanger|script|call/.test(value)) return "physical";
+  if (/postcard|mailer|direct.?mail|print|flyer|leave.?behind|door.?hanger|script|call/.test(value)) return "physical";
   if (/ad|meta|facebook|instagram|google|paid|display|search/.test(value)) return "ads";
   if (/image|video|photo|creative|mockup|asset/.test(value)) return "media";
   if (/email|sms|text|landing|social|sequence|web|newsletter/.test(value)) return "virtual";
