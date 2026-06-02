@@ -3,9 +3,13 @@ import { connection } from "next/server";
 
 import { AppShell } from "../_components/app-shell";
 import { ActionFeedback, buttonClasses, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
+import { AutoRefresh } from "./_components/auto-refresh";
+import { CollectionIcon } from "./_components/collection-icon";
+import { MarkActivityRail } from "./_components/mark-activity-rail";
 import { NoteCard } from "./_components/note-card";
 import { NoteGraph } from "./_components/note-graph";
-import { buildLinkContext, vaultCollections } from "./_data/notebook";
+import { buildLinkContext, collectionTheme, vaultCollections } from "./_data/notebook";
+import { getVaultLiveSignals } from "@/lib/vault/live-signals";
 import { getVaultNotes } from "@/lib/vault/read-model";
 import { extractLinks, type GraphEdge, type GraphNode } from "@/domain";
 
@@ -27,14 +31,13 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
   const query = searchParams ? await searchParams : {};
   const action = getValue(query.action);
 
-  const model = await getVaultNotes();
+  const [model, signals] = await Promise.all([getVaultNotes(), getVaultLiveSignals()]);
   const notes = model.notes;
   const ctx = buildLinkContext(notes);
 
   const allLinks = notes.flatMap((note) => extractLinks(note.body, ctx));
   const resolved = allLinks.filter((l) => l.kind !== "unresolved").length;
   const unresolved = allLinks.length - resolved;
-  const markDrafts = notes.filter((n) => n.author === "Mark" && n.status === "Needs review").length;
 
   const slugs = new Set(notes.map((n) => n.slug));
   const graphNodes: GraphNode[] = notes.map((n) => ({ id: n.slug, label: n.title, kind: "note" }));
@@ -44,12 +47,15 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
       .map((l) => ({ from: note.slug, to: l.target })),
   );
 
+  const firstReview = notes.find((n) => n.status === "Needs review");
+  const reviewHref = firstReview ? `/vault/${firstReview.slug}` : "/vault";
+
   const stats = [
-    { label: "Notes", value: String(notes.length) },
-    { label: "Collections", value: String(vaultCollections.length) },
-    { label: "Links resolved", value: String(resolved) },
-    { label: "Unresolved", value: String(unresolved) },
-    { label: "Mark drafts", value: String(markDrafts) },
+    { label: "Notes", value: String(notes.length), tone: "blue" as const },
+    { label: "Collections", value: String(vaultCollections.filter((c) => notes.some((n) => n.folder === c.folder)).length), tone: "gray" as const },
+    { label: "Links resolved", value: String(resolved), tone: "green" as const },
+    { label: "Unresolved", value: String(unresolved), tone: unresolved > 0 ? ("amber" as const) : ("gray" as const) },
+    { label: "Awaiting review", value: String(signals.activity.awaitingReview), tone: signals.activity.awaitingReview > 0 ? ("amber" as const) : ("gray" as const) },
   ];
 
   return (
@@ -58,7 +64,12 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
         eyebrow="Vault"
         title="The shared brain for Mark and the team"
         description="Linked notes, playbooks, and partner intel. Wiki-links connect notes to live CRM records and personas. Mark drafts land in review before they publish."
-        aside={<StatusPill tone={model.status === "live" ? "green" : "amber"}>{model.status === "live" ? "Live" : "Read-only"}</StatusPill>}
+        aside={
+          <div className="flex flex-col items-end gap-2">
+            <StatusPill tone={model.status === "live" ? "green" : "amber"}>{model.status === "live" ? "Live" : "Read-only"}</StatusPill>
+            <AutoRefresh />
+          </div>
+        }
       />
 
       {model.status !== "live" ? (
@@ -80,7 +91,10 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat) => (
           <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={stat.label}>
-            <div className="text-xs text-[var(--text-muted)]">{stat.label}</div>
+            <div className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${toneDot(stat.tone)}`} aria-hidden="true" />
+              <div className="text-xs text-[var(--text-muted)]">{stat.label}</div>
+            </div>
             <div className="mt-1 font-display text-3xl font-black tabular-nums tracking-[-0.04em]">{stat.value}</div>
           </div>
         ))}
@@ -90,27 +104,49 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
         <div className="space-y-5">
           {vaultCollections
             .filter((collection) => notes.some((n) => n.folder === collection.folder))
-            .map((collection) => (
-              <Panel key={collection.folder}>
-                <div className="signal-eyebrow">{collection.folder}</div>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">{collection.description}</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {notes.filter((n) => n.folder === collection.folder).map((note) => (
-                    <NoteCard key={note.slug} note={note} />
-                  ))}
-                </div>
-              </Panel>
-            ))}
+            .map((collection) => {
+              const theme = collectionTheme(collection.folder);
+              const collectionNotes = notes.filter((n) => n.folder === collection.folder);
+              const freshest = collectionNotes.map((n) => n.updated).find(Boolean) ?? "—";
+              return (
+                <Panel key={collection.folder}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CollectionIcon icon={theme.icon} tone={theme.tone} />
+                      <div className="signal-eyebrow">{collection.folder}</div>
+                      <StatusPill tone={theme.tone}>{collectionNotes.length}</StatusPill>
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)]">updated {freshest}</div>
+                  </div>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">{collection.description}</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {collectionNotes.map((note) => (
+                      <NoteCard key={note.slug} note={note} />
+                    ))}
+                  </div>
+                </Panel>
+              );
+            })}
         </div>
 
-        <Panel>
-          <div className="signal-eyebrow">Graph</div>
-          <p className="mt-1 mb-3 text-sm text-[var(--text-secondary)]">How the notes connect.</p>
-          <NoteGraph edges={graphEdges} focusId={notes[0]?.slug ?? ""} nodes={graphNodes} />
-        </Panel>
+        <div className="space-y-4">
+          <MarkActivityRail activity={signals.activity} isLive={signals.status === "live"} reviewHref={reviewHref} />
+          <Panel>
+            <div className="signal-eyebrow">Graph</div>
+            <p className="mt-1 mb-3 text-sm text-[var(--text-secondary)]">How the notes connect.</p>
+            <NoteGraph edges={graphEdges} focusId={notes[0]?.slug ?? ""} nodes={graphNodes} />
+          </Panel>
+        </div>
       </div>
     </AppShell>
   );
+}
+
+function toneDot(tone: "blue" | "green" | "amber" | "gray") {
+  if (tone === "blue") return "bg-[var(--accent)]";
+  if (tone === "green") return "bg-[oklch(0.78_0.14_158)]";
+  if (tone === "amber") return "bg-[oklch(0.82_0.13_85)]";
+  return "bg-[var(--text-muted)]";
 }
 
 function getValue(value: string | string[] | undefined) {

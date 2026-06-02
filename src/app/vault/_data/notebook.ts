@@ -32,3 +32,20 @@ export function buildLinkContext(notes: VaultNote[] = vaultNotes): LinkResolutio
 
   return { notes: noteMap, records: recordMap, personas: personaMap };
 }
+
+export type StatusTone = "amber" | "green" | "red" | "gray" | "blue" | "dark";
+export type CollectionIcon = "play" | "handshake" | "user" | "shield" | "note";
+
+export const collectionThemes: Record<string, { tone: StatusTone; icon: CollectionIcon }> = {
+  Playbooks: { tone: "blue", icon: "play" },
+  "Partner Intel": { tone: "green", icon: "handshake" },
+  "Persona Docs": { tone: "amber", icon: "user" },
+  SOPs: { tone: "red", icon: "shield" },
+  "Field Notes": { tone: "gray", icon: "note" },
+};
+
+export const DEFAULT_COLLECTION_THEME: { tone: StatusTone; icon: CollectionIcon } = { tone: "gray", icon: "note" };
+
+export function collectionTheme(folder: string) {
+  return collectionThemes[folder] ?? DEFAULT_COLLECTION_THEME;
+}

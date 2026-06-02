@@ -3,11 +3,14 @@ import { notFound } from "next/navigation";
 
 import { AppShell } from "../../_components/app-shell";
 import { ActionFeedback, buttonClasses, EmptyState, OperatorBar, PageHeader, Panel, StatusPill } from "../../_components/page-header";
+import { AutoRefresh } from "../_components/auto-refresh";
 import { BacklinksPanel } from "../_components/backlinks-panel";
 import { NoteBody } from "../_components/note-body";
+import { RecordSignalChip } from "../_components/record-signal-chip";
 import { NoteGraph } from "../_components/note-graph";
 import { archiveNoteAction, publishNoteAction } from "../actions";
 import { buildLinkContext } from "../_data/notebook";
+import { getRecordSignals } from "@/lib/vault/live-signals";
 import { getVaultNote, getVaultNotes } from "@/lib/vault/read-model";
 import { computeBacklinks, extractLinks, type GraphEdge, type GraphNode } from "@/domain";
 
@@ -33,6 +36,7 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
   const ctx = buildLinkContext(notes);
   const outgoing = extractLinks(note.body, ctx);
   const backlinks = computeBacklinks(notes, note.slug);
+  const recordSignals = await getRecordSignals(outgoing);
   const needsReview = note.author === "Mark" && note.status === "Needs review";
 
   const nodes: GraphNode[] = [
@@ -58,6 +62,7 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
           <div className="flex flex-col items-end gap-1.5">
             <StatusPill tone={note.status === "Published" ? "green" : note.status === "Needs review" ? "amber" : "gray"}>{note.status}</StatusPill>
             {note.author === "Mark" ? <StatusPill tone="blue">Mark</StatusPill> : null}
+            <AutoRefresh />
           </div>
         }
       />
@@ -124,12 +129,13 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
                     <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{kindLabel(kind)}</div>
                     <ul className="mt-1.5 space-y-1">
                       {grouped[kind].map((link, i) => (
-                        <li key={`${link.target}-${i}`}>
+                        <li className="flex items-center justify-between gap-2" key={`${link.target}-${i}`}>
                           {link.kind === "unresolved" ? (
                             <span className="text-[var(--text-muted)]" title="Not imported yet">{link.label}</span>
                           ) : (
                             <Link className="font-semibold text-[var(--accent)] hover:underline" href={link.href}>{link.label}</Link>
                           )}
+                          {recordSignals.get(link.target) ? <RecordSignalChip signal={recordSignals.get(link.target)!} /> : null}
                         </li>
                       ))}
                     </ul>
