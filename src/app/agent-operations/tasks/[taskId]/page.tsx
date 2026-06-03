@@ -9,12 +9,24 @@ import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 type PageProps = {
   params: Promise<{ taskId: string }>;
+  searchParams?: Promise<{ section?: string | string[] }>;
 };
 
-export default async function Page({ params }: PageProps) {
+type TaskSectionKey = "overview" | "inputs" | "outputs" | "logs";
+
+const taskSections: Array<{ key: TaskSectionKey; label: string; detail: string }> = [
+  { key: "overview", label: "Overview", detail: "Task contract and linked work." },
+  { key: "inputs", label: "Inputs", detail: "Context Mark received." },
+  { key: "outputs", label: "Outputs", detail: "Work Mark created." },
+  { key: "logs", label: "Logs", detail: "Runner audit trace." },
+];
+
+export default async function Page({ params, searchParams }: PageProps) {
   await connection();
 
   const { taskId } = await params;
+  const query = searchParams ? await searchParams : {};
+  const activeSection = normalizeTaskSection(getValue(query.section));
   const detail = await getAgentTaskDetail(taskId);
 
   if (detail.status === "not_found") {
@@ -58,35 +70,20 @@ export default async function Page({ params }: PageProps) {
 
       <div className="grid min-w-0 items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="min-w-0 space-y-5">
-          <Panel className="module-rise">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="signal-eyebrow">Task contract</div>
-                <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">What Mark was asked to do</h2>
-                <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{task.objective}</p>
-              </div>
-              <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/agent-operations">
-                Back to Mark
-              </Link>
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                ["Agent", detail.agent.name],
-                ["Policy", detail.agent.approvalPolicy],
-                ["Created", formatDate(task.createdAt)],
-                ["Updated", formatDate(task.updatedAt)],
-              ].map(([label, value]) => (
-                <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={label}>
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-                  <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{value}</div>
-                </div>
-              ))}
-            </div>
-          </Panel>
+          <TaskSectionTabs
+            activeSection={activeSection}
+            counts={{
+              inputs: detail.inputs.length,
+              logs: detail.logs.length,
+              outputs: detail.outputs.length,
+            }}
+            taskId={task.id}
+          />
 
-          <TaskInputs inputs={detail.inputs} />
-          <TaskOutputs outputs={detail.outputs} />
-          <TaskLogs logs={detail.logs} />
+          {activeSection === "overview" ? <TaskOverview detail={detail} /> : null}
+          {activeSection === "inputs" ? <TaskInputs inputs={detail.inputs} /> : null}
+          {activeSection === "outputs" ? <TaskOutputs outputs={detail.outputs} /> : null}
+          {activeSection === "logs" ? <TaskLogs logs={detail.logs} /> : null}
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
@@ -159,6 +156,116 @@ export default async function Page({ params }: PageProps) {
         </aside>
       </div>
     </>
+  );
+}
+
+function TaskSectionTabs({
+  activeSection,
+  counts,
+  taskId,
+}: {
+  activeSection: TaskSectionKey;
+  counts: { inputs: number; logs: number; outputs: number };
+  taskId: string;
+}) {
+  return (
+    <section className="module-rise overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+      <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-[var(--text-secondary)]">
+          Inspect one part of the task at a time. Mark prepares; humans approve.
+        </p>
+        <StatusPill tone="amber">Outbound locked</StatusPill>
+      </div>
+      <nav aria-label="Mark task sections" className="grid gap-2 p-2 md:grid-cols-4">
+        {taskSections.map((section) => {
+          const isActive = activeSection === section.key;
+          const count = section.key === "inputs" ? counts.inputs : section.key === "outputs" ? counts.outputs : section.key === "logs" ? counts.logs : null;
+          const href = section.key === "overview" ? `/agent-operations/tasks/${taskId}` : `/agent-operations/tasks/${taskId}?section=${section.key}`;
+
+          return (
+            <Link
+              aria-current={isActive ? "page" : undefined}
+              className={`rounded-lg border px-4 py-3 transition duration-200 hover:-translate-y-0.5 active:translate-y-px ${
+                isActive
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_20px_oklch(0.74_0.115_232/0.18)]"
+                  : "border-transparent bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+              }`}
+              href={href}
+              key={section.key}
+            >
+              <span className="flex items-center justify-between gap-3 text-sm font-bold">
+                {section.label}
+                {count !== null ? <span className="rounded-full bg-current/10 px-1.5 text-xs tabular-nums">{count}</span> : null}
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{section.detail}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </section>
+  );
+}
+
+function TaskOverview({ detail }: { detail: Extract<Awaited<ReturnType<typeof getAgentTaskDetail>>, { status: "live" }> }) {
+  const task = detail.task;
+
+  return (
+    <Panel className="module-rise">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="signal-eyebrow">Task contract</div>
+          <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">What Mark was asked to do</h2>
+          <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{task.objective}</p>
+        </div>
+        <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/agent-operations">
+          Back to Mark
+        </Link>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Agent", detail.agent.name],
+          ["Policy", detail.agent.approvalPolicy],
+          ["Created", formatDate(task.createdAt)],
+          ["Updated", formatDate(task.updatedAt)],
+        ].map(([label, value]) => (
+          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={label}>
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+            <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        <OverviewLinkCard
+          detail={`${detail.inputs.length} input records captured`}
+          href={`/agent-operations/tasks/${task.id}?section=inputs`}
+          label="Inputs"
+        />
+        <OverviewLinkCard
+          detail={`${detail.outputs.length} outputs and approval states`}
+          href={`/agent-operations/tasks/${task.id}?section=outputs`}
+          label="Outputs"
+        />
+        <OverviewLinkCard
+          detail={`${detail.logs.length} runner log entries`}
+          href={`/agent-operations/tasks/${task.id}?section=logs`}
+          label="Audit logs"
+        />
+      </div>
+    </Panel>
+  );
+}
+
+function OverviewLinkCard({ detail, href, label }: { detail: string; href: string; label: string }) {
+  return (
+    <Link
+      className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+      href={href}
+    >
+      <div className="font-bold text-[var(--text-primary)]">{label}</div>
+      <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
+      <div className="mt-3 text-sm font-bold text-[var(--accent)]">Open section</div>
+    </Link>
   );
 }
 
@@ -433,4 +540,13 @@ function getString(value: unknown) {
 function isReadableKey(key: string) {
   const normalized = key.toLowerCase();
   return !normalized.endsWith("_id") && !normalized.endsWith("_ids") && normalized !== "id" && !/payload|metadata|audit/.test(normalized);
+}
+
+function normalizeTaskSection(value: string | undefined): TaskSectionKey {
+  if (value === "inputs" || value === "outputs" || value === "logs") return value;
+  return "overview";
+}
+
+function getValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
