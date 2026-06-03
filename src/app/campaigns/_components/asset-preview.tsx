@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { CampaignMediaAsset, CampaignWorkspaceAsset } from "@/lib/campaigns/read-model";
 
 export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
@@ -17,7 +17,7 @@ export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
       ) : null}
 
       {asset.body ? (
-        <ReadableCopy body={asset.body} />
+        <ReadableCopy body={asset.body} expandLabel={expandLabelFor(asset)} />
       ) : !hasMedia ? (
         <p className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-3 text-sm text-[var(--text-muted)]">
           {asset.preview}
@@ -27,21 +27,28 @@ export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
   );
 }
 
-function ReadableCopy({ body }: { body: string }) {
+/** Channel-appropriate label for the expand toggle — `ReadableCopy` is shared by
+ *  every body type (emails, scripts, ad copy, postcards), not just email. */
+function expandLabelFor(asset: CampaignWorkspaceAsset) {
+  return /e-?mail/i.test(`${asset.channel} ${asset.assetType}`) ? "Read full email" : "Read full";
+}
+
+function ReadableCopy({ body, expandLabel }: { body: string; expandLabel: string }) {
   const [expanded, setExpanded] = useState(false);
+  const regionId = useId();
   const paragraphs = body
     .split(/\n{2,}/)
     .map((line) => line.trim())
     .filter(Boolean);
 
   // Long bodies (e.g. full emails) collapse to a clamped preview with a fade and
-  // a "Read full email" toggle; short bodies render whole with no toggle.
+  // an expand toggle; short bodies render whole with no toggle.
   const isLong = body.length > 280;
   const collapsed = isLong && !expanded;
 
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
-      <div className={`relative px-4 py-4 ${collapsed ? "max-h-44 overflow-hidden" : ""}`}>
+      <div id={regionId} className={`relative px-4 py-4 ${collapsed ? "max-h-44 overflow-hidden" : ""}`}>
         {paragraphs.length > 0 ? (
           <div className="space-y-3">
             {paragraphs.map((paragraph, index) => (
@@ -68,9 +75,10 @@ function ReadableCopy({ body }: { body: string }) {
           type="button"
           onClick={() => setExpanded((value) => !value)}
           aria-expanded={expanded}
+          aria-controls={regionId}
           className="flex w-full items-center justify-center gap-1.5 border-t border-[var(--border-hairline)] px-4 py-2 text-xs font-bold text-[var(--accent)] transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
-          {expanded ? "Collapse" : "Read full email"}
+          {expanded ? "Collapse" : expandLabel}
         </button>
       ) : null}
     </div>
