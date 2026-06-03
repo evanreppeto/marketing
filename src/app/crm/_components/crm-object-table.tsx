@@ -17,7 +17,7 @@ type CrmListView = {
   href: string;
 };
 
-const PAGE_SIZES = [10, 20, 50];
+const PAGE_SIZES = [6, 10, 20, 50];
 
 export function CrmObjectTable({
   activeView,
@@ -42,7 +42,7 @@ export function CrmObjectTable({
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(6);
   const normalizedQuery = query.trim().toLowerCase();
 
   const searchedRows = useMemo(() => {
@@ -64,10 +64,11 @@ export function CrmObjectTable({
 
   return (
     <>
-      <div className="border-b border-[var(--border-hairline)] px-5 py-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)] xl:items-start">
+      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.82fr)] xl:items-start">
           <div className="min-w-0">
-            <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{objectLabel} list view</h2>
+            <div className="signal-eyebrow">Records table</div>
+            <h2 className="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{objectLabel}</h2>
             <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
               {activeViewDescription} Showing {startIndex + (searchedRows.length > 0 ? 1 : 0)}-{endIndex} of{" "}
               {searchedRows.length}
@@ -75,49 +76,55 @@ export function CrmObjectTable({
             </p>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
-            <label className="relative block">
-              <span className="sr-only">Search {objectLabel}</span>
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 20 20"
-              >
-                <circle cx="9" cy="9" r="6" />
-                <path d="m18 18-4.5-4.5" strokeLinecap="round" />
-              </svg>
-              <input
-                className="h-11 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-2 pl-9 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setPage(1);
-                }}
-                placeholder={`Search ${objectLabel.toLowerCase()}...`}
-                type="search"
-                value={query}
-              />
-            </label>
+          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2">
+            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">Find records</span>
+              <span className="font-mono text-xs text-[var(--text-muted)]">{rows.length} total</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_126px]">
+              <label className="relative block">
+                <span className="sr-only">Search {objectLabel}</span>
+                <svg
+                  aria-hidden
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 20 20"
+                >
+                  <circle cx="9" cy="9" r="6" />
+                  <path d="m18 18-4.5-4.5" strokeLinecap="round" />
+                </svg>
+                <input
+                  className="h-11 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-2 pl-9 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder={`Search ${objectLabel.toLowerCase()} by name, owner, status...`}
+                  type="search"
+                  value={query}
+                />
+              </label>
 
-            <label className="block">
-              <span className="sr-only">Rows per page</span>
-              <select
-                className="h-11 w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value));
-                  setPage(1);
-                }}
-                value={pageSize}
-              >
-                {PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size} rows
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="block">
+                <span className="sr-only">Rows per page</span>
+                <select
+                  className="h-11 w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  onChange={(event) => {
+                    setPageSize(Number(event.target.value));
+                    setPage(1);
+                  }}
+                  value={pageSize}
+                >
+                  {PAGE_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size} rows
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -125,7 +132,7 @@ export function CrmObjectTable({
           {views.map((listView) => (
             <Link
               aria-current={activeView === listView.key ? "page" : undefined}
-              className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 active:translate-y-px ${
+              className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-[var(--elev-panel)] active:translate-y-px ${
                 activeView === listView.key
                   ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
                   : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
@@ -176,11 +183,14 @@ export function CrmObjectTable({
         }
       />
 
-      <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="text-sm font-semibold text-[var(--text-secondary)]">
           Page {currentPage} of {pageCount}
+          <span className="ml-2 font-normal text-[var(--text-muted)]">
+            {searchedRows.length === 0 ? "No records matched" : `${startIndex + 1}-${endIndex} visible`}
+          </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
             disabled={currentPage <= 1}
@@ -189,6 +199,21 @@ export function CrmObjectTable({
           >
             Previous
           </button>
+          {visiblePageNumbers(currentPage, pageCount).map((pageNumber) => (
+            <button
+              aria-current={pageNumber === currentPage ? "page" : undefined}
+              className={`min-h-10 min-w-10 cursor-pointer rounded-md border px-3 text-sm font-bold transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-default ${
+                pageNumber === currentPage
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                  : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)]"
+              }`}
+              key={pageNumber}
+              onClick={() => setPage(pageNumber)}
+              type="button"
+            >
+              {pageNumber}
+            </button>
+          ))}
           <button
             className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
             disabled={currentPage >= pageCount}
@@ -201,6 +226,15 @@ export function CrmObjectTable({
       </div>
     </>
   );
+}
+
+function visiblePageNumbers(currentPage: number, pageCount: number) {
+  if (pageCount <= 5) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
+  }
+
+  const start = Math.max(1, Math.min(currentPage - 2, pageCount - 4));
+  return Array.from({ length: 5 }, (_, index) => start + index);
 }
 
 function statusTone(status: string) {

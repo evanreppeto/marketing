@@ -154,19 +154,6 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
               href: `${crmObject.href}?section=records&view=${listView.key}`,
             }))}
           />
-
-          <div className="grid border-t border-[var(--border-hairline)] md:grid-cols-3">
-            {[
-              ["Completeness", objectKey === "leads" ? "Validation + persona required" : "Required fields mapped"],
-              ["Relationship rule", crmObject.relationships],
-              ["Next connection", "Create forms and saved list filters"],
-            ].map(([label, detail]) => (
-              <div className="border-b border-[var(--border-hairline)] px-5 py-4 md:border-r md:last:border-r-0" key={label}>
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-                <div className="mt-2 text-sm font-semibold text-[var(--text-primary)]">{detail}</div>
-              </div>
-            ))}
-          </div>
         </Panel>
       ) : null}
 

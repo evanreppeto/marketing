@@ -60,7 +60,11 @@ export function DataTable<T>({
               <tr
                 key={rowKey(row)}
                 aria-current={selected ? "page" : undefined}
-                className={`group transition ${href ? "cursor-pointer hover:bg-[var(--surface-inset)]" : "hover:bg-[var(--surface-inset)]"} ${selected ? "bg-[var(--accent-soft)]" : ""}`}
+                className={`group transition duration-150 ${
+                  href
+                    ? "cursor-pointer hover:bg-[var(--surface-raised)] focus-within:bg-[var(--surface-raised)]"
+                    : "hover:bg-[var(--surface-inset)]"
+                } ${selected ? "bg-[var(--accent-soft)]" : ""}`}
               >
                 {columns.map((column) => (
                   <td
@@ -69,7 +73,9 @@ export function DataTable<T>({
                   >
                     {href ? (
                       <Link
-                        className={`block h-full px-3 py-4 text-inherit no-underline ${column.align === "right" ? "text-right" : "text-left"}`}
+                        className={`block h-full px-3 py-4 text-inherit no-underline outline-none transition focus-visible:bg-[var(--accent-soft)] ${
+                          column.align === "right" ? "text-right" : "text-left"
+                        }`}
                         href={href}
                       >
                         {column.cell(row)}

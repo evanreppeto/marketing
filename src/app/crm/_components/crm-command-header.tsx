@@ -23,21 +23,13 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
               Accounts, contacts, properties, leads, jobs, and outcomes in one operating view.
             </p>
           </div>
-          <label className="relative block">
-            <span className="sr-only">Search CRM</span>
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
-              <SearchIcon />
-            </span>
-            <input
-              type="search"
-              className="h-11 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-10 pr-3 text-sm font-medium text-[var(--text-primary)] caret-[var(--accent-strong)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:bg-[var(--surface-raised)] focus:ring-4 focus:ring-[var(--accent-soft)]"
-              placeholder="Search companies, contacts, properties, leads, jobs"
-            />
-          </label>
+          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
+            <div className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">Search lives inside each table</div>
+            <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+              Open a CRM object, then use the record table search and page controls to find exactly what you need.
+            </p>
+          </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-            <Link className={buttonClasses({ variant: "ghost" })} href="/crm?action=import">
-              Import
-            </Link>
             <Link className={buttonClasses({ variant: "primary" })} href="/crm/leads?activity=new">
               New lead
             </Link>
@@ -85,14 +77,5 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
         </div>
       </div>
     </section>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.8" />
-      <path d="m12.7 12.7 3.4 3.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
   );
 }
