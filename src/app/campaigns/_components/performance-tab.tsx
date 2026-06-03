@@ -3,6 +3,7 @@
 import { EmptyState, StatusPill } from "@/app/_components/page-header";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
+import { SectionHeader } from "./section-header";
 import { statusTone } from "./status-tone";
 
 export function PerformanceTab({ detail }: { detail: LiveCampaignWorkspace }) {
@@ -43,8 +44,7 @@ export function PerformanceTab({ detail }: { detail: LiveCampaignWorkspace }) {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
           <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-            <div className="signal-eyebrow">Performance fields</div>
-            <h3 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Needed before ROI claims</h3>
+            <SectionHeader tone="blue" eyebrow="Performance fields" detail="Needed before ROI claims." count={PERFORMANCE_CONTRACTS.length} />
           </div>
           <div className="divide-y divide-[var(--border-hairline)]">
             {PERFORMANCE_CONTRACTS.map((contract) => (
@@ -79,8 +79,7 @@ export function PerformanceTab({ detail }: { detail: LiveCampaignWorkspace }) {
 
           <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
             <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-              <div className="signal-eyebrow">Approval status</div>
-              <h3 className="mt-1 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)]">Decision records</h3>
+              <SectionHeader tone="gray" eyebrow="Approval status" detail="Decision records." count={approvals.length} />
             </div>
             {approvals.length > 0 ? (
               <div className="divide-y divide-[var(--border-hairline)]">
