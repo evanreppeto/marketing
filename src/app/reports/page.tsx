@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { connection } from "next/server";
 
 import { IntelligencePanel } from "../_components/intelligence-panel";
@@ -5,9 +6,27 @@ import { EmptyState, StatusPill } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getPerformanceReadModel, type PerformanceBreakdown, type PerformanceTone } from "@/lib/performance/read-model";
 
-export default async function ReportsPage() {
+type PerformanceTabKey = "overview" | "leads" | "conversion" | "campaigns" | "partners" | "revenue" | "contract";
+
+type ReportsSearchParams = {
+  tab?: string | string[];
+};
+
+const performanceTabs: Array<{ key: PerformanceTabKey; label: string; detail: string }> = [
+  { key: "overview", label: "Overview", detail: "Top metrics and measurement posture." },
+  { key: "leads", label: "Leads", detail: "Persona and source volume." },
+  { key: "conversion", label: "Conversion", detail: "Booking, estimate, and close signals." },
+  { key: "campaigns", label: "Campaigns", detail: "Package and approval performance." },
+  { key: "partners", label: "Partners", detail: "Referral and partner attribution." },
+  { key: "revenue", label: "Revenue", detail: "Persona revenue and CTA events." },
+  { key: "contract", label: "Data contract", detail: "Backend fields still needed." },
+];
+
+export default async function ReportsPage({ searchParams }: { searchParams?: Promise<ReportsSearchParams> }) {
   await connection();
 
+  const query = searchParams ? await searchParams : {};
+  const activeTab = normalizeTab(query.tab);
   const performance = await getPerformanceReadModel();
 
   if (performance.status === "unavailable") {
@@ -32,93 +51,21 @@ export default async function ReportsPage() {
           value: metric.value,
           detail: metric.detail,
           tone: metric.tone,
+          href: `/reports?tab=${metricTab(metric.label)}`,
         }))}
       />
 
+      <PerformanceTabs activeTab={activeTab} />
+
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
-        <div className="min-w-0 space-y-5">
-          <div className="grid gap-5 xl:grid-cols-2">
-            <BreakdownPanel
-              eyebrow="Lead volume"
-              title="By persona"
-              description="Current lead records grouped by persona. Missing persona stays visible instead of being hidden."
-              rows={performance.leadVolumeByPersona}
-              empty="Lead records do not have persona/source data yet."
-            />
-            <BreakdownPanel
-              eyebrow="Lead volume"
-              title="By source"
-              description="Where current lead records came from. This becomes source ROI once outcomes are joined."
-              rows={performance.leadVolumeBySource}
-              empty="No lead source values are available yet."
-            />
-          </div>
-
-          <WorkspacePanel
-            eyebrow="Conversion"
-            title="Booking, estimate, and close signals"
-            description="These use existing lead, job, and outcome rows. Anything labeled proxy is not a final business KPI yet."
-          >
-            <SignalGrid rows={performance.conversionSignals} />
-          </WorkspacePanel>
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            <BreakdownPanel
-              eyebrow="Campaigns"
-              title="Package performance structure"
-              description="Campaign packages, creative assets, and approvals exist now; impressions, clicks, spend, and booked jobs need backend fields."
-              rows={performance.campaignSignals}
-              empty="No campaign packages are available yet."
-            />
-            <BreakdownPanel
-              eyebrow="Partners"
-              title="Referral attribution structure"
-              description="Partner-tiered companies are visible now; referral count and revenue need explicit attribution."
-              rows={performance.partnerSignals}
-              empty="No partner records are available yet."
-            />
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            <BreakdownPanel
-              eyebrow="Revenue intelligence"
-              title="Revenue by persona"
-              description="Uses outcome revenue grouped by persona when present. Missing persona means attribution is incomplete."
-              rows={performance.revenueByPersona}
-              empty="No outcome revenue by persona exists yet."
-            />
-            <BreakdownPanel
-              eyebrow="CTA events"
-              title="Form, photo-upload, and landing conversion"
-              description="Internal reporting only. This app does not publish landing pages or execute outbound campaigns."
-              rows={performance.ctaSignals}
-              empty="No CTA/form/photo-upload events are tracked yet."
-            />
-          </div>
-
-          <WorkspacePanel
-            eyebrow="Backend contract"
-            title="Fields needed for real revenue intelligence"
-            description="These are the database/API fields Mark needs before optimization recommendations become trustworthy."
-          >
-            <div className="divide-y divide-[var(--border-hairline)]">
-              {performance.contracts.map((contract) => (
-                <div className="grid gap-3 px-5 py-4 lg:grid-cols-[180px_minmax(0,1fr)]" key={contract.area}>
-                  <div>
-                    <div className="font-bold text-[var(--text-primary)]">{contract.area}</div>
-                    <div className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{contract.currentSignal}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-                      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Missing fields</div>
-                      <div className="mt-1 font-mono text-xs leading-5 text-[var(--text-secondary)]">{contract.missingFields}</div>
-                    </div>
-                    <p className="text-sm leading-6 text-[var(--text-secondary)]">{contract.nextBackendStep}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </WorkspacePanel>
+        <div className="min-w-0">
+          {activeTab === "overview" ? <PerformanceOverview performance={performance} /> : null}
+          {activeTab === "leads" ? <LeadVolumeTab performance={performance} /> : null}
+          {activeTab === "conversion" ? <ConversionTab rows={performance.conversionSignals} /> : null}
+          {activeTab === "campaigns" ? <CampaignSignalsTab rows={performance.campaignSignals} /> : null}
+          {activeTab === "partners" ? <PartnerSignalsTab rows={performance.partnerSignals} /> : null}
+          {activeTab === "revenue" ? <RevenueTab performance={performance} /> : null}
+          {activeTab === "contract" ? <ContractTab contracts={performance.contracts} /> : null}
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
@@ -146,6 +93,163 @@ export default async function ReportsPage() {
         </aside>
       </div>
     </>
+  );
+}
+
+function PerformanceTabs({ activeTab }: { activeTab: PerformanceTabKey }) {
+  return (
+    <nav aria-label="Performance sections" className="module-rise mb-5 grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)] sm:grid-cols-2 xl:grid-cols-7">
+      {performanceTabs.map((tab) => {
+        const selected = activeTab === tab.key;
+        return (
+          <Link
+            aria-current={selected ? "page" : undefined}
+            className={`rounded-lg border px-3 py-3 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] ${
+              selected ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
+            }`}
+            href={`/reports?tab=${tab.key}`}
+            key={tab.key}
+          >
+            <span className="block text-sm font-black text-[var(--text-primary)]">{tab.label}</span>
+            <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function PerformanceOverview({ performance }: { performance: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }> }) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <WorkspacePanel
+        eyebrow="Measurement posture"
+        title="What is usable now"
+        description="Live records can show volume, package counts, approval volume, and partial revenue signals. Anything tied to spend, booking quality, or ROI still needs explicit backend fields."
+      >
+        <SignalGrid rows={[...performance.conversionSignals.slice(0, 3), ...performance.campaignSignals.slice(0, 2)]} />
+      </WorkspacePanel>
+      <WorkspacePanel
+        eyebrow="Revenue intelligence"
+        title="What Mark should not infer"
+        description="The dashboard should expose missing attribution instead of pretending the data is complete."
+      >
+        <SignalList
+          rows={performance.contracts.slice(0, 4).map((contract) => ({
+            label: contract.area,
+            value: "Needed",
+            detail: contract.nextBackendStep,
+            tone: "amber" as const,
+          }))}
+        />
+      </WorkspacePanel>
+    </div>
+  );
+}
+
+function LeadVolumeTab({ performance }: { performance: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }> }) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <BreakdownPanel
+        eyebrow="Lead volume"
+        title="By persona"
+        description="Current lead records grouped by persona. Missing persona stays visible instead of being hidden."
+        rows={performance.leadVolumeByPersona}
+        empty="Lead records do not have persona/source data yet."
+      />
+      <BreakdownPanel
+        eyebrow="Lead volume"
+        title="By source"
+        description="Where current lead records came from. This becomes source ROI once outcomes are joined."
+        rows={performance.leadVolumeBySource}
+        empty="No lead source values are available yet."
+      />
+    </div>
+  );
+}
+
+function ConversionTab({ rows }: { rows: PerformanceBreakdown[] }) {
+  return (
+    <WorkspacePanel
+      eyebrow="Conversion"
+      title="Booking, estimate, and close signals"
+      description="These use existing lead, job, and outcome rows. Anything labeled proxy is not a final business KPI yet."
+    >
+      <SignalGrid rows={rows} />
+    </WorkspacePanel>
+  );
+}
+
+function CampaignSignalsTab({ rows }: { rows: PerformanceBreakdown[] }) {
+  return (
+    <BreakdownPanel
+      eyebrow="Campaigns"
+      title="Package performance structure"
+      description="Campaign packages, creative assets, and approvals exist now; impressions, clicks, spend, and booked jobs need backend fields."
+      rows={rows}
+      empty="No campaign packages are available yet."
+    />
+  );
+}
+
+function PartnerSignalsTab({ rows }: { rows: PerformanceBreakdown[] }) {
+  return (
+    <BreakdownPanel
+      eyebrow="Partners"
+      title="Referral attribution structure"
+      description="Partner-tiered companies are visible now; referral count and revenue need explicit attribution."
+      rows={rows}
+      empty="No partner records are available yet."
+    />
+  );
+}
+
+function RevenueTab({ performance }: { performance: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }> }) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <BreakdownPanel
+        eyebrow="Revenue intelligence"
+        title="Revenue by persona"
+        description="Uses outcome revenue grouped by persona when present. Missing persona means attribution is incomplete."
+        rows={performance.revenueByPersona}
+        empty="No outcome revenue by persona exists yet."
+      />
+      <BreakdownPanel
+        eyebrow="CTA events"
+        title="Form, photo-upload, and landing conversion"
+        description="Internal reporting only. This app does not publish landing pages or execute outbound campaigns."
+        rows={performance.ctaSignals}
+        empty="No CTA/form/photo-upload events are tracked yet."
+      />
+    </div>
+  );
+}
+
+function ContractTab({ contracts }: { contracts: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }>["contracts"] }) {
+  return (
+    <WorkspacePanel
+      eyebrow="Backend contract"
+      title="Fields needed for real revenue intelligence"
+      description="These are the database/API fields Mark needs before optimization recommendations become trustworthy."
+    >
+      <div className="divide-y divide-[var(--border-hairline)]">
+        {contracts.map((contract) => (
+          <div className="grid gap-3 px-5 py-4 lg:grid-cols-[180px_minmax(0,1fr)]" key={contract.area}>
+            <div>
+              <div className="font-bold text-[var(--text-primary)]">{contract.area}</div>
+              <div className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{contract.currentSignal}</div>
+            </div>
+            <div className="space-y-2">
+              <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Missing fields</div>
+                <div className="mt-1 font-mono text-xs leading-5 text-[var(--text-secondary)]">{contract.missingFields}</div>
+              </div>
+              <p className="text-sm leading-6 text-[var(--text-secondary)]">{contract.nextBackendStep}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </WorkspacePanel>
   );
 }
 
@@ -241,4 +345,17 @@ function ToneDot({ tone }: { tone: PerformanceTone }) {
             ? "bg-[var(--accent)]"
             : "bg-[var(--text-muted)]";
   return <span aria-hidden className={`mt-1 h-2 w-2 shrink-0 rounded-full ${className}`} />;
+}
+
+function normalizeTab(value: string | string[] | undefined): PerformanceTabKey {
+  const tab = Array.isArray(value) ? value[0] : value;
+  return performanceTabs.some((item) => item.key === tab) ? (tab as PerformanceTabKey) : "overview";
+}
+
+function metricTab(label: string): PerformanceTabKey {
+  if (/lead/i.test(label)) return "leads";
+  if (/job|booking/i.test(label)) return "conversion";
+  if (/campaign/i.test(label)) return "campaigns";
+  if (/revenue/i.test(label)) return "revenue";
+  return "overview";
 }
