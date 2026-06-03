@@ -7,9 +7,20 @@ import type { CampaignWorkspaceApproval } from "@/lib/campaigns/read-model";
 
 import { ApprovalContext } from "./approval-context";
 import { DecisionControls } from "./decision-controls";
+import { SectionHeader } from "./section-header";
 import { isDecidedStatus, riskTone, statusTone } from "./status-tone";
 
 type FocusTarget = { id: string; nonce: number } | null;
+
+/** Left-rail color signalling an approval's risk level. Applied inline so it
+ *  wins over the class-based border-color shorthand regardless of CSS order. */
+function riskRailColor(risk: string) {
+  const r = risk.toLowerCase();
+  if (r.includes("high") || r.includes("critical")) return "oklch(0.7 0.18 26)";
+  if (r.includes("medium") || r.includes("moderate")) return "oklch(0.82 0.13 85)";
+  if (r.includes("low")) return "oklch(0.78 0.14 158)";
+  return "var(--border-strong)";
+}
 
 export function ApprovalsTab({
   approvals,
@@ -39,20 +50,25 @@ export function ApprovalsTab({
       </p>
 
       {pending.length > 0 ? (
-        <div className="space-y-2.5">
-          {pending.map((approval) => (
-            <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} defaultOpen={pending.length <= 2} focus={focus} />
-          ))}
-        </div>
+        <section>
+          <SectionHeader tone="amber" eyebrow="Decision required" detail="Awaiting your review — outbound stays locked." count={pending.length} />
+          <div className="space-y-2.5">
+            {pending.map((approval) => (
+              <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} defaultOpen={pending.length <= 2} focus={focus} />
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {decided.length > 0 ? (
-        <div className="space-y-2.5">
-          <div className="pt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">Decided</div>
-          {decided.map((approval) => (
-            <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} focus={focus} />
-          ))}
-        </div>
+        <section className="opacity-90">
+          <SectionHeader tone="gray" eyebrow="Decided" detail="Resolved decision records." count={decided.length} />
+          <div className="space-y-2.5">
+            {decided.map((approval) => (
+              <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} focus={focus} />
+            ))}
+          </div>
+        </section>
       ) : null}
     </div>
   );
@@ -83,7 +99,8 @@ function ApprovalCard({
   return (
     <article
       ref={ref}
-      className={`overflow-hidden rounded-xl border bg-[var(--surface-panel)] transition-shadow ${
+      style={{ borderLeftColor: riskRailColor(approval.riskLevel) }}
+      className={`overflow-hidden rounded-xl border border-l-4 bg-[var(--surface-panel)] transition-shadow ${
         isFocused
           ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent)]"
           : decided
