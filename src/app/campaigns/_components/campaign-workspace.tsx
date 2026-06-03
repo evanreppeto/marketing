@@ -13,9 +13,10 @@ import { CampaignPackagePanel } from "./campaign-package-panel";
 import { CreativeTab } from "./creative-tab";
 import { MarkRail } from "./mark-rail";
 import { OverviewTab } from "./overview-tab";
+import { PerformanceTab } from "./performance-tab";
 import { ReasoningTab } from "./reasoning-tab";
 
-type TabKey = "creative" | "media" | "overview" | "audience" | "reasoning" | "approvals";
+type TabKey = "creative" | "media" | "overview" | "audience" | "reasoning" | "approvals" | "performance";
 
 function isDecided(status: string) {
   return /approved|declined|archived|rejected/i.test(status);
@@ -33,6 +34,7 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
     { key: "audience", label: "Targets & sources", count: metrics.sources },
     { key: "reasoning", label: "Mark notes", count: activity.length + events.length },
     { key: "approvals", label: "Approval gate", count: approvals.length },
+    { key: "performance", label: "Performance" },
   ];
 
   const pendingApproval = approvals.find((approval) => !isDecided(approval.status)) ?? null;
@@ -91,6 +93,7 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
             {activeTab === "audience" ? <AudienceLeadsTab sources={sources} /> : null}
             {activeTab === "reasoning" ? <ReasoningTab reasoning={reasoning} activity={activity} events={events} /> : null}
             {activeTab === "approvals" ? <ApprovalsTab approvals={approvals} campaignId={campaign.id} /> : null}
+            {activeTab === "performance" ? <PerformanceTab detail={detail} /> : null}
           </div>
         </div>
 
