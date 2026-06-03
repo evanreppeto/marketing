@@ -63,24 +63,19 @@ export function StickyDecisionBar({
         visible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
       }`}
     >
-      <div className="pointer-events-auto mx-auto mt-3 flex max-w-[1600px] flex-wrap items-center gap-3 rounded-xl border border-[oklch(0.82_0.13_85/0.5)] bg-[oklch(0.2_0.03_247/0.96)] px-4 py-2.5 shadow-[0_18px_44px_oklch(0.04_0.02_250/0.5)] backdrop-blur">
+      <div className="pointer-events-auto mx-auto mt-3 flex max-w-[1600px] items-center gap-3 rounded-xl border border-[oklch(0.82_0.13_85/0.5)] bg-[oklch(0.2_0.03_247/0.96)] px-4 py-2 shadow-[0_18px_44px_oklch(0.04_0.02_250/0.5)] backdrop-blur">
         <span aria-hidden className="status-breathe h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--warn)]" />
+        <span className="hidden shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--warn)] sm:inline">
+          Decision required{total > 1 ? ` · ${total}` : ""}
+        </span>
+        <StatusPill tone={riskTone(current.riskLevel)}>{current.riskLevel} risk</StatusPill>
         <button
           type="button"
           onClick={() => onReview(current.id)}
-          className="group min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className="min-w-0 flex-1 truncate text-left text-sm font-bold text-[var(--text-primary)] underline-offset-2 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]"
           title="Open this item in Approvals"
         >
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--warn)]">
-              Decision required{total > 1 ? ` · ${total} pending` : ""}
-            </span>
-            <StatusPill tone={riskTone(current.riskLevel)}>{current.riskLevel} risk</StatusPill>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-bold text-[var(--text-primary)] underline-offset-2 group-hover:underline">{current.title}</span>
-            <span aria-hidden className="shrink-0 font-mono text-xs text-[var(--accent)] opacity-0 transition group-hover:opacity-100">Review ↗</span>
-          </div>
+          {current.title}
         </button>
         <div className="shrink-0">
           <DecisionControls approvalItemId={current.id} campaignId={campaignId} />
