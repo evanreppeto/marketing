@@ -3,7 +3,8 @@ import { connection } from "next/server";
 
 import { ApprovalInbox, type InboxItem } from "./_components/approval-inbox";
 import { IntelligenceLinkList, IntelligencePanel } from "./_components/intelligence-panel";
-import { EmptyState, StatusPill, buttonClasses } from "./_components/page-header";
+import { OpportunityCommandCenter, type OpportunityBucket, type OpportunityRow } from "./_components/opportunity-command-center";
+import { StatusPill, buttonClasses } from "./_components/page-header";
 import { MetricStrip, WorkspacePanel } from "./_components/workspace";
 import { getAgentOperationsDashboard } from "@/lib/agent-operations/read-model";
 import { listApprovalCards } from "@/lib/approvals/read-model";
@@ -36,6 +37,88 @@ export default async function TodayPage() {
     .filter((row) => row.score >= 60 && row.missingTags.length === 0 && (row.objectType === "lead" || row.objectType === "partner"))
     .slice(0, 4);
   const totalWaiting = (liveCounts?.approvalsWaiting ?? 0) + (liveCounts?.leadsAwaitingReview ?? 0) + (liveCounts?.agentTasksOpen ?? 0);
+  const opportunityBuckets: OpportunityBucket[] = [
+    {
+      key: "high-value",
+      title: "High-value urgent",
+      href: "/crm",
+      tone: "green",
+      detail: "Lead, partner, or job records scoring 75+.",
+      rows: highValueRows.map(toOpportunityRow),
+      emptyTitle: "No high-value records yet",
+      emptyDetail: "When CRM scores reach the high band, they will appear here for review.",
+    },
+    {
+      key: "enrichment",
+      title: "Needs enrichment",
+      href: "/crm",
+      tone: "blue",
+      detail: "Useful records with missing confidence or context.",
+      rows: enrichmentRows.map(toOpportunityRow),
+      emptyTitle: "No enrichment records in this view",
+      emptyDetail: "Low-context CRM records will appear here when Mark needs more evidence before a campaign draft.",
+    },
+    {
+      key: "partners",
+      title: "Best partner opportunities",
+      href: "/partners",
+      tone: "green",
+      detail: "Partner records with stronger review scores.",
+      rows: bestPartnerRows.map(toOpportunityRow),
+      emptyTitle: "No scored partner opportunities yet",
+      emptyDetail: "Partner companies appear here after partner tier or score data is available.",
+    },
+    {
+      key: "campaign-ready",
+      title: "Ready for campaign",
+      href: "/campaigns",
+      tone: "blue",
+      detail: "Scored records with no known missing tags.",
+      rows: readyForCampaignRows.map(toOpportunityRow),
+      emptyTitle: "No records are campaign-ready yet",
+      emptyDetail: "Records need score, source, service tag, persona, and evidence before this lane fills.",
+    },
+    {
+      key: "human-input",
+      title: "Needs human input",
+      href: "/agent-operations",
+      tone: "red",
+      detail: "Blocked Mark work or repair needed.",
+      rows: agentOps.status === "live" ? agentOps.tasks.filter((task) => task.status === "blocked").map(toTaskOpportunityRow) : [],
+      emptyTitle: "No blocked Mark tasks",
+      emptyDetail: "Blocked tasks will appear here when Mark needs a schema, input, approval, or runner fix.",
+    },
+    {
+      key: "missing-evidence",
+      title: "Missing evidence",
+      href: "/crm",
+      tone: "amber",
+      detail: "Records without evidence URLs or notes.",
+      rows: missingEvidenceRows.map(toOpportunityRow),
+      emptyTitle: "No missing-evidence records in this view",
+      emptyDetail: "Records with missing evidence URLs or notes will appear here for Mark enrichment.",
+    },
+    {
+      key: "stale",
+      title: "Stale / no next action",
+      href: "/crm",
+      tone: "gray",
+      detail: "Records older than 14 days in this view.",
+      rows: staleRows.map(toOpportunityRow),
+      emptyTitle: "No stale records in this view",
+      emptyDetail: "Older CRM records will appear here when they need a fresh next action.",
+    },
+    {
+      key: "mark-created",
+      title: "Recently created by Mark",
+      href: "/agent-operations",
+      tone: "gray",
+      detail: "New outputs with audit trail.",
+      rows: agentOps.status === "live" ? agentOps.recentOutputs.map(toOutputOpportunityRow) : [],
+      emptyTitle: "No recent Mark outputs",
+      emptyDetail: "Mark outputs will appear here after the runner writes audit-backed work.",
+    },
+  ];
 
   const inboxItems: InboxItem[] = approvals.map((card) => ({
     id: card.id,
@@ -105,53 +188,7 @@ export default async function TodayPage() {
             <ApprovalInbox items={inboxItems} />
           </WorkspacePanel>
 
-          <WorkspacePanel
-            eyebrow="Prioritized opportunities"
-            title="Needs attention now"
-            description="The queue is split by what an operator can safely decide next. Mark can prepare and revise; outbound stays locked."
-          >
-            <div className="grid gap-3 p-4 lg:grid-cols-3">
-              <OpportunityBucket title="High-value urgent" count={highValueRows.length} href="/crm" tone="green" detail="Lead, partner, or job records scoring 75+." />
-              <OpportunityBucket title="Needs enrichment" count={enrichmentRows.length} href="/crm" tone="blue" detail="Useful records with missing confidence or context." />
-              <OpportunityBucket title="Best partner opportunities" count={bestPartnerRows.length} href="/partners" tone="green" detail="Partner records with stronger review scores." />
-              <OpportunityBucket title="Ready for campaign" count={readyForCampaignRows.length} href="/campaigns" tone="blue" detail="Scored records with no known missing tags." />
-              <OpportunityBucket title="Needs human input" count={mark?.blockedTasks ?? 0} href="/agent-operations" tone="red" detail="Blocked Mark work or repair needed." />
-              <OpportunityBucket title="Missing evidence" count={missingEvidenceRows.length} href="/crm" tone="amber" detail="Records without evidence URLs or notes." />
-              <OpportunityBucket title="Stale / no next action" count={staleRows.length} href="/crm" tone="gray" detail="Records older than 14 days in this view." />
-              <OpportunityBucket title="Recently created by Mark" count={agentOps.status === "live" ? agentOps.recentOutputs.length : 0} href="/agent-operations" tone="gray" detail="New outputs with audit trail." />
-            </div>
-          </WorkspacePanel>
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            <OpportunityList
-              eyebrow="Top records"
-              title="High-value urgent"
-              rows={highValueRows}
-              emptyTitle="No high-value records yet"
-              emptyDetail="When CRM scores reach the high band, they will appear here for review."
-            />
-            <OpportunityList
-              eyebrow="Partners"
-              title="Best partner opportunities"
-              rows={bestPartnerRows}
-              emptyTitle="No scored partner opportunities yet"
-              emptyDetail="Partner companies appear here after partner tier or score data is available."
-            />
-            <OpportunityList
-              eyebrow="Campaign prep"
-              title="Ready for campaign"
-              rows={readyForCampaignRows}
-              emptyTitle="No records are campaign-ready yet"
-              emptyDetail="Records need score, source, service tag, persona, and evidence before this bucket fills."
-            />
-            <OpportunityList
-              eyebrow="Data quality"
-              title="Missing evidence"
-              rows={missingEvidenceRows}
-              emptyTitle="No missing-evidence records in this view"
-              emptyDetail="Records with missing evidence URLs or notes will appear here for Mark enrichment."
-            />
-          </div>
+          <OpportunityCommandCenter buckets={opportunityBuckets} />
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
@@ -200,69 +237,72 @@ async function loadApprovals() {
   }
 }
 
-function OpportunityBucket({ title, count, detail, href, tone }: { title: string; count: number; detail: string; href: string; tone: "amber" | "green" | "red" | "blue" | "gray" }) {
-  return (
-    <Link className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:bg-[var(--surface-raised)]" href={href}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="font-bold text-[var(--text-primary)]">{title}</div>
-        <StatusPill tone={tone}>{count}</StatusPill>
-      </div>
-      <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
-    </Link>
-  );
+function toOpportunityRow(row: {
+  id: string;
+  href: string;
+  record: string;
+  account: string;
+  nextStep: string;
+  stage: string;
+  tone: "amber" | "green" | "red" | "blue";
+  value: string;
+  personaTag: string;
+  urgencyTag: string;
+  sourceTag: string;
+  lifecycleTag: string;
+}): OpportunityRow {
+  return {
+    id: row.id,
+    href: row.href,
+    record: row.record,
+    account: row.account,
+    nextStep: row.nextStep,
+    stage: row.stage,
+    tone: row.tone,
+    value: row.value,
+    personaTag: row.personaTag,
+    urgencyTag: row.urgencyTag,
+    sourceTag: row.sourceTag,
+    lifecycleTag: row.lifecycleTag,
+  };
 }
 
-function OpportunityList({
-  eyebrow,
-  title,
-  rows,
-  emptyTitle,
-  emptyDetail,
-}: {
-  eyebrow: string;
-  title: string;
-  rows: Array<{
-    id: string;
-    href: string;
-    record: string;
-    account: string;
-    nextStep: string;
-    stage: string;
-    tone: "amber" | "green" | "red" | "blue";
-    value: string;
-    personaTag: string;
-    urgencyTag: string;
-  }>;
-  emptyTitle: string;
-  emptyDetail: string;
-}) {
-  return (
-    <WorkspacePanel eyebrow={eyebrow} title={title}>
-      {rows.length > 0 ? (
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {rows.map((row) => (
-            <Link className="block px-5 py-4 transition hover:bg-[var(--surface-inset)]" href={row.href} key={row.id}>
-              <div className="flex items-start justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="block truncate font-bold text-[var(--text-primary)]">{row.record}</span>
-                  <span className="mt-1 block text-sm leading-5 text-[var(--text-secondary)]">{row.account}</span>
-                </span>
-                <StatusPill tone={row.tone}>{row.stage}</StatusPill>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
-                <span className="font-mono font-bold text-[var(--accent)]">{row.value}</span>
-                <span>{humanizeTag(row.personaTag)}</span>
-                <span>{humanizeTag(row.urgencyTag)}</span>
-              </div>
-              <div className="mt-2 text-sm font-semibold text-[var(--text-primary)]">{row.nextStep}</div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <EmptyState title={emptyTitle} detail={emptyDetail} />
-      )}
-    </WorkspacePanel>
-  );
+function toTaskOpportunityRow(task: {
+  id: string;
+  href: string;
+  task: string;
+  objective: string;
+  agentName: string;
+  status: string;
+  risk: string;
+  approval: string;
+}): OpportunityRow {
+  return {
+    id: task.id,
+    href: task.href,
+    record: task.task,
+    account: task.agentName,
+    nextStep: task.objective,
+    stage: task.status,
+    tone: task.status === "blocked" ? "red" : "amber",
+    value: task.risk,
+    urgencyTag: task.approval,
+    lifecycleTag: task.status,
+  };
+}
+
+function toOutputOpportunityRow(output: { output: string; agent: string; status: string; time: string }): OpportunityRow {
+  return {
+    id: `${output.output}-${output.time}`,
+    href: "/agent-operations",
+    record: output.output,
+    account: output.agent,
+    nextStep: "Open Mark operations to inspect the output and audit trail.",
+    stage: output.status,
+    tone: output.status.toLowerCase().includes("approved") ? "green" : "gray",
+    value: output.time,
+    lifecycleTag: output.status,
+  };
 }
 
 function sourceLabel(href: string) {
@@ -278,12 +318,4 @@ function isStale(value: string) {
   if (Number.isNaN(time)) return false;
   const fourteenDays = 14 * 24 * 60 * 60 * 1000;
   return Date.now() - time > fourteenDays;
-}
-
-function humanizeTag(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
