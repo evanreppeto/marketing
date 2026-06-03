@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { IntelligencePanel, type IntelligencePanelModel } from "@/app/_components/intelligence-panel";
 import { Button, EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import {
   type ApprovalCard,
@@ -53,6 +54,7 @@ export function ApprovalDetailPanel({
         </div>
 
         <div className="space-y-4 p-5">
+          <IntelligencePanel model={buildApprovalIntelligence(item, relatedRecords.length)} />
           <DecisionForms item={item} />
 
           <PacketSection title="What Mark created">
@@ -106,6 +108,92 @@ export function ApprovalDetailPanel({
       </section>
     </aside>
   );
+}
+
+function buildApprovalIntelligence(item: ApprovalCard, relatedRecordCount: number): IntelligencePanelModel {
+  const candidateScores =
+    item.structuredDraft?.kind === "partner_lead_list"
+      ? item.structuredDraft.candidates
+          .map((candidate) => candidate.partnerScore)
+          .filter((score): score is number => typeof score === "number")
+      : [];
+  const averagePartnerScore =
+    candidateScores.length > 0
+      ? Math.round(candidateScores.reduce((total, score) => total + score, 0) / candidateScores.length)
+      : null;
+  const confidence = deriveApprovalConfidence(item);
+  const proofPoints = [
+    ...item.complianceFlags.map((flag) => `Guardrail: ${flag}`),
+    ...item.riskFlags.map((flag) => `Risk: ${flag}`),
+  ];
+
+  return {
+    title: "Approval decision context",
+    persona: item.persona,
+    confidence,
+    journeyStage: "Human approval review",
+    urgency: item.riskLevel ? `${humanize(item.riskLevel)} risk` : item.statusLabel,
+    attentionReason: item.previewText || item.campaign.objective,
+    nextBestAction: item.recommendedAction,
+    cta: approvalCtaRule(item),
+    messageAngle: item.campaign.objective || `${item.type} for ${item.channel}`,
+    guardrailStatus: item.complianceFlags.length > 0
+      ? item.complianceFlags.join(", ")
+      : "Human approval required before any outbound step.",
+    scores: [
+      {
+        label: "Evidence",
+        value: item.evidence.length,
+        detail: "Source links captured",
+        tone: item.evidence.length > 0 ? "blue" : "gray",
+      },
+      {
+        label: "Related",
+        value: relatedRecordCount,
+        detail: "CRM records linked",
+        tone: relatedRecordCount > 0 ? "blue" : "gray",
+      },
+      {
+        label: "Partner",
+        value: averagePartnerScore,
+        detail: candidateScores.length > 0 ? "Average candidate score" : "No partner score",
+        tone: averagePartnerScore === null ? "gray" : averagePartnerScore >= 80 ? "green" : "amber",
+      },
+    ],
+    proofPoints: proofPoints.length > 0 ? proofPoints.slice(0, 8) : ["Approval gate is active. Outbound remains locked."],
+    evidence: item.evidence.slice(0, 6).map((url, index) => ({
+      label: `Evidence ${index + 1}`,
+      href: url,
+      detail: url,
+    })),
+    outboundLocked: true,
+  };
+}
+
+function deriveApprovalConfidence(item: ApprovalCard) {
+  if (item.structuredDraft?.kind === "partner_lead_list") {
+    const confidences = item.structuredDraft.candidates.map((candidate) => candidate.confidence).filter(Boolean);
+    if (confidences.length > 0) return confidences[0] ?? "Candidate confidence captured";
+  }
+
+  if (item.evidence.length > 0 && item.complianceFlags.length > 0) {
+    return "Evidence and guardrails captured";
+  }
+
+  if (item.evidence.length > 0) {
+    return "Evidence linked";
+  }
+
+  return "Needs source evidence";
+}
+
+function approvalCtaRule(item: ApprovalCard) {
+  const persona = item.persona.toLowerCase();
+  if (/property/.test(persona)) return "Property managers: Request Vendor Packet. Approval required before use.";
+  if (/insurance/.test(persona)) return "Insurance agents: Refer a Client. Keep wording coverage-neutral.";
+  if (/plumb|sewer|hvac|roof|electric|gc|remodel|partner|trade/.test(persona)) return "Trade partners: Become a Partner. No outreach without approval.";
+  if (/homeowner|emergency/.test(persona)) return "Emergency homeowners: Call Now / Upload Photos. Do not publish from this app.";
+  return "Internal CTA rule only. No send, publish, launch, spend, or contact action without approval.";
 }
 
 function DecisionForms({ item }: { item: ApprovalCard }) {
