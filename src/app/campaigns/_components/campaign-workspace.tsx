@@ -7,9 +7,9 @@ import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
 import { ApprovalsTab } from "./approvals-tab";
 import { AudienceLeadsTab } from "./audience-leads-tab";
-import { CampaignHeader } from "./campaign-header";
+import { CampaignBriefStrip } from "./campaign-brief-strip";
+import { CampaignCommandHeader } from "./campaign-command-header";
 import { CampaignMediaBoard } from "./campaign-media-board";
-import { CampaignOverview } from "./campaign-package-panel";
 import { CreativeTab } from "./creative-tab";
 import { PerformanceTab } from "./performance-tab";
 import { ReasoningTab } from "./reasoning-tab";
@@ -107,16 +107,17 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
         onReview={reviewApproval}
       />
 
-      <CampaignHeader campaign={campaign} />
-
-      <CampaignOverview
-        detail={detail}
+      <CampaignCommandHeader
+        campaign={campaign}
+        campaignId={campaign.id}
         pendingApprovals={pendingApprovals}
-        onOpenTab={goToTab}
         onReviewApproval={reviewApproval}
+        onOpenApprovals={() => goToTab("approvals")}
       />
 
       <div ref={sentinelRef} aria-hidden className="h-px" />
+
+      <CampaignBriefStrip detail={detail} onOpenTab={goToTab} />
 
       <div className="min-w-0">
         <div
