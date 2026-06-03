@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill } from "@/app/_components/page-header";
+import { PaginationControls } from "@/app/_components/pagination-controls";
 import { type ApprovalHistoryEntry } from "@/lib/approvals/read-model";
 
 type DecisionFilter = "all" | "approved" | "revision" | "declined" | "archived";
@@ -172,7 +173,7 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
               const href = row.campaignId ? `/campaigns/${row.campaignId}` : `/approvals?item=${row.approvalItemId}`;
 
               return (
-                <tr key={row.id} className="group cursor-pointer align-top transition hover:bg-[var(--surface-inset)]">
+                <tr key={row.id} className="group cursor-pointer align-top transition hover:bg-[var(--surface-raised)] focus-within:bg-[var(--surface-raised)]">
                   <HistoryCell href={href} className="whitespace-nowrap font-mono text-xs text-[var(--text-secondary)]">
                     {formatWhen(row.decidedAt)}
                   </HistoryCell>
@@ -210,29 +211,15 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm font-semibold text-[var(--text-secondary)]">
-          Page {currentPage} of {pageCount}
-        </div>
-        <div className="flex gap-2">
-          <button
-            className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={currentPage <= 1}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            type="button"
-          >
-            Previous
-          </button>
-          <button
-            className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={currentPage >= pageCount}
-            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-            type="button"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <PaginationControls
+        currentPage={currentPage}
+        endIndex={endIndex}
+        itemLabel="decisions"
+        onPageChange={setPage}
+        pageCount={pageCount}
+        startIndex={startIndex}
+        total={filtered.length}
+      />
     </section>
   );
 }
@@ -268,7 +255,7 @@ function HistoryCell({
 }) {
   return (
     <td className="p-0">
-      <Link className={`block h-full px-5 py-3 ${className}`} href={href}>
+      <Link className={`block h-full px-5 py-3 outline-none transition focus-visible:bg-[var(--accent-soft)] ${className}`} href={href}>
         {children}
       </Link>
     </td>

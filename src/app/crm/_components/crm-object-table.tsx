@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { DataTable } from "../../_components/data-table";
 import { EmptyState, StatusPill } from "../../_components/page-header";
+import { PaginationControls } from "../../_components/pagination-controls";
 import { type CrmObjectRow } from "@/lib/crm/read-model";
 
 type CrmListViewKey = "all-records" | "recently-updated" | "needs-review";
@@ -183,58 +184,17 @@ export function CrmObjectTable({
         }
       />
 
-      <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="text-sm font-semibold text-[var(--text-secondary)]">
-          Page {currentPage} of {pageCount}
-          <span className="ml-2 font-normal text-[var(--text-muted)]">
-            {searchedRows.length === 0 ? "No records matched" : `${startIndex + 1}-${endIndex} visible`}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={currentPage <= 1}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            type="button"
-          >
-            Previous
-          </button>
-          {visiblePageNumbers(currentPage, pageCount).map((pageNumber) => (
-            <button
-              aria-current={pageNumber === currentPage ? "page" : undefined}
-              className={`min-h-10 min-w-10 cursor-pointer rounded-md border px-3 text-sm font-bold transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-default ${
-                pageNumber === currentPage
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
-                  : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)]"
-              }`}
-              key={pageNumber}
-              onClick={() => setPage(pageNumber)}
-              type="button"
-            >
-              {pageNumber}
-            </button>
-          ))}
-          <button
-            className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={currentPage >= pageCount}
-            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-            type="button"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <PaginationControls
+        currentPage={currentPage}
+        endIndex={endIndex}
+        itemLabel="records"
+        onPageChange={setPage}
+        pageCount={pageCount}
+        startIndex={startIndex}
+        total={searchedRows.length}
+      />
     </>
   );
-}
-
-function visiblePageNumbers(currentPage: number, pageCount: number) {
-  if (pageCount <= 5) {
-    return Array.from({ length: pageCount }, (_, index) => index + 1);
-  }
-
-  const start = Math.max(1, Math.min(currentPage - 2, pageCount - 4));
-  return Array.from({ length: 5 }, (_, index) => start + index);
 }
 
 function statusTone(status: string) {
