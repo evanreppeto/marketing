@@ -10,6 +10,16 @@ type CtaRule = {
 };
 
 type SettingsTab = "autonomy" | "guardrails" | "ctas" | "voice";
+type GuardrailDraft = { rule: string; enabled: boolean };
+type StoredSettingsDraft = {
+  autonomy?: string;
+  guardrails?: GuardrailDraft[];
+  ctaRules?: CtaRule[];
+  brandVoice?: string;
+  savedAt?: string;
+};
+
+const SETTINGS_STORAGE_KEY = "bsr-mark-settings-draft-v1";
 
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; detail: string }> = [
   { id: "autonomy", label: "Autonomy", detail: "How much Mark can prepare" },
@@ -34,18 +44,51 @@ export function SettingsControls({
   initialCtaRules: CtaRule[];
 }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("autonomy");
-  const [autonomy, setAutonomy] = useState("2");
-  const [guardrails, setGuardrails] = useState(initialGuardrails.map((rule) => ({ rule, enabled: true })));
-  const [ctaRules, setCtaRules] = useState(initialCtaRules);
-  const [brandVoice, setBrandVoice] = useState(
-    "Local, direct, reassuring, restoration-specific, and evidence-backed. Avoid hype, guarantees, and insurance outcome promises.",
-  );
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [autonomy, setAutonomy] = useState(() => {
+    const stored = readStoredDraft();
+    return isAllowedAutonomy(stored?.autonomy) ? stored.autonomy : "2";
+  });
+  const [guardrails, setGuardrails] = useState(() => {
+    const stored = readStoredDraft();
+    return initialGuardrails.map((rule) => ({
+      rule,
+      enabled: stored?.guardrails?.find((item) => item.rule === rule)?.enabled ?? true,
+    }));
+  });
+  const [ctaRules, setCtaRules] = useState(() => {
+    const stored = readStoredDraft();
+    return initialCtaRules.map((rule) => ({
+      persona: rule.persona,
+      cta: stored?.ctaRules?.find((item) => item.persona === rule.persona)?.cta ?? rule.cta,
+    }));
+  });
+  const [brandVoice, setBrandVoice] = useState(() => {
+    const stored = readStoredDraft();
+    return typeof stored?.brandVoice === "string" && stored.brandVoice.trim()
+      ? stored.brandVoice
+      : "Local, direct, reassuring, restoration-specific, and evidence-backed. Avoid hype, guarantees, and insurance outcome promises.";
+  });
+  const [savedAt, setSavedAt] = useState<string | null>(() => {
+    const stored = readStoredDraft();
+    return typeof stored?.savedAt === "string" ? stored.savedAt : null;
+  });
+  const [loadedLocalDraft, setLoadedLocalDraft] = useState(() => Boolean(readStoredDraft()));
 
   const enabledCount = useMemo(() => guardrails.filter((rule) => rule.enabled).length, [guardrails]);
 
   function saveLocalDraft() {
-    setSavedAt(new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date()));
+    const nextSavedAt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date());
+    const draft: StoredSettingsDraft = {
+      autonomy,
+      guardrails,
+      ctaRules,
+      brandVoice,
+      savedAt: nextSavedAt,
+    };
+
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(draft));
+    setSavedAt(nextSavedAt);
+    setLoadedLocalDraft(true);
   }
 
   return (
@@ -60,6 +103,7 @@ export function SettingsControls({
         </div>
         <div className="flex flex-wrap gap-2">
           <StatusPill tone="amber">Outbound locked</StatusPill>
+          <StatusPill tone={loadedLocalDraft ? "blue" : "gray"}>{loadedLocalDraft ? "Local draft loaded" : "Session draft"}</StatusPill>
           <StatusPill tone={savedAt ? "green" : "gray"}>{savedAt ? `Saved ${savedAt}` : "Unsaved"}</StatusPill>
         </div>
       </div>
@@ -195,7 +239,12 @@ export function SettingsControls({
                 setAutonomy("2");
                 setGuardrails(initialGuardrails.map((rule) => ({ rule, enabled: true })));
                 setCtaRules(initialCtaRules);
+                setBrandVoice(
+                  "Local, direct, reassuring, restoration-specific, and evidence-backed. Avoid hype, guarantees, and insurance outcome promises.",
+                );
                 setSavedAt(null);
+                setLoadedLocalDraft(false);
+                window.localStorage.removeItem(SETTINGS_STORAGE_KEY);
               }}
               size="sm"
               variant="ghost"
@@ -204,12 +253,29 @@ export function SettingsControls({
             </Button>
           </div>
           <p className="mt-4 text-xs leading-5 text-[var(--text-secondary)]">
-            Persistence to Supabase should be added after we define the settings table. For now, these controls make the app usable without pretending to launch anything.
+            Saved drafts persist in this browser only. Supabase persistence should be added after we define the settings table. These controls do not launch, publish, spend, send, or contact anyone.
           </p>
         </aside>
       </div>
     </section>
   );
+}
+
+function readStoredDraft(): StoredSettingsDraft | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as StoredSettingsDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+function isAllowedAutonomy(value: unknown): value is string {
+  return typeof value === "string" && AUTONOMY_LEVELS.some((level) => level.id === value && level.id !== "4");
 }
 
 function SettingStat({ label, value }: { label: string; value: string }) {
