@@ -8,7 +8,8 @@ import type { CampaignWorkspaceAsset, CampaignWorkspaceAssetCategory } from "@/l
 import { requestRevisionAction } from "../actions";
 import { AssetPreview } from "./asset-preview";
 import { DecisionControls } from "./decision-controls";
-import { isDecidedStatus, statusTone } from "./status-tone";
+import { SectionHeader } from "./section-header";
+import { assetDecisionStatus, isDecidedStatus } from "./status-tone";
 
 /** A deliverable counts as "decided" when its gating approval (or, lacking one,
  *  its own status) has been resolved. */
@@ -29,6 +30,14 @@ const SECTIONS: Array<{ key: CampaignWorkspaceAssetCategory; title: string; deta
   { key: "media", title: "Images & video", detail: "Generated visuals, videos, mockups, and creative references." },
   { key: "other", title: "Supporting items", detail: "Research notes and supporting pieces." },
 ];
+
+const SECTION_TONE: Record<CampaignWorkspaceAssetCategory, "blue" | "red" | "amber" | "green" | "gray"> = {
+  physical: "amber",
+  virtual: "blue",
+  ads: "red",
+  media: "green",
+  other: "gray",
+};
 
 export function CreativeTab({
   groups,
@@ -100,17 +109,14 @@ export function CreativeTab({
       <div className="space-y-6">
         {visible.map((section) => (
           <section key={section.key}>
-            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-              <div>
-                <h3 className="text-base font-black tracking-[-0.03em] text-[var(--text-primary)]">{section.title}</h3>
-                <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{section.detail}</p>
-              </div>
-              <span className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-                {groups[section.key].length} item{groups[section.key].length === 1 ? "" : "s"}
-              </span>
-            </div>
+            <SectionHeader
+              tone={SECTION_TONE[section.key]}
+              eyebrow={section.title}
+              detail={section.detail}
+              count={groups[section.key].length}
+            />
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
               {groups[section.key].map((asset) => (
                 <AssetCard key={asset.id} asset={asset} campaignId={campaignId} />
               ))}
@@ -160,7 +166,7 @@ function AssetCard({ asset, campaignId }: { asset: CampaignWorkspaceAsset; campa
   const [revising, setRevising] = useState(false);
   const approval = asset.approval;
   const canDecide = approval !== null && !isDecidedStatus(approval.status);
-  const decided = approval !== null && isDecidedStatus(approval.status);
+  const decision = assetDecisionStatus(asset);
 
   return (
     <article
@@ -175,7 +181,7 @@ function AssetCard({ asset, campaignId }: { asset: CampaignWorkspaceAsset; campa
             {asset.channel} · {asset.assetType}
           </div>
         </div>
-        <StatusPill tone={statusTone(asset.status)}>{asset.status}</StatusPill>
+        <StatusPill tone={decision.tone}>{decision.label}</StatusPill>
       </div>
 
       <div className="flex-1 p-4">
@@ -188,14 +194,13 @@ function AssetCard({ asset, campaignId }: { asset: CampaignWorkspaceAsset; campa
             {asset.toolSource ? <span>Built with {asset.toolSource}</span> : null}
             {!asset.dispatchLocked ? <StatusPill tone="blue">Approved draft</StatusPill> : <StatusPill tone="amber">Locked</StatusPill>}
           </span>
-          {decided ? <StatusPill tone={statusTone(approval.status)}>{approval.status}</StatusPill> : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           {canDecide ? (
             <DecisionControls approvalItemId={approval.id} campaignId={campaignId} size="sm" />
           ) : approval === null ? (
-            <span className="text-xs text-[var(--text-muted)]">Not submitted for approval</span>
+            <span className="text-xs text-[var(--text-muted)]">Draft — not submitted</span>
           ) : (
             <span />
           )}
