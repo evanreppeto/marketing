@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
@@ -188,14 +189,29 @@ export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalC
 }
 
 function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: ApprovalCard }) {
+  const router = useRouter();
   const detailHref = `/approvals?tab=queue&item=${item.id}`;
   const campaignHref = item.campaign.id ? `/campaigns/${item.campaign.id}` : detailHref;
 
   return (
     <article
-      className={`rounded-xl border p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] ${
+      aria-label={`Open approval review for ${item.title}`}
+      className={`cursor-pointer rounded-xl border p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
         isSelected ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_0_24px_oklch(0.74_0.115_232/0.14)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
       }`}
+      onClick={(event) => {
+        if (isInteractiveTarget(event.target)) return;
+        router.push(detailHref);
+      }}
+      onKeyDown={(event) => {
+        if (isInteractiveTarget(event.target)) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          router.push(detailHref);
+        }
+      }}
+      role="link"
+      tabIndex={0}
     >
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
@@ -232,6 +248,10 @@ function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: Ap
       </div>
     </article>
   );
+}
+
+function isInteractiveTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && Boolean(target.closest("a,button,input,select,textarea,summary"));
 }
 
 function QueueDetail({ label, value }: { label: string; value: string }) {

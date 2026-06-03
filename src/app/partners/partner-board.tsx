@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
@@ -196,8 +197,26 @@ export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
 }
 
 function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
+  const router = useRouter();
+
   return (
-    <article className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]">
+    <article
+      aria-label={`Open CRM record for ${partner.name}`}
+      className="cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      onClick={(event) => {
+        if (isInteractiveTarget(event.target)) return;
+        router.push(partner.href);
+      }}
+      onKeyDown={(event) => {
+        if (isInteractiveTarget(event.target)) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          router.push(partner.href);
+        }
+      }}
+      role="link"
+      tabIndex={0}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -284,6 +303,10 @@ function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
       ) : null}
     </article>
   );
+}
+
+function isInteractiveTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && Boolean(target.closest("a,button,input,select,textarea,summary"));
 }
 
 function MiniStat({ label, value }: { label: string; value: ReactNode }) {
