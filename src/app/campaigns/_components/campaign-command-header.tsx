@@ -36,7 +36,7 @@ export function CampaignCommandHeader({
   ];
 
   return (
-    <header className="module-rise mb-5">
+    <header className="module-rise mb-5" aria-label={campaign.name}>
       <Link
         href="/campaigns"
         className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"
@@ -148,6 +148,7 @@ function DecisionZone({
               type="button"
               onClick={() => setShowContext((value) => !value)}
               aria-expanded={showContext}
+              aria-controls="campaign-decision-context"
               className="text-xs font-bold text-[var(--accent)] transition hover:text-[var(--accent-strong)]"
             >
               {showContext ? "Hide full context" : "See full context"}
@@ -165,13 +166,27 @@ function DecisionZone({
         <div className="flex shrink-0 flex-col items-stretch gap-2 lg:items-end">
           {total > 1 ? (
             <div className="flex items-center gap-2">
-              <StepButton label="Previous decision" disabled={safeIndex === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))}>
+              <StepButton
+                label="Previous decision"
+                disabled={safeIndex === 0}
+                onClick={() => {
+                  setIndex((value) => Math.max(0, value - 1));
+                  setShowContext(false);
+                }}
+              >
                 ‹
               </StepButton>
               <span className="min-w-16 text-center font-mono text-xs font-bold tabular-nums text-[var(--text-secondary)]">
                 {safeIndex + 1} / {total}
               </span>
-              <StepButton label="Next decision" disabled={safeIndex >= total - 1} onClick={() => setIndex((value) => Math.min(total - 1, value + 1))}>
+              <StepButton
+                label="Next decision"
+                disabled={safeIndex >= total - 1}
+                onClick={() => {
+                  setIndex((value) => Math.min(total - 1, value + 1));
+                  setShowContext(false);
+                }}
+              >
                 ›
               </StepButton>
             </div>
@@ -180,7 +195,7 @@ function DecisionZone({
         </div>
       </div>
 
-      <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${showContext ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+      <div id="campaign-decision-context" className={`grid transition-[grid-template-rows] duration-200 ease-out ${showContext ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
           <div className="border-t border-[oklch(0.82_0.13_85/0.3)] bg-[var(--surface-panel)] p-4">
             <ApprovalContext approval={current} compact />
