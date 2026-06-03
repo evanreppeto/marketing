@@ -58,7 +58,7 @@ export function IntelligencePanel({
         <div>
           <div className="signal-eyebrow">Growth intelligence</div>
           <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">
-            {model.title ?? "What needs attention"}
+            {formatReadableText(model.title ?? "What needs attention")}
           </h2>
         </div>
         <StatusPill tone={model.outboundLocked === false ? "green" : "amber"}>
@@ -81,12 +81,12 @@ export function IntelligencePanel({
                 <div key={score.label} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{score.label}</div>
-                    <span className={`h-2 w-2 rounded-full ${dotClass(score.tone ?? scoreTone(score.value))}`} />
+                    <ToneBadge tone={score.tone ?? scoreTone(score.value)} />
                   </div>
-                  <div className="mt-2 font-display text-2xl font-black tracking-[-0.05em] text-[var(--text-primary)]">
-                    {formatValue(score.value, "—")}
+                  <div className="mt-2 break-words font-display text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">
+                    {formatValue(score.value, "-")}
                   </div>
-                  {score.detail ? <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{score.detail}</p> : null}
+                  {score.detail ? <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{formatReadableText(score.detail)}</p> : null}
                 </div>
               ))}
             </div>
@@ -120,9 +120,8 @@ export function IntelligencePanel({
               <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Proof points</div>
               <ul className="mt-3 space-y-2">
                 {model.proofPoints.map((point) => (
-                  <li key={point} className="flex gap-2 text-sm leading-6 text-[var(--text-secondary)]">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
-                    <span>{point}</span>
+                  <li key={point} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-secondary)]">
+                    {formatReadableText(point)}
                   </li>
                 ))}
               </ul>
@@ -142,13 +141,13 @@ export function IntelligencePanel({
                       rel="noreferrer"
                       target="_blank"
                     >
-                      <span className="truncate">{item.label}</span>
+                      <span className="min-w-0 truncate">{formatReadableText(item.label)}</span>
                       <span className="text-[var(--text-muted)]">Open</span>
                     </a>
                   ) : (
                     <div key={item.label} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-                      <div className="text-sm font-semibold text-[var(--text-primary)]">{item.label}</div>
-                      {item.detail ? <div className="mt-0.5 text-xs leading-5 text-[var(--text-secondary)]">{item.detail}</div> : null}
+                      <div className="break-words text-sm font-semibold text-[var(--text-primary)]">{formatReadableText(item.label)}</div>
+                      {item.detail ? <div className="mt-0.5 text-xs leading-5 text-[var(--text-secondary)]">{formatReadableText(item.detail)}</div> : null}
                     </div>
                   ),
                 )}
@@ -187,10 +186,10 @@ export function IntelligenceLinkList({
             href={item.href}
           >
             <div className="flex items-center justify-between gap-3">
-              <div className="font-bold text-[var(--text-primary)]">{item.label}</div>
-              <span className={`h-2 w-2 rounded-full ${dotClass(item.tone ?? "blue")}`} />
+              <div className="font-bold text-[var(--text-primary)]">{formatReadableText(item.label)}</div>
+              <ToneBadge tone={item.tone ?? "blue"} />
             </div>
-            <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{item.detail}</p>
+            <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{formatReadableText(item.detail)}</p>
           </Link>
         ))}
       </div>
@@ -202,7 +201,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
       <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{value}</div>
+      <div className="mt-1 break-words text-sm font-bold leading-5 text-[var(--text-primary)]">{formatReadableText(value)}</div>
     </div>
   );
 }
@@ -213,7 +212,7 @@ function Narrative({ label, value, strong = false }: { label: string; value?: st
     <div>
       <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
       <p className={`mt-1 text-sm leading-6 ${strong ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
-        {value}
+        {formatReadableText(value)}
       </p>
     </div>
   );
@@ -221,7 +220,7 @@ function Narrative({ label, value, strong = false }: { label: string; value?: st
 
 function formatValue(value: string | number | null | undefined, fallback: string) {
   if (value === null || value === undefined || value === "") return fallback;
-  return String(value);
+  return formatReadableText(String(value));
 }
 
 function scoreTone(value: string | number | null | undefined): Tone {
@@ -231,10 +230,44 @@ function scoreTone(value: string | number | null | undefined): Tone {
   return "red";
 }
 
-function dotClass(tone: Tone) {
-  if (tone === "green") return "bg-[var(--ok)]";
-  if (tone === "amber") return "bg-[var(--warn)]";
-  if (tone === "red") return "bg-[var(--priority)]";
-  if (tone === "blue" || tone === "dark") return "bg-[var(--accent)]";
-  return "bg-[var(--text-muted)]";
+function ToneBadge({ tone }: { tone: Tone }) {
+  const label =
+    tone === "green"
+      ? "Strong"
+      : tone === "amber"
+        ? "Watch"
+        : tone === "red"
+          ? "Risk"
+          : tone === "gray"
+            ? "Missing"
+            : "Signal";
+
+  const className =
+    tone === "green"
+      ? "border-[oklch(0.74_0.16_155/0.35)] bg-[oklch(0.74_0.16_155/0.12)] text-[oklch(0.86_0.12_155)]"
+      : tone === "amber"
+        ? "border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] text-[oklch(0.9_0.09_85)]"
+        : tone === "red"
+          ? "border-[oklch(0.68_0.21_25/0.4)] bg-[oklch(0.68_0.21_25/0.13)] text-[oklch(0.82_0.14_25)]"
+          : tone === "gray"
+            ? "border-[var(--border-hairline)] bg-[var(--surface-soft)] text-[var(--text-muted)]"
+            : "border-[oklch(0.74_0.115_232/0.35)] bg-[var(--accent-soft)] text-[var(--accent)]";
+
+  return <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${className}`}>{label}</span>;
+}
+
+function formatReadableText(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/\s/.test(trimmed) && !/^persona_/i.test(trimmed)) return trimmed;
+  if (!/[_-]/.test(trimmed)) return trimmed;
+
+  return trimmed
+    .replace(/^persona_/, "")
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
