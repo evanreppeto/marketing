@@ -9,14 +9,14 @@ import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 import { statusTone } from "./status-tone";
 
-const PAGE_SIZES = [6, 12, 24];
+const PAGE_SIZES = [12, 24, 48];
 
 export function CampaignGallery({ campaigns }: { campaigns: CampaignWorkspaceListItem[] }) {
   const statuses = useMemo(() => ["All", ...Array.from(new Set(campaigns.map((c) => c.status)))], [campaigns]);
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(6);
+  const [pageSize, setPageSize] = useState(12);
 
   const q = query.trim().toLowerCase();
   const filtered = campaigns.filter((campaign) => {
