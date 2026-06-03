@@ -18,7 +18,7 @@ const QUEUE_FILTERS: Array<{ key: QueueFilter; label: string }> = [
   { key: "leads", label: "Lead lists" },
 ];
 
-export function ApprovalQueueTable({ items }: { items: ApprovalCard[] }) {
+export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalCard[]; selectedItemId?: string | null }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<QueueFilter>("all");
   const [page, setPage] = useState(1);
@@ -164,7 +164,7 @@ export function ApprovalQueueTable({ items }: { items: ApprovalCard[] }) {
       {visibleItems.length > 0 ? (
         <div className="grid gap-3 p-4 xl:grid-cols-2">
           {visibleItems.map((item) => (
-            <ApprovalQueueCard key={item.id} item={item} />
+            <ApprovalQueueCard isSelected={selectedItemId === item.id} key={item.id} item={item} />
           ))}
         </div>
       ) : (
@@ -200,12 +200,16 @@ export function ApprovalQueueTable({ items }: { items: ApprovalCard[] }) {
   );
 }
 
-function ApprovalQueueCard({ item }: { item: ApprovalCard }) {
+function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: ApprovalCard }) {
   const detailHref = `/approvals?tab=queue&item=${item.id}`;
   const campaignHref = item.campaign.id ? `/campaigns/${item.campaign.id}` : detailHref;
 
   return (
-    <article className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
+    <article
+      className={`rounded-xl border p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] ${
+        isSelected ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_0_24px_oklch(0.74_0.115_232/0.14)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
         <StatusPill tone="blue">{item.channel}</StatusPill>

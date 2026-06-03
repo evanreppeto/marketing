@@ -6,12 +6,14 @@ import { listApprovalCards, listApprovalHistory } from "@/lib/approvals/read-mod
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { ApprovalHistoryTable } from "./approval-history-table";
+import { ApprovalDetailPanel } from "./approval-detail-panel";
 import { ApprovalQueueTable } from "./approval-queue-table";
 
 type ApprovalTabKey = "queue" | "history";
 
 type ApprovalsSearchParams = {
   tab?: string | string[];
+  item?: string | string[];
 };
 
 export default async function ActivityPage({ searchParams }: { searchParams?: Promise<ApprovalsSearchParams> }) {
@@ -20,6 +22,8 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
   const query = searchParams ? await searchParams : {};
   const activeTab = normalizeTab(query.tab);
   const [queueItems, decisions] = isSupabaseAdminConfigured() ? await Promise.all([loadQueue(), loadHistory()]) : [[], []];
+  const selectedItemId = normalizeSearchValue(query.item);
+  const selectedItem = selectedItemId ? queueItems.find((item) => item.id === selectedItemId) ?? null : null;
 
   return (
     <>
@@ -37,7 +41,12 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
 
       <ApprovalTabs activeTab={activeTab} queueCount={queueItems.length} historyCount={decisions.length} />
 
-      {activeTab === "queue" ? <ApprovalQueueTable items={queueItems} /> : null}
+      {activeTab === "queue" ? (
+        <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
+          <ApprovalQueueTable items={queueItems} selectedItemId={selectedItemId} />
+          <ApprovalDetailPanel item={selectedItem} requestedItemId={selectedItemId} />
+        </div>
+      ) : null}
       {activeTab === "history" ? <ApprovalHistoryTable decisions={decisions} /> : null}
     </>
   );
@@ -101,4 +110,9 @@ function ApprovalTabs({
 function normalizeTab(value: string | string[] | undefined): ApprovalTabKey {
   const tab = Array.isArray(value) ? value[0] : value;
   return tab === "history" ? "history" : "queue";
+}
+
+function normalizeSearchValue(value: string | string[] | undefined) {
+  const normalized = Array.isArray(value) ? value[0] : value;
+  return normalized && normalized.trim().length > 0 ? normalized.trim() : null;
 }
