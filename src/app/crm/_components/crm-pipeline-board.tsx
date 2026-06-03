@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { DataTable } from "../../_components/data-table";
 import { EmptyState, StatusPill } from "../../_components/page-header";
+import { PaginationControls } from "../../_components/pagination-controls";
 import { type CrmPipelineRow } from "@/lib/crm/read-model";
 
 type ScoreFilter = "all" | "high" | "medium" | "low" | "missing-data";
@@ -256,29 +257,15 @@ export function CrmPipelineBoard({
         }
       />
 
-      <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm font-semibold text-[var(--text-secondary)]">
-          Page {currentPage} of {pageCount}
-        </div>
-        <div className="flex gap-2">
-          <button
-            className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={currentPage <= 1}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            type="button"
-          >
-            Previous
-          </button>
-          <button
-            className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={currentPage >= pageCount}
-            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-            type="button"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <PaginationControls
+        currentPage={currentPage}
+        endIndex={endIndex}
+        itemLabel="CRM records"
+        onPageChange={setPage}
+        pageCount={pageCount}
+        startIndex={startIndex}
+        total={filtered.length}
+      />
     </>
   );
 }

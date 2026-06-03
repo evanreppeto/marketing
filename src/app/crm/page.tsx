@@ -2,6 +2,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { AppShell } from "../_components/app-shell";
+import { IntelligencePanel } from "../_components/intelligence-panel";
+import type { IntelligencePanelModel } from "../_components/intelligence-panel";
 import { EmptyState, Panel, StatusPill, buttonClasses } from "../_components/page-header";
 import { getCrmNavCounts, getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
 
@@ -262,23 +264,47 @@ function CrmRecordPreview({ selectedRecord }: { selectedRecord: CrmPipelineRow |
         )}
       </Panel>
 
-      <Panel className="module-rise">
-        <h3 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Mark can use this</h3>
-        <div className="mt-4 space-y-3">
-          {[
-            ["Enrich", "Fill missing company, contact, and source evidence."],
-            ["Classify", "Attach persona and relationship stage."],
-            ["Draft", "Create approval-ready outreach only after enough context exists."],
-          ].map(([label, detail]) => (
-            <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-3" key={label}>
-              <div className="text-sm font-bold text-[var(--text-primary)]">{label}</div>
-              <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{detail}</p>
-            </div>
-          ))}
-        </div>
-      </Panel>
+      <IntelligencePanel
+        model={selectedRecord ? buildCrmPipelineIntelligence(selectedRecord) : { title: "CRM intelligence", outboundLocked: true, emptyDetail: "Select a pipeline row to inspect persona, score, tags, next action, and missing evidence." }}
+      />
     </div>
   );
+}
+
+function buildCrmPipelineIntelligence(row: CrmPipelineRow): IntelligencePanelModel {
+  const missing = row.missingTags.map(humanizeTag);
+  const serviceTags = row.serviceTags.map(humanizeTag);
+
+  return {
+    title: row.record,
+    persona: humanizeTag(row.personaTag),
+    confidence: row.missingTags.length > 0 ? "Needs enrichment" : "Scored CRM signal",
+    journeyStage: row.stage,
+    urgency: humanizeTag(row.urgencyTag),
+    attentionReason: `${row.account} / ${row.type}`,
+    nextBestAction: row.nextStep,
+    cta: ctaForPersona(row.personaTag),
+    messageAngle: serviceTags.length > 0
+      ? `Restoration context: ${serviceTags.join(", ")}. Keep outbound approval-gated.`
+      : "Restoration, mitigation, documentation, rebuild, and partner handoff. Keep outbound approval-gated.",
+    guardrailStatus: "No send, publish, launch, spend, or contact action from CRM without human approval.",
+    scores: [
+      { label: "Lead score", value: row.objectType === "lead" ? row.score : null, detail: "CRM score band", tone: scoreTone(row.score) },
+      { label: "Partner score", value: row.objectType === "partner" ? row.score : null, detail: "Partner-fit signal", tone: scoreTone(row.score) },
+      { label: "Revenue", value: row.value, detail: row.objectType === "job" ? "Job value signal" : "Estimated or linked value", tone: row.value === "$0" ? "gray" : "green" },
+    ],
+    proofPoints: [
+      `Source: ${humanizeTag(row.sourceTag)}`,
+      `Lifecycle: ${humanizeTag(row.lifecycleTag)}`,
+      ...serviceTags.map((tag) => `Service: ${tag}`),
+      ...missing.map((tag) => `Missing: ${tag}`),
+    ].slice(0, 8),
+    outboundLocked: true,
+    actions: [
+      { label: "Open full record", href: row.href, variant: "primary" },
+      { label: "Review approvals", href: "/approvals", variant: "ghost" },
+    ],
+  };
 }
 
 function CrmActivity() {
@@ -349,6 +375,35 @@ function formatCrmDate(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function scoreTone(score: number): "amber" | "green" | "red" | "blue" | "gray" {
+  if (score >= 80) return "green";
+  if (score >= 60) return "blue";
+  if (score >= 40) return "amber";
+  return "red";
+}
+
+function ctaForPersona(personaTag: string) {
+  const persona = personaTag.toLowerCase();
+
+  if (persona.includes("property_manager")) return "Property manager: Request Vendor Packet. Internal preview only.";
+  if (persona.includes("insurance")) return "Insurance agent: Refer a Client. Keep wording coverage-neutral.";
+  if (persona.includes("partner") || persona.includes("plumb") || persona.includes("hvac") || persona.includes("gc")) {
+    return "Trade partner: Become a Partner. No outreach without approval.";
+  }
+  if (persona.includes("homeowner") || persona.includes("emergency")) return "Emergency homeowner: Call Now / Upload Photos. Do not publish from this app.";
+
+  return "Internal CTA rule only. Human approval required before any external use.";
+}
+
+function humanizeTag(value: string) {
+  return value
+    .replace(/^persona_/, "")
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function getVisibleRows(activeView: CrmViewKey, rows: CrmPipelineRow[]) {
