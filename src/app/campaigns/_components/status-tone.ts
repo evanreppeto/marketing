@@ -23,3 +23,16 @@ export function riskTone(risk: string): PillTone {
 export function isDecidedStatus(status: string): boolean {
   return /approved|declined|archived|rejected/i.test(status);
 }
+
+/** Decision-aware display status for a deliverable: the gating approval's
+ *  status when one exists, otherwise "Draft" (no approval item = no pending
+ *  decision), consistent with the campaign roll-up's decision-centric model. */
+export function assetDecisionStatus(asset: { approval: { id: string; status: string } | null }): {
+  label: string;
+  tone: PillTone;
+} {
+  if (asset.approval) {
+    return { label: asset.approval.status, tone: statusTone(asset.approval.status) };
+  }
+  return { label: "Draft", tone: "gray" };
+}
