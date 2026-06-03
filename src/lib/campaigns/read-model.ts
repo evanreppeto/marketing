@@ -1176,7 +1176,7 @@ function humanize(value: string) {
  *  names (e.g. " 20260529203258", " - 2026-06-01") for cleaner display. */
 function cleanCampaignName(name: string) {
   return name
-    .replace(/\s*[-–]\s*\d{4}-\d{2}-\d{2}\s*$/, "")
+    .replace(/\s*(?:-|\u2013)\s*\d{4}-\d{2}-\d{2}\s*$/, "")
     .replace(/\s+\d{12,}\s*$/, "")
     .trim() || name;
 }

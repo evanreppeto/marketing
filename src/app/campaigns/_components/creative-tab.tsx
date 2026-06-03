@@ -84,7 +84,8 @@ function AssetCard({ asset, isTarget, onPick }: { asset: CampaignWorkspaceAsset;
       <div className="flex items-center justify-between gap-3 border-t border-[var(--border-hairline)] px-4 py-3">
         <span className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
           {asset.toolSource ? <span>Built with {asset.toolSource}</span> : null}
-          {asset.dispatchLocked ? <StatusPill tone="gray">Outbound locked</StatusPill> : null}
+          <StatusPill tone="amber">Outbound locked</StatusPill>
+          {!asset.dispatchLocked ? <StatusPill tone="blue">Approved draft</StatusPill> : null}
         </span>
         <button type="button" onClick={onPick} className={buttonClasses({ variant: isTarget ? "primary" : "ghost", size: "sm" })}>
           {isTarget ? "Selected" : "Ask Mark to revise"}

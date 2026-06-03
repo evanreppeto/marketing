@@ -82,9 +82,8 @@ export function CampaignPackagePanel({
         <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="signal-eyebrow">Review packet</span>
-            <StatusPill tone={campaign.launchLocked ? "blue" : "amber"}>
-              {campaign.launchLocked ? "Outbound locked" : "Launch unlocked"}
-            </StatusPill>
+            <StatusPill tone="amber">Outbound locked</StatusPill>
+            {!campaign.launchLocked ? <StatusPill tone="blue">Draft approved</StatusPill> : null}
             {pendingApproval ? <StatusPill tone={statusTone(pendingApproval.status)}>{pendingApproval.status}</StatusPill> : null}
           </div>
           <h2 className="mt-3 text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">Campaign package at a glance</h2>
@@ -186,6 +185,7 @@ export function CampaignPackagePanel({
           <div className="flex flex-wrap items-center gap-2">
             <div className="signal-eyebrow">Approval gate</div>
             <StatusPill tone="amber">Human decision required</StatusPill>
+            <StatusPill tone="amber">No dispatch controls</StatusPill>
           </div>
           <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
             {reasoning.recommendedAction || "Review the package, sources, and guardrails before approving anything."}

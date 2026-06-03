@@ -28,9 +28,8 @@ export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }
           <div className="flex flex-wrap items-center gap-3">
             <span className="signal-eyebrow">Campaign package</span>
             <StatusPill tone={statusTone(campaign.status)}>{campaign.status}</StatusPill>
-            {campaign.launchLocked ? (
-              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--accent)]">Outbound locked</span>
-            ) : null}
+            <StatusPill tone="amber">Outbound locked</StatusPill>
+            {!campaign.launchLocked ? <StatusPill tone="blue">Approved draft</StatusPill> : null}
           </div>
 
           <h1 className="mt-3 max-w-[24ch] text-[clamp(1.6rem,3vw,2.4rem)] font-black leading-[1.03] tracking-[-0.04em] text-[var(--text-primary)]">

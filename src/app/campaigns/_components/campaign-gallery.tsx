@@ -8,75 +8,160 @@ import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 import { statusTone } from "./status-tone";
 
+const PAGE_SIZES = [6, 12, 24];
+
 export function CampaignGallery({ campaigns }: { campaigns: CampaignWorkspaceListItem[] }) {
   const statuses = useMemo(() => ["All", ...Array.from(new Set(campaigns.map((c) => c.status)))], [campaigns]);
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
 
   const q = query.trim().toLowerCase();
-  const visible = campaigns.filter((campaign) => {
+  const filtered = campaigns.filter((campaign) => {
     const matchStatus = filter === "All" || campaign.status === filter;
-    const matchQuery = q.length === 0 || `${campaign.name} ${campaign.persona} ${campaign.objective}`.toLowerCase().includes(q);
+    const matchQuery =
+      q.length === 0 ||
+      `${campaign.name} ${campaign.persona} ${campaign.objective} ${campaign.audienceSummary} ${campaign.offerSummary} ${campaign.assetTypes.join(" ")}`
+        .toLowerCase()
+        .includes(q);
     return matchStatus && matchQuery;
   });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const startIndex = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filtered.length);
+  const visible = filtered.slice(startIndex, endIndex);
+
+  function resetPage() {
+    setPage(1);
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <svg
-            aria-hidden
-            viewBox="0 0 20 20"
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="9" cy="9" r="6" />
-            <path d="m18 18-4.5-4.5" strokeLinecap="round" />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search campaigns..."
-            aria-label="Search campaigns"
-            className="w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          />
+      <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)]">
+        <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)] xl:items-start">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="signal-eyebrow">Campaign packages</span>
+                <StatusPill tone="amber">Outbound locked</StatusPill>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                Showing {startIndex + (filtered.length > 0 ? 1 : 0)}-{endIndex} of {filtered.length}
+                {filtered.length === campaigns.length ? "" : ` matched from ${campaigns.length}`} packages.
+              </p>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
+              <label className="relative block">
+                <span className="sr-only">Search campaigns</span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 20 20"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="9" cy="9" r="6" />
+                  <path d="m18 18-4.5-4.5" strokeLinecap="round" />
+                </svg>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    resetPage();
+                  }}
+                  placeholder="Search campaigns..."
+                  aria-label="Search campaigns"
+                  className="h-11 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] py-2 pl-9 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                />
+              </label>
+
+              <label className="block">
+                <span className="sr-only">Campaigns per page</span>
+                <select
+                  className="h-11 w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-sm font-bold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  onChange={(event) => {
+                    setPageSize(Number(event.target.value));
+                    resetPage();
+                  }}
+                  value={pageSize}
+                >
+                  {PAGE_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size} cards
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {statuses.map((status) => {
+              const isActive = filter === status;
+              const count = campaigns.filter((campaign) => status === "All" || campaign.status === status).length;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => {
+                    setFilter(status);
+                    resetPage();
+                  }}
+                  className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 active:translate-y-px ${
+                    isActive
+                      ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                      : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+                  }`}
+                >
+                  {status}
+                  <span className="ml-2 rounded-full bg-current/10 px-1.5 text-xs">{count}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {statuses.map((status) => {
-            const isActive = filter === status;
-            return (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setFilter(status)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                  isActive
-                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
-                    : "border-[var(--border-hairline)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
-                }`}
-              >
-                {status}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        {visible.length > 0 ? (
+          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {visible.map((campaign) => (
+              <CampaignCard key={campaign.id} campaign={campaign} />
+            ))}
+          </div>
+        ) : (
+          <p className="m-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
+            No campaigns match{q ? ` "${query.trim()}"` : ""}{filter !== "All" ? ` in "${filter}"` : ""}.
+          </p>
+        )}
 
-      {visible.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((campaign) => (
-            <CampaignCard key={campaign.id} campaign={campaign} />
-          ))}
+        <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm font-semibold text-[var(--text-secondary)]">
+            Page {currentPage} of {pageCount}
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              type="button"
+            >
+              Previous
+            </button>
+            <button
+              className="min-h-10 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-45"
+              disabled={currentPage >= pageCount}
+              onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+              type="button"
+            >
+              Next
+            </button>
+          </div>
         </div>
-      ) : (
-        <p className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
-          No campaigns match{q ? ` "${query.trim()}"` : ""}{filter !== "All" ? ` in "${filter}"` : ""}.
-        </p>
-      )}
+      </section>
     </div>
   );
 }
@@ -85,7 +170,7 @@ function CampaignCard({ campaign }: { campaign: CampaignWorkspaceListItem }) {
   return (
     <Link
       href={campaign.href}
-      className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] transition hover:border-[var(--border-strong)]"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-soft)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
     >
       <CardCover campaign={campaign} />
 
