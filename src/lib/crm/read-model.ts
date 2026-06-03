@@ -137,6 +137,8 @@ export type CrmRecordReadResult =
       status: "not_found";
     };
 
+const CRM_TABLE_BUNDLE_LIMIT = 1000;
+
 type CompanyRow = {
   id: string;
   name: string | null;
@@ -395,32 +397,32 @@ async function getCrmTableBundle(client?: SupabaseClient) {
       .from("companies")
       .select("id,name,persona,status,website_url,phone,email,partner_tier,metadata,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(CRM_TABLE_BUNDLE_LIMIT),
     supabase
       .from("contacts")
       .select("id,company_id,persona,status,first_name,last_name,full_name,email,phone,title,metadata,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(CRM_TABLE_BUNDLE_LIMIT),
     supabase
       .from("properties")
       .select("id,company_id,contact_id,persona,street_line_1,street_line_2,city,state,postal_code,property_type,metadata,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(CRM_TABLE_BUNDLE_LIMIT),
     supabase
       .from("leads")
       .select("id,company_id,contact_id,property_id,persona,status,routing_recommendation,source,loss_summary,loss_signals,lead_score,received_at,metadata,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(CRM_TABLE_BUNDLE_LIMIT),
     supabase
       .from("jobs")
       .select("id,lead_id,company_id,contact_id,property_id,persona,status,job_number,scheduled_at,completed_at,estimated_revenue_cents,metadata,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(CRM_TABLE_BUNDLE_LIMIT),
     supabase
       .from("outcomes")
       .select("id,job_id,lead_id,company_id,contact_id,property_id,persona,status,gross_revenue_cents,gross_margin_cents,closed_at,metadata,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(CRM_TABLE_BUNDLE_LIMIT),
   ]);
 
   assertResult("companies", companies.error);

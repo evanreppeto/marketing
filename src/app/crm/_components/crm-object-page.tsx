@@ -357,8 +357,10 @@ function RecordPreviewPanel({
     <Panel className="module-rise [animation-delay:120ms]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Current record</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">The first record in the current list.</p>
+          <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Record preview</h2>
+          <p className="mt-1 max-w-[30ch] text-sm leading-5 text-[var(--text-secondary)]">
+            First matching row from the active view. Open a row for full detail.
+          </p>
         </div>
         {selectedRow ? <StatusPill tone={statusTone(selectedRow.status)}>{selectedRow.status}</StatusPill> : null}
       </div>
@@ -440,7 +442,10 @@ function normalizeObjectSection(section: string | undefined): CrmObjectSectionKe
 
 function getRowsForListView(rows: readonly CrmObjectRow[], view: CrmListViewKey) {
   if (view === "needs-review") {
-    return rows.filter((row) => ["Review", "Out of scope", "Pending"].includes(row.status));
+    return rows.filter((row) => {
+      const status = row.status.toLowerCase();
+      return status.includes("review") || status.includes("pending") || status.includes("out of scope") || status.includes("missing");
+    });
   }
 
   if (view === "recently-updated") {

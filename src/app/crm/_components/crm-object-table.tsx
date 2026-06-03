@@ -50,7 +50,7 @@ export function CrmObjectTable({
     if (!normalizedQuery) return rows;
 
     return rows.filter((row) =>
-      [row.name, row.detail, row.owner, row.status, row.updated]
+      [row.id, row.name, row.detail, row.owner, row.status, row.updated]
         .join(" ")
         .toLowerCase()
         .includes(normalizedQuery),
