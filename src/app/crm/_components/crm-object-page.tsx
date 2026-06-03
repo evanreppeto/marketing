@@ -17,6 +17,7 @@ import { type CrmNavCounts, type CrmObjectData, type CrmObjectRow } from "@/lib/
 
 type CrmObjectKey = (typeof crmObjects)[number]["key"];
 type CrmListViewKey = "all-records" | "recently-updated" | "needs-review";
+type CrmObjectSectionKey = "records" | "intelligence" | "activity";
 
 type CrmObjectPageProps = {
   action?: string;
@@ -24,6 +25,7 @@ type CrmObjectPageProps = {
   liveMessage?: string;
   objectKey: CrmObjectKey;
   navCounts?: Extract<CrmNavCounts, { status: "live" }>["counts"];
+  section?: string;
   view?: string;
 };
 
@@ -33,7 +35,13 @@ const crmListViews: Array<{ key: CrmListViewKey; label: string; description: str
   { key: "needs-review", label: "Needs review", description: "Records that need cleanup or operator review." },
 ];
 
-export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, objectKey, view }: CrmObjectPageProps) {
+const objectSections: Array<{ key: CrmObjectSectionKey; label: string; detail: string }> = [
+  { key: "records", label: "Records", detail: "Search, filter, and open CRM rows." },
+  { key: "intelligence", label: "Intelligence", detail: "Persona rules, gaps, and Mark guidance." },
+  { key: "activity", label: "Activity", detail: "Related events and next work." },
+];
+
+export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, objectKey, section, view }: CrmObjectPageProps) {
   const fallbackObject = crmObjects.find((object) => object.key === objectKey);
   const crmObject = liveObject ?? (fallbackObject ? { ...fallbackObject, count: 0, relationships: "No linked records", lastActivity: "No activity", sampleRows: [] } : undefined);
   const isLive = Boolean(liveObject);
@@ -43,6 +51,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
   }
 
   const activeView = normalizeListView(view);
+  const activeSection = normalizeObjectSection(section);
   const activeViewMeta = crmListViews.find((item) => item.key === activeView) ?? crmListViews[0];
   const filteredRows = getRowsForListView(crmObject.sampleRows, activeView);
   const selectedRow = filteredRows[0] ?? crmObject.sampleRows[0];
@@ -86,19 +95,19 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
           </div>
         </div>
 
-        <div className="grid gap-3 p-4 md:grid-cols-4">
+        <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["Records", crmObject.count, "Live list"],
             ["Relationships", crmObject.relationships.split("/")[0]?.trim() ?? "Linked"],
             ["Updated", crmObject.lastActivity, "Latest activity"],
             ["Persistence", isLive ? "On" : "Unavailable", isLive ? "Supabase live" : "Check connection"],
           ].map(([label, value, detail]) => (
-            <div className="signal-inset rounded-md border p-4" key={label}>
+            <div className="signal-inset min-w-0 rounded-md border px-3 py-2.5" key={label}>
               <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
-              <div className="mt-2 font-mono text-2xl font-semibold tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">
+              <div className="mt-1 truncate font-mono text-lg font-semibold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">
                 {value}
               </div>
-              {detail ? <div className="mt-2 text-xs font-semibold text-[var(--accent)]">{detail}</div> : null}
+              {detail ? <div className="mt-1 text-xs font-semibold text-[var(--accent)]">{detail}</div> : null}
             </div>
           ))}
         </div>
@@ -126,7 +135,9 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
         </div>
       ) : null}
 
-      <div className="mt-4 grid min-w-0 items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_390px]">
+      <ObjectSectionTabs activeSection={activeSection} objectHref={crmObject.href} view={activeView} />
+
+      {activeSection === "records" ? (
         <Panel className="module-rise overflow-hidden p-0 [animation-delay:70ms]">
           <CrmObjectTable
             activeView={activeView}
@@ -140,7 +151,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
             views={crmListViews.map((listView) => ({
               ...listView,
               count: getRowsForListView(crmObject.sampleRows, listView.key).length,
-              href: `${crmObject.href}?view=${listView.key}`,
+              href: `${crmObject.href}?section=records&view=${listView.key}`,
             }))}
           />
 
@@ -157,53 +168,12 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
             ))}
           </div>
         </Panel>
+      ) : null}
 
-        <aside className="min-w-0 space-y-4">
-          <Panel className="module-rise [animation-delay:120ms]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Record preview</h2>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">Selected from the current list.</p>
-              </div>
-              {selectedRow ? <StatusPill tone={statusTone(selectedRow.status)}>{selectedRow.status}</StatusPill> : null}
-            </div>
-            {selectedRow ? (
-              <>
-                <div className="mt-5 rounded-md border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] p-4">
-                  <div className="signal-eyebrow">
-                    {singularLabel(crmObject.label)}
-                  </div>
-                  <div className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
-                    {selectedRow.name}
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{selectedRow.detail}</p>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="signal-inset rounded-md border p-3">
-                    <div className="text-xs text-[var(--text-muted)]">Owner</div>
-                    <div className="mt-1 font-semibold text-[var(--text-primary)]">{selectedRow.owner}</div>
-                  </div>
-                  <div className="signal-inset rounded-md border p-3">
-                    <div className="text-xs text-[var(--text-muted)]">Updated</div>
-                    <div className="mt-1 break-words font-semibold text-[var(--text-primary)]">{formatCrmDate(selectedRow.updated)}</div>
-                  </div>
-                </div>
-                <Link className={buttonClasses({ variant: "primary", className: "mt-4 w-full" })} href={`${crmObject.href}/${selectedRow.id}`}>
-                  Open record
-                </Link>
-              </>
-            ) : (
-              <div className="mt-5">
-                <EmptyState
-                  title="No records to preview"
-                  detail={`This ${singularLabel(crmObject.label).toLowerCase()} object has no rows in the current view yet.`}
-                />
-              </div>
-            )}
-          </Panel>
-
+      {activeSection === "intelligence" ? (
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           {objectKey === "leads" ? (
-            <Panel className="module-rise [animation-delay:150ms]">
+            <Panel className="module-rise min-w-0 [animation-delay:70ms]">
               <div className="flex min-w-0 flex-col gap-3">
                 <div className="min-w-0">
                   <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">
@@ -270,9 +240,39 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
                 </div>
               </div>
             </Panel>
-          ) : null}
+          ) : (
+            <Panel className="module-rise [animation-delay:70ms]">
+              <div className="signal-eyebrow">Intelligence contract</div>
+              <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
+                Mark needs clean relationship context before outreach drafts.
+              </h2>
+              <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
+                This object is ready for scoring tags, evidence links, relationship maturity, and next-best-action fields.
+                Missing values should stay visible as data contracts, not fake operational data.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {[
+                  ["Persona", objectKey === "companies" ? "Partner or referral source" : "Record-specific persona"],
+                  ["Confidence", "Needs source evidence"],
+                  ["CTA rule", objectKey === "contacts" ? "Human-approved relationship touch" : "Approval queue only"],
+                  ["Guardrail", "Outbound locked"],
+                ].map(([label, detail]) => (
+                  <div className="signal-inset rounded-md border p-3" key={label}>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+                    <div className="mt-1 text-sm font-bold text-[var(--text-primary)]">{detail}</div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
 
-          <Panel className="module-rise [animation-delay:170ms]">
+          <RecordPreviewPanel crmObject={crmObject} selectedRow={selectedRow} />
+        </div>
+      ) : null}
+
+      {activeSection === "activity" ? (
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <Panel className="module-rise [animation-delay:70ms]">
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Activity and related work</h2>
             <div className="mt-5 space-y-4">
               {objectKey === "leads"
@@ -300,12 +300,113 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
             </div>
           </Panel>
 
-          <Link className={buttonClasses({ variant: "ghost" })} href="/crm">
-            Back to CRM home
-          </Link>
-        </aside>
+          <RecordPreviewPanel crmObject={crmObject} selectedRow={selectedRow} />
+        </div>
+      ) : null}
+
+      <div className="mt-4">
+        <Link className={buttonClasses({ variant: "ghost" })} href="/crm">
+          Back to CRM home
+        </Link>
       </div>
     </AppShell>
+  );
+}
+
+function ObjectSectionTabs({
+  activeSection,
+  objectHref,
+  view,
+}: {
+  activeSection: CrmObjectSectionKey;
+  objectHref: string;
+  view: CrmListViewKey;
+}) {
+  return (
+    <section className="module-rise mt-4 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+      <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-[var(--text-secondary)]">
+          Mark prepares CRM context. Humans approve anything outbound.
+        </p>
+        <StatusPill tone="amber">Outbound locked</StatusPill>
+      </div>
+      <nav aria-label="CRM object sections" className="grid gap-2 p-2 md:grid-cols-3">
+        {objectSections.map((section) => {
+          const isActive = activeSection === section.key;
+          const params = new URLSearchParams();
+          if (section.key !== "records") params.set("section", section.key);
+          if (view !== "all-records" && section.key === "records") params.set("view", view);
+          const href = params.toString() ? `${objectHref}?${params.toString()}` : objectHref;
+
+          return (
+            <Link
+              aria-current={isActive ? "page" : undefined}
+              className={`rounded-lg border px-4 py-3 transition duration-200 hover:-translate-y-0.5 active:translate-y-px ${
+                isActive
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_20px_oklch(0.74_0.115_232/0.18)]"
+                  : "border-transparent bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+              }`}
+              href={href}
+              key={section.key}
+            >
+              <span className="block text-sm font-bold">{section.label}</span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{section.detail}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </section>
+  );
+}
+
+function RecordPreviewPanel({
+  crmObject,
+  selectedRow,
+}: {
+  crmObject: Pick<CrmObjectData, "href" | "label">;
+  selectedRow?: CrmObjectRow;
+}) {
+  return (
+    <Panel className="module-rise [animation-delay:120ms]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Current record</h2>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">The first record in the current list.</p>
+        </div>
+        {selectedRow ? <StatusPill tone={statusTone(selectedRow.status)}>{selectedRow.status}</StatusPill> : null}
+      </div>
+      {selectedRow ? (
+        <>
+          <div className="mt-5 rounded-md border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] p-4">
+            <div className="signal-eyebrow">{singularLabel(crmObject.label)}</div>
+            <div className="mt-2 break-words font-display text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">
+              {selectedRow.name}
+            </div>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{selectedRow.detail}</p>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="signal-inset rounded-md border p-3">
+              <div className="text-xs text-[var(--text-muted)]">Owner</div>
+              <div className="mt-1 font-semibold text-[var(--text-primary)]">{selectedRow.owner}</div>
+            </div>
+            <div className="signal-inset rounded-md border p-3">
+              <div className="text-xs text-[var(--text-muted)]">Updated</div>
+              <div className="mt-1 break-words font-semibold text-[var(--text-primary)]">{formatCrmDate(selectedRow.updated)}</div>
+            </div>
+          </div>
+          <Link className={buttonClasses({ variant: "primary", className: "mt-4 w-full" })} href={`${crmObject.href}/${selectedRow.id}`}>
+            Open record
+          </Link>
+        </>
+      ) : (
+        <div className="mt-5">
+          <EmptyState
+            title="No records to preview"
+            detail={`This ${singularLabel(crmObject.label).toLowerCase()} object has no rows in the current view yet.`}
+          />
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -340,6 +441,14 @@ function normalizeListView(view: string | undefined): CrmListViewKey {
   }
 
   return "all-records";
+}
+
+function normalizeObjectSection(section: string | undefined): CrmObjectSectionKey {
+  if (section === "intelligence" || section === "activity") {
+    return section;
+  }
+
+  return "records";
 }
 
 function getRowsForListView(rows: readonly CrmObjectRow[], view: CrmListViewKey) {
