@@ -9,3 +9,17 @@ export function statusTone(status: string): PillTone {
   if (s.includes("draft")) return "gray";
   return "blue";
 }
+
+/** Map a humanized risk level ("Low" / "Medium" / "High") to a pill tone. */
+export function riskTone(risk: string): PillTone {
+  const r = risk.toLowerCase();
+  if (r.includes("high") || r.includes("critical")) return "red";
+  if (r.includes("medium") || r.includes("moderate")) return "amber";
+  if (r.includes("low")) return "green";
+  return "gray";
+}
+
+/** Shared regex for "this approval has been decided" across components. */
+export function isDecidedStatus(status: string): boolean {
+  return /approved|declined|archived|rejected/i.test(status);
+}

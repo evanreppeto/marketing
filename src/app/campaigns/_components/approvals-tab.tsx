@@ -1,47 +1,133 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
 import { StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceApproval } from "@/lib/campaigns/read-model";
 
+import { ApprovalContext } from "./approval-context";
 import { DecisionControls } from "./decision-controls";
-import { statusTone } from "./status-tone";
+import { isDecidedStatus, riskTone, statusTone } from "./status-tone";
 
-function isDecided(status: string) {
-  return /approved|declined|archived|rejected/i.test(status);
-}
+type FocusTarget = { id: string; nonce: number } | null;
 
-export function ApprovalsTab({ approvals, campaignId }: { approvals: CampaignWorkspaceApproval[]; campaignId: string }) {
+export function ApprovalsTab({
+  approvals,
+  campaignId,
+  focus = null,
+}: {
+  approvals: CampaignWorkspaceApproval[];
+  campaignId: string;
+  focus?: FocusTarget;
+}) {
   if (approvals.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
+      <p className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
         No approval items are attached to this campaign yet.
       </p>
     );
   }
 
+  const pending = approvals.filter((approval) => !isDecidedStatus(approval.status));
+  const decided = approvals.filter((approval) => isDecidedStatus(approval.status));
+
   return (
     <div className="space-y-3">
-      <p className="text-sm text-[var(--text-secondary)]">
-        Approve, decline, or archive each item. Decisions are recorded as backend state transitions; outbound stays locked. To
-        request changes with an instruction, use the Mark rail.
+      <p className="max-w-[76ch] text-sm leading-6 text-[var(--text-secondary)]">
+        Each item shows the draft, prompt inputs, and compliance notes Mark recorded — expand to read the full context, then approve,
+        decline, or archive. Decisions are backend state transitions; outbound stays locked.
       </p>
-      <ul className="divide-y divide-[var(--border-hairline)] overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]">
-        {approvals.map((approval) => (
-          <li key={approval.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="truncate font-semibold text-[var(--text-primary)]">{approval.title}</div>
-              <div className="mt-1 text-sm text-[var(--text-muted)]">
-                {approval.type} / risk {approval.riskLevel} / by {approval.requestedBy} / {approval.submittedAt}
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              {isDecided(approval.status) ? (
-                <StatusPill tone={statusTone(approval.status)}>{approval.status}</StatusPill>
-              ) : (
-                <DecisionControls approvalItemId={approval.id} campaignId={campaignId} />
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+
+      {pending.length > 0 ? (
+        <div className="space-y-2.5">
+          {pending.map((approval) => (
+            <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} defaultOpen={pending.length <= 2} focus={focus} />
+          ))}
+        </div>
+      ) : null}
+
+      {decided.length > 0 ? (
+        <div className="space-y-2.5">
+          <div className="pt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">Decided</div>
+          {decided.map((approval) => (
+            <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} focus={focus} />
+          ))}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function ApprovalCard({
+  approval,
+  campaignId,
+  defaultOpen = false,
+  focus = null,
+}: {
+  approval: CampaignWorkspaceApproval;
+  campaignId: string;
+  defaultOpen?: boolean;
+  focus?: FocusTarget;
+}) {
+  const isFocused = focus?.id === approval.id;
+  const [manualOpen, setManualOpen] = useState(defaultOpen);
+  const ref = useRef<HTMLElement | null>(null);
+  const decided = isDecidedStatus(approval.status);
+  // A card the operator navigated to is always expanded; otherwise honor toggle.
+  const open = manualOpen || isFocused;
+
+  useEffect(() => {
+    if (isFocused) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [isFocused, focus?.nonce]);
+
+  return (
+    <article
+      ref={ref}
+      className={`overflow-hidden rounded-xl border bg-[var(--surface-panel)] transition-shadow ${
+        isFocused
+          ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent)]"
+          : decided
+            ? "border-[var(--border-panel)]"
+            : "border-[oklch(0.82_0.13_85/0.4)]"
+      }`}
+    >
+      <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <button
+          type="button"
+          onClick={() => setManualOpen((value) => !value)}
+          aria-expanded={open}
+          className="group flex min-w-0 flex-1 items-start gap-3 text-left"
+        >
+          <span className="mt-1 font-mono text-xs text-[var(--text-muted)] transition group-hover:text-[var(--accent)]">{open ? "▾" : "▸"}</span>
+          <span className="min-w-0">
+            <span className="block truncate font-bold text-[var(--text-primary)]">{approval.title}</span>
+            <span className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--text-muted)]">
+              <span>{approval.type}</span>
+              <span aria-hidden>·</span>
+              <span>by {approval.requestedBy}</span>
+              <span aria-hidden>·</span>
+              <span>{approval.submittedAt}</span>
+            </span>
+          </span>
+        </button>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusPill tone={riskTone(approval.riskLevel)}>{approval.riskLevel} risk</StatusPill>
+          {decided ? (
+            <StatusPill tone={statusTone(approval.status)}>{approval.status}</StatusPill>
+          ) : (
+            <DecisionControls approvalItemId={approval.id} campaignId={campaignId} />
+          )}
+        </div>
+      </div>
+
+      <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="overflow-hidden">
+          <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
+            <ApprovalContext approval={approval} />
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }

@@ -74,6 +74,9 @@ export type CampaignWorkspaceAsset = {
   toolSource: string | null;
   updatedAt: string;
   media: CampaignMediaAsset[];
+  /** The approval item gating this deliverable, if one exists — drives the
+   *  per-asset Approve/Decline controls in the Deliverables tab. */
+  approval: { id: string; status: string } | null;
 };
 
 export type CampaignWorkspaceReasoning = {
@@ -93,6 +96,9 @@ export type CampaignWorkspaceApproval = {
   requestedBy: string;
   submittedAt: string;
   href: string;
+  preview: string;
+  promptInputs: Array<{ label: string; value: string }>;
+  complianceNotes: string;
 };
 
 export type CampaignWorkspaceSource = {
@@ -316,8 +322,9 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
 
     const items = campaigns.map((campaign) => {
       const campaignApprovals = approvals.filter((approval) => approval.campaign_id === campaign.id);
+      const campaignAssetRows = assets.filter((asset) => asset.campaign_id === campaign.id);
       const campaignAssets = buildWorkspaceAssets(
-        assets.filter((asset) => asset.campaign_id === campaign.id),
+        campaignAssetRows,
         campaignApprovals,
         approvalOutputs.filter((output) => output.approval_item_id && campaignApprovals.some((approval) => approval.id === output.approval_item_id)),
       );
@@ -469,6 +476,7 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
     media,
+    approval: null,
   };
 }
 
@@ -480,15 +488,36 @@ function buildWorkspaceAssets(
   const assetIds = new Set(assets.map((asset) => asset.id));
   const outputApprovalIds = new Set(outputs.map((output) => output.approval_item_id).filter((id): id is string => Boolean(id)));
 
-  const mappedAssets = assets.map((asset) => mapAsset(asset));
+  // First (most recent) approval per asset — prefer a still-pending one so the
+  // card offers Approve/Decline rather than echoing a stale decided record.
+  const approvalByAssetId = new Map<string, ApprovalItemRow>();
+  for (const approval of approvals) {
+    if (!approval.campaign_asset_id) continue;
+    const existing = approvalByAssetId.get(approval.campaign_asset_id);
+    if (!existing || (isDecidedApproval(existing) && !isDecidedApproval(approval))) {
+      approvalByAssetId.set(approval.campaign_asset_id, approval);
+    }
+  }
+  const approvalById = new Map(approvals.map((approval) => [approval.id, approval]));
+
+  const mappedAssets = assets.map((asset) => attachApproval(mapAsset(asset), approvalByAssetId.get(asset.id)));
   const outputAssets = outputs
     .filter((output) => !output.campaign_asset_id || !assetIds.has(output.campaign_asset_id))
-    .map(mapOutputAsAsset);
+    .map((output) => attachApproval(mapOutputAsAsset(output), output.approval_item_id ? approvalById.get(output.approval_item_id) : undefined));
   const approvalAssets = approvals
     .filter((approval) => !approval.campaign_asset_id && !outputApprovalIds.has(approval.id))
     .map(mapApprovalAsAsset);
 
   return uniqueById([...mappedAssets, ...outputAssets, ...approvalAssets]);
+}
+
+function attachApproval(view: CampaignWorkspaceAsset, approval: ApprovalItemRow | undefined): CampaignWorkspaceAsset {
+  if (!approval) return view;
+  return { ...view, approval: { id: approval.id, status: statusLabel(approval.status) } };
+}
+
+function isDecidedApproval(approval: ApprovalItemRow): boolean {
+  return /approved|declined|archived|rejected/i.test(approval.status);
 }
 
 function mapOutputAsAsset(output: AgentOutputRow): CampaignWorkspaceAsset {
@@ -511,6 +540,7 @@ function mapOutputAsAsset(output: AgentOutputRow): CampaignWorkspaceAsset {
     toolSource: "Mark output",
     updatedAt: formatDate(output.updated_at),
     media,
+    approval: null,
   };
 }
 
@@ -535,6 +565,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow): CampaignWorkspaceAsset {
     toolSource: approval.requested_by ?? "Mark",
     updatedAt: formatDate(approval.updated_at),
     media,
+    approval: { id: approval.id, status: statusLabel(approval.status) },
   };
 }
 
@@ -563,11 +594,15 @@ export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[]
 function buildPromptInputs(assets: CampaignAssetRow[]): Array<{ label: string; value: string }> {
   const source = assets.find((asset) => Object.keys(asObject(asset.prompt_inputs)).length > 0);
   if (!source) return [];
+  return promptInputEntries(source.prompt_inputs);
+}
 
-  return Object.entries(asObject(source.prompt_inputs))
-    .filter(([key, value]) => isReadableKey(key) && value !== null && value !== undefined && typeof value !== "object")
+/** Pure: readable scalar prompt-input pairs from a single prompt_inputs blob. */
+function promptInputEntries(value: unknown): Array<{ label: string; value: string }> {
+  return Object.entries(asObject(value))
+    .filter(([key, entry]) => isReadableKey(key) && entry !== null && entry !== undefined && typeof entry !== "object")
     .slice(0, 8)
-    .map(([key, value]) => ({ label: humanize(key), value: String(value) }));
+    .map(([key, entry]) => ({ label: humanize(key), value: String(entry) }));
 }
 
 function asStringArray(value: unknown): string[] {
@@ -576,6 +611,7 @@ function asStringArray(value: unknown): string[] {
 }
 
 function mapApproval(approval: ApprovalItemRow): CampaignWorkspaceApproval {
+  const rawBody = approval.edited_output ?? approval.draft_output ?? "";
   return {
     id: approval.id,
     title: buildApprovalTitle(approval),
@@ -585,6 +621,9 @@ function mapApproval(approval: ApprovalItemRow): CampaignWorkspaceApproval {
     requestedBy: approval.requested_by ?? "Mark",
     submittedAt: formatDate(approval.submitted_at),
     href: `/approvals?item=${approval.id}`,
+    preview: buildReadablePreview(rawBody, approval.prompt_inputs, approval.reasoning_payload),
+    promptInputs: promptInputEntries(approval.prompt_inputs),
+    complianceNotes: approval.compliance_notes ?? "No approval-level compliance notes captured.",
   };
 }
 

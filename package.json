@@ -9,6 +9,7 @@
     "lint": "eslint",
     "seed:hermes-demo": "node scripts/seed-hermes-demo.mjs",
     "seed:test-campaign": "node scripts/seed-test-campaign.mjs",
+    "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
     "test": "vitest run"
   },
   "dependencies": {

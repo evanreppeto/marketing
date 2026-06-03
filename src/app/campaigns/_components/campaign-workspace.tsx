@@ -1,124 +1,177 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRef, useState } from "react";
 
-import { MetricStrip } from "@/app/_components/workspace";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
 import { ApprovalsTab } from "./approvals-tab";
 import { AudienceLeadsTab } from "./audience-leads-tab";
 import { CampaignHeader } from "./campaign-header";
 import { CampaignMediaBoard } from "./campaign-media-board";
-import { CampaignPackagePanel } from "./campaign-package-panel";
+import { CampaignOverview } from "./campaign-package-panel";
 import { CreativeTab } from "./creative-tab";
-import { MarkRail } from "./mark-rail";
-import { OverviewTab } from "./overview-tab";
 import { PerformanceTab } from "./performance-tab";
 import { ReasoningTab } from "./reasoning-tab";
+import { isDecidedStatus } from "./status-tone";
+import { StickyDecisionBar } from "./sticky-decision-bar";
 
-type TabKey = "creative" | "media" | "overview" | "audience" | "reasoning" | "approvals" | "performance";
+type TabKey = "creative" | "media" | "audience" | "reasoning" | "approvals" | "performance";
 
-function isDecided(status: string) {
-  return /approved|declined|archived|rejected/i.test(status);
+const TAB_KEYS: TabKey[] = ["creative", "media", "approvals", "audience", "reasoning", "performance"];
+const DEFAULT_TAB: TabKey = "creative";
+
+function isTabKey(value: string | null): value is TabKey {
+  return value !== null && (TAB_KEYS as string[]).includes(value);
 }
 
 export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace }) {
-  const { campaign, groupedAssets, assets, media, sources, reasoning, approvals, metrics, activity, events } = detail;
-  const [activeTab, setActiveTab] = useState<TabKey>("creative");
-  const [targetAssetId, setTargetAssetId] = useState<string | null>(assets[0]?.id ?? null);
+  const { campaign, groupedAssets, media, sources, reasoning, approvals, metrics, activity, events } = detail;
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // Bumped on each in-session "review" so the Approvals tab re-scrolls even when
+  // the URL's item id is unchanged. URL holds the shareable state; this is local.
+  const [reviewNonce, setReviewNonce] = useState(0);
+
+  // Tab + focused item are derived from the URL so the page is deep-linkable,
+  // refresh-safe, and back/forward navigable. A bare ?item=… (shared link)
+  // implies the Approvals tab.
+  const tabParam = searchParams.get("tab");
+  const focusItem = searchParams.get("item");
+  const filterParam = searchParams.get("filter");
+  const activeTab: TabKey = isTabKey(tabParam) ? tabParam : focusItem ? "approvals" : DEFAULT_TAB;
+
+  function buildHref(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    }
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  }
+
+  // pushState for navigation (tab/item) so the back button steps through it;
+  // replaceState for refinements (filters) so they stay shareable without
+  // flooding history. Both keep useSearchParams in sync with no server refetch.
+  function writeParams(updates: Record<string, string | null>) {
+    window.history.pushState(null, "", buildHref(updates));
+  }
+
+  function replaceParams(updates: Record<string, string | null>) {
+    window.history.replaceState(null, "", buildHref(updates));
+  }
+
+  function goToTab(tab: TabKey) {
+    writeParams({ tab: tab === DEFAULT_TAB ? null : tab, item: null, filter: null });
+  }
+
+  function reviewApproval(id: string) {
+    writeParams({ tab: "approvals", item: id, filter: null });
+    setReviewNonce((nonce) => nonce + 1);
+  }
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
-    { key: "creative", label: "Deliverables", count: assets.length },
+    { key: "creative", label: "Deliverables", count: metrics.assets },
     { key: "media", label: "Media", count: media.length },
-    { key: "overview", label: "Brief" },
-    { key: "audience", label: "Targets & sources", count: metrics.sources },
+    { key: "approvals", label: "Approvals", count: approvals.length },
+    { key: "audience", label: "Audience & sources", count: metrics.sources },
     { key: "reasoning", label: "Mark notes", count: activity.length + events.length },
-    { key: "approvals", label: "Approval gate", count: approvals.length },
     { key: "performance", label: "Performance" },
   ];
 
-  const pendingApproval = approvals.find((approval) => !isDecided(approval.status)) ?? null;
+  const pendingApprovals = approvals.filter((approval) => !isDecidedStatus(approval.status));
+  const focus = focusItem ? { id: focusItem, nonce: reviewNonce } : null;
 
-  function pickAsset(assetId: string) {
-    setTargetAssetId(assetId);
-    setActiveTab("creative");
+  function onTabKeyDown(event: React.KeyboardEvent, index: number) {
+    const last = tabs.length - 1;
+    let next = -1;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = index === last ? 0 : index + 1;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = index === 0 ? last : index - 1;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = last;
+    if (next < 0) return;
+    event.preventDefault();
+    goToTab(tabs[next].key);
+    tabRefs.current[next]?.focus();
   }
 
   return (
     <>
-      <CampaignHeader campaign={campaign} />
-
-      <CampaignPackagePanel detail={detail} pendingApproval={pendingApproval} onOpenTab={setActiveTab} onPickAsset={pickAsset} />
-
-      <MetricStrip
-        metrics={[
-          { label: "Assets", value: metrics.assets, detail: "Creative + copy", tone: metrics.assets > 0 ? "blue" : "gray" },
-          { label: "Approvals", value: metrics.approvals, detail: "Human-gate records", tone: metrics.approvals > 0 ? "amber" : "green" },
-          { label: "Media", value: metrics.media, detail: "Images, video, files", tone: metrics.media > 0 ? "blue" : "gray" },
-          { label: "Sources", value: metrics.sources, detail: "Leads & evidence", tone: metrics.sources > 0 ? "blue" : "gray" },
-        ]}
+      <StickyDecisionBar
+        campaignId={campaign.id}
+        pendingApprovals={pendingApprovals}
+        sentinelRef={sentinelRef}
+        onReview={reviewApproval}
       />
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0">
-          <div role="tablist" className="mb-4 flex flex-wrap gap-2 border-b border-[var(--border-hairline)] pb-3">
-            {tabs.map((tab) => {
-              const isActive = tab.key === activeTab;
-              return (
-                <button
-                  key={tab.key}
-                  role="tab"
-                  aria-selected={isActive}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-semibold transition ${
-                    isActive
-                      ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
-                      : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[var(--surface-inset)]"
-                  }`}
-                >
-                  {tab.label}
-                  {typeof tab.count === "number" ? (
-                    <span className="rounded-full bg-[var(--surface-raised)] px-1.5 text-xs tabular-nums text-[var(--text-muted)]">{tab.count}</span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
+      <CampaignHeader campaign={campaign} />
 
-          <div role="tabpanel">
-            {activeTab === "creative" ? <CreativeTab groups={groupedAssets} targetAssetId={targetAssetId} onPickAsset={pickAsset} /> : null}
-            {activeTab === "media" ? <CampaignMediaBoard media={media} /> : null}
-            {activeTab === "overview" ? <OverviewTab campaign={campaign} metrics={metrics} /> : null}
-            {activeTab === "audience" ? <AudienceLeadsTab sources={sources} /> : null}
-            {activeTab === "reasoning" ? <ReasoningTab reasoning={reasoning} activity={activity} events={events} /> : null}
-            {activeTab === "approvals" ? <ApprovalsTab approvals={approvals} campaignId={campaign.id} /> : null}
-            {activeTab === "performance" ? <PerformanceTab detail={detail} /> : null}
-          </div>
+      <CampaignOverview
+        detail={detail}
+        pendingApprovals={pendingApprovals}
+        onOpenTab={goToTab}
+        onReviewApproval={reviewApproval}
+      />
+
+      <div ref={sentinelRef} aria-hidden className="h-px" />
+
+      <div className="min-w-0">
+        <div
+          role="tablist"
+          aria-label="Campaign detail sections"
+          className="module-rise mb-5 flex flex-wrap gap-1.5 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-1.5 shadow-[var(--elev-panel)]"
+        >
+          {tabs.map((tab, index) => {
+            const isActive = tab.key === activeTab;
+            return (
+              <button
+                key={tab.key}
+                ref={(node) => {
+                  tabRefs.current[index] = node;
+                }}
+                role="tab"
+                aria-selected={isActive}
+                tabIndex={isActive ? 0 : -1}
+                type="button"
+                onClick={() => goToTab(tab.key)}
+                onKeyDown={(event) => onTabKeyDown(event, index)}
+                className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                  isActive
+                    ? "bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {tab.label}
+                {typeof tab.count === "number" ? (
+                  <span className="rounded-full bg-[var(--surface-raised)] px-1.5 font-mono text-xs tabular-nums text-[var(--text-muted)]">
+                    {tab.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
 
-        <MarkRail
-          campaignId={campaign.id}
-          assets={assets.map((asset) => ({ id: asset.id, title: asset.title, channel: asset.channel }))}
-          targetAssetId={targetAssetId}
-          onSelectAsset={setTargetAssetId}
-          context={{
-            persona: campaign.persona,
-            leadsCount: sources.filter((source) => source.kind === "lead").length,
-            assetsCount: metrics.assets,
-            approvalsCount: metrics.approvals,
-            mediaCount: metrics.media,
-            tools: reasoning.toolsUsed,
-            whyBuilt: reasoning.whyBuilt,
-            recommendedAction: reasoning.recommendedAction,
-            guardrailFlags: reasoning.guardrailFlags,
-            evidence: sources.map((source) => ({
-              label: source.label,
-              href: source.url,
-              detail: source.detail,
-            })),
-          }}
-        />
+        <div key={activeTab} role="tabpanel" className="module-rise">
+          {activeTab === "creative" ? (
+            <CreativeTab
+              groups={groupedAssets}
+              campaignId={campaign.id}
+              filter={filterParam}
+              onFilterChange={(value) => replaceParams({ filter: value })}
+            />
+          ) : null}
+          {activeTab === "media" ? (
+            <CampaignMediaBoard media={media} filter={filterParam} onFilterChange={(value) => replaceParams({ filter: value })} />
+          ) : null}
+          {activeTab === "approvals" ? <ApprovalsTab approvals={approvals} campaignId={campaign.id} focus={focus} /> : null}
+          {activeTab === "audience" ? <AudienceLeadsTab sources={sources} /> : null}
+          {activeTab === "reasoning" ? <ReasoningTab reasoning={reasoning} activity={activity} events={events} /> : null}
+          {activeTab === "performance" ? <PerformanceTab detail={detail} /> : null}
+        </div>
       </div>
     </>
   );
