@@ -10,8 +10,14 @@ import { requestRevisionAction } from "../actions";
 export type MarkRailContext = {
   persona: string;
   leadsCount: number;
+  assetsCount: number;
+  approvalsCount: number;
+  mediaCount: number;
   tools: string[];
   whyBuilt: string;
+  recommendedAction: string;
+  guardrailFlags: string[];
+  evidence: Array<{ label: string; href?: string | null; detail?: string | null }>;
 };
 
 export function MarkRail({
@@ -40,15 +46,28 @@ export function MarkRail({
           journeyStage: "Campaign review",
           urgency: "Human gate",
           attentionReason: context.whyBuilt,
-          nextBestAction: "Review the creative, source evidence, and guardrails before approving any next step.",
+          nextBestAction: context.recommendedAction || "Review the creative, source evidence, and guardrails before approving any next step.",
           cta: "Trade partners: Become a Partner. Property managers: Request Vendor Packet. Homeowners: Call Now / Upload Photos.",
           messageAngle: "Fast restoration handoff, mitigation documentation, and coverage-neutral next-step clarity.",
-          guardrailStatus: "Outbound locked. Mark can revise, but no send, publish, launch, or spend action is enabled here.",
+          guardrailStatus: context.guardrailFlags.length > 0
+            ? context.guardrailFlags.join(", ")
+            : "Outbound locked. Mark can revise, but no send, publish, launch, or spend action is enabled here.",
           scores: [
             { label: "Leads", value: context.leadsCount, detail: "Linked audience records", tone: context.leadsCount > 0 ? "blue" : "gray" },
+            { label: "Assets", value: context.assetsCount, detail: "Draft deliverables", tone: context.assetsCount > 0 ? "blue" : "gray" },
+            { label: "Approvals", value: context.approvalsCount, detail: "Human-gate records", tone: context.approvalsCount > 0 ? "amber" : "green" },
+            { label: "Media", value: context.mediaCount, detail: "Images, video, files", tone: context.mediaCount > 0 ? "blue" : "gray" },
             { label: "Tools", value: context.tools.length, detail: context.tools.length > 0 ? context.tools.join(", ") : "No tools recorded", tone: context.tools.length > 0 ? "blue" : "gray" },
           ],
-          proofPoints: context.tools.length > 0 ? context.tools.map((tool) => `${tool} used by Mark`) : [],
+          proofPoints: [
+            ...context.tools.map((tool) => `${tool} used by Mark`),
+            ...context.guardrailFlags.map((flag) => `Guardrail: ${flag}`),
+          ].slice(0, 8),
+          evidence: context.evidence.slice(0, 6),
+          actions: [
+            { label: "Review approvals", href: "/approvals", variant: "primary" },
+            { label: "Open performance", href: "/reports?tab=campaigns", variant: "ghost" },
+          ],
           outboundLocked: true,
         }}
       />
@@ -95,7 +114,7 @@ export function MarkRail({
           </label>
 
           <Button type="submit" variant="primary" size="sm" disabled={!hasAssets || isPending} className="w-full">
-            {isPending ? "Sending to Mark..." : "Send to Mark"}
+            {isPending ? "Creating revision request..." : "Request Mark revision"}
           </Button>
 
           {state ? (

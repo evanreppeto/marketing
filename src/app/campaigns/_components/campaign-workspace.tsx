@@ -105,8 +105,18 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
           context={{
             persona: campaign.persona,
             leadsCount: sources.filter((source) => source.kind === "lead").length,
+            assetsCount: metrics.assets,
+            approvalsCount: metrics.approvals,
+            mediaCount: metrics.media,
             tools: reasoning.toolsUsed,
             whyBuilt: reasoning.whyBuilt,
+            recommendedAction: reasoning.recommendedAction,
+            guardrailFlags: reasoning.guardrailFlags,
+            evidence: sources.map((source) => ({
+              label: source.label,
+              href: source.url,
+              detail: source.detail,
+            })),
           }}
         />
       </div>
