@@ -145,8 +145,7 @@ export function ActionFeedback({
   if (!action) return null;
 
   return (
-    <div className="module-rise mb-4 flex items-start gap-3 rounded-lg border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--chicago-blue-soft)] [animation-delay:60ms]">
-      <span aria-hidden="true" className="mt-0.5 inline-flex h-2 w-2 shrink-0 rounded-full bg-[var(--accent)] status-breathe" />
+    <div className="module-rise mb-4 rounded-lg border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--chicago-blue-soft)] [animation-delay:60ms]">
       <span>
         <span className="font-semibold text-[var(--text-primary)]">Update: </span>
         {messages[action] ?? "Action recorded."}
@@ -182,15 +181,6 @@ const PILL_TONES = {
   dark: "text-[oklch(0.18_0.03_248)] border-transparent bg-[var(--accent)]",
 } as const;
 
-const PILL_DOTS = {
-  amber: "bg-[oklch(0.82_0.13_85)]",
-  green: "bg-[oklch(0.78_0.14_158)]",
-  red: "bg-[oklch(0.74_0.19_26)]",
-  gray: "bg-[var(--text-muted)]",
-  blue: "bg-[var(--accent)]",
-  dark: "bg-[oklch(0.18_0.03_248)]",
-} as const;
-
 export function StatusPill({
   children,
   tone = "gray",
@@ -200,9 +190,8 @@ export function StatusPill({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.01em] ${PILL_TONES[tone]}`}
+      className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-[11px] font-bold tracking-[0.01em] ${PILL_TONES[tone]}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${PILL_DOTS[tone]}`} aria-hidden="true" />
       {children}
     </span>
   );

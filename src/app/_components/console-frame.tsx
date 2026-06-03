@@ -75,8 +75,7 @@ function OperatorProfile({ gateEnabled }: { gateEnabled: boolean }) {
           </div>
           <div className="min-w-0">
             <div className="truncate text-base font-black tracking-[-0.02em] text-[var(--text-primary)]">Evan</div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+            <div className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
               Operator
             </div>
           </div>

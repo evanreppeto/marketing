@@ -84,7 +84,7 @@ export function MetricStrip({
           <>
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{metric.label}</div>
-              {metric.tone ? <span className={`h-2 w-2 rounded-full ${dotClass(metric.tone)}`} /> : null}
+              {metric.tone ? <span className={`text-[10px] font-black uppercase tracking-[0.12em] ${toneTextClass(metric.tone)}`}>{toneLabel(metric.tone)}</span> : null}
             </div>
             <div className="mt-3 font-display text-3xl font-black tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">{metric.value}</div>
             {metric.detail ? <div className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">{metric.detail}</div> : null}
@@ -170,10 +170,18 @@ export function EmptyWorkspace({
   );
 }
 
-function dotClass(tone: Tone) {
-  if (tone === "green") return "bg-[var(--ok)]";
-  if (tone === "amber") return "bg-[var(--warn)]";
-  if (tone === "red") return "bg-[var(--priority)]";
-  if (tone === "blue" || tone === "dark") return "bg-[var(--accent)]";
-  return "bg-[var(--text-muted)]";
+function toneLabel(tone: Tone) {
+  if (tone === "green") return "Clear";
+  if (tone === "amber") return "Watch";
+  if (tone === "red") return "Risk";
+  if (tone === "blue" || tone === "dark") return "Live";
+  return "Info";
+}
+
+function toneTextClass(tone: Tone) {
+  if (tone === "green") return "text-[var(--ok)]";
+  if (tone === "amber") return "text-[var(--warn)]";
+  if (tone === "red") return "text-[var(--priority-bright)]";
+  if (tone === "blue" || tone === "dark") return "text-[var(--accent)]";
+  return "text-[var(--text-muted)]";
 }

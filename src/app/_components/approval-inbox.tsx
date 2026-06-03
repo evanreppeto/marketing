@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button, EmptyState, StatusPill, buttonClasses } from "./page-header";
@@ -35,6 +36,7 @@ function riskTone(risk: string): "amber" | "red" | "green" | "blue" | "gray" {
 }
 
 export function ApprovalInbox({ items }: { items: InboxItem[] }) {
+  const router = useRouter();
   const [decided, setDecided] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ approvalItemId: string; campaignId: string | null; message: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -91,63 +93,84 @@ export function ApprovalInbox({ items }: { items: InboxItem[] }) {
       </div>
 
       <ul className="divide-y divide-[var(--border-hairline)]">
-        {visible.map((item) => (
-          <li key={item.id} className="px-5 py-4">
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
-                  <StatusPill tone="blue">{item.channel}</StatusPill>
-                  <StatusPill tone="gray">{item.statusLabel}</StatusPill>
-                </div>
-                <div className="mt-3 truncate font-bold text-[var(--text-primary)]">{item.title}</div>
-                <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{item.previewText}</p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <InboxDetail label="Persona" value={item.persona} />
-                  <InboxDetail label="Created by" value={item.sourceAgent} />
-                  <InboxDetail label="Campaign" value={item.campaignName} />
-                  <InboxDetail label="Recommended" value={item.recommendedAction} />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
-                  <span>{item.evidenceCount} evidence link{item.evidenceCount === 1 ? "" : "s"}</span>
-                  <span>{item.mediaCount} media item{item.mediaCount === 1 ? "" : "s"}</span>
-                  <span>{item.relatedCount} related record{item.relatedCount === 1 ? "" : "s"}</span>
-                </div>
-              </div>
+        {visible.map((item) => {
+          const detailHref = item.campaignId ? `/campaigns/${item.campaignId}` : `/approvals?item=${item.id}`;
 
-              <div className="flex flex-col justify-between gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Human action</div>
-                  <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                    {isHighRisk(item.riskLevel) ? "Open the full packet before deciding." : "Review the packet summary, then decide or open details."}
-                  </p>
-                </div>
-                {isHighRisk(item.riskLevel) ? (
-                  <Link
-                    href={item.campaignId ? `/campaigns/${item.campaignId}` : `/approvals?item=${item.id}`}
-                    className={buttonClasses({ variant: "primary", size: "sm", className: "w-full" })}
-                  >
-                    Review packet
-                  </Link>
-                ) : (
-                  <div className="grid gap-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button type="button" size="sm" variant="primary" disabled={pending === item.id} onClick={() => decide(item, "approved")}>
-                        Approve
-                      </Button>
-                      <Button type="button" size="sm" variant="ghost" disabled={pending === item.id} onClick={() => decide(item, "declined")}>
-                        Decline
-                      </Button>
-                    </div>
-                    <Link className={buttonClasses({ variant: "ghost", size: "sm", className: "w-full" })} href={`/approvals?item=${item.id}`}>
-                      Open details
-                    </Link>
+          return (
+            <li
+              aria-label={`Open review packet for ${item.title}`}
+              className="cursor-pointer px-5 py-4 transition hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[var(--accent)]"
+              key={item.id}
+              onClick={(event) => {
+                if (isInteractiveTarget(event.target)) return;
+                router.push(detailHref);
+              }}
+              onKeyDown={(event) => {
+                if (isInteractiveTarget(event.target)) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(detailHref);
+                }
+              }}
+              role="link"
+              tabIndex={0}
+            >
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
+                    <StatusPill tone="blue">{item.channel}</StatusPill>
+                    <StatusPill tone="gray">{item.statusLabel}</StatusPill>
                   </div>
-                )}
+                  <div className="mt-3 truncate font-bold text-[var(--text-primary)]">{item.title}</div>
+                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{item.previewText}</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <InboxDetail label="Persona" value={item.persona} />
+                    <InboxDetail label="Created by" value={item.sourceAgent} />
+                    <InboxDetail label="Campaign" value={item.campaignName} />
+                    <InboxDetail label="Recommended" value={item.recommendedAction} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
+                    <span>{item.evidenceCount} evidence link{item.evidenceCount === 1 ? "" : "s"}</span>
+                    <span>{item.mediaCount} media item{item.mediaCount === 1 ? "" : "s"}</span>
+                    <span>{item.relatedCount} related record{item.relatedCount === 1 ? "" : "s"}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col justify-between gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Human action</div>
+                    <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+                      {isHighRisk(item.riskLevel) ? "Open the full packet before deciding." : "Review the packet summary, then decide or open details."}
+                    </p>
+                  </div>
+                  {isHighRisk(item.riskLevel) ? (
+                    <Link
+                      href={detailHref}
+                      className={buttonClasses({ variant: "primary", size: "sm", className: "w-full" })}
+                    >
+                      Review packet
+                    </Link>
+                  ) : (
+                    <div className="grid gap-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button type="button" size="sm" variant="primary" disabled={pending === item.id} onClick={() => decide(item, "approved")}>
+                          Approve
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" disabled={pending === item.id} onClick={() => decide(item, "declined")}>
+                          Decline
+                        </Button>
+                      </div>
+                      <Link className={buttonClasses({ variant: "ghost", size: "sm", className: "w-full" })} href={`/approvals?item=${item.id}`}>
+                        Open details
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
       {toast ? (
@@ -160,6 +183,10 @@ export function ApprovalInbox({ items }: { items: InboxItem[] }) {
       ) : null}
     </div>
   );
+}
+
+function isInteractiveTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && Boolean(target.closest("a,button,input,select,textarea,summary"));
 }
 
 function InboxDetail({ label, value }: { label: string; value: string }) {
