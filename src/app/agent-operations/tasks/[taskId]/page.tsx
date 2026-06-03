@@ -142,19 +142,7 @@ export default async function Page({ params, searchParams }: PageProps) {
             </div>
           </Panel>
 
-          <Panel className="module-rise">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="signal-eyebrow">Safe controls</div>
-                <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Repair state</h2>
-              </div>
-              <StatusPill tone="gray">Not wired</StatusPill>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-              This app can display queued, running, blocked, completed, and approval-needed task state. Safe retry and repair
-              buttons need a backend action before they should appear here.
-            </p>
-          </Panel>
+          <TaskReadinessPanel detail={detail} />
         </aside>
       </div>
     </>
@@ -271,6 +259,79 @@ function OverviewLinkCard({ detail, href, label }: { detail: string; href: strin
   );
 }
 
+function TaskReadinessPanel({ detail }: { detail: Extract<Awaited<ReturnType<typeof getAgentTaskDetail>>, { status: "live" }> }) {
+  const checkpoints = [
+    {
+      label: "Context",
+      value: `${detail.inputs.length} ${plural("input", detail.inputs.length)}`,
+      note: detail.inputs.length > 0 ? "Mark received task context." : "No task inputs captured yet.",
+      tone: detail.inputs.length > 0 ? "green" : "amber",
+    },
+    {
+      label: "Output",
+      value: `${detail.outputs.length} ${plural("output", detail.outputs.length)}`,
+      note: detail.outputs.length > 0 ? "Created work is available to inspect." : "Waiting for Mark-created records.",
+      tone: detail.outputs.length > 0 ? "green" : "amber",
+    },
+    {
+      label: "Human gate",
+      value: detail.approval ? humanize(detail.approval.status) : "Not linked",
+      note: detail.approval ? "Review stays with the operator." : "No approval item is attached to this task.",
+      tone: detail.approval ? "amber" : "gray",
+    },
+    {
+      label: "Audit trail",
+      value: `${detail.logs.length} ${plural("log", detail.logs.length)}`,
+      note: detail.logs.length > 0 ? "Runner activity is traceable." : "Mark should write logs when he runs.",
+      tone: detail.logs.length > 0 ? "green" : "amber",
+    },
+  ] as const;
+
+  return (
+    <Panel className="module-rise">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="signal-eyebrow">Task readiness</div>
+          <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Operator checkpoint</h2>
+        </div>
+        <StatusPill tone="amber">Outbound locked</StatusPill>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {checkpoints.map((checkpoint) => (
+          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={checkpoint.label}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{checkpoint.label}</div>
+                <div className="mt-1 truncate text-sm font-black text-[var(--text-primary)]">{checkpoint.value}</div>
+              </div>
+              <StatusPill tone={checkpoint.tone}>{checkpoint.tone === "green" ? "Ready" : checkpoint.tone === "amber" ? "Review" : "Open"}</StatusPill>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{checkpoint.note}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {detail.approval ? (
+          <Link className={buttonClasses({ variant: "primary", className: "w-full" })} href={detail.approval.href}>
+            Open human review
+          </Link>
+        ) : null}
+        {detail.campaign ? (
+          <Link className={buttonClasses({ variant: "ghost", className: "w-full" })} href={`/campaigns/${detail.campaign.id}`}>
+            Open campaign package
+          </Link>
+        ) : null}
+      </div>
+
+      <p className="mt-4 text-xs leading-5 text-[var(--text-muted)]">
+        This page only inspects Mark work. Sending, publishing, launching, spending, and contact actions remain unavailable here.
+      </p>
+    </Panel>
+  );
+}
+
 function relatedRecordHref(sourceType: string | null, sourceId: string | null) {
   if (!sourceType || !sourceId) return null;
   if (sourceType === "company" || sourceType === "companies") return { href: `/crm/companies/${sourceId}`, label: "Company" };
@@ -325,4 +386,8 @@ function normalizeTaskSection(value: string | undefined): TaskSectionKey {
 
 function getValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function plural(label: string, count: number) {
+  return count === 1 ? label : `${label}s`;
 }
