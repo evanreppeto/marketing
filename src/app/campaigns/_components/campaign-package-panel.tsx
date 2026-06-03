@@ -54,6 +54,64 @@ const CATEGORY_META: Record<
   },
 };
 
+const DELIVERABLE_CONTRACTS: Array<{
+  key: string;
+  label: string;
+  detail: string;
+  tab: TabKey;
+  matches: (asset: CampaignWorkspaceAsset) => boolean;
+}> = [
+  {
+    key: "email",
+    label: "Email draft",
+    detail: "Partner, lead, or customer email copy.",
+    tab: "creative",
+    matches: (asset) => /email/i.test(`${asset.assetType} ${asset.channel} ${asset.title}`),
+  },
+  {
+    key: "sms",
+    label: "SMS draft",
+    detail: "Short text-message copy, gated before any send.",
+    tab: "creative",
+    matches: (asset) => /sms|text message|text/i.test(`${asset.assetType} ${asset.channel} ${asset.title}`),
+  },
+  {
+    key: "ads",
+    label: "Ad angles",
+    detail: "Meta, Google, display, or search ad copy.",
+    tab: "creative",
+    matches: (asset) => asset.category === "ads" || /ad|meta|google|search|display/i.test(`${asset.assetType} ${asset.channel} ${asset.title}`),
+  },
+  {
+    key: "social",
+    label: "Social post",
+    detail: "Organic social copy or post concept.",
+    tab: "creative",
+    matches: (asset) => /social|post|facebook|instagram|linkedin/i.test(`${asset.assetType} ${asset.channel} ${asset.title}`),
+  },
+  {
+    key: "landing",
+    label: "Landing concept",
+    detail: "Internal landing-page copy or CTA rule only.",
+    tab: "creative",
+    matches: (asset) => /landing|web page|page concept|cta/i.test(`${asset.assetType} ${asset.channel} ${asset.title}`),
+  },
+  {
+    key: "call-script",
+    label: "Call script",
+    detail: "Human call or partner handoff script.",
+    tab: "creative",
+    matches: (asset) => /call|script|talk track|handoff/i.test(`${asset.assetType} ${asset.channel} ${asset.title}`),
+  },
+  {
+    key: "physical",
+    label: "Physical piece",
+    detail: "Print, leave-behind, postcard, or mailer.",
+    tab: "creative",
+    matches: (asset) => asset.category === "physical" || /print|postcard|mailer|leave behind|leave-behind/i.test(`${asset.assetType} ${asset.channel} ${asset.title}`),
+  },
+];
+
 export function CampaignPackagePanel({
   detail,
   pendingApproval,
@@ -104,6 +162,14 @@ export function CampaignPackagePanel({
                 />
               ))}
             </div>
+
+            <DeliverableChecklist
+              assets={assets}
+              media={media}
+              sources={sources}
+              onOpenTab={onOpenTab}
+              onPickAsset={onPickAsset}
+            />
           </div>
 
           <aside className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] p-5 lg:border-l lg:border-t-0">
@@ -201,6 +267,93 @@ export function CampaignPackagePanel({
           </div>
         </section>
       </aside>
+    </section>
+  );
+}
+
+function DeliverableChecklist({
+  assets,
+  media,
+  sources,
+  onOpenTab,
+  onPickAsset,
+}: {
+  assets: CampaignWorkspaceAsset[];
+  media: CampaignMediaAsset[];
+  sources: CampaignWorkspaceSource[];
+  onOpenTab: (tab: TabKey) => void;
+  onPickAsset: (assetId: string) => void;
+}) {
+  const rows = [
+    ...DELIVERABLE_CONTRACTS.map((contract) => {
+      const asset = assets.find(contract.matches) ?? null;
+      return {
+        ...contract,
+        asset,
+        ready: Boolean(asset),
+        status: asset ? asset.status : "Missing",
+        action: asset ? "Open draft" : "Needs Mark",
+      };
+    }),
+    {
+      key: "media",
+      label: "Image / video",
+      detail: "Generated visual, video, mockup, or media prompt.",
+      tab: "media" as const,
+      asset: assets.find((asset) => asset.category === "media" || asset.media.length > 0) ?? null,
+      ready: media.length > 0 || assets.some((asset) => asset.category === "media" || asset.media.length > 0),
+      status: media.length > 0 ? `${media.length} media` : "Missing",
+      action: media.length > 0 ? "Open media" : "Needs Mark",
+    },
+    {
+      key: "sources",
+      label: "Audience sources",
+      detail: "Linked leads, companies, contacts, or evidence URLs.",
+      tab: "audience" as const,
+      asset: null,
+      ready: sources.length > 0,
+      status: sources.length > 0 ? `${sources.length} sources` : "Missing",
+      action: sources.length > 0 ? "Open sources" : "Needs evidence",
+    },
+  ];
+
+  return (
+    <section className="mt-5 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="signal-eyebrow">Package completeness</div>
+          <h3 className="mt-1 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)]">Expected campaign pieces</h3>
+          <p className="mt-1 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
+            Present items come from campaign assets, approval records, and Mark outputs. Missing items are data contracts, not fake drafts.
+          </p>
+        </div>
+        <StatusPill tone="amber">Outbound locked</StatusPill>
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        {rows.map((row) => (
+          <button
+            className={`grid min-h-20 cursor-pointer gap-3 rounded-lg border px-3 py-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
+              row.ready ? "border-[var(--border-panel)] bg-[var(--surface-inset)]" : "border-dashed border-[var(--border-hairline)] bg-[var(--surface-panel)]"
+            }`}
+            key={row.key}
+            onClick={() => {
+              if (row.asset) onPickAsset(row.asset.id);
+              onOpenTab(row.tab);
+            }}
+            type="button"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-black text-[var(--text-primary)]">{row.label}</span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{row.detail}</span>
+            </span>
+            <span className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <StatusPill tone={row.ready ? "blue" : "amber"}>{row.status}</StatusPill>
+              <span className="text-xs font-bold text-[var(--accent)]">{row.action}</span>
+            </span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
