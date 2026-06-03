@@ -18,7 +18,7 @@ type CrmListView = {
   href: string;
 };
 
-const PAGE_SIZES = [6, 10, 20, 50];
+const PAGE_SIZES = [8, 12, 20, 50];
 
 export function CrmObjectTable({
   activeView,
@@ -43,7 +43,7 @@ export function CrmObjectTable({
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(6);
+  const [pageSize, setPageSize] = useState(8);
   const normalizedQuery = query.trim().toLowerCase();
 
   const searchedRows = useMemo(() => {
@@ -62,27 +62,32 @@ export function CrmObjectTable({
   const startIndex = searchedRows.length === 0 ? 0 : (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, searchedRows.length);
   const pagedRows = searchedRows.slice(startIndex, endIndex);
+  const visibleStart = searchedRows.length > 0 ? startIndex + 1 : 0;
 
   return (
     <>
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.82fr)] xl:items-start">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(440px,0.92fr)] xl:items-start">
           <div className="min-w-0">
             <div className="signal-eyebrow">Records table</div>
-            <h2 className="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{objectLabel}</h2>
+            <h2 className="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+              {objectLabel} list view
+            </h2>
             <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-              {activeViewDescription} Showing {startIndex + (searchedRows.length > 0 ? 1 : 0)}-{endIndex} of{" "}
-              {searchedRows.length}
+              {activeViewDescription} Showing {visibleStart}-{endIndex} of {searchedRows.length}
               {searchedRows.length === rows.length ? "" : ` matched from ${rows.length}`}.
             </p>
           </div>
 
-          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2">
-            <div className="mb-2 flex items-center justify-between gap-3 px-1">
-              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">Find records</span>
-              <span className="font-mono text-xs text-[var(--text-muted)]">{rows.length} total</span>
+          <div className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] p-3 shadow-[var(--elev-panel)]">
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">Table search</div>
+                <div className="mt-1 text-xs text-[var(--text-muted)]">Search only this {objectLabel.toLowerCase()} table.</div>
+              </div>
+              <span className="font-mono text-xs text-[var(--text-muted)]">{rows.length} total records</span>
             </div>
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_126px]">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto]">
               <label className="relative block">
                 <span className="sr-only">Search {objectLabel}</span>
                 <svg
@@ -125,15 +130,27 @@ export function CrmObjectTable({
                   ))}
                 </select>
               </label>
+
+              <button
+                className="min-h-11 cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
+                disabled={!query}
+                onClick={() => {
+                  setQuery("");
+                  setPage(1);
+                }}
+                type="button"
+              >
+                Clear
+              </button>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 grid gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1 md:grid-cols-3">
           {views.map((listView) => (
             <Link
               aria-current={activeView === listView.key ? "page" : undefined}
-              className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-[var(--elev-panel)] active:translate-y-px ${
+              className={`group flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-md border px-3 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_20px_oklch(0.74_0.115_232/0.16)] active:translate-y-px ${
                 activeView === listView.key
                   ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
                   : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
@@ -142,8 +159,8 @@ export function CrmObjectTable({
               key={listView.key}
               title={listView.description}
             >
-              {listView.label}
-              <span className="ml-2 rounded-full bg-current/10 px-1.5 text-xs">{listView.count}</span>
+              <span>{listView.label}</span>
+              <span className="rounded-md bg-current/10 px-2 py-1 font-mono text-xs">{listView.count}</span>
             </Link>
           ))}
         </div>

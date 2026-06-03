@@ -19,12 +19,12 @@ export function PaginationControls({
   startIndex,
   total,
 }: PaginationControlsProps) {
-  const visibleLabel = total === 0 ? `No ${itemLabel} matched` : `${startIndex + 1}-${endIndex} visible`;
+  const visibleLabel = total === 0 ? `No ${itemLabel} matched` : `Showing ${startIndex + 1}-${endIndex} of ${total} ${itemLabel}`;
 
   return (
     <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-      <div className="text-sm font-semibold text-[var(--text-secondary)]">
-        Page {currentPage} of {pageCount}
+      <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)]">
+        <span className="text-[var(--text-primary)]">Page {currentPage} of {pageCount}</span>
         <span className="ml-2 font-normal text-[var(--text-muted)]">{visibleLabel}</span>
       </div>
       <div className="flex flex-wrap gap-2">

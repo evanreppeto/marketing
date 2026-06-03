@@ -459,6 +459,11 @@ function activityRank(updated: string) {
     return 1;
   }
 
+  const timestamp = Date.parse(updated);
+  if (!Number.isNaN(timestamp)) {
+    return -timestamp;
+  }
+
   const match = updated.match(/^(\d+)/);
   return match ? Number(match[1]) + 1 : 99;
 }
