@@ -2,11 +2,11 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { AppShell } from "../_components/app-shell";
-import { DataTable } from "../_components/data-table";
 import { EmptyState, Panel, StatusPill, buttonClasses } from "../_components/page-header";
 import { getCrmNavCounts, getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
 
 import { CrmCommandHeader } from "./_components/crm-command-header";
+import { CrmPipelineBoard } from "./_components/crm-pipeline-board";
 
 type CrmViewKey = "calls" | "inspections" | "closed-projects" | "partners";
 type CrmTabKey = "overview" | "pipeline" | "record" | "activity";
@@ -209,41 +209,7 @@ function CrmPipeline({
         </div>
       </div>
 
-      <DataTable
-        rows={rows}
-        rowKey={(row) => row.id}
-        rowHref={(row) => `/crm?tab=record&view=${activeView}&selected=${row.id}`}
-        minWidth="min-w-[900px]"
-        isSelected={(row) => selectedRecord?.id === row.id}
-        columns={[
-          {
-            key: "record",
-            header: "Record",
-            cell: (row) => (
-              <>
-                <div className="font-semibold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.record}</div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">{row.type}</div>
-              </>
-            ),
-          },
-          { key: "account", header: "Account / contact", cellClassName: "font-medium text-[var(--text-secondary)]", cell: (row) => row.account },
-          { key: "stage", header: "Pipeline step", cell: (row) => <StatusPill tone={row.tone}>{row.stage}</StatusPill> },
-          { key: "owner", header: "Owner", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.owner },
-          { key: "value", header: "Est. value", cellClassName: "font-mono font-semibold tabular-nums text-[var(--text-primary)]", cell: (row) => row.value },
-          {
-            key: "next",
-            header: "Next step",
-            cellClassName: "text-[var(--text-secondary)]",
-            cell: (row) => (
-              <>
-                <div className="font-medium">{row.nextStep}</div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">{row.updated}</div>
-              </>
-            ),
-          },
-        ]}
-        emptyState={<EmptyState title="No CRM records found" detail="Supabase is connected, but this view has no matching records yet." />}
-      />
+      <CrmPipelineBoard activeView={activeView} rows={rows} selectedRecordId={selectedRecord?.id ?? null} />
     </Panel>
   );
 }
