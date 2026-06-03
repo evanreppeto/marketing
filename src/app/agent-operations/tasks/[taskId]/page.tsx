@@ -7,6 +7,8 @@ import { EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "@/app/
 import { MetricStrip } from "@/app/_components/workspace";
 import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 
+import { TaskInputsPanel, TaskLogsPanel, TaskOutputsPanel } from "./task-record-panels";
+
 type PageProps = {
   params: Promise<{ taskId: string }>;
   searchParams?: Promise<{ section?: string | string[] }>;
@@ -81,9 +83,9 @@ export default async function Page({ params, searchParams }: PageProps) {
           />
 
           {activeSection === "overview" ? <TaskOverview detail={detail} /> : null}
-          {activeSection === "inputs" ? <TaskInputs inputs={detail.inputs} /> : null}
-          {activeSection === "outputs" ? <TaskOutputs outputs={detail.outputs} /> : null}
-          {activeSection === "logs" ? <TaskLogs logs={detail.logs} /> : null}
+          {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
+          {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
+          {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
@@ -269,227 +271,6 @@ function OverviewLinkCard({ detail, href, label }: { detail: string; href: strin
   );
 }
 
-function TaskInputs({ inputs }: { inputs: Array<{ id: string; inputType: string; sourceTable: string | null; sourceId: string | null; summary: string; payload: Record<string, unknown> }> }) {
-  return (
-    <Panel className="module-rise p-0">
-      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-        <div className="signal-eyebrow">Inputs</div>
-        <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Context Mark received</h2>
-      </div>
-      <div className="divide-y divide-[var(--border-hairline)]">
-        {inputs.length > 0 ? (
-          inputs.map((input) => (
-            <div key={input.id} className="px-5 py-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusPill tone="blue">{humanize(input.inputType)}</StatusPill>
-                {input.sourceTable ? <span className="text-xs font-semibold text-[var(--text-muted)]">{input.sourceTable}</span> : null}
-              </div>
-              <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{input.summary}</p>
-              <KeyValuePreview payload={input.payload} />
-            </div>
-          ))
-        ) : (
-          <div className="p-5">
-            <EmptyState title="No input records" detail="This task has no captured input rows yet." />
-          </div>
-        )}
-      </div>
-    </Panel>
-  );
-}
-
-function TaskOutputs({
-  outputs,
-}: {
-  outputs: Array<{
-    id: string;
-    title: string;
-    outputType: string;
-    body: string;
-    readableBody: string;
-    structuredSections: Array<{ label: string; value: string }>;
-    evidence: Array<{ label: string; href: string }>;
-    media: Array<{ label: string; href: string; type: "image" | "video" | "file" | "link" }>;
-    riskLevel: string;
-    complianceStatus: string;
-    approvalStatus: string;
-    approvalHref: string | null;
-    campaignAssetId: string | null;
-    createdAt: string | null;
-  }>;
-}) {
-  return (
-    <Panel className="module-rise p-0">
-      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-        <div className="signal-eyebrow">Outputs</div>
-        <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">What Mark created</h2>
-      </div>
-      <div className="divide-y divide-[var(--border-hairline)]">
-        {outputs.length > 0 ? (
-          outputs.map((output) => (
-            <article key={output.id} className="px-5 py-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="font-bold text-[var(--text-primary)]">{output.title}</h3>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    {humanize(output.outputType)} / risk {humanize(output.riskLevel)} / {formatDate(output.createdAt)}
-                  </p>
-                </div>
-                <StatusPill tone={output.approvalStatus.includes("approved") ? "green" : "amber"}>
-                  {humanize(output.approvalStatus)}
-                </StatusPill>
-              </div>
-              {output.readableBody ? (
-                <p className="mt-3 whitespace-pre-wrap rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 text-sm leading-6 text-[var(--text-secondary)]">
-                  {output.readableBody}
-                </p>
-              ) : (
-                <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">No readable output body captured.</p>
-              )}
-              {output.structuredSections.length > 0 ? (
-                <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {output.structuredSections.slice(0, 6).map((section) => (
-                    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2" key={section.label}>
-                      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{section.label}</dt>
-                      <dd className="mt-1 whitespace-pre-wrap text-sm font-semibold leading-6 text-[var(--text-primary)]">{section.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : null}
-              {output.evidence.length > 0 || output.media.length > 0 || output.approvalHref ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {output.approvalHref ? (
-                    <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={output.approvalHref}>
-                      Linked approval
-                    </Link>
-                  ) : null}
-                  {output.evidence.slice(0, 4).map((item) => (
-                    <a className={buttonClasses({ variant: "ghost", size: "sm" })} href={item.href} key={item.href} rel="noreferrer" target="_blank">
-                      {item.label}
-                    </a>
-                  ))}
-                  {output.media.slice(0, 4).map((item) => (
-                    <a className={buttonClasses({ variant: "ghost", size: "sm" })} href={item.href} key={item.href} rel="noreferrer" target="_blank">
-                      {humanize(item.type)} preview
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-              {output.body && output.body !== output.readableBody ? (
-                <details className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-                    Raw output packet
-                  </summary>
-                  <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-[var(--text-secondary)]">{output.body}</pre>
-                </details>
-              ) : null}
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--accent)]">
-                <span>Compliance: {humanize(output.complianceStatus)}</span>
-                {output.campaignAssetId ? <span className="text-[var(--text-muted)]">Asset: {output.campaignAssetId.slice(0, 8)}</span> : null}
-              </div>
-            </article>
-          ))
-        ) : (
-          <div className="p-5">
-            <EmptyState title="No outputs yet" detail="When Mark produces structured work, outputs appear here with guardrail and approval state." />
-          </div>
-        )}
-      </div>
-    </Panel>
-  );
-}
-
-function TaskLogs({
-  logs,
-}: {
-  logs: Array<{
-    id: string;
-    runStatus: string;
-    modelProvider: string | null;
-    modelName: string | null;
-    inputTokens: number | null;
-    outputTokens: number | null;
-    costEstimate: string | null;
-    retryCount: number;
-    reasoningSummary: string | null;
-    errorMessage: string | null;
-    startedAt: string | null;
-    completedAt: string | null;
-    metadata: Record<string, unknown>;
-  }>;
-}) {
-  return (
-    <Panel className="module-rise p-0">
-      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-        <div className="signal-eyebrow">Audit logs</div>
-        <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Runner trace</h2>
-      </div>
-      <div className="divide-y divide-[var(--border-hairline)]">
-        {logs.length > 0 ? (
-          logs.map((log) => (
-            <div key={log.id} className="px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <StatusPill tone={statusTone(log.runStatus)}>{humanize(log.runStatus)}</StatusPill>
-                <span className="text-xs font-semibold text-[var(--text-muted)]">
-                  {[log.modelProvider, log.modelName].filter(Boolean).join(" / ") || "Runner not recorded"}
-                </span>
-              </div>
-              {log.reasoningSummary ? <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{log.reasoningSummary}</p> : null}
-              {log.errorMessage ? (
-                <p className="mt-3 rounded-lg border border-[oklch(0.68_0.2_26/0.45)] bg-[oklch(0.68_0.2_26/0.14)] px-3 py-2 text-sm leading-6 text-[oklch(0.86_0.09_26)]">
-                  {log.errorMessage}
-                </p>
-              ) : null}
-              <div className="mt-3 text-xs text-[var(--text-muted)]">
-                Started {formatDate(log.startedAt)} / Completed {formatDate(log.completedAt)}
-              </div>
-              <dl className="mt-3 grid gap-2 sm:grid-cols-4">
-                <SmallLogStat label="Input tokens" value={log.inputTokens ?? "Missing"} />
-                <SmallLogStat label="Output tokens" value={log.outputTokens ?? "Missing"} />
-                <SmallLogStat label="Cost" value={log.costEstimate ?? "Missing"} />
-                <SmallLogStat label="Retries" value={log.retryCount} />
-              </dl>
-              <KeyValuePreview payload={log.metadata} />
-            </div>
-          ))
-        ) : (
-          <div className="p-5">
-            <EmptyState title="No run logs" detail="Mark should write run logs as he claims, processes, blocks, or completes tasks." />
-          </div>
-        )}
-      </div>
-    </Panel>
-  );
-}
-
-function SmallLogStat({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</dt>
-      <dd className="mt-1 truncate text-sm font-bold tabular-nums text-[var(--text-primary)]">{value}</dd>
-    </div>
-  );
-}
-
-function KeyValuePreview({ payload }: { payload: Record<string, unknown> }) {
-  const entries = Object.entries(payload)
-    .filter(([key, value]) => isReadableKey(key) && value !== null && value !== undefined && typeof value !== "object")
-    .slice(0, 6);
-
-  if (entries.length === 0) return null;
-
-  return (
-    <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-      {entries.map(([key, value]) => (
-        <div key={key} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{humanize(key)}</dt>
-          <dd className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{String(value)}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 function relatedRecordHref(sourceType: string | null, sourceId: string | null) {
   if (!sourceType || !sourceId) return null;
   if (sourceType === "company" || sourceType === "companies") return { href: `/crm/companies/${sourceId}`, label: "Company" };
@@ -535,11 +316,6 @@ function formatDate(value: string | null) {
 
 function getString(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
-}
-
-function isReadableKey(key: string) {
-  const normalized = key.toLowerCase();
-  return !normalized.endsWith("_id") && !normalized.endsWith("_ids") && normalized !== "id" && !/payload|metadata|audit/.test(normalized);
 }
 
 function normalizeTaskSection(value: string | undefined): TaskSectionKey {
