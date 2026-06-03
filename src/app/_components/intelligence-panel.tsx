@@ -25,6 +25,7 @@ export type IntelligencePanelModel = {
   guardrailStatus?: string | null;
   evidence?: Array<{ label: string; href?: string | null; detail?: string | null }>;
   scores?: IntelligenceScore[];
+  actions?: Array<{ label: string; href: string; variant?: "primary" | "ghost" }>;
   outboundLocked?: boolean;
   emptyDetail?: string;
 };
@@ -98,6 +99,21 @@ export function IntelligencePanel({
             <Narrative label="Message angle" value={model.messageAngle} />
             <Narrative label="Guardrail result" value={model.guardrailStatus ?? "Human approval required before any outbound step."} />
           </div>
+
+          {model.actions && model.actions.length > 0 ? (
+            <div className="grid gap-2 border-t border-[var(--border-hairline)] px-4 py-4 sm:grid-cols-2">
+              {model.actions.map((action) => (
+                <Link
+                  className={buttonClasses({ variant: action.variant ?? "ghost", size: "sm", className: "justify-between" })}
+                  href={action.href}
+                  key={`${action.label}-${action.href}`}
+                >
+                  <span>{action.label}</span>
+                  <span className={action.variant === "primary" ? "text-[var(--on-accent)]/70" : "text-[var(--text-muted)]"}>Open</span>
+                </Link>
+              ))}
+            </div>
+          ) : null}
 
           {model.proofPoints && model.proofPoints.length > 0 ? (
             <div className="border-t border-[var(--border-hairline)] px-4 py-4">

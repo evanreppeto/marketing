@@ -102,6 +102,7 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
               guardrailStatus: inspector.guardrail,
               scores: inspector.scores,
               proofPoints: inspector.proofPoints,
+              actions: inspector.actions,
               outboundLocked: true,
             }}
           />
@@ -194,12 +195,16 @@ function SignalsTab({
 
 function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTrackerRow | null }) {
   return (
-    <article className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.04)]">
+    <Link
+      className="group block cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.04)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      href={`/persona-intelligence?tab=personas&inspect=${personaSlug(rule.persona)}`}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={live ? live.tone : "gray"}>{rule.segment}</StatusPill>
+        <StatusPill tone={live ? "green" : "gray"}>{live ? "Live memory" : "Rule only"}</StatusPill>
         <StatusPill tone="amber">No publish</StatusPill>
       </div>
-      <h2 className="mt-3 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)]">{rule.label}</h2>
+      <h2 className="mt-3 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{rule.label}</h2>
       <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{rule.messageAngle}</p>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -207,17 +212,10 @@ function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTr
         <RuleField label="Secondary CTA" value={rule.secondaryCta} />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link href={`/persona-intelligence/${personaSlug(rule.persona)}`} className={buttonClasses({ variant: "primary", size: "sm" })}>
-          Inspect rule
-        </Link>
-        {live ? (
-          <Link href={`/persona-intelligence?tab=snapshots&inspect=${live.key}`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            Inspect memory
-          </Link>
-        ) : null}
+      <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold text-[var(--accent)]">
+        Inspect in side panel
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -259,6 +257,10 @@ function buildInspector(
           { label: "Outbound", value: "Locked", detail: "Approval gate", tone: "amber" as const },
         ],
         proofPoints: selected.snapshot?.riskFlags?.length ? selected.snapshot.riskFlags.map(humanize) : ["Human approval required"],
+        actions: [
+          { label: "Open related CRM", href: selected.crmPath, variant: "ghost" as const },
+          { label: "Open full persona rule", href: `/persona-intelligence/${selected.key}`, variant: "ghost" as const },
+        ],
       };
     }
   }
@@ -283,6 +285,7 @@ function buildInspector(
           { label: "Outbound", value: "Locked", detail: "Approval gate", tone: "amber" as const },
         ],
         proofPoints: [selected.engineUse],
+        actions: tab === "guardrails" ? [{ label: "Open settings", href: "/settings", variant: "ghost" as const }] : [],
       };
     }
   }
@@ -304,6 +307,12 @@ function buildInspector(
       { label: "Approval", value: "Required", detail: "Before outbound", tone: "green" as const },
     ],
     proofPoints: selectedRule ? [selectedRule.landingRule, selectedRule.guardrail] : ["Human approval required"],
+    actions: selectedRule
+      ? [
+          { label: "Open full persona rule", href: `/persona-intelligence/${personaSlug(selectedRule.persona)}`, variant: "primary" as const },
+          { label: "Open settings", href: "/settings", variant: "ghost" as const },
+        ]
+      : [{ label: "Open settings", href: "/settings", variant: "ghost" as const }],
   };
 }
 
