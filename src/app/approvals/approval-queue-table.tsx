@@ -214,9 +214,9 @@ function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: Ap
       tabIndex={0}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
-        <StatusPill tone="blue">{item.channel}</StatusPill>
-        <StatusPill tone="gray">{item.statusLabel}</StatusPill>
+        <StatusPill tone={riskTone(item.riskLevel)}>{humanizeQueueValue(item.riskLevel)}</StatusPill>
+        <StatusPill tone="blue">{humanizeQueueValue(item.channel)}</StatusPill>
+        <StatusPill tone="gray">{humanizeQueueValue(item.statusLabel)}</StatusPill>
         <StatusPill tone="amber">Outbound locked</StatusPill>
       </div>
 
@@ -227,15 +227,15 @@ function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: Ap
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <QueueDetail label="Persona" value={item.persona} />
-        <QueueDetail label="Created by" value={item.sourceAgent} />
+        <QueueDetail label="Mark source" value={item.sourceAgent} />
         <QueueDetail label="Campaign" value={item.campaign.name} />
-        <QueueDetail label="Recommended" value={item.recommendedAction} />
+        <QueueDetail label="Human decision" value={item.recommendedAction} />
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <QueueStat label="Evidence" value={item.evidence.length} />
-        <QueueStat label="Risk flags" value={item.riskFlags.length} />
-        <QueueStat label="Media" value={item.creativeAssets.length} />
+      <div className="mt-4 grid gap-2 sm:grid-cols-3" aria-label="Approval packet signals">
+        <QueueStat label="Evidence" value={item.evidence.length} detail={item.evidence.length > 0 ? "sources" : "missing"} />
+        <QueueStat label="Risks" value={item.riskFlags.length} detail={item.riskFlags.length > 0 ? "review" : "clear"} />
+        <QueueStat label="Media" value={item.creativeAssets.length} detail={item.creativeAssets.length > 0 ? "preview" : "none"} />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -258,16 +258,19 @@ function QueueDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
       <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value || "Missing"}</div>
+      <div className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{humanizeQueueValue(value || "Missing")}</div>
     </div>
   );
 }
 
-function QueueStat({ label, value }: { label: string; value: number }) {
+function QueueStat({ detail, label, value }: { detail: string; label: string; value: number }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
       <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 font-mono text-sm font-black text-[var(--accent)]">{value}</div>
+      <div className="mt-1 flex items-baseline justify-between gap-2">
+        <span className="font-mono text-sm font-black text-[var(--accent)]">{value}</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{detail}</span>
+      </div>
     </div>
   );
 }
@@ -285,4 +288,19 @@ function riskTone(risk: string): "amber" | "red" | "green" | "blue" | "gray" {
   if (/medium|warning/i.test(risk)) return "amber";
   if (/low/i.test(risk)) return "green";
   return "gray";
+}
+
+function humanizeQueueValue(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "Missing";
+  if (/\s/.test(trimmed) && !/^persona_/i.test(trimmed)) return trimmed;
+  if (!/[_-]/.test(trimmed)) return trimmed;
+
+  return trimmed
+    .replace(/^persona_/, "")
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
