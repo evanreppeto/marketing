@@ -319,7 +319,7 @@ export async function getAgentOperationsDashboard(client?: SupabaseClient): Prom
         { label: "Risk flags", value: countRiskFlags(approvals, outputs), delta: "Review signals" },
       ],
       agents: agents.map((agent) => mapAgent(agent, tasks)),
-      tasks: tasks.slice(0, 12).map((task) => mapTask(task, agentById, campaignById, approvalById)),
+      tasks: tasks.map((task) => mapTask(task, agentById, campaignById, approvalById)),
       approvals: activeApprovals.slice(0, 5).map((item) => mapApproval(item, campaignById)),
       recentOutputs: outputs.slice(0, 6).map((output) => mapOutput(output, taskById, agentById)),
       markRunner: mapMarkRunner(agents, tasks),

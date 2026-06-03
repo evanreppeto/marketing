@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { connection } from "next/server";
 
-import { DataTable } from "../_components/data-table";
 import { IntelligencePanel } from "../_components/intelligence-panel";
 import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getAgentOperationsDashboard } from "@/lib/agent-operations/read-model";
+
+import { AgentTaskBoard } from "./agent-task-board";
 
 export default async function AgentOperationsPage() {
   await connection();
@@ -47,34 +48,7 @@ export default async function AgentOperationsPage() {
             description="Mark can prepare drafts, enrich records, classify, score, and create approval packets. External action remains disabled."
             aside={<StatusPill tone={dashboard.tasks.length > 0 ? "blue" : "gray"}>{dashboard.tasks.length} tasks</StatusPill>}
           >
-            <DataTable
-              rows={dashboard.tasks}
-              rowKey={(row) => row.fullId}
-              rowHref={(row) => row.href}
-              minWidth="min-w-[1020px]"
-              columns={[
-                {
-                  key: "task",
-                  header: "Objective",
-                  cell: (row) => (
-                    <>
-                      <div className="font-bold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.task}</div>
-                      <div className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{row.objective}</div>
-                    </>
-                  ),
-                },
-                { key: "agent", header: "Agent", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.agentName },
-                { key: "status", header: "Status", cell: (row) => <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill> },
-                { key: "risk", header: "Risk", cell: (row) => <StatusPill tone={riskTone(row.risk)}>{row.risk}</StatusPill> },
-                {
-                  key: "linked",
-                  header: "Linked record",
-                  cell: (row) => <span className="text-sm font-semibold text-[var(--accent)]">{row.linkedObject}</span>,
-                },
-                { key: "updated", header: "Updated", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.updated },
-              ]}
-              emptyState={<EmptyState title="No Mark tasks yet" detail="Queue a task when you want Mark to prepare CRM enrichment, campaign drafts, or approval packets." />}
-            />
+            <AgentTaskBoard tasks={dashboard.tasks} />
           </WorkspacePanel>
 
           <WorkspacePanel
@@ -176,10 +150,4 @@ function statusTone(status: string) {
   if (/blocked|error|failed/i.test(status)) return "red";
   if (/queued|running|approval|pending|review/i.test(status)) return "amber";
   return "blue";
-}
-
-function riskTone(risk: string) {
-  if (/blocked|high/i.test(risk)) return "red";
-  if (/medium|warning/i.test(risk)) return "amber";
-  return "green";
 }
