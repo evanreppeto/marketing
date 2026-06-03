@@ -107,7 +107,10 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
         onReview={reviewApproval}
       />
 
-      <CampaignHeader campaign={campaign} />
+      <CampaignHeader
+        campaign={campaign}
+        onReviewNext={pendingApprovals.length > 0 ? () => reviewApproval(pendingApprovals[0].id) : undefined}
+      />
 
       <CampaignOverview
         detail={detail}

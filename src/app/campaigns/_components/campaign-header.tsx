@@ -3,9 +3,15 @@ import Link from "next/link";
 import { StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceMeta } from "@/lib/campaigns/read-model";
 
-import { statusTone } from "./status-tone";
+import { CampaignRollupBar } from "./campaign-rollup-bar";
 
-export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }) {
+export function CampaignHeader({
+  campaign,
+  onReviewNext,
+}: {
+  campaign: CampaignWorkspaceMeta;
+  onReviewNext?: () => void;
+}) {
   const meta: Array<[string, string]> = [
     ["Persona", campaign.persona],
     ["Focus", campaign.restorationFocus],
@@ -27,9 +33,7 @@ export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }
         <div className="relative">
           <div className="flex flex-wrap items-center gap-3">
             <span className="signal-eyebrow">Campaign package</span>
-            <StatusPill tone={statusTone(campaign.status)}>{campaign.status}</StatusPill>
             <StatusPill tone="amber">Outbound locked</StatusPill>
-            {!campaign.launchLocked ? <StatusPill tone="blue">Approved draft</StatusPill> : null}
           </div>
 
           <h1 className="mt-3 max-w-[24ch] text-[clamp(1.6rem,3vw,2.4rem)] font-black leading-[1.03] tracking-[-0.04em] text-[var(--text-primary)]">
@@ -39,6 +43,22 @@ export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }
           {campaign.objective ? (
             <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">{campaign.objective}</p>
           ) : null}
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0 max-w-md flex-1">
+              <CampaignRollupBar rollup={campaign.rollup} />
+            </div>
+            {campaign.rollup.state === "needs_review" && onReviewNext ? (
+              <button
+                type="button"
+                onClick={onReviewNext}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 py-2 text-sm font-bold text-[var(--surface-inset)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              >
+                Review next
+                <span aria-hidden>-&gt;</span>
+              </button>
+            ) : null}
+          </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
             {meta.map(([label, value]) => (

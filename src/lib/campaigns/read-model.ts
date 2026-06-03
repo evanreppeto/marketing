@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { deriveCampaignRollup, type CampaignRollup } from "@/domain";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 const CAMPAIGN_SELECT =
@@ -42,6 +43,7 @@ export type CampaignWorkspaceListItem = {
   previewLabel: string | null;
   updatedAt: string;
   href: string;
+  rollup: CampaignRollup;
 };
 
 export type CampaignWorkspaceList =
@@ -140,6 +142,7 @@ export type CampaignWorkspaceMeta = {
   owner: string;
   launchLocked: boolean;
   updatedAt: string;
+  rollup: CampaignRollup;
 };
 
 export type CampaignWorkspaceMetrics = {
@@ -328,6 +331,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         campaignApprovals,
         approvalOutputs.filter((output) => output.approval_item_id && campaignApprovals.some((approval) => approval.id === output.approval_item_id)),
       );
+      const rollup = deriveCampaignRollup(collectPieceStatuses(campaignAssetRows, campaignApprovals));
       const preview = pickWorkspacePreview(campaignAssets);
       return {
         id: campaign.id,
@@ -347,6 +351,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         previewLabel: preview?.label ?? null,
         updatedAt: formatDate(campaign.updated_at),
         href: `/campaigns/${campaign.id}`,
+        rollup,
       };
     });
 
@@ -412,6 +417,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       ...outputs.flatMap((output) => collectMediaFromOutput(output)),
     ]);
     const sources = buildSources({ campaign, assets, approvals, companies, contacts, leads, outputs });
+    const rollup = deriveCampaignRollup(collectPieceStatuses(assets, approvals));
 
     return {
       status: "live",
@@ -428,6 +434,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
         owner: campaign.owner ?? "Unassigned",
         launchLocked: campaign.launch_locked,
         updatedAt: formatDate(campaign.updated_at),
+        rollup,
       },
       assets: assetsView,
       groupedAssets: groupAssets(assetsView),
@@ -478,6 +485,40 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     media,
     approval: null,
   };
+}
+
+/**
+ * Effective status of each campaign "piece" for the roll-up: one per asset,
+ * plus any standalone approval items not tied to an asset. Agent outputs are
+ * excluded — they are activity, not approvable deliverables.
+ *
+ * The roll-up is decision-centric: an asset counts toward "pending" only when
+ * it has a pending approval item (a decision actually awaiting the operator).
+ * An asset with no approval item is treated as "draft" — Mark has produced it
+ * but not yet submitted it for a decision — even if its own row status reads
+ * pending_approval. This keeps the headline "N pending" aligned with the count
+ * of real pending decisions (the DecisionStepper) rather than raw asset rows.
+ *
+ * Callers pass campaign-scoped rows. The list builder scopes approvals by
+ * campaign_id only (unlike the detail builder, which also fetches by
+ * campaign_asset_id); this is safe because every asset-linked approval is
+ * written with its parent campaign_id (see hermes/orchestrator.ts and
+ * seed-test-campaign.mjs), so no asset override is missed in practice.
+ */
+function collectPieceStatuses(assets: CampaignAssetRow[], approvals: ApprovalItemRow[]): string[] {
+  const approvalByAssetId = new Map<string, ApprovalItemRow>();
+  for (const approval of approvals) {
+    // approvals arrive ordered by submitted_at desc; first match per asset wins
+    if (approval.campaign_asset_id && !approvalByAssetId.has(approval.campaign_asset_id)) {
+      approvalByAssetId.set(approval.campaign_asset_id, approval);
+    }
+  }
+
+  return [
+    // No approval item → no pending decision; treat as draft, not the asset's raw status.
+    ...assets.map((asset) => approvalByAssetId.get(asset.id)?.status ?? "draft"),
+    ...approvals.filter((approval) => !approval.campaign_asset_id).map((approval) => approval.status),
+  ];
 }
 
 function buildWorkspaceAssets(
