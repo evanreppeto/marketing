@@ -11,7 +11,7 @@ import { riskTone } from "./status-tone";
 /**
  * Slim quick-approve bar pinned to the top of the content column. Hidden until
  * the page's primary decision strip scrolls out of view (tracked via a sentinel
- * the workspace places after the overview), so Approve/Decline stay reachable
+ * the workspace places just below the command header), so Approve/Decline stay reachable
  * while reviewing deliverables far down the page. Top bar only — never a side
  * rail. Renders nothing when no approval is pending.
  */
