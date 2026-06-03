@@ -259,6 +259,7 @@ function ReportsHeader({ status }: { status: string }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="signal-eyebrow">Performance / Intelligence</span>
         <StatusPill tone="amber">{status}</StatusPill>
+        <StatusPill tone="amber">Outbound locked</StatusPill>
         <StatusPill tone="amber">No publishing</StatusPill>
       </div>
       <h1 className="mt-3 max-w-3xl text-[clamp(1.8rem,3vw,3.2rem)] font-black leading-[0.98] tracking-[-0.05em] text-[var(--text-primary)]">
@@ -267,7 +268,21 @@ function ReportsHeader({ status }: { status: string }) {
       <p className="mt-3 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
         This is the measurement layer for the Growth Intelligence CRM. It uses existing backend signals now and shows exactly which fields are still needed.
       </p>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <HeaderRule label="Measures" value="Leads, campaigns, partners, outcomes" />
+        <HeaderRule label="Missing" value="Spend, booked jobs, CTA events" />
+        <HeaderRule label="Mark rule" value="Recommend only; humans approve" />
+      </div>
     </header>
+  );
+}
+
+function HeaderRule({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value}</div>
+    </div>
   );
 }
 
@@ -309,7 +324,7 @@ function SignalList({ rows }: { rows: PerformanceBreakdown[] }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <div className="font-bold text-[var(--text-primary)]">{row.label}</div>
-              <ToneDot tone={row.tone} />
+              <ToneTag tone={row.tone} />
             </div>
             <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{row.detail}</p>
           </div>
@@ -325,7 +340,7 @@ function SignalCard({ row }: { row: PerformanceBreakdown }) {
     <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="font-bold text-[var(--text-primary)]">{row.label}</div>
-        <ToneDot tone={row.tone} />
+        <ToneTag tone={row.tone} />
       </div>
       <div className="mt-3 font-display text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{row.value}</div>
       <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{row.detail}</p>
@@ -333,18 +348,30 @@ function SignalCard({ row }: { row: PerformanceBreakdown }) {
   );
 }
 
-function ToneDot({ tone }: { tone: PerformanceTone }) {
+function ToneTag({ tone }: { tone: PerformanceTone }) {
+  const label =
+    tone === "green"
+      ? "Ready"
+      : tone === "amber"
+        ? "Needs data"
+        : tone === "red"
+          ? "Risk"
+          : tone === "blue"
+            ? "Live"
+            : "Empty";
+
   const className =
     tone === "green"
-      ? "bg-[var(--ok)]"
+      ? "border-[oklch(0.78_0.14_158/0.36)] bg-[oklch(0.78_0.14_158/0.12)] text-[oklch(0.88_0.1_158)]"
       : tone === "amber"
-        ? "bg-[var(--warn)]"
+        ? "border-[oklch(0.82_0.13_85/0.36)] bg-[oklch(0.82_0.13_85/0.12)] text-[oklch(0.9_0.09_85)]"
         : tone === "red"
-          ? "bg-[var(--priority)]"
+          ? "border-[oklch(0.68_0.2_26/0.4)] bg-[oklch(0.68_0.2_26/0.13)] text-[oklch(0.86_0.09_26)]"
           : tone === "blue"
-            ? "bg-[var(--accent)]"
-            : "bg-[var(--text-muted)]";
-  return <span aria-hidden className={`mt-1 h-2 w-2 shrink-0 rounded-full ${className}`} />;
+            ? "border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] text-[var(--accent)]"
+            : "border-[var(--border-hairline)] bg-[var(--surface-soft)] text-[var(--text-muted)]";
+
+  return <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${className}`}>{label}</span>;
 }
 
 function normalizeTab(value: string | string[] | undefined): PerformanceTabKey {

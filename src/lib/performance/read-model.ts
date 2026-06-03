@@ -197,9 +197,9 @@ function buildConversionSignals(leads: LeadRow[], jobs: JobRow[], outcomes: Outc
       tone: estimateRevenue > 0 ? "green" : "gray",
     },
     {
-      label: "Closed outcome rate",
+      label: "Estimate close rate proxy",
       value: jobCount > 0 ? percent(wonOutcomes.length / jobCount) : "Missing",
-      detail: "Uses won/paid outcomes divided by job records.",
+      detail: "Uses won/paid outcomes divided by job records until estimate status timestamps exist.",
       tone: wonOutcomes.length > 0 ? "green" : "amber",
     },
   ];
@@ -215,6 +215,12 @@ function buildCampaignSignals(campaigns: CampaignRow[], assets: CampaignAssetRow
     { label: "Approved/running", value: activeCampaigns.length, detail: "Execution status only; no publishing is enabled here.", tone: activeCampaigns.length > 0 ? "green" : "gray" },
     { label: "Creative assets", value: assets.length, detail: `${mediaAssets.length} visual/media-like assets detected.`, tone: assets.length > 0 ? "blue" : "gray" },
     { label: "Approvals waiting", value: waitingApprovals.length, detail: "Human approval gate volume.", tone: waitingApprovals.length > 0 ? "amber" : "green" },
+    {
+      label: "Cost per booked job",
+      value: "Missing",
+      detail: "Needs spend_cents and booked_job_count by campaign before this KPI is real.",
+      tone: "amber",
+    },
   ];
 }
 
@@ -226,6 +232,18 @@ function buildPartnerSignals(companies: CompanyRow[], outcomes: OutcomeRow[]): P
   return [
     { label: "Partner companies", value: partnerCompanies.length, detail: "Partner persona or partner tier records.", tone: partnerCompanies.length > 0 ? "blue" : "gray" },
     { label: "Tiered partners", value: tiered.length, detail: "Companies with partner_tier populated.", tone: tiered.length > 0 ? "green" : "amber" },
+    {
+      label: "Partner referrals",
+      value: "Missing",
+      detail: "Needs partner_referrals rows or referred lead/job ids before referral volume is trustworthy.",
+      tone: "amber",
+    },
+    {
+      label: "Referral conversion",
+      value: "Missing",
+      detail: "Needs referred_lead_ids joined to booked jobs and outcomes.",
+      tone: "amber",
+    },
     {
       label: "Referral revenue",
       value: referralRevenue > 0 ? formatMoney(referralRevenue) : "Missing",
@@ -278,7 +296,7 @@ function buildContracts(): PerformanceContract[] {
     {
       area: "Campaign performance",
       currentSignal: "campaigns, campaign_assets, approval_items",
-      missingFields: "impressions, clicks, spend_cents, form_submissions, booked_jobs",
+      missingFields: "impressions, clicks, spend_cents, form_submissions, booked_jobs, cost_per_booked_job_cents",
       nextBackendStep: "Create campaign_results rows keyed by campaign_id and asset_id.",
     },
     {
