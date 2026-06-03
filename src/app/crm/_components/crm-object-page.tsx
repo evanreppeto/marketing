@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { AppShell } from "../../_components/app-shell";
 import { ActionFeedback, EmptyState, Panel, StatusPill, buttonClasses } from "../../_components/page-header";
-import { DataTable } from "../../_components/data-table";
 import {
   crmObjects,
   hyperPersonalizationReference,
@@ -11,6 +10,7 @@ import {
   leadNextBestActions,
 } from "../../_data/growth-engine";
 import { CrmCommandHeader } from "./crm-command-header";
+import { CrmObjectTable } from "./crm-object-table";
 import { CrmRecordForm } from "./crm-record-form";
 import { isCrmEntityKey } from "../entity-keys";
 import { type CrmNavCounts, type CrmObjectData, type CrmObjectRow } from "@/lib/crm/read-model";
@@ -45,7 +45,6 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
   const activeView = normalizeListView(view);
   const activeViewMeta = crmListViews.find((item) => item.key === activeView) ?? crmListViews[0];
   const filteredRows = getRowsForListView(crmObject.sampleRows, activeView);
-  const displayedRows = filteredRows;
   const selectedRow = filteredRows[0] ?? crmObject.sampleRows[0];
   const showCreateForm = action === "new" && isCrmEntityKey(objectKey);
 
@@ -129,57 +128,20 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
 
       <div className="mt-4 grid min-w-0 items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_390px]">
         <Panel className="module-rise overflow-hidden p-0 [animation-delay:70ms]">
-          <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{crmObject.label} list view</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                {activeViewMeta.description} Showing {displayedRows.length} of {filteredRows.length}.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {crmListViews.map((listView) => (
-                <Link
-                  aria-current={activeView === listView.key ? "page" : undefined}
-                  className={`inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold transition active:-translate-y-px ${
-                    activeView === listView.key
-                      ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
-                      : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
-                  }`}
-                  href={`${crmObject.href}?view=${listView.key}`}
-                  key={listView.key}
-                >
-                  {listView.label}
-                  <span className="ml-2 rounded-full bg-current/10 px-1.5 text-xs">{getRowsForListView(crmObject.sampleRows, listView.key).length}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <DataTable
-            rows={displayedRows}
-            rowKey={(row) => row.id}
-            rowHref={(row) => `${crmObject.href}/${row.id}`}
-            columns={[
-              {
-                key: "primary",
-                header: crmObject.primaryField,
-                cellClassName: "max-w-[34ch]",
-                cell: (row) => <span className="line-clamp-1 font-semibold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.name}</span>,
-              },
-              { key: "secondary", header: crmObject.secondaryField, cellClassName: "max-w-[30ch] text-[var(--text-secondary)]", cell: (row) => <span className="line-clamp-2">{row.detail}</span> },
-              { key: "owner", header: "Owner", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.owner },
-                { key: "updated", header: "Updated", cellClassName: "text-[var(--text-muted)]", cell: (row) => formatCrmDate(row.updated) },
-              {
-                key: "status",
-                header: "Status",
-                headClassName: "px-5",
-                cellClassName: "px-5",
-                cell: (row) => <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill>,
-              },
-            ]}
-            emptyState={
-              <p className="text-sm text-[var(--text-secondary)]">No {activeViewMeta.label.toLowerCase()} records found.</p>
-            }
+          <CrmObjectTable
+            activeView={activeView}
+            activeViewDescription={activeViewMeta.description}
+            activeViewLabel={activeViewMeta.label}
+            objectHref={crmObject.href}
+            objectLabel={crmObject.label}
+            primaryField={crmObject.primaryField}
+            rows={filteredRows}
+            secondaryField={crmObject.secondaryField}
+            views={crmListViews.map((listView) => ({
+              ...listView,
+              count: getRowsForListView(crmObject.sampleRows, listView.key).length,
+              href: `${crmObject.href}?view=${listView.key}`,
+            }))}
           />
 
           <div className="grid border-t border-[var(--border-hairline)] md:grid-cols-3">
