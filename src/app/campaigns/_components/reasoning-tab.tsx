@@ -12,13 +12,16 @@ export function ReasoningTab({
 }) {
   return (
     <div className="space-y-5">
-      <Block title="Why Mark built this">
-        <p className="text-sm leading-6 text-[var(--text-secondary)]">{reasoning.whyBuilt}</p>
-      </Block>
-
-      <Block title="Recommended action">
-        <p className="text-sm leading-6 text-[var(--text-secondary)]">{reasoning.recommendedAction}</p>
-      </Block>
+      <section className="overflow-hidden rounded-2xl border border-[oklch(0.76_0.14_232/0.4)] bg-[oklch(0.48_0.14_232/0.08)] shadow-[var(--elev-panel)]">
+        <div className="border-b border-[var(--border-hairline)] px-5 py-4">
+          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">Why Mark built this</div>
+          <p className="mt-2 text-base leading-7 text-[var(--text-primary)]">{reasoning.whyBuilt}</p>
+        </div>
+        <div className="px-5 py-4">
+          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[oklch(0.84_0.13_155)]">Recommended action</div>
+          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{reasoning.recommendedAction}</p>
+        </div>
+      </section>
 
       {reasoning.toolsUsed.length > 0 ? (
         <Block title="Tools used">
@@ -34,14 +37,17 @@ export function ReasoningTab({
 
       {reasoning.guardrailFlags.length > 0 ? (
         <Block title="Guardrails">
-          <ul className="space-y-1.5">
+          <div className="flex flex-wrap gap-2">
             {reasoning.guardrailFlags.map((flag) => (
-              <li key={flag} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+              <span
+                key={flag}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.78_0.14_76/0.4)] bg-[oklch(0.52_0.13_76/0.14)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.89_0.12_76)]"
+              >
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[oklch(0.82_0.13_85)]" />
                 {flag}
-              </li>
+              </span>
             ))}
-          </ul>
+          </div>
         </Block>
       ) : null}
 
@@ -81,16 +87,15 @@ export function ReasoningTab({
 
       {events.length > 0 ? (
         <Block title="Campaign timeline">
-          <ol className="space-y-3">
+          <ol className="relative ml-1 space-y-5 border-l border-[var(--border-strong)] pl-5">
             {events.map((event) => (
-              <li key={event.id} className="grid gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 sm:grid-cols-[160px_minmax(0,1fr)]">
+              <li key={event.id} className="relative">
+                <span aria-hidden className="absolute -left-[1.4rem] top-1 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-panel)] bg-[var(--accent)]" />
                 <div className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{event.occurredAt}</div>
-                <div>
-                  <div className="font-semibold text-[var(--text-primary)]">{event.type}</div>
-                  <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                    {event.detail} <span className="text-[var(--text-muted)]">by {event.actor}</span>
-                  </p>
-                </div>
+                <div className="mt-0.5 font-semibold text-[var(--text-primary)]">{event.type}</div>
+                <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+                  {event.detail} <span className="text-[var(--text-muted)]">by {event.actor}</span>
+                </p>
               </li>
             ))}
           </ol>
