@@ -24,7 +24,7 @@ export function SectionHeader({
   return (
     <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
       <div>
-        <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${toneText(tone)}`}>{eyebrow}</div>
+        <div className={`text-base font-black uppercase tracking-[0.1em] ${toneText(tone)}`}>{eyebrow}</div>
         {detail ? <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{detail}</p> : null}
       </div>
       {typeof count === "number" ? (

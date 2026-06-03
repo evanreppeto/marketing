@@ -93,7 +93,7 @@ function MediaSection({
     <section>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${toneText(meta.tone)}`}>{meta.title}</div>
+          <div className={`text-base font-black uppercase tracking-[0.1em] ${toneText(meta.tone)}`}>{meta.title}</div>
           <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{meta.detail}</p>
         </div>
         <span className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
