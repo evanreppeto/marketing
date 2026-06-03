@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { CampaignMediaAsset, CampaignWorkspaceAsset } from "@/lib/campaigns/read-model";
 
 export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
@@ -25,24 +28,51 @@ export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
 }
 
 function ReadableCopy({ body }: { body: string }) {
+  const [expanded, setExpanded] = useState(false);
   const paragraphs = body
     .split(/\n{2,}/)
     .map((line) => line.trim())
     .filter(Boolean);
 
+  // Long bodies (e.g. full emails) collapse to a clamped preview with a fade and
+  // a "Read full email" toggle; short bodies render whole with no toggle.
+  const isLong = body.length > 280;
+  const collapsed = isLong && !expanded;
+
   return (
-    <div className="max-h-80 overflow-auto rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
-      {paragraphs.length > 0 ? (
-        <div className="space-y-3">
-          {paragraphs.map((paragraph, index) => (
-            <p key={`${index}-${paragraph.slice(0, 18)}`} className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]">
-              {paragraph}
-            </p>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm leading-6 text-[var(--text-secondary)]">{body}</p>
-      )}
+    <div className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
+      <div className={`relative px-4 py-4 ${collapsed ? "max-h-44 overflow-hidden" : ""}`}>
+        {paragraphs.length > 0 ? (
+          <div className="space-y-3">
+            {paragraphs.map((paragraph, index) => (
+              <p
+                key={`${index}-${paragraph.slice(0, 18)}`}
+                className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]"
+              >
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm leading-6 text-[var(--text-secondary)]">{body}</p>
+        )}
+        {collapsed ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[var(--surface-soft)] to-transparent"
+          />
+        ) : null}
+      </div>
+      {isLong ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          className="flex w-full items-center justify-center gap-1.5 border-t border-[var(--border-hairline)] px-4 py-2 text-xs font-bold text-[var(--accent)] transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]"
+        >
+          {expanded ? "Collapse" : "Read full email"}
+        </button>
+      ) : null}
     </div>
   );
 }
