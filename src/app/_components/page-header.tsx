@@ -1,4 +1,4 @@
-type ButtonVariant = "primary" | "priority" | "ghost";
+type ButtonVariant = "primary" | "priority" | "ghost" | "approve" | "decline" | "archive" | "revision";
 type ButtonSize = "sm" | "md";
 
 const BUTTON_BASE =
@@ -15,6 +15,14 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   priority: "bg-[var(--priority-solid)] text-[var(--on-priority)] shadow-[0_0_0_0_oklch(0.68_0.2_26/0)] hover:bg-[oklch(0.5_0.2_26)] hover:shadow-[0_0_22px_oklch(0.68_0.2_26/0.32)]",
   ghost:
     "border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] shadow-[0_0_0_0_oklch(0.74_0.115_232/0)] hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--chicago-blue-soft)] hover:shadow-[0_0_18px_oklch(0.74_0.115_232/0.22)]",
+  approve:
+    "border border-[oklch(0.78_0.14_158/0.55)] bg-[oklch(0.72_0.15_158)] text-[oklch(0.14_0.025_160)] shadow-[0_0_0_0_oklch(0.78_0.14_158/0)] hover:bg-[oklch(0.78_0.16_158)] hover:shadow-[0_0_20px_oklch(0.78_0.14_158/0.3)]",
+  decline:
+    "border border-[oklch(0.68_0.2_26/0.58)] bg-[oklch(0.56_0.18_26)] text-[oklch(0.98_0.01_26)] shadow-[0_0_0_0_oklch(0.68_0.2_26/0)] hover:bg-[oklch(0.62_0.2_26)] hover:shadow-[0_0_20px_oklch(0.68_0.2_26/0.28)]",
+  archive:
+    "border border-[oklch(0.62_0.055_245/0.52)] bg-[oklch(0.38_0.045_245)] text-[oklch(0.94_0.015_245)] shadow-[0_0_0_0_oklch(0.62_0.055_245/0)] hover:bg-[oklch(0.44_0.055_245)] hover:shadow-[0_0_18px_oklch(0.62_0.055_245/0.24)]",
+  revision:
+    "border border-[oklch(0.82_0.13_85/0.58)] bg-[oklch(0.66_0.14_76)] text-[oklch(0.16_0.025_72)] shadow-[0_0_0_0_oklch(0.82_0.13_85/0)] hover:bg-[oklch(0.74_0.15_76)] hover:shadow-[0_0_20px_oklch(0.82_0.13_85/0.26)]",
 };
 
 /**

@@ -360,11 +360,14 @@ function toEmbedUrl(url: string) {
   try {
     const parsed = new URL(url);
     if (parsed.hostname.includes("youtube.com")) {
-      const videoId = parsed.searchParams.get("v");
+      const pathParts = parsed.pathname.split("/").filter(Boolean);
+      const videoId =
+        parsed.searchParams.get("v") ??
+        (pathParts[0] === "embed" || pathParts[0] === "shorts" ? pathParts[1] : null);
       return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
     }
     if (parsed.hostname.includes("youtu.be")) {
-      const videoId = parsed.pathname.replace("/", "");
+      const videoId = parsed.pathname.split("/").filter(Boolean)[0];
       return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
     }
     if (parsed.hostname.includes("vimeo.com")) {

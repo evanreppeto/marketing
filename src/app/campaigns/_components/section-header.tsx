@@ -22,16 +22,14 @@ export function SectionHeader({
   count?: number;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-      <div>
-        <div className={`text-base font-black uppercase tracking-[0.1em] ${toneText(tone)}`}>{eyebrow}</div>
-        {detail ? <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{detail}</p> : null}
-      </div>
+    <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1">
+      <div className={`min-w-0 text-base font-black uppercase tracking-[0.1em] ${toneText(tone)}`}>{eyebrow}</div>
       {typeof count === "number" ? (
-        <span className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+        <span className="justify-self-end whitespace-nowrap font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
           {count} item{count === 1 ? "" : "s"}
         </span>
       ) : null}
+      {detail ? <p className="col-span-full min-h-5 text-sm text-[var(--text-secondary)]">{detail}</p> : null}
     </div>
   );
 }

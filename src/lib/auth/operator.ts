@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import {
   OPERATOR_COOKIE,
+  getConfiguredOperatorCredentials,
   isOperatorGateEnabled,
   isValidOperatorValue,
 } from "./operator-shared";
@@ -30,4 +31,14 @@ export async function requireOperator() {
   if (!isValidOperatorValue(store.get(OPERATOR_COOKIE)?.value)) {
     redirect("/login");
   }
+}
+
+/**
+ * Identity recorded against operator actions in audit logs / decisions. Uses the
+ * configured operator email when set, else a neutral label for open local dev.
+ * Single shared-secret gate today, so this is the one operator account — when a
+ * real multi-user auth lands, swap this for the session's user.
+ */
+export function getOperatorActor(): string {
+  return getConfiguredOperatorCredentials()?.email ?? "Operator";
 }

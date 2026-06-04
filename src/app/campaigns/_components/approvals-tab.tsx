@@ -3,18 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 
 import { StatusPill } from "@/app/_components/page-header";
-import type { CampaignWorkspaceApproval } from "@/lib/campaigns/read-model";
+import type { CampaignDecisionEvent, CampaignWorkspaceApproval } from "@/lib/campaigns/read-model";
 
 import { ApprovalContext } from "./approval-context";
-import { DecisionControls } from "./decision-controls";
 import { SectionHeader } from "./section-header";
 import { isDecidedStatus, riskTone, statusTone } from "./status-tone";
 
 type FocusTarget = { id: string; nonce: number } | null;
 
-/** Left-rail color signalling an approval's risk level. Applied inline so it
- *  wins over the class-based border-color shorthand regardless of CSS order. */
-function riskRailColor(risk: string) {
+/** Dot color signalling an approval's risk level — a compliant quick-scan marker
+ *  in place of a colored side rail. */
+function riskDotColor(risk: string) {
   const r = risk.toLowerCase();
   if (r.includes("high") || r.includes("critical")) return "oklch(0.7 0.18 26)";
   if (r.includes("medium") || r.includes("moderate")) return "oklch(0.82 0.13 85)";
@@ -24,14 +23,14 @@ function riskRailColor(risk: string) {
 
 export function ApprovalsTab({
   approvals,
-  campaignId,
+  history = [],
   focus = null,
 }: {
   approvals: CampaignWorkspaceApproval[];
-  campaignId: string;
+  history?: CampaignDecisionEvent[];
   focus?: FocusTarget;
 }) {
-  if (approvals.length === 0) {
+  if (approvals.length === 0 && history.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
         No approval items are attached to this campaign yet.
@@ -43,18 +42,20 @@ export function ApprovalsTab({
   const decided = approvals.filter((approval) => isDecidedStatus(approval.status));
 
   return (
-    <div className="space-y-3">
-      <p className="max-w-[76ch] text-sm leading-6 text-[var(--text-secondary)]">
-        Each item shows the draft, prompt inputs, and compliance notes Mark recorded — expand to read the full context, then approve,
-        decline, or archive. Decisions are backend state transitions; outbound stays locked.
+    <div className="space-y-5">
+      <DecisionHistory history={history} />
+
+      <p className="max-w-[76ch] text-sm leading-5 text-[var(--text-secondary)]">
+        Below: the draft, prompt inputs, and compliance notes Mark captured for each item. Approve or send back for rework in the{" "}
+        <span className="font-semibold text-[var(--text-primary)]">Deliverables</span> tab; this log stays read-only.
       </p>
 
       {pending.length > 0 ? (
         <section>
-          <SectionHeader tone="amber" eyebrow="Decision required" detail="Awaiting your review — outbound stays locked." count={pending.length} />
-          <div className="space-y-2.5">
+          <SectionHeader tone="amber" eyebrow="Awaiting approval" detail="Decide these in the Deliverables tab." count={pending.length} />
+          <div className="space-y-2">
             {pending.map((approval) => (
-              <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} defaultOpen={pending.length <= 2} focus={focus} />
+              <ApprovalCard key={approval.id} approval={approval} defaultOpen={pending.length <= 2} focus={focus} />
             ))}
           </div>
         </section>
@@ -63,9 +64,9 @@ export function ApprovalsTab({
       {decided.length > 0 ? (
         <section className="opacity-90">
           <SectionHeader tone="gray" eyebrow="Decided" detail="Resolved decision records." count={decided.length} />
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {decided.map((approval) => (
-              <ApprovalCard key={approval.id} approval={approval} campaignId={campaignId} focus={focus} />
+              <ApprovalCard key={approval.id} approval={approval} focus={focus} />
             ))}
           </div>
         </section>
@@ -74,14 +75,53 @@ export function ApprovalsTab({
   );
 }
 
+function DecisionHistory({ history }: { history: CampaignDecisionEvent[] }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
+        <SectionHeader tone="blue" eyebrow="Decision history" detail="Every recorded decision, newest first." count={history.length} />
+      </div>
+      {history.length === 0 ? (
+        <p className="px-5 py-4 text-sm text-[var(--text-muted)]">
+          No decisions recorded yet. Approve or send back a deliverable and it shows up here with who and when.
+        </p>
+      ) : (
+        <ol className="divide-y divide-[var(--border-hairline)]">
+          {history.map((event) => (
+            <li key={event.id} className="flex items-start gap-3 px-5 py-3">
+              <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${historyDot(event.tone)}`} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <StatusPill tone={event.tone}>{event.action}</StatusPill>
+                  <span className="min-w-0 truncate text-sm font-bold text-[var(--text-primary)]">{event.itemTitle}</span>
+                </div>
+                <div className="mt-1 font-mono text-xs text-[var(--text-muted)]">
+                  {event.decidedBy} · {event.at}
+                </div>
+                {event.notes ? <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">&ldquo;{event.notes}&rdquo;</p> : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function historyDot(tone: CampaignDecisionEvent["tone"]) {
+  if (tone === "green") return "bg-[var(--ok)]";
+  if (tone === "red") return "bg-[var(--priority)]";
+  if (tone === "amber") return "bg-[var(--warn)]";
+  if (tone === "blue") return "bg-[var(--accent)]";
+  return "bg-[var(--border-strong)]";
+}
+
 function ApprovalCard({
   approval,
-  campaignId,
   defaultOpen = false,
   focus = null,
 }: {
   approval: CampaignWorkspaceApproval;
-  campaignId: string;
   defaultOpen?: boolean;
   focus?: FocusTarget;
 }) {
@@ -99,8 +139,7 @@ function ApprovalCard({
   return (
     <article
       ref={ref}
-      style={{ borderLeftColor: riskRailColor(approval.riskLevel) }}
-      className={`overflow-hidden rounded-xl border border-l-4 bg-[var(--surface-panel)] transition-shadow ${
+      className={`overflow-hidden rounded-lg border bg-[var(--surface-panel)] transition-shadow ${
         isFocused
           ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent)]"
           : decided
@@ -108,7 +147,7 @@ function ApprovalCard({
             : "border-[oklch(0.82_0.13_85/0.4)]"
       }`}
     >
-      <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-2.5 px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
         <button
           type="button"
           onClick={() => setManualOpen((value) => !value)}
@@ -118,7 +157,7 @@ function ApprovalCard({
           <span className="mt-1 font-mono text-xs text-[var(--text-muted)] transition group-hover:text-[var(--accent)]">{open ? "▾" : "▸"}</span>
           <span className="min-w-0">
             <span className="block truncate font-bold text-[var(--text-primary)]">{approval.title}</span>
-            <span className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--text-muted)]">
+            <span className="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--text-muted)]">
               <span>{approval.type}</span>
               <span aria-hidden>·</span>
               <span>by {approval.requestedBy}</span>
@@ -128,19 +167,18 @@ function ApprovalCard({
           </span>
         </button>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: riskDotColor(approval.riskLevel) }} />
           <StatusPill tone={riskTone(approval.riskLevel)}>{approval.riskLevel} risk</StatusPill>
-          {decided ? (
-            <StatusPill tone={statusTone(approval.status)}>{approval.status}</StatusPill>
-          ) : (
-            <DecisionControls approvalItemId={approval.id} campaignId={campaignId} />
-          )}
+          <StatusPill tone={decided ? statusTone(approval.status) : "amber"}>
+            {decided ? approval.status : "Pending approval"}
+          </StatusPill>
         </div>
       </div>
 
       <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
-          <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
+          <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
             <ApprovalContext approval={approval} />
           </div>
         </div>

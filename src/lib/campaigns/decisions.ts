@@ -99,6 +99,131 @@ export async function decideApprovalItem(
   return { approvalItemId: item.id, decision, status: decision };
 }
 
+export type DecideAssetInput = {
+  assetId: string;
+  campaignId: string;
+  decision: ApprovalDecision;
+  operator: string;
+  notes?: string;
+};
+
+/**
+ * Decide a deliverable by asset id — the unit operators actually act on. Every
+ * deliverable is decidable: if an approval_item gates it we record the decision
+ * through the normal approval path; if none exists (Mark created the asset
+ * without a gate) we transition the asset directly and log the event. Never
+ * unlocks dispatch — that's a separate launch/deploy step.
+ */
+export async function decideAsset(
+  input: DecideAssetInput,
+  client: SupabaseClient = getSupabaseAdminClient(),
+) {
+  const { assetId, campaignId, decision, operator, notes } = input;
+
+  const { data: approval, error: approvalError } = await client
+    .from("approval_items")
+    .select("id")
+    .eq("campaign_asset_id", assetId)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  assertOk("approval_items (asset) lookup", approvalError);
+
+  if (approval) {
+    return decideApprovalItem({ approvalItemId: approval.id, decision, operator, notes }, client);
+  }
+
+  // No gate yet — act on the asset directly so it's never a dead-end draft.
+  const now = new Date().toISOString();
+  const assetUpdate: Record<string, unknown> = { status: decision };
+  if (decision === "approved") {
+    assetUpdate.approved_by = operator;
+    assetUpdate.approved_at = now;
+  }
+  const { error: assetError } = await client.from("campaign_assets").update(assetUpdate).eq("id", assetId);
+  assertOk("campaign_assets decide", assetError);
+
+  const { error: eventError } = await client.from("campaign_events").insert({
+    campaign_id: campaignId || null,
+    campaign_asset_id: assetId,
+    event_type: decision === "archived" ? "archived" : "approval_decided",
+    actor: operator,
+    detail: `Deliverable ${decision} by ${operator}${notes ? `: ${notes}` : ""}`,
+    payload: { decision, asset_only: true, outbound_locked: true },
+  });
+  assertOk("campaign_events insert", eventError);
+
+  return { assetId, decision, status: decision };
+}
+
+export type ReopenAssetInput = {
+  assetId: string;
+  campaignId: string;
+  operator: string;
+};
+
+/**
+ * Send a decided / deployed / removed deliverable back to "needs approval" —
+ * the change-your-mind path. Restores the asset (and any approval gate) to
+ * pending, RE-LOCKS dispatch (so a deployed piece is pulled back), logs an
+ * append-only reversal, and records an `approval_submitted` event. Never
+ * deletes history.
+ */
+export async function reopenAsset(
+  input: ReopenAssetInput,
+  client: SupabaseClient = getSupabaseAdminClient(),
+) {
+  const { assetId, campaignId, operator } = input;
+  const now = new Date().toISOString();
+
+  const { data: approval, error: approvalError } = await client
+    .from("approval_items")
+    .select("id,status")
+    .eq("campaign_asset_id", assetId)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; status: string }>();
+  assertOk("approval_items lookup", approvalError);
+
+  if (approval) {
+    const { error: decisionError } = await client.from("approval_decisions").insert({
+      approval_item_id: approval.id,
+      decision: "reverted",
+      decided_by: operator,
+      decision_notes: "Re-opened for review",
+      previous_status: approval.status,
+      next_status: "pending_approval",
+      metadata: { source: "campaigns_workspace_reopen", outbound_locked: true },
+    });
+    assertOk("approval_decisions insert (reopen)", decisionError);
+
+    const { error: updateApprovalError } = await client
+      .from("approval_items")
+      .update({ status: "pending_approval", reviewed_by: null, reviewed_at: null, decision_notes: null })
+      .eq("id", approval.id);
+    assertOk("approval_items update (reopen)", updateApprovalError);
+  }
+
+  const { error: assetError } = await client
+    .from("campaign_assets")
+    .update({ status: "pending_approval", approved_by: null, approved_at: null, dispatch_locked: true })
+    .eq("id", assetId);
+  assertOk("campaign_assets update (reopen)", assetError);
+
+  const { error: eventError } = await client.from("campaign_events").insert({
+    campaign_id: campaignId || null,
+    campaign_asset_id: assetId,
+    approval_item_id: approval?.id ?? null,
+    event_type: "approval_submitted",
+    actor: operator,
+    detail: `Re-opened for review by ${operator}; dispatch re-locked.`,
+    payload: { kind: "reopened", reopened_at: now, outbound_locked: true },
+  });
+  assertOk("campaign_events insert (reopen)", eventError);
+
+  return { assetId };
+}
+
 export type UndoDecisionInput = {
   approvalItemId: string;
   operator: string;

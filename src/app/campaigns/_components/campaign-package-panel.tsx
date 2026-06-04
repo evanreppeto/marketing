@@ -1,20 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState } from "react";
 
-import { buttonClasses, StatusPill } from "@/app/_components/page-header";
+import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type {
-  CampaignWorkspaceApproval,
+  CampaignExecutiveOverview,
+  CampaignLaunchState,
   CampaignWorkspaceMeta,
   LiveCampaignWorkspace,
 } from "@/lib/campaigns/read-model";
 
-import { ApprovalContext } from "./approval-context";
-import { DecisionControls } from "./decision-controls";
-import { riskTone } from "./status-tone";
+import { launchCampaignAction } from "../actions";
 
 type TabKey = "creative" | "media" | "audience" | "reasoning" | "approvals" | "performance";
-type Tone = "blue" | "green" | "amber" | "red";
+type PillTone = "blue" | "green" | "amber" | "gray";
+
+const LIFECYCLE_TONE: Record<CampaignLaunchState["lifecycle"], PillTone> = {
+  Drafting: "gray",
+  "In review": "amber",
+  Ready: "green",
+  Live: "blue",
+};
 
 /**
  * Broad, full-width operational snapshot for a single campaign. Replaces the
@@ -24,207 +30,177 @@ type Tone = "blue" | "green" | "amber" | "red";
  */
 export function CampaignOverview({
   detail,
-  pendingApprovals,
   onOpenTab,
-  onReviewApproval,
 }: {
   detail: LiveCampaignWorkspace;
-  pendingApprovals: CampaignWorkspaceApproval[];
   onOpenTab: (tab: TabKey) => void;
-  onReviewApproval: (approvalId: string) => void;
 }) {
-  const { campaign, sources, reasoning, metrics, media } = detail;
+  const { campaign, sources, reasoning, executiveOverview, launchState } = detail;
   const guardrailCount = reasoning.guardrailFlags.length;
-
-  const metricCells: Array<{ label: string; value: number; hint: string; tab: TabKey; tone: Tone }> = [
-    { label: "Deliverables", value: metrics.assets, hint: "Draft pieces", tab: "creative", tone: "blue" },
-    { label: "Media", value: media.length, hint: "Images, video, files", tab: "media", tone: "red" },
-    { label: "Sources", value: metrics.sources, hint: "Leads & evidence", tab: "audience", tone: "green" },
-    { label: "Approvals", value: metrics.approvals, hint: "Decision records", tab: "approvals", tone: "amber" },
-  ];
 
   return (
     <section className="mb-5 space-y-4">
-      <DecisionStepper
-        campaignId={campaign.id}
-        pendingApprovals={pendingApprovals}
-        onOpenApprovals={() => onOpenTab("approvals")}
-        onReviewApproval={onReviewApproval}
-      />
+      <LaunchTracker campaignId={campaign.id} launchState={launchState} onReviewPieces={() => onOpenTab("creative")} />
 
-      <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--border-hairline)] shadow-[var(--elev-panel)] sm:grid-cols-2 xl:grid-cols-4">
-        {metricCells.map((cell, index) => (
-          <button
-            key={cell.label}
-            type="button"
-            onClick={() => onOpenTab(cell.tab)}
-            style={{ animationDelay: `${index * 45}ms` }}
-            className="module-rise group bg-[var(--surface-panel)] px-5 py-4 text-left transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className={`text-[10px] font-black uppercase tracking-[0.16em] ${toneText(cell.tone)}`}>{cell.label}</span>
-              <span className="text-xs font-bold text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100">Open</span>
-            </div>
-            <div className="mt-2 font-display text-[2rem] font-black leading-none tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">
-              {cell.value}
-            </div>
-            <div className="mt-1.5 text-xs font-semibold text-[var(--text-muted)]">{cell.hint}</div>
-          </button>
-        ))}
-      </div>
+      <ExecutiveOverview overview={executiveOverview} />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <BriefCard index={0} tone="blue" eyebrow="Audience" label="Who this is for" value={campaign.audienceSummary} />
-        <BriefCard index={1} tone="green" eyebrow="Offer" label="What Mark proposes" value={campaign.offerSummary} />
-        <BriefCard index={2} tone="amber" eyebrow="Persona" label={campaign.restorationFocus} value={campaign.persona} />
-        <BriefCard
-          index={3}
-          tone={guardrailCount > 0 ? "red" : "green"}
-          eyebrow="Guardrails"
-          label={`${guardrailCount} flag${guardrailCount === 1 ? "" : "s"}`}
-          value={
-            guardrailCount > 0
-              ? reasoning.guardrailFlags.slice(0, 3).join(" · ")
-              : "No risky claims recorded. Dispatch stays locked until approval."
-          }
-        />
-      </div>
+      {guardrailCount > 0 ? <GuardrailNotice flags={reasoning.guardrailFlags} /> : null}
 
       <FullBrief campaign={campaign} sourceCount={sources.length} />
     </section>
   );
 }
 
-function DecisionStepper({
+/**
+ * The campaign's single decision-to-deploy surface. Approval happens per piece
+ * in the Deliverables list; this tracks readiness and owns the one Launch
+ * action. Lifecycle is derived: Drafting → In review → Ready → Live.
+ */
+function LaunchTracker({
   campaignId,
-  pendingApprovals,
-  onOpenApprovals,
-  onReviewApproval,
+  launchState,
+  onReviewPieces,
 }: {
   campaignId: string;
-  pendingApprovals: CampaignWorkspaceApproval[];
-  onOpenApprovals: () => void;
-  onReviewApproval: (approvalId: string) => void;
+  launchState: CampaignLaunchState;
+  onReviewPieces: () => void;
 }) {
-  const total = pendingApprovals.length;
-  const [index, setIndex] = useState(0);
-  const [showContext, setShowContext] = useState(false);
+  const [state, formAction, isPending] = useActionState(launchCampaignAction, null);
+  const { requiredCount, approvedCount, pendingCount, deployedCount, ready, live, lifecycle } = launchState;
+  const pct = requiredCount > 0 ? Math.round((approvedCount / requiredCount) * 100) : 0;
 
-  if (total === 0) {
+  if (live) {
     return (
-      <div className="module-rise flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-5 py-4 shadow-[var(--elev-panel)]">
+      <div className="module-rise flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[oklch(0.74_0.115_232/0.45)] bg-[oklch(0.74_0.115_232/0.08)] px-5 py-4 shadow-[var(--elev-panel)]">
         <div className="flex items-center gap-3">
-          <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-[var(--ok)]" />
+          <span aria-hidden className="status-breathe h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
           <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--ok)]">No decision pending</div>
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">Live</div>
             <p className="mt-0.5 text-sm font-semibold text-[var(--text-secondary)]">
-              Every approval on this package has been decided. Outbound stays locked.
+              Launched and handed off to Mark for dispatch. {approvedCount} approved deliverable{approvedCount === 1 ? "" : "s"} are unlocked.
             </p>
           </div>
         </div>
-        <button type="button" onClick={onOpenApprovals} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-          View approval history
+        <button type="button" onClick={onReviewPieces} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+          View deliverables
         </button>
       </div>
     );
   }
 
-  // Decisions revalidate server-side and shrink the list; clamp the cursor.
-  const current = pendingApprovals[Math.min(index, total - 1)];
-  const safeIndex = Math.min(index, total - 1);
+  const accent = ready
+    ? "border-[oklch(0.78_0.14_158/0.5)] bg-[oklch(0.78_0.14_158/0.08)]"
+    : "border-[oklch(0.82_0.13_85/0.45)] bg-[oklch(0.82_0.13_85/0.07)]";
+  const heading =
+    requiredCount === 0 ? "No pieces in review yet" : ready ? "Ready to launch" : "Pieces awaiting your approval";
+  const subtext =
+    requiredCount === 0
+      ? "Mark is still building this campaign. Deliverables will appear here for approval."
+      : ready
+        ? "Every piece is approved. Launch to hand the campaign off to Mark for dispatch — outbound stays locked until you do."
+        : `${pendingCount} of ${requiredCount} ${pendingCount === 1 ? "piece" : "pieces"} still need a decision before this campaign can launch.`;
 
   return (
-    <div className="module-rise overflow-hidden rounded-2xl border border-[oklch(0.82_0.13_85/0.45)] bg-[oklch(0.82_0.13_85/0.08)] shadow-[var(--elev-panel)]">
-      <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
+    <div className={`module-rise overflow-hidden rounded-2xl border shadow-[var(--elev-panel)] ${accent}`}>
+      <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span aria-hidden className="status-breathe h-2.5 w-2.5 rounded-full bg-[var(--warn)]" />
-            <span className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--warn)]">
-              Decision required{total > 1 ? ` · ${total} pending` : ""}
-            </span>
-            <StatusPill tone={riskTone(current.riskLevel)}>{current.riskLevel} risk</StatusPill>
+            <span className="signal-eyebrow">Launch</span>
+            <StatusPill tone={LIFECYCLE_TONE[lifecycle]}>{lifecycle}</StatusPill>
           </div>
-          <h2 className="mt-2 truncate text-lg font-black tracking-[-0.03em] text-[var(--text-primary)]">{current.title}</h2>
-          <p className="mt-1 font-mono text-xs text-[var(--text-muted)]">
-            {current.type} · by {current.requestedBy} · {current.submittedAt}
-            {current.promptInputs.length > 0 ? ` · ${current.promptInputs.length} inputs` : ""}
-          </p>
-          <p className="mt-2 line-clamp-2 max-w-[80ch] text-sm leading-6 text-[var(--text-secondary)]">{current.preview}</p>
-          <div className="mt-3 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowContext((value) => !value)}
-              aria-expanded={showContext}
-              className="text-xs font-bold text-[var(--accent)] transition hover:text-[var(--accent-strong)]"
-            >
-              {showContext ? "Hide full context" : "See full context"}
-            </button>
-            <button type="button" onClick={() => onReviewApproval(current.id)} className="text-xs font-bold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
-              Open in Approvals ↗
-            </button>
-          </div>
+          <h2 className="mt-2 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)]">{heading}</h2>
+          <p className="mt-1 max-w-[72ch] text-sm leading-5 text-[var(--text-secondary)]">{subtext}</p>
+
+          {requiredCount > 0 ? (
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-2 min-w-40 max-w-xs flex-1 overflow-hidden rounded-full bg-[var(--surface-raised)]">
+                <div
+                  className="h-full rounded-full bg-[var(--ok)] transition-[width] duration-300 ease-out"
+                  style={{ width: `${pct}%` }}
+                  role="progressbar"
+                  aria-valuenow={approvedCount}
+                  aria-valuemin={0}
+                  aria-valuemax={requiredCount}
+                  aria-label="Deliverables approved"
+                />
+              </div>
+              <span className="font-mono text-xs font-bold tabular-nums text-[var(--text-secondary)]">
+                {approvedCount}/{requiredCount} approved{deployedCount > 0 ? ` · ${deployedCount} deployed` : ""}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 flex-col items-stretch gap-2 lg:items-end">
-          {total > 1 ? (
-            <div className="flex items-center gap-2">
-              <StepButton label="Previous decision" disabled={safeIndex === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))}>
-                ‹
-              </StepButton>
-              <span className="min-w-16 text-center font-mono text-xs font-bold tabular-nums text-[var(--text-secondary)]">
-                {safeIndex + 1} / {total}
-              </span>
-              <StepButton label="Next decision" disabled={safeIndex >= total - 1} onClick={() => setIndex((value) => Math.min(total - 1, value + 1))}>
-                ›
-              </StepButton>
-            </div>
+          {pendingCount > 0 ? (
+            <button type="button" onClick={onReviewPieces} className={buttonClasses({ variant: "ghost", size: "md" })}>
+              Review {pendingCount} {pendingCount === 1 ? "piece" : "pieces"}
+            </button>
           ) : null}
-          <DecisionControls approvalItemId={current.id} campaignId={campaignId} size="md" />
+          <form action={formAction}>
+            <input type="hidden" name="campaignId" value={campaignId} />
+            <Button type="submit" variant="primary" size="md" disabled={!ready || isPending}>
+              {isPending ? "Launching…" : "Launch campaign"}
+            </Button>
+          </form>
         </div>
       </div>
 
-      <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${showContext ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-        <div className="overflow-hidden">
-          <div className="border-t border-[oklch(0.82_0.13_85/0.3)] bg-[var(--surface-panel)] p-4">
-            <ApprovalContext approval={current} compact />
-          </div>
+      {state ? (
+        <div
+          className={`border-t px-5 py-2.5 text-sm font-semibold ${
+            state.ok
+              ? "border-[oklch(0.78_0.14_158/0.3)] bg-[oklch(0.78_0.14_158/0.1)] text-[oklch(0.88_0.1_158)]"
+              : "border-[oklch(0.68_0.2_26/0.35)] bg-[oklch(0.68_0.2_26/0.1)] text-[oklch(0.86_0.09_26)]"
+          }`}
+        >
+          {state.message}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
 
-function StepButton({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+function ExecutiveOverview({ overview }: { overview: CampaignExecutiveOverview }) {
+  // Uniform, scannable facts — no rainbow labels, no clamps (this is reference
+  // copy you should be able to read). "Where" is dropped: it restated the brief.
+  const facts: Array<[string, string]> = [
+    ["Why", overview.why],
+    ["Timeframe", overview.timeframe],
+    ["How we measure success", overview.successTracking],
+  ];
+
   return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] font-mono text-base text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      {children}
-    </button>
+    <section className="module-rise overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
+        <span className="signal-eyebrow">Executive overview</span>
+        <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Campaign brief</h2>
+        <p className="mt-2 max-w-[82ch] text-sm leading-6 text-[var(--text-secondary)]">{overview.what}</p>
+      </div>
+
+      <dl className="grid gap-px bg-[var(--border-hairline)] sm:grid-cols-3">
+        {facts.map(([label, value]) => (
+          <div key={label} className="bg-[var(--surface-panel)] px-5 py-4">
+            <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</dt>
+            <dd className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
-function BriefCard({ eyebrow, label, value, tone, index }: { eyebrow: string; label: string; value: string; tone: Tone; index: number }) {
+function GuardrailNotice({ flags }: { flags: string[] }) {
   return (
-    <article style={{ animationDelay: `${index * 45}ms` }} className={`module-rise flex min-h-32 flex-col rounded-xl border p-4 ${tonePanel(tone)}`}>
-      <div className={`text-[10px] font-black uppercase tracking-[0.16em] ${toneText(tone)}`}>{eyebrow}</div>
-      <div className="mt-1 text-xs font-bold text-[var(--text-muted)]">{label}</div>
-      <p className="mt-3 line-clamp-4 text-sm font-semibold leading-6 text-[var(--text-primary)]">{value}</p>
-    </article>
+    <div className="module-rise rounded-xl border border-[oklch(0.76_0.14_18/0.32)] bg-[oklch(0.5_0.14_18/0.1)] px-4 py-3 shadow-[var(--elev-panel)]">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[oklch(0.86_0.1_26)]">Guardrails</span>
+        <StatusPill tone="red">
+          {flags.length} flag{flags.length === 1 ? "" : "s"}
+        </StatusPill>
+      </div>
+      <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-secondary)]">{flags.slice(0, 3).join(" / ")}</p>
+    </div>
   );
 }
 
@@ -262,18 +238,4 @@ function FullBrief({ campaign, sourceCount }: { campaign: CampaignWorkspaceMeta;
       </dl>
     </details>
   );
-}
-
-function toneText(tone: Tone) {
-  if (tone === "green") return "text-[oklch(0.84_0.13_155)]";
-  if (tone === "amber") return "text-[oklch(0.89_0.12_76)]";
-  if (tone === "red") return "text-[oklch(0.86_0.1_26)]";
-  return "text-[var(--accent)]";
-}
-
-function tonePanel(tone: Tone) {
-  if (tone === "green") return "border-[oklch(0.72_0.14_155/0.34)] bg-[oklch(0.43_0.12_155/0.12)]";
-  if (tone === "amber") return "border-[oklch(0.78_0.14_76/0.36)] bg-[oklch(0.52_0.13_76/0.12)]";
-  if (tone === "red") return "border-[oklch(0.76_0.14_18/0.32)] bg-[oklch(0.5_0.14_18/0.1)]";
-  return "border-[oklch(0.76_0.14_232/0.38)] bg-[oklch(0.48_0.14_232/0.12)]";
 }

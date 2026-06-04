@@ -55,3 +55,8 @@ next-env.d.ts
 
 # Brainstorming visual companion mockups
 .superpowers/
+
+# Transient dev + brainstorm artifacts
+.superpowers/
+dev-server-*.log
+dev-server-*.err.log

@@ -1,15 +1,21 @@
 import Link from "next/link";
 
 import { StatusPill } from "@/app/_components/page-header";
-import type { CampaignWorkspaceMeta } from "@/lib/campaigns/read-model";
+import type { CampaignLaunchState, CampaignWorkspaceMeta } from "@/lib/campaigns/read-model";
 
-import { statusTone } from "./status-tone";
+// statusTone import removed: the header now shows the derived lifecycle, not raw status.
 
-export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }) {
+const LIFECYCLE_TONE: Record<CampaignLaunchState["lifecycle"], "blue" | "green" | "amber" | "gray"> = {
+  Drafting: "gray",
+  "In review": "amber",
+  Ready: "green",
+  Live: "blue",
+};
+
+export function CampaignHeader({ campaign, launchState }: { campaign: CampaignWorkspaceMeta; launchState: CampaignLaunchState }) {
+  // Identity-at-a-glance only; the full brief below carries focus, owner, and the rest.
   const meta: Array<[string, string]> = [
-    ["Persona", campaign.persona],
-    ["Focus", campaign.restorationFocus],
-    ["Owner", campaign.owner],
+    ["Persona", cleanPersonaLabel(campaign.persona)],
     ["Updated", campaign.updatedAt],
   ];
 
@@ -17,8 +23,12 @@ export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }
     <header className="module-rise mb-5">
       <Link
         href="/campaigns"
-        className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"
+        className="mb-3 inline-flex min-h-9 items-center gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--accent)]"
       >
+        <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+          <path d="M12 5 7 10l5 5" />
+          <path d="M8 10h8" />
+        </svg>
         Back to campaigns
       </Link>
 
@@ -26,19 +36,18 @@ export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,oklch(0.74_0.115_232/0.16),transparent_46%)]" />
         <div className="relative">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="signal-eyebrow">Campaign package</span>
-            <StatusPill tone={statusTone(campaign.status)}>{campaign.status}</StatusPill>
-            <StatusPill tone="amber">Outbound locked</StatusPill>
-            {!campaign.launchLocked ? <StatusPill tone="blue">Approved draft</StatusPill> : null}
+            <span className="signal-eyebrow">Campaign</span>
+            <StatusPill tone={LIFECYCLE_TONE[launchState.lifecycle]}>{launchState.lifecycle}</StatusPill>
+            {launchState.live ? (
+              <StatusPill tone="green">Outbound unlocked</StatusPill>
+            ) : (
+              <StatusPill tone="amber">Outbound locked</StatusPill>
+            )}
           </div>
 
           <h1 className="mt-3 max-w-[24ch] text-[clamp(1.6rem,3vw,2.4rem)] font-black leading-[1.03] tracking-[-0.04em] text-[var(--text-primary)]">
             {campaign.name}
           </h1>
-
-          {campaign.objective ? (
-            <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">{campaign.objective}</p>
-          ) : null}
 
           <div className="mt-4 flex flex-wrap gap-2">
             {meta.map(([label, value]) => (
@@ -55,4 +64,8 @@ export function CampaignHeader({ campaign }: { campaign: CampaignWorkspaceMeta }
       </div>
     </header>
   );
+}
+
+function cleanPersonaLabel(persona: string) {
+  return persona.replace(/^Persona\s+/i, "").trim() || persona;
 }

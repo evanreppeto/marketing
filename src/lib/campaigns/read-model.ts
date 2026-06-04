@@ -10,6 +10,8 @@ const APPROVAL_SELECT =
   "id,campaign_id,campaign_asset_id,company_id,contact_id,lead_id,item_type,status,locked_until_approved,prompt_inputs,draft_output,edited_output,requested_by,submitted_at,risk_level,compliance_notes,decision_notes,reasoning_payload,audit_payload,created_at,updated_at";
 const OUTPUT_SELECT =
   "id,task_id,approval_item_id,campaign_asset_id,output_type,title,body,edited_body,structured_payload,risk_level,compliance_status,approval_status,created_at,updated_at";
+const AGENT_TASK_SELECT = "id,objective,task_type,status,priority,metadata,created_at,updated_at";
+const DECISION_SELECT = "id,approval_item_id,decision,decided_by,decided_at,decision_notes,previous_status,next_status";
 
 export type CampaignWorkspaceAssetCategory = "physical" | "virtual" | "ads" | "media" | "other";
 
@@ -32,6 +34,7 @@ export type CampaignWorkspaceListItem = {
   objective: string;
   audienceSummary: string;
   offerSummary: string;
+  whyBuilt: string;
   assetCount: number;
   approvalCount: number;
   mediaCount: number;
@@ -87,6 +90,14 @@ export type CampaignWorkspaceReasoning = {
   promptInputs: Array<{ label: string; value: string }>;
 };
 
+export type CampaignExecutiveOverview = {
+  what: string;
+  why: string;
+  timeframe: string;
+  where: string;
+  successTracking: string;
+};
+
 export type CampaignWorkspaceApproval = {
   id: string;
   title: string;
@@ -97,6 +108,7 @@ export type CampaignWorkspaceApproval = {
   submittedAt: string;
   href: string;
   preview: string;
+  media: CampaignMediaAsset[];
   promptInputs: Array<{ label: string; value: string }>;
   complianceNotes: string;
 };
@@ -139,6 +151,7 @@ export type CampaignWorkspaceMeta = {
   complianceNotes: string;
   owner: string;
   launchLocked: boolean;
+  createdAt: string;
   updatedAt: string;
 };
 
@@ -147,6 +160,58 @@ export type CampaignWorkspaceMetrics = {
   approvals: number;
   media: number;
   sources: number;
+};
+
+/** One recorded decision in the campaign's approval audit trail. Sourced from
+ *  approval_decisions — the real history of who decided what, when, and why. */
+export type CampaignDecisionEvent = {
+  id: string;
+  decision: string;
+  action: string;
+  tone: "green" | "red" | "amber" | "blue" | "gray";
+  itemTitle: string;
+  decidedBy: string;
+  at: string;
+  notes: string | null;
+};
+
+/** One entry in the campaign audit trail — a unified, chronological log of what
+ *  the operator and Mark did, tagged by actor so it can be filtered. */
+export type AuditEntry = {
+  id: string;
+  actor: string;
+  actorKind: "user" | "mark" | "system";
+  action: string;
+  detail: string;
+  at: string;
+};
+
+/** One turn in the campaign's conversation with Mark. Operator turns are the
+ *  durable directives we queue (agent_tasks); Mark's turns are the work he
+ *  produces (agent_outputs). Both are real records, sorted chronologically. */
+export type MarkMessage = {
+  id: string;
+  role: "operator" | "mark";
+  author: string;
+  kind: string;
+  title: string | null;
+  body: string;
+  at: string;
+  status: string | null;
+};
+
+/** Derived launch readiness for a campaign — the single source of truth behind
+ *  the lifecycle label and the Launch button. Approval happens per deliverable;
+ *  the campaign becomes Ready when no gating piece is still pending, and Live
+ *  once the operator launches (campaign no longer launch-locked). */
+export type CampaignLaunchState = {
+  requiredCount: number;
+  approvedCount: number;
+  pendingCount: number;
+  deployedCount: number;
+  ready: boolean;
+  live: boolean;
+  lifecycle: "Drafting" | "In review" | "Ready" | "Live";
 };
 
 export type LiveCampaignWorkspace = {
@@ -160,7 +225,12 @@ export type LiveCampaignWorkspace = {
   activity: CampaignWorkspaceActivity[];
   events: CampaignWorkspaceEvent[];
   reasoning: CampaignWorkspaceReasoning;
+  executiveOverview: CampaignExecutiveOverview;
   metrics: CampaignWorkspaceMetrics;
+  launchState: CampaignLaunchState;
+  markConversation: MarkMessage[];
+  approvalHistory: CampaignDecisionEvent[];
+  auditLog: AuditEntry[];
 };
 
 export type CampaignWorkspaceDetail =
@@ -267,6 +337,28 @@ type CampaignEventRow = {
   occurred_at: string;
 };
 
+type AgentTaskRow = {
+  id: string;
+  objective: string;
+  task_type: string;
+  status: string;
+  priority: string;
+  metadata: unknown;
+  created_at: string;
+  updated_at: string;
+};
+
+type ApprovalDecisionRow = {
+  id: string;
+  approval_item_id: string;
+  decision: string;
+  decided_by: string;
+  decided_at: string;
+  decision_notes: string | null;
+  previous_status: string | null;
+  next_status: string;
+};
+
 type CompanyRow = {
   id: string;
   name: string;
@@ -329,6 +421,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         approvalOutputs.filter((output) => output.approval_item_id && campaignApprovals.some((approval) => approval.id === output.approval_item_id)),
       );
       const preview = pickWorkspacePreview(campaignAssets);
+      const reasoning = buildReasoning(campaign, campaignAssetRows);
       return {
         id: campaign.id,
         name: cleanCampaignName(campaign.name),
@@ -337,6 +430,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         objective: campaign.objective ?? "No objective captured yet.",
         audienceSummary: campaign.audience_summary ?? "Audience has not been summarized yet.",
         offerSummary: campaign.offer_summary ?? "Offer has not been summarized yet.",
+        whyBuilt: reasoning.whyBuilt,
         assetCount: campaignAssets.length,
         approvalCount: campaignApprovals.length,
         mediaCount: mediaByCampaign.get(campaign.id)?.length ?? 0,
@@ -383,9 +477,10 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
     }
 
     const campaign = data as CampaignRow;
-    const [assets, events] = await Promise.all([
+    const [assets, events, agentTasks] = await Promise.all([
       selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", [campaignId], "updated_at"),
       selectIn<CampaignEventRow>(supabase, "campaign_events", "id,event_type,actor,detail,occurred_at", "campaign_id", [campaignId], "occurred_at"),
+      selectIn<AgentTaskRow>(supabase, "agent_tasks", AGENT_TASK_SELECT, "campaign_id", [campaignId], "created_at"),
     ]);
     const assetIds = assets.map((asset) => asset.id);
     const campaignApprovals = await selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", [campaignId], "submitted_at");
@@ -397,6 +492,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       selectIn<AgentOutputRow>(supabase, "agent_outputs", OUTPUT_SELECT, "approval_item_id", approvalIds, "created_at"),
     ]);
     const outputs = uniqueById([...assetOutputs, ...approvalOutputs]);
+    const decisions = await selectIn<ApprovalDecisionRow>(supabase, "approval_decisions", DECISION_SELECT, "approval_item_id", approvalIds, "decided_at");
     const relatedIds = collectRelatedIds(campaign, approvals);
     const [companies, contacts, leads] = await Promise.all([
       selectIn<CompanyRow>(supabase, "companies", "id,name,website_url,phone,email,partner_tier", "id", relatedIds.companyIds),
@@ -412,6 +508,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       ...outputs.flatMap((output) => collectMediaFromOutput(output)),
     ]);
     const sources = buildSources({ campaign, assets, approvals, companies, contacts, leads, outputs });
+    const reasoning = buildReasoning(campaign, assets);
 
     return {
       status: "live",
@@ -427,6 +524,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
         complianceNotes: campaign.compliance_notes ?? "No campaign-level compliance notes captured.",
         owner: campaign.owner ?? "Unassigned",
         launchLocked: campaign.launch_locked,
+        createdAt: formatDate(campaign.created_at),
         updatedAt: formatDate(campaign.updated_at),
       },
       assets: assetsView,
@@ -434,7 +532,8 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       approvals: approvals.map(mapApproval),
       media,
       sources,
-      reasoning: buildReasoning(campaign, assets),
+      reasoning,
+      executiveOverview: buildExecutiveOverview({ campaign, assets, approvals, sources, reasoning }),
       activity: outputs.map(mapOutput),
       events: events.map((event) => ({
         id: event.id,
@@ -449,6 +548,10 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
         media: media.length,
         sources: sources.length,
       },
+      launchState: buildLaunchState(assetsView, campaign.launch_locked),
+      markConversation: buildMarkConversation(agentTasks, outputs),
+      approvalHistory: buildApprovalHistory(decisions, approvals),
+      auditLog: buildAuditLog(events, outputs),
     };
   } catch (error) {
     return {
@@ -456,6 +559,170 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       message: error instanceof Error ? error.message : "Campaign detail is unavailable.",
     };
   }
+}
+
+/**
+ * Assemble the two-way conversation with Mark, chronological. Operator turns are
+ * the human-initiated directives we queue (agent_tasks with a recorded
+ * requester); Mark's turns are the work he produced (agent_outputs). Both are
+ * durable records — no live chat, just the real handoff trail rendered as a
+ * thread.
+ */
+const DECISION_ACTION: Record<string, { action: string; tone: CampaignDecisionEvent["tone"] }> = {
+  approved: { action: "Approved", tone: "green" },
+  declined: { action: "Sent back for rework", tone: "red" },
+  rejected: { action: "Sent back for rework", tone: "red" },
+  archived: { action: "Removed from queue", tone: "gray" },
+  revision_requested: { action: "Revision requested", tone: "amber" },
+  reverted: { action: "Re-opened for review", tone: "blue" },
+};
+
+/** Build the approval audit trail — who decided what, when, and why — newest
+ *  first. Sourced from approval_decisions; titles resolved from the items. */
+export function buildApprovalHistory(decisions: ApprovalDecisionRow[], approvals: ApprovalItemRow[]): CampaignDecisionEvent[] {
+  const titleById = new Map(approvals.map((approval) => [approval.id, buildApprovalTitle(approval)]));
+
+  return decisions
+    .slice()
+    .sort((a, b) => b.decided_at.localeCompare(a.decided_at))
+    .map((decision) => {
+      const mapped = DECISION_ACTION[decision.decision] ?? { action: humanize(decision.decision), tone: "gray" as const };
+      return {
+        id: decision.id,
+        decision: decision.decision,
+        action: mapped.action,
+        tone: mapped.tone,
+        itemTitle: titleById.get(decision.approval_item_id) ?? "Approval item",
+        decidedBy: decision.decided_by,
+        at: formatDate(decision.decided_at),
+        notes: getString(decision.decision_notes),
+      };
+    });
+}
+
+/** Classify who an event's actor is, for audit filtering. */
+function classifyActor(actor: string | null): AuditEntry["actorKind"] {
+  if (!actor || /^system$/i.test(actor)) return "system";
+  if (/mark|hermes/i.test(actor)) return "mark";
+  return "user";
+}
+
+/** Unified, newest-first campaign audit trail: every recorded event plus the
+ *  concrete work Mark produced, tagged by actor so the UI can filter to user or
+ *  Mark activity. */
+export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRow[]): AuditEntry[] {
+  const items: Array<AuditEntry & { sortAt: string }> = [];
+
+  for (const event of events) {
+    items.push({
+      id: `evt-${event.id}`,
+      actor: event.actor ?? "System",
+      actorKind: classifyActor(event.actor),
+      action: humanize(event.event_type),
+      detail: event.detail ?? "",
+      at: formatDate(event.occurred_at),
+      sortAt: event.occurred_at,
+    });
+  }
+
+  for (const output of outputs) {
+    items.push({
+      id: `out-${output.id}`,
+      actor: "Mark",
+      actorKind: "mark",
+      action: `Produced ${humanize(output.output_type)}`,
+      detail: output.title,
+      at: formatDate(output.created_at),
+      sortAt: output.created_at,
+    });
+  }
+
+  return items
+    .sort((a, b) => b.sortAt.localeCompare(a.sortAt))
+    .map((entry) => ({
+      id: entry.id,
+      actor: entry.actor,
+      actorKind: entry.actorKind,
+      action: entry.action,
+      detail: entry.detail,
+      at: entry.at,
+    }));
+}
+
+function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[]): MarkMessage[] {
+  // Raw `at` holds the ISO timestamp for sorting; formatted on the way out.
+  const items: MarkMessage[] = [];
+
+  for (const task of tasks) {
+    const metadata = asObject(task.metadata);
+    const requester = getString(metadata.requested_by);
+    const instruction = getString(metadata.human_instruction) ?? task.objective;
+    // Only human-initiated directives belong in the conversation; autonomous
+    // orchestrator tasks surface through their outputs instead.
+    if (!requester && !getString(metadata.human_instruction)) continue;
+    items.push({
+      id: `task-${task.id}`,
+      role: "operator",
+      author: requester ?? "Operator",
+      kind: humanize(task.task_type),
+      title: null,
+      body: instruction,
+      at: task.created_at,
+      status: statusLabel(task.status),
+    });
+  }
+
+  for (const output of outputs) {
+    items.push({
+      id: `output-${output.id}`,
+      role: "mark",
+      author: "Mark",
+      kind: humanize(output.output_type),
+      title: output.title,
+      body: buildReadablePreview(output.edited_body ?? output.body ?? "", output.structured_payload),
+      at: output.created_at,
+      status: statusLabel(output.approval_status),
+    });
+  }
+
+  return items
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .map((message) => ({ ...message, at: formatDate(message.at) }));
+}
+
+/** Pure: the decided state of a single deliverable. Every asset is a piece that
+ *  needs approval — derive from its approval gate if present, else its own
+ *  status, so assets without a gate are never a dead-end. */
+function assetDecisionState(asset: CampaignWorkspaceAsset): "approved" | "declined" | "archived" | "pending" {
+  const status = asset.approval?.status ?? asset.status;
+  if (/approved/i.test(status)) return "approved";
+  if (/declined|rejected/i.test(status)) return "declined";
+  if (/archived/i.test(status)) return "archived";
+  return "pending";
+}
+
+/** Pure: derive launch readiness + lifecycle. Every (non-removed) deliverable
+ *  counts as a required piece; a piece is deployed once it's approved and no
+ *  longer dispatch-locked (supports deploying pieces ahead of full launch). */
+export function buildLaunchState(assets: CampaignWorkspaceAsset[], launchLocked: boolean): CampaignLaunchState {
+  const considered = assets.filter((asset) => assetDecisionState(asset) !== "archived");
+  const requiredCount = considered.length;
+  const approved = considered.filter((asset) => assetDecisionState(asset) === "approved");
+  const approvedCount = approved.length;
+  const deployedCount = approved.filter((asset) => !asset.dispatchLocked).length;
+  const decidedCount = considered.filter((asset) => assetDecisionState(asset) !== "pending").length;
+  const pendingCount = requiredCount - decidedCount;
+  const live = !launchLocked;
+  const ready = !live && requiredCount > 0 && pendingCount === 0 && approvedCount > 0;
+  const lifecycle: CampaignLaunchState["lifecycle"] = live
+    ? "Live"
+    : requiredCount === 0
+      ? "Drafting"
+      : pendingCount > 0
+        ? "In review"
+        : "Ready";
+
+  return { requiredCount, approvedCount, pendingCount, deployedCount, ready, live, lifecycle };
 }
 
 function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
@@ -499,16 +766,44 @@ function buildWorkspaceAssets(
     }
   }
   const approvalById = new Map(approvals.map((approval) => [approval.id, approval]));
+  // Approvals that already gate a real asset — outputs tied to these must NOT
+  // become a second card for the same deliverable (the duplicate-email bug).
+  const assetApprovalIds = new Set([...approvalByAssetId.values()].map((approval) => approval.id));
 
   const mappedAssets = assets.map((asset) => attachApproval(mapAsset(asset), approvalByAssetId.get(asset.id)));
   const outputAssets = outputs
-    .filter((output) => !output.campaign_asset_id || !assetIds.has(output.campaign_asset_id))
+    .filter(
+      (output) =>
+        (!output.campaign_asset_id || !assetIds.has(output.campaign_asset_id)) &&
+        (!output.approval_item_id || !assetApprovalIds.has(output.approval_item_id)),
+    )
     .map((output) => attachApproval(mapOutputAsAsset(output), output.approval_item_id ? approvalById.get(output.approval_item_id) : undefined));
   const approvalAssets = approvals
     .filter((approval) => !approval.campaign_asset_id && !outputApprovalIds.has(approval.id))
     .map(mapApprovalAsAsset);
 
-  return uniqueById([...mappedAssets, ...outputAssets, ...approvalAssets]);
+  // Real campaign_assets come first, so when an output/approval describes the
+  // same deliverable, the real asset (correct id + gating approval) wins and the
+  // duplicate is dropped. Dedup by content, not just id — the same email can
+  // arrive as an asset AND an output AND an approval.
+  return dedupeDeliverables(uniqueById([...mappedAssets, ...outputAssets, ...approvalAssets]));
+}
+
+/** One card per deliverable. Keyed by normalized title: the same piece surfaced
+ *  from different tables (asset / output / approval) shares a title but differs
+ *  in channel/type, so title is the reliable identity within a campaign. Real
+ *  assets are ordered first, so the kept copy has the correct id + gating
+ *  approval. */
+function dedupeDeliverables(assets: CampaignWorkspaceAsset[]): CampaignWorkspaceAsset[] {
+  const seen = new Set<string>();
+  const result: CampaignWorkspaceAsset[] = [];
+  for (const asset of assets) {
+    const key = asset.title.toLowerCase().replace(/\s+/g, " ").trim();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    result.push(asset);
+  }
+  return result;
 }
 
 function attachApproval(view: CampaignWorkspaceAsset, approval: ApprovalItemRow | undefined): CampaignWorkspaceAsset {
@@ -583,11 +878,53 @@ export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[]
   ]).map(humanize);
 
   return {
-    whyBuilt: getString(reasoning.why_hermes_created_it) ?? "Mark has not recorded reasoning for this campaign yet.",
+    whyBuilt:
+      getString(reasoning.why_hermes_created_it) ??
+      campaign.objective ??
+      campaign.offer_summary ??
+      "Mark has not recorded reasoning for this campaign yet.",
     recommendedAction: getString(reasoning.recommended_action) ?? "No recommended action recorded.",
     guardrailFlags: asStringArray(reasoning.guardrail_flags),
     toolsUsed,
     promptInputs: buildPromptInputs(assets),
+  };
+}
+
+export function buildExecutiveOverview(input: {
+  campaign: CampaignRow;
+  assets: CampaignAssetRow[];
+  approvals: ApprovalItemRow[];
+  sources: CampaignWorkspaceSource[];
+  reasoning: CampaignWorkspaceReasoning;
+}): CampaignExecutiveOverview {
+  const { campaign, assets, approvals, reasoning, sources } = input;
+  const audience = sentenceFragment(campaign.audience_summary ?? `the ${humanize(campaign.persona)} segment`);
+  const offer = sentenceFragment(campaign.offer_summary ?? "the proposed Big Shoulders restoration offer");
+  const objective = sentenceFragment(campaign.objective ?? campaign.offer_summary ?? "No campaign objective has been captured yet");
+  const payloads = [
+    asObject(campaign.source_signal),
+    asObject(campaign.reasoning_payload),
+    asObject(campaign.audit_payload),
+    ...assets.flatMap((asset) => [asObject(asset.prompt_inputs), asObject(asset.reasoning_payload), asObject(asset.audit_payload)]),
+    ...approvals.flatMap((approval) => [asObject(approval.prompt_inputs), asObject(approval.reasoning_payload), asObject(approval.audit_payload)]),
+  ];
+  const whySignal = sentenceFragment(findPayloadAnswer(payloads, WHY_KEYS) ?? reasoning.whyBuilt);
+
+  return {
+    what:
+      findPayloadAnswer(payloads, JOURNEY_OVERVIEW_KEYS) ??
+      findPayloadAnswer(payloads, WHAT_KEYS) ??
+      `Move ${audience} toward a trusted Big Shoulders handoff with ${offer}. Objective: ${objective}.`,
+    why: `${whySignal}. Goal: reduce decision friction and make the next step clear.`,
+    timeframe:
+      findPayloadAnswer(payloads, TIMEFRAME_KEYS) ??
+      buildJourneyTimeframe(campaign),
+    where:
+      findPayloadAnswer(payloads, LOCATION_KEYS) ??
+      `Client context: ${audience}.`,
+    successTracking:
+      findPayloadAnswer(payloads, SUCCESS_KEYS) ??
+      `Track journey proof: CTA events, form/phone/photo uploads, partner handoffs, booked jobs, revenue, and attribution confidence. Current evidence: ${sources.length} source record${sources.length === 1 ? "" : "s"}, ${assets.length} deliverable${assets.length === 1 ? "" : "s"}, ${approvals.length} approval record${approvals.length === 1 ? "" : "s"}.`,
   };
 }
 
@@ -610,6 +947,103 @@ function asStringArray(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
 }
 
+const JOURNEY_OVERVIEW_KEYS = /^(client_journey_overview|customer_journey_overview|journey_overview|executive_overview|journey_summary)$/i;
+const WHAT_KEYS = /^(what|campaign_what|campaign_summary|business_goal|goal|objective|summary)$/i;
+const WHY_KEYS = /^(why|why_built|why_mark_built_it|why_hermes_created_it|rationale|reason|business_reason)$/i;
+const TIMEFRAME_KEYS = /^(timeframe|timeline|campaign_window|launch_window|date_range|flight_dates|schedule|start_date|end_date|launch_date|due_date)$/i;
+const LOCATION_KEYS =
+  /^(where|market|markets|geography|geographies|service_area|service_areas|zip_codes|zips|location|locations|city|cities|county|counties|territory)$/i;
+const SUCCESS_KEYS =
+  /^(success|success_metrics|success_criteria|kpis|key_metrics|measurement_plan|tracking_plan|attribution_plan|target_outcomes|conversion_goal|goal_metric)$/i;
+
+function buildJourneyTimeframe(campaign: CampaignRow) {
+  const objectiveWindow = extractDecisionWindow(campaign.objective ?? "");
+  if (objectiveWindow) {
+    return `Decision window: ${objectiveWindow}. Updated ${formatDate(campaign.updated_at)}.`;
+  }
+
+  return `Customer-journey window is not captured yet. Mark should add launch dates or the client decision window before judging timing. Updated ${formatDate(campaign.updated_at)}.`;
+}
+
+function extractDecisionWindow(value: string) {
+  const match = value.match(/\b(before|ahead of|during|through|by|after)\s+([^.;]+)/i);
+  if (!match) return null;
+  return `${match[1]} ${match[2]}`.trim();
+}
+
+function sentenceFragment(value: string) {
+  return value.trim().replace(/[.!?]+$/g, "");
+}
+
+function findPayloadAnswer(payloads: JsonObject[], keyPattern: RegExp): string | null {
+  for (const payload of payloads) {
+    const answer = findValueByKey(payload, keyPattern);
+    if (answer) return answer;
+  }
+  return null;
+}
+
+function findValueByKey(value: unknown, keyPattern: RegExp, depth = 0): string | null {
+  if (!isObject(value) || depth > 4) return null;
+
+  for (const [key, entry] of Object.entries(value)) {
+    if (keyPattern.test(key)) {
+      const formatted = formatPayloadAnswer(entry);
+      if (formatted) return formatted;
+    }
+  }
+
+  for (const entry of Object.values(value)) {
+    if (Array.isArray(entry)) {
+      for (const item of entry) {
+        const nested = findValueByKey(item, keyPattern, depth + 1);
+        if (nested) return nested;
+      }
+      continue;
+    }
+
+    const nested = findValueByKey(entry, keyPattern, depth + 1);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function formatPayloadAnswer(value: unknown): string | null {
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    const values = value.map(formatPayloadAnswer).filter((entry): entry is string => Boolean(entry));
+    return values.length > 0 ? values.join(", ") : null;
+  }
+  if (!isObject(value)) return null;
+
+  const direct =
+    getString(value.summary) ??
+    getString(value.description) ??
+    getString(value.value) ??
+    getString(value.label) ??
+    getString(value.name) ??
+    getString(value.plan);
+  if (direct) return direct;
+
+  const start = getString(value.start_date) ?? getString(value.start) ?? getString(value.from);
+  const end = getString(value.end_date) ?? getString(value.end) ?? getString(value.to);
+  if (start || end) return [start ?? "Start pending", end ?? "End pending"].join(" to ");
+
+  const placeParts = uniqueStrings([
+    getString(value.city),
+    getString(value.state),
+    getString(value.county),
+    getString(value.region),
+    getString(value.market),
+  ]);
+  if (placeParts.length > 0) return placeParts.join(", ");
+
+  const scalarValues = readableScalarEntries(value).slice(0, 4);
+  return scalarValues.length > 0 ? scalarValues.join(" / ") : null;
+}
+
 function mapApproval(approval: ApprovalItemRow): CampaignWorkspaceApproval {
   const rawBody = approval.edited_output ?? approval.draft_output ?? "";
   return {
@@ -622,6 +1056,7 @@ function mapApproval(approval: ApprovalItemRow): CampaignWorkspaceApproval {
     submittedAt: formatDate(approval.submitted_at),
     href: `/approvals?item=${approval.id}`,
     preview: buildReadablePreview(rawBody, approval.prompt_inputs, approval.reasoning_payload),
+    media: collectMediaFromApproval(approval),
     promptInputs: promptInputEntries(approval.prompt_inputs),
     complianceNotes: approval.compliance_notes ?? "No approval-level compliance notes captured.",
   };
@@ -925,14 +1360,14 @@ function createMediaAsset(input: {
   };
 }
 
-function classifyMediaAsset(url: string, mimeType?: string | null, hintedType?: string): CampaignMediaAsset["type"] {
+export function classifyMediaAsset(url: string, mimeType?: string | null, hintedType?: string): CampaignMediaAsset["type"] {
   const hint = `${mimeType ?? ""} ${hintedType ?? ""}`.toLowerCase();
   const lowerUrl = url.toLowerCase();
   // ad / postcard / photo creative are visual; render them as images even
   // when the URL carries no file extension (e.g. dynamic image endpoints).
   if (/image|photo|postcard|\bad\b|mockup/.test(hint) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/.test(lowerUrl)) return "image";
-  if (hint.includes("video") || /\.(mp4|webm|mov|m4v)(\?|#|$)/.test(lowerUrl)) return "video";
   if (/youtube\.com|youtu\.be|vimeo\.com/.test(lowerUrl)) return "embed";
+  if (hint.includes("video") || /\.(mp4|webm|mov|m4v)(\?|#|$)/.test(lowerUrl)) return "video";
   if (/\.(pdf|docx?|pptx?)(\?|#|$)/.test(lowerUrl)) return "file";
   return "link";
 }

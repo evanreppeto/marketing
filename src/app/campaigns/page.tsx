@@ -1,15 +1,20 @@
 import { connection } from "next/server";
 
-import { EmptyState } from "../_components/page-header";
+import { EmptyState, StatusPill } from "../_components/page-header";
 import { MetricStrip } from "../_components/workspace";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 
 import { CampaignGallery } from "./_components/campaign-gallery";
 import { SlimHeader } from "./_components/slim-header";
 
-export default async function CampaignsPage() {
+type CampaignsPageProps = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function CampaignsPage({ searchParams }: CampaignsPageProps) {
   await connection();
 
+  const params = await searchParams;
   const list = await getCampaignWorkspaceList();
 
   if (list.status === "unavailable") {
@@ -22,10 +27,11 @@ export default async function CampaignsPage() {
   }
 
   const { campaigns, totals } = list;
+  const pendingCount = campaigns.filter((campaign) => /pending/i.test(campaign.status)).length;
 
   return (
     <>
-      <SlimHeader title="Campaigns" subtitle="Everything Mark builds: preview the creative, trace the reasoning, and ask Mark to revise." />
+      <CampaignCommandHeader pendingCount={pendingCount} />
 
       <MetricStrip
         metrics={[
@@ -37,7 +43,14 @@ export default async function CampaignsPage() {
       />
 
       {campaigns.length > 0 ? (
-        <CampaignGallery campaigns={campaigns} />
+        <CampaignGallery
+          campaigns={campaigns}
+          page={parsePositiveInt(getParam(params.page), 1)}
+          pageSize={parsePageSize(getParam(params.pageSize))}
+          persona={getParam(params.persona) || "All"}
+          query={getParam(params.q)}
+          status={getParam(params.status) || "All"}
+        />
       ) : (
         <EmptyState
           title="No campaigns yet"
@@ -45,5 +58,41 @@ export default async function CampaignsPage() {
         />
       )}
     </>
+  );
+}
+
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function parsePositiveInt(value: string, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parsePageSize(value: string) {
+  const parsed = parsePositiveInt(value, 12);
+  return [12, 24, 48].includes(parsed) ? parsed : 12;
+}
+
+function CampaignCommandHeader({ pendingCount }: { pendingCount: number }) {
+  return (
+    <header className="module-rise mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <span className="signal-eyebrow">Campaign command</span>
+        <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[var(--text-primary)] sm:text-4xl">Campaigns</h1>
+        <p className="mt-2 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
+          Every package Mark drafts. Inspect the reasoning and source records, then approve — outbound stays locked until you do.
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {pendingCount > 0 ? (
+          <StatusPill tone="amber">{pendingCount} awaiting approval</StatusPill>
+        ) : (
+          <StatusPill tone="green">All decided</StatusPill>
+        )}
+        <StatusPill tone="amber">Outbound locked</StatusPill>
+      </div>
+    </header>
   );
 }

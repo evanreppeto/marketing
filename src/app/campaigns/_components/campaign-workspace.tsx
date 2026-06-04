@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
@@ -10,15 +10,15 @@ import { AudienceLeadsTab } from "./audience-leads-tab";
 import { CampaignHeader } from "./campaign-header";
 import { CampaignMediaBoard } from "./campaign-media-board";
 import { CampaignOverview } from "./campaign-package-panel";
+import { AuditLog } from "./audit-log";
 import { CreativeTab } from "./creative-tab";
+import { MarkConversation } from "./mark-conversation";
 import { PerformanceTab } from "./performance-tab";
-import { ReasoningTab } from "./reasoning-tab";
-import { isDecidedStatus } from "./status-tone";
 import { StickyDecisionBar } from "./sticky-decision-bar";
 
-type TabKey = "creative" | "media" | "audience" | "reasoning" | "approvals" | "performance";
+type TabKey = "creative" | "media" | "audience" | "reasoning" | "approvals" | "performance" | "audit";
 
-const TAB_KEYS: TabKey[] = ["creative", "media", "approvals", "audience", "reasoning", "performance"];
+const TAB_KEYS: TabKey[] = ["creative", "media", "approvals", "audience", "reasoning", "performance", "audit"];
 const DEFAULT_TAB: TabKey = "creative";
 
 function isTabKey(value: string | null): value is TabKey {
@@ -26,18 +26,15 @@ function isTabKey(value: string | null): value is TabKey {
 }
 
 export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace }) {
-  const { campaign, groupedAssets, media, sources, reasoning, approvals, metrics, activity, events } = detail;
+  const { campaign, groupedAssets, media, sources, reasoning, approvals, metrics, markConversation } = detail;
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  // Bumped on each in-session "review" so the Approvals tab re-scrolls even when
-  // the URL's item id is unchanged. URL holds the shareable state; this is local.
-  const [reviewNonce, setReviewNonce] = useState(0);
 
   // Tab + focused item are derived from the URL so the page is deep-linkable,
   // refresh-safe, and back/forward navigable. A bare ?item=… (shared link)
-  // implies the Approvals tab.
+  // opens the read-only Decision log scrolled to that record.
   const tabParam = searchParams.get("tab");
   const focusItem = searchParams.get("item");
   const filterParam = searchParams.get("filter");
@@ -68,22 +65,17 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
     writeParams({ tab: tab === DEFAULT_TAB ? null : tab, item: null, filter: null });
   }
 
-  function reviewApproval(id: string) {
-    writeParams({ tab: "approvals", item: id, filter: null });
-    setReviewNonce((nonce) => nonce + 1);
-  }
-
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
     { key: "creative", label: "Deliverables", count: metrics.assets },
     { key: "media", label: "Media", count: media.length },
-    { key: "approvals", label: "Approvals", count: approvals.length },
+    { key: "approvals", label: "Decision log", count: approvals.length },
     { key: "audience", label: "Audience & sources", count: metrics.sources },
-    { key: "reasoning", label: "Mark notes", count: activity.length + events.length },
-    { key: "performance", label: "Performance" },
+    { key: "reasoning", label: "Talk to Mark", count: markConversation.length },
+    { key: "performance", label: "Measurement" },
+    { key: "audit", label: "Audit", count: detail.auditLog.length },
   ];
 
-  const pendingApprovals = approvals.filter((approval) => !isDecidedStatus(approval.status));
-  const focus = focusItem ? { id: focusItem, nonce: reviewNonce } : null;
+  const focus = focusItem ? { id: focusItem, nonce: 0 } : null;
 
   function onTabKeyDown(event: React.KeyboardEvent, index: number) {
     const last = tabs.length - 1;
@@ -102,19 +94,14 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
     <>
       <StickyDecisionBar
         campaignId={campaign.id}
-        pendingApprovals={pendingApprovals}
+        launchState={detail.launchState}
         sentinelRef={sentinelRef}
-        onReview={reviewApproval}
+        onReviewPieces={() => goToTab("creative")}
       />
 
-      <CampaignHeader campaign={campaign} />
+      <CampaignHeader campaign={campaign} launchState={detail.launchState} />
 
-      <CampaignOverview
-        detail={detail}
-        pendingApprovals={pendingApprovals}
-        onOpenTab={goToTab}
-        onReviewApproval={reviewApproval}
-      />
+      <CampaignOverview detail={detail} onOpenTab={goToTab} />
 
       <div ref={sentinelRef} aria-hidden className="h-px" />
 
@@ -167,10 +154,11 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
           {activeTab === "media" ? (
             <CampaignMediaBoard media={media} filter={filterParam} onFilterChange={(value) => replaceParams({ filter: value })} />
           ) : null}
-          {activeTab === "approvals" ? <ApprovalsTab approvals={approvals} campaignId={campaign.id} focus={focus} /> : null}
-          {activeTab === "audience" ? <AudienceLeadsTab sources={sources} /> : null}
-          {activeTab === "reasoning" ? <ReasoningTab reasoning={reasoning} activity={activity} events={events} /> : null}
+          {activeTab === "approvals" ? <ApprovalsTab approvals={approvals} history={detail.approvalHistory} focus={focus} /> : null}
+          {activeTab === "audience" ? <AudienceLeadsTab campaign={campaign} sources={sources} /> : null}
+          {activeTab === "reasoning" ? <MarkConversation campaignId={campaign.id} conversation={markConversation} reasoning={reasoning} /> : null}
           {activeTab === "performance" ? <PerformanceTab detail={detail} /> : null}
+          {activeTab === "audit" ? <AuditLog entries={detail.auditLog} /> : null}
         </div>
       </div>
     </>

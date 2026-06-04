@@ -8,13 +8,7 @@ import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 
 const navItems: ShellNavItem[] = [
-  { label: "Today", href: "/", iconSrc: "/brand/nav-icons/today-icon.png", matches: ["/"], exact: true },
-  { label: "Review", href: "/approvals", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/approvals"] },
-  { label: "CRM", href: "/crm", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/crm", "/partners", "/lead-ingestion", "/loss-routing"] },
   { label: "Campaigns", href: "/campaigns", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/campaigns"] },
-  { label: "Mark", href: "/agent-operations", iconSrc: "/brand/nav-icons/mark-icon.png", matches: ["/agent-operations"] },
-  { label: "Intelligence", href: "/reports", iconSrc: "/brand/nav-icons/personas-icon.png", matches: ["/reports", "/persona-intelligence"] },
-  { label: "Settings", href: "/settings", iconSrc: "/brand/nav-icons/settings-icon.png", matches: ["/settings", "/data-foundation"] },
 ];
 
 /**
@@ -24,7 +18,7 @@ const navItems: ShellNavItem[] = [
  * bare (it provides its own full-screen layout). `gateEnabled` comes from the
  * server layout because the operator gate reads server-only env.
  */
-export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; children: React.ReactNode }) {
+export function ConsoleFrame({ children }: { gateEnabled: boolean; children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
 
   if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
@@ -37,7 +31,7 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
         <aside className="border-b border-[var(--border-panel)] bg-[oklch(0.145_0.03_250/0.96)] px-4 py-3 lg:flex lg:h-screen lg:min-h-0 lg:flex-col lg:border-b-0 lg:border-r lg:px-4 lg:py-5">
           <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:pr-1 [&::-webkit-scrollbar]:hidden">
             <Link
-              href="/"
+              href="/campaigns"
               className="group relative flex h-24 min-w-[190px] shrink-0 items-center justify-center overflow-hidden transition hover:opacity-95 lg:h-36 lg:min-w-0"
             >
               <Image
@@ -54,7 +48,7 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
             <SideNav active={pathname} items={navItems} />
           </div>
 
-          <OperatorProfile gateEnabled={gateEnabled} />
+          <OperatorProfile />
         </aside>
 
         <section className="min-w-0 px-4 py-4 sm:px-6 lg:h-screen lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
@@ -65,44 +59,36 @@ export function ConsoleFrame({ gateEnabled, children }: { gateEnabled: boolean; 
   );
 }
 
-function OperatorProfile({ gateEnabled }: { gateEnabled: boolean }) {
+function OperatorProfile() {
   return (
     <div className="mt-4 hidden border-t border-[var(--border-hairline)] pb-7 pt-4 lg:block">
-      <div className="rounded-2xl border border-[var(--border-panel)] bg-[linear-gradient(180deg,var(--surface-inset),var(--surface-soft))] p-4 shadow-[var(--elev-panel)]">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--surface-raised)] font-display text-sm font-black text-[var(--accent)] shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.08)]">
-            ER
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-base font-black tracking-[-0.02em] text-[var(--text-primary)]">Evan</div>
-            <div className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-              Operator
+      <div className="overflow-hidden rounded-2xl border border-[oklch(0.74_0.115_232/0.24)] bg-[linear-gradient(145deg,oklch(0.19_0.036_248/0.98),oklch(0.135_0.028_250/0.98))] shadow-[0_18px_44px_oklch(0.04_0.02_250/0.38)]">
+        <div className="h-1 bg-[linear-gradient(90deg,var(--accent),oklch(0.78_0.14_158),transparent)]" />
+        <div className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[oklch(0.74_0.115_232/0.28)] bg-[oklch(0.22_0.045_248)] font-display text-sm font-black text-[var(--accent)] shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.08)]">
+              ER
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-base font-black tracking-[-0.02em] text-[var(--text-primary)]">Evan</div>
+              <div className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                Operator
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-[var(--border-hairline)] pt-3">
-          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2">
-            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Mode</div>
-            <div className="mt-0.5 text-xs font-bold text-[var(--text-primary)]">{gateEnabled ? "Secured" : "Local"}</div>
+          <div className="mt-4 rounded-xl border border-[var(--border-hairline)] bg-[oklch(0.12_0.026_250/0.72)] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-[var(--text-secondary)]">Human approval gate</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-black text-[oklch(0.88_0.1_158)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[oklch(0.78_0.14_158)] shadow-[0_0_12px_oklch(0.78_0.14_158/0.7)]" />
+                Active
+              </span>
+            </div>
+            <div className="mt-1 text-[11px] font-semibold leading-5 text-[var(--text-muted)]">
+              Campaign review only. Outbound stays locked.
+            </div>
           </div>
-          {gateEnabled ? (
-            <form action="/api/auth/sign-out" method="post">
-              <button
-                type="submit"
-                className="h-full w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2 text-left text-xs font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              >
-                Sign out
-              </button>
-            </form>
-          ) : (
-            <Link
-              className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
-              href="/settings"
-            >
-              Settings
-            </Link>
-          )}
         </div>
       </div>
     </div>
