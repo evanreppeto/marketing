@@ -139,7 +139,13 @@ function LaunchTracker({
             </button>
           ) : null}
           {!ready ? (
-            <Button type="button" variant="primary" size="md" disabled>
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              disabled
+              title={`Approve every piece to launch — ${pendingCount} still ${pendingCount === 1 ? "needs" : "need"} a decision.`}
+            >
               Launch campaign
             </Button>
           ) : armed ? (

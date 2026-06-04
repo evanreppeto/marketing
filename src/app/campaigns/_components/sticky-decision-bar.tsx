@@ -59,6 +59,7 @@ export function StickyDecisionBar({
   }, [sentinelRef]);
 
   const { requiredCount, approvedCount, pendingCount, ready, live, lifecycle } = launchState;
+  const pct = requiredCount > 0 ? Math.round((approvedCount / requiredCount) * 100) : 0;
   // Nothing actionable to surface once it's live or there are no pieces.
   if (live || requiredCount === 0) return null;
 
@@ -73,6 +74,16 @@ export function StickyDecisionBar({
         <span className="flex items-center gap-2">
           <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full ${ready ? "bg-[var(--ok)]" : "status-breathe bg-[var(--warn)]"}`} />
           <StatusPill tone={LIFECYCLE_TONE[lifecycle]}>{lifecycle}</StatusPill>
+        </span>
+        <span
+          className="flex h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-[var(--surface-raised)] sm:w-28"
+          role="progressbar"
+          aria-valuenow={approvedCount}
+          aria-valuemin={0}
+          aria-valuemax={requiredCount}
+          aria-label="Deliverables approved"
+        >
+          <span className="h-full rounded-full bg-[var(--ok)] transition-[width] duration-300 ease-out" style={{ width: `${pct}%` }} />
         </span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-secondary)]">
           <span className="font-mono tabular-nums text-[var(--text-primary)]">{approvedCount}</span>/{requiredCount} approved
