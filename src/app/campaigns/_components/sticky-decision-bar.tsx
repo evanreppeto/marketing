@@ -32,6 +32,7 @@ export function StickyDecisionBar({
   onReviewPieces: () => void;
 }) {
   const [visible, setVisible] = useState(false);
+  const [armed, setArmed] = useState(false);
   const [state, formAction, isPending] = useActionState(launchCampaignAction, null);
 
   useEffect(() => {
@@ -79,12 +80,21 @@ export function StickyDecisionBar({
           {state && !state.ok ? <span className="ml-2 text-[oklch(0.86_0.09_26)]">{state.message}</span> : null}
         </span>
         {ready ? (
-          <form action={formAction} className="shrink-0">
-            <input type="hidden" name="campaignId" value={campaignId} />
-            <Button type="submit" variant="primary" size="sm" disabled={isPending}>
-              {isPending ? "Launching…" : "Launch campaign"}
+          armed ? (
+            <form action={formAction} className="flex shrink-0 items-center gap-1.5">
+              <input type="hidden" name="campaignId" value={campaignId} />
+              <Button type="submit" variant="primary" size="sm" disabled={isPending}>
+                {isPending ? "Launching…" : "Confirm launch"}
+              </Button>
+              <button type="button" onClick={() => setArmed(false)} className="text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <Button type="button" variant="primary" size="sm" onClick={() => setArmed(true)} className="shrink-0">
+              Launch campaign
             </Button>
-          </form>
+          )
         ) : (
           <button type="button" onClick={onReviewPieces} className={`${buttonClasses({ variant: "ghost", size: "sm" })} shrink-0`}>
             Review {pendingCount} {pendingCount === 1 ? "piece" : "pieces"}

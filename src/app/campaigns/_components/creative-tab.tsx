@@ -390,21 +390,34 @@ function ReopenButton({ assetId, campaignId, label }: { assetId: string; campaig
   );
 }
 
-/** Quiet, destructive-tinted "Remove from queue" (archive) usable from any state. */
+/** Quiet, destructive-tinted "Remove from queue" (archive) with a two-step
+ *  confirm so it's never a single misclick. */
 function RemoveButton({ assetId, campaignId }: { assetId: string; campaignId: string }) {
   const [state, formAction, isPending] = useActionState(decideAssetAction, null);
+  const [armed, setArmed] = useState(false);
+
+  if (!armed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setArmed(true)}
+        className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md px-2.5 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--priority-bright)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--priority)]"
+      >
+        Remove
+      </button>
+    );
+  }
 
   return (
-    <form action={formAction} className="contents">
+    <form action={formAction} className="inline-flex items-center gap-1.5">
       <input type="hidden" name="assetId" value={assetId} />
       <input type="hidden" name="campaignId" value={campaignId} />
       <input type="hidden" name="decision" value="archived" />
-      <button
-        type="submit"
-        disabled={isPending}
-        className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md px-2.5 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--priority-bright)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--priority)] disabled:pointer-events-none disabled:opacity-60"
-      >
-        {isPending ? "Removing…" : "Remove"}
+      <Button type="submit" variant="priority" size="sm" disabled={isPending}>
+        {isPending ? "Removing…" : "Confirm remove"}
+      </Button>
+      <button type="button" onClick={() => setArmed(false)} className="text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
+        Cancel
       </button>
       {state && !state.ok ? <span className="text-xs font-semibold text-[oklch(0.86_0.09_26)]">{state.message}</span> : null}
     </form>

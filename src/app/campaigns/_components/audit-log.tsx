@@ -18,11 +18,15 @@ const ACTOR_META: Record<AuditEntry["actorKind"], { label: string; dot: string; 
  * Campaign audit trail — a unified, filterable log of operator actions and
  * Mark's activity, newest first. Read-only; every line is a real record.
  */
+const AUDIT_PAGE = 40;
+
 export function AuditLog({ entries }: { entries: AuditEntry[] }) {
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [showAll, setShowAll] = useState(false);
   const userCount = entries.filter((entry) => entry.actorKind === "user").length;
   const markCount = entries.filter((entry) => entry.actorKind === "mark").length;
   const visible = filter === "all" ? entries : entries.filter((entry) => entry.actorKind === filter);
+  const shown = showAll ? visible : visible.slice(0, AUDIT_PAGE);
 
   return (
     <div className="space-y-4">
@@ -50,7 +54,7 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
           <p className="px-5 py-4 text-sm text-[var(--text-muted)]">No activity recorded for this filter yet.</p>
         ) : (
           <ol className="divide-y divide-[var(--border-hairline)]">
-            {visible.map((entry) => (
+            {shown.map((entry) => (
               <li key={entry.id} className="flex items-start gap-3 px-5 py-3">
                 <span
                   className={`mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${ACTOR_META[entry.actorKind].chip}`}
@@ -69,6 +73,15 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
             ))}
           </ol>
         )}
+        {!showAll && visible.length > AUDIT_PAGE ? (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="w-full border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-2.5 text-xs font-bold text-[var(--accent)] transition hover:bg-[var(--accent-soft)]"
+          >
+            Show all {visible.length} entries
+          </button>
+        ) : null}
       </section>
     </div>
   );

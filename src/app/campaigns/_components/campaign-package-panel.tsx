@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type {
@@ -66,6 +66,7 @@ function LaunchTracker({
   onReviewPieces: () => void;
 }) {
   const [state, formAction, isPending] = useActionState(launchCampaignAction, null);
+  const [armed, setArmed] = useState(false);
   const { requiredCount, approvedCount, pendingCount, deployedCount, ready, live, lifecycle } = launchState;
   const pct = requiredCount > 0 ? Math.round((approvedCount / requiredCount) * 100) : 0;
 
@@ -137,12 +138,25 @@ function LaunchTracker({
               Review {pendingCount} {pendingCount === 1 ? "piece" : "pieces"}
             </button>
           ) : null}
-          <form action={formAction}>
-            <input type="hidden" name="campaignId" value={campaignId} />
-            <Button type="submit" variant="primary" size="md" disabled={!ready || isPending}>
-              {isPending ? "Launching…" : "Launch campaign"}
+          {!ready ? (
+            <Button type="button" variant="primary" size="md" disabled>
+              Launch campaign
             </Button>
-          </form>
+          ) : armed ? (
+            <form action={formAction} className="flex items-center gap-2">
+              <input type="hidden" name="campaignId" value={campaignId} />
+              <Button type="submit" variant="primary" size="md" disabled={isPending}>
+                {isPending ? "Launching…" : "Confirm launch"}
+              </Button>
+              <button type="button" onClick={() => setArmed(false)} className="text-sm font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <Button type="button" variant="primary" size="md" onClick={() => setArmed(true)}>
+              Launch campaign
+            </Button>
+          )}
         </div>
       </div>
 

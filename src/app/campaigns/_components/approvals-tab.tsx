@@ -75,7 +75,12 @@ export function ApprovalsTab({
   );
 }
 
+const HISTORY_PAGE = 25;
+
 function DecisionHistory({ history }: { history: CampaignDecisionEvent[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? history : history.slice(0, HISTORY_PAGE);
+
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
@@ -87,7 +92,7 @@ function DecisionHistory({ history }: { history: CampaignDecisionEvent[] }) {
         </p>
       ) : (
         <ol className="divide-y divide-[var(--border-hairline)]">
-          {history.map((event) => (
+          {shown.map((event) => (
             <li key={event.id} className="flex items-start gap-3 px-5 py-3">
               <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${historyDot(event.tone)}`} />
               <div className="min-w-0 flex-1">
@@ -104,6 +109,15 @@ function DecisionHistory({ history }: { history: CampaignDecisionEvent[] }) {
           ))}
         </ol>
       )}
+      {!showAll && history.length > HISTORY_PAGE ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-2.5 text-xs font-bold text-[var(--accent)] transition hover:bg-[var(--accent-soft)]"
+        >
+          Show all {history.length} decisions
+        </button>
+      ) : null}
     </section>
   );
 }

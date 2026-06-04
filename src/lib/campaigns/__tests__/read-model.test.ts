@@ -5,6 +5,7 @@ import {
   buildAuditLog,
   buildExecutiveOverview,
   buildLaunchState,
+  buildMarkConversation,
   buildReasoning,
   classifyMediaAsset,
   type CampaignWorkspaceAsset,
@@ -186,6 +187,28 @@ describe("buildAuditLog", () => {
     expect(log[0]).toMatchObject({ actorKind: "user", action: "Launched" });
     expect(log[1]).toMatchObject({ actorKind: "mark", action: "Produced Email Draft" });
     expect(log[2]).toMatchObject({ actorKind: "mark" });
+  });
+});
+
+describe("buildMarkConversation", () => {
+  it("includes only human-initiated directives as operator turns, with Mark's outputs, chronological", () => {
+    const tasks = [
+      { id: "t1", objective: "Draft 2 more ads", task_type: "campaign_directive", status: "queued", priority: "high", metadata: { requested_by: "ops@bigshoulders.test", human_instruction: "Draft 2 more ads" }, created_at: "2026-06-02T09:00:00.000Z", updated_at: "" },
+      { id: "t2", objective: "autonomous sweep", task_type: "scheduled_scan", status: "queued", priority: "low", metadata: {}, created_at: "2026-06-01T09:00:00.000Z", updated_at: "" },
+    ];
+    const outputs = [
+      { id: "o1", output_type: "ad_draft", title: "Search ad", created_at: "2026-06-03T09:00:00.000Z", body: "Body", edited_body: null, structured_payload: {}, approval_status: "pending_approval" },
+    ];
+
+    const convo = buildMarkConversation(
+      tasks as Parameters<typeof buildMarkConversation>[0],
+      outputs as Parameters<typeof buildMarkConversation>[1],
+    );
+
+    // Autonomous task (no requester) is excluded; ordered oldest→newest.
+    expect(convo.map((m) => m.id)).toEqual(["task-t1", "output-o1"]);
+    expect(convo[0]).toMatchObject({ role: "operator", author: "ops@bigshoulders.test" });
+    expect(convo[1]).toMatchObject({ role: "mark", title: "Search ad" });
   });
 });
 

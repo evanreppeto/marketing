@@ -649,7 +649,7 @@ export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRo
     }));
 }
 
-function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[]): MarkMessage[] {
+export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[]): MarkMessage[] {
   // Raw `at` holds the ISO timestamp for sorting; formatted on the way out.
   const items: MarkMessage[] = [];
 
