@@ -27,7 +27,7 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   }
 
   const { campaigns, totals } = list;
-  const pendingCount = campaigns.filter((campaign) => /pending/i.test(campaign.status)).length;
+  const pendingCount = campaigns.filter((campaign) => campaign.lifecycle === "In review").length;
 
   return (
     <>

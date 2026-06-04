@@ -4,9 +4,15 @@ import { StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 import { FilterSelect } from "./filter-select";
-import { statusTone } from "./status-tone";
 
 const PAGE_SIZES = [12, 24, 48];
+
+const LIFECYCLE_TONE: Record<CampaignWorkspaceListItem["lifecycle"], "blue" | "green" | "amber" | "gray"> = {
+  Drafting: "gray",
+  "In review": "amber",
+  Ready: "green",
+  Live: "blue",
+};
 
 export function CampaignGallery({
   campaigns,
@@ -23,14 +29,14 @@ export function CampaignGallery({
   query: string;
   status: string;
 }) {
-  const statuses = ["All", ...Array.from(new Set(campaigns.map((c) => c.status)))];
+  const statuses = ["All", ...Array.from(new Set(campaigns.map((c) => c.lifecycle)))];
   const personas = ["All", ...Array.from(new Set(campaigns.map((campaign) => targetLabel(campaign.persona))))];
   const filter = statuses.includes(status) ? status : "All";
   const personaFilter = personas.includes(persona) ? persona : "All";
 
   const q = query.trim().toLowerCase();
   const filtered = campaigns.filter((campaign) => {
-    const matchStatus = filter === "All" || campaign.status === filter;
+    const matchStatus = filter === "All" || campaign.lifecycle === filter;
     const matchPersona = personaFilter === "All" || targetLabel(campaign.persona) === personaFilter;
     const matchQuery =
       q.length === 0 ||
@@ -262,8 +268,6 @@ function visiblePageNumbers(currentPage: number, pageCount: number) {
 }
 
 function CampaignCard({ campaign, priority }: { campaign: CampaignWorkspaceListItem; priority: boolean }) {
-  const isPending = /pending/i.test(campaign.status);
-
   return (
     <Link
       href={campaign.href}
@@ -273,25 +277,10 @@ function CampaignCard({ campaign, priority }: { campaign: CampaignWorkspaceListI
     >
       <CardCover campaign={campaign} />
 
-      {isPending ? (
-        <div className="flex items-center gap-1.5 border-b border-[var(--border-hairline)] bg-[oklch(0.82_0.13_85/0.12)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)]">
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[oklch(0.78_0.14_70)]" />
-          Awaiting approval
-        </div>
-      ) : null}
-
       <div className="flex flex-1 flex-col p-4">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <StatusPill tone={statusTone(campaign.status)}>{campaign.status}</StatusPill>
-            {isPending ? (
-              <div className="mt-2">
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[oklch(0.9_0.09_85)]">Why it is pending</div>
-                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-[var(--text-secondary)]">{campaign.whyBuilt}</p>
-              </div>
-            ) : null}
-          </div>
-          <span className="shrink-0 pt-0.5 text-right font-mono text-[11px] text-[var(--text-muted)]">{campaign.updatedAt}</span>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <StatusPill tone={LIFECYCLE_TONE[campaign.lifecycle]}>{campaign.lifecycle}</StatusPill>
+          <span className="shrink-0 font-mono text-[11px] text-[var(--text-muted)]">{campaign.updatedAt}</span>
         </div>
         <h3 className="font-bold leading-tight text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{campaign.name}</h3>
         <p className="mt-1.5 line-clamp-2 flex-1 text-sm leading-6 text-[var(--text-secondary)]">{campaign.objective}</p>

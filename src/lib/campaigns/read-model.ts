@@ -31,6 +31,7 @@ export type CampaignWorkspaceListItem = {
   name: string;
   persona: string;
   status: string;
+  lifecycle: CampaignLaunchState["lifecycle"];
   objective: string;
   audienceSummary: string;
   offerSummary: string;
@@ -427,6 +428,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         name: cleanCampaignName(campaign.name),
         persona: humanize(campaign.persona),
         status: statusLabel(campaign.status),
+        lifecycle: buildLaunchState(campaignAssets, campaign.launch_locked).lifecycle,
         objective: campaign.objective ?? "No objective captured yet.",
         audienceSummary: campaign.audience_summary ?? "Audience has not been summarized yet.",
         offerSummary: campaign.offer_summary ?? "Offer has not been summarized yet.",
