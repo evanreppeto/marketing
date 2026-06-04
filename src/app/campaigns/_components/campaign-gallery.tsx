@@ -309,22 +309,8 @@ function CardCover({ campaign }: { campaign: CampaignWorkspaceListItem }) {
           />
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[oklch(0.1_0.03_250/0.78)] to-transparent" />
         </>
-      ) : campaign.previewText ? (
-        <CopyPreview label={campaign.previewLabel} text={campaign.previewText} />
-      ) : campaign.assetTypes.length > 0 ? (
-        <div className="flex h-full items-center justify-center px-4">
-          <div className="flex flex-wrap justify-center gap-1.5">
-            {campaign.assetTypes.slice(0, 3).map((type) => (
-              <span key={type} className="rounded-md border border-[var(--border-strong)] bg-[oklch(0.14_0.03_250/0.55)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] backdrop-blur-sm">
-                {type}
-              </span>
-            ))}
-          </div>
-        </div>
       ) : (
-        <div className="flex h-full items-center justify-center">
-          <span className="font-display text-sm font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">No creative yet</span>
-        </div>
+        <CreativeCover campaign={campaign} />
       )}
 
       <span className={`absolute left-3 top-3 max-w-[calc(100%-1.5rem)] truncate rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] backdrop-blur-sm ${targetBadgeClasses(campaign.persona)}`}>
@@ -334,14 +320,50 @@ function CardCover({ campaign }: { campaign: CampaignWorkspaceListItem }) {
   );
 }
 
-/** Renders the primary asset's copy as a small "document" cover. */
-function CopyPreview({ label, text }: { label: string | null; text: string }) {
+/** Clean, branded cover for campaigns with no image: the deliverable kinds it
+ *  contains + a count, over a faint type glyph. No raw draft text. */
+function CreativeCover({ campaign }: { campaign: CampaignWorkspaceListItem }) {
+  const types = campaign.assetTypes.slice(0, 4);
+
+  if (types.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <span className="font-display text-sm font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">No creative yet</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full flex-col px-4 pb-3 pt-10">
-      {label ? <span className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{label} draft</span> : null}
-      <p className="line-clamp-4 whitespace-pre-wrap text-[11px] leading-[1.5] text-[var(--text-secondary)]">{text}</p>
+    <div className="relative flex h-full flex-col items-center justify-center gap-2.5 px-5">
+      <span aria-hidden className="pointer-events-none absolute select-none font-display text-[5.5rem] font-black leading-none tracking-[-0.04em] text-[var(--text-primary)] opacity-[0.06]">
+        {coverGlyph(campaign.assetTypes)}
+      </span>
+      <div className="relative z-10 flex flex-wrap justify-center gap-1.5">
+        {types.map((type) => (
+          <span
+            key={type}
+            className="rounded-md border border-[var(--border-strong)] bg-[oklch(0.12_0.03_250/0.6)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-secondary)] backdrop-blur-sm"
+          >
+            {type}
+          </span>
+        ))}
+      </div>
+      <span className="relative z-10 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+        {campaign.assetCount} deliverable{campaign.assetCount === 1 ? "" : "s"}
+      </span>
     </div>
   );
+}
+
+/** A faint background glyph hinting at the dominant deliverable kind. */
+function coverGlyph(assetTypes: string[]) {
+  const joined = assetTypes.join(" ").toLowerCase();
+  if (/email/.test(joined)) return "@";
+  if (/sms|text/.test(joined)) return "#";
+  if (/landing|web|page/.test(joined)) return "WWW";
+  if (/ad|search|social|meta|google|display/.test(joined)) return "AD";
+  if (/image|video|media|photo|creative/.test(joined)) return "IMG";
+  return "DOC";
 }
 
 function Stat({ value, label }: { value: number; label: string }) {
