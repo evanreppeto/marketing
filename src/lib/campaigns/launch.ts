@@ -96,13 +96,12 @@ export async function launchCampaign(
   assertOk("campaigns launch update", campaignUpdateError);
 
   // Record the handoff signal Mark/Hermes consumes to do the actual sends.
-  // `launched` is the valid campaign_event_type member; payload carries detail.
   const { error: eventError } = await client.from("campaign_events").insert({
     campaign_id: campaignId,
-    event_type: "launched",
+    event_type: "campaign_launched",
     actor: operator,
     detail: `Campaign launched by ${operator}. ${approvedAssetIds.length} deliverable${approvedAssetIds.length === 1 ? "" : "s"} unlocked for dispatch; handed off to Mark.`,
-    payload: { source: "campaigns_workspace", kind: "campaign_launched", approved_assets: approvedAssetIds.length, handoff: "hermes" },
+    payload: { source: "campaigns_workspace", approved_assets: approvedAssetIds.length, handoff: "hermes" },
   });
   assertOk("campaign_events insert", eventError);
 
@@ -160,14 +159,13 @@ export async function deployAsset(
   const { error: unlockError } = await client.from("campaign_assets").update({ dispatch_locked: false }).eq("id", assetId);
   assertOk("campaign_assets unlock", unlockError);
 
-  // `exported` is the valid enum member for a single dispatched piece.
   const { error: eventError } = await client.from("campaign_events").insert({
     campaign_id: campaignId || null,
     campaign_asset_id: assetId,
-    event_type: "exported",
+    event_type: "asset_deployed",
     actor: operator,
     detail: `Deliverable deployed by ${operator}; handed off to Mark for dispatch.`,
-    payload: { source: "campaigns_workspace", kind: "asset_deployed", handoff: "hermes", single_asset: true },
+    payload: { source: "campaigns_workspace", handoff: "hermes", single_asset: true },
   });
   assertOk("campaign_events insert", eventError);
 

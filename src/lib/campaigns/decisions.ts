@@ -214,10 +214,10 @@ export async function reopenAsset(
     campaign_id: campaignId || null,
     campaign_asset_id: assetId,
     approval_item_id: approval?.id ?? null,
-    event_type: "approval_submitted",
+    event_type: "reopened",
     actor: operator,
     detail: `Re-opened for review by ${operator}; dispatch re-locked.`,
-    payload: { kind: "reopened", reopened_at: now, outbound_locked: true },
+    payload: { reopened_at: now, outbound_locked: true },
   });
   assertOk("campaign_events insert (reopen)", eventError);
 
