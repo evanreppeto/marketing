@@ -1,7 +1,6 @@
 import { connection } from "next/server";
 
 import { EmptyState, StatusPill } from "../_components/page-header";
-import { MetricStrip } from "../_components/workspace";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 
 import { CampaignGallery } from "./_components/campaign-gallery";
@@ -26,21 +25,12 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     );
   }
 
-  const { campaigns, totals } = list;
+  const { campaigns } = list;
   const pendingCount = campaigns.filter((campaign) => campaign.lifecycle === "In review").length;
 
   return (
     <>
       <CampaignCommandHeader pendingCount={pendingCount} />
-
-      <MetricStrip
-        metrics={[
-          { label: "Campaigns", value: totals.campaigns, detail: "Drafted or active", tone: totals.campaigns > 0 ? "blue" : "gray" },
-          { label: "Assets", value: totals.assets, detail: "Email, SMS, ads, print, media", tone: totals.assets > 0 ? "blue" : "gray" },
-          { label: "Approvals", value: totals.approvals, detail: "Human-gate records", tone: totals.approvals > 0 ? "amber" : "green" },
-          { label: "Media", value: totals.media, detail: "Images, video, files, links", tone: totals.media > 0 ? "blue" : "gray" },
-        ]}
-      />
 
       {campaigns.length > 0 ? (
         <CampaignGallery
@@ -50,6 +40,8 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
           persona={getParam(params.persona) || "All"}
           query={getParam(params.q)}
           status={getParam(params.status) || "All"}
+          sort={getParam(params.sort) || "recent"}
+          view={getParam(params.view) || "cards"}
         />
       ) : (
         <EmptyState

@@ -32,6 +32,7 @@ export type CampaignWorkspaceListItem = {
   persona: string;
   status: string;
   lifecycle: CampaignLaunchState["lifecycle"];
+  pendingCount: number;
   objective: string;
   audienceSummary: string;
   offerSummary: string;
@@ -423,12 +424,14 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
       );
       const preview = pickWorkspacePreview(campaignAssets);
       const reasoning = buildReasoning(campaign, campaignAssetRows);
+      const launch = buildLaunchState(campaignAssets, campaign.launch_locked);
       return {
         id: campaign.id,
         name: cleanCampaignName(campaign.name),
         persona: humanize(campaign.persona),
         status: statusLabel(campaign.status),
-        lifecycle: buildLaunchState(campaignAssets, campaign.launch_locked).lifecycle,
+        lifecycle: launch.lifecycle,
+        pendingCount: launch.pendingCount,
         objective: campaign.objective ?? "No objective captured yet.",
         audienceSummary: campaign.audience_summary ?? "Audience has not been summarized yet.",
         offerSummary: campaign.offer_summary ?? "Offer has not been summarized yet.",
