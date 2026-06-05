@@ -10,6 +10,10 @@ describe("countDispatchFunnel", () => {
   it("is all-zero for no rows", () => {
     expect(countDispatchFunnel([])).toMatchObject({ total: 0, sent: 0, delivered: 0 });
   });
+  it("ignores unknown statuses (including 'total')", () => {
+    const funnel = countDispatchFunnel([{ status: "bogus" }, { status: "total" }, { status: "sent" }]);
+    expect(funnel).toMatchObject({ sent: 1, total: 1 });
+  });
 });
 
 describe("aggregateCampaignResults", () => {
@@ -26,6 +30,12 @@ describe("aggregateCampaignResults", () => {
   it("returns null derived rates on zero denominators, hasData false for no rows", () => {
     const m = aggregateCampaignResults([]);
     expect(m).toMatchObject({ impressions: 0, ctr: null, costPerLeadCents: null, roi: null, hasData: false });
+  });
+  it("has data but null rates when rows are present with all-zero metrics", () => {
+    const m = aggregateCampaignResults([
+      { impressions: 0, clicks: 0, calls: 0, forms: 0, leads: 0, jobs: 0, won_revenue_cents: 0, spend_cents: 0 },
+    ]);
+    expect(m).toMatchObject({ hasData: true, ctr: null, costPerLeadCents: null, roi: null });
   });
 });
 

@@ -55,11 +55,13 @@ export type CampaignResultMetricRow = {
 
 const EMPTY_FUNNEL: DispatchFunnel = { queued: 0, scheduled: 0, sent: 0, delivered: 0, failed: 0, canceled: 0, total: 0 };
 
+const FUNNEL_STATUSES = new Set<string>(["queued", "scheduled", "sent", "delivered", "failed", "canceled"]);
+
 /** Pure: count dispatch rows into the lifecycle funnel. Unknown statuses are ignored. */
 export function countDispatchFunnel(rows: Array<{ status: string }>): DispatchFunnel {
   const funnel: DispatchFunnel = { ...EMPTY_FUNNEL };
   for (const row of rows) {
-    if (row.status in funnel && row.status !== "total") {
+    if (FUNNEL_STATUSES.has(row.status)) {
       funnel[row.status as keyof DispatchFunnel] += 1;
       funnel.total += 1;
     }
