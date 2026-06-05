@@ -4,6 +4,7 @@ import { EmptyState, StatusPill } from "../_components/page-header";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 
 import { CampaignGallery } from "./_components/campaign-gallery";
+import { CampaignTriageStrip } from "./_components/campaign-triage-strip";
 import { SlimHeader } from "./_components/slim-header";
 
 type CampaignsPageProps = {
@@ -33,16 +34,19 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
       <CampaignCommandHeader pendingCount={pendingCount} />
 
       {campaigns.length > 0 ? (
-        <CampaignGallery
-          campaigns={campaigns}
-          page={parsePositiveInt(getParam(params.page), 1)}
-          pageSize={parsePageSize(getParam(params.pageSize))}
-          persona={getParam(params.persona) || "All"}
-          query={getParam(params.q)}
-          status={getParam(params.status) || "All"}
-          sort={getParam(params.sort) || "recent"}
-          view={getParam(params.view) || "cards"}
-        />
+        <>
+          <CampaignTriageStrip campaigns={campaigns} />
+          <CampaignGallery
+            campaigns={campaigns}
+            page={parsePositiveInt(getParam(params.page), 1)}
+            pageSize={parsePageSize(getParam(params.pageSize))}
+            persona={getParam(params.persona) || "All"}
+            query={getParam(params.q)}
+            status={getParam(params.status) || "All"}
+            sort={getParam(params.sort) || "recent"}
+            view={getParam(params.view) || "cards"}
+          />
+        </>
       ) : (
         <EmptyState
           title="No campaigns yet"
