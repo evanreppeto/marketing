@@ -749,6 +749,8 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
   const rawBody = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
   const readableBody = buildReadablePreview(rawBody, asset.prompt_inputs, asset.reasoning_payload);
   const media = collectMediaFromAsset(asset);
+  // `current` intentionally excludes draft_body — there is no meaningful revision
+  // until the operator approves or edits the piece, so draft-vs-draft is no diff.
   const current = asset.approved_body ?? asset.edited_body ?? "";
   const draft = asset.draft_body ?? "";
   const revision = draft && current && draft.trim() !== current.trim() ? { draft, current } : null;
