@@ -4,6 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
+import { type DispatchView } from "@/lib/dispatch/status";
 
 import { ApprovalsTab } from "./approvals-tab";
 import { AudienceLeadsTab } from "./audience-leads-tab";
@@ -12,6 +13,7 @@ import { CampaignMediaBoard } from "./campaign-media-board";
 import { CampaignOverview } from "./campaign-package-panel";
 import { AuditLog } from "./audit-log";
 import { CreativeTab } from "./creative-tab";
+import { DispatchPanel } from "./dispatch-panel";
 import { MarkConversation } from "./mark-conversation";
 import { PerformanceTab } from "./performance-tab";
 import { StickyDecisionBar } from "./sticky-decision-bar";
@@ -25,7 +27,7 @@ function isTabKey(value: string | null): value is TabKey {
   return value !== null && (TAB_KEYS as string[]).includes(value);
 }
 
-export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace }) {
+export function CampaignWorkspace({ detail, dispatches = [] }: { detail: LiveCampaignWorkspace; dispatches?: DispatchView[] }) {
   const { campaign, groupedAssets, media, sources, reasoning, approvals, metrics, markConversation } = detail;
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -102,6 +104,8 @@ export function CampaignWorkspace({ detail }: { detail: LiveCampaignWorkspace })
       <CampaignHeader campaign={campaign} launchState={detail.launchState} />
 
       <CampaignOverview detail={detail} onOpenTab={goToTab} />
+
+      <DispatchPanel dispatches={dispatches} />
 
       <div ref={sentinelRef} aria-hidden className="h-px" />
 
