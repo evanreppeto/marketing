@@ -1261,25 +1261,45 @@ git commit -m "feat(outbox): operator actions to transition dispatch status"
 
 ## Task B7: Outbox page + nav entry + console UI
 
+> **NAV CORRECTION (discovered during A1):** The rendered sidebar is
+> `src/app/_components/console-frame.tsx` — its own hardcoded `navItems:
+> ShellNavItem[]` (currently just Campaigns), rendered via `SideNav`. The
+> `growth-engine.ts navItems` list only feeds the `quick-jump` command palette.
+> CLAUDE.md's `app-shell.tsx` note is stale. To surface Outbox in the actual
+> sidebar, add it to **ConsoleFrame**; add it to growth-engine too so it's also
+> searchable in quick-jump (mirroring how Campaigns now appears in both).
+
 **Files:**
 - Create: `src/app/outbox/page.tsx`, `src/app/outbox/_components/outbox-console.tsx`
-- Modify: `src/app/_data/growth-engine.ts` (nav), `src/app/_data/__tests__/growth-engine.test.ts`
+- Modify: `src/app/_components/console-frame.tsx` (real sidebar), `src/app/_data/growth-engine.ts` (quick-jump), `src/app/_data/__tests__/growth-engine.test.ts`
 
-- [ ] **Step 1: Add the nav test + entry**
+- [ ] **Step 1: Add Outbox to the real sidebar (ConsoleFrame)**
 
-Append to `src/app/_data/__tests__/growth-engine.test.ts`:
+In `src/app/_components/console-frame.tsx`, add an entry to the `navItems: ShellNavItem[]` array (line ~10):
+
+```ts
+const navItems: ShellNavItem[] = [
+  { label: "Campaigns", href: "/campaigns", iconSrc: "/brand/nav-icons/review-icon.png", matches: ["/campaigns"] },
+  { label: "Outbox", href: "/outbox", iconSrc: "/brand/nav-icons/today-icon.png", matches: ["/outbox"] },
+];
+```
+
+> **Icon:** there is no dedicated outbox icon under `public/brand/nav-icons/`
+> (available: crm, mark, personas, review, settings, today, vault). `today-icon.png`
+> is a placeholder reuse — flag this in the report so the human can supply a real
+> outbox icon later. Do NOT reuse `review-icon.png` (Campaigns already uses it).
+
+Then add to `growth-engine.ts` `navItems` (quick-jump) after the Campaigns entry, and append the test below:
+
+```ts
+  { label: "Outbox", href: "/outbox", icon: "approval" },
+```
 
 ```ts
   it("includes an Outbox entry pointing at /outbox", () => {
     const outbox = navItems.find((item) => item.href === "/outbox");
     expect(outbox?.label).toBe("Outbox");
   });
-```
-
-Add to `navItems` after the Campaigns entry:
-
-```ts
-  { label: "Outbox", href: "/outbox", icon: "approval" },
 ```
 
 Run: `pnpm test src/app/_data/__tests__/growth-engine.test.ts` → PASS.
