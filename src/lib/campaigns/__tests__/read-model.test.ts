@@ -99,6 +99,7 @@ describe("buildExecutiveOverview", () => {
           label: "Property manager directory",
           detail: "Evidence URL captured by Mark.",
           url: "https://example.com",
+          recordHref: null,
           kind: "web",
         },
       ],

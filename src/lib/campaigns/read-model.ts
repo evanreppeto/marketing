@@ -124,6 +124,8 @@ export type CampaignWorkspaceSource = {
   label: string;
   detail: string;
   url: string | null;
+  /** Internal link to the CRM record page, when this source is a CRM record. */
+  recordHref: string | null;
   kind: "company" | "contact" | "lead" | "web" | "evidence";
 };
 
@@ -1274,6 +1276,7 @@ function buildSources(input: {
       label: company.name,
       detail: [company.partner_tier ? humanize(company.partner_tier) : null, company.phone, company.email].filter(Boolean).join(" / ") || "Linked company",
       url: company.website_url,
+      recordHref: `/crm/companies/${company.id}`,
       kind: "company",
     });
   }
@@ -1284,6 +1287,7 @@ function buildSources(input: {
       label: contact.full_name ?? "Linked contact",
       detail: [contact.title, contact.email, contact.phone].filter(Boolean).join(" / ") || "Linked contact",
       url: null,
+      recordHref: `/crm/contacts/${contact.id}`,
       kind: "contact",
     });
   }
@@ -1294,6 +1298,7 @@ function buildSources(input: {
       label: `Lead from ${lead.source}`,
       detail: `${statusLabel(lead.status)} / ${lead.lead_score} score${lead.loss_summary ? ` / ${lead.loss_summary}` : ""}`,
       url: null,
+      recordHref: `/crm/leads/${lead.id}`,
       kind: "lead",
     });
   }
@@ -1314,6 +1319,7 @@ function buildSources(input: {
       label: getHostLabel(url),
       detail: "Evidence or source URL captured by Mark.",
       url,
+      recordHref: null,
       kind: "web",
     });
   }
