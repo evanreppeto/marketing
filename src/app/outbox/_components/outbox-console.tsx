@@ -30,13 +30,14 @@ export function OutboxConsole({ dispatches }: { dispatches: DispatchView[] }) {
       {groups.map((group) => (
         <section
           key={group.status}
+          aria-label={`${statusLabel(group.status)} dispatches`}
           className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]"
         >
           <div className="flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-3">
             <StatusPill tone={STATUS_TONE[group.status]}>{statusLabel(group.status)}</StatusPill>
             <span className="font-mono text-xs font-bold tabular-nums text-[var(--text-muted)]">{group.items.length}</span>
           </div>
-          <ul className="divide-y divide-[var(--border-hairline)]">
+          <ul aria-label={`${statusLabel(group.status)} dispatches`} className="divide-y divide-[var(--border-hairline)]">
             {group.items.map((dispatch) => (
               <DispatchRow key={dispatch.id} dispatch={dispatch} />
             ))}
@@ -49,7 +50,7 @@ export function OutboxConsole({ dispatches }: { dispatches: DispatchView[] }) {
 
 function DispatchRow({ dispatch }: { dispatch: DispatchView }) {
   return (
-    <li className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <li aria-label={dispatch.deliverable} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="truncate text-sm font-bold text-[var(--text-primary)]">{dispatch.deliverable}</div>
         <div className="mt-0.5 truncate text-xs font-semibold text-[var(--text-muted)]">
@@ -104,7 +105,7 @@ function TransitionButton({
     <form action={formAction} className="contents">
       <input type="hidden" name="dispatchId" value={dispatch.id} />
       <input type="hidden" name="campaignId" value={dispatch.campaignId} />
-      <Button type="submit" variant={variant} size="sm" disabled={isPending}>
+      <Button type="submit" variant={variant} size="sm" disabled={isPending} aria-busy={isPending}>
         {isPending ? "…" : label}
       </Button>
       {state && !state.ok ? <span className="text-xs font-semibold text-[oklch(0.86_0.09_26)]">{state.message}</span> : null}
