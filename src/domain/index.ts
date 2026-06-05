@@ -8,3 +8,4 @@ export * from "./integrity-findings";
 export * from "./leads";
 export * from "./notebook";
 export * from "./campaign-revisions";
+export * from "./campaign-results";
