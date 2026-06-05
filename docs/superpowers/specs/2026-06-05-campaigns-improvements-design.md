@@ -154,6 +154,24 @@ surfaces on the campaign detail view.
   degrades gracefully without Supabase env vars, matching the rest of the app.
 - No change to the lead-ingestion contract or scoring/routing determinism.
 
+## Known decisions / tech debt
+
+- **Two dispatch tables.** A pre-existing, unused `outbound_dispatches` table
+  (Hermes backend foundation) already models dispatches with richer semantics
+  (per-contact granularity, `idempotency_key`, `provider`/`provider_message_id`,
+  approval-gate constraint). The Outbox deliberately ships on a simpler,
+  deliverable-level `campaign_dispatches` table that is fully wired and tested.
+  Decision (2026-06-05): keep `campaign_dispatches`; revisit reconciling onto
+  `outbound_dispatches` if/when per-recipient sends, idempotency, or provider
+  tracking are needed. Recorded in the migration header too.
+- **`scheduleDispatchAction`** is backend-complete but not surfaced by any UI
+  control yet (the console displays a `scheduled` row if one exists but never
+  transitions into it). Kept as an extension point.
+- **Non-transactional launch enqueue.** A failed enqueue mid-launch can leave a
+  live campaign without dispatch rows (consistent with the existing multi-step,
+  non-transactional launch; fails loudly via `assertOk`). Recoverable by
+  backfilling from `campaign_assets` where `dispatch_locked = false`.
+
 ## Out of scope (this cycle)
 
 - **Tier C — Measurement with real data.** Deferred until the Outbox produces

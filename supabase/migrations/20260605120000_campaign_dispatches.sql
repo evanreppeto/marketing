@@ -1,6 +1,13 @@
 -- Outbox: one durable dispatch record per launched deliverable, plus the
 -- operator-driven status it moves through. The app records state and hands off;
 -- it never sends. Outbound stays locked.
+--
+-- NOTE (tech debt): a richer, currently-unused `outbound_dispatches` table exists
+-- (20260529120000_hermes_backend_foundation.sql) with per-contact granularity,
+-- idempotency_key, provider/provider_message_id, and an approval-gate constraint.
+-- This table is the deliberately simpler, deliverable-level model that the wired
+-- Outbox uses today. If/when the Outbox needs per-recipient sends, idempotency, or
+-- provider tracking, reconcile onto `outbound_dispatches` rather than growing this.
 
 create type public.campaign_dispatch_status as enum (
   'queued',
