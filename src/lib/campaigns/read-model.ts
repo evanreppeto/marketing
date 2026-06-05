@@ -80,6 +80,9 @@ export type CampaignWorkspaceAsset = {
   toolSource: string | null;
   updatedAt: string;
   media: CampaignMediaAsset[];
+  /** Original draft vs current text, present only when Mark revised the piece.
+   *  Drives the "What changed" diff in the review drawer. */
+  revision: { draft: string; current: string } | null;
   /** The approval item gating this deliverable, if one exists — drives the
    *  per-asset Approve/Decline controls in the Deliverables tab. */
   approval: { id: string; status: string } | null;
@@ -746,6 +749,9 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
   const rawBody = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
   const readableBody = buildReadablePreview(rawBody, asset.prompt_inputs, asset.reasoning_payload);
   const media = collectMediaFromAsset(asset);
+  const current = asset.approved_body ?? asset.edited_body ?? "";
+  const draft = asset.draft_body ?? "";
+  const revision = draft && current && draft.trim() !== current.trim() ? { draft, current } : null;
   return {
     id: asset.id,
     title: asset.title,
@@ -760,6 +766,7 @@ function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
     toolSource: getString(asset.tool_source),
     updatedAt: formatDate(asset.updated_at),
     media,
+    revision,
     approval: null,
   };
 }
@@ -852,6 +859,7 @@ function mapOutputAsAsset(output: AgentOutputRow): CampaignWorkspaceAsset {
     toolSource: "Mark output",
     updatedAt: formatDate(output.updated_at),
     media,
+    revision: null,
     approval: null,
   };
 }
@@ -877,6 +885,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow): CampaignWorkspaceAsset {
     toolSource: approval.requested_by ?? "Mark",
     updatedAt: formatDate(approval.updated_at),
     media,
+    revision: null,
     approval: { id: approval.id, status: statusLabel(approval.status) },
   };
 }

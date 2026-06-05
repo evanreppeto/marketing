@@ -27,6 +27,7 @@ function asset(overrides: Partial<CampaignWorkspaceAsset>): CampaignWorkspaceAss
     toolSource: null,
     updatedAt: "",
     media: [],
+    revision: null,
     approval: null,
     ...overrides,
   };
