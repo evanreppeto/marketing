@@ -1,5 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { enqueueDispatchesForAssets } from "@/lib/dispatch/persistence";
+
 import { getSupabaseAdminClient } from "../supabase/server";
 
 export type LaunchCampaignInput = {
@@ -95,6 +97,9 @@ export async function launchCampaign(
     .eq("id", campaignId);
   assertOk("campaigns launch update", campaignUpdateError);
 
+  // Open the Outbox: one queued dispatch per approved deliverable.
+  await enqueueDispatchesForAssets({ campaignId, assetIds: approvedAssetIds, operator }, client);
+
   // Record the handoff signal Mark/Hermes consumes to do the actual sends.
   const { error: eventError } = await client.from("campaign_events").insert({
     campaign_id: campaignId,
@@ -158,6 +163,9 @@ export async function deployAsset(
 
   const { error: unlockError } = await client.from("campaign_assets").update({ dispatch_locked: false }).eq("id", assetId);
   assertOk("campaign_assets unlock", unlockError);
+
+  // Open the Outbox for this single deployed deliverable.
+  await enqueueDispatchesForAssets({ campaignId, assetIds: [assetId], operator }, client);
 
   const { error: eventError } = await client.from("campaign_events").insert({
     campaign_id: campaignId || null,
