@@ -33,6 +33,7 @@ export type CampaignWorkspaceListItem = {
   status: string;
   lifecycle: CampaignLaunchState["lifecycle"];
   pendingCount: number;
+  pendingDeliverables: PendingDeliverable[];
   objective: string;
   audienceSummary: string;
   offerSummary: string;
@@ -432,6 +433,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         status: statusLabel(campaign.status),
         lifecycle: launch.lifecycle,
         pendingCount: launch.pendingCount,
+        pendingDeliverables: selectPendingDeliverables(campaignAssets),
         objective: campaign.objective ?? "No objective captured yet.",
         audienceSummary: campaign.audience_summary ?? "Audience has not been summarized yet.",
         offerSummary: campaign.offer_summary ?? "Offer has not been summarized yet.",
@@ -728,6 +730,16 @@ export function buildLaunchState(assets: CampaignWorkspaceAsset[], launchLocked:
         : "Ready";
 
   return { requiredCount, approvedCount, pendingCount, deployedCount, ready, live, lifecycle };
+}
+
+export type PendingDeliverable = { assetId: string; title: string; kind: string };
+
+/** Pure: the deliverables on a campaign still awaiting an operator decision,
+ *  shaped for the inline triage strip. */
+export function selectPendingDeliverables(assets: CampaignWorkspaceAsset[]): PendingDeliverable[] {
+  return assets
+    .filter((asset) => assetDecisionState(asset) === "pending")
+    .map((asset) => ({ assetId: asset.id, title: asset.title, kind: asset.assetType }));
 }
 
 function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {

@@ -8,6 +8,7 @@ import {
   buildMarkConversation,
   buildReasoning,
   classifyMediaAsset,
+  selectPendingDeliverables,
   type CampaignWorkspaceAsset,
 } from "../read-model";
 
@@ -218,5 +219,23 @@ describe("classifyMediaAsset", () => {
     expect(classifyMediaAsset("https://youtu.be/aqz-KE-bpKQ", "video/youtube", "video")).toBe("embed");
     expect(classifyMediaAsset("https://vimeo.com/123456", null, "video")).toBe("embed");
     expect(classifyMediaAsset("https://example.com/asset.mp4", "video/mp4", "video")).toBe("video");
+  });
+});
+
+describe("selectPendingDeliverables", () => {
+  const base = {
+    id: "a1", title: "Welcome email", assetType: "Email", category: "virtual" as const,
+    channel: "Email", body: "", preview: "", complianceNotes: "", dispatchLocked: true,
+    toolSource: null, updatedAt: "Jun 1", media: [], revision: null,
+  };
+
+  it("returns only deliverables still awaiting a decision", () => {
+    const pending = selectPendingDeliverables([
+      { ...base, id: "a1", status: "Needs approval", approval: null },
+      { ...base, id: "a2", status: "Approved", approval: { id: "x", status: "Approved" } },
+      { ...base, id: "a3", status: "Draft", approval: { id: "y", status: "Pending owner approval" } },
+    ]);
+    expect(pending.map((d) => d.assetId)).toEqual(["a1", "a3"]);
+    expect(pending[0]).toMatchObject({ assetId: "a1", title: "Welcome email", kind: "Email" });
   });
 });
