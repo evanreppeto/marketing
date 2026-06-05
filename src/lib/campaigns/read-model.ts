@@ -746,6 +746,20 @@ export type LinkedCampaign = {
   href: string;
 };
 
+/** Pure: merge the referencing campaign ids from the direct `campaigns` scan and
+ *  the `approval_items` scan, dropping nulls and de-duplicating. */
+export function collectReferencingCampaignIds(
+  directRows: Array<{ id: string }>,
+  approvalRows: Array<{ campaign_id: string | null }>,
+): string[] {
+  return [
+    ...new Set([
+      ...directRows.map((row) => row.id),
+      ...approvalRows.map((row) => row.campaign_id).filter((id): id is string => Boolean(id)),
+    ]),
+  ];
+}
+
 /** Pure: the `campaigns`/`approval_items` FK column for a CRM record kind. */
 export function columnFor(kind: LinkedCampaignRecordKind): "company_id" | "contact_id" | "lead_id" | "property_id" {
   switch (kind) {
@@ -779,12 +793,10 @@ export async function getCampaignsForRecord(
     const { data: approvalRows, error: approvalError } = await supabase.from("approval_items").select("campaign_id").eq(column, recordId);
     assertSupabaseResult("approval_items", approvalError);
 
-    const ids = [
-      ...new Set([
-        ...((directRows ?? []) as Array<{ id: string }>).map((row) => row.id),
-        ...((approvalRows ?? []) as Array<{ campaign_id: string | null }>).map((row) => row.campaign_id).filter((id): id is string => Boolean(id)),
-      ]),
-    ];
+    const ids = collectReferencingCampaignIds(
+      (directRows ?? []) as Array<{ id: string }>,
+      (approvalRows ?? []) as Array<{ campaign_id: string | null }>,
+    );
     if (ids.length === 0) return [];
 
     const { data, error } = await supabase.from("campaigns").select(CAMPAIGN_SELECT).in("id", ids).order("updated_at", { ascending: false });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { columnFor, getCampaignsForRecord } from "../read-model";
+import { collectReferencingCampaignIds, columnFor, getCampaignsForRecord } from "../read-model";
 
 describe("columnFor", () => {
   it("maps each record kind to its campaigns FK column", () => {
@@ -10,6 +10,20 @@ describe("columnFor", () => {
     expect(columnFor("contact")).toBe("contact_id");
     expect(columnFor("lead")).toBe("lead_id");
     expect(columnFor("property")).toBe("property_id");
+  });
+});
+
+describe("collectReferencingCampaignIds", () => {
+  it("merges direct + approval ids, drops nulls, and de-dupes", () => {
+    const ids = collectReferencingCampaignIds(
+      [{ id: "a" }, { id: "b" }],
+      [{ campaign_id: "b" }, { campaign_id: "c" }, { campaign_id: null }],
+    );
+    expect(ids).toEqual(["a", "b", "c"]); // b appears in both sources but only once; null dropped
+  });
+
+  it("returns [] for empty inputs", () => {
+    expect(collectReferencingCampaignIds([], [])).toEqual([]);
   });
 });
 
