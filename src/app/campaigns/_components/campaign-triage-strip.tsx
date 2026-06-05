@@ -65,11 +65,17 @@ function TriageRow({ campaignId, assetId, title, kind }: { campaignId: string; a
         <Button type="submit" name="decision" value="approved" variant="approve" size="sm" disabled={isPending}>
           {isPending ? "…" : "Approve"}
         </Button>
-        <Button type="submit" name="decision" value="declined" variant="ghost" size="sm" disabled={isPending}>
-          Decline
+        <Button type="submit" name="decision" value="declined" variant="decline" size="sm" disabled={isPending}>
+          {isPending ? "…" : "Decline"}
         </Button>
       </form>
-      {state && !state.ok ? <span className="w-full text-xs font-semibold text-[oklch(0.86_0.09_26)]">{state.message}</span> : null}
+      {state ? (
+        <span
+          className={`w-full text-xs font-semibold ${state.ok ? "text-[oklch(0.88_0.1_158)]" : "text-[oklch(0.86_0.09_26)]"}`}
+        >
+          {state.message}
+        </span>
+      ) : null}
     </li>
   );
 }
