@@ -24,6 +24,9 @@ export async function persistCampaignResults(
     query = row.campaign_asset_id ? query.eq("campaign_asset_id", row.campaign_asset_id) : query.is("campaign_asset_id", null);
     query = row.channel ? query.eq("channel", row.channel) : query.is("channel", null);
 
+    // maybeSingle throws if >1 row matches the natural key. There's no DB unique
+    // constraint, so a pre-existing duplicate would surface here as a loud error
+    // (caught below) rather than silently picking one — acceptable for single-writer ingest.
     const { data: existing, error: lookupError } = await query.maybeSingle<{ id: string }>();
     if (lookupError) throw new Error(`campaign_results lookup: ${lookupError.message}`);
 
