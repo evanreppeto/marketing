@@ -10,6 +10,7 @@
     "seed:hermes-demo": "node scripts/seed-hermes-demo.mjs",
     "seed:test-campaign": "node scripts/seed-test-campaign.mjs",
     "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
+    "seed:campaign-results": "node scripts/seed-campaign-results.mjs",
     "test": "vitest run"
   },
   "dependencies": {
