@@ -735,6 +735,97 @@ export function buildLaunchState(assets: CampaignWorkspaceAsset[], launchLocked:
   return { requiredCount, approvedCount, pendingCount, deployedCount, ready, live, lifecycle };
 }
 
+export type LinkedCampaignRecordKind = "company" | "contact" | "lead" | "property";
+
+export type LinkedCampaign = {
+  id: string;
+  name: string;
+  persona: string;
+  lifecycle: CampaignLaunchState["lifecycle"];
+  pendingCount: number;
+  href: string;
+};
+
+/** Pure: the `campaigns`/`approval_items` FK column for a CRM record kind. */
+export function columnFor(kind: LinkedCampaignRecordKind): "company_id" | "contact_id" | "lead_id" | "property_id" {
+  switch (kind) {
+    case "company":
+      return "company_id";
+    case "contact":
+      return "contact_id";
+    case "lead":
+      return "lead_id";
+    case "property":
+      return "property_id";
+  }
+}
+
+/** Campaigns that reference a CRM record — directly (campaigns.<fk>) or through
+ *  an approval item (approval_items.<fk>). Read-only; returns [] when Supabase
+ *  isn't configured or on any error, so CRM record pages never break. */
+export async function getCampaignsForRecord(
+  kind: LinkedCampaignRecordKind,
+  recordId: string,
+  client?: SupabaseClient,
+): Promise<LinkedCampaign[]> {
+  if (!client && !isSupabaseAdminConfigured()) return [];
+
+  try {
+    const supabase = client ?? getSupabaseAdminClient();
+    const column = columnFor(kind);
+
+    const { data: directRows, error: directError } = await supabase.from("campaigns").select("id").eq(column, recordId);
+    assertSupabaseResult("campaigns", directError);
+    const { data: approvalRows, error: approvalError } = await supabase.from("approval_items").select("campaign_id").eq(column, recordId);
+    assertSupabaseResult("approval_items", approvalError);
+
+    const ids = [
+      ...new Set([
+        ...((directRows ?? []) as Array<{ id: string }>).map((row) => row.id),
+        ...((approvalRows ?? []) as Array<{ campaign_id: string | null }>).map((row) => row.campaign_id).filter((id): id is string => Boolean(id)),
+      ]),
+    ];
+    if (ids.length === 0) return [];
+
+    const { data, error } = await supabase.from("campaigns").select(CAMPAIGN_SELECT).in("id", ids).order("updated_at", { ascending: false });
+    assertSupabaseResult("campaigns", error);
+    const campaigns = (data ?? []) as CampaignRow[];
+    const campaignIds = campaigns.map((campaign) => campaign.id);
+
+    const assets = await selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at");
+    const approvals = await selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at");
+    const approvalOutputs = await selectIn<AgentOutputRow>(
+      supabase,
+      "agent_outputs",
+      OUTPUT_SELECT,
+      "approval_item_id",
+      approvals.map((approval) => approval.id),
+      "created_at",
+    );
+
+    return campaigns.map((campaign) => {
+      const campaignApprovals = approvals.filter((approval) => approval.campaign_id === campaign.id);
+      const campaignAssetRows = assets.filter((asset) => asset.campaign_id === campaign.id);
+      const campaignAssets = buildWorkspaceAssets(
+        campaignAssetRows,
+        campaignApprovals,
+        approvalOutputs.filter((output) => output.approval_item_id && campaignApprovals.some((approval) => approval.id === output.approval_item_id)),
+      );
+      const launch = buildLaunchState(campaignAssets, campaign.launch_locked);
+      return {
+        id: campaign.id,
+        name: cleanCampaignName(campaign.name),
+        persona: humanize(campaign.persona),
+        lifecycle: launch.lifecycle,
+        pendingCount: launch.pendingCount,
+        href: `/campaigns/${campaign.id}`,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 export type PendingDeliverable = { assetId: string; title: string; kind: string };
 
 /** Pure: the deliverables on a campaign still awaiting an operator decision,
