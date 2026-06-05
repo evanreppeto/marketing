@@ -18,4 +18,9 @@ describe("navItems", () => {
     const outbox = navItems.find((item) => item.href === "/outbox");
     expect(outbox?.label).toBe("Outbox");
   });
+
+  it("includes a Gallery entry pointing at /gallery", () => {
+    const gallery = navItems.find((item) => item.href === "/gallery");
+    expect(gallery?.label).toBe("Gallery");
+  });
 });
