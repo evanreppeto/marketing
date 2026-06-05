@@ -38,4 +38,15 @@ describe("parseCampaignResultsPayload", () => {
   it("rejects an empty array", () => {
     expect(() => parseCampaignResultsPayload([])).toThrow(/at least one/i);
   });
+  it("rejects a non-integer metric", () => {
+    expect(() => parseCampaignResultsPayload({ ...valid, clicks: 1.5 })).toThrow(CampaignResultsValidationError);
+  });
+  it("rejects metadata that is an array", () => {
+    expect(() => parseCampaignResultsPayload({ ...valid, metadata: [] })).toThrow(/metadata/i);
+  });
+  it("rejects a non-uuid campaign_asset_id but keeps a valid one", () => {
+    expect(() => parseCampaignResultsPayload({ ...valid, campaign_asset_id: "not-a-uuid" })).toThrow(/campaign_asset_id/i);
+    const out = parseCampaignResultsPayload({ ...valid, campaign_asset_id: "22222222-2222-2222-2222-222222222222" });
+    expect(out[0].campaign_asset_id).toBe("22222222-2222-2222-2222-222222222222");
+  });
 });
