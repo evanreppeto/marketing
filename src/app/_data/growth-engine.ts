@@ -9,6 +9,7 @@ import {
 export const navItems = [
   { label: "Today", href: "/", icon: "today" },
   { label: "Activity", href: "/approvals", icon: "approval" },
+  { label: "Campaigns", href: "/campaigns", icon: "approval" },
   { label: "CRM", href: "/crm", icon: "crm" },
   { label: "Personas", href: "/persona-intelligence", icon: "persona" },
   { label: "Mark", href: "/agent-operations", icon: "agents" },
