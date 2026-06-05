@@ -13,4 +13,9 @@ describe("navItems", () => {
     const labels = navItems.map((item) => item.label);
     expect(labels.indexOf("Campaigns")).toBe(labels.indexOf("Activity") + 1);
   });
+
+  it("includes an Outbox entry pointing at /outbox", () => {
+    const outbox = navItems.find((item) => item.href === "/outbox");
+    expect(outbox?.label).toBe("Outbox");
+  });
 });
