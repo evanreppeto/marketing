@@ -17,4 +17,14 @@ describe("assembleGalleryCampaign", () => {
     expect(out.dispatch).toMatchObject({ sent: 1, delivered: 1, total: 2 });
     expect(out.metrics).toMatchObject({ impressions: 1000, leads: 5, hasData: true, roi: 4 });
   });
+
+  it("yields a zero funnel and hasData:false for a campaign with no dispatches or results", () => {
+    const item = {
+      id: "c2", name: "Quiet", persona: "PM", href: "/campaigns/c2",
+      thumbnailUrl: null, assetTypes: [], assetCount: 0, mediaCount: 0,
+    };
+    const out = assembleGalleryCampaign(item, [], []);
+    expect(out.dispatch).toMatchObject({ total: 0, sent: 0, delivered: 0 });
+    expect(out.metrics).toMatchObject({ hasData: false, impressions: 0, ctr: null, roi: null });
+  });
 });
