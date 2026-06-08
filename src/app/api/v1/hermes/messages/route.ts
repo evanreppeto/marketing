@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { checkBearerToken } from "@/lib/auth/api-token";
+import { listQueuedChatTasks, settleChatTask } from "@/lib/mark-chat/inbox";
 import {
   completeMarkMessage,
   failMarkMessage,
@@ -8,6 +9,47 @@ import {
   touchConversation,
 } from "@/lib/mark-chat/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+/**
+ * The external Hermes/Mark agent pulls queued operator chat messages here, then
+ * delivers each reply via POST (below). Bearer-gated; read-only and idempotent
+ * — a message stays in the inbox until its reply is delivered.
+ *
+ *   GET /api/v1/hermes/messages?limit=20   Authorization: Bearer <HERMES_AGENT_API_TOKEN>
+ *   200 -> { ok: true, messages: [{ agentTaskId, conversationId, message, mentions, operator, createdAt }] }
+ */
+export async function GET(request: Request) {
+  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  if (!auth.ok) {
+    return NextResponse.json(
+      auth.reason === "not_configured"
+        ? { ok: false, status: "not_configured", message: "Set HERMES_AGENT_API_TOKEN before pulling Mark messages." }
+        : { ok: false, status: "unauthorized", message: "Pulling Mark messages requires a valid bearer token." },
+      { status: auth.status },
+    );
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json(
+      { ok: false, status: "not_configured", message: "Supabase admin env vars are required to read Mark messages." },
+      { status: 503 },
+    );
+  }
+
+  const url = new URL(request.url);
+  const parsedLimit = Number(url.searchParams.get("limit"));
+  const limit = Number.isInteger(parsedLimit) && parsedLimit > 0 && parsedLimit <= 100 ? parsedLimit : 20;
+
+  try {
+    const messages = await listQueuedChatTasks(limit);
+    return NextResponse.json({ ok: true, status: "ok", messages }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, status: "failed", message: error instanceof Error ? error.message : "Failed to read Mark inbox." },
+      { status: 502 },
+    );
+  }
+}
 
 /**
  * Mark (the Hermes agent) delivers a reply to an operator chat message.
@@ -68,6 +110,9 @@ export async function POST(request: Request) {
       await completeMarkMessage({ messageId: pending.id, body: replyBody.trim(), metadata });
     }
     await touchConversation(pending.conversationId);
+    // Move the queued task out of the inbox; best-effort so a settle failure
+    // never masks a successfully recorded reply (a re-pull would just 404).
+    await settleChatTask(agentTaskId, status === "failed" ? "failed" : "completed").catch(() => undefined);
 
     return NextResponse.json({ ok: true, status: "recorded", messageId: pending.id }, { status: 201 });
   } catch (error) {
