@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCampaignLink, resolveAttribution } from "../attribution";
+import { buildCampaignLink, computeCampaignEconomics, resolveAttribution } from "../attribution";
 
 const CAMPAIGN = "11111111-1111-1111-1111-111111111111";
 const ASSET = "22222222-2222-2222-2222-222222222222";
@@ -58,5 +58,25 @@ describe("resolveAttribution", () => {
     expect(resolveAttribution({}).method).toBe("unattributed");
     expect(resolveAttribution({ campaignId: "not-a-uuid" }).method).toBe("unattributed");
     expect(resolveAttribution({ token: "@@@not-base64@@@" }).method).toBe("unattributed");
+  });
+});
+
+describe("computeCampaignEconomics", () => {
+  it("computes roas/cac/cpl from realized revenue and spend", () => {
+    const out = computeCampaignEconomics({ attributedLeads: 10, wonRevenueCents: 400000, wonCount: 2, openPipelineCents: 90000, spendCents: 100000 });
+    expect(out.roas).toBeCloseTo(4);
+    expect(out.cac).toBe(50000);
+    expect(out.cpl).toBe(10000);
+    expect(out.realizedRevenueCents).toBe(400000);
+    expect(out.pipelineRevenueCents).toBe(90000);
+  });
+
+  it("returns null ratios at the zero-divisor edges (never NaN/Infinity)", () => {
+    const noSpend = computeCampaignEconomics({ attributedLeads: 5, wonRevenueCents: 100000, wonCount: 1, openPipelineCents: 0, spendCents: 0 });
+    expect(noSpend.roas).toBeNull();
+    const noWins = computeCampaignEconomics({ attributedLeads: 5, wonRevenueCents: 0, wonCount: 0, openPipelineCents: 0, spendCents: 50000 });
+    expect(noWins.cac).toBeNull();
+    const noLeads = computeCampaignEconomics({ attributedLeads: 0, wonRevenueCents: 0, wonCount: 0, openPipelineCents: 0, spendCents: 50000 });
+    expect(noLeads.cpl).toBeNull();
   });
 });

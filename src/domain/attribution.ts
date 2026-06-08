@@ -111,3 +111,37 @@ export function resolveAttribution(
 
   return { campaignId: null, assetId: null, channel: input.channel ?? null, utm, method: "unattributed" };
 }
+
+export type CampaignEconomicsInput = {
+  attributedLeads: number;
+  wonRevenueCents: number;
+  wonCount: number;
+  openPipelineCents: number;
+  spendCents: number;
+};
+
+export type CampaignEconomics = {
+  realizedRevenueCents: number;
+  pipelineRevenueCents: number;
+  spendCents: number;
+  attributedLeads: number;
+  wonCount: number;
+  roas: number | null;
+  cac: number | null;
+  cpl: number | null;
+};
+
+/** Pure: realized-only ROAS. Pipeline is reported separately, never folded into ROAS. */
+export function computeCampaignEconomics(input: CampaignEconomicsInput): CampaignEconomics {
+  const { attributedLeads, wonRevenueCents, wonCount, openPipelineCents, spendCents } = input;
+  return {
+    realizedRevenueCents: wonRevenueCents,
+    pipelineRevenueCents: openPipelineCents,
+    spendCents,
+    attributedLeads,
+    wonCount,
+    roas: spendCents > 0 ? wonRevenueCents / spendCents : null,
+    cac: wonCount > 0 ? Math.round(spendCents / wonCount) : null,
+    cpl: attributedLeads > 0 ? Math.round(spendCents / attributedLeads) : null,
+  };
+}
