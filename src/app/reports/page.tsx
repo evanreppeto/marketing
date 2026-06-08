@@ -56,17 +56,17 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
       />
 
       <TabNav
-          ariaLabel="Performance sections"
-          activeKey={activeTab}
-          columns="sm:grid-cols-2 xl:grid-cols-7"
-          className="mb-5"
-          tabs={performanceTabs.map((tab) => ({
-            key: tab.key,
-            label: tab.label,
-            detail: tab.detail,
-            href: `/reports?tab=${tab.key}`,
-          }))}
-        />
+        ariaLabel="Performance sections"
+        activeKey={activeTab}
+        columns="sm:grid-cols-2 xl:grid-cols-7"
+        className="mb-5"
+        tabs={performanceTabs.map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          detail: tab.detail,
+          href: `/reports?tab=${tab.key}`,
+        }))}
+      />
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
         <div className="min-w-0">
