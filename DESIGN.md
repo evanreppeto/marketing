@@ -4,7 +4,7 @@
 
 A dark operations command center: layered navy surfaces, a single blue "signal" accent, restoration red reserved for priority/decision moments, and dense-but-readable operating modules. Surfaces step up in lightness (canvas → panel → inset → raised) so modules visibly lift off the background. Executive and field-aware, instrument-like — not developer-first, not a neon dashboard.
 
-Tokens live in `src/app/globals.css` (`:root`). Always build from the tokens below rather than hard-coding new hex values.
+Tokens live in `src/app/globals.css` (`:root`) and the reusable React class contract lives in `src/app/_components/theme.ts`. Always build from those sources rather than hard-coding new hex values, one-off tone aliases, or local button/pill class maps.
 
 ## 2. Color Palette & Roles (OKLCH, tinted toward brand hue ~248)
 
@@ -35,10 +35,12 @@ Loaded via `next/font` in `src/app/layout.tsx`; exposed as Tailwind families.
 
 - **Panel** (`.signal-panel`): 0.75rem radius, 1px `--border-panel`, panel surface + subtle top highlight, `--elev-panel` shadow. The primary grouping primitive — don't nest panels.
 - **Eyebrow** (`.signal-eyebrow`): display font, uppercase, 0.2em tracking, accent color; pair with a short accent tick, not a heading restatement.
-- **Button** (`Button` / `buttonClasses` in `page-header.tsx`): the canonical button. Variants `primary` (solid `--accent`, `--on-accent` text), `priority` (solid `--priority-solid` red, `--on-priority` text — both AA ≥4.5:1), `ghost` (inset + hairline border). Sizes `md` (44px touch target) / `sm`. Use `<Button>` for buttons, `buttonClasses({variant})` on a `<Link>`. Never hand-roll button classes or wash a CTA into a faint tint.
+- **Button** (`Button` / `buttonClasses` in `page-header.tsx`, backed by `theme.ts`): the canonical button. Variants `primary` (solid `--accent`, `--on-accent` text), `priority` (solid `--priority-solid` red, `--on-priority` text — both AA ≥4.5:1), `ghost` (inset + hairline border). Sizes `md` (44px touch target) / `sm`. Use `<Button>` for buttons, `buttonClasses({variant})` on a `<Link>`. Never hand-roll button classes or wash a CTA into a faint tint.
 - **DataTable** (`data-table.tsx`): config-driven table (columns with custom `cell` renderers, `isSelected`, `minWidth`, `emptyState`). Centralizes thead, row rhythm, hover/selected states, and `scope="col"`. Use for any tabular data.
+- **Tabs** (`TabNav` in `tab-nav.tsx`, backed by `control.tab*` in `theme.ts`): the canonical tabbed-section nav — a card grid of `{key,label,detail?,count?,href}` items with one active treatment (accent border + soft fill + `--accent-shadow` glow). Use it for any in-page section switcher; never hand-roll tab class strings.
+- **Back-link:** detail/record pages pass `backHref`/`backLabel` to `PageHeader` (renders the shared `BackLink`). Don't hand-roll back buttons.
 - **On-fill tokens:** `--on-accent` / `--on-priority` are the only correct text colors on solid accent/priority fills (contrast-verified). `--priority-solid` is the button-fill red; `--priority` stays for tints/dots/text.
-- **Status Pills** (`StatusPill`): tinted bg + matching border + colored dot, bright readable text. Tones: amber/green/red/gray/blue/dark.
+- **Status Pills** (`StatusPill`, backed by `ThemeTone` in `theme.ts`): tinted bg + matching border + colored dot, bright readable text. Tones: amber/green/red/gray/blue/dark.
 - **Inputs:** label above, helper/error below, inset surface, 44px min touch target.
 - **Empty states:** composed and instructive, dashed `--border-strong` on soft surface.
 
