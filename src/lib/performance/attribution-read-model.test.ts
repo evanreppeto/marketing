@@ -28,6 +28,27 @@ describe("getCampaignEconomics", () => {
     }
   });
 
+  it("returns zeroed live economics when the campaign has no attributed leads", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null },
+      jobs: { data: [], error: null },
+      outcomes: { data: [], error: null },
+      campaign_results: { data: [{ spend_cents: 100000 }], error: null },
+    });
+
+    const out = await getCampaignEconomics(CAMPAIGN, supabase);
+    expect(out.status).toBe("live");
+    if (out.status === "live") {
+      expect(out.attributedLeads).toBe(0);
+      expect(out.wonCount).toBe(0);
+      expect(out.realizedRevenueCents).toBe(0);
+      expect(out.pipelineRevenueCents).toBe(0);
+      expect(out.spendCents).toBe(100000);
+      expect(out.roas).toBe(0); // realized 0 / spend 100000
+      expect(out.cpl).toBeNull(); // no leads → null
+    }
+  });
+
   it("reports unavailable when a query errors", async () => {
     const supabase = createSupabaseQueryMock({ leads: { data: null, error: { message: "boom" } } });
     const out = await getCampaignEconomics(CAMPAIGN, supabase);

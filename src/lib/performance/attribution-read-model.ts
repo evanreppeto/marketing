@@ -5,6 +5,12 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/s
 
 const WON_OUTCOME_STATUSES = ["won", "paid"];
 const OPEN_JOB_STATUSES = ["pending", "scheduled", "in_progress"];
+// Explicit row caps so totals are never silently truncated by PostgREST's
+// default page size (1000). A campaign's attributed leads are bounded, and
+// their jobs/outcomes are a small multiple of that.
+const MAX_LEADS = 5000;
+const MAX_FANOUT_ROWS = 20000;
+const MAX_RESULT_ROWS = 1000;
 
 export type CampaignEconomicsReadModel =
   | (CampaignEconomics & {
@@ -29,14 +35,16 @@ export async function getCampaignEconomics(
   try {
     const supabase = client ?? getSupabaseAdminClient();
 
-    const leadsRes = await supabase.from("leads").select("id").eq("attributed_campaign_id", campaignId).limit(5000);
+    const leadsRes = await supabase.from("leads").select("id").eq("attributed_campaign_id", campaignId).limit(MAX_LEADS);
     if (leadsRes.error) throw new Error(`leads lookup: ${leadsRes.error.message}`);
     const leadIds = ((leadsRes.data ?? []) as LeadIdRow[]).map((row) => row.id);
 
+    // `.in("lead_id", [])` is valid in PostgREST — it returns an empty set, not an
+    // error — so a campaign with zero attributed leads correctly yields zeroed economics.
     const [jobsRes, outcomesRes, resultsRes] = await Promise.all([
-      supabase.from("jobs").select("lead_id,status,estimated_revenue_cents").in("lead_id", leadIds),
-      supabase.from("outcomes").select("lead_id,status,gross_revenue_cents").in("lead_id", leadIds),
-      supabase.from("campaign_results").select("spend_cents,won_revenue_cents,leads").eq("campaign_id", campaignId),
+      supabase.from("jobs").select("lead_id,status,estimated_revenue_cents").in("lead_id", leadIds).limit(MAX_FANOUT_ROWS),
+      supabase.from("outcomes").select("lead_id,status,gross_revenue_cents").in("lead_id", leadIds).limit(MAX_FANOUT_ROWS),
+      supabase.from("campaign_results").select("spend_cents,won_revenue_cents,leads").eq("campaign_id", campaignId).limit(MAX_RESULT_ROWS),
     ]);
     if (jobsRes.error) throw new Error(`jobs lookup: ${jobsRes.error.message}`);
     if (outcomesRes.error) throw new Error(`outcomes lookup: ${outcomesRes.error.message}`);
@@ -64,6 +72,9 @@ export async function getCampaignEconomics(
     return {
       status: "live",
       ...economics,
+      // selfReported sums campaign_results across ALL periods for the campaign —
+      // an all-time total, consistent with the all-time realized figures above.
+      // A date-windowed view would add period_start/period_end filters here.
       selfReported: {
         wonRevenueCents: results.reduce((sum, r) => sum + (r.won_revenue_cents ?? 0), 0),
         leads: results.reduce((sum, r) => sum + (r.leads ?? 0), 0),
