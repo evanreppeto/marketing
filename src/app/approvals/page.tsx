@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { connection } from "next/server";
 
 import { PageHeader, StatusPill } from "@/app/_components/page-header";
+import { TabNav } from "@/app/_components/tab-nav";
 import { listApprovalCards, listApprovalHistory } from "@/lib/approvals/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -39,7 +39,16 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
         }
       />
 
-      <ApprovalTabs activeTab={activeTab} queueCount={queueItems.length} historyCount={decisions.length} />
+      <TabNav
+        ariaLabel="Review sections"
+        activeKey={activeTab}
+        columns="sm:grid-cols-2"
+        className="mb-5"
+        tabs={[
+          { key: "queue", label: "Needs review", detail: "Active human approval gate.", count: queueItems.length, href: "/approvals" },
+          { key: "history", label: "Decision history", detail: "Read-only approval ledger.", count: decisions.length, href: "/approvals?tab=history" },
+        ]}
+      />
 
       {activeTab === "queue" ? (
         <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
@@ -66,45 +75,6 @@ async function loadHistory() {
   } catch {
     return [];
   }
-}
-
-function ApprovalTabs({
-  activeTab,
-  historyCount,
-  queueCount,
-}: {
-  activeTab: ApprovalTabKey;
-  historyCount: number;
-  queueCount: number;
-}) {
-  const tabs: Array<{ key: ApprovalTabKey; label: string; detail: string; count: number }> = [
-    { key: "queue", label: "Needs review", detail: "Active human approval gate.", count: queueCount },
-    { key: "history", label: "Decision history", detail: "Read-only approval ledger.", count: historyCount },
-  ];
-
-  return (
-    <nav aria-label="Review sections" className="module-rise mb-5 grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)] sm:grid-cols-2">
-      {tabs.map((tab) => {
-        const selected = activeTab === tab.key;
-        return (
-          <Link
-            aria-current={selected ? "page" : undefined}
-            className={`rounded-lg border px-4 py-3 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] ${
-              selected ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
-            }`}
-            href={tab.key === "queue" ? "/approvals" : `/approvals?tab=${tab.key}`}
-            key={tab.key}
-          >
-            <span className="flex items-center justify-between gap-3">
-              <span className="text-sm font-black text-[var(--text-primary)]">{tab.label}</span>
-              <span className="rounded-full bg-current/10 px-2 py-0.5 text-xs font-bold text-[var(--accent)]">{tab.count}</span>
-            </span>
-            <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
 }
 
 function normalizeTab(value: string | string[] | undefined): ApprovalTabKey {
