@@ -1,10 +1,23 @@
 import { z } from "zod";
 
+import { resolveAttribution, type ResolvedAttribution } from "./attribution";
 import { classifyLossSignals } from "./loss-classification";
 import { validateLeadIngestionPersona } from "./personas";
 import { calculateScores } from "./scoring";
 
 const stringField = z.string().trim().min(1);
+
+const attributionInputSchema = z
+  .object({
+    campaignId: z.string().trim().optional(),
+    campaignAssetId: z.string().trim().optional(),
+    channel: z.string().trim().optional(),
+    token: z.string().trim().optional(),
+    utmSource: z.string().trim().optional(),
+    utmMedium: z.string().trim().optional(),
+    utmCampaign: z.string().trim().optional(),
+  })
+  .partial();
 
 const contactSchema = z
   .object({
@@ -50,6 +63,9 @@ export const leadIngestionSchema = z.object({
     })
     .passthrough()
     .optional(),
+  // Best-effort: a malformed attribution block coerces to undefined (.catch) so it
+  // can never reject a lead. Resolution happens after parse.
+  attribution: attributionInputSchema.optional().catch(undefined),
 }).refine((lead) => Boolean(lead.company || lead.contact || lead.property), {
   message: "Lead must include at least one company, contact, or property relationship.",
   path: ["relationship"],
@@ -67,6 +83,7 @@ export type LeadIngestionResult =
       classification: ReturnType<typeof classifyLossSignals>;
       scores: ReturnType<typeof calculateScores>;
       normalizedInput: ParsedLeadIngestionInput;
+      attribution: ResolvedAttribution;
     }
   | {
       ok: false;
@@ -132,6 +149,11 @@ export function parseLeadIngestionPayload(
     calculatedAt,
   });
 
+  const attribution = resolveAttribution({
+    ...(parsed.data.attribution ?? {}),
+    source: parsed.data.source,
+  });
+
   return {
     ok: true,
     status: "accepted",
@@ -140,6 +162,7 @@ export function parseLeadIngestionPayload(
     classification,
     scores,
     normalizedInput: parsed.data,
+    attribution,
   };
 }
 

@@ -129,3 +129,35 @@ describe("lead ingestion parsing", () => {
     });
   });
 });
+
+describe("lead ingestion attribution", () => {
+  const base = {
+    persona: "persona_homeowner_emergency",
+    source: "website_form",
+    lossSignals: ["standing water"],
+    contact: { email: "a@b.com" },
+  };
+
+  it("resolves an explicit campaign attribution block onto the accepted result", () => {
+    const result = parseLeadIngestionPayload({
+      ...base,
+      attribution: { campaignId: "11111111-1111-1111-1111-111111111111", channel: "meta_ad" },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.attribution).toMatchObject({ campaignId: "11111111-1111-1111-1111-111111111111", channel: "meta_ad", method: "explicit" });
+    }
+  });
+
+  it("degrades a malformed attribution block to unattributed without rejecting the lead", () => {
+    const result = parseLeadIngestionPayload({ ...base, attribution: { campaignId: 12345 } });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.attribution.method).toBe("unattributed");
+  });
+
+  it("defaults to unattributed when no attribution block is present", () => {
+    const result = parseLeadIngestionPayload(base);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.attribution.method).toBe("unattributed");
+  });
+});
