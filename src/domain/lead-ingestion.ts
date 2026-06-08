@@ -7,17 +7,15 @@ import { calculateScores } from "./scoring";
 
 const stringField = z.string().trim().min(1);
 
-const attributionInputSchema = z
-  .object({
-    campaignId: z.string().trim().optional(),
-    campaignAssetId: z.string().trim().optional(),
-    channel: z.string().trim().optional(),
-    token: z.string().trim().optional(),
-    utmSource: z.string().trim().optional(),
-    utmMedium: z.string().trim().optional(),
-    utmCampaign: z.string().trim().optional(),
-  })
-  .partial();
+const attributionInputSchema = z.object({
+  campaignId: z.string().trim().optional(),
+  campaignAssetId: z.string().trim().optional(),
+  channel: z.string().trim().optional(),
+  token: z.string().trim().optional(),
+  utmSource: z.string().trim().optional(),
+  utmMedium: z.string().trim().optional(),
+  utmCampaign: z.string().trim().optional(),
+});
 
 const contactSchema = z
   .object({
