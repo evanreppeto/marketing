@@ -174,6 +174,7 @@ export type Database = {
           metadata: Json;
           created_at: string;
           updated_at: string;
+          attributed_campaign_id: string | null;
         };
         Insert: {
           id?: string;
@@ -194,6 +195,7 @@ export type Database = {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          attributed_campaign_id?: string | null;
         };
         Update: {
           id?: string;
@@ -214,6 +216,7 @@ export type Database = {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          attributed_campaign_id?: string | null;
         };
         Relationships: [];
       };

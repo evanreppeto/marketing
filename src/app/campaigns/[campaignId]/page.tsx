@@ -3,7 +3,9 @@ import { connection } from "next/server";
 import { EmptyState, PageHeader } from "../../_components/page-header";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getCampaignDispatches } from "@/lib/dispatch/read-model";
+import { getCampaignEconomics } from "@/lib/performance/attribution-read-model";
 
+import { CampaignEconomicsPanel } from "../_components/campaign-economics-panel";
 import { CampaignWorkspace } from "../_components/campaign-workspace";
 
 type CampaignDetailPageProps = {
@@ -14,9 +16,10 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
   await connection();
 
   const { campaignId } = await params;
-  const [detail, dispatches] = await Promise.all([
+  const [detail, dispatches, economics] = await Promise.all([
     getCampaignWorkspaceDetail(campaignId),
     getCampaignDispatches(campaignId),
+    getCampaignEconomics(campaignId),
   ]);
 
   if (detail.status !== "live") {
@@ -41,5 +44,10 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
     );
   }
 
-  return <CampaignWorkspace detail={detail} dispatches={dispatches} />;
+  return (
+    <>
+      <CampaignWorkspace detail={detail} dispatches={dispatches} />
+      <CampaignEconomicsPanel economics={economics} campaignId={campaignId} />
+    </>
+  );
 }
