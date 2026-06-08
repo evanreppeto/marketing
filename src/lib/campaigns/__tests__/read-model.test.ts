@@ -8,6 +8,7 @@ import {
   buildMarkConversation,
   buildReasoning,
   classifyMediaAsset,
+  selectPendingDeliverables,
   type CampaignWorkspaceAsset,
 } from "../read-model";
 
@@ -26,6 +27,7 @@ function asset(overrides: Partial<CampaignWorkspaceAsset>): CampaignWorkspaceAss
     toolSource: null,
     updatedAt: "",
     media: [],
+    revision: null,
     approval: null,
     ...overrides,
   };
@@ -97,6 +99,7 @@ describe("buildExecutiveOverview", () => {
           label: "Property manager directory",
           detail: "Evidence URL captured by Mark.",
           url: "https://example.com",
+          recordHref: null,
           kind: "web",
         },
       ],
@@ -218,5 +221,17 @@ describe("classifyMediaAsset", () => {
     expect(classifyMediaAsset("https://youtu.be/aqz-KE-bpKQ", "video/youtube", "video")).toBe("embed");
     expect(classifyMediaAsset("https://vimeo.com/123456", null, "video")).toBe("embed");
     expect(classifyMediaAsset("https://example.com/asset.mp4", "video/mp4", "video")).toBe("video");
+  });
+});
+
+describe("selectPendingDeliverables", () => {
+  it("returns only deliverables still awaiting a decision", () => {
+    const pending = selectPendingDeliverables([
+      asset({ id: "a1", title: "Welcome email", status: "Needs approval", approval: null }),
+      asset({ id: "a2", status: "Approved", approval: { id: "x", status: "Approved" } }),
+      asset({ id: "a3", status: "Draft", approval: { id: "y", status: "Pending owner approval" } }),
+    ]);
+    expect(pending.map((d) => d.assetId)).toEqual(["a1", "a3"]);
+    expect(pending[0]).toMatchObject({ assetId: "a1", title: "Welcome email", kind: "Email" });
   });
 });

@@ -2,6 +2,7 @@ import { connection } from "next/server";
 
 import { EmptyState } from "../../_components/page-header";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
+import { getCampaignDispatches } from "@/lib/dispatch/read-model";
 
 import { CampaignWorkspace } from "../_components/campaign-workspace";
 import { SlimHeader } from "../_components/slim-header";
@@ -14,7 +15,10 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
   await connection();
 
   const { campaignId } = await params;
-  const detail = await getCampaignWorkspaceDetail(campaignId);
+  const [detail, dispatches] = await Promise.all([
+    getCampaignWorkspaceDetail(campaignId),
+    getCampaignDispatches(campaignId),
+  ]);
 
   if (detail.status !== "live") {
     const notFound = detail.status === "not_found";
@@ -33,5 +37,5 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
     );
   }
 
-  return <CampaignWorkspace detail={detail} />;
+  return <CampaignWorkspace detail={detail} dispatches={dispatches} />;
 }

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { CampaignWorkspaceMeta, CampaignWorkspaceSource } from "@/lib/campaigns/read-model";
 
 import { SectionHeader } from "./section-header";
@@ -140,8 +142,9 @@ function ContextPill({ label, value }: { label: string; value: string }) {
 
 function RecordCard({ source, tone }: { source: CampaignWorkspaceSource; tone: Tone }) {
   const detailRows = sourceDetails(source);
-  const body = (
-    <>
+
+  return (
+    <article className="flex min-h-44 min-w-0 flex-col rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 transition">
       <div className="flex items-start justify-between gap-3">
         <span className={`inline-flex w-fit items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${toneBadge(tone)}`}>
           {KIND_LABELS[source.kind]}
@@ -161,30 +164,26 @@ function RecordCard({ source, tone }: { source: CampaignWorkspaceSource; tone: T
           </div>
         ))}
       </dl>
-      <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-[var(--text-muted)]">
-        <LockIcon />
-        {source.url ? "Linked website available" : "Private CRM record"}
-      </span>
-    </>
+      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-4 text-xs font-semibold">
+        {source.recordHref ? (
+          <Link href={source.recordHref} className="text-[var(--accent)] transition hover:underline">
+            View in CRM
+          </Link>
+        ) : null}
+        {source.url ? (
+          <a href={source.url} target="_blank" rel="noreferrer" className="text-[var(--text-muted)] transition hover:text-[var(--accent)]">
+            Website
+          </a>
+        ) : null}
+        {!source.recordHref && !source.url ? (
+          <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
+            <LockIcon />
+            Private CRM record
+          </span>
+        ) : null}
+      </div>
+    </article>
   );
-
-  const className =
-    "flex min-h-44 min-w-0 flex-col rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 transition";
-
-  if (source.url) {
-    return (
-      <a
-        href={source.url}
-        target="_blank"
-        rel="noreferrer"
-        className={`${className} hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]`}
-      >
-        {body}
-      </a>
-    );
-  }
-
-  return <article className={className}>{body}</article>;
 }
 
 function EvidenceCard({ source }: { source: CampaignWorkspaceSource }) {

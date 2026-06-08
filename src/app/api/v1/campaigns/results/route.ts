@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server";
+
+import { CampaignResultsValidationError, parseCampaignResultsPayload } from "@/domain";
+import { checkBearerToken } from "@/lib/auth/api-token";
+import { persistCampaignResults } from "@/lib/gallery/results-persistence";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+export async function POST(request: Request) {
+  const auth = checkBearerToken(request, "CAMPAIGN_RESULTS_API_TOKEN", { required: false });
+  if (!auth.ok) {
+    return NextResponse.json(
+      { ok: false, status: "unauthorized", errors: [{ code: "unauthorized", message: "Campaign results ingest requires a valid bearer token." }] },
+      { status: auth.status },
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, status: "rejected", errors: [{ code: "invalid_json", message: "Request body must be valid JSON." }] }, { status: 400 });
+  }
+
+  let parsed;
+  try {
+    parsed = parseCampaignResultsPayload(payload);
+  } catch (error) {
+    if (error instanceof CampaignResultsValidationError) {
+      return NextResponse.json({ ok: false, status: "rejected", errors: [{ code: "validation_error", message: error.message }] }, { status: 400 });
+    }
+    throw error;
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json(
+      { ok: true, status: "accepted", received: parsed.length, persistence: { status: "not_configured", message: "Supabase persistence is not connected." } },
+      { status: 202 },
+    );
+  }
+
+  try {
+    const summary = await persistCampaignResults(parsed, getSupabaseAdminClient());
+    return NextResponse.json({ ok: true, status: "persisted", received: parsed.length, persistence: { status: "persisted", ...summary } }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to persist campaign results.";
+    return NextResponse.json({ ok: false, status: "failed", persistence: { status: "failed", message } }, { status: 502 });
+  }
+}

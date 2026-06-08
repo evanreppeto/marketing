@@ -8,6 +8,8 @@ import { CrmRecordForm } from "./crm-record-form";
 import { isCrmEntityKey } from "../entity-keys";
 import { getCrmRecordData, type CrmObjectKey, type CrmRecordData } from "@/lib/crm/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getCampaignsForRecord, type LinkedCampaignRecordKind } from "@/lib/campaigns/read-model";
+import { LinkedCampaignsPanel } from "./linked-campaigns-panel";
 
 const RECORD_FEEDBACK = ["created", "updated", "crm-error", "not-configured"];
 
@@ -89,6 +91,8 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
   }
 
   const record = recordResult;
+  const linkKind = recordLinkKind(objectKey);
+  const linkedCampaigns = linkKind ? await getCampaignsForRecord(linkKind, recordId) : [];
   const actionMessage = action
     ? `"${actionLabels[action] ?? action}" is not connected to a write workflow yet.`
     : "Record write actions stay locked until a human-approved workflow is available.";
@@ -136,6 +140,7 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
           <RecordSummary record={record} />
           <RecordFields record={record} />
           <RelatedRecords record={record} />
+          <LinkedCampaignsPanel campaigns={linkedCampaigns} />
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
@@ -361,4 +366,19 @@ function formatDate(value: string) {
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function recordLinkKind(objectKey: CrmObjectKey): LinkedCampaignRecordKind | null {
+  switch (objectKey) {
+    case "companies":
+      return "company";
+    case "contacts":
+      return "contact";
+    case "leads":
+      return "lead";
+    case "properties":
+      return "property";
+    default:
+      return null; // jobs / outcomes are not referenced by campaigns
+  }
 }

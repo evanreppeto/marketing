@@ -7,6 +7,7 @@ import type { CampaignMediaAsset, CampaignWorkspaceAsset, CampaignWorkspaceAsset
 
 import { deployAssetAction, decideAssetAction, reopenAssetAction, requestRevisionAction } from "../actions";
 import { DecisionControls } from "./decision-controls";
+import { RevisionDiff } from "./revision-diff";
 import { SectionHeader } from "./section-header";
 
 type FilterKey = CampaignWorkspaceAssetCategory | "all";
@@ -495,6 +496,8 @@ function ReviewDrawer({
             <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent)]">Full draft</div>
             <AssetRecordPreview asset={asset} full />
           </div>
+
+          {asset.revision ? <RevisionDiff draft={asset.revision.draft} current={asset.revision.current} /> : null}
 
           {asset.media.length > 0 ? <AssetMediaLibrary media={asset.media} /> : null}
 
