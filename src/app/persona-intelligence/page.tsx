@@ -2,7 +2,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { IntelligencePanel } from "../_components/intelligence-panel";
-import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
+import { EmptyState, PageHeader, StatusPill, buttonClasses } from "../_components/page-header";
+import { TabNav } from "../_components/tab-nav";
 import { WorkspacePanel } from "../_components/workspace";
 import { getPersonaIntelligenceData, type PersonaContentSignal, type PersonaTrackerRow } from "@/lib/persona-intelligence/read-model";
 import { PERSONA_CTA_RULES, personaSlug, type PersonaCtaRule } from "@/lib/persona-intelligence/cta-rules";
@@ -39,19 +40,17 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
 
   return (
     <>
-      <header className="module-rise mb-4 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-5 py-4 shadow-[var(--elev-panel)]">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="signal-eyebrow">Persona Intelligence</span>
-          <StatusPill tone={data.status === "live" ? "green" : "amber"}>{data.status === "live" ? "Live memory" : "Unavailable"}</StatusPill>
-          <StatusPill tone="amber">No publishing</StatusPill>
-        </div>
-        <h1 className="mt-2 max-w-3xl text-[clamp(1.55rem,2.5vw,2.4rem)] font-black leading-[1.02] tracking-[-0.04em] text-[var(--text-primary)]">
-          Inspect persona rules before Mark uses them.
-        </h1>
-        <p className="mt-2 max-w-[78ch] text-sm leading-6 text-[var(--text-secondary)]">
-          Use the tabs to inspect one type of intelligence at a time. Nothing here publishes pages, sends outreach, or launches campaigns.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Persona intelligence"
+        title="Inspect persona rules before Mark uses them."
+        description="Use the tabs to inspect one type of intelligence at a time. Nothing here publishes pages, sends outreach, or launches campaigns."
+        aside={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill tone={data.status === "live" ? "green" : "amber"}>{data.status === "live" ? "Live memory" : "Unavailable"}</StatusPill>
+            <StatusPill tone="amber">No publishing</StatusPill>
+          </div>
+        }
+      />
 
       {data.status === "unavailable" ? (
         <div className="module-rise mb-4 rounded-lg border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-4 py-3 text-sm text-[oklch(0.9_0.09_85)]">
@@ -60,24 +59,18 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
         </div>
       ) : null}
 
-      <nav aria-label="Persona Intelligence sections" className="module-rise mb-4 grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)] sm:grid-cols-2 xl:grid-cols-4">
-        {TABS.map((tab) => {
-          const selected = activeTab === tab.id;
-          return (
-            <Link
-              aria-current={selected ? "page" : undefined}
-              className={`rounded-lg border px-4 py-3 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] ${
-                selected ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
-              }`}
-              href={`/persona-intelligence?tab=${tab.id}`}
-              key={tab.id}
-            >
-              <span className="block text-sm font-black text-[var(--text-primary)]">{tab.label}</span>
-              <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      <TabNav
+        ariaLabel="Persona Intelligence sections"
+        activeKey={activeTab}
+        columns="sm:grid-cols-2 xl:grid-cols-4"
+        className="mb-4"
+        tabs={TABS.map((tab) => ({
+          key: tab.id,
+          label: tab.label,
+          detail: tab.detail,
+          href: `/persona-intelligence?tab=${tab.id}`,
+        }))}
+      />
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <main className="min-w-0">
