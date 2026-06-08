@@ -4,7 +4,8 @@ import { connection } from "next/server";
 import { AppShell } from "../_components/app-shell";
 import { IntelligencePanel } from "../_components/intelligence-panel";
 import type { IntelligencePanelModel } from "../_components/intelligence-panel";
-import { EmptyState, Panel, StatusPill, buttonClasses } from "../_components/page-header";
+import { EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "../_components/page-header";
+import { TabNav } from "../_components/tab-nav";
 import { getCrmNavCounts, getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
 
 import { CrmCommandHeader } from "./_components/crm-command-header";
@@ -51,6 +52,16 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
 
   return (
     <AppShell active="/crm">
+      <PageHeader
+        eyebrow="CRM command"
+        title="CRM Command Center"
+        description="Accounts, contacts, properties, leads, jobs, and outcomes in one operating view. Open a CRM object, then search inside the record table."
+        aside={
+          <Link className={buttonClasses({ variant: "primary" })} href="/crm/leads?activity=new">
+            New lead
+          </Link>
+        }
+      />
       <CrmCommandHeader counts={navCounts.status === "live" ? navCounts.counts : undefined} />
 
       {!isLive ? (
@@ -60,7 +71,18 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
         </div>
       ) : null}
 
-      <CrmTabs activeTab={activeTab} query={query} activeView={activeView} selectedId={selectedRecord?.id ?? null} />
+      <TabNav
+        ariaLabel="CRM page sections"
+        activeKey={activeTab}
+        columns="md:grid-cols-4"
+        className="mt-4"
+        tabs={crmTabs.map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          detail: tab.detail,
+          href: crmHref(query, { tab: tab.key, view: activeView, selected: selectedRecord?.id ?? null }),
+        }))}
+      />
 
       {activeTab === "overview" ? <CrmOverview stats={workspaceStats} rows={pipelineRows} activeView={activeView} /> : null}
       {activeTab === "pipeline" ? (
@@ -74,41 +96,6 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
       {activeTab === "record" ? <CrmRecordPreview selectedRecord={selectedRecord} /> : null}
       {activeTab === "activity" ? <CrmActivity /> : null}
     </AppShell>
-  );
-}
-
-function CrmTabs({
-  activeTab,
-  query,
-  activeView,
-  selectedId,
-}: {
-  activeTab: CrmTabKey;
-  query: CrmSearchParams;
-  activeView: CrmViewKey;
-  selectedId: string | null;
-}) {
-  return (
-    <nav aria-label="CRM page sections" className="module-rise mt-4 grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)] md:grid-cols-4">
-      {crmTabs.map((tab) => {
-        const isActive = activeTab === tab.key;
-        return (
-          <Link
-            aria-current={isActive ? "page" : undefined}
-            className={`rounded-lg border px-4 py-3 transition duration-200 hover:-translate-y-0.5 active:translate-y-px ${
-              isActive
-                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_20px_oklch(0.74_0.115_232/0.18)]"
-                : "border-transparent bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-            }`}
-            href={crmHref(query, { tab: tab.key, view: activeView, selected: selectedId })}
-            key={tab.key}
-          >
-            <span className="block text-sm font-bold">{tab.label}</span>
-            <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{tab.detail}</span>
-          </Link>
-        );
-      })}
-    </nav>
   );
 }
 
