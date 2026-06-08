@@ -10,3 +10,4 @@ export * from "./notebook";
 export * from "./campaign-revisions";
 export * from "./campaign-results";
 export * from "./mark-chat";
+export * from "./competitor-intel";
