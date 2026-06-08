@@ -175,6 +175,10 @@ export type Database = {
           created_at: string;
           updated_at: string;
           attributed_campaign_id: string | null;
+          attributed_asset_id: string | null;
+          attribution_channel: string | null;
+          attribution_method: string | null;
+          attribution_utm: Json;
         };
         Insert: {
           id?: string;
@@ -196,6 +200,10 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           attributed_campaign_id?: string | null;
+          attributed_asset_id?: string | null;
+          attribution_channel?: string | null;
+          attribution_method?: string | null;
+          attribution_utm?: Json;
         };
         Update: {
           id?: string;
@@ -217,6 +225,10 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           attributed_campaign_id?: string | null;
+          attributed_asset_id?: string | null;
+          attribution_channel?: string | null;
+          attribution_method?: string | null;
+          attribution_utm?: Json;
         };
         Relationships: [];
       };
