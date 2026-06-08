@@ -23,24 +23,30 @@ export function TrackedLinkBuilder({ campaignId }: { campaignId: string }) {
     <div>
       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Tracked link builder</div>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-        <input
-          value={destination}
-          onChange={(e) => {
-            setDestination(e.target.value);
-            setCopied(false);
-          }}
-          placeholder="Destination URL"
-          className={cx(theme.control.input, "flex-1")}
-        />
-        <input
-          value={channel}
-          onChange={(e) => {
-            setChannel(e.target.value);
-            setCopied(false);
-          }}
-          placeholder="channel (utm_source)"
-          className={cx(theme.control.input, "sm:w-44")}
-        />
+        <label className="flex flex-1 flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Destination URL</span>
+          <input
+            value={destination}
+            onChange={(e) => {
+              setDestination(e.target.value);
+              setCopied(false);
+            }}
+            placeholder="https://bigshoulders.com/quote"
+            className={cx(theme.control.input, "w-full")}
+          />
+        </label>
+        <label className="flex flex-col gap-1 sm:w-44">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Channel (utm_source)</span>
+          <input
+            value={channel}
+            onChange={(e) => {
+              setChannel(e.target.value);
+              setCopied(false);
+            }}
+            placeholder="meta_ad"
+            className={cx(theme.control.input, "w-full")}
+          />
+        </label>
       </div>
       {error ? (
         <p className="mt-2 text-xs text-[var(--priority-bright)]">{error}</p>
@@ -54,8 +60,13 @@ export function TrackedLinkBuilder({ campaignId }: { campaignId: string }) {
             variant="ghost"
             size="sm"
             onClick={() => {
-              void navigator.clipboard.writeText(link);
-              setCopied(true);
+              // navigator.clipboard is undefined over plain HTTP / in some webviews;
+              // no-op there rather than throwing an unhandled TypeError.
+              if (!navigator.clipboard) return;
+              navigator.clipboard.writeText(link).then(
+                () => setCopied(true),
+                () => {},
+              );
             }}
           >
             {copied ? "Copied" : "Copy"}
