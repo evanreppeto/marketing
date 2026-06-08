@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       await failMarkMessage({ messageId: pending.id, body: replyBody.trim() || "Mark couldn't complete this reply." });
     } else {
       const metadata = body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : {};
-      await completeMarkMessage({ messageId: pending.id, body: replyBody, metadata });
+      await completeMarkMessage({ messageId: pending.id, body: replyBody.trim(), metadata });
     }
     await touchConversation(pending.conversationId);
 
