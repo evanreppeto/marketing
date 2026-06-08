@@ -25,6 +25,19 @@ export type MarkMention = {
   href: string;
 };
 
+export type MarkMediaKind = "image" | "video";
+
+/** A piece of media Mark generated, attached to a reply via metadata.media. */
+export type MarkMedia = {
+  kind: MarkMediaKind;
+  url: string;
+  thumbnailUrl?: string;
+  poster?: string; // video poster frame
+  caption?: string;
+  alt?: string;
+  href?: string; // optional link (e.g. open in gallery / approval)
+};
+
 export class MarkMessageError extends Error {
   constructor(message: string) {
     super(message);
@@ -73,6 +86,38 @@ export function parseMentions(value: unknown): MarkMention[] {
 
 export function serializeMentions(mentions: MarkMention[]): string {
   return JSON.stringify(mentions.filter(isMarkMention));
+}
+
+const STRING_FIELDS = ["thumbnailUrl", "poster", "caption", "alt", "href"] as const;
+
+/** Parse Mark's attached media from a reply's metadata.media (array or JSON). */
+export function parseMedia(value: unknown): MarkMedia[] {
+  let raw: unknown = value;
+  if (typeof value === "string") {
+    try {
+      raw = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const out: MarkMedia[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const m = item as Record<string, unknown>;
+    const kind: MarkMediaKind | null = m.kind === "video" ? "video" : m.kind === "image" ? "image" : null;
+    const url = typeof m.url === "string" ? m.url.trim() : "";
+    if (!kind || !url) continue;
+
+    const media: MarkMedia = { kind, url };
+    for (const field of STRING_FIELDS) {
+      const v = m[field];
+      if (typeof v === "string" && v.trim()) media[field] = v;
+    }
+    out.push(media);
+  }
+  return out;
 }
 
 export function validateMarkMessageInput(input: { body: string; mentions: MarkMention[] }): {

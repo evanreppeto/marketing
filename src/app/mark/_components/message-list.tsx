@@ -6,6 +6,8 @@ import Link from "next/link";
 import { cx } from "@/app/_components/theme";
 import type { MarkMessage } from "@/lib/mark-chat/persistence";
 
+import { MessageMedia } from "./message-media";
+
 function MarkAvatar() {
   return (
     <span
@@ -78,6 +80,7 @@ function Message({ message }: { message: MarkMessage }) {
           </div>
         )}
         <MentionChips mentions={message.mentions} />
+        {message.media.length > 0 ? <MessageMedia media={message.media} /> : null}
       </div>
     </div>
   );
@@ -110,7 +113,9 @@ export function MessageList({ messages }: { messages: MarkMessage[] }) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
         {messages.map((m) => (
-          <Message key={m.id} message={m} />
+          <div key={m.id} className="msg-rise">
+            <Message message={m} />
+          </div>
         ))}
         <div ref={endRef} />
       </div>

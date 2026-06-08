@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type MarkMention, parseMentions } from "@/domain";
+import { type MarkMedia, type MarkMention, parseMedia, parseMentions } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 
@@ -25,6 +25,7 @@ export type MarkMessage = {
   status: MarkMessageStatus;
   agentTaskId: string | null;
   mentions: MarkMention[];
+  media: MarkMedia[];
   createdAt: string;
 };
 
@@ -46,11 +47,12 @@ type MessageRow = {
   status: MarkMessageStatus;
   agent_task_id: string | null;
   mentions: unknown;
+  metadata: unknown;
   created_at: string;
 };
 
 const CONVERSATION_COLUMNS = "id, operator, title, status, created_at, updated_at, last_message_at";
-const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, created_at";
+const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): MarkConversation {
   return {
@@ -73,6 +75,7 @@ function toMessage(row: MessageRow): MarkMessage {
     status: row.status,
     agentTaskId: row.agent_task_id,
     mentions: parseMentions(row.mentions),
+    media: parseMedia((row.metadata as { media?: unknown } | null)?.media),
     createdAt: row.created_at,
   };
 }

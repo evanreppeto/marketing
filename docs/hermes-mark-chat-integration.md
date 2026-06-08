@@ -93,6 +93,34 @@ Content-Type: application/json
 Use `status: "failed"` with a short `body` if your agent can't complete the
 request — the operator sees it as a failed reply instead of an endless spinner.
 
+### Attaching media (images / video Mark created)
+
+Put generated media in `metadata.media` — an array of items. The chat renders
+them as a gallery under the reply (images open in a fullscreen lightbox; video
+plays inline).
+
+```json
+{
+  "agentTaskId": "uuid",
+  "body": "Here are three ad concepts for the roof-storm push:",
+  "metadata": {
+    "media": [
+      { "kind": "image", "url": "https://…/concept-a.png", "caption": "Concept A — urgency",
+        "alt": "Storm-damaged roof with CTA", "href": "/campaigns/uuid" },
+      { "kind": "image", "url": "https://…/concept-b.png", "caption": "Concept B — trust" },
+      { "kind": "video", "url": "https://…/teaser.mp4", "poster": "https://…/teaser.jpg",
+        "caption": "15s teaser" }
+    ]
+  }
+}
+```
+
+Per-item fields: `kind` (`"image"` | `"video"`, required), `url` (required),
+and optional `thumbnailUrl`, `poster` (video), `caption`, `alt`, `href` (a link
+shown as "Open ▸", e.g. into the campaign/approval). `url` must be publicly
+fetchable by the browser (e.g. a Supabase Storage public URL or signed URL).
+Items with an unknown `kind` or missing `url` are dropped.
+
 ## Where the message came from (if you read Supabase directly)
 
 If your agent connects to Postgres instead of (or in addition to) the HTTP inbox:

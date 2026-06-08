@@ -15,6 +15,12 @@
   --surface-inset: oklch(0.285 0.038 245);  /* headers, fields, sub-blocks inside a panel */
   --surface-soft: oklch(0.255 0.03 246);    /* quiet strips, list backgrounds */
   --surface-raised: oklch(0.335 0.045 244); /* hover, popovers, selected */
+  --surface-sidebar: oklch(0.145 0.03 250 / 0.96);
+  --surface-operator: linear-gradient(145deg, oklch(0.19 0.036 248 / 0.98), oklch(0.135 0.028 250 / 0.98));
+  --workspace-header-wash: radial-gradient(circle at 14% 12%, oklch(0.74 0.115 232 / 0.16), transparent 34%),
+    linear-gradient(135deg, oklch(0.98 0.01 240 / 0.045), transparent 52%);
+  --media-void: oklch(0.12 0.026 250);
+  --overlay: oklch(0.1 0.02 250 / 0.88);
 
   /* Text tiers */
   --text-primary: oklch(0.97 0.01 240);
@@ -30,15 +36,49 @@
   --accent: oklch(0.74 0.115 232);          /* signal blue #5bb7e8 family */
   --accent-strong: oklch(0.82 0.1 230);
   --accent-soft: oklch(0.74 0.115 232 / 0.16);
+  --accent-contrast: var(--chicago-blue-soft);
+  --accent-border: oklch(0.74 0.115 232 / 0.24);
+  --accent-border-strong: oklch(0.74 0.115 232 / 0.4);
+  --accent-shadow: 0 0 20px oklch(0.74 0.115 232 / 0.18);
+  --accent-glow: 0 0 22px oklch(0.74 0.115 232 / 0.34);
+  --accent-soft-glow: 0 0 18px oklch(0.74 0.115 232 / 0.22);
   --on-accent: oklch(0.18 0.03 248);        /* text/icon on a solid accent fill (8.3:1) */
   --priority: oklch(0.68 0.2 26);           /* restoration red — tints, dots, text */
   --priority-bright: oklch(0.74 0.19 26);
   --priority-solid: oklch(0.56 0.2 26);     /* solid red button fill — AA with --on-priority */
+  --priority-hover: oklch(0.5 0.2 26);
+  --priority-soft: oklch(0.68 0.2 26 / 0.16);
+  --priority-text: oklch(0.86 0.09 26);
+  --priority-border: oklch(0.68 0.2 26 / 0.58);
+  --priority-border-soft: oklch(0.68 0.2 26 / 0.45);
+  --priority-glow: 0 0 22px oklch(0.68 0.2 26 / 0.32);
   --on-priority: oklch(0.98 0.02 26);       /* text/icon on a solid priority fill (4.6:1) */
 
   /* Status hues (calibrated for dark surfaces) */
   --ok: oklch(0.78 0.14 158);
+  --ok-solid: oklch(0.72 0.15 158);
+  --ok-hover: oklch(0.78 0.16 158);
+  --ok-soft: oklch(0.78 0.14 158 / 0.14);
+  --ok-text: oklch(0.88 0.1 158);
+  --ok-border: oklch(0.78 0.14 158 / 0.55);
+  --ok-border-soft: oklch(0.78 0.14 158 / 0.4);
+  --ok-glow: 0 0 20px oklch(0.78 0.14 158 / 0.3);
+  --on-ok: oklch(0.14 0.025 160);
   --warn: oklch(0.82 0.13 85);
+  --warn-solid: oklch(0.66 0.14 76);
+  --warn-hover: oklch(0.74 0.15 76);
+  --warn-soft: oklch(0.82 0.13 85 / 0.14);
+  --warn-text: oklch(0.9 0.09 85);
+  --warn-border: oklch(0.82 0.13 85 / 0.58);
+  --warn-border-soft: oklch(0.82 0.13 85 / 0.4);
+  --warn-glow: 0 0 20px oklch(0.82 0.13 85 / 0.26);
+  --on-warn: oklch(0.16 0.025 72);
+
+  --neutral-solid: oklch(0.38 0.045 245);
+  --neutral-hover: oklch(0.44 0.055 245);
+  --neutral-on: oklch(0.94 0.015 245);
+  --neutral-border: oklch(0.62 0.055 245 / 0.52);
+  --neutral-glow: 0 0 18px oklch(0.62 0.055 245 / 0.24);
 
   /* Elevation — dark, faintly blue-tinted shadows */
   --elev-panel: 0 1px 0 oklch(0.98 0.01 240 / 0.04) inset,
@@ -290,6 +330,28 @@ h1, h2, h3, h4, .font-display {
   animation: bar-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Mark chat motion */
+@keyframes msg-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes media-rise {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lightbox-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lightbox-panel-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.msg-rise { animation: msg-rise 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.media-rise { animation: media-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.lightbox-backdrop { animation: lightbox-backdrop-in 180ms ease-out both; }
+.lightbox-panel { animation: lightbox-panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 .signal-radar { position: relative; }
 
 .signal-radar::after {
@@ -369,7 +431,11 @@ h1, h2, h3, h4, .font-display {
   .module-rise,
   .status-breathe,
   .status-ripple,
-  .bar-fill {
+  .bar-fill,
+  .msg-rise,
+  .media-rise,
+  .lightbox-backdrop,
+  .lightbox-panel {
     animation: none;
   }
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MarkMessageError,
   deriveThreadTitle,
+  parseMedia,
   parseMentions,
   serializeMentions,
   validateMarkMessageInput,
@@ -10,6 +11,29 @@ import {
 } from "../mark-chat";
 
 const mention: MarkMention = { type: "campaign", id: "c1", label: "Roof storm push", href: "/campaigns/c1" };
+
+describe("parseMedia", () => {
+  it("keeps valid image/video items with their optional fields", () => {
+    const out = parseMedia([
+      { kind: "image", url: "https://x/a.png", caption: "Hero", alt: "alt" },
+      { kind: "video", url: "https://x/b.mp4", poster: "https://x/p.jpg" },
+    ]);
+    expect(out).toEqual([
+      { kind: "image", url: "https://x/a.png", caption: "Hero", alt: "alt" },
+      { kind: "video", url: "https://x/b.mp4", poster: "https://x/p.jpg" },
+    ]);
+  });
+  it("parses a JSON string", () => {
+    expect(parseMedia(JSON.stringify([{ kind: "image", url: "https://x/a.png" }]))).toEqual([
+      { kind: "image", url: "https://x/a.png" },
+    ]);
+  });
+  it("drops items with an invalid kind or missing url, and junk input", () => {
+    expect(parseMedia([{ kind: "gif", url: "https://x/a.gif" }, { kind: "image" }])).toEqual([]);
+    expect(parseMedia("nope")).toEqual([]);
+    expect(parseMedia(null)).toEqual([]);
+  });
+});
 
 describe("deriveThreadTitle", () => {
   it("uses the first line, trimmed and collapsed", () => {

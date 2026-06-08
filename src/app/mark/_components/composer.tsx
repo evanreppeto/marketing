@@ -19,6 +19,7 @@ function tempMessage(conversationId: string, body: string, mentions: MarkMention
     status: "sent",
     agentTaskId: null,
     mentions,
+    media: [],
     createdAt: new Date().toISOString(),
   };
 }
@@ -136,7 +137,7 @@ export function Composer({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 rounded-3xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition focus-within:border-[var(--accent)]">
+        <div className="flex flex-col gap-2 rounded-3xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)] focus-within:shadow-[var(--accent-soft-glow)]">
           {picked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {picked.map((m) => (
@@ -179,10 +180,10 @@ export function Composer({
               disabled={disabled}
               aria-label="Send message"
               className={cx(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition",
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
                 disabled
                   ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
-                  : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]",
+                  : "bg-[var(--accent)] text-[var(--on-accent)] hover:scale-[1.06] hover:bg-[var(--accent-strong)] active:scale-95",
               )}
             >
               {isPending ? <Spinner /> : <SendIcon />}
