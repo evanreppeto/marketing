@@ -17,9 +17,14 @@ export function buildCampaignLink({ destinationUrl, campaignId, assetId, channel
     throw new Error("buildCampaignLink: campaignId must be a valid UUID.");
   }
   const url = new URL(destinationUrl);
-  const token = toBase64Url(
-    JSON.stringify({ c: campaignId, ...(assetId ? { a: assetId } : {}), ...(channel ? { ch: channel } : {}) }),
-  );
+  // assetId is intentionally not UUID-validated here: resolveAttribution validates
+  // decoded.a on the way out, so a bad assetId simply resolves to a null asset.
+  const tokenPayload = {
+    c: campaignId,
+    ...(assetId ? { a: assetId } : {}),
+    ...(channel ? { ch: channel } : {}),
+  };
+  const token = toBase64Url(JSON.stringify(tokenPayload));
   url.searchParams.set("utm_source", channel ?? "mark");
   url.searchParams.set("utm_medium", "campaign");
   url.searchParams.set("utm_campaign", campaignId);
