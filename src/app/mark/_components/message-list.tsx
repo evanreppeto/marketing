@@ -27,7 +27,7 @@ function ThinkingIndicator() {
         <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:200ms]" />
         <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:400ms]" />
       </span>
-      <span>Mark is thinking…</span>
+      <span>Waiting for Mark to reply…</span>
     </div>
   );
 }
