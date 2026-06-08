@@ -12,6 +12,7 @@ const navItems: ShellNavItem[] = [
   { label: "CRM", href: "/crm", iconSrc: "/brand/nav-icons/crm-icon.png", matches: ["/crm"] },
   { label: "Outbox", href: "/outbox", iconSrc: "/brand/nav-icons/today-icon.png", matches: ["/outbox"] },
   { label: "Gallery", href: "/gallery", iconSrc: "/brand/nav-icons/personas-icon.png", matches: ["/gallery"] },
+  { label: "Mark", href: "/mark", iconSrc: "/brand/nav-icons/mark-icon.png", matches: ["/mark"] },
 ];
 
 /**
