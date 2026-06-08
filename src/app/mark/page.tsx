@@ -46,8 +46,11 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
   let initialMessages = [] as Awaited<ReturnType<typeof listMessages>>;
   try {
     conversations = await listConversations(operator);
+    // A bare /mark is a fresh "new chat" (blank composer); a thread opens only
+    // when explicitly selected via ?c=. Defaulting to the latest thread would
+    // make the "New chat" button (which links to /mark) appear to do nothing.
     const requestedId = valueOf(params?.c);
-    const activeId = requestedId || conversations[0]?.id || "";
+    const activeId = requestedId;
     activeConversation = activeId ? await getConversation(activeId) : null;
     initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
   } catch {
