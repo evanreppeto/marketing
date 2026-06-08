@@ -37,12 +37,34 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
 
   const params = await searchParams;
   const operator = getOperatorActor();
-  const [conversations, mentionGroups] = await Promise.all([listConversations(operator), getMentionables()]);
+  const mentionGroups = await getMentionables();
 
-  const requestedId = valueOf(params?.c);
-  const activeId = requestedId || conversations[0]?.id || "";
-  const activeConversation = activeId ? await getConversation(activeId) : null;
-  const initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
+  // Supabase is configured, but the mark_chat tables may not exist yet (migration
+  // not applied to this environment). Degrade to a preview instead of 500-ing.
+  let conversations;
+  let activeConversation = null;
+  let initialMessages = [] as Awaited<ReturnType<typeof listMessages>>;
+  try {
+    conversations = await listConversations(operator);
+    const requestedId = valueOf(params?.c);
+    const activeId = requestedId || conversations[0]?.id || "";
+    activeConversation = activeId ? await getConversation(activeId) : null;
+    initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
+  } catch {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Mark"
+          title="Talk to Mark"
+          description="Ask Mark about a campaign, a lead, or a persona. Mark drafts and recommends; outbound stays locked."
+        />
+        <EmptyState
+          title="Mark chat isn't initialized yet"
+          detail="The conversation tables aren't available. Apply the latest database migration (mark_conversations / mark_messages) to start chatting with Mark."
+        />
+      </>
+    );
+  }
 
   return (
     <MarkChat
