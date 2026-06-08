@@ -1259,7 +1259,7 @@ function collectRelatedIds(campaign: CampaignRow, approvals: ApprovalItemRow[]) 
   };
 }
 
-function buildSources(input: {
+export function buildSources(input: {
   campaign: CampaignRow;
   assets: CampaignAssetRow[];
   approvals: ApprovalItemRow[];
@@ -1313,7 +1313,20 @@ function buildSources(input: {
     ...input.leads.map((lead) => asObject(lead.metadata)),
   ];
 
+  // The campaign's own creative/media (e.g. an ad's image in our storage bucket) is
+  // NOT an external evidence source — exclude those URLs so they don't show up as
+  // "Evidence Links" (which surfaced the raw storage host).
+  const mediaUrls = new Set(
+    [
+      ...collectMediaFromCampaign(input.campaign),
+      ...input.assets.flatMap(collectMediaFromAsset),
+      ...input.approvals.flatMap(collectMediaFromApproval),
+      ...input.outputs.flatMap(collectMediaFromOutput),
+    ].map((media) => media.url),
+  );
+
   for (const url of uniqueStrings(evidenceObjects.flatMap(extractUrlsFromObject))) {
+    if (mediaUrls.has(url)) continue;
     sources.push({
       id: `url-${stableId(url)}`,
       label: getHostLabel(url),

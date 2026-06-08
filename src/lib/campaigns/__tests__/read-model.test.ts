@@ -7,6 +7,7 @@ import {
   buildLaunchState,
   buildMarkConversation,
   buildReasoning,
+  buildSources,
   classifyMediaAsset,
   selectPendingDeliverables,
   type CampaignWorkspaceAsset,
@@ -221,6 +222,30 @@ describe("classifyMediaAsset", () => {
     expect(classifyMediaAsset("https://youtu.be/aqz-KE-bpKQ", "video/youtube", "video")).toBe("embed");
     expect(classifyMediaAsset("https://vimeo.com/123456", null, "video")).toBe("embed");
     expect(classifyMediaAsset("https://example.com/asset.mp4", "video/mp4", "video")).toBe("video");
+  });
+});
+
+describe("buildSources", () => {
+  it("excludes the campaign's own creative/media URLs from evidence sources", () => {
+    const storageUrl =
+      "https://fpjvgqrfqncnudqeudee.supabase.co/storage/v1/object/public/campaign-media/social-ads/run/0-feed.png";
+    const realEvidence = "https://competitor-example.com/ads";
+
+    const sources = buildSources({
+      campaign: { ...baseCampaign, source_signal: { evidence_urls: [realEvidence] } },
+      assets: [
+        { id: "a1", audit_payload: { media_assets: [{ url: storageUrl, type: "ad" }] }, prompt_inputs: {}, reasoning_payload: {} },
+      ],
+      approvals: [],
+      companies: [],
+      contacts: [],
+      leads: [],
+      outputs: [],
+    } as unknown as Parameters<typeof buildSources>[0]);
+
+    const webUrls = sources.filter((s) => s.kind === "web").map((s) => s.url);
+    expect(webUrls).toContain(realEvidence);
+    expect(webUrls).not.toContain(storageUrl);
   });
 });
 
