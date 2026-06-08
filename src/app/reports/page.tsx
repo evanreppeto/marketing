@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { connection } from "next/server";
 
 import { IntelligencePanel } from "../_components/intelligence-panel";
-import { EmptyState, StatusPill } from "../_components/page-header";
+import { EmptyState, PageHeader, StatusPill } from "../_components/page-header";
+import { TabNav } from "../_components/tab-nav";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getPerformanceReadModel, type PerformanceBreakdown, type PerformanceTone } from "@/lib/performance/read-model";
 
@@ -55,7 +55,18 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
         }))}
       />
 
-      <PerformanceTabs activeTab={activeTab} />
+      <TabNav
+        ariaLabel="Performance sections"
+        activeKey={activeTab}
+        columns="sm:grid-cols-2 xl:grid-cols-7"
+        className="mb-5"
+        tabs={performanceTabs.map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          detail: tab.detail,
+          href: `/reports?tab=${tab.key}`,
+        }))}
+      />
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
         <div className="min-w-0">
@@ -93,29 +104,6 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
         </aside>
       </div>
     </>
-  );
-}
-
-function PerformanceTabs({ activeTab }: { activeTab: PerformanceTabKey }) {
-  return (
-    <nav aria-label="Performance sections" className="module-rise mb-5 grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)] sm:grid-cols-2 xl:grid-cols-7">
-      {performanceTabs.map((tab) => {
-        const selected = activeTab === tab.key;
-        return (
-          <Link
-            aria-current={selected ? "page" : undefined}
-            className={`rounded-lg border px-3 py-3 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] ${
-              selected ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
-            }`}
-            href={`/reports?tab=${tab.key}`}
-            key={tab.key}
-          >
-            <span className="block text-sm font-black text-[var(--text-primary)]">{tab.label}</span>
-            <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
-          </Link>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -255,34 +243,18 @@ function ContractTab({ contracts }: { contracts: Extract<Awaited<ReturnType<type
 
 function ReportsHeader({ status }: { status: string }) {
   return (
-    <header className="module-rise mb-5 rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-6 py-5 shadow-[var(--elev-panel)]">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="signal-eyebrow">Performance / Intelligence</span>
-        <StatusPill tone="amber">{status}</StatusPill>
-        <StatusPill tone="amber">Outbound locked</StatusPill>
-        <StatusPill tone="amber">No publishing</StatusPill>
-      </div>
-      <h1 className="mt-3 max-w-3xl text-[clamp(1.8rem,3vw,3.2rem)] font-black leading-[0.98] tracking-[-0.05em] text-[var(--text-primary)]">
-        Attribute growth work to leads, partners, campaigns, and revenue.
-      </h1>
-      <p className="mt-3 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
-        This is the measurement layer for the Growth Intelligence CRM. It uses existing backend signals now and shows exactly which fields are still needed.
-      </p>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <HeaderRule label="Measures" value="Leads, campaigns, partners, outcomes" />
-        <HeaderRule label="Missing" value="Spend, booked jobs, CTA events" />
-        <HeaderRule label="Mark rule" value="Recommend only; humans approve" />
-      </div>
-    </header>
-  );
-}
-
-function HeaderRule({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value}</div>
-    </div>
+    <PageHeader
+      eyebrow="Performance / Intelligence"
+      title="Attribute growth work to leads, partners, campaigns, and revenue."
+      description="This is the measurement layer for the Growth Intelligence CRM. It uses existing backend signals now and shows exactly which fields are still needed."
+      aside={
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill tone="amber">{status}</StatusPill>
+          <StatusPill tone="amber">Outbound locked</StatusPill>
+          <StatusPill tone="amber">No publishing</StatusPill>
+        </div>
+      }
+    />
   );
 }
 
