@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { cx } from "@/app/_components/theme";
 import type { MarkMention } from "@/domain";
@@ -45,20 +45,24 @@ function Spinner() {
 export function Composer({
   conversationId,
   mentionGroups,
+  draft,
+  onDraftChange,
+  textareaRef,
   onOptimistic,
   onSent,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
+  draft: string;
+  onDraftChange: (value: string) => void;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
   onOptimistic: (message: MarkMessage) => void;
   onSent: (conversationId?: string) => void;
 }) {
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
-  const [text, setText] = useState("");
   const [picked, setPicked] = useState<MarkMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const formRef = useRef<HTMLFormElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-grow the textarea to fit its content (capped), and shrink on reset.
   useEffect(() => {
@@ -66,7 +70,7 @@ export function Composer({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, [text]);
+  }, [draft, textareaRef]);
 
   // Notify parent when a send completes.
   const lastHandled = useRef<SendMessageState>(null);
@@ -77,13 +81,13 @@ export function Composer({
         const newId = state.conversationId;
         // Schedule setState asynchronously to satisfy the set-state-in-effect lint rule.
         void Promise.resolve().then(() => {
-          setText("");
+          onDraftChange("");
           setPicked([]);
           onSent(newId);
         });
       }
     }
-  }, [state, onSent]);
+  }, [state, onSent, onDraftChange]);
 
   const suggestions = useMemo(() => {
     if (query === null) return [];
@@ -93,18 +97,19 @@ export function Composer({
   }, [query, mentionGroups]);
 
   function onTextChange(value: string) {
-    setText(value);
+    onDraftChange(value);
     const match = /@([\w-]*)$/.exec(value);
     setQuery(match ? match[1] : null);
   }
 
   function addMention(m: MarkMention) {
     setPicked((prev) => (prev.some((p) => p.type === m.type && p.id === m.id) ? prev : [...prev, m]));
-    setText((prev) => prev.replace(/@([\w-]*)$/, "").trimEnd() + " ");
+    onDraftChange(draft.replace(/@([\w-]*)$/, "").trimEnd() + " ");
     setQuery(null);
+    textareaRef.current?.focus();
   }
 
-  const disabled = isPending || !text.trim();
+  const disabled = isPending || !draft.trim();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
@@ -113,12 +118,12 @@ export function Composer({
         action={formAction}
         className="relative"
         onSubmit={() => {
-          if (!text.trim()) return;
-          onOptimistic(tempMessage(conversationId, text.trim(), picked));
+          if (!draft.trim()) return;
+          onOptimistic(tempMessage(conversationId, draft.trim(), picked));
         }}
       >
         <input type="hidden" name="conversationId" value={conversationId} />
-        <input type="hidden" name="body" value={text} />
+        <input type="hidden" name="body" value={draft} />
         <input type="hidden" name="mentions" value={serializeMentions(picked)} />
 
         {query !== null && suggestions.length > 0 ? (
@@ -163,7 +168,7 @@ export function Composer({
             <textarea
               ref={textareaRef}
               name="body-display"
-              value={text}
+              value={draft}
               onChange={(e) => onTextChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && query === null) {

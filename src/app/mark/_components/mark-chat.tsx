@@ -8,6 +8,7 @@ import type { MarkConversation, MarkMessage } from "@/lib/mark-chat/persistence"
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
 import { Composer } from "./composer";
+import { ChatEmptyState } from "./empty-state";
 import { MessageList } from "./message-list";
 import { ThreadSidebar } from "./thread-sidebar";
 import { getThreadMessagesAction } from "../actions";
@@ -41,6 +42,8 @@ export function MarkChat({
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<MarkMessage[]>(initialMessages);
+  const [draft, setDraft] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   // Re-seed when the server sends a different thread (navigation).
   useEffect(() => {
@@ -77,6 +80,18 @@ export function MarkChat({
     };
   }, [activeId, awaitingReply]);
 
+  function pickSuggestion(prompt: string) {
+    setDraft(prompt);
+    requestAnimationFrame(() => {
+      const el = composerRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(prompt.length, prompt.length);
+    });
+  }
+
+  const hasMessages = messages.length > 0;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center justify-between gap-3 pb-3">
@@ -97,10 +112,13 @@ export function MarkChat({
       <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[15rem_minmax(0,1fr)]">
         <ThreadSidebar conversations={conversations} activeId={activeId} />
         <section className="flex min-h-0 flex-col border-t border-[var(--border-hairline)] lg:border-l lg:border-t-0">
-          <MessageList messages={messages} />
+          {hasMessages ? <MessageList messages={messages} /> : <ChatEmptyState onPick={pickSuggestion} />}
           <Composer
             conversationId={activeId}
             mentionGroups={mentionGroups}
+            draft={draft}
+            onDraftChange={setDraft}
+            textareaRef={composerRef}
             onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
             onSent={(newConversationId) => {
               if (!activeId && newConversationId) {
