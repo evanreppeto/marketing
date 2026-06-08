@@ -12,6 +12,20 @@ import { MessageList } from "./message-list";
 import { ThreadSidebar } from "./thread-sidebar";
 import { getThreadMessagesAction } from "../actions";
 
+/** Cheap structural equality so an unchanged poll result doesn't trigger a
+ *  re-render (and a forced auto-scroll) every tick. */
+function sameMessages(a: MarkMessage[], b: MarkMessage[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x.id !== y.id || x.status !== y.status || x.body !== y.body || x.media.length !== y.media.length) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function MarkChat({
   conversations,
   activeId,
@@ -44,10 +58,18 @@ export function MarkChat({
   useEffect(() => {
     if (!activeId || !awaitingReply) return;
     let cancelled = false;
+    let polls = 0;
     const timer = setInterval(async () => {
+      if (polls++ > 240) {
+        clearInterval(timer); // ~10 min safety cap so we never poll forever
+        return;
+      }
       const fresh = await getThreadMessagesAction(activeIdRef.current);
-      if (cancelled || activeIdRef.current !== activeId) return;
-      if (fresh.length > 0) setMessages(fresh);
+      if (cancelled || activeIdRef.current !== activeId || fresh.length === 0) return;
+      // Only update when something actually changed. An unanswered pending
+      // message returns identical data every tick; re-seeding it would
+      // re-render + auto-scroll endlessly and lock up the UI.
+      setMessages((prev) => (sameMessages(prev, fresh) ? prev : fresh));
     }, 2500);
     return () => {
       cancelled = true;
