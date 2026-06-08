@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { deriveThreadTitle, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
+import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import {
   archiveConversation,
   createConversation,
@@ -69,6 +70,8 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
+    // Wake Mark (push). Best-effort — never blocks or fails the send.
+    await notifyMarkWebhook({ agentTaskId, conversationId, message: body, mentions: cleanMentions, operator });
   } catch (error) {
     await insertFailedMarkMessage(
       { conversationId, body: error instanceof Error ? error.message : "Mark couldn't be reached." },

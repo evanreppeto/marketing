@@ -35,7 +35,43 @@ Poll step 2 on whatever interval you like (a few seconds is fine). The inbox is
 **read-only and idempotent** — a message stays in the queue until you deliver its
 reply, so polling can't lose or double-consume work.
 
-## 1. Pull pending messages
+## Push: get woken on each message (recommended — Telegram-style)
+
+Instead of polling, let the app wake Mark only when a message is sent. Set two
+env vars on **Mark's** side and one on the app:
+
+- App (Vercel): `MARK_WEBHOOK_URL` = the agent endpoint to call; optional
+  `MARK_WEBHOOK_SECRET` = a shared secret.
+
+When an operator sends a chat message, the app immediately `POST`s to
+`MARK_WEBHOOK_URL`:
+
+```
+POST <MARK_WEBHOOK_URL>
+Authorization: Bearer <MARK_WEBHOOK_SECRET>   (only if you set the secret)
+Content-Type: application/json
+
+{
+  "type": "mark_chat_message",
+  "agentTaskId": "uuid",
+  "conversationId": "uuid",
+  "message": "operator's text",
+  "mentions": [ { "type": "...", "id": "...", "label": "...", "href": "..." } ],
+  "operator": "evan@…"
+}
+```
+
+Your endpoint should:
+1. Verify the `Authorization` secret (if set) and **respond `200` immediately**
+   (do the slow work async — like a Telegram webhook).
+2. Compose the answer, then deliver it with the reply call in section 2:
+   `POST /api/v1/hermes/messages { agentTaskId, body, metadata? }`.
+
+That's it — no polling, no idle cost; Mark runs only when there's a message.
+The call is best-effort (3s timeout); if your endpoint is down the message stays
+queued and you can still pull it via the inbox below.
+
+## 1. Pull pending messages (fallback / catch-up)
 
 ```
 GET /api/v1/hermes/messages?limit=20
