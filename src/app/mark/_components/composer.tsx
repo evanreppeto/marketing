@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
 import type { MarkMention } from "@/domain";
 import { serializeMentions } from "@/domain";
@@ -24,6 +23,24 @@ function tempMessage(conversationId: string, body: string, mentions: MarkMention
   };
 }
 
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 16V5" />
+      <path d="M5 10l5-5 5 5" />
+    </svg>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 motion-safe:animate-spin" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Composer({
   conversationId,
   mentionGroups,
@@ -40,6 +57,15 @@ export function Composer({
   const [picked, setPicked] = useState<MarkMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the textarea to fit its content (capped), and shrink on reset.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [text]);
 
   // Notify parent when a send completes.
   const lastHandled = useRef<SendMessageState>(null);
@@ -47,12 +73,12 @@ export function Composer({
     if (state && state !== lastHandled.current) {
       lastHandled.current = state;
       if (state.ok) {
-        const conversationId = state.conversationId;
+        const newId = state.conversationId;
         // Schedule setState asynchronously to satisfy the set-state-in-effect lint rule.
         void Promise.resolve().then(() => {
           setText("");
           setPicked([]);
-          onSent(conversationId);
+          onSent(newId);
         });
       }
     }
@@ -80,81 +106,98 @@ export function Composer({
   const disabled = isPending || !text.trim();
 
   return (
-    <form
-      ref={formRef}
-      action={formAction}
-      className="relative border-t border-[var(--border-hairline)] p-3"
-      onSubmit={() => {
-        if (!text.trim()) return;
-        onOptimistic(tempMessage(conversationId, text.trim(), picked));
-      }}
-    >
-      <input type="hidden" name="conversationId" value={conversationId} />
-      <input type="hidden" name="body" value={text} />
-      <input type="hidden" name="mentions" value={serializeMentions(picked)} />
+    <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
+      <form
+        ref={formRef}
+        action={formAction}
+        className="relative"
+        onSubmit={() => {
+          if (!text.trim()) return;
+          onOptimistic(tempMessage(conversationId, text.trim(), picked));
+        }}
+      >
+        <input type="hidden" name="conversationId" value={conversationId} />
+        <input type="hidden" name="body" value={text} />
+        <input type="hidden" name="mentions" value={serializeMentions(picked)} />
 
-      {picked.length > 0 ? (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {picked.map((m) => (
-            <span
-              key={`${m.type}:${m.id}`}
-              className="inline-flex items-center gap-1 rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-contrast)]"
-            >
-              @{m.label}
+        {query !== null && suggestions.length > 0 ? (
+          <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+            {suggestions.map((m) => (
               <button
+                key={`${m.type}:${m.id}`}
                 type="button"
-                aria-label={`Remove ${m.label}`}
-                onClick={() => setPicked((prev) => prev.filter((p) => !(p.type === m.type && p.id === m.id)))}
-                className="text-[var(--text-muted)] hover:text-[var(--priority-bright)]"
+                onClick={() => addMention(m)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-inset)]"
               >
-                ×
+                <span className="truncate font-semibold text-[var(--text-primary)]">{m.label}</span>
+                <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">{m.type}</span>
               </button>
-            </span>
-          ))}
-        </div>
-      ) : null}
+            ))}
+          </div>
+        ) : null}
 
-      {query !== null && suggestions.length > 0 ? (
-        <div className="absolute bottom-full left-3 right-3 mb-2 max-h-60 overflow-y-auto rounded-lg border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1 shadow-[var(--elev-raised)]">
-          {suggestions.map((m) => (
+        <div className="flex flex-col gap-2 rounded-3xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition focus-within:border-[var(--accent)]">
+          {picked.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {picked.map((m) => (
+                <span
+                  key={`${m.type}:${m.id}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-contrast)]"
+                >
+                  @{m.label}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${m.label}`}
+                    onClick={() => setPicked((prev) => prev.filter((p) => !(p.type === m.type && p.id === m.id)))}
+                    className="text-[var(--text-muted)] transition hover:text-[var(--priority-bright)]"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={textareaRef}
+              name="body-display"
+              value={text}
+              onChange={(e) => onTextChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && query === null) {
+                  e.preventDefault();
+                  if (!disabled) formRef.current?.requestSubmit();
+                }
+              }}
+              rows={1}
+              placeholder="Message Mark…"
+              className="max-h-[200px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+            />
             <button
-              key={`${m.type}:${m.id}`}
-              type="button"
-              onClick={() => addMention(m)}
-              className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-inset)]"
+              type="submit"
+              disabled={disabled}
+              aria-label="Send message"
+              className={cx(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition",
+                disabled
+                  ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
+                  : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]",
+              )}
             >
-              <span className="truncate font-semibold text-[var(--text-primary)]">{m.label}</span>
-              <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">{m.type}</span>
+              {isPending ? <Spinner /> : <SendIcon />}
             </button>
-          ))}
+          </div>
         </div>
-      ) : null}
 
-      <div className="flex items-end gap-2">
-        <textarea
-          name="body-display"
-          value={text}
-          onChange={(e) => onTextChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && query === null) {
-              e.preventDefault();
-              if (!disabled) formRef.current?.requestSubmit();
-            }
-          }}
-          rows={2}
-          placeholder="Ask Mark…  (type @ to reference a record)"
-          className={cx(
-            "min-h-11 flex-1 resize-none rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
-          )}
-        />
-        <Button type="submit" variant="primary" size="md" disabled={disabled}>
-          {isPending ? "Sending…" : "Send"}
-        </Button>
-      </div>
-
-      {state && !state.ok ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--priority-bright)]">{state.message}</p>
-      ) : null}
-    </form>
+        {state && !state.ok ? (
+          <p className="mt-2 text-center text-xs font-semibold text-[var(--priority-bright)]">{state.message}</p>
+        ) : (
+          <p className="mt-2 text-center text-[11px] text-[var(--text-muted)]">
+            Mark recommends; outbound stays locked. <span className="font-mono">@</span> to reference a record.
+          </p>
+        )}
+      </form>
+    </div>
   );
 }

@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { PageHeader } from "@/app/_components/page-header";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
-import type { MarkConversation } from "@/lib/mark-chat/persistence";
+import type { MarkConversation, MarkMessage } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
 import { Composer } from "./composer";
@@ -59,22 +57,24 @@ export function MarkChat({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader
-        eyebrow="Mark"
-        title={activeTitle || "Talk to Mark"}
-        description="Ask about a campaign, a lead, or a persona. Mark recommends; outbound stays locked."
-        aside={
-          <Link
-            href="/agent-operations"
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-          >
-            Operations ▸
-          </Link>
-        }
-      />
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <header className="flex items-center justify-between gap-3 pb-3">
+        <div className="min-w-0">
+          <p className="signal-eyebrow">Mark</p>
+          <h1 className="truncate font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+            {activeTitle || "New chat"}
+          </h1>
+        </div>
+        <Link
+          href="/agent-operations"
+          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+        >
+          Operations ▸
+        </Link>
+      </header>
+
+      <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[15rem_minmax(0,1fr)]">
         <ThreadSidebar conversations={conversations} activeId={activeId} />
-        <section className="flex min-h-0 flex-col rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+        <section className="flex min-h-0 flex-col border-t border-[var(--border-hairline)] lg:border-l lg:border-t-0">
           <MessageList messages={messages} />
           <Composer
             conversationId={activeId}
