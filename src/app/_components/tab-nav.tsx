@@ -14,6 +14,8 @@ export type TabItem = {
  * Canonical tabbed-section navigation. One source of truth for the card-tab
  * pattern that was previously copy-pasted across CRM, personas, reports, and
  * approvals. Styling comes entirely from `theme.control.tab*` tokens.
+ *
+ * `columns` must be a literal Tailwind grid-cols-* class string (e.g. "sm:grid-cols-2 xl:grid-cols-4") so Tailwind's JIT can see it.
  */
 export function TabNav({
   ariaLabel,
@@ -50,7 +52,7 @@ export function TabNav({
               <span className="text-sm font-bold text-[var(--text-primary)]">{tab.label}</span>
               {tab.count !== undefined ? <span className={theme.control.tabBadge}>{tab.count}</span> : null}
             </span>
-            {tab.detail ? (
+            {tab.detail !== undefined ? (
               <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
             ) : null}
           </Link>
