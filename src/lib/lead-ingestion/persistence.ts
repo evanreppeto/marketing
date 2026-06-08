@@ -82,6 +82,11 @@ export async function persistLeadIngestion({
     matched_target_keywords: result.classification.matchedTargetKeywords,
     matched_non_target_keywords: result.classification.matchedNonTargetKeywords,
     lead_score: result.scores.leadScore,
+    attributed_campaign_id: result.attribution.campaignId,
+    attributed_asset_id: result.attribution.assetId,
+    attribution_channel: result.attribution.channel,
+    attribution_method: result.attribution.method,
+    attribution_utm: result.attribution.utm,
     metadata: {
       ...input.metadata,
       classification: result.classification.classification,
