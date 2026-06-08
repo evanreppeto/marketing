@@ -1,11 +1,10 @@
 import { connection } from "next/server";
 
-import { EmptyState, StatusPill } from "../_components/page-header";
+import { EmptyState, PageHeader, StatusPill } from "../_components/page-header";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 
 import { CampaignGallery } from "./_components/campaign-gallery";
 import { CampaignTriageStrip } from "./_components/campaign-triage-strip";
-import { SlimHeader } from "./_components/slim-header";
 
 type CampaignsPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -20,7 +19,7 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   if (list.status === "unavailable") {
     return (
       <>
-        <SlimHeader title="Campaigns" subtitle="Everything Mark builds; outbound stays locked." />
+        <CampaignsHeader pendingCount={0} />
         <EmptyState title="Campaign workspace unavailable" detail={list.message} />
       </>
     );
@@ -31,7 +30,7 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
 
   return (
     <>
-      <CampaignCommandHeader pendingCount={pendingCount} />
+      <CampaignsHeader pendingCount={pendingCount} />
 
       {campaigns.length > 0 ? (
         <>
@@ -71,24 +70,22 @@ function parsePageSize(value: string) {
   return [12, 24, 48].includes(parsed) ? parsed : 12;
 }
 
-function CampaignCommandHeader({ pendingCount }: { pendingCount: number }) {
+function CampaignsHeader({ pendingCount }: { pendingCount: number }) {
   return (
-    <header className="module-rise mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <span className="signal-eyebrow">Campaign command</span>
-        <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[var(--text-primary)] sm:text-4xl">Campaigns</h1>
-        <p className="mt-2 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
-          Every package Mark drafts. Inspect the reasoning and source records, then approve — outbound stays locked until you do.
-        </p>
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {pendingCount > 0 ? (
-          <StatusPill tone="amber">{pendingCount} awaiting approval</StatusPill>
-        ) : (
-          <StatusPill tone="green">All decided</StatusPill>
-        )}
-        <StatusPill tone="amber">Outbound locked</StatusPill>
-      </div>
-    </header>
+    <PageHeader
+      eyebrow="Campaign command"
+      title="Campaigns"
+      description="Every package Mark drafts. Inspect the reasoning and source records, then approve - outbound stays locked until you do."
+      aside={
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {pendingCount > 0 ? (
+            <StatusPill tone="amber">{pendingCount} awaiting approval</StatusPill>
+          ) : (
+            <StatusPill tone="green">All decided</StatusPill>
+          )}
+          <StatusPill tone="amber">Outbound locked</StatusPill>
+        </div>
+      }
+    />
   );
 }
