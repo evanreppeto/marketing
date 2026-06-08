@@ -38,8 +38,10 @@ describe("persistLeadIngestion attribution", () => {
 
     expect(insertFor(supabase, "leads")[0]).toMatchObject({
       attributed_campaign_id: "11111111-1111-1111-1111-111111111111",
+      attributed_asset_id: null,
       attribution_channel: "meta_ad",
       attribution_method: "explicit",
+      attribution_utm: {},
     });
   });
 });
