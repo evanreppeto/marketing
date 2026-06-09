@@ -17,6 +17,7 @@ export async function ConnectionsPanel() {
 
   return (
     <SettingsSection
+      id="connections"
       title="Connections"
       description="Secrets stay in environment variables; these controls only flip the operator switch and record test/use telemetry. A real send happens only when an approved dispatch is executed."
       bodyClassName="p-0"

@@ -92,6 +92,7 @@ export function SettingsControls({
   return (
     <>
       <SettingsSection
+        id="automation"
         title="Automation"
         description="How much Mark can prepare on its own. Outbound execution stays locked regardless of level."
       >
@@ -120,7 +121,7 @@ export function SettingsControls({
         </div>
       </SettingsSection>
 
-      <SettingsSection title="Guardrails" description="Safety checks applied before anything reaches an approval queue.">
+      <SettingsSection id="guardrails" title="Guardrails" description="Safety checks applied before anything reaches an approval queue.">
         <div className="grid gap-2">
           {guardrails.map((item, index) => (
             <label
@@ -143,7 +144,7 @@ export function SettingsControls({
         </div>
       </SettingsSection>
 
-      <SettingsSection title="CTA rules" description="The action language Mark uses per persona in internal guidance.">
+      <SettingsSection id="cta-rules" title="CTA rules" description="The action language Mark uses per persona in internal guidance.">
         <div className="grid gap-2">
           {ctaRules.map((rule, index) => (
             <label
@@ -165,7 +166,7 @@ export function SettingsControls({
         </div>
       </SettingsSection>
 
-      <SettingsSection title="Brand voice" description="Copy posture Mark follows when drafting outbound-facing content.">
+      <SettingsSection id="brand-voice" title="Brand voice" description="Copy posture Mark follows when drafting outbound-facing content.">
         <textarea
           className="min-h-32 w-full resize-y rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
           onChange={(event) => setBrandVoice(event.target.value)}
