@@ -11,18 +11,58 @@ export type ConnectionRegistryEntry = {
   provider: ConnectionProvider;
   kind: ConnectionKind;
   label: string;
-  /** Env var that supplies the secret, or null for providers without one yet (social). */
+  /** Primary env var shown in the UI (display only). Resend uses its single key. */
   envVar: string | null;
+  /** All env vars that must be present for the connection to count as configured. */
+  requiredEnvVars: string[];
 };
 
 /** Canonical list of connectable providers. Seeded into the `connections` table. */
 export const CONNECTION_REGISTRY: ConnectionRegistryEntry[] = [
-  { provider: "resend", kind: "email", label: "Resend", envVar: "RESEND_API_KEY" },
-  { provider: "instagram", kind: "social", label: "Instagram", envVar: null },
-  { provider: "facebook", kind: "social", label: "Facebook", envVar: null },
-  { provider: "linkedin", kind: "social", label: "LinkedIn", envVar: null },
-  { provider: "x", kind: "social", label: "X", envVar: null },
+  { provider: "resend", kind: "email", label: "Resend", envVar: "RESEND_API_KEY", requiredEnvVars: ["RESEND_API_KEY"] },
+  {
+    provider: "instagram",
+    kind: "social",
+    label: "Instagram",
+    envVar: "META_PAGE_ACCESS_TOKEN",
+    requiredEnvVars: ["META_APP_ID", "META_APP_SECRET", "META_IG_USER_ID", "META_PAGE_ACCESS_TOKEN"],
+  },
+  {
+    provider: "facebook",
+    kind: "social",
+    label: "Facebook",
+    envVar: "META_PAGE_ACCESS_TOKEN",
+    requiredEnvVars: ["META_APP_ID", "META_APP_SECRET", "META_PAGE_ID", "META_PAGE_ACCESS_TOKEN"],
+  },
+  {
+    provider: "linkedin",
+    kind: "social",
+    label: "LinkedIn",
+    envVar: "LINKEDIN_ACCESS_TOKEN",
+    requiredEnvVars: ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_ORG_URN"],
+  },
+  {
+    provider: "x",
+    kind: "social",
+    label: "X",
+    envVar: "X_API_KEY",
+    requiredEnvVars: ["X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_TOKEN_SECRET"],
+  },
 ];
+
+/**
+ * Pure: which of a provider's required env vars are missing or blank in `env`.
+ * Empty result ⇒ fully configured. Unknown provider ⇒ [] (callers only pass
+ * registry providers). Used by the read-model (status) and the social test action.
+ */
+export function missingRequiredEnvVars(
+  provider: ConnectionProvider,
+  env: Record<string, string | undefined>,
+): string[] {
+  const entry = CONNECTION_REGISTRY.find((candidate) => candidate.provider === provider);
+  if (!entry) return [];
+  return entry.requiredEnvVars.filter((name) => !env[name]?.trim());
+}
 
 /**
  * Compute the operator-facing status from the env secret presence, the operator

@@ -4,6 +4,7 @@ import {
   buildResendEmailPayload,
   computeConnectionStatus,
   CONNECTION_REGISTRY,
+  missingRequiredEnvVars,
   resolveDispatchIdempotencyKey,
 } from "../connections";
 
@@ -13,15 +14,49 @@ describe("CONNECTION_REGISTRY", () => {
     expect(resend).toMatchObject({ provider: "resend", kind: "email", envVar: "RESEND_API_KEY" });
   });
 
-  it("includes the four social providers with kind=social and no env var", () => {
+  it("includes the four social providers with kind=social and required env vars", () => {
     const social = CONNECTION_REGISTRY.filter((entry) => entry.kind === "social");
     expect(social.map((entry) => entry.provider).sort()).toEqual(["facebook", "instagram", "linkedin", "x"]);
-    expect(social.every((entry) => entry.envVar === null)).toBe(true);
+    // Every social provider declares a non-empty required-env-var set and a primary display var.
+    expect(social.every((entry) => entry.requiredEnvVars.length > 0)).toBe(true);
+    expect(social.every((entry) => typeof entry.envVar === "string")).toBe(true);
+  });
+
+  it("requires the Meta credential block for facebook and instagram", () => {
+    const facebook = CONNECTION_REGISTRY.find((entry) => entry.provider === "facebook");
+    const instagram = CONNECTION_REGISTRY.find((entry) => entry.provider === "instagram");
+    expect(facebook?.requiredEnvVars).toEqual(["META_APP_ID", "META_APP_SECRET", "META_PAGE_ID", "META_PAGE_ACCESS_TOKEN"]);
+    expect(instagram?.requiredEnvVars).toEqual(["META_APP_ID", "META_APP_SECRET", "META_IG_USER_ID", "META_PAGE_ACCESS_TOKEN"]);
   });
 
   it("has a unique provider per entry", () => {
     const providers = CONNECTION_REGISTRY.map((entry) => entry.provider);
     expect(new Set(providers).size).toBe(providers.length);
+  });
+});
+
+describe("missingRequiredEnvVars", () => {
+  it("returns [] when every required var is present and non-blank", () => {
+    const env = { RESEND_API_KEY: "re_live" };
+    expect(missingRequiredEnvVars("resend", env)).toEqual([]);
+  });
+
+  it("lists the missing var when a required var is absent", () => {
+    expect(missingRequiredEnvVars("resend", {})).toEqual(["RESEND_API_KEY"]);
+  });
+
+  it("treats a blank/whitespace value as missing", () => {
+    expect(missingRequiredEnvVars("resend", { RESEND_API_KEY: "   " })).toEqual(["RESEND_API_KEY"]);
+  });
+
+  it("returns only the missing subset for a multi-var provider", () => {
+    const env = { META_APP_ID: "a", META_APP_SECRET: "b", META_PAGE_ACCESS_TOKEN: "t" };
+    expect(missingRequiredEnvVars("facebook", env)).toEqual(["META_PAGE_ID"]);
+  });
+
+  it("returns [] for facebook when the full Meta block is present", () => {
+    const env = { META_APP_ID: "a", META_APP_SECRET: "b", META_PAGE_ID: "p", META_PAGE_ACCESS_TOKEN: "t" };
+    expect(missingRequiredEnvVars("facebook", env)).toEqual([]);
   });
 });
 
