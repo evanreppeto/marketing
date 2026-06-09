@@ -1,17 +1,97 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
+import { renameThreadAction, type SimpleActionState } from "../actions";
 import { Composer } from "./composer";
 import { ChatEmptyState } from "./empty-state";
 import { MessageList } from "./message-list";
+import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
 import { useThreadPoll } from "./use-thread-poll";
+
+function HeaderTitle({
+  activeId,
+  activeTitle,
+}: {
+  activeId: string;
+  activeTitle: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [state, formAction] = useActionState<SimpleActionState, FormData>(renameThreadAction, null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  // Close the editor once a rename succeeds.
+  const lastOk = useRef(false);
+  useEffect(() => {
+    if (state?.ok && !lastOk.current) {
+      lastOk.current = true;
+      void Promise.resolve().then(() => setEditing(false));
+    }
+    if (!state?.ok) lastOk.current = false;
+  }, [state]);
+
+  if (!activeId) {
+    return (
+      <h1 className="truncate font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+        New chat
+      </h1>
+    );
+  }
+
+  if (editing) {
+    return (
+      <form action={formAction} className="flex items-center gap-2">
+        <input type="hidden" name="conversationId" value={activeId} />
+        <input
+          ref={inputRef}
+          name="title"
+          defaultValue={activeTitle}
+          aria-label="Rename thread"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setEditing(false);
+          }}
+          onBlur={(e) => e.currentTarget.form?.requestSubmit()}
+          className="min-w-0 flex-1 rounded-md border border-[var(--accent)] bg-[var(--surface-inset)] px-2 py-1 font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)] focus-visible:outline-none"
+        />
+      </form>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      title="Rename thread"
+      className="group flex min-w-0 items-center gap-1.5 text-left"
+    >
+      <span className="truncate font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+        {activeTitle || "New chat"}
+      </span>
+      <svg
+        viewBox="0 0 20 20"
+        aria-hidden
+        className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 13.5V16h2.5l8-8L12 5.5l-8 8z" />
+      </svg>
+    </button>
+  );
+}
 
 export function MarkChat({
   conversations,
@@ -20,6 +100,8 @@ export function MarkChat({
   showArchived,
   activeId,
   activeTitle,
+  activeProjectId,
+  activePinned,
   initialMessages,
   mentionGroups,
 }: {
@@ -29,6 +111,8 @@ export function MarkChat({
   showArchived: boolean;
   activeId: string;
   activeTitle: string;
+  activeProjectId: string | null;
+  activePinned: boolean;
   initialMessages: MarkMessage[];
   mentionGroups: MentionGroup[];
 }) {
@@ -62,16 +146,32 @@ export function MarkChat({
       <header className="flex items-center justify-between gap-3 pb-3">
         <div className="min-w-0">
           <p className="signal-eyebrow">Mark</p>
-          <h1 className="truncate font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
-            {activeTitle || "New chat"}
-          </h1>
+          <HeaderTitle activeId={activeId} activeTitle={activeTitle} />
+          {activeId ? (
+            <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
+              {(activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
+                `${messages.length} message${messages.length === 1 ? "" : "s"}`}
+            </p>
+          ) : null}
         </div>
-        <Link
-          href="/agent-operations"
-          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-        >
-          Operations ▸
-        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Reserved slot: future "what Mark can reach" connections indicator. */}
+          {activeId ? (
+            <ThreadMenu
+              conversationId={activeId}
+              projectId={activeProjectId}
+              pinned={activePinned}
+              projects={projects}
+              isActive
+            />
+          ) : null}
+          <Link
+            href="/agent-operations"
+            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+          >
+            Operations ▸
+          </Link>
+        </div>
       </header>
 
       <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[15rem_minmax(0,1fr)]">

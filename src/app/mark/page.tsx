@@ -82,6 +82,8 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
       showArchived={showArchived}
       activeId={activeConversation?.id ?? ""}
       activeTitle={activeConversation?.title ?? ""}
+      activeProjectId={activeConversation?.projectId ?? null}
+      activePinned={Boolean(activeConversation?.pinnedAt)}
       initialMessages={initialMessages}
       mentionGroups={mentionGroups}
     />
