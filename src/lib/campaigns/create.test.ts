@@ -64,6 +64,36 @@ describe("createOperatorCampaign", () => {
     expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ campaign_id: "camp-1", event_type: "created", actor: "evan@test" });
   });
 
+  it("iterates per photo — uploads, asset, and approval row for each", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: { id: "camp-1" }, error: null },
+      campaign_assets: { data: { id: "asset-1" }, error: null },
+      approval_items: { data: { id: "appr-1" }, error: null },
+      approval_decisions: { data: null, error: null },
+      campaign_events: { data: null, error: null },
+    });
+    const uploader = vi.fn(async (path: string) => `https://cdn.test/${path}`);
+
+    await createOperatorCampaign({
+      draft,
+      operator: "evan@test",
+      photos: [
+        { filename: "a.png", contentType: "image/png", bytes: new Uint8Array([1]) },
+        { filename: "b.png", contentType: "image/png", bytes: new Uint8Array([2]) },
+      ],
+      client: supabase,
+      uploader,
+    });
+
+    expect(uploader).toHaveBeenCalledTimes(2);
+    expect(uploader.mock.calls[0][0]).toBe("operator-campaigns/camp-1/0-a.png");
+    expect(uploader.mock.calls[1][0]).toBe("operator-campaigns/camp-1/1-b.png");
+    expect(insertsFor(supabase, "campaign_assets")).toHaveLength(2);
+    expect(insertsFor(supabase, "approval_items")).toHaveLength(2);
+    expect(insertsFor(supabase, "approval_decisions")).toHaveLength(2);
+    expect(insertsFor(supabase, "campaign_events")).toHaveLength(1);
+  });
+
   it("creates a campaign with no assets when there are no photos", async () => {
     const supabase = createSupabaseQueryMock({
       campaigns: { data: { id: "camp-2" }, error: null },

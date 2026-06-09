@@ -30,6 +30,14 @@ export type CreateOperatorCampaignInput = {
 
 export type CreateOperatorCampaignResult = { campaignId: string; assetIds: string[] };
 
+/**
+ * Persist an operator-authored campaign + its photo assets.
+ *
+ * Non-transactional: this is a sequence of independent inserts (Supabase JS has no
+ * multi-table transaction surface). If an insert fails after the campaign row is
+ * written, a partial campaign may remain. Acceptable for this iteration — operator
+ * creates are low-frequency; a cleanup/retry path can be added if it becomes a problem.
+ */
 export async function createOperatorCampaign({
   draft,
   operator,
@@ -58,6 +66,8 @@ export async function createOperatorCampaign({
 
   const assetIds: string[] = [];
   for (const [index, photo] of photos.entries()) {
+    // Caller (the create action) is responsible for sanitizing photo.filename before
+    // it reaches here — it is interpolated directly into the storage path.
     const path = `operator-campaigns/${campaignId}/${index}-${photo.filename}`;
     const url = await upload(path, photo.bytes, photo.contentType);
 
