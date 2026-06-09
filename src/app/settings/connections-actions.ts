@@ -1,0 +1,148 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { buildResendEmailPayload, CONNECTION_REGISTRY, type ConnectionProvider } from "@/domain";
+
+import { requireOperator } from "@/lib/auth/operator";
+import { recordConnectionTest, recordConnectionUse, setConnectionEnabled } from "@/lib/connections/persistence";
+import { sendResendEmail, testResendConnection } from "@/lib/connections/resend-client";
+import { executeResendDispatch } from "@/lib/dispatch/execute-resend";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+export type ConnectionActionState = { ok: boolean; message: string } | null;
+
+const NOT_CONFIGURED: ConnectionActionState = {
+  ok: false,
+  message: "Supabase isn't configured, so connection state can't be saved.",
+};
+
+function isResend(value: string): value is ConnectionProvider {
+  return CONNECTION_REGISTRY.some((entry) => entry.provider === value && entry.provider === "resend");
+}
+
+/** Enable or disable the operator kill-switch for a provider. */
+export async function setConnectionEnabledAction(
+  _previous: ConnectionActionState,
+  formData: FormData,
+): Promise<ConnectionActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const provider = String(formData.get("provider") ?? "");
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  if (!isResend(provider)) {
+    return { ok: false, message: "Only Resend can be toggled right now." };
+  }
+
+  try {
+    await setConnectionEnabled(getSupabaseAdminClient(), provider, enabled);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't update the connection." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true, message: enabled ? "Resend enabled." : "Resend disabled — sends are now blocked." };
+}
+
+/** Probe the live Resend key and record the result. */
+export async function testConnectionAction(
+  _previous: ConnectionActionState,
+  formData: FormData,
+): Promise<ConnectionActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const provider = String(formData.get("provider") ?? "");
+  if (!isResend(provider)) {
+    return { ok: false, message: "Only Resend can be tested right now." };
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { ok: false, message: "RESEND_API_KEY isn't set in the environment." };
+  }
+
+  const result = await testResendConnection(apiKey);
+  try {
+    await recordConnectionTest(getSupabaseAdminClient(), provider, result);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't record the test." };
+  }
+
+  revalidatePath("/settings");
+  return result.ok
+    ? { ok: true, message: "Resend connection is healthy." }
+    : { ok: false, message: result.error ?? "Resend test failed." };
+}
+
+/** Send a one-off test email to verify the live key end-to-end (operator self-test). */
+export async function sendTestEmailAction(
+  _previous: ConnectionActionState,
+  formData: FormData,
+): Promise<ConnectionActionState> {
+  await requireOperator();
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { ok: false, message: "RESEND_API_KEY isn't set in the environment." };
+  }
+
+  const to = String(formData.get("to") ?? "").trim() || process.env.OPERATOR_EMAIL || "";
+  const from = process.env.RESEND_FROM;
+  if (!to) {
+    return { ok: false, message: "Enter a recipient, or set OPERATOR_EMAIL." };
+  }
+  if (!from) {
+    return { ok: false, message: "Set RESEND_FROM to a verified from-address." };
+  }
+
+  let payload;
+  try {
+    payload = buildResendEmailPayload({
+      from,
+      to,
+      subject: "Resend connection test — Big Shoulders Growth Engine",
+      html: "<p>This is a test send from the Connections panel. If you received it, Resend is wired correctly.</p>",
+    });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Invalid email." };
+  }
+
+  try {
+    const { id } = await sendResendEmail(apiKey, payload);
+    if (isSupabaseAdminConfigured()) {
+      await recordConnectionUse(getSupabaseAdminClient(), "resend");
+    }
+    revalidatePath("/settings");
+    return { ok: true, message: `Test email sent to ${to} (id ${id}).` };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Resend send failed." };
+  }
+}
+
+/**
+ * Run the real Resend send for an already-queued, approval-linked dispatch. The
+ * executor enforces the approval gate + idempotency; this action is just the
+ * operator-triggered entry point. (Creating the dispatch row from a campaign
+ * deliverable — with audience/recipient resolution — is the deferred
+ * campaign_dispatches → outbound_dispatches reconciliation.)
+ */
+export async function sendDispatchAction(
+  _previous: ConnectionActionState,
+  formData: FormData,
+): Promise<ConnectionActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const dispatchId = String(formData.get("dispatchId") ?? "").trim();
+  if (!dispatchId) {
+    return { ok: false, message: "Choose a dispatch to send." };
+  }
+
+  const { getOperatorActor } = await import("@/lib/auth/operator");
+  const result = await executeResendDispatch({ dispatchId, operator: getOperatorActor() }, getSupabaseAdminClient());
+
+  revalidatePath("/settings");
+  return { ok: result.ok, message: result.message };
+}

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
 import { MessageMedia } from "./message-media";
 
@@ -29,6 +29,59 @@ function ThinkingIndicator() {
       </span>
       <span>Waiting for Mark to reply…</span>
     </div>
+  );
+}
+
+function StepRow({ step }: { step: MarkStep }) {
+  const done = step.status === "done";
+  return (
+    <div className="flex items-center gap-2 text-sm motion-safe:[animation:msg-rise_.25s_ease-out]">
+      {done ? (
+        <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 10.5l4 4 8-9" />
+        </svg>
+      ) : (
+        <span aria-hidden className="h-1.5 w-1.5 shrink-0 motion-safe:animate-pulse rounded-full bg-[var(--accent)]" />
+      )}
+      <span className={done ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}>{step.label}</span>
+    </div>
+  );
+}
+
+function ActivityTimeline({ steps }: { steps: MarkStep[] }) {
+  const allDone = steps.every((s) => s.status === "done");
+  return (
+    <div className="flex flex-col gap-1.5" aria-label="What Mark is doing">
+      {steps.map((s, i) => (
+        <StepRow key={`${i}-${s.label}`} step={s} />
+      ))}
+      {allDone ? (
+        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+          <span className="flex gap-1" aria-hidden>
+            <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:0ms]" />
+            <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:200ms]" />
+            <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:400ms]" />
+          </span>
+          <span>Wrapping up…</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StepTrace({ steps }: { steps: MarkStep[] }) {
+  return (
+    <details className="mt-2 text-xs text-[var(--text-muted)]">
+      <summary className="cursor-pointer select-none hover:text-[var(--text-secondary)]">Show what Mark did</summary>
+      <div className="mt-1.5 flex flex-col gap-1 pl-1">
+        {steps.map((s, i) => (
+          <div key={`${i}-${s.label}`} className="flex items-center gap-2">
+            <span aria-hidden className="text-[var(--accent)]">✓</span>
+            <span>{s.label}</span>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -68,7 +121,7 @@ function Message({ message }: { message: MarkMessage }) {
       <MarkAvatar />
       <div className="min-w-0 flex-1 pt-0.5">
         {message.status === "pending" ? (
-          <ThinkingIndicator />
+          message.steps.length > 0 ? <ActivityTimeline steps={message.steps} /> : <ThinkingIndicator />
         ) : (
           <div
             className={cx(
@@ -79,6 +132,7 @@ function Message({ message }: { message: MarkMessage }) {
             {message.body}
           </div>
         )}
+        {message.status !== "pending" && message.steps.length > 0 ? <StepTrace steps={message.steps} /> : null}
         <MentionChips mentions={message.mentions} />
         {message.media.length > 0 ? <MessageMedia media={message.media} /> : null}
       </div>

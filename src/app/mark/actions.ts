@@ -121,53 +121,43 @@ export async function archiveThreadAction(_previous: SimpleActionState, formData
   return { ok: true, message: "Archived." };
 }
 
-export async function createProjectAction(_previous: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+// Plain fire-and-forget form actions for the sidebar controls (used directly as
+// <form action={...}>; they refresh via revalidatePath rather than returning state).
+export async function createProjectForm(formData: FormData): Promise<void> {
   await requireOperator();
-  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
-
+  if (!isSupabaseAdminConfigured()) return;
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { ok: false, message: "Project needs a name." };
-
-  try {
-    await createProject({ operator: getOperatorActor(), name });
-  } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Couldn't create the project." };
-  }
+  if (!name) return;
+  await createProject({ operator: getOperatorActor(), name });
   revalidatePath("/mark");
-  return { ok: true, message: "Project created." };
 }
 
-export async function moveConversationAction(_previous: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+export async function moveConversationForm(formData: FormData): Promise<void> {
   await requireOperator();
-  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
-
+  if (!isSupabaseAdminConfigured()) return;
   const conversationId = String(formData.get("conversationId") ?? "").trim();
   const rawProject = String(formData.get("projectId") ?? "").trim();
-  if (!conversationId) return { ok: false, message: "Missing conversation." };
-
-  try {
-    await assignConversationToProject(conversationId, rawProject || null);
-  } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Couldn't move the chat." };
-  }
+  if (!conversationId) return;
+  await assignConversationToProject(conversationId, rawProject || null);
   revalidatePath("/mark");
-  return { ok: true, message: "Moved." };
 }
 
-export async function unarchiveThreadAction(_previous: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+export async function archiveThreadForm(formData: FormData): Promise<void> {
   await requireOperator();
-  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
-
+  if (!isSupabaseAdminConfigured()) return;
   const id = String(formData.get("conversationId") ?? "").trim();
-  if (!id) return { ok: false, message: "Missing conversation." };
-
-  try {
-    await unarchiveConversation(id);
-  } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Couldn't unarchive." };
-  }
+  if (!id) return;
+  await archiveConversation(id);
   revalidatePath("/mark");
-  return { ok: true, message: "Restored." };
+}
+
+export async function unarchiveThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return;
+  await unarchiveConversation(id);
+  revalidatePath("/mark");
 }
 
 /** Poll the active thread for new/updated messages (drives the thinking state). */

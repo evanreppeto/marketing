@@ -18,6 +18,8 @@ export type MarkConversation = {
 export type MarkMessageRole = "operator" | "mark" | "system";
 export type MarkMessageStatus = "sent" | "pending" | "complete" | "failed";
 
+export type MarkStep = { label: string; status: "running" | "done"; at: string };
+
 export type MarkMessage = {
   id: string;
   conversationId: string;
@@ -27,6 +29,7 @@ export type MarkMessage = {
   agentTaskId: string | null;
   mentions: MarkMention[];
   media: MarkMedia[];
+  steps: MarkStep[];
   createdAt: string;
 };
 
@@ -69,6 +72,20 @@ function toConversation(row: ConversationRow): MarkConversation {
   };
 }
 
+function parseSteps(value: unknown): MarkStep[] {
+  if (!Array.isArray(value)) return [];
+  const out: MarkStep[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const label = (item as { label?: unknown }).label;
+    if (typeof label !== "string" || !label.trim()) continue;
+    const status = (item as { status?: unknown }).status === "done" ? "done" : "running";
+    const at = typeof (item as { at?: unknown }).at === "string" ? (item as { at: string }).at : "";
+    out.push({ label, status, at });
+  }
+  return out;
+}
+
 function toMessage(row: MessageRow): MarkMessage {
   return {
     id: row.id,
@@ -79,6 +96,7 @@ function toMessage(row: MessageRow): MarkMessage {
     agentTaskId: row.agent_task_id,
     mentions: parseMentions(row.mentions),
     media: parseMedia((row.metadata as { media?: unknown } | null)?.media),
+    steps: parseSteps((row.metadata as { steps?: unknown } | null)?.steps),
     createdAt: row.created_at,
   };
 }
@@ -339,4 +357,48 @@ export async function listArchivedConversations(
     .order("last_message_at", { ascending: false });
   assertOk("mark_conversations archived list", error);
   return ((data ?? []) as ConversationRow[]).map(toConversation);
+}
+
+// --------------------------------------------------------------------------- #
+// Live activity steps (what Mark is doing, shown while a reply is pending)
+// --------------------------------------------------------------------------- #
+/** Pure: append a step, or flip the matching running step to done (no duplicate). */
+export function mergeStep(steps: MarkStep[], step: MarkStep): MarkStep[] {
+  if (step.status === "done") {
+    const reverseIdx = [...steps].reverse().findIndex((s) => s.label === step.label && s.status === "running");
+    if (reverseIdx !== -1) {
+      const realIdx = steps.length - 1 - reverseIdx;
+      return steps.map((s, i) => (i === realIdx ? step : s));
+    }
+  }
+  return [...steps, step];
+}
+
+export async function appendMarkStep(
+  input: { agentTaskId: string; label: string; status: "running" | "done"; at: string },
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<boolean> {
+  const { data, error } = await client
+    .from("mark_messages")
+    .select("id, metadata")
+    .eq("agent_task_id", input.agentTaskId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; metadata: Record<string, unknown> | null }>();
+  assertOk("mark_messages step lookup", error);
+  if (!data) return false;
+
+  const meta = (data.metadata ?? {}) as Record<string, unknown>;
+  const next = mergeStep(parseSteps(meta.steps), {
+    label: input.label,
+    status: input.status,
+    at: input.at,
+  });
+  const { error: upErr } = await client
+    .from("mark_messages")
+    .update({ metadata: { ...meta, steps: next } })
+    .eq("id", data.id);
+  assertOk("mark_messages step update", upErr);
+  return true;
 }
