@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
 
 import { checkBearerToken } from "@/lib/auth/api-token";
-import { listQueuedChatTasks, settleChatTask } from "@/lib/mark-chat/inbox";
+import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "@/lib/mark-chat/inbox";
 import {
   completeMarkMessage,
   failMarkMessage,
   findPendingMessageByTask,
   touchConversation,
 } from "@/lib/mark-chat/persistence";
+import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
- * The external Hermes/Mark agent pulls queued operator chat messages here, then
- * delivers each reply via POST (below). Bearer-gated; read-only and idempotent
- * — a message stays in the inbox until its reply is delivered.
+ * Fallback inbox for the external Hermes/Mark agent. The primary wake is the
+ * MARK_WEBHOOK_URL push; this is the catch-up path for messages whose push
+ * didn't land. Each returned task is claimed (queued -> running) before it's
+ * handed out, so a message is delivered to exactly one puller and never
+ * re-processed. Bearer-gated. Reply via POST (below).
  *
  *   GET /api/v1/hermes/messages?limit=20   Authorization: Bearer <HERMES_AGENT_API_TOKEN>
  *   200 -> { ok: true, messages: [{ agentTaskId, conversationId, message, mentions, operator, createdAt }] }
@@ -41,7 +44,22 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(parsedLimit) && parsedLimit > 0 && parsedLimit <= 100 ? parsedLimit : 20;
 
   try {
-    const messages = await listQueuedChatTasks(limit);
+    const queued = await listQueuedChatTasks(limit);
+    // Claim before handing out so a message is processed exactly once, even if
+    // the webhook push already woke Mark. A lost claim race just means another
+    // path already took it, so drop it from this response.
+    const messages = [];
+    for (const item of queued) {
+      if (await claimChatTask(item.agentTaskId)) {
+        logMarkChatStatus("processing", { agentTaskId: item.agentTaskId, conversationId: item.conversationId, detail: "via=inbox" });
+        messages.push(item);
+      }
+    }
+    // Then recover anything stuck in `running` (a wake that was claimed but never
+    // answered — e.g. a crashed turn), so a dropped message isn't lost forever.
+    if (messages.length < limit) {
+      messages.push(...(await reclaimStaleChatTasks({ limit: limit - messages.length })));
+    }
     return NextResponse.json({ ok: true, status: "ok", messages }, { status: 200 });
   } catch (error) {
     return NextResponse.json(
@@ -105,9 +123,11 @@ export async function POST(request: Request) {
 
     if (status === "failed") {
       await failMarkMessage({ messageId: pending.id, body: replyBody.trim() || "Mark couldn't complete this reply." });
+      logMarkChatStatus("failed", { agentTaskId, conversationId: pending.conversationId });
     } else {
       const metadata = body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : {};
       await completeMarkMessage({ messageId: pending.id, body: replyBody.trim(), metadata });
+      logMarkChatStatus("complete", { agentTaskId, conversationId: pending.conversationId });
     }
     await touchConversation(pending.conversationId);
     // Move the queued task out of the inbox; best-effort so a settle failure
