@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { cx } from "@/app/_components/theme";
 import type { MarkConversation, MarkProject } from "@/lib/mark-chat/persistence";
 
-import { archiveThreadForm, createProjectForm, moveConversationForm, unarchiveThreadForm } from "../actions";
+import { createProjectForm, unarchiveThreadForm } from "../actions";
+import { relativeTime } from "./relative-time";
+import { ThreadMenu } from "./thread-menu";
 
 function NewChatLink() {
   return (
@@ -22,7 +25,25 @@ function NewChatLink() {
   );
 }
 
-function ChatRow({ c, projects, activeId }: { c: MarkConversation; projects: MarkProject[]; activeId: string }) {
+function PinGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 shrink-0 text-[var(--accent)]" fill="currentColor">
+      <path d="M12 2l1 5 3 2-4 1-1 6-1-6-4-1 3-2 1-5z" />
+    </svg>
+  );
+}
+
+function ChatRow({
+  c,
+  projects,
+  activeId,
+  nowMs,
+}: {
+  c: MarkConversation;
+  projects: MarkProject[];
+  activeId: string;
+  nowMs: number;
+}) {
   const active = c.id === activeId;
   return (
     <div className="group relative flex items-center gap-1">
@@ -30,46 +51,27 @@ function ChatRow({ c, projects, activeId }: { c: MarkConversation; projects: Mar
         href={`/mark?c=${c.id}`}
         aria-current={active ? "page" : undefined}
         className={cx(
-          "min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-sm transition",
+          "flex min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
           active
             ? "bg-[var(--surface-raised)] font-semibold text-[var(--text-primary)]"
             : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
         )}
         title={c.title}
       >
-        {c.title}
+        {c.pinnedAt ? <PinGlyph /> : null}
+        <span className="min-w-0 flex-1 truncate">{c.title}</span>
+        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] group-hover:hidden">
+          {relativeTime(c.lastMessageAt, nowMs)}
+        </span>
       </Link>
-      <div className="flex shrink-0 items-center gap-0.5 pr-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-        <form action={moveConversationForm} title="Move to project">
-          <input type="hidden" name="conversationId" value={c.id} />
-          <select
-            name="projectId"
-            defaultValue={c.projectId ?? ""}
-            aria-label="Move chat to project"
-            onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className="max-w-[6rem] rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-1 py-0.5 text-xs text-[var(--text-secondary)]"
-          >
-            <option value="">No project</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </form>
-        <form action={archiveThreadForm}>
-          <input type="hidden" name="conversationId" value={c.id} />
-          <button
-            type="submit"
-            title="Archive chat"
-            aria-label="Archive chat"
-            className="rounded-md p-1 text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-          >
-            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 5h14M4 5l1 11h10l1-11M8 9h4" />
-            </svg>
-          </button>
-        </form>
+      <div className="absolute right-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+        <ThreadMenu
+          conversationId={c.id}
+          projectId={c.projectId}
+          pinned={Boolean(c.pinnedAt)}
+          projects={projects}
+          isActive={active}
+        />
       </div>
     </div>
   );
@@ -88,6 +90,15 @@ export function ThreadSidebar({
   showArchived: boolean;
   activeId: string;
 }) {
+  const [query, setQuery] = useState("");
+  // Stable "now" for the render pass, refreshed periodically so relative
+  // timestamps don't go stale. Lazy init keeps Date.now() out of render.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   if (showArchived) {
     return (
       <aside className="hidden min-h-0 flex-col gap-2 overflow-y-auto p-3 lg:flex">
@@ -127,9 +138,14 @@ export function ThreadSidebar({
     );
   }
 
-  const unprojected = conversations.filter((c) => !c.projectId);
+  const q = query.trim().toLowerCase();
+  const filtered = q ? conversations.filter((c) => c.title.toLowerCase().includes(q)) : conversations;
+
+  const pinned = filtered.filter((c) => c.pinnedAt);
+  const unpinned = filtered.filter((c) => !c.pinnedAt);
+  const unprojected = unpinned.filter((c) => !c.projectId);
   const byProject = new Map<string, MarkConversation[]>();
-  for (const c of conversations) {
+  for (const c of unpinned) {
     if (!c.projectId) continue;
     const list = byProject.get(c.projectId) ?? [];
     list.push(c);
@@ -140,7 +156,18 @@ export function ThreadSidebar({
     <aside className="hidden min-h-0 flex-col gap-2 overflow-y-auto p-3 lg:flex">
       <NewChatLink />
 
-      <form action={createProjectForm} className="flex items-center gap-1 px-1 pt-1">
+      <label className="relative block px-1 pt-1">
+        <span className="sr-only">Search chats</span>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search chats"
+          aria-label="Search chats"
+          className="w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+        />
+      </label>
+
+      <form action={createProjectForm} className="flex items-center gap-1 px-1">
         <input
           name="name"
           placeholder="New project"
@@ -156,25 +183,41 @@ export function ThreadSidebar({
         </button>
       </form>
 
-      {projects.map((project) => (
-        <div key={project.id} className="flex flex-col gap-0.5">
-          <p className="signal-eyebrow px-2 pt-2">{project.name}</p>
-          {(byProject.get(project.id) ?? []).length === 0 ? (
-            <p className="px-3 py-1 text-xs text-[var(--text-muted)]">No chats yet.</p>
-          ) : (
-            (byProject.get(project.id) ?? []).map((c) => (
-              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} />
-            ))
-          )}
+      {pinned.length > 0 ? (
+        <div className="flex flex-col gap-0.5">
+          <p className="signal-eyebrow px-2 pt-2">Pinned</p>
+          {pinned.map((c) => (
+            <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
+          ))}
         </div>
-      ))}
+      ) : null}
+
+      {projects.map((project) => {
+        const rows = byProject.get(project.id) ?? [];
+        return (
+          <div key={project.id} className="flex flex-col gap-0.5">
+            <p className="signal-eyebrow px-2 pt-2">{project.name}</p>
+            {rows.length === 0 ? (
+              <p className="px-3 py-1 text-xs text-[var(--text-muted)]">No chats yet.</p>
+            ) : (
+              rows.map((c) => (
+                <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
+              ))
+            )}
+          </div>
+        );
+      })}
 
       <p className="signal-eyebrow px-2 pt-2">Chats</p>
       <nav aria-label="Conversations" className="flex min-h-0 flex-col gap-0.5">
         {unprojected.length === 0 ? (
-          <p className="px-2 py-3 text-xs text-[var(--text-muted)]">No conversations yet. Say hello to Mark.</p>
+          <p className="px-2 py-3 text-xs text-[var(--text-muted)]">
+            {q ? "No matches." : "No conversations yet. Say hello to Mark."}
+          </p>
         ) : (
-          unprojected.map((c) => <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} />)
+          unprojected.map((c) => (
+            <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
+          ))
         )}
       </nav>
 
