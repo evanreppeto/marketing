@@ -51,6 +51,7 @@ export function Composer({
   textareaRef,
   onOptimistic,
   onSent,
+  registerSubmit,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -59,11 +60,20 @@ export function Composer({
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   onOptimistic: (message: MarkMessage) => void;
   onSent: (conversationId?: string) => void;
+  registerSubmit?: (fn: () => void) => void;
 }) {
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Let the parent trigger a send (used by Retry). Submits the current draft.
+  useEffect(() => {
+    registerSubmit?.(() => {
+      if (!draft.trim()) return;
+      formRef.current?.requestSubmit();
+    });
+  }, [registerSubmit, draft]);
 
   // Auto-grow the textarea to fit its content (capped), and shrink on reset.
   useEffect(() => {
@@ -166,6 +176,17 @@ export function Composer({
           ) : null}
 
           <div className="flex items-end gap-2">
+            <button
+              type="button"
+              disabled
+              aria-label="Attach a file (coming soon)"
+              title="Attach a file (coming soon)"
+              className="flex h-9 w-9 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-[var(--text-muted)] opacity-50"
+            >
+              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 4v12M3 10h12" transform="rotate(45 10 10)" />
+              </svg>
+            </button>
             <textarea
               ref={textareaRef}
               name="body-display"
