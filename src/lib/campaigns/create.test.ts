@@ -58,7 +58,9 @@ describe("createOperatorCampaign", () => {
     });
     const asset = insertsFor(supabase, "campaign_assets")[0];
     expect(asset).toMatchObject({ campaign_id: "camp-1", asset_type: "social_ad", status: "approved", dispatch_locked: true });
-    expect((asset.audit_payload as { media_assets: { url: string }[] }).media_assets[0].url).toBe("https://cdn.test/operator-campaigns/camp-1/0-a.png");
+    const media = (asset.audit_payload as { media_assets: { url: string; path: string }[] }).media_assets[0];
+    expect(media.url).toBe("https://cdn.test/operator-campaigns/camp-1/0-a.png");
+    expect(media.path).toBe("operator-campaigns/camp-1/0-a.png");
     expect(insertsFor(supabase, "approval_items")[0]).toMatchObject({ campaign_id: "camp-1", campaign_asset_id: "asset-1", status: "approved", item_type: "campaign_asset" });
     expect(insertsFor(supabase, "approval_decisions")[0]).toMatchObject({ approval_item_id: "appr-1", decision: "approved" });
     expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ campaign_id: "camp-1", event_type: "created", actor: "evan@test" });
