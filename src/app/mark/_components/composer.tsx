@@ -3,8 +3,9 @@
 import { useActionState, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkMention } from "@/domain";
+import type { MarkMention, MarkMode } from "@/domain";
 import { serializeMentions } from "@/domain";
+import { matchSlash, type SlashCommand } from "./slash-commands";
 import type { MarkMessage } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
@@ -66,6 +67,9 @@ export function Composer({
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
+  const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
+  const [mode, setMode] = useState<MarkMode>("ask");
+  const [modeOpen, setModeOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Let the parent trigger a send (used by Retry). Submits the current draft.
@@ -95,11 +99,20 @@ export function Composer({
         void Promise.resolve().then(() => {
           onDraftChange("");
           setPicked([]);
+          setSlash(null);
           onSent(newId);
         });
       }
     }
   }, [state, onSent, onDraftChange]);
+
+  // Close the mode menu on Escape.
+  useEffect(() => {
+    if (!modeOpen) return;
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setModeOpen(false); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [modeOpen]);
 
   const suggestions = useMemo(() => {
     if (query === null) return [];
@@ -110,8 +123,9 @@ export function Composer({
 
   function onTextChange(value: string) {
     onDraftChange(value);
-    const match = /@([\w-]*)$/.exec(value);
-    setQuery(match ? match[1] : null);
+    const at = /@([\w-]*)$/.exec(value);
+    setQuery(at ? at[1] : null);
+    setSlash(matchSlash(value));
   }
 
   function addMention(m: MarkMention) {
@@ -119,6 +133,18 @@ export function Composer({
     onDraftChange(draft.replace(/@([\w-]*)$/, "").trimEnd() + " ");
     setQuery(null);
     textareaRef.current?.focus();
+  }
+
+  function applySlash(c: SlashCommand) {
+    onDraftChange(c.prompt);
+    if (c.mode) setMode(c.mode);
+    setSlash(null);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(c.prompt.length, c.prompt.length);
+    });
   }
 
   const disabled = isPending || !draft.trim();
@@ -137,6 +163,7 @@ export function Composer({
         <input type="hidden" name="conversationId" value={conversationId} />
         <input type="hidden" name="body" value={draft} />
         <input type="hidden" name="mentions" value={serializeMentions(picked)} />
+        <input type="hidden" name="mode" value={mode} />
 
         {query !== null && suggestions.length > 0 ? (
           <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
@@ -149,6 +176,25 @@ export function Composer({
               >
                 <span className="truncate font-semibold text-[var(--text-primary)]">{m.label}</span>
                 <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">{m.type}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {slash && slash.length > 0 ? (
+          <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+            {slash.map((c) => (
+              <button
+                key={c.cmd}
+                type="button"
+                onClick={() => applySlash(c)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-inset)]"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-[var(--accent-contrast)]">{c.cmd}</span>
+                  <span className="text-[var(--text-secondary)]">{c.label}</span>
+                </span>
+                <span className="truncate text-[11px] text-[var(--text-muted)]">{c.hint}</span>
               </button>
             ))}
           </div>
@@ -177,6 +223,41 @@ export function Composer({
           ) : null}
 
           <div className="flex items-end gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setModeOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={modeOpen}
+                className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2.5 text-xs font-bold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+              >
+                {mode === "ask" ? "Ask" : mode === "act" ? "Take action" : "Draft"}
+                <span className="text-[10px] text-[var(--text-muted)]">▾</span>
+              </button>
+              {modeOpen ? (
+                <div role="menu" className="msg-rise absolute bottom-10 left-0 z-20 w-56 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+                  {([
+                    { v: "ask", t: "Ask", d: "Read-only — answers & analysis" },
+                    { v: "act", t: "Take action", d: "May add or update records" },
+                    { v: "draft", t: "Draft", d: "Create drafts for your approval" },
+                  ] as const).map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => { setMode(o.v); setModeOpen(false); }}
+                      className={cx(
+                        "flex w-full flex-col rounded-lg px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-inset)]",
+                        mode === o.v ? "bg-[var(--accent-soft)]" : "",
+                      )}
+                    >
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{o.t}</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">{o.d}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               disabled
@@ -194,7 +275,7 @@ export function Composer({
               value={draft}
               onChange={(e) => onTextChange(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && query === null) {
+                if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
                   e.preventDefault();
                   if (!disabled) formRef.current?.requestSubmit();
                 }
@@ -223,8 +304,12 @@ export function Composer({
         {state && !state.ok ? (
           <p className="mt-2 text-center text-xs font-semibold text-[var(--priority-bright)]">{state.message}</p>
         ) : (
-          <p className="mt-2 text-center text-[11px] text-[var(--text-muted)]">
-            Mark recommends; outbound stays locked. <span className="font-mono">@</span> to reference a record.
+          <p className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-center text-[11px] text-[var(--text-muted)]">
+            <span><span className="font-mono">↵</span> send</span>
+            <span><span className="font-mono">⇧↵</span> newline</span>
+            <span><span className="font-mono">/</span> commands</span>
+            <span><span className="font-mono">@</span> records</span>
+            <span>outbound stays locked</span>
           </p>
         )}
       </form>
