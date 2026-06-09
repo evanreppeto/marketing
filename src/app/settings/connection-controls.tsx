@@ -15,7 +15,9 @@ export type ConnectionRowView = {
   provider: string;
   kind: string;
   label: string;
+  /** Legacy single-var display hint (used by the Resend row). */
   envVar: string | null;
+  /** Authoritative list of all env vars a provider needs — drives the social row + status. */
   requiredEnvVars: string[];
   enabled: boolean;
   status: string;
@@ -147,14 +149,12 @@ export function SocialConnectionControls({ connection }: { connection: Connectio
         </form>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <form action={testAction}>
-          <input type="hidden" name="provider" value={connection.provider} />
-          <Button disabled={testPending} size="sm" type="submit" variant="ghost">
-            Test connection
-          </Button>
-        </form>
-      </div>
+      <form action={testAction}>
+        <input type="hidden" name="provider" value={connection.provider} />
+        <Button disabled={testPending} size="sm" type="submit" variant="ghost">
+          Test connection
+        </Button>
+      </form>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-[var(--text-muted)]">
         <span>Last tested: {fmt(connection.lastTestedAt)}</span>

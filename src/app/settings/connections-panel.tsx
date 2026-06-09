@@ -32,20 +32,24 @@ export async function ConnectionsPanel() {
         ))}
       </ul>
 
-      <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-3">
-        <div className="signal-eyebrow">Social</div>
-      </div>
+      {social.length > 0 ? (
+        <>
+          <div className="bg-[var(--surface-inset)] px-5 py-3">
+            <div className="signal-eyebrow">Social</div>
+          </div>
 
-      <ul className="divide-y divide-[var(--border-hairline)]">
-        {social.map((connection) => (
-          <SocialConnectionControls key={connection.provider} connection={connection} />
-        ))}
-      </ul>
+          <ul className="divide-y divide-[var(--border-hairline)]">
+            {social.map((connection) => (
+              <SocialConnectionControls key={connection.provider} connection={connection} />
+            ))}
+          </ul>
 
-      <p className="border-t border-[var(--border-hairline)] px-5 py-3 text-xs leading-5 text-[var(--text-muted)]">
-        Posting transport (OAuth + per-platform send) ships in the transport spec. &ldquo;Test connection&rdquo; here
-        only verifies the credentials are present in the environment — it does not post.
-      </p>
+          <p className="border-t border-[var(--border-hairline)] px-5 py-3 text-xs leading-5 text-[var(--text-muted)]">
+            Posting transport (OAuth + per-platform send) ships in the transport spec. &ldquo;Test connection&rdquo; here
+            only verifies the credentials are present in the environment — it does not post.
+          </p>
+        </>
+      ) : null}
     </Panel>
   );
 }
