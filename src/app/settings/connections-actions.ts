@@ -46,7 +46,7 @@ export async function setConnectionEnabledAction(
     return { ok: false, message: "Unknown connection provider." };
   }
 
-  const { label } = providerMeta(provider);
+  const { kind, label } = providerMeta(provider);
   try {
     await setConnectionEnabled(getSupabaseAdminClient(), provider, enabled);
   } catch (error) {
@@ -54,7 +54,8 @@ export async function setConnectionEnabledAction(
   }
 
   revalidatePath("/settings");
-  return { ok: true, message: enabled ? `${label} enabled.` : `${label} disabled — sends are now blocked.` };
+  const disabledMessage = kind === "email" ? `${label} disabled — sends are now blocked.` : `${label} disabled.`;
+  return { ok: true, message: enabled ? `${label} enabled.` : disabledMessage };
 }
 
 /** Probe the live Resend key and record the result. */
