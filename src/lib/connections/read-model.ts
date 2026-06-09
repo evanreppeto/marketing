@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import {
   computeConnectionStatus,
   CONNECTION_REGISTRY,
+  missingRequiredEnvVars,
   type ConnectionKind,
   type ConnectionProvider,
   type ConnectionStatus,
@@ -15,6 +16,7 @@ export type ConnectionView = {
   kind: ConnectionKind;
   label: string;
   envVar: string | null;
+  requiredEnvVars: string[];
   enabled: boolean;
   status: ConnectionStatus;
   fromEmail: string | null;
@@ -37,9 +39,14 @@ type ConnectionRow = {
   last_used_at: string | null;
 };
 
-/** Whether the secret behind a connection is present in the environment. */
-function isSecretPresent(envVar: string | null): boolean {
-  return Boolean(envVar && process.env[envVar]?.trim());
+/** True when every env var the provider requires is present and non-blank. */
+function isConfigured(provider: ConnectionProvider): boolean {
+  return missingRequiredEnvVars(provider, process.env).length === 0;
+}
+
+/** The provider's required env vars from the registry (for display on the view). */
+function requiredEnvVarsFor(provider: ConnectionProvider): string[] {
+  return CONNECTION_REGISTRY.find((entry) => entry.provider === provider)?.requiredEnvVars ?? [];
 }
 
 function rowToView(row: ConnectionRow): ConnectionView {
@@ -49,9 +56,10 @@ function rowToView(row: ConnectionRow): ConnectionView {
     kind: row.kind,
     label: row.label,
     envVar: row.env_var,
+    requiredEnvVars: requiredEnvVarsFor(row.provider),
     enabled: row.enabled,
     status: computeConnectionStatus({
-      envPresent: isSecretPresent(row.env_var),
+      envPresent: isConfigured(row.provider),
       enabled: row.enabled,
       lastTestOk: row.last_test_ok,
     }),
@@ -70,8 +78,9 @@ function fallbackViews(): ConnectionView[] {
     kind: entry.kind,
     label: entry.label,
     envVar: entry.envVar,
+    requiredEnvVars: entry.requiredEnvVars,
     enabled: false,
-    status: computeConnectionStatus({ envPresent: isSecretPresent(entry.envVar), enabled: false, lastTestOk: null }),
+    status: computeConnectionStatus({ envPresent: isConfigured(entry.provider), enabled: false, lastTestOk: null }),
     fromEmail: null,
     lastTestedAt: null,
     lastTestOk: null,

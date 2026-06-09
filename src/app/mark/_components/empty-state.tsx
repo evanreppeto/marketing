@@ -2,24 +2,24 @@
 
 const SUGGESTIONS = [
   {
-    title: "Summarize my latest campaign",
-    hint: "Status, pending approvals, what's next",
-    prompt: "Summarize my latest campaign — its status, what's pending approval, and what I should do next.",
-  },
-  {
-    title: "Which leads are hottest?",
-    hint: "Ranked by score and recent activity",
-    prompt: "Which leads are hottest right now? Rank them by score and recent activity.",
-  },
-  {
-    title: "Draft a campaign",
-    hint: "For a persona you choose",
-    prompt: "Draft a campaign for @",
+    title: "Find new leads for a persona",
+    hint: "Mark searches and proposes who to add",
+    prompt: "Find new leads for @",
   },
   {
     title: "What needs my approval?",
     hint: "Everything waiting on a decision",
     prompt: "What's awaiting my approval right now, and what's the risk on each?",
+  },
+  {
+    title: "Draft a campaign for a persona",
+    hint: "Mark drafts; outbound stays locked",
+    prompt: "Draft a campaign for @",
+  },
+  {
+    title: "Which leads are hottest right now?",
+    hint: "Ranked by score and recent activity",
+    prompt: "Which leads are hottest right now? Rank them by score and recent activity.",
   },
 ];
 

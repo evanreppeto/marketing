@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { buildResendEmailPayload, CONNECTION_REGISTRY, type ConnectionProvider } from "@/domain";
+import {
+  buildResendEmailPayload,
+  CONNECTION_REGISTRY,
+  missingRequiredEnvVars,
+  type ConnectionKind,
+  type ConnectionProvider,
+} from "@/domain";
 
 import { requireOperator } from "@/lib/auth/operator";
 import { recordConnectionTest, recordConnectionUse, setConnectionEnabled } from "@/lib/connections/persistence";
@@ -17,8 +23,13 @@ const NOT_CONFIGURED: ConnectionActionState = {
   message: "Supabase isn't configured, so connection state can't be saved.",
 };
 
-function isResend(value: string): value is ConnectionProvider {
-  return CONNECTION_REGISTRY.some((entry) => entry.provider === value && entry.provider === "resend");
+function registeredProvider(value: string): ConnectionProvider | null {
+  return CONNECTION_REGISTRY.some((entry) => entry.provider === value) ? (value as ConnectionProvider) : null;
+}
+
+function providerMeta(provider: ConnectionProvider): { kind: ConnectionKind; label: string } {
+  const entry = CONNECTION_REGISTRY.find((candidate) => candidate.provider === provider);
+  return { kind: entry?.kind ?? "social", label: entry?.label ?? provider };
 }
 
 /** Enable or disable the operator kill-switch for a provider. */
@@ -29,12 +40,13 @@ export async function setConnectionEnabledAction(
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
 
-  const provider = String(formData.get("provider") ?? "");
+  const provider = registeredProvider(String(formData.get("provider") ?? ""));
   const enabled = String(formData.get("enabled") ?? "") === "true";
-  if (!isResend(provider)) {
-    return { ok: false, message: "Only Resend can be toggled right now." };
+  if (!provider) {
+    return { ok: false, message: "Unknown connection provider." };
   }
 
+  const { kind, label } = providerMeta(provider);
   try {
     await setConnectionEnabled(getSupabaseAdminClient(), provider, enabled);
   } catch (error) {
@@ -42,7 +54,8 @@ export async function setConnectionEnabledAction(
   }
 
   revalidatePath("/settings");
-  return { ok: true, message: enabled ? "Resend enabled." : "Resend disabled — sends are now blocked." };
+  const disabledMessage = kind === "email" ? `${label} disabled — sends are now blocked.` : `${label} disabled.`;
+  return { ok: true, message: enabled ? `${label} enabled.` : disabledMessage };
 }
 
 /** Probe the live Resend key and record the result. */
@@ -53,11 +66,33 @@ export async function testConnectionAction(
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
 
-  const provider = String(formData.get("provider") ?? "");
-  if (!isResend(provider)) {
-    return { ok: false, message: "Only Resend can be tested right now." };
+  const provider = registeredProvider(String(formData.get("provider") ?? ""));
+  if (!provider) {
+    return { ok: false, message: "Unknown connection provider." };
   }
 
+  const { kind, label } = providerMeta(provider);
+
+  // Social providers have no live transport yet — "test" verifies that every required
+  // credential env var is present (no external API call).
+  if (kind === "social") {
+    const missing = missingRequiredEnvVars(provider, process.env);
+    const result =
+      missing.length === 0
+        ? { ok: true as const }
+        : { ok: false as const, error: `Missing env vars: ${missing.join(", ")}` };
+    try {
+      await recordConnectionTest(getSupabaseAdminClient(), provider, result);
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : "Couldn't record the test." };
+    }
+    revalidatePath("/settings");
+    return result.ok
+      ? { ok: true, message: `${label} credentials are present.` }
+      : { ok: false, message: result.error };
+  }
+
+  // Email (Resend): live key probe.
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return { ok: false, message: "RESEND_API_KEY isn't set in the environment." };

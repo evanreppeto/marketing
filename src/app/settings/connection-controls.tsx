@@ -15,7 +15,10 @@ export type ConnectionRowView = {
   provider: string;
   kind: string;
   label: string;
+  /** Legacy single-var display hint (used by the Resend row). */
   envVar: string | null;
+  /** Authoritative list of all env vars a provider needs — drives the social row + status. */
+  requiredEnvVars: string[];
   enabled: boolean;
   status: string;
   fromEmail: string | null;
@@ -114,6 +117,53 @@ export function ResendConnectionControls({ connection }: { connection: Connectio
       <Feedback state={toggleState} />
       <Feedback state={testState} />
       <Feedback state={sendState} />
+    </li>
+  );
+}
+
+export function SocialConnectionControls({ connection }: { connection: ConnectionRowView }) {
+  const [toggleState, toggleAction, togglePending] = useActionState(setConnectionEnabledAction, null);
+  const [testState, testAction, testPending] = useActionState(testConnectionAction, null);
+
+  return (
+    <li className="flex flex-col gap-3 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-black text-[var(--text-primary)]">{connection.label}</span>
+            <StatusPill tone={STATUS_TONE[connection.status] ?? "gray"}>
+              {STATUS_LABEL[connection.status] ?? connection.status}
+            </StatusPill>
+          </div>
+          <div className="mt-1 font-mono text-[11px] font-semibold text-[var(--text-muted)]">
+            {connection.requiredEnvVars.join(" · ") || "—"}
+          </div>
+        </div>
+
+        <form action={toggleAction}>
+          <input type="hidden" name="provider" value={connection.provider} />
+          <input type="hidden" name="enabled" value={connection.enabled ? "false" : "true"} />
+          <Button disabled={togglePending} size="sm" type="submit" variant={connection.enabled ? "ghost" : "primary"}>
+            {connection.enabled ? "Disable" : "Enable"}
+          </Button>
+        </form>
+      </div>
+
+      <form action={testAction}>
+        <input type="hidden" name="provider" value={connection.provider} />
+        <Button disabled={testPending} size="sm" type="submit" variant="ghost">
+          Test connection
+        </Button>
+      </form>
+
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-[var(--text-muted)]">
+        <span>Last tested: {fmt(connection.lastTestedAt)}</span>
+        <span>Last used: {fmt(connection.lastUsedAt)}</span>
+        {connection.lastTestError ? <span className="text-[var(--priority-text)]">{connection.lastTestError}</span> : null}
+      </div>
+
+      <Feedback state={toggleState} />
+      <Feedback state={testState} />
     </li>
   );
 }

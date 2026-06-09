@@ -9,6 +9,7 @@ export type MarkConversation = {
   operator: string;
   title: string;
   status: "active" | "archived";
+  pinnedAt: string | null;
   projectId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +39,7 @@ type ConversationRow = {
   operator: string;
   title: string;
   status: "active" | "archived";
+  pinned_at: string | null;
   project_id: string | null;
   created_at: string;
   updated_at: string;
@@ -56,7 +58,8 @@ type MessageRow = {
   created_at: string;
 };
 
-const CONVERSATION_COLUMNS = "id, operator, title, status, project_id, created_at, updated_at, last_message_at";
+const CONVERSATION_COLUMNS =
+  "id, operator, title, status, project_id, pinned_at, created_at, updated_at, last_message_at";
 const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): MarkConversation {
@@ -65,6 +68,7 @@ function toConversation(row: ConversationRow): MarkConversation {
     operator: row.operator,
     title: row.title,
     status: row.status,
+    pinnedAt: row.pinned_at ?? null,
     projectId: row.project_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -114,6 +118,7 @@ export async function listConversations(
     .select(CONVERSATION_COLUMNS)
     .eq("operator", operator)
     .eq("status", "active")
+    .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("last_message_at", { ascending: false });
   assertOk("mark_conversations list", error);
   return ((data ?? []) as ConversationRow[]).map(toConversation);
@@ -337,6 +342,49 @@ export async function assignConversationToProject(
   assertOk("mark_conversations assign project", error);
 }
 
+export async function setConversationPinned(
+  id: string,
+  pinned: boolean,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client
+    .from("mark_conversations")
+    .update({ pinned_at: pinned ? new Date().toISOString() : null })
+    .eq("id", id);
+  assertOk("mark_conversations pin", error);
+}
+
+export async function deleteConversation(
+  id: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  // mark_messages cascade via the conversation_id FK (on delete cascade).
+  const { error } = await client.from("mark_conversations").delete().eq("id", id);
+  assertOk("mark_conversations delete", error);
+}
+
+/** Deletes the latest pending Mark bubble for a conversation (the "stop generating"
+ *  backing op). Returns false (safe no-op) when there's nothing pending. */
+export async function cancelPendingMarkMessage(
+  conversationId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<boolean> {
+  const { data, error } = await client
+    .from("mark_messages")
+    .select("id")
+    .eq("conversation_id", conversationId)
+    .eq("role", "mark")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  assertOk("mark_messages cancel lookup", error);
+  if (!data) return false;
+  const { error: delErr } = await client.from("mark_messages").delete().eq("id", data.id);
+  assertOk("mark_messages cancel delete", delErr);
+  return true;
+}
+
 export async function unarchiveConversation(
   id: string,
   client: SupabaseClient = getSupabaseAdminClient(),
@@ -354,6 +402,7 @@ export async function listArchivedConversations(
     .select(CONVERSATION_COLUMNS)
     .eq("operator", operator)
     .eq("status", "archived")
+    .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("last_message_at", { ascending: false });
   assertOk("mark_conversations archived list", error);
   return ((data ?? []) as ConversationRow[]).map(toConversation);

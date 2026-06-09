@@ -351,6 +351,27 @@ h1, h2, h3, h4, .font-display {
 .media-rise { animation: media-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 .lightbox-backdrop { animation: lightbox-backdrop-in 180ms ease-out both; }
 .lightbox-panel { animation: lightbox-panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes avatar-breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.82; }
+}
+@keyframes text-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.mark-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--text-muted) 0%,
+    var(--text-primary) 50%,
+    var(--text-muted) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: text-shimmer 2.2s linear infinite;
+}
 
 .signal-radar { position: relative; }
 
@@ -435,8 +456,16 @@ h1, h2, h3, h4, .font-display {
   .msg-rise,
   .media-rise,
   .lightbox-backdrop,
-  .lightbox-panel {
+  .lightbox-panel,
+  .mark-shimmer {
     animation: none;
+  }
+
+  .mark-shimmer {
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--text-secondary);
   }
 
   .signal-radar::after {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CampaignDraftValidationError, parseCampaignDraft } from "../campaign-drafts";
+import { CampaignDraftValidationError, parseCampaignDraft, parseCampaignEdit } from "../campaign-drafts";
 
 const base = {
   name: "  Spring flood push  ",
@@ -38,5 +38,16 @@ describe("parseCampaignDraft", () => {
     expect(() => parseCampaignDraft({ ...base, leadId: "not-a-uuid" })).toThrow(/uuid/i);
     const out = parseCampaignDraft({ ...base, leadId: "11111111-1111-1111-1111-111111111111" });
     expect(out.leadId).toBe("11111111-1111-1111-1111-111111111111");
+  });
+});
+
+describe("parseCampaignEdit", () => {
+  it("requires a non-blank title and normalizes optionals", () => {
+    const out = parseCampaignEdit({ name: "  Updated title  ", audienceSummary: " new aud ", objective: "", offerSummary: "10% off" });
+    expect(out).toEqual({ name: "Updated title", audienceSummary: "new aud", offerSummary: "10% off" });
+  });
+
+  it("rejects a blank title", () => {
+    expect(() => parseCampaignEdit({ name: "  " })).toThrow(/title/i);
   });
 });

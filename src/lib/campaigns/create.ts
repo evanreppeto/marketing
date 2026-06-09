@@ -20,6 +20,61 @@ export function defaultUploader(client: SupabaseClient): ImageUploader {
   };
 }
 
+export type PhotoAssetInput = {
+  client: SupabaseClient;
+  campaignId: string;
+  operator: string;
+  photo: CampaignPhoto;
+  index: number;
+  channel: string;
+  uploader: ImageUploader;
+  now: string;
+};
+
+/** Upload one photo and insert its approved asset + approval + decision. Returns the asset id. */
+export async function insertPhotoAsset({ client, campaignId, operator, photo, index, channel, uploader, now }: PhotoAssetInput): Promise<string> {
+  // Caller is responsible for sanitizing photo.filename — it is interpolated into the path.
+  const path = `operator-campaigns/${campaignId}/${index}-${photo.filename}`;
+  const url = await uploader(path, photo.bytes, photo.contentType);
+
+  const assetId = await insertOne(client, "campaign_assets", {
+    campaign_id: campaignId,
+    asset_type: "social_ad",
+    channel,
+    title: `Campaign photo ${index + 1}`,
+    status: "approved",
+    source_system: SOURCE_SYSTEM,
+    approved_by: operator,
+    approved_at: now,
+    dispatch_locked: true,
+    audit_payload: { media_assets: [{ url, path }], outbound_locked: true, authored_by: "operator" },
+  });
+
+  const approvalItemId = await insertOne(client, "approval_items", {
+    campaign_id: campaignId,
+    campaign_asset_id: assetId,
+    item_type: "campaign_asset",
+    status: "approved",
+    approval_required: true,
+    locked_until_approved: true,
+    risk_level: "low",
+    requested_by: operator,
+    reviewed_by: operator,
+    reviewed_at: now,
+  });
+
+  await insertNoReturn(client, "approval_decisions", {
+    approval_item_id: approvalItemId,
+    decision: "approved",
+    decided_by: operator,
+    previous_status: "pending_approval",
+    next_status: "approved",
+    metadata: { source: "operator_create" },
+  });
+
+  return assetId;
+}
+
 export type CreateOperatorCampaignInput = {
   draft: ParsedCampaignDraft;
   operator: string;
@@ -66,46 +121,9 @@ export async function createOperatorCampaign({
 
   const assetIds: string[] = [];
   for (const [index, photo] of photos.entries()) {
-    // Caller (the create action) is responsible for sanitizing photo.filename before
-    // it reaches here — it is interpolated directly into the storage path.
-    const path = `operator-campaigns/${campaignId}/${index}-${photo.filename}`;
-    const url = await upload(path, photo.bytes, photo.contentType);
-
-    const assetId = await insertOne(client, "campaign_assets", {
-      campaign_id: campaignId,
-      asset_type: "social_ad",
-      channel: draft.channel ?? "social",
-      title: `${draft.name} — photo ${index + 1}`,
-      status: "approved",
-      source_system: SOURCE_SYSTEM,
-      approved_by: operator,
-      approved_at: now,
-      dispatch_locked: true,
-      audit_payload: { media_assets: [{ url }], outbound_locked: true, authored_by: "operator" },
-    });
-    assetIds.push(assetId);
-
-    const approvalItemId = await insertOne(client, "approval_items", {
-      campaign_id: campaignId,
-      campaign_asset_id: assetId,
-      item_type: "campaign_asset",
-      status: "approved",
-      approval_required: true,
-      locked_until_approved: true,
-      risk_level: "low",
-      requested_by: operator,
-      reviewed_by: operator,
-      reviewed_at: now,
-    });
-
-    await insertNoReturn(client, "approval_decisions", {
-      approval_item_id: approvalItemId,
-      decision: "approved",
-      decided_by: operator,
-      previous_status: "pending_approval",
-      next_status: "approved",
-      metadata: { source: "operator_create" },
-    });
+    assetIds.push(
+      await insertPhotoAsset({ client, campaignId, operator, photo, index, channel: draft.channel ?? "social", uploader: upload, now }),
+    );
   }
 
   await insertNoReturn(client, "campaign_events", {
@@ -119,14 +137,14 @@ export async function createOperatorCampaign({
   return { campaignId, assetIds };
 }
 
-async function insertOne(client: SupabaseClient, table: string, values: Record<string, unknown>): Promise<string> {
+export async function insertOne(client: SupabaseClient, table: string, values: Record<string, unknown>): Promise<string> {
   const { data, error } = await client.from(table).insert(values).select("id").single<{ id: string }>();
   if (error) throw new Error(`${table} insert failed: ${error.message}`);
   if (!data?.id) throw new Error(`${table} insert did not return an id.`);
   return data.id;
 }
 
-async function insertNoReturn(client: SupabaseClient, table: string, values: Record<string, unknown>): Promise<void> {
+export async function insertNoReturn(client: SupabaseClient, table: string, values: Record<string, unknown>): Promise<void> {
   const { error } = await client.from(table).insert(values);
   if (error) throw new Error(`${table} insert failed: ${error.message}`);
 }

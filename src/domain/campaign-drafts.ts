@@ -59,6 +59,30 @@ function optionalUuid(value: unknown, field: string): string | undefined {
   return trimmed;
 }
 
+export type ParsedCampaignEdit = {
+  name: string;
+  audienceSummary?: string;
+  objective?: string;
+  offerSummary?: string;
+};
+
+/** Pure: validate + normalize an operator campaign edit (title required, rest optional). */
+export function parseCampaignEdit(payload: unknown): ParsedCampaignEdit {
+  const obj = asObject(payload);
+
+  const name = typeof obj.name === "string" ? obj.name.trim() : "";
+  if (name.length === 0) {
+    throw new CampaignDraftValidationError("Give the campaign a title.");
+  }
+
+  return {
+    name,
+    audienceSummary: optionalTrimmed(obj.audienceSummary, "audienceSummary"),
+    objective: optionalTrimmed(obj.objective, "objective"),
+    offerSummary: optionalTrimmed(obj.offerSummary, "offerSummary"),
+  };
+}
+
 /** Pure: validate + normalize an operator-authored campaign draft. Throws on bad input. */
 export function parseCampaignDraft(payload: unknown): ParsedCampaignDraft {
   const obj = asObject(payload);

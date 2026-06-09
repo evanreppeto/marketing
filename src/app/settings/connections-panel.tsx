@@ -1,13 +1,14 @@
 import { getConnections } from "@/lib/connections/read-model";
 
-import { Panel, StatusPill } from "../_components/page-header";
-import { ResendConnectionControls } from "./connection-controls";
+import { Panel } from "../_components/page-header";
+import { ResendConnectionControls, SocialConnectionControls } from "./connection-controls";
 
 /**
- * Connections section of Settings. Resend gets live controls (enable/disable,
- * test, send test email); social providers are placeholders until Spec 2 wires
- * OAuth + transport. Secrets live in env vars — this surface only shows status
- * and operator controls, never a raw key.
+ * Connections section of Settings. Resend has live controls (enable/disable, test, send
+ * test email). Social providers have env-var-backed status + enable/disable + a
+ * presence "test"; real posting transport (OAuth + per-platform send) ships in the
+ * transport spec. Secrets live in env vars — this surface only shows status and operator
+ * controls, never a raw key.
  */
 export async function ConnectionsPanel() {
   const connections = await getConnections();
@@ -31,23 +32,24 @@ export async function ConnectionsPanel() {
         ))}
       </ul>
 
-      <div className="border-t border-[var(--border-hairline)] px-5 py-4">
-        <div className="signal-eyebrow mb-2">Social — coming in a later release</div>
-        <div className="flex flex-wrap gap-2">
-          {social.map((connection) => (
-            <span
-              key={connection.provider}
-              className="inline-flex items-center gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-1.5"
-            >
-              <span className="text-sm font-semibold text-[var(--text-secondary)]">{connection.label}</span>
-              <StatusPill tone="gray">Not configured</StatusPill>
-            </span>
-          ))}
-        </div>
-        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-          Social posting (OAuth + per-platform transport) is executed by Mark/Hermes and ships in a later spec.
-        </p>
-      </div>
+      {social.length > 0 ? (
+        <>
+          <div className="bg-[var(--surface-inset)] px-5 py-3">
+            <div className="signal-eyebrow">Social</div>
+          </div>
+
+          <ul className="divide-y divide-[var(--border-hairline)]">
+            {social.map((connection) => (
+              <SocialConnectionControls key={connection.provider} connection={connection} />
+            ))}
+          </ul>
+
+          <p className="border-t border-[var(--border-hairline)] px-5 py-3 text-xs leading-5 text-[var(--text-muted)]">
+            Posting transport (OAuth + per-platform send) ships in the transport spec. &ldquo;Test connection&rdquo; here
+            only verifies the credentials are present in the environment — it does not post.
+          </p>
+        </>
+      ) : null}
     </Panel>
   );
 }

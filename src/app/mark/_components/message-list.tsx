@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { cx } from "@/app/_components/theme";
@@ -8,27 +8,51 @@ import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
 import { MessageMedia } from "./message-media";
 
-function MarkAvatar() {
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
   return (
-    <span
-      aria-hidden
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-display text-xs font-black text-[var(--on-accent)]"
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          /* clipboard unavailable — ignore */
+        }
+      }}
+      className="rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
     >
-      M
-    </span>
+      {copied ? "Copied" : "Copy"}
+    </button>
   );
 }
 
-function ThinkingIndicator() {
+function useElapsed(active: boolean): string {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const start = Date.now();
+    const t = setInterval(() => setSecs(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [active]);
+  const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+  const ss = String(secs % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+function MarkAvatar({ pending }: { pending?: boolean }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-      <span className="flex gap-1" aria-hidden>
-        <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:0ms]" />
-        <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:200ms]" />
-        <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:400ms]" />
-      </span>
-      <span>Waiting for Mark to reply…</span>
-    </div>
+    <span
+      aria-hidden
+      className={cx(
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-display text-xs font-black text-[var(--on-accent)]",
+        pending ? "motion-safe:[animation:avatar-breathe_1.8s_ease-in-out_infinite]" : "",
+      )}
+    >
+      M
+    </span>
   );
 }
 
@@ -48,23 +72,29 @@ function StepRow({ step }: { step: MarkStep }) {
   );
 }
 
-function ActivityTimeline({ steps }: { steps: MarkStep[] }) {
-  const allDone = steps.every((s) => s.status === "done");
+function PendingBlock({ steps, onStop }: { steps: MarkStep[]; onStop: () => void }) {
+  const elapsed = useElapsed(true);
   return (
-    <div className="flex flex-col gap-1.5" aria-label="What Mark is doing">
-      {steps.map((s, i) => (
-        <StepRow key={`${i}-${s.label}`} step={s} />
-      ))}
-      {allDone ? (
-        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-          <span className="flex gap-1" aria-hidden>
-            <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:0ms]" />
-            <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:200ms]" />
-            <span className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-[var(--accent)] [animation-delay:400ms]" />
-          </span>
-          <span>Wrapping up…</span>
+    <div className="flex flex-col gap-2">
+      {steps.length > 0 ? (
+        <div className="relative flex flex-col gap-1.5 border-l border-[var(--border-hairline)] pl-3" aria-label="What Mark is doing">
+          {steps.map((s, i) => (
+            <StepRow key={`${i}-${s.label}`} step={s} />
+          ))}
         </div>
-      ) : null}
+      ) : (
+        <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
+      )}
+      <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+        <span className="tabular-nums">{elapsed}</span>
+        <button
+          type="button"
+          onClick={onStop}
+          className="rounded-md border border-[var(--border-hairline)] px-2 py-0.5 font-semibold transition hover:border-[var(--priority-bright)] hover:text-[var(--priority-bright)]"
+        >
+          Stop
+        </button>
+      </div>
     </div>
   );
 }
@@ -102,7 +132,27 @@ function MentionChips({ mentions, align }: { mentions: MarkMessage["mentions"]; 
   );
 }
 
-function Message({ message }: { message: MarkMessage }) {
+function References({ mentions }: { mentions: MarkMessage["mentions"] }) {
+  if (mentions.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <p className="signal-eyebrow mb-1.5">References</p>
+      <div className="flex flex-wrap gap-1.5">
+        {mentions.map((m) => (
+          <Link
+            key={`${m.type}:${m.id}`}
+            href={m.href}
+            className="inline-flex items-center rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-contrast)] transition hover:bg-[var(--surface-raised)]"
+          >
+            @{m.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Message({ message, onRetry, onStop }: { message: MarkMessage; onRetry: () => void; onStop: () => void }) {
   // Operator: right-aligned bubble (ChatGPT-style).
   if (message.role === "operator") {
     return (
@@ -116,31 +166,56 @@ function Message({ message }: { message: MarkMessage }) {
   }
 
   // Mark / system: full-width, avatar + plain text.
+  const pending = message.status === "pending";
+  const failed = message.status === "failed";
   return (
-    <div className="flex gap-3">
-      <MarkAvatar />
+    <div className="group flex gap-3">
+      <MarkAvatar pending={pending} />
       <div className="min-w-0 flex-1 pt-0.5">
-        {message.status === "pending" ? (
-          message.steps.length > 0 ? <ActivityTimeline steps={message.steps} /> : <ThinkingIndicator />
+        {pending ? (
+          <PendingBlock steps={message.steps} onStop={onStop} />
         ) : (
           <div
             className={cx(
               "whitespace-pre-wrap text-sm leading-7",
-              message.status === "failed" ? "text-[var(--priority-bright)]" : "text-[var(--text-primary)]",
+              failed ? "text-[var(--priority-bright)]" : "text-[var(--text-primary)]",
             )}
           >
             {message.body}
           </div>
         )}
-        {message.status !== "pending" && message.steps.length > 0 ? <StepTrace steps={message.steps} /> : null}
-        <MentionChips mentions={message.mentions} />
+        {!pending && message.steps.length > 0 ? <StepTrace steps={message.steps} /> : null}
+        {!pending ? <References mentions={message.mentions} /> : null}
         {message.media.length > 0 ? <MessageMedia media={message.media} /> : null}
+        {!pending ? (
+          <div className="mt-1.5 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+            {failed ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="rounded-md px-2 py-1 text-xs font-semibold text-[var(--accent-contrast)] transition hover:bg-[var(--surface-inset)]"
+              >
+                Retry
+              </button>
+            ) : (
+              <CopyButton text={message.body} />
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
-export function MessageList({ messages }: { messages: MarkMessage[] }) {
+export function MessageList({
+  messages,
+  onRetry,
+  onStop,
+}: {
+  messages: MarkMessage[];
+  onRetry: () => void;
+  onStop: () => void;
+}) {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -168,7 +243,7 @@ export function MessageList({ messages }: { messages: MarkMessage[] }) {
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
         {messages.map((m) => (
           <div key={m.id} className="msg-rise">
-            <Message message={m} />
+            <Message message={m} onRetry={onRetry} onStop={onStop} />
           </div>
         ))}
         <div ref={endRef} />

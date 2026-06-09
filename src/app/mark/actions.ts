@@ -11,13 +11,17 @@ import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
 import {
   archiveConversation,
   assignConversationToProject,
+  cancelPendingMarkMessage,
   createConversation,
   createProject,
+  deleteConversation,
   insertFailedMarkMessage,
   insertOperatorMessage,
   insertPendingMarkMessage,
   listMessages,
   renameConversation,
+  renameProject,
+  setConversationPinned,
   touchConversation,
   unarchiveConversation,
   type MarkMessage,
@@ -192,4 +196,62 @@ export async function getThreadMessagesAction(conversationId: string): Promise<M
   } catch {
     return [];
   }
+}
+
+export async function renameThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  const title = deriveThreadTitle(String(formData.get("title") ?? ""));
+  if (!id) return;
+  await renameConversation(id, title);
+  revalidatePath("/mark");
+}
+
+export async function pinThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return;
+  await setConversationPinned(id, true);
+  revalidatePath("/mark");
+}
+
+export async function unpinThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return;
+  await setConversationPinned(id, false);
+  revalidatePath("/mark");
+}
+
+export async function deleteThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return;
+  await deleteConversation(id);
+  revalidatePath("/mark");
+}
+
+export async function renameProjectForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("projectId") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id || !name) return;
+  await renameProject(id, name);
+  revalidatePath("/mark");
+}
+
+/** Best-effort "stop generating": drop the pending bubble so the thread settles.
+ *  The client also stops polling optimistically; a late reply shows on next refresh. */
+export async function cancelReplyAction(conversationId: string): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = conversationId.trim();
+  if (!id) return;
+  await cancelPendingMarkMessage(id).catch(() => undefined);
+  revalidatePath("/mark");
 }
