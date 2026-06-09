@@ -140,8 +140,9 @@ export async function createOperatorCampaign({
 export async function insertOne(client: SupabaseClient, table: string, values: Record<string, unknown>): Promise<string> {
   const { data, error } = await client.from(table).insert(values).select("id").single<{ id: string }>();
   if (error) throw new Error(`${table} insert failed: ${error.message}`);
-  if (!data?.id) throw new Error(`${table} insert did not return an id.`);
-  return data.id;
+  const id = Array.isArray(data) ? (data[0] as { id?: string } | undefined)?.id : (data as { id?: string } | null)?.id;
+  if (!id) throw new Error(`${table} insert did not return an id.`);
+  return id;
 }
 
 export async function insertNoReturn(client: SupabaseClient, table: string, values: Record<string, unknown>): Promise<void> {
