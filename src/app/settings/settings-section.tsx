@@ -6,12 +6,14 @@ import { Panel } from "../_components/page-header";
  * `bodyClassName` lets row-based sections (Connections) go edge-to-edge with `p-0`.
  */
 export function SettingsSection({
+  id,
   title,
   description,
   actions,
   bodyClassName = "px-5 py-4",
   children,
 }: {
+  id?: string;
   title: string;
   description?: string;
   actions?: React.ReactNode;
@@ -19,7 +21,7 @@ export function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <Panel className="overflow-hidden p-0">
+    <Panel className="scroll-mt-6 overflow-hidden p-0" id={id}>
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
