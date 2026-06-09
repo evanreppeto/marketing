@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { connection } from "next/server";
 
-import { Button, EmptyState, PageHeader, StatusPill } from "../_components/page-header";
+import { buttonClasses, EmptyState, PageHeader, StatusPill } from "../_components/page-header";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 
 import { CampaignGallery } from "./_components/campaign-gallery";
@@ -86,8 +86,8 @@ function CampaignsHeader({ pendingCount }: { pendingCount: number }) {
             <StatusPill tone="green">All decided</StatusPill>
           )}
           <StatusPill tone="amber">Outbound locked</StatusPill>
-          <Link href="/campaigns/new">
-            <Button size="sm">New campaign</Button>
+          <Link href="/campaigns/new" className={buttonClasses({ size: "sm" })}>
+            New campaign
           </Link>
         </div>
       }
