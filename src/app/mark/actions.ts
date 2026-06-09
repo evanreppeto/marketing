@@ -22,6 +22,7 @@ import {
   renameConversation,
   renameProject,
   setConversationPinned,
+  setMarkMessageFeedback,
   touchConversation,
   unarchiveConversation,
   type MarkMessage,
@@ -255,5 +256,72 @@ export async function cancelReplyAction(conversationId: string): Promise<void> {
   const id = conversationId.trim();
   if (!id) return;
   await cancelPendingMarkMessage(id).catch(() => undefined);
+  revalidatePath("/mark");
+}
+
+export async function setMarkMessageFeedbackAction(
+  messageId: string,
+  value: "up" | "down" | null,
+): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = messageId.trim();
+  if (!id) return;
+  await setMarkMessageFeedback(id, value).catch(() => undefined);
+  revalidatePath("/mark");
+}
+
+/** Re-run the operator turn that produced `markMessageId`: enqueue a fresh task
+ *  and pending bubble for the preceding operator message. Best-effort. */
+export async function regenerateMarkReplyAction(
+  conversationId: string,
+  markMessageId: string,
+): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const convId = conversationId.trim();
+  if (!convId) return;
+
+  const client = getSupabaseAdminClient();
+  let messages;
+  try {
+    messages = await listMessages(convId, client);
+  } catch {
+    return;
+  }
+  const idx = messages.findIndex((m) => m.id === markMessageId);
+  const slice = idx === -1 ? messages : messages.slice(0, idx);
+  const lastOperator = [...slice].reverse().find((m) => m.role === "operator");
+  if (!lastOperator) return;
+
+  const operator = getOperatorActor();
+  try {
+    const agentTaskId = await enqueueMarkChatTask(
+      {
+        conversationId: convId,
+        messageId: lastOperator.id,
+        message: lastOperator.body,
+        mentions: lastOperator.mentions,
+        operator,
+        route: "fast",
+        mode: "ask",
+      },
+      client,
+    );
+    await insertPendingMarkMessage({ conversationId: convId, agentTaskId }, client);
+    const delivered = await notifyMarkWebhook({
+      messageId: lastOperator.id,
+      conversationId: convId,
+      agentTaskId,
+      message: lastOperator.body,
+      mentions: lastOperator.mentions,
+      operator,
+      route: "fast",
+      mode: "ask",
+    });
+    if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
+  } catch {
+    /* best-effort: leave the thread as-is if Mark can't be reached */
+  }
   revalidatePath("/mark");
 }
