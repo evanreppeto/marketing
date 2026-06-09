@@ -84,4 +84,42 @@ describe("getConnections", () => {
 
     expect(ig).toMatchObject({ provider: "instagram", kind: "social", status: "not_configured" });
   });
+
+  it("reports connected for instagram only when the full Meta block is present and enabled", async () => {
+    vi.stubEnv("META_APP_ID", "a");
+    vi.stubEnv("META_APP_SECRET", "b");
+    vi.stubEnv("META_IG_USER_ID", "ig-1");
+    vi.stubEnv("META_PAGE_ACCESS_TOKEN", "tok");
+    const supabase = createSupabaseQueryMock({
+      connections: { data: [row({ provider: "instagram", kind: "social", label: "Instagram", env_var: "META_PAGE_ACCESS_TOKEN", enabled: true })], error: null },
+    });
+
+    const [ig] = await getConnections(supabase);
+
+    expect(ig).toMatchObject({ provider: "instagram", status: "connected" });
+  });
+
+  it("reports not_configured for instagram when one Meta var is missing", async () => {
+    vi.stubEnv("META_APP_ID", "a");
+    vi.stubEnv("META_APP_SECRET", "b");
+    vi.stubEnv("META_IG_USER_ID", "ig-1");
+    // META_PAGE_ACCESS_TOKEN intentionally unset.
+    const supabase = createSupabaseQueryMock({
+      connections: { data: [row({ provider: "instagram", kind: "social", label: "Instagram", env_var: "META_PAGE_ACCESS_TOKEN", enabled: true })], error: null },
+    });
+
+    const [ig] = await getConnections(supabase);
+
+    expect(ig.status).toBe("not_configured");
+  });
+
+  it("surfaces the provider's requiredEnvVars on the view", async () => {
+    const supabase = createSupabaseQueryMock({
+      connections: { data: [row({ provider: "x", kind: "social", label: "X", env_var: "X_API_KEY", enabled: false })], error: null },
+    });
+
+    const [x] = await getConnections(supabase);
+
+    expect(x.requiredEnvVars).toEqual(["X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_TOKEN_SECRET"]);
+  });
 });
