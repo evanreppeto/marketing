@@ -372,6 +372,31 @@ h1, h2, h3, h4, .font-display {
   color: transparent;
   animation: text-shimmer 2.2s linear infinite;
 }
+@keyframes progress-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+.mark-progress {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+.mark-progress > span {
+  display: block;
+  height: 100%;
+  width: 32%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: progress-sweep 1.4s ease-in-out infinite;
+}
+.mark-shimmer-bar {
+  height: 11px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-inset) 0%, var(--surface-raised) 50%, var(--surface-inset) 100%);
+  background-size: 200% 100%;
+  animation: text-shimmer 1.6s linear infinite;
+}
 
 .signal-radar { position: relative; }
 
@@ -466,6 +491,16 @@ h1, h2, h3, h4, .font-display {
     -webkit-background-clip: border-box;
     background-clip: border-box;
     color: var(--text-secondary);
+  }
+
+  .mark-shimmer-bar,
+  .mark-progress > span {
+    animation: none;
+  }
+
+  .mark-progress > span {
+    width: 100%;
+    opacity: 0.4;
   }
 
   .signal-radar::after {
