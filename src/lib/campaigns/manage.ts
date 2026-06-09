@@ -41,10 +41,11 @@ export async function addCampaignPhotos({
   const upload = uploader ?? defaultUploader(client);
   const now = new Date().toISOString();
 
-  // Continue indices past existing assets so storage paths don't collide.
+  // Continue indices past existing assets so storage paths don't collide. A
+  // non-single select returns an array in Supabase; guard defensively.
   const { data: existing, error } = await client.from("campaign_assets").select("id").eq("campaign_id", campaignId);
   if (error) throw new Error(`campaign_assets lookup failed: ${error.message}`);
-  const start = (existing ?? []).length;
+  const start = Array.isArray(existing) ? existing.length : 0;
 
   const assetIds: string[] = [];
   for (const [i, photo] of photos.entries()) {

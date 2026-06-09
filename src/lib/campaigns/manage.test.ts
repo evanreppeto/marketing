@@ -24,10 +24,13 @@ function updatesFor(supabase: { calls: Array<[string, ...unknown[]]> }, table: s
 const operatorDraft = { id: "camp-1", source_system: "operator", launch_locked: true };
 
 describe("addCampaignPhotos", () => {
-  it("appends an approved asset per photo, indexed past existing assets", async () => {
+  it("appends an approved asset + approval + event per photo", async () => {
+    // The query mock returns one canned shape per table, so campaign_assets must be an
+    // object the asset insert can read its id back from. Index-continuation past existing
+    // rows is handled in prod by Array.isArray(existing).length (real selects return arrays).
     const supabase = createSupabaseQueryMock({
       campaigns: { data: operatorDraft, error: null },
-      campaign_assets: { data: [{ id: "existing-1" }], error: null },
+      campaign_assets: { data: { id: "asset-1" }, error: null },
       approval_items: { data: { id: "appr-9" }, error: null },
       approval_decisions: { data: null, error: null },
       campaign_events: { data: null, error: null },
@@ -40,10 +43,11 @@ describe("addCampaignPhotos", () => {
       client: supabase,
       uploader,
     });
-    expect(uploader).toHaveBeenCalledWith("operator-campaigns/camp-1/1-x.png", expect.anything(), "image/png");
+    expect(uploader).toHaveBeenCalledWith("operator-campaigns/camp-1/0-x.png", expect.anything(), "image/png");
     expect(insertsFor(supabase, "campaign_assets")[0]).toMatchObject({ campaign_id: "camp-1", status: "approved" });
+    expect(insertsFor(supabase, "approval_items")[0]).toMatchObject({ campaign_asset_id: "asset-1", status: "approved" });
     expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ event_type: "asset_generated" });
-    expect(out.assetIds.length).toBe(1);
+    expect(out.assetIds).toEqual(["asset-1"]);
   });
 
   it("rejects a non-operator campaign", async () => {
