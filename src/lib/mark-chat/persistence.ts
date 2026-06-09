@@ -31,6 +31,7 @@ export type MarkMessage = {
   mentions: MarkMention[];
   media: MarkMedia[];
   steps: MarkStep[];
+  feedback: "up" | "down" | null;
   createdAt: string;
 };
 
@@ -101,6 +102,12 @@ function toMessage(row: MessageRow): MarkMessage {
     mentions: parseMentions(row.mentions),
     media: parseMedia((row.metadata as { media?: unknown } | null)?.media),
     steps: parseSteps((row.metadata as { steps?: unknown } | null)?.steps),
+    feedback:
+      (row.metadata as { feedback?: unknown } | null)?.feedback === "up"
+        ? "up"
+        : (row.metadata as { feedback?: unknown } | null)?.feedback === "down"
+          ? "down"
+          : null,
     createdAt: row.created_at,
   };
 }
@@ -450,4 +457,24 @@ export async function appendMarkStep(
     .eq("id", data.id);
   assertOk("mark_messages step update", upErr);
   return true;
+}
+
+export async function setMarkMessageFeedback(
+  messageId: string,
+  value: "up" | "down" | null,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { data, error } = await client
+    .from("mark_messages")
+    .select("id, metadata")
+    .eq("id", messageId)
+    .maybeSingle<{ id: string; metadata: Record<string, unknown> | null }>();
+  assertOk("mark_messages feedback lookup", error);
+  if (!data) return;
+  const meta = (data.metadata ?? {}) as Record<string, unknown>;
+  const { error: upErr } = await client
+    .from("mark_messages")
+    .update({ metadata: { ...meta, feedback: value } })
+    .eq("id", messageId);
+  assertOk("mark_messages feedback update", upErr);
 }

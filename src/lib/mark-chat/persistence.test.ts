@@ -7,6 +7,7 @@ import {
   deleteConversation,
   listConversations,
   setConversationPinned,
+  setMarkMessageFeedback,
 } from "./persistence";
 
 function calls(supabase: MockSupabase, method: string): Array<Record<string, unknown>> {
@@ -107,5 +108,30 @@ describe("cancelPendingMarkMessage", () => {
 
     expect(cancelled).toBe(false);
     expect(supabase.calls).not.toContainEqual(["delete"]);
+  });
+});
+
+describe("setMarkMessageFeedback", () => {
+  it("writes feedback merged into existing metadata, scoped by id", async () => {
+    const supabase = createSupabaseQueryMock({
+      mark_messages: { data: { id: "m1", metadata: { steps: [] } }, error: null },
+    });
+
+    await setMarkMessageFeedback("m1", "up", supabase);
+
+    const update = calls(supabase, "update")[0];
+    expect(update.metadata).toMatchObject({ steps: [], feedback: "up" });
+    expect(supabase.calls).toContainEqual(["eq", "id", "m1"]);
+  });
+
+  it("clears feedback when value is null", async () => {
+    const supabase = createSupabaseQueryMock({
+      mark_messages: { data: { id: "m1", metadata: { feedback: "up" } }, error: null },
+    });
+
+    await setMarkMessageFeedback("m1", null, supabase);
+
+    const update = calls(supabase, "update")[0];
+    expect(update.metadata).toMatchObject({ feedback: null });
   });
 });
