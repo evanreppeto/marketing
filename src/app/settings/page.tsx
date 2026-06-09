@@ -1,5 +1,6 @@
 import { IntelligencePanel } from "../_components/intelligence-panel";
 import { StatusPill } from "../_components/page-header";
+import { ConnectionsPanel } from "./connections-panel";
 import { SettingsControls } from "./settings-controls";
 
 const guardrails = [
@@ -35,11 +36,12 @@ export default function SettingsPage() {
       </header>
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-5">
           <SettingsControls
             initialCtaRules={ctaRules.map(([persona, cta]) => ({ persona, cta }))}
             initialGuardrails={guardrails}
           />
+          <ConnectionsPanel />
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
