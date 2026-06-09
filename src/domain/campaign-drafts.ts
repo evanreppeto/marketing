@@ -1,4 +1,4 @@
-import { OFFICIAL_PERSONA_MAPPINGS } from "./personas";
+import { isOfficialPersonaMapping } from "./personas";
 
 export class CampaignDraftValidationError extends Error {
   constructor(message: string) {
@@ -69,7 +69,7 @@ export function parseCampaignDraft(payload: unknown): ParsedCampaignDraft {
   }
 
   const persona = typeof obj.persona === "string" ? obj.persona.trim() : "";
-  if (!(OFFICIAL_PERSONA_MAPPINGS as readonly string[]).includes(persona)) {
+  if (!isOfficialPersonaMapping(persona)) {
     throw new CampaignDraftValidationError("Choose who the campaign is for (a valid persona).");
   }
 
