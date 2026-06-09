@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
-import { RevisionInstructionError, validateRevisionInstruction } from "@/domain";
+import { CampaignDraftValidationError, parseCampaignDraft, RevisionInstructionError, validateRevisionInstruction } from "@/domain";
+import { createOperatorCampaign, type CampaignPhoto } from "@/lib/campaigns/create";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { type ApprovalDecision, decideApprovalItem, decideAsset, reopenAsset } from "@/lib/campaigns/decisions";
 import { deployAsset, launchCampaign } from "@/lib/campaigns/launch";
@@ -308,4 +310,85 @@ export async function launchCampaignAction(
     ok: true,
     message: `Campaign launched — ${launchedAssets} deliverable${launchedAssets === 1 ? "" : "s"} handed off to Mark for dispatch.`,
   };
+}
+
+export type CreateCampaignActionState = { ok: boolean; message: string } | null;
+
+/**
+ * Operator authors a campaign by hand: validate the draft, upload any photos to the
+ * campaign-media bucket, persist a draft campaign with approved photo assets, then
+ * redirect to the new campaign. Gated by the operator check + Supabase config.
+ * Shaped for `useActionState`.
+ */
+export async function createCampaignAction(
+  _previous: CreateCampaignActionState,
+  formData: FormData,
+): Promise<CreateCampaignActionState> {
+  await requireOperator();
+
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, message: "Supabase isn't configured yet, so the campaign can't be saved." };
+  }
+
+  let draft;
+  try {
+    draft = parseCampaignDraft({
+      name: formData.get("name"),
+      persona: formData.get("persona"),
+      restorationFocus: formData.get("restorationFocus"),
+      channel: formData.get("channel"),
+      audienceSummary: formData.get("audienceSummary"),
+      objective: formData.get("objective"),
+      offerSummary: formData.get("offerSummary"),
+    });
+  } catch (error) {
+    if (error instanceof CampaignDraftValidationError) {
+      return { ok: false, message: error.message };
+    }
+    throw error;
+  }
+
+  let photos: CampaignPhoto[];
+  try {
+    photos = await readPhotos(formData);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't read the uploaded photos." };
+  }
+
+  let campaignId: string;
+  try {
+    const result = await createOperatorCampaign({
+      draft,
+      operator: getOperatorActor(),
+      photos,
+      client: getSupabaseAdminClient(),
+    });
+    campaignId = result.campaignId;
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't create the campaign." };
+  }
+
+  revalidatePath("/campaigns");
+  redirect(`/campaigns/${campaignId}`);
+}
+
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB per file
+
+async function readPhotos(formData: FormData): Promise<CampaignPhoto[]> {
+  const files = formData.getAll("photos").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+  const photos: CampaignPhoto[] = [];
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) {
+      throw new Error(`"${file.name}" isn't an image.`);
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      throw new Error(`"${file.name}" is larger than 10 MB.`);
+    }
+    photos.push({
+      filename: file.name.replace(/[^a-zA-Z0-9._-]/g, "_"),
+      contentType: file.type,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    });
+  }
+  return photos;
 }
