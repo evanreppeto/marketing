@@ -62,6 +62,8 @@ describe("setConversationPinned", () => {
 
     const update = calls(supabase, "update")[0];
     expect(update.pinned_at).toEqual(expect.any(String));
+    // Must be scoped to the one conversation, not an unscoped UPDATE across all rows.
+    expect(supabase.calls).toContainEqual(["eq", "id", "c1"]);
   });
 
   it("clears pinned_at when unpinning", async () => {
@@ -94,6 +96,8 @@ describe("cancelPendingMarkMessage", () => {
     expect(cancelled).toBe(true);
     expect(supabase.calls).toContainEqual(["eq", "status", "pending"]);
     expect(supabase.calls).toContainEqual(["delete"]);
+    // The delete must target the looked-up row's id, not a blanket delete.
+    expect(supabase.calls).toContainEqual(["eq", "id", "m9"]);
   });
 
   it("is a safe no-op when no pending message exists", async () => {
