@@ -17,6 +17,8 @@ export type MarkNotifyPayload = {
    * keys — this is only advisory metadata for Mark's own router.
    */
   route: "fast" | "standard";
+  /** Operator stance (ask/act/draft); advisory for Mark's worker. */
+  mode: "ask" | "act" | "draft";
 };
 
 /**

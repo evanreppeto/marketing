@@ -21,6 +21,7 @@ const basePayload = {
   mentions: [],
   operator: "Evan",
   route: "fast" as const,
+  mode: "ask" as const,
 };
 
 beforeEach(() => {

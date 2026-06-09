@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { deriveThreadTitle, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
+import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
@@ -44,6 +44,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
 
   const rawBody = String(formData.get("body") ?? "");
   const mentions = parseMentions(String(formData.get("mentions") ?? "[]"));
+  const mode = parseMarkMode(formData.get("mode"));
   let body: string;
   let cleanMentions = mentions;
   try {
@@ -80,7 +81,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // happened instead of hanging on "thinking".
   try {
     const agentTaskId = await enqueueMarkChatTask(
-      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast" },
+      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode },
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
@@ -97,6 +98,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       mentions: cleanMentions,
       operator,
       route: "fast",
+      mode,
     });
     if (delivered) {
       const claimed = await claimChatTask(agentTaskId, client).catch(() => false);

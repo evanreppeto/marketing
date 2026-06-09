@@ -12,6 +12,8 @@ export type EnqueueChatTaskInput = {
   operator: string;
   /** Model-routing hint for the external runner; routine chat defaults to "fast". */
   route?: "fast" | "standard";
+  /** Operator stance for this message; the worker decides what Mark may do. */
+  mode?: "ask" | "act" | "draft";
 };
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -57,6 +59,7 @@ export async function enqueueMarkChatTask(
         mentions: input.mentions,
         source: "mark_chat",
         model_route: input.route ?? "fast",
+        mode: input.mode ?? "ask",
         outbound_locked: true,
       },
     })
