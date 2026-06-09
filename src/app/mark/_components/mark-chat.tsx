@@ -219,29 +219,41 @@ export function MarkChat({
           activeId={activeId}
         />
         <section className="flex min-h-0 flex-col border-t border-[var(--border-hairline)] lg:border-l lg:border-t-0">
-          {hasMessages ? (
-            <MessageList messages={messages} onRetry={handleRetry} onStop={handleStop} onRegenerate={handleRegenerate} />
-          ) : (
-            <ChatEmptyState onPick={pickSuggestion} />
-          )}
-          <Composer
-            conversationId={activeId}
-            mentionGroups={mentionGroups}
-            draft={draft}
-            onDraftChange={setDraft}
-            textareaRef={composerRef}
-            registerSubmit={(fn) => {
-              submitFnRef.current = fn;
-            }}
-            onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
-            onSent={(newConversationId) => {
-              if (!activeId && newConversationId) {
-                router.push(`/mark?c=${newConversationId}`);
-              } else {
-                router.refresh();
-              }
-            }}
-          />
+          {(() => {
+            const composer = (
+              <Composer
+                conversationId={activeId}
+                mentionGroups={mentionGroups}
+                draft={draft}
+                onDraftChange={setDraft}
+                textareaRef={composerRef}
+                registerSubmit={(fn) => {
+                  submitFnRef.current = fn;
+                }}
+                onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
+                onSent={(newConversationId) => {
+                  if (!activeId && newConversationId) {
+                    router.push(`/mark?c=${newConversationId}`);
+                  } else {
+                    router.refresh();
+                  }
+                }}
+              />
+            );
+            return hasMessages ? (
+              <>
+                <MessageList
+                  messages={messages}
+                  onRetry={handleRetry}
+                  onStop={handleStop}
+                  onRegenerate={handleRegenerate}
+                />
+                {composer}
+              </>
+            ) : (
+              <ChatEmptyState onPick={pickSuggestion} composer={composer} />
+            );
+          })()}
         </section>
       </div>
     </div>

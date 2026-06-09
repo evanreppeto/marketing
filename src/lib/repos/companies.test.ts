@@ -39,6 +39,15 @@ describe("listCompanies", () => {
     expect(supabase.calls).toContainEqual(["limit", 10]);
   });
 
+  it("applies a name search (ilike) and partner_tier filter", async () => {
+    const supabase = createSupabaseQueryMock({ companies: { data: [], error: null } });
+
+    await listCompanies({ q: "Plumbing", partnerTier: "A" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["ilike", "name", "%Plumbing%"]);
+    expect(supabase.calls).toContainEqual(["eq", "partner_tier", "A"]);
+  });
+
   it("throws when Supabase returns an error", async () => {
     const supabase = createSupabaseQueryMock({ companies: { data: null, error: { message: "db down" } } });
     await expect(listCompanies({}, supabase)).rejects.toThrow(/listCompanies failed: db down/);

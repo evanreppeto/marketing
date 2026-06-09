@@ -1,0 +1,3 @@
+# Only the MCP server (mcp_server.py) needs a dependency; poller.py and
+# webhook.py are intentionally stdlib-only.
+mcp>=1.2.0

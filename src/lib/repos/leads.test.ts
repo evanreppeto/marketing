@@ -100,6 +100,23 @@ describe("listLeads filters", () => {
 
     expect(supabase.calls).toContainEqual(["limit", 25]);
   });
+
+  it("applies a lead_score range via gte/lte", async () => {
+    const supabase = createSupabaseQueryMock({ leads: { data: [], error: null } });
+
+    await listLeads({ minScore: 80, maxScore: 95 }, supabase);
+
+    expect(supabase.calls).toContainEqual(["gte", "lead_score", 80]);
+    expect(supabase.calls).toContainEqual(["lte", "lead_score", 95]);
+  });
+
+  it("applies a free-text search via ilike on loss_summary", async () => {
+    const supabase = createSupabaseQueryMock({ leads: { data: [], error: null } });
+
+    await listLeads({ q: "flood" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["ilike", "loss_summary", "%flood%"]);
+  });
 });
 
 describe("getLead", () => {

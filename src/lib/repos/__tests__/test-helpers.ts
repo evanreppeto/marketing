@@ -26,6 +26,7 @@ const CHAIN_METHODS = [
   "is",
   "like",
   "ilike",
+  "or",
   "order",
   "limit",
   "range",
