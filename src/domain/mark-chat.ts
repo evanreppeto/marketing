@@ -133,3 +133,14 @@ export function validateMarkMessageInput(input: { body: string; mentions: MarkMe
   }
   return { body, mentions: input.mentions.filter(isMarkMention) };
 }
+
+export type MarkMode = "ask" | "act" | "draft";
+
+const MARK_MODES: readonly MarkMode[] = ["ask", "act", "draft"];
+
+/** Parse the composer's stance; anything unrecognized falls back to read-only "ask". */
+export function parseMarkMode(value: unknown): MarkMode {
+  return typeof value === "string" && (MARK_MODES as readonly string[]).includes(value)
+    ? (value as MarkMode)
+    : "ask";
+}
