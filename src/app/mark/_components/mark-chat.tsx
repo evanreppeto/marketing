@@ -20,7 +20,14 @@ function sameMessages(a: MarkMessage[], b: MarkMessage[]): boolean {
   for (let i = 0; i < a.length; i++) {
     const x = a[i];
     const y = b[i];
-    if (x.id !== y.id || x.status !== y.status || x.body !== y.body || x.media.length !== y.media.length) {
+    if (
+      x.id !== y.id ||
+      x.status !== y.status ||
+      x.body !== y.body ||
+      x.media.length !== y.media.length ||
+      x.steps.length !== y.steps.length ||
+      x.steps.some((s, j) => s.status !== y.steps[j]?.status || s.label !== y.steps[j]?.label)
+    ) {
       return false;
     }
   }
