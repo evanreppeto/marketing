@@ -160,7 +160,9 @@ export function MarkChat({
       <header className="flex items-center justify-between gap-3 pb-3">
         <div className="min-w-0">
           <p className="signal-eyebrow">Mark</p>
-          <HeaderTitle activeId={activeId} activeTitle={activeTitle} />
+          {/* key on activeId so switching threads remounts the editor — never carries
+              one thread's in-progress rename text onto another. */}
+          <HeaderTitle key={activeId} activeId={activeId} activeTitle={activeTitle} />
           {activeId ? (
             <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
               {(activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
