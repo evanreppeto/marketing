@@ -5,17 +5,23 @@ import { revalidatePath } from "next/cache";
 import { deriveThreadTitle, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
+import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
+import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
 import {
   archiveConversation,
   assignConversationToProject,
+  cancelPendingMarkMessage,
   createConversation,
   createProject,
+  deleteConversation,
   insertFailedMarkMessage,
   insertOperatorMessage,
   insertPendingMarkMessage,
   listMessages,
   renameConversation,
+  renameProject,
+  setConversationPinned,
   touchConversation,
   unarchiveConversation,
   type MarkMessage,
@@ -54,27 +60,48 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   const existingId = String(formData.get("conversationId") ?? "").trim();
 
   let conversationId = existingId;
+  let messageId: string;
   try {
     if (!conversationId) {
       const conversation = await createConversation({ operator, title: deriveThreadTitle(body) }, client);
       conversationId = conversation.id;
     }
-    await insertOperatorMessage({ conversationId, body, mentions: cleanMentions }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions }, client);
+    messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't save your message." };
   }
 
-  // Enqueue + pending bubble. If Mark isn't connected, record a failed reply so
-  // the thread shows what happened instead of hanging on "thinking".
+  // Event-driven (Telegram-style): enqueue the task, drop a pending bubble, then
+  // POST a small wake to Mark's webhook so it processes just this message and
+  // sleeps. Routine chat rides the cheap/fast model route. Outbound stays locked.
+  // If Mark isn't connected, record a failed reply so the thread shows what
+  // happened instead of hanging on "thinking".
   try {
     const agentTaskId = await enqueueMarkChatTask(
-      { conversationId, messageId: "", message: body, mentions: cleanMentions, operator },
+      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast" },
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
-    // Wake Mark (push). Best-effort — never blocks or fails the send.
-    await notifyMarkWebhook({ agentTaskId, conversationId, message: body, mentions: cleanMentions, operator });
+    logMarkChatStatus("queued", { agentTaskId, conversationId });
+    // Wake Mark (push). Best-effort — never blocks or fails the send. On a
+    // delivered wake we claim the task (queued -> running) so the inbox poll
+    // won't hand the same message out again; a missed wake stays queued for it.
+    logMarkChatStatus("waking_mark", { agentTaskId, conversationId });
+    const delivered = await notifyMarkWebhook({
+      messageId,
+      conversationId,
+      agentTaskId,
+      message: body,
+      mentions: cleanMentions,
+      operator,
+      route: "fast",
+    });
+    if (delivered) {
+      const claimed = await claimChatTask(agentTaskId, client).catch(() => false);
+      if (claimed) logMarkChatStatus("processing", { agentTaskId, conversationId, detail: "via=wake" });
+    }
   } catch (error) {
     await insertFailedMarkMessage(
       { conversationId, body: error instanceof Error ? error.message : "Mark couldn't be reached." },
@@ -169,4 +196,62 @@ export async function getThreadMessagesAction(conversationId: string): Promise<M
   } catch {
     return [];
   }
+}
+
+export async function renameThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  const title = deriveThreadTitle(String(formData.get("title") ?? ""));
+  if (!id) return;
+  await renameConversation(id, title);
+  revalidatePath("/mark");
+}
+
+export async function pinThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return;
+  await setConversationPinned(id, true);
+  revalidatePath("/mark");
+}
+
+export async function unpinThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return;
+  await setConversationPinned(id, false);
+  revalidatePath("/mark");
+}
+
+export async function deleteThreadForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return;
+  await deleteConversation(id);
+  revalidatePath("/mark");
+}
+
+export async function renameProjectForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("projectId") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id || !name) return;
+  await renameProject(id, name);
+  revalidatePath("/mark");
+}
+
+/** Best-effort "stop generating": drop the pending bubble so the thread settles.
+ *  The client also stops polling optimistically; a late reply shows on next refresh. */
+export async function cancelReplyAction(conversationId: string): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = conversationId.trim();
+  if (!id) return;
+  await cancelPendingMarkMessage(id).catch(() => undefined);
+  revalidatePath("/mark");
 }
