@@ -3,17 +3,27 @@ import { createHmac } from "node:crypto";
 import { type MarkMention } from "@/domain";
 
 export type MarkNotifyPayload = {
-  agentTaskId: string;
+  /** The operator message row that triggered this wake (mark_messages.id). */
+  messageId: string;
   conversationId: string;
+  /** The queued agent_task Mark settles when it posts its reply back. */
+  agentTaskId: string;
   message: string;
   mentions: MarkMention[];
   operator: string;
+  /**
+   * Model-routing hint for the external runner. Routine chat rides the cheap/fast
+   * path ("fast"); reserve "standard" for heavier work. The app holds no model
+   * keys — this is only advisory metadata for Mark's own router.
+   */
+  route: "fast" | "standard";
 };
 
 /**
  * Wake Mark the moment a chat message is sent — push, not poll (Telegram-style).
- * POSTs the message to MARK_WEBHOOK_URL, which is Mark's Hermes Agent webhook
- * route. Hermes turns the payload into a prompt, runs Mark, and Mark posts his
+ * POSTs the message to MARK_RUNNER_URL (Mark's Hermes Agent webhook route; the
+ * legacy MARK_WEBHOOK_URL is still honored as a fallback). Hermes turns the
+ * payload into a prompt, runs Mark, and Mark posts his
  * reply back to POST /api/v1/hermes/messages. The agent runs only when there's
  * something to answer — idle costs nothing.
  *
@@ -26,13 +36,19 @@ export type MarkNotifyPayload = {
  * agent can't block or fail the operator's send (the message is already queued
  * and Mark can still pull it from the inbox as a fallback).
  *
+ * Returns whether the wake was delivered (a 2xx from the webhook). The caller
+ * uses this to decide whether to claim the task now (push path) or leave it
+ * queued for the inbox fallback.
+ *
  * Env:
- *   MARK_WEBHOOK_URL     — Hermes webhook route, e.g. https://host:8644/webhooks/growth-chat
+ *   MARK_RUNNER_URL      — Mark/Hermes runner webhook route, e.g.
+ *                          https://host:8644/webhooks/growth-chat. (Legacy alias:
+ *                          MARK_WEBHOOK_URL — read as a fallback for back-compat.)
  *   MARK_WEBHOOK_SECRET  — the route's secret (used to HMAC-sign the body)
  */
-export async function notifyMarkWebhook(payload: MarkNotifyPayload): Promise<void> {
-  const url = process.env.MARK_WEBHOOK_URL;
-  if (!url) return;
+export async function notifyMarkWebhook(payload: MarkNotifyPayload): Promise<boolean> {
+  const url = process.env.MARK_RUNNER_URL ?? process.env.MARK_WEBHOOK_URL;
+  if (!url) return false;
 
   const body = JSON.stringify({ type: "mark_chat_message", ...payload });
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -46,9 +62,11 @@ export async function notifyMarkWebhook(payload: MarkNotifyPayload): Promise<voi
   const timeout = setTimeout(() => controller.abort(), 6000);
 
   try {
-    await fetch(url, { method: "POST", headers, body, signal: controller.signal });
+    const res = await fetch(url, { method: "POST", headers, body, signal: controller.signal });
+    return res.ok;
   } catch {
-    // Best-effort wake-up; intentionally swallow errors.
+    // Best-effort wake-up; intentionally swallow errors and let the inbox catch it.
+    return false;
   } finally {
     clearTimeout(timeout);
   }

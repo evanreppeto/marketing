@@ -3,6 +3,12 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { type MarkMention, parseMentions } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
+import { failMarkMessage, findPendingMessageByTask } from "./persistence";
+
+/** How long a task may sit in `running` before a poll re-surfaces it for retry. */
+const STALE_RUNNING_MS = 3 * 60_000;
+/** Give up after this many reclaim attempts and fail the task + bubble. */
+const MAX_CHAT_RETRIES = 3;
 
 /**
  * The agent-facing side of Mark chat: the external Hermes/Mark agent pulls
@@ -24,16 +30,30 @@ type TaskRow = {
   objective: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
+  retry_count?: number | null;
 };
 
 function assertOk(label: string, error: { message: string } | null) {
   if (error) throw new Error(`${label} failed: ${error.message}`);
 }
 
+function toInboxItem(row: TaskRow): ChatInboxItem {
+  const meta = (row.metadata ?? {}) as Record<string, unknown>;
+  return {
+    agentTaskId: row.id,
+    conversationId: typeof meta.conversation_id === "string" ? meta.conversation_id : "",
+    message: row.objective ?? (typeof meta.human_instruction === "string" ? meta.human_instruction : ""),
+    mentions: parseMentions(meta.mentions),
+    operator: typeof meta.requested_by === "string" ? meta.requested_by : "Operator",
+    createdAt: row.created_at,
+  };
+}
+
 /**
- * Queued chat messages awaiting a Mark reply. Read-only and idempotent: a task
- * stays here until a reply is delivered (which marks it completed), so the agent
- * can poll safely without claiming/locking.
+ * Queued chat messages awaiting a Mark reply. Lists only `queued` tasks — once a
+ * task is claimed (queued -> running) by the webhook push or by a puller, it
+ * drops out of this list, so a message is handed to Mark exactly once. This is
+ * the fallback path; the primary wake is the MARK_WEBHOOK_URL push.
  */
 export async function listQueuedChatTasks(
   limit = 20,
@@ -47,17 +67,89 @@ export async function listQueuedChatTasks(
     .order("created_at", { ascending: true })
     .limit(limit);
   assertOk("agent_tasks inbox list", error);
-  return ((data ?? []) as TaskRow[]).map((row) => {
-    const meta = (row.metadata ?? {}) as Record<string, unknown>;
-    return {
-      agentTaskId: row.id,
-      conversationId: typeof meta.conversation_id === "string" ? meta.conversation_id : "",
-      message: row.objective ?? (typeof meta.human_instruction === "string" ? meta.human_instruction : ""),
-      mentions: parseMentions(meta.mentions),
-      operator: typeof meta.requested_by === "string" ? meta.requested_by : "Operator",
-      createdAt: row.created_at,
-    };
-  });
+  return ((data ?? []) as TaskRow[]).map(toInboxItem);
+}
+
+/**
+ * Atomically claim a queued chat task for processing: queued -> running. The
+ * `status = 'queued'` guard makes this a compare-and-set, so two workers (e.g. a
+ * webhook push racing the inbox poll) can never both grab the same message —
+ * only the first claim returns true. Stamps `started_at` for the task timeline.
+ */
+export async function claimChatTask(
+  agentTaskId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<boolean> {
+  const { data, error } = await client
+    .from("agent_tasks")
+    .update({ status: "running", started_at: new Date().toISOString() })
+    .eq("id", agentTaskId)
+    .eq("status", "queued")
+    .select("id")
+    .maybeSingle<{ id: string }>();
+  assertOk("agent_tasks claim", error);
+  return Boolean(data);
+}
+
+/**
+ * Reclaim chat tasks stuck in `running` past the stale cutoff (a wake/turn that
+ * was claimed but never delivered a reply — e.g. the runner crashed mid-turn).
+ *
+ * Each stale task is either re-surfaced for another attempt (re-stamping
+ * `started_at` and bumping `retry_count`, again a CAS so concurrent pollers
+ * can't both grab it) or, once it's burned through `maxRetries`, given up on:
+ * the task and its pending bubble are flipped to failed so the thread stops
+ * hanging on "thinking". Returns the tasks handed back out for processing.
+ */
+export async function reclaimStaleChatTasks(
+  opts: { staleMs?: number; maxRetries?: number; limit?: number } = {},
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ChatInboxItem[]> {
+  const staleMs = opts.staleMs ?? STALE_RUNNING_MS;
+  const maxRetries = opts.maxRetries ?? MAX_CHAT_RETRIES;
+  const limit = opts.limit ?? 20;
+  const cutoff = new Date(Date.now() - staleMs).toISOString();
+
+  const { data, error } = await client
+    .from("agent_tasks")
+    .select("id, objective, metadata, created_at, retry_count")
+    .eq("task_type", "mark_chat_message")
+    .eq("status", "running")
+    .lt("started_at", cutoff)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  assertOk("agent_tasks stale list", error);
+
+  const reclaimed: ChatInboxItem[] = [];
+  for (const row of (data ?? []) as TaskRow[]) {
+    const retries = row.retry_count ?? 0;
+
+    if (retries >= maxRetries) {
+      // Out of retries — fail the task and its pending bubble, best-effort.
+      await settleChatTask(row.id, "failed", client).catch(() => undefined);
+      const pending = await findPendingMessageByTask(row.id, client).catch(() => null);
+      if (pending) {
+        await failMarkMessage(
+          { messageId: pending.id, body: "Mark didn't finish this reply in time. Please resend." },
+          client,
+        ).catch(() => undefined);
+      }
+      continue;
+    }
+
+    const { data: claimed, error: claimError } = await client
+      .from("agent_tasks")
+      .update({ started_at: new Date().toISOString(), retry_count: retries + 1 })
+      .eq("id", row.id)
+      .eq("status", "running")
+      .lt("started_at", cutoff)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    assertOk("agent_tasks reclaim", claimError);
+    if (claimed) reclaimed.push(toInboxItem(row));
+  }
+
+  return reclaimed;
 }
 
 /** Move a chat task out of the queue once its reply has been delivered. */

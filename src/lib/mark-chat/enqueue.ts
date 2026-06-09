@@ -10,6 +10,8 @@ export type EnqueueChatTaskInput = {
   message: string;
   mentions: MarkMention[];
   operator: string;
+  /** Model-routing hint for the external runner; routine chat defaults to "fast". */
+  route?: "fast" | "standard";
 };
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -54,6 +56,7 @@ export async function enqueueMarkChatTask(
         message_id: input.messageId,
         mentions: input.mentions,
         source: "mark_chat",
+        model_route: input.route ?? "fast",
         outbound_locked: true,
       },
     })
