@@ -676,6 +676,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      approval_recommendations: {
+        Row: {
+          id: string;
+          approval_item_id: string;
+          agent: string;
+          recommendation: string;
+          rationale: string | null;
+          risk_flags: string[];
+          suggested_edits: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          approval_item_id: string;
+          agent?: string;
+          recommendation: string;
+          rationale?: string | null;
+          risk_flags?: string[];
+          suggested_edits?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          approval_item_id?: string;
+          agent?: string;
+          recommendation?: string;
+          rationale?: string | null;
+          risk_flags?: string[];
+          suggested_edits?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       approval_decisions: {
         Row: {
           id: string;
