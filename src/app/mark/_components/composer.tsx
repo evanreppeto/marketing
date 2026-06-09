@@ -20,6 +20,7 @@ function tempMessage(conversationId: string, body: string, mentions: MarkMention
     agentTaskId: null,
     mentions,
     media: [],
+    steps: [],
     createdAt: new Date().toISOString(),
   };
 }
