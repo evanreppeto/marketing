@@ -7,6 +7,8 @@ export type ListContactsFilter = {
   status?: ContactStatus;
   persona?: string;
   companyId?: string;
+  /** Free-text search over full name / email (case-insensitive). */
+  q?: string;
   limit?: number;
 };
 
@@ -24,6 +26,9 @@ export async function listContacts(
   }
   if (filter.companyId) {
     query = query.eq("company_id", filter.companyId);
+  }
+  if (filter.q) {
+    query = query.or(`full_name.ilike.%${filter.q}%,email.ilike.%${filter.q}%`);
   }
   if (typeof filter.limit === "number") {
     query = query.limit(filter.limit);

@@ -15,11 +15,16 @@ export async function GET(request: Request) {
   const status = url.searchParams.get("status") ?? undefined;
   const persona = url.searchParams.get("persona") ?? undefined;
   const source = url.searchParams.get("source") ?? undefined;
+  const q = url.searchParams.get("q") ?? undefined;
+  const minScoreParam = Number(url.searchParams.get("min_score"));
+  const minScore = Number.isInteger(minScoreParam) ? minScoreParam : undefined;
+  const maxScoreParam = Number(url.searchParams.get("max_score"));
+  const maxScore = Number.isInteger(maxScoreParam) ? maxScoreParam : undefined;
   const limitParam = Number(url.searchParams.get("limit"));
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const leads = await listLeads({ status: status as LeadStatus | undefined, persona, source, limit });
+    const leads = await listLeads({ status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
     return ok({ leads });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list leads.", 502);

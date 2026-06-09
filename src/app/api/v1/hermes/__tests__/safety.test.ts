@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 const HERMES_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 
 // Only the NEW agent surfaces this work added.
-const AGENT_DIRS = ["tasks", "approvals", "campaigns", "crm", "health", "_lib"];
+const AGENT_DIRS = ["tasks", "approvals", "campaigns", "crm", "drafts", "health", "_lib"];
 
 const FORBIDDEN_MODULES = [
   "@/lib/approvals/decisions",

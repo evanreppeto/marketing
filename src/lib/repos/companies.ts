@@ -6,6 +6,9 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 export type ListCompaniesFilter = {
   status?: CompanyStatus;
   persona?: string;
+  partnerTier?: string;
+  /** Free-text search over company name (case-insensitive). */
+  q?: string;
   limit?: number;
 };
 
@@ -20,6 +23,12 @@ export async function listCompanies(
   }
   if (filter.persona) {
     query = query.eq("persona", filter.persona);
+  }
+  if (filter.partnerTier) {
+    query = query.eq("partner_tier", filter.partnerTier);
+  }
+  if (filter.q) {
+    query = query.ilike("name", `%${filter.q}%`);
   }
   if (typeof filter.limit === "number") {
     query = query.limit(filter.limit);

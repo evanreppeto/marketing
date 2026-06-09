@@ -4,6 +4,8 @@ import {
   type NativeTaskStatus,
   type NormalizedTask,
   normalizeAgentTask,
+  redactDeep,
+  redactSecrets,
 } from "@/domain";
 import { type AgentTaskDetail, getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -204,10 +206,10 @@ export async function completeAgentTask(
   }
   const mergedMetadata: Record<string, unknown> = {
     ...(row.metadata ?? {}),
-    ...(opts.metadata ?? {}),
+    ...(redactDeep(opts.metadata ?? {}) as Record<string, unknown>),
   };
   if (opts.summary) {
-    mergedMetadata.completion_summary = opts.summary;
+    mergedMetadata.completion_summary = redactSecrets(opts.summary);
   }
   const task = await updateAndNormalize(
     taskId,
@@ -227,10 +229,11 @@ export async function blockAgentTask(
   if (TERMINAL_STATUSES.has(row.status ?? "")) {
     return { ok: false, reason: "conflict", currentStatus: row.status ?? "unknown" };
   }
+  const reason = redactSecrets(opts.reason);
   const mergedMetadata: Record<string, unknown> = {
     ...(row.metadata ?? {}),
-    ...(opts.metadata ?? {}),
-    blocked_reason: opts.reason,
+    ...(redactDeep(opts.metadata ?? {}) as Record<string, unknown>),
+    blocked_reason: reason,
   };
   const task = await updateAndNormalize(taskId, { status: "blocked", metadata: mergedMetadata }, client);
 
@@ -240,7 +243,7 @@ export async function blockAgentTask(
     task_id: taskId,
     agent_id: row.agent_id,
     run_status: "failed",
-    error_message: opts.reason,
+    error_message: reason,
     reasoning_summary: "Mark blocked the task pending human input.",
   });
   if (logError) {
@@ -282,7 +285,8 @@ export async function appendAgentRunLog(
     return { ok: false, reason: "not_found" };
   }
 
-  const reasoningSummary = input.reasoningSummary ?? input.message ?? null;
+  const rawSummary = input.reasoningSummary ?? input.message ?? null;
+  const reasoningSummary = rawSummary === null ? null : redactSecrets(rawSummary);
   const { data, error } = await client
     .from("agent_run_logs")
     .insert({
@@ -292,7 +296,7 @@ export async function appendAgentRunLog(
       reasoning_summary: reasoningSummary,
       model_provider: input.modelProvider ?? null,
       model_name: input.modelName ?? null,
-      metadata: input.metadata ?? {},
+      metadata: redactDeep(input.metadata ?? {}) as Record<string, unknown>,
     })
     .select("id")
     .single();

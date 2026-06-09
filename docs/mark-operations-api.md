@@ -38,11 +38,17 @@ approve, launch, send, publish, or dispatch. Enforcement:
 | POST | `/tasks/:id/complete` | `{ summary?, outputs?, metadata? }` → `completed`. 409 if terminal. |
 | POST | `/tasks/:id/block` | `{ reason, needs?, metadata? }` → `blocked`. |
 | GET | `/approvals` | `?status=` (comma-separated) `&limit=`. |
-| GET | `/approvals/:id` | Single approval card (any status). |
-| POST | `/approvals/:id/recommendation` | `{ recommendation, rationale?, risk_flags?, suggested_edits?, agent?, metadata? }`. Advisory only. |
+| GET | `/approvals/:id` | Single approval card (any status) **+ Mark's recommendations**. |
+| POST | `/approvals/:id/recommendation` | `{ recommendation, rationale?, risk_flags?, suggested_edits?, agent?, metadata? }`. Advisory only. Secrets redacted. |
+| GET | `/approvals/:id/recommendations` | Read back recommendations (newest first). |
+| POST | `/drafts` | `{ item_type, draft, title?, summary?, risk_level?, prompt_inputs?, campaign_id?, company_id?, contact_id?, lead_id?, task_id?, metadata? }`. Creates a **pending_approval, locked** item in the human queue. Never approves/launches. Secrets redacted. |
 | GET | `/campaigns` | `?status=&needs_review=true&limit=`. |
 | GET | `/campaigns/:id` | Full campaign workspace. |
-| GET | `/crm/leads` · `/crm/leads/:id` · `/crm/companies` · `/crm/contacts` | Read-only. `?status=&persona=&limit=` (+`source` for leads, `company_id` for contacts). |
+| GET | `/crm/leads` · `/crm/leads/:id` | Read-only. `?status=&persona=&source=&q=&min_score=&max_score=&limit=`. |
+| GET | `/crm/companies` | `?status=&persona=&partner_tier=&q=&limit=` (`q` = name search). |
+| GET | `/crm/contacts` | `?status=&persona=&company_id=&q=&limit=` (`q` = name/email search). |
+| GET | `/crm/properties` | `?persona=&city=&state=&postal_code=&property_type=&company_id=&q=&limit=` — geo (ZIP) discovery. |
+| GET | `/crm/jobs` · `/crm/outcomes` | `?status=&persona=&company_id=&limit=`. |
 
 ### Normalized task object
 
@@ -62,20 +68,18 @@ approve, launch, send, publish, or dispatch. Enforcement:
 }
 ```
 
-## TODO — MCP server (deferred)
+## MCP server
 
-A thin MCP wrapper over these routes is not yet built. When added, create
-`src/lib/hermes-mcp/tools.ts` (or a standalone package) reading
-`BSR_MARKETING_BASE_URL` + `HERMES_AGENT_API_TOKEN`, sending the bearer header
-on every call. Tools (one HTTP call each):
-
-`health`, `list_tasks` → `GET /tasks`, `get_task` → `GET /tasks/:id`,
+Built: **`mark-runner/mcp_server.py`** — a Python MCP server (stdio) wrapping
+these routes as tools, reading `BSR_MARKETING_BASE_URL` (falls back to
+`APP_BASE_URL`) + `HERMES_AGENT_API_TOKEN` and sending the bearer header on every
+call via stdlib `urllib`. Run: `pip install -r mark-runner/requirements.txt` then
+`python mark-runner/mcp_server.py`. Tools: `health`, `list_tasks`, `get_task`,
 `claim_task`, `log_task`, `complete_task`, `block_task`, `list_approvals`,
-`get_approval`, `add_approval_recommendation` → `POST /approvals/:id/recommendation`,
-`list_campaigns` / `get_campaign`, `search_crm` → `GET /crm/*`.
-
-No tool maps to approve/launch/dispatch — the omission is the safety guarantee
-at the MCP layer too.
+`get_approval`, `list_approval_recommendations`, `add_approval_recommendation`,
+`list_campaigns`, `get_campaign`, `create_draft`, `search_crm`. No tool maps to
+approve/launch/send/dispatch — the omission is the safety guarantee at the MCP
+layer too.
 
 ## TODO — `campaigns/:id/mark-note` (deferred)
 

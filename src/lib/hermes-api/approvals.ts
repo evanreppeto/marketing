@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { redactDeep, redactSecrets } from "@/domain";
 import { type ApprovalCard, listApprovalCards } from "@/lib/approvals/read-model";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -39,12 +40,76 @@ export async function listApprovalsForApi(
   );
 }
 
-export async function getApprovalForApi(id: string, client?: SupabaseClient): Promise<ApprovalCard | null> {
-  const cards = await listApprovalCards(
-    { statuses: ALL_APPROVAL_STATUSES, limit: 500 },
-    client ?? getSupabaseAdminClient(),
-  );
-  return cards.find((card) => card.id === id) ?? null;
+export type ApprovalRecommendation = {
+  id: string;
+  agent: string;
+  recommendation: string;
+  rationale: string | null;
+  riskFlags: string[];
+  suggestedEdits: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+type RecommendationRow = {
+  id: string;
+  agent: string | null;
+  recommendation: string;
+  rationale: string | null;
+  risk_flags: string[] | null;
+  suggested_edits: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+function mapRecommendation(row: RecommendationRow): ApprovalRecommendation {
+  return {
+    id: row.id,
+    agent: row.agent ?? "mark",
+    recommendation: row.recommendation,
+    rationale: row.rationale,
+    riskFlags: row.risk_flags ?? [],
+    suggestedEdits: row.suggested_edits,
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+  };
+}
+
+/**
+ * Read Mark's recommendations for an approval item, newest first. Defensive:
+ * if the `approval_recommendations` table isn't present yet (migration not
+ * applied), returns [] so approval reads keep working.
+ */
+export async function listApprovalRecommendations(
+  approvalItemId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ApprovalRecommendation[]> {
+  try {
+    const { data, error } = await client
+      .from("approval_recommendations")
+      .select("*")
+      .eq("approval_item_id", approvalItemId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      return [];
+    }
+    return ((data ?? []) as RecommendationRow[]).map(mapRecommendation);
+  } catch {
+    return [];
+  }
+}
+
+export type ApprovalDetail = ApprovalCard & { recommendations: ApprovalRecommendation[] };
+
+export async function getApprovalForApi(id: string, client?: SupabaseClient): Promise<ApprovalDetail | null> {
+  const supabase = client ?? getSupabaseAdminClient();
+  const cards = await listApprovalCards({ statuses: ALL_APPROVAL_STATUSES, limit: 500 }, supabase);
+  const card = cards.find((entry) => entry.id === id);
+  if (!card) {
+    return null;
+  }
+  const recommendations = await listApprovalRecommendations(id, supabase);
+  return { ...card, recommendations };
 }
 
 export type AddRecommendationInput = {
@@ -84,11 +149,11 @@ export async function addApprovalRecommendation(
     .insert({
       approval_item_id: input.approvalItemId,
       agent: input.agent ?? "mark",
-      recommendation: input.recommendation,
-      rationale: input.rationale ?? null,
+      recommendation: redactSecrets(input.recommendation),
+      rationale: input.rationale ? redactSecrets(input.rationale) : null,
       risk_flags: input.riskFlags ?? [],
-      suggested_edits: input.suggestedEdits ?? null,
-      metadata: input.metadata ?? {},
+      suggested_edits: input.suggestedEdits ? redactSecrets(input.suggestedEdits) : null,
+      metadata: redactDeep(input.metadata ?? {}) as Record<string, unknown>,
     })
     .select("id")
     .single();

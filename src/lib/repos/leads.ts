@@ -7,6 +7,11 @@ export type ListLeadsFilter = {
   status?: LeadStatus;
   persona?: string;
   source?: string;
+  /** Inclusive lead_score bounds (0-100). */
+  minScore?: number;
+  maxScore?: number;
+  /** Free-text search over loss summary (case-insensitive). */
+  q?: string;
   limit?: number;
 };
 
@@ -24,6 +29,15 @@ export async function listLeads(
   }
   if (filter.source) {
     query = query.eq("source", filter.source);
+  }
+  if (typeof filter.minScore === "number") {
+    query = query.gte("lead_score", filter.minScore);
+  }
+  if (typeof filter.maxScore === "number") {
+    query = query.lte("lead_score", filter.maxScore);
+  }
+  if (filter.q) {
+    query = query.ilike("loss_summary", `%${filter.q}%`);
   }
   if (typeof filter.limit === "number") {
     query = query.limit(filter.limit);

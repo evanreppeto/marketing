@@ -14,11 +14,13 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? undefined;
   const persona = url.searchParams.get("persona") ?? undefined;
+  const partnerTier = url.searchParams.get("partner_tier") ?? undefined;
+  const q = url.searchParams.get("q") ?? undefined;
   const limitParam = Number(url.searchParams.get("limit"));
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const companies = await listCompanies({ status: status as CompanyStatus | undefined, persona, limit });
+    const companies = await listCompanies({ status: status as CompanyStatus | undefined, persona, partnerTier, q, limit });
     return ok({ companies });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list companies.", 502);
