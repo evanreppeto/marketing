@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cx } from "@/app/_components/theme";
 import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
+import { setMarkMessageFeedbackAction } from "../actions";
 import { MessageMedia } from "./message-media";
 
 function CopyButton({ text }: { text: string }) {
@@ -26,6 +27,28 @@ function CopyButton({ text }: { text: string }) {
     >
       {copied ? "Copied" : "Copy"}
     </button>
+  );
+}
+
+function FeedbackButtons({ messageId, current }: { messageId: string; current: "up" | "down" | null }) {
+  const [value, setValue] = useState(current);
+  function set(next: "up" | "down") {
+    const v = value === next ? null : next;
+    setValue(v);
+    void setMarkMessageFeedbackAction(messageId, v);
+  }
+  const base = "rounded-md px-1.5 py-1 text-xs transition hover:bg-[var(--surface-inset)]";
+  return (
+    <span className="flex items-center gap-0.5">
+      <button type="button" aria-label="Good reply" onClick={() => set("up")}
+        className={cx(base, value === "up" ? "text-[var(--ok)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]")}>
+        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 9l3-5a2 2 0 0 1 2 2v3h3.5a1.5 1.5 0 0 1 1.5 1.8l-1 5A1.5 1.5 0 0 1 14.5 17H7zm0 0H4v8h3z"/></svg>
+      </button>
+      <button type="button" aria-label="Bad reply" onClick={() => set("down")}
+        className={cx(base, value === "down" ? "text-[var(--priority-bright)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]")}>
+        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M13 11l-3 5a2 2 0 0 1-2-2v-3H4.5a1.5 1.5 0 0 1-1.5-1.8l1-5A1.5 1.5 0 0 1 5.5 3H13zm0 0h3V3h-3z"/></svg>
+      </button>
+    </span>
   );
 }
 
@@ -161,7 +184,7 @@ function References({ mentions }: { mentions: MarkMessage["mentions"] }) {
   );
 }
 
-function Message({ message, onRetry, onStop }: { message: MarkMessage; onRetry: () => void; onStop: () => void }) {
+function Message({ message, onRetry, onStop, onRegenerate }: { message: MarkMessage; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void }) {
   // Operator: right-aligned bubble (ChatGPT-style).
   if (message.role === "operator") {
     return (
@@ -207,7 +230,17 @@ function Message({ message, onRetry, onStop }: { message: MarkMessage; onRetry: 
                 Retry
               </button>
             ) : (
-              <CopyButton text={message.body} />
+              <>
+                <CopyButton text={message.body} />
+                <button
+                  type="button"
+                  onClick={() => onRegenerate(message.id)}
+                  className="rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                >
+                  Regenerate
+                </button>
+                <FeedbackButtons messageId={message.id} current={message.feedback} />
+              </>
             )}
           </div>
         ) : null}
@@ -220,10 +253,12 @@ export function MessageList({
   messages,
   onRetry,
   onStop,
+  onRegenerate,
 }: {
   messages: MarkMessage[];
   onRetry: () => void;
   onStop: () => void;
+  onRegenerate: (markMessageId: string) => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -252,7 +287,7 @@ export function MessageList({
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
         {messages.map((m) => (
           <div key={m.id} className="msg-rise">
-            <Message message={m} onRetry={onRetry} onStop={onStop} />
+            <Message message={m} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} />
           </div>
         ))}
         <div ref={endRef} />

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
-import { cancelReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
+import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
 import { Composer } from "./composer";
 import { ChatEmptyState } from "./empty-state";
 import { MessageList } from "./message-list";
@@ -153,6 +153,26 @@ export function MarkChat({
     await cancelReplyAction(activeId);
   }
 
+  async function handleRegenerate(markMessageId: string) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `temp-pending-${markMessageId}`,
+        conversationId: activeId,
+        role: "mark",
+        body: "",
+        status: "pending",
+        agentTaskId: null,
+        mentions: [],
+        media: [],
+        steps: [],
+        feedback: null,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    await regenerateMarkReplyAction(activeId, markMessageId);
+  }
+
   const hasMessages = messages.length > 0;
 
   return (
@@ -200,7 +220,7 @@ export function MarkChat({
         />
         <section className="flex min-h-0 flex-col border-t border-[var(--border-hairline)] lg:border-l lg:border-t-0">
           {hasMessages ? (
-            <MessageList messages={messages} onRetry={handleRetry} onStop={handleStop} />
+            <MessageList messages={messages} onRetry={handleRetry} onStop={handleStop} onRegenerate={handleRegenerate} />
           ) : (
             <ChatEmptyState onPick={pickSuggestion} />
           )}
