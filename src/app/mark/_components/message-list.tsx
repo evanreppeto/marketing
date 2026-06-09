@@ -74,16 +74,25 @@ function StepRow({ step }: { step: MarkStep }) {
 
 function PendingBlock({ steps, onStop }: { steps: MarkStep[]; onStop: () => void }) {
   const elapsed = useElapsed(true);
+  const hasSteps = steps.length > 0;
   return (
     <div className="flex flex-col gap-2">
-      {steps.length > 0 ? (
+      {hasSteps ? (
         <div className="relative flex flex-col gap-1.5 border-l border-[var(--border-hairline)] pl-3" aria-label="What Mark is doing">
           {steps.map((s, i) => (
             <StepRow key={`${i}-${s.label}`} step={s} />
           ))}
         </div>
       ) : (
-        <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
+        <div className="flex flex-col gap-2" aria-label="Mark is working">
+          <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
+          <div className="flex flex-col gap-2 pt-0.5">
+            <div className="mark-shimmer-bar" style={{ width: "92%" }} />
+            <div className="mark-shimmer-bar" style={{ width: "78%" }} />
+            <div className="mark-shimmer-bar" style={{ width: "85%" }} />
+          </div>
+          <div className="mark-progress mt-0.5"><span /></div>
+        </div>
       )}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
         <span className="tabular-nums">{elapsed}</span>
