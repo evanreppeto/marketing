@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import type { MarkConversation, MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
 import { Composer } from "./composer";
@@ -29,12 +29,18 @@ function sameMessages(a: MarkMessage[], b: MarkMessage[]): boolean {
 
 export function MarkChat({
   conversations,
+  projects,
+  archived,
+  showArchived,
   activeId,
   activeTitle,
   initialMessages,
   mentionGroups,
 }: {
   conversations: MarkConversation[];
+  projects: MarkProject[];
+  archived: MarkConversation[];
+  showArchived: boolean;
   activeId: string;
   activeTitle: string;
   initialMessages: MarkMessage[];
@@ -110,7 +116,13 @@ export function MarkChat({
       </header>
 
       <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <ThreadSidebar conversations={conversations} activeId={activeId} />
+        <ThreadSidebar
+          conversations={conversations}
+          projects={projects}
+          archived={archived}
+          showArchived={showArchived}
+          activeId={activeId}
+        />
         <section className="flex min-h-0 flex-col border-t border-[var(--border-hairline)] lg:border-l lg:border-t-0">
           {hasMessages ? <MessageList messages={messages} /> : <ChatEmptyState onPick={pickSuggestion} />}
           <Composer
