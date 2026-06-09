@@ -1,7 +1,7 @@
 import { getConnections } from "@/lib/connections/read-model";
 
-import { Panel } from "../_components/page-header";
 import { ResendConnectionControls, SocialConnectionControls } from "./connection-controls";
+import { SettingsSection } from "./settings-section";
 
 /**
  * Connections section of Settings. Resend has live controls (enable/disable, test, send
@@ -16,16 +16,11 @@ export async function ConnectionsPanel() {
   const social = connections.filter((connection) => connection.kind === "social");
 
   return (
-    <Panel className="overflow-hidden p-0">
-      <div className="flex flex-col gap-1 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-        <div className="signal-eyebrow">Connections</div>
-        <h2 className="text-xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">Outbound integrations</h2>
-        <p className="max-w-[74ch] text-sm leading-6 text-[var(--text-secondary)]">
-          Secrets stay in environment variables; these controls only flip the operator switch and record test/use
-          telemetry. A real send happens only when an approved dispatch is executed.
-        </p>
-      </div>
-
+    <SettingsSection
+      title="Connections"
+      description="Secrets stay in environment variables; these controls only flip the operator switch and record test/use telemetry. A real send happens only when an approved dispatch is executed."
+      bodyClassName="p-0"
+    >
       <ul className="divide-y divide-[var(--border-hairline)]">
         {email.map((connection) => (
           <ResendConnectionControls key={connection.provider} connection={connection} />
@@ -34,7 +29,7 @@ export async function ConnectionsPanel() {
 
       {social.length > 0 ? (
         <>
-          <div className="bg-[var(--surface-inset)] px-5 py-3">
+          <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-3">
             <div className="signal-eyebrow">Social</div>
           </div>
 
@@ -50,6 +45,6 @@ export async function ConnectionsPanel() {
           </p>
         </>
       ) : null}
-    </Panel>
+    </SettingsSection>
   );
 }
