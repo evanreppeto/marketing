@@ -8,13 +8,16 @@ import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import {
   archiveConversation,
+  assignConversationToProject,
   createConversation,
+  createProject,
   insertFailedMarkMessage,
   insertOperatorMessage,
   insertPendingMarkMessage,
   listMessages,
   renameConversation,
   touchConversation,
+  unarchiveConversation,
   type MarkMessage,
 } from "@/lib/mark-chat/persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -116,6 +119,55 @@ export async function archiveThreadAction(_previous: SimpleActionState, formData
   }
   revalidatePath("/mark");
   return { ok: true, message: "Archived." };
+}
+
+export async function createProjectAction(_previous: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { ok: false, message: "Project needs a name." };
+
+  try {
+    await createProject({ operator: getOperatorActor(), name });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't create the project." };
+  }
+  revalidatePath("/mark");
+  return { ok: true, message: "Project created." };
+}
+
+export async function moveConversationAction(_previous: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
+
+  const conversationId = String(formData.get("conversationId") ?? "").trim();
+  const rawProject = String(formData.get("projectId") ?? "").trim();
+  if (!conversationId) return { ok: false, message: "Missing conversation." };
+
+  try {
+    await assignConversationToProject(conversationId, rawProject || null);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't move the chat." };
+  }
+  revalidatePath("/mark");
+  return { ok: true, message: "Moved." };
+}
+
+export async function unarchiveThreadAction(_previous: SimpleActionState, formData: FormData): Promise<SimpleActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
+
+  const id = String(formData.get("conversationId") ?? "").trim();
+  if (!id) return { ok: false, message: "Missing conversation." };
+
+  try {
+    await unarchiveConversation(id);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't unarchive." };
+  }
+  revalidatePath("/mark");
+  return { ok: true, message: "Restored." };
 }
 
 /** Poll the active thread for new/updated messages (drives the thinking state). */

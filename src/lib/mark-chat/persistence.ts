@@ -9,6 +9,7 @@ export type MarkConversation = {
   operator: string;
   title: string;
   status: "active" | "archived";
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
   lastMessageAt: string;
@@ -34,6 +35,7 @@ type ConversationRow = {
   operator: string;
   title: string;
   status: "active" | "archived";
+  project_id: string | null;
   created_at: string;
   updated_at: string;
   last_message_at: string;
@@ -51,7 +53,7 @@ type MessageRow = {
   created_at: string;
 };
 
-const CONVERSATION_COLUMNS = "id, operator, title, status, created_at, updated_at, last_message_at";
+const CONVERSATION_COLUMNS = "id, operator, title, status, project_id, created_at, updated_at, last_message_at";
 const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): MarkConversation {
@@ -60,6 +62,7 @@ function toConversation(row: ConversationRow): MarkConversation {
     operator: row.operator,
     title: row.title,
     status: row.status,
+    projectId: row.project_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastMessageAt: row.last_message_at,
@@ -256,4 +259,84 @@ export async function failMarkMessage(
     .update({ body: input.body, status: "failed" })
     .eq("id", input.messageId);
   assertOk("mark_messages fail", error);
+}
+
+// --------------------------------------------------------------------------- #
+// Projects (group conversations) + archive helpers
+// --------------------------------------------------------------------------- #
+export type MarkProject = { id: string; operator: string; name: string; createdAt: string; updatedAt: string };
+
+type ProjectRow = { id: string; operator: string; name: string; created_at: string; updated_at: string };
+
+const PROJECT_COLUMNS = "id, operator, name, created_at, updated_at";
+
+function toProject(row: ProjectRow): MarkProject {
+  return { id: row.id, operator: row.operator, name: row.name, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+export async function createProject(
+  input: { operator: string; name: string },
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<MarkProject> {
+  const { data, error } = await client
+    .from("mark_projects")
+    .insert({ operator: input.operator, name: input.name })
+    .select(PROJECT_COLUMNS)
+    .single<ProjectRow>();
+  assertOk("mark_projects insert", error);
+  if (!data) throw new Error("mark_projects insert returned no row");
+  return toProject(data);
+}
+
+export async function listProjects(
+  operator: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<MarkProject[]> {
+  const { data, error } = await client
+    .from("mark_projects")
+    .select(PROJECT_COLUMNS)
+    .eq("operator", operator)
+    .order("created_at", { ascending: true });
+  assertOk("mark_projects list", error);
+  return ((data ?? []) as ProjectRow[]).map(toProject);
+}
+
+export async function renameProject(
+  id: string,
+  name: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client.from("mark_projects").update({ name }).eq("id", id);
+  assertOk("mark_projects rename", error);
+}
+
+export async function assignConversationToProject(
+  conversationId: string,
+  projectId: string | null,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client.from("mark_conversations").update({ project_id: projectId }).eq("id", conversationId);
+  assertOk("mark_conversations assign project", error);
+}
+
+export async function unarchiveConversation(
+  id: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client.from("mark_conversations").update({ status: "active" }).eq("id", id);
+  assertOk("mark_conversations unarchive", error);
+}
+
+export async function listArchivedConversations(
+  operator: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<MarkConversation[]> {
+  const { data, error } = await client
+    .from("mark_conversations")
+    .select(CONVERSATION_COLUMNS)
+    .eq("operator", operator)
+    .eq("status", "archived")
+    .order("last_message_at", { ascending: false });
+  assertOk("mark_conversations archived list", error);
+  return ((data ?? []) as ConversationRow[]).map(toConversation);
 }
