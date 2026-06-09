@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
-import { renameThreadAction, type SimpleActionState } from "../actions";
+import { cancelReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
 import { Composer } from "./composer";
 import { ChatEmptyState } from "./empty-state";
 import { MessageList } from "./message-list";
@@ -120,6 +120,7 @@ export function MarkChat({
   const [messages, setMessages] = useState<MarkMessage[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const submitFnRef = useRef<(() => void) | null>(null);
 
   useThreadPoll(activeId, messages, setMessages);
 
@@ -137,6 +138,19 @@ export function MarkChat({
       el.focus();
       el.setSelectionRange(prompt.length, prompt.length);
     });
+  }
+
+  function handleRetry() {
+    const lastOperator = [...messages].reverse().find((m) => m.role === "operator");
+    if (!lastOperator) return;
+    setDraft(lastOperator.body);
+    // Defer so the composer's hidden inputs pick up the new draft before submit.
+    requestAnimationFrame(() => submitFnRef.current?.());
+  }
+
+  async function handleStop() {
+    setMessages((prev) => prev.filter((m) => !(m.role === "mark" && m.status === "pending")));
+    await cancelReplyAction(activeId);
   }
 
   const hasMessages = messages.length > 0;
@@ -183,13 +197,20 @@ export function MarkChat({
           activeId={activeId}
         />
         <section className="flex min-h-0 flex-col border-t border-[var(--border-hairline)] lg:border-l lg:border-t-0">
-          {hasMessages ? <MessageList messages={messages} /> : <ChatEmptyState onPick={pickSuggestion} />}
+          {hasMessages ? (
+            <MessageList messages={messages} onRetry={handleRetry} onStop={handleStop} />
+          ) : (
+            <ChatEmptyState onPick={pickSuggestion} />
+          )}
           <Composer
             conversationId={activeId}
             mentionGroups={mentionGroups}
             draft={draft}
             onDraftChange={setDraft}
             textareaRef={composerRef}
+            registerSubmit={(fn) => {
+              submitFnRef.current = fn;
+            }}
             onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
             onSent={(newConversationId) => {
               if (!activeId && newConversationId) {
