@@ -373,9 +373,16 @@ export async function createCampaignAction(
 }
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB per file
+const MAX_PHOTOS = 20; // bounds total in-memory bytes per create (operator tool)
 
+// `file.type` here is the browser-declared Content-Type — trusted because this runs
+// behind the operator gate, not a public endpoint. A public upload path would need
+// magic-byte sniffing instead.
 async function readPhotos(formData: FormData): Promise<CampaignPhoto[]> {
   const files = formData.getAll("photos").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+  if (files.length > MAX_PHOTOS) {
+    throw new Error(`Attach at most ${MAX_PHOTOS} photos.`);
+  }
   const photos: CampaignPhoto[] = [];
   for (const file of files) {
     if (!file.type.startsWith("image/")) {
@@ -385,7 +392,9 @@ async function readPhotos(formData: FormData): Promise<CampaignPhoto[]> {
       throw new Error(`"${file.name}" is larger than 10 MB.`);
     }
     photos.push({
-      filename: file.name.replace(/[^a-zA-Z0-9._-]/g, "_"),
+      // Whitelist chars, then collapse any "..", so the filename can't introduce
+      // surprising segments into the storage path created downstream.
+      filename: file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/\.{2,}/g, "_"),
       contentType: file.type,
       bytes: new Uint8Array(await file.arrayBuffer()),
     });
