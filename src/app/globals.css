@@ -344,6 +344,32 @@ h4, .font-display {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.08); opacity: 0.82; }
 }
+
+/* Mark's single calm presence ring (gold pulse while working) */
+@keyframes mark-ring {
+  0%, 100% { box-shadow: inset 0 0 0 1px var(--border-strong), 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: inset 0 0 0 1px var(--border-strong), 0 0 0 5px transparent; }
+}
+
+/* Non-gradient skeleton for not-yet-streamed content (replaces gradient-text shimmer) */
+.mark-skel {
+  height: 11px;
+  border-radius: 5px;
+  background: var(--surface-inset);
+  position: relative;
+  overflow: hidden;
+}
+.mark-skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  animation: mark-skel-slide 1.5s ease-in-out infinite;
+}
+@keyframes mark-skel-slide { 100% { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .mark-skel::after { animation: none; } }
+
 @keyframes text-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }

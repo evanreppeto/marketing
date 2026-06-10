@@ -72,9 +72,10 @@ function MarkAvatar({ pending }: { pending?: boolean }) {
   return (
     <span
       aria-hidden
+      style={{ fontFamily: "var(--font-serif)" }}
       className={cx(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-display text-xs font-bold text-[var(--on-accent)]",
-        pending ? "motion-safe:[animation:avatar-breathe_1.8s_ease-in-out_infinite]" : "",
+        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.6rem] bg-[radial-gradient(120%_120%_at_30%_20%,var(--surface-raised),var(--surface-panel))] text-sm font-semibold text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--border-strong)]",
+        pending ? "motion-safe:[animation:mark-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
       )}
     >
       M
@@ -82,18 +83,26 @@ function MarkAvatar({ pending }: { pending?: boolean }) {
   );
 }
 
-function StepRow({ step }: { step: MarkStep }) {
+function StepRow({ step, active, last }: { step: MarkStep; active?: boolean; last?: boolean }) {
   const done = step.status === "done";
   return (
-    <div className="flex items-center gap-2 text-sm motion-safe:[animation:msg-rise_.25s_ease-out]">
-      {done ? (
-        <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 10.5l4 4 8-9" />
-        </svg>
-      ) : (
-        <span aria-hidden className="h-1.5 w-1.5 shrink-0 motion-safe:animate-pulse rounded-full bg-[var(--accent)]" />
-      )}
-      <span className={done ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}>{step.label}</span>
+    <div className="relative grid grid-cols-[1rem_1fr] items-start gap-3 pb-3.5 last:pb-0 motion-safe:[animation:msg-rise_.25s_ease-out]">
+      {last ? null : <span aria-hidden className="absolute bottom-0 left-[0.45rem] top-4 w-px bg-[var(--border-hairline)]" />}
+      <span
+        aria-hidden
+        className={cx(
+          "z-[1] mt-0.5 flex h-[15px] w-[15px] items-center justify-center rounded-full bg-[var(--canvas)] shadow-[inset_0_0_0_1px_var(--border-strong)]",
+          done ? "text-[var(--ok)] shadow-[inset_0_0_0_1px_var(--ok-border)]" : "",
+          active ? "shadow-[inset_0_0_0_1px_var(--accent)]" : "",
+        )}
+      >
+        {done ? (
+          <svg viewBox="0 0 20 20" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10.5l4 4 8-9" /></svg>
+        ) : active ? (
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
+        ) : null}
+      </span>
+      <span className={cx("pt-px text-sm leading-snug", active ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]")}>{step.label}</span>
     </div>
   );
 }
@@ -105,9 +114,14 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
   return (
     <div className="flex flex-col gap-2">
       {hasSteps ? (
-        <div className="relative flex flex-col gap-1.5 border-l border-[var(--border-hairline)] pl-3" aria-label="What Mark is doing">
+        <div className="flex flex-col" aria-label="What Mark is doing">
           {steps.map((s, i) => (
-            <StepRow key={`${i}-${s.label}`} step={s} />
+            <StepRow
+              key={`${i}-${s.label}`}
+              step={s}
+              active={s.status !== "done" && i === steps.length - 1}
+              last={i === steps.length - 1}
+            />
           ))}
         </div>
       ) : null}
@@ -122,14 +136,13 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
           />
         </div>
       ) : !hasSteps ? (
-        <div className="flex flex-col gap-2" aria-label="Mark is working">
-          <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
+        <div className="flex flex-col gap-2.5" aria-label="Mark is working">
+          <span className="text-sm font-medium text-[var(--text-secondary)]">Mark is working…</span>
           <div className="flex flex-col gap-2 pt-0.5">
-            <div className="mark-shimmer-bar" style={{ width: "92%" }} />
-            <div className="mark-shimmer-bar" style={{ width: "78%" }} />
-            <div className="mark-shimmer-bar" style={{ width: "85%" }} />
+            <div className="mark-skel" style={{ width: "92%" }} />
+            <div className="mark-skel" style={{ width: "78%" }} />
+            <div className="mark-skel" style={{ width: "85%" }} />
           </div>
-          <div className="mark-progress mt-0.5"><span /></div>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
@@ -148,16 +161,13 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
 
 function StepTrace({ steps }: { steps: MarkStep[] }) {
   return (
-    <details className="mt-2 text-xs text-[var(--text-muted)]">
-      <summary className="cursor-pointer select-none hover:text-[var(--text-secondary)]">Show what Mark did</summary>
-      <div className="mt-1.5 flex flex-col gap-1 pl-1">
+    <details className="mt-3 text-xs text-[var(--text-muted)]">
+      <summary className="cursor-pointer select-none font-mono text-[11px] hover:text-[var(--text-secondary)]">
+        What Mark did · {steps.length}
+      </summary>
+      <div className="mt-2 flex flex-col">
         {steps.map((s, i) => (
-          <div key={`${i}-${s.label}`} className="flex items-center gap-2">
-            <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 10.5l4 4 8-9" />
-            </svg>
-            <span>{s.label}</span>
-          </div>
+          <StepRow key={`${i}-${s.label}`} step={{ ...s, status: "done" }} last={i === steps.length - 1} />
         ))}
       </div>
     </details>
@@ -172,7 +182,7 @@ function MentionChips({ mentions, align }: { mentions: MarkMessage["mentions"]; 
         <Link
           key={`${m.type}:${m.id}`}
           href={m.href}
-          className="inline-flex items-center rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-contrast)] transition hover:bg-[var(--surface-raised)]"
+          className="inline-flex items-center rounded-md bg-[var(--surface-inset)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--accent)]"
         >
           @{m.label}
         </Link>
@@ -191,7 +201,7 @@ function References({ mentions }: { mentions: MarkMessage["mentions"] }) {
           <Link
             key={`${m.type}:${m.id}`}
             href={m.href}
-            className="inline-flex items-center rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-contrast)] transition hover:bg-[var(--surface-raised)]"
+            className="inline-flex items-center rounded-md bg-[var(--surface-inset)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--accent)]"
           >
             @{m.label}
           </Link>
@@ -291,7 +301,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate }: { message:
   if (message.role === "operator") {
     return (
       <div className="group flex flex-col items-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-inset)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)]">
+        <div className="max-w-[82%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
           {message.body}
         </div>
         <MentionChips mentions={message.mentions} align="end" />
@@ -312,7 +322,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate }: { message:
       <div className="min-w-0 flex-1 pt-0.5">
         {compact && !pending ? null : (
           <div className="mb-1 flex items-baseline gap-2">
-            <span className="font-display text-xs font-semibold text-[var(--text-secondary)]">Mark</span>
+            <span style={{ fontFamily: "var(--font-serif)" }} className="text-[13px] font-semibold text-[var(--text-primary)]">Mark</span>
             {!pending ? (
               <span className="text-[10px] tabular-nums text-[var(--text-muted)]" suppressHydrationWarning>
                 {formatTime(message.createdAt)}
@@ -400,14 +410,14 @@ export function MessageList({
   if (messages.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4">
-        <div className="text-center">
-          <h2 className="font-display text-2xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">
-            What can Mark help with?
+        <div className="max-w-[48ch] text-center">
+          <h2 style={{ fontFamily: "var(--font-serif)" }} className="text-2xl font-medium tracking-[-0.01em] text-[var(--text-primary)]">
+            What should Mark work on?
           </h2>
-          <p className="mx-auto mt-3 max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">
+          <p className="mx-auto mt-3 text-sm leading-7 text-[var(--text-secondary)]">
             Ask about a campaign, a lead, or a persona. Type{" "}
-            <span className="font-mono text-[var(--accent)]">@</span> to reference a record. Mark recommends; outbound
-            stays locked.
+            <span className="font-mono text-[var(--accent)]">@</span> to reference a record, or{" "}
+            <span className="font-mono text-[var(--accent)]">/</span> for a command. Mark drafts and recommends; outbound stays locked.
           </p>
         </div>
       </div>

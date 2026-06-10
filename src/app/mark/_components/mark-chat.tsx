@@ -231,10 +231,10 @@ export function MarkChat({
     : "";
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="-mx-4 -my-4 flex h-[calc(100%+2rem)] min-h-0 flex-col sm:-mx-6 lg:-mx-8 lg:-my-5 lg:h-screen xl:-mx-10">
       <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
       <div
-        className={`grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
+        className={`grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
           activeId ? "2xl:grid-cols-[16rem_minmax(0,1fr)_15.5rem]" : ""
         }`}
       >
