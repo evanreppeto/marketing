@@ -150,7 +150,8 @@ export async function createMarkTaskAction(formData: FormData) {
   redirect(`/agent-operations?action=mark-task-created&task=${data.id}`);
 }
 
-const ALLOWED_PRIORITIES = new Set(["low", "medium", "high", "urgent"]);
+type TaskPriority = "low" | "medium" | "high" | "urgent";
+const ALLOWED_PRIORITIES = new Set<TaskPriority>(["low", "medium", "high", "urgent"]);
 
 export async function createTaskAction(formData: FormData): Promise<void> {
   await requireOperator();
@@ -158,7 +159,9 @@ export async function createTaskAction(formData: FormData): Promise<void> {
   const objective = String(formData.get("objective") ?? "").trim();
   const priorityRaw = String(formData.get("priority") ?? "medium").trim().toLowerCase();
   const taskType = String(formData.get("taskType") ?? "operator_task").trim() || "operator_task";
-  const priority = ALLOWED_PRIORITIES.has(priorityRaw) ? priorityRaw : "medium";
+  const priority: TaskPriority = (ALLOWED_PRIORITIES as Set<string>).has(priorityRaw)
+    ? (priorityRaw as TaskPriority)
+    : "medium";
 
   if (objective.length === 0) {
     redirect("/agent-operations?action=mark-task-error");
