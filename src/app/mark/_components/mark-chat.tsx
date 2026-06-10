@@ -11,8 +11,10 @@ import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type 
 import { Composer } from "./composer";
 import { ChatEmptyState } from "./empty-state";
 import { MessageList } from "./message-list";
+import { ThreadContextRail } from "./thread-context-rail";
 import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
+import { ThreadSwitcher } from "./thread-switcher";
 import { useThreadPoll } from "./use-thread-poll";
 
 function HeaderTitle({
@@ -128,14 +130,34 @@ export function MarkChat({
 
   useThreadPoll(activeId, messages, setMessages);
 
-  // Re-seed when the server sends a different thread (navigation).
+  // Per-thread draft persistence: typed-but-unsent text survives switching
+  // threads (and navigating away within the tab). Keyed per thread; "new"
+  // covers the blank-composer state.
+  const draftKey = `mark:draft:${activeId || "new"}`;
+
+  // Re-seed when the server sends a different thread (navigation), and restore
+  // that thread's saved draft.
   useEffect(() => {
+    const stored = window.sessionStorage.getItem(`mark:draft:${activeId || "new"}`);
     // Schedule asynchronously to satisfy the set-state-in-effect lint rule.
-    void Promise.resolve().then(() => setMessages(initialMessages));
+    void Promise.resolve().then(() => {
+      setMessages(initialMessages);
+      setDraft(stored ?? "");
+    });
   }, [activeId, initialMessages]);
 
+  function handleDraftChange(value: string) {
+    setDraft(value);
+    try {
+      if (value) window.sessionStorage.setItem(draftKey, value);
+      else window.sessionStorage.removeItem(draftKey);
+    } catch {
+      /* storage unavailable (private mode quota) — drafts just don't persist */
+    }
+  }
+
   function pickSuggestion(prompt: string) {
-    setDraft(prompt);
+    handleDraftChange(prompt);
     requestAnimationFrame(() => {
       const el = composerRef.current;
       if (!el) return;
@@ -147,7 +169,7 @@ export function MarkChat({
   function handleRetry() {
     const lastOperator = [...messages].reverse().find((m) => m.role === "operator");
     if (!lastOperator) return;
-    setDraft(lastOperator.body);
+    handleDraftChange(lastOperator.body);
     // Defer so the composer's hidden inputs pick up the new draft before submit.
     requestAnimationFrame(() => submitFnRef.current?.());
   }
@@ -198,7 +220,12 @@ export function MarkChat({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
+      <div
+        className={`grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
+          activeId ? "2xl:grid-cols-[16rem_minmax(0,1fr)_15.5rem]" : ""
+        }`}
+      >
         <ThreadSidebar
           conversations={conversations}
           projects={projects}
@@ -252,13 +279,18 @@ export function MarkChat({
                 conversationId={activeId}
                 mentionGroups={mentionGroups}
                 draft={draft}
-                onDraftChange={setDraft}
+                onDraftChange={handleDraftChange}
                 textareaRef={composerRef}
                 registerSubmit={(fn) => {
                   submitFnRef.current = fn;
                 }}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
+                  try {
+                    window.sessionStorage.removeItem(draftKey);
+                  } catch {
+                    /* ignore */
+                  }
                   if (!activeId && newConversationId) {
                     router.push(`/mark?c=${newConversationId}`);
                   } else {
@@ -287,6 +319,8 @@ export function MarkChat({
             );
           })()}
         </section>
+
+        {activeId ? <ThreadContextRail messages={messages} pendingApprovals={pendingApprovals} /> : null}
       </div>
 
       {threadsOpen ? (

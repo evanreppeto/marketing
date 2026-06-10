@@ -86,6 +86,81 @@ function ChatRow({
   );
 }
 
+function ProjectGroup({
+  project,
+  rows,
+  projects,
+  activeId,
+  nowMs,
+}: {
+  project: MarkProject;
+  rows: MarkConversation[];
+  projects: MarkProject[];
+  activeId: string;
+  nowMs: number;
+}) {
+  // Groups holding the active thread start open; everything else starts open
+  // too — collapse is a per-session reading aid, not persisted state.
+  const [open, setOpen] = useState(true);
+  const containsActive = rows.some((c) => c.id === activeId);
+
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition hover:bg-[var(--surface-inset)]"
+      >
+        <svg
+          viewBox="0 0 20 20"
+          aria-hidden
+          className={cx("h-3 w-3 shrink-0 text-[var(--text-muted)] transition-transform", open ? "rotate-90" : "")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m8 5 5 5-5 5" />
+        </svg>
+        <svg
+          viewBox="0 0 20 20"
+          aria-hidden
+          className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h4l2 2.5h6a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
+        </svg>
+        <span
+          className={cx(
+            "min-w-0 flex-1 truncate text-xs font-medium",
+            containsActive && !open ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
+          )}
+        >
+          {project.name}
+        </span>
+        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)]">{rows.length}</span>
+      </button>
+      {open ? (
+        <div className="ml-[13px] flex flex-col gap-0.5 border-l border-[var(--border-hairline)] pl-1.5">
+          {rows.length === 0 ? (
+            <p className="px-2 py-1 text-xs text-[var(--text-muted)]">No chats yet.</p>
+          ) : (
+            rows.map((c) => (
+              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function NewProjectForm({ onDone }: { onDone: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -223,8 +298,14 @@ export function ThreadSidebar({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search chats"
           aria-label="Search chats"
-          className="h-8 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-8 pr-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          className="h-8 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-8 pr-12 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         />
+        <kbd
+          aria-hidden
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 py-px font-mono text-[9px] text-[var(--text-muted)]"
+        >
+          Ctrl K
+        </kbd>
       </label>
 
       {pinned.length > 0 ? (
@@ -258,21 +339,16 @@ export function ThreadSidebar({
         <p className="px-3 py-1 text-xs text-[var(--text-muted)]">Group related chats into a project.</p>
       ) : null}
 
-      {projects.map((project) => {
-        const rows = byProject.get(project.id) ?? [];
-        return (
-          <div key={project.id} className="flex flex-col gap-0.5">
-            <p className="px-2 pt-1.5 text-xs font-medium text-[var(--text-secondary)]">{project.name}</p>
-            {rows.length === 0 ? (
-              <p className="px-3 py-1 text-xs text-[var(--text-muted)]">No chats yet.</p>
-            ) : (
-              rows.map((c) => (
-                <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
-              ))
-            )}
-          </div>
-        );
-      })}
+      {projects.map((project) => (
+        <ProjectGroup
+          key={project.id}
+          project={project}
+          rows={byProject.get(project.id) ?? []}
+          projects={projects}
+          activeId={activeId}
+          nowMs={nowMs}
+        />
+      ))}
 
       <SectionLabel>Chats</SectionLabel>
       <nav aria-label="Conversations" className="flex min-h-0 flex-col gap-0.5">

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { cx } from "@/app/_components/theme";
 import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
@@ -96,9 +98,10 @@ function StepRow({ step }: { step: MarkStep }) {
   );
 }
 
-function PendingBlock({ steps, onStop }: { steps: MarkStep[]; onStop: () => void }) {
+function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string; onStop: () => void }) {
   const elapsed = useElapsed(true);
   const hasSteps = steps.length > 0;
+  const hasBody = body.trim().length > 0;
   return (
     <div className="flex flex-col gap-2">
       {hasSteps ? (
@@ -107,7 +110,18 @@ function PendingBlock({ steps, onStop }: { steps: MarkStep[]; onStop: () => void
             <StepRow key={`${i}-${s.label}`} step={s} />
           ))}
         </div>
-      ) : (
+      ) : null}
+      {hasBody ? (
+        // Staged reply: the worker streams partial body text into the message
+        // row; render it live with a writing caret instead of a placeholder.
+        <div aria-label="Mark is writing">
+          <MarkBody body={body} />
+          <span
+            aria-hidden
+            className="mt-1 inline-block h-4 w-0.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse"
+          />
+        </div>
+      ) : !hasSteps ? (
         <div className="flex flex-col gap-2" aria-label="Mark is working">
           <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
           <div className="flex flex-col gap-2 pt-0.5">
@@ -117,7 +131,7 @@ function PendingBlock({ steps, onStop }: { steps: MarkStep[]; onStop: () => void
           </div>
           <div className="mark-progress mt-0.5"><span /></div>
         </div>
-      )}
+      ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
         <span className="tabular-nums">{elapsed}</span>
         <button
@@ -187,6 +201,60 @@ function References({ mentions }: { mentions: MarkMessage["mentions"] }) {
   );
 }
 
+/** Mark replies render as markdown, mapped onto Signal tokens. */
+const mdComponents: Components = {
+  p: ({ children }) => <p className="text-sm leading-7 text-[var(--text-primary)]">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }) => <em>{children}</em>,
+  ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 pl-5 text-sm leading-6 marker:text-[var(--text-muted)]">{children}</ul>,
+  ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm leading-6 marker:text-[var(--text-muted)]">{children}</ol>,
+  li: ({ children }) => <li className="pl-0.5">{children}</li>,
+  h1: ({ children }) => <h3 className="font-display text-base font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{children}</h3>,
+  h2: ({ children }) => <h3 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{children}</h3>,
+  h3: ({ children }) => <h4 className="font-display text-sm font-semibold text-[var(--text-primary)]">{children}</h4>,
+  a: ({ href, children }) =>
+    href?.startsWith("/") ? (
+      <Link href={href} className="font-medium text-[var(--accent)] underline decoration-[var(--accent-border-strong)] underline-offset-2 hover:decoration-[var(--accent)]">
+        {children}
+      </Link>
+    ) : (
+      <a href={href} target="_blank" rel="noreferrer" className="font-medium text-[var(--accent)] underline decoration-[var(--accent-border-strong)] underline-offset-2 hover:decoration-[var(--accent)]">
+        {children}
+      </a>
+    ),
+  code: ({ children }) => (
+    <code className="rounded bg-[var(--surface-inset)] px-1 py-0.5 font-mono text-[12px] text-[var(--text-primary)]">{children}</code>
+  ),
+  pre: ({ children }) => (
+    <pre className="overflow-x-auto rounded-lg bg-[var(--media-void)] p-3 font-mono text-xs leading-5 text-[var(--text-secondary)] [&_code]:bg-transparent [&_code]:p-0">
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l border-[var(--border-strong)] pl-3 text-[var(--text-secondary)]">{children}</blockquote>
+  ),
+  hr: () => <hr className="border-[var(--border-hairline)]" />,
+  table: ({ children }) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-xs">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border-b border-[var(--border-strong)] py-1.5 pr-4 font-semibold text-[var(--text-secondary)]">{children}</th>
+  ),
+  td: ({ children }) => <td className="border-b border-[var(--border-hairline)] py-1.5 pr-4 text-[var(--text-primary)]">{children}</td>,
+};
+
+function MarkBody({ body }: { body: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2.5">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+        {body}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -218,7 +286,7 @@ function DaySeparator({ label }: { label: string }) {
   );
 }
 
-function Message({ message, onRetry, onStop, onRegenerate }: { message: MarkMessage; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void }) {
+function Message({ message, compact, onRetry, onStop, onRegenerate }: { message: MarkMessage; compact: boolean; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void }) {
   // Operator: right-aligned bubble (ChatGPT-style), timestamp on hover.
   if (message.role === "operator") {
     return (
@@ -234,32 +302,30 @@ function Message({ message, onRetry, onStop, onRegenerate }: { message: MarkMess
     );
   }
 
-  // Mark / system: full-width, avatar + name line + plain text.
+  // Mark / system: full-width, avatar + name line + markdown body. Consecutive
+  // Mark messages within a few minutes render compact (no repeated avatar/name).
   const pending = message.status === "pending";
   const failed = message.status === "failed";
   return (
     <div className="group flex gap-3">
-      <MarkAvatar pending={pending} />
+      {compact && !pending ? <span aria-hidden className="w-7 shrink-0" /> : <MarkAvatar pending={pending} />}
       <div className="min-w-0 flex-1 pt-0.5">
-        <div className="mb-1 flex items-baseline gap-2">
-          <span className="font-display text-xs font-semibold text-[var(--text-secondary)]">Mark</span>
-          {!pending ? (
-            <span className="text-[10px] tabular-nums text-[var(--text-muted)]" suppressHydrationWarning>
-              {formatTime(message.createdAt)}
-            </span>
-          ) : null}
-        </div>
-        {pending ? (
-          <PendingBlock steps={message.steps} onStop={onStop} />
-        ) : (
-          <div
-            className={cx(
-              "whitespace-pre-wrap text-sm leading-7",
-              failed ? "text-[var(--priority-bright)]" : "text-[var(--text-primary)]",
-            )}
-          >
-            {message.body}
+        {compact && !pending ? null : (
+          <div className="mb-1 flex items-baseline gap-2">
+            <span className="font-display text-xs font-semibold text-[var(--text-secondary)]">Mark</span>
+            {!pending ? (
+              <span className="text-[10px] tabular-nums text-[var(--text-muted)]" suppressHydrationWarning>
+                {formatTime(message.createdAt)}
+              </span>
+            ) : null}
           </div>
+        )}
+        {pending ? (
+          <PendingBlock steps={message.steps} body={message.body} onStop={onStop} />
+        ) : failed ? (
+          <div className="whitespace-pre-wrap text-sm leading-7 text-[var(--priority-bright)]">{message.body}</div>
+        ) : (
+          <MarkBody body={message.body} />
         )}
         {!pending && message.steps.length > 0 ? <StepTrace steps={message.steps} /> : null}
         {!pending && message.actions.length > 0 ? (
@@ -313,9 +379,21 @@ export function MessageList({
   onRegenerate: (markMessageId: string) => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Follow new messages only while the reader is near the bottom; never yank
+  // someone who scrolled up to re-read.
+  const pinnedRef = useRef(true);
+  const [pinned, setPinned] = useState(true);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (pinnedRef.current) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
+  function onScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    pinnedRef.current = near;
+    setPinned(near);
+  }
   // Stable "now" per mount for day-separator labels (avoids Date.now in render).
   const [nowMs] = useState(() => Date.now());
 
@@ -338,21 +416,45 @@ export function MessageList({
 
   const rows = messages.map((m, i) => {
     const day = dayLabel(m.createdAt, nowMs);
-    const prevDay = i > 0 ? dayLabel(messages[i - 1].createdAt, nowMs) : "";
-    return { m, day, showSeparator: day !== "" && day !== prevDay };
+    const prev = i > 0 ? messages[i - 1] : null;
+    const prevDay = prev ? dayLabel(prev.createdAt, nowMs) : "";
+    const showSeparator = day !== "" && day !== prevDay;
+    const closeInTime = prev
+      ? Math.abs(new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60_000
+      : false;
+    const compact = !showSeparator && prev?.role === m.role && closeInTime;
+    return { m, day, showSeparator, compact };
   });
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
-        {rows.map(({ m, day, showSeparator }) => (
-          <div key={m.id} className="msg-rise flex flex-col gap-6">
-            {showSeparator ? <DaySeparator label={day} /> : null}
-            <Message message={m} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} />
-          </div>
-        ))}
-        <div ref={endRef} />
+    <div className="relative min-h-0 flex-1">
+      <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-6 sm:px-6">
+          {rows.map(({ m, day, showSeparator, compact }, i) => (
+            <div key={m.id} className={cx("msg-rise", i === 0 ? "" : compact ? "mt-2.5" : "mt-6")}>
+              {showSeparator ? (
+                <div className={i === 0 ? "mb-6" : "mb-6 mt-1"}>
+                  <DaySeparator label={day} />
+                </div>
+              ) : null}
+              <Message message={m} compact={compact} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} />
+            </div>
+          ))}
+          <div ref={endRef} />
+        </div>
       </div>
+      {!pinned ? (
+        <button
+          type="button"
+          onClick={() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })}
+          className="msg-rise absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-[var(--border-panel)] bg-[var(--surface-raised)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] shadow-[var(--elev-raised)] transition hover:bg-[var(--surface-inset)]"
+        >
+          Jump to latest
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 4v11M5 11l5 5 5-5" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   );
 }
