@@ -1,6 +1,10 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
+
+import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
 import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
@@ -20,6 +24,7 @@ import {
   insertOperatorMessage,
   insertPendingMarkMessage,
   listMessages,
+  parseMarkAttachmentsJson,
   renameConversation,
   renameProject,
   setConversationPinned,
@@ -51,10 +56,13 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // Structured slash command (e.g. "find-leads"); travels to the agent as real
   // intent alongside the message + mentions, not just text.
   const command = String(formData.get("command") ?? "").trim() || null;
+  // Operator-uploaded reference images (already in GCS); travel to Mark as context.
+  const attachments = parseMarkAttachmentsJson(String(formData.get("attachments") ?? "[]"));
   let body: string;
   let cleanMentions = mentions;
   try {
-    const validated = validateMarkMessageInput({ body: rawBody, mentions });
+    const effectiveBody = rawBody.trim() === "" && attachments.length > 0 ? "Shared an image for reference." : rawBody;
+    const validated = validateMarkMessageInput({ body: effectiveBody, mentions });
     body = validated.body;
     cleanMentions = validated.mentions;
   } catch (error) {
@@ -73,7 +81,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       const conversation = await createConversation({ operator, title: deriveThreadTitle(body) }, client);
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments }, client);
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
@@ -87,7 +95,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // happened instead of hanging on "thinking".
   try {
     const agentTaskId = await enqueueMarkChatTask(
-      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode, command },
+      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode, command, attachments },
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
@@ -106,6 +114,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       route: "fast",
       mode,
       command,
+      attachments,
     });
     if (delivered) {
       const claimed = await claimChatTask(agentTaskId, client).catch(() => false);
@@ -151,6 +160,30 @@ export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
     return { attached: Boolean(data), name };
   } catch {
     return { attached: false, name };
+  }
+}
+
+export type UploadTicket =
+  | { ok: true; uploadUrl: string; objectPath: string; readUrl: string }
+  | { ok: false; message: string };
+
+/**
+ * Mint a one-time signed URL the browser uses to upload a reference image
+ * straight to GCS — image bytes never touch the app server. Operator-gated;
+ * images only. Returns the read URL to display the image and hand it to Mark.
+ */
+export async function createMarkUploadUrlAction(filename: string, contentType: string): Promise<UploadTicket> {
+  await requireOperator();
+  if (!isGcsConfigured()) return { ok: false, message: "Photo storage isn't configured yet." };
+  if (!contentType.startsWith("image/")) return { ok: false, message: "Only images can be attached." };
+  const safe = (filename || "image").replace(/[^\w.\-]+/g, "_").slice(-80) || "image";
+  const objectPath = `mark-uploads/${randomUUID()}-${safe}`;
+  try {
+    const { uploadUrl } = await createSignedUploadUrl(objectPath, contentType);
+    const readUrl = await createSignedReadUrl(objectPath);
+    return { ok: true, uploadUrl, objectPath, readUrl };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't prepare the upload." };
   }
 }
 

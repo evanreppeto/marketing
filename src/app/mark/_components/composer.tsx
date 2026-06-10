@@ -6,12 +6,12 @@ import { cx } from "@/app/_components/theme";
 import type { MarkMention } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, type SlashCommand } from "./slash-commands";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkAttachment, MarkMessage } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
-import { sendMarkMessageAction, type SendMessageState } from "../actions";
+import { createMarkUploadUrlAction, sendMarkMessageAction, type SendMessageState } from "../actions";
 
-function tempMessage(conversationId: string, body: string, mentions: MarkMention[]): MarkMessage {
+function tempMessage(conversationId: string, body: string, mentions: MarkMention[], attachments: MarkAttachment[]): MarkMessage {
   return {
     id: `temp-${Date.now()}`,
     conversationId,
@@ -25,6 +25,7 @@ function tempMessage(conversationId: string, body: string, mentions: MarkMention
     feedback: null,
     actions: [],
     suggestions: [],
+    attachments,
     createdAt: new Date().toISOString(),
   };
 }
@@ -71,7 +72,31 @@ export function Composer({
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
+  const [attachments, setAttachments] = useState<MarkAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) continue;
+        const ticket = await createMarkUploadUrlAction(file.name, file.type);
+        if (!ticket.ok) continue;
+        const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+        if (!put.ok) continue;
+        setAttachments((prev) => [
+          ...prev,
+          { url: ticket.readUrl, objectPath: ticket.objectPath, contentType: file.type, name: file.name },
+        ]);
+      }
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   // Let the parent trigger a send (used by Retry). Submits the current draft.
   useEffect(() => {
@@ -102,6 +127,7 @@ export function Composer({
           setPicked([]);
           setSlash(null);
           setCommand(null);
+          setAttachments([]);
           onSent(newId);
         });
       }
@@ -142,7 +168,7 @@ export function Composer({
     });
   }
 
-  const disabled = isPending || !draft.trim();
+  const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
@@ -151,8 +177,8 @@ export function Composer({
         action={formAction}
         className="relative"
         onSubmit={() => {
-          if (!draft.trim()) return;
-          onOptimistic(tempMessage(conversationId, draft.trim(), picked));
+          if (!draft.trim() && attachments.length === 0) return;
+          onOptimistic(tempMessage(conversationId, draft.trim() || "Shared an image for reference.", picked, attachments));
         }}
       >
         <input type="hidden" name="conversationId" value={conversationId} />
@@ -162,6 +188,7 @@ export function Composer({
             Default stance "act"; the agent infers intent and the gate enforces limits. */}
         <input type="hidden" name="mode" value="act" />
         <input type="hidden" name="command" value={command ?? ""} />
+        <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
 
         {query !== null && suggestions.length > 0 ? (
           <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
@@ -199,6 +226,29 @@ export function Composer({
         ) : null}
 
         <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
+          {attachments.length > 0 || uploading ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {attachments.map((a) => (
+                <span key={a.objectPath} className="group relative h-14 w-14 overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
+                  <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    aria-label={`Remove ${a.name}`}
+                    onClick={() => setAttachments((prev) => prev.filter((p) => p.objectPath !== a.objectPath))}
+                    className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised)] text-xs text-[var(--text-secondary)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--priority-bright)]"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {uploading ? (
+                <span className="flex h-14 w-14 items-center justify-center rounded-lg text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
+                  <Spinner />
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           {command || picked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {command ? (
@@ -234,6 +284,21 @@ export function Composer({
           ) : null}
 
           <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              aria-label="Attach image"
+              title="Attach a reference image"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-50"
+            >
+              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4.5" width="14" height="11" rx="2" />
+                <circle cx="7.5" cy="9" r="1.4" />
+                <path d="M4 14l3.5-3.5 2.5 2.5 2-2 4 4" />
+              </svg>
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
             <textarea
               ref={textareaRef}
               name="body-display"

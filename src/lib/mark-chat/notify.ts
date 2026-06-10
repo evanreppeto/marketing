@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import { type MarkMention } from "@/domain";
 
 import { getAppSettings } from "@/lib/settings/store";
+import { type MarkAttachment } from "./persistence";
 
 export type MarkNotifyPayload = {
   /** The operator message row that triggered this wake (mark_messages.id). */
@@ -23,6 +24,8 @@ export type MarkNotifyPayload = {
   mode: "ask" | "act" | "draft";
   /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
   command?: string | null;
+  /** Operator-uploaded reference images (GCS signed read URLs) for Mark to use. */
+  attachments?: MarkAttachment[];
 };
 
 /**

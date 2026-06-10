@@ -207,6 +207,7 @@ export function MarkChat({
         feedback: null,
         actions: [],
         suggestions: [],
+        attachments: [],
         createdAt: new Date().toISOString(),
       },
     ]);

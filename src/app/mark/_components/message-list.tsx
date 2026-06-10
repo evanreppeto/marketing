@@ -327,6 +327,16 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
         <div className="max-w-[82%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
           {message.body}
         </div>
+        {message.attachments.length > 0 ? (
+          <div className="mt-1.5 flex max-w-[82%] flex-wrap justify-end gap-1.5">
+            {message.attachments.map((a) => (
+              <a key={a.objectPath} href={a.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
+                {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
+                <img src={a.url} alt={a.name} className="h-24 w-24 object-cover transition hover:opacity-90" />
+              </a>
+            ))}
+          </div>
+        ) : null}
         <MentionChips mentions={message.mentions} align="end" />
         <span className="mt-1 pr-1 text-[10px] tabular-nums text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100" suppressHydrationWarning>
           {formatTime(message.createdAt)}

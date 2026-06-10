@@ -4,6 +4,7 @@ import { type MarkMention } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 import { markAgentKeys } from "./agent-config";
+import { type MarkAttachment } from "./persistence";
 
 export type EnqueueChatTaskInput = {
   conversationId: string;
@@ -17,6 +18,8 @@ export type EnqueueChatTaskInput = {
   mode?: "ask" | "act" | "draft";
   /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
   command?: string | null;
+  /** Operator-uploaded reference images (GCS, signed read URLs) for Mark to use. */
+  attachments?: MarkAttachment[];
 };
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -61,6 +64,7 @@ export async function enqueueMarkChatTask(
         message_id: input.messageId,
         mentions: input.mentions,
         command: input.command ?? null,
+        attachments: input.attachments ?? [],
         source: "mark_chat",
         model_route: input.route ?? "fast",
         mode: input.mode ?? "act",
@@ -78,7 +82,13 @@ export async function enqueueMarkChatTask(
     source_table: "mark_conversations",
     source_id: input.conversationId,
     summary: input.message,
-    payload: { message: input.message, requested_by: input.operator, mentions: input.mentions, command: input.command ?? null },
+    payload: {
+      message: input.message,
+      requested_by: input.operator,
+      mentions: input.mentions,
+      command: input.command ?? null,
+      attachments: input.attachments ?? [],
+    },
   });
   assertOk("agent_task_inputs insert", inputError);
 
