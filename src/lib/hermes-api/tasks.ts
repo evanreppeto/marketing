@@ -319,7 +319,7 @@ export async function moveAgentTask(
   const { error: logError } = await client.from("agent_run_logs").insert({
     task_id: taskId,
     agent_id: row.agent_id,
-    run_status: toStatus === "completed" ? "succeeded" : "running",
+    run_status: toStatus === "completed" ? "succeeded" : toStatus === "blocked" ? "failed" : "running",
     reasoning_summary: `Operator moved task to ${toStatus} from the board.`,
     metadata: { source: "operator_board_move", from_status: row.status, to_status: toStatus },
   });

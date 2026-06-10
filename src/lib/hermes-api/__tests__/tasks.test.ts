@@ -179,7 +179,7 @@ describe("moveAgentTask", () => {
 
   it("performs an allowed move and records an audit log", async () => {
     const supabase = createSupabaseQueryMock({
-      agent_tasks: { data: taskRow("queued"), error: null },
+      agent_tasks: { data: taskRow("queued", { started_at: null }), error: null },
       agent_run_logs: { data: { id: "log-move-1" }, error: null },
     });
 
@@ -188,6 +188,7 @@ describe("moveAgentTask", () => {
     expect(result.ok).toBe(true);
     const [, patch] = updateCalls(supabase)[0] as [string, Record<string, unknown>];
     expect(patch).toMatchObject({ status: "running" });
+    expect(patch.started_at).toEqual(expect.any(String));
     expect(supabase.calls).toContainEqual(["from", "agent_run_logs"]);
   });
 
