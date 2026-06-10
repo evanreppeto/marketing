@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type MarkMedia, type MarkMention, parseMedia, parseMentions } from "@/domain";
+import { type MarkActionCard, type MarkMedia, type MarkMention, parseActions, parseMedia, parseMentions } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 
@@ -32,6 +32,7 @@ export type MarkMessage = {
   media: MarkMedia[];
   steps: MarkStep[];
   feedback: "up" | "down" | null;
+  actions: MarkActionCard[];
   createdAt: string;
 };
 
@@ -108,6 +109,7 @@ function toMessage(row: MessageRow): MarkMessage {
         : (row.metadata as { feedback?: unknown } | null)?.feedback === "down"
           ? "down"
           : null,
+    actions: parseActions((row.metadata as { actions?: unknown } | null)?.actions),
     createdAt: row.created_at,
   };
 }

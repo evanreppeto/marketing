@@ -167,6 +167,7 @@ export function MarkChat({
         media: [],
         steps: [],
         feedback: null,
+        actions: [],
         createdAt: new Date().toISOString(),
       },
     ]);

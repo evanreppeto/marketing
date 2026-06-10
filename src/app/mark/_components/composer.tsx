@@ -23,6 +23,7 @@ function tempMessage(conversationId: string, body: string, mentions: MarkMention
     media: [],
     steps: [],
     feedback: null,
+    actions: [],
     createdAt: new Date().toISOString(),
   };
 }

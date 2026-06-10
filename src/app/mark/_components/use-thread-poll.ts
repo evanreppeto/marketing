@@ -19,6 +19,7 @@ export function sameMessages(a: MarkMessage[], b: MarkMessage[]): boolean {
       x.status !== y.status ||
       x.body !== y.body ||
       x.media.length !== y.media.length ||
+      x.actions.length !== y.actions.length ||
       x.steps.length !== y.steps.length ||
       x.steps.some((s, j) => s.status !== y.steps[j]?.status || s.label !== y.steps[j]?.label)
     ) {
