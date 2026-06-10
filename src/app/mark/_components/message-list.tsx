@@ -127,13 +127,11 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
       ) : null}
       {hasBody ? (
         // Staged reply: the worker streams partial body text into the message
-        // row; render it live with a writing caret instead of a placeholder.
-        <div aria-label="Mark is writing">
+        // row; render it live with a bottom-fade mask + writing caret so chunked
+        // updates read as continuous streaming rather than hard jumps.
+        <div aria-label="Mark is writing" className="mark-streaming">
           <MarkBody body={body} />
-          <span
-            aria-hidden
-            className="mt-1 inline-block h-4 w-0.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse"
-          />
+          <span aria-hidden className="mark-caret" />
         </div>
       ) : !hasSteps ? (
         <div className="flex flex-col gap-2.5" aria-label="Mark is working">
