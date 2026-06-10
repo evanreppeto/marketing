@@ -225,6 +225,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/agent-operations");
+  revalidatePath("/board");
   revalidatePath("/");
   redirect(`/agent-operations?action=mark-task-created&task=${data.id}`);
 }
@@ -303,6 +304,7 @@ export async function moveTaskAction(taskId: string, toStatus: string): Promise<
   }
 
   revalidatePath("/agent-operations");
+  revalidatePath("/board");
   revalidatePath("/");
   return { ok: true, status: toStatus as OperatorDropTarget };
 }
