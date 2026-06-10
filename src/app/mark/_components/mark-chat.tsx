@@ -207,6 +207,7 @@ export function MarkChat({
         steps: [],
         feedback: null,
         actions: [],
+        suggestions: [],
         createdAt: new Date().toISOString(),
       },
     ]);
@@ -304,6 +305,7 @@ export function MarkChat({
                 onRetry={handleRetry}
                 onStop={handleStop}
                 onRegenerate={handleRegenerate}
+                onSuggestion={pickSuggestion}
               />
             ) : (
               <ChatEmptyHero operatorName={operatorName} />

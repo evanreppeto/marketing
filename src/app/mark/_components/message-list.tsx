@@ -195,7 +195,7 @@ function References({ mentions }: { mentions: MarkMessage["mentions"] }) {
   if (mentions.length === 0) return null;
   return (
     <div className="mt-3">
-      <p className="signal-eyebrow mb-1.5">References</p>
+      <p className="signal-eyebrow mb-1.5">Sources Mark used</p>
       <div className="flex flex-wrap gap-1.5">
         {mentions.map((m) => (
           <Link
@@ -296,7 +296,26 @@ function DaySeparator({ label }: { label: string }) {
   );
 }
 
-function Message({ message, compact, onRetry, onStop, onRegenerate }: { message: MarkMessage; compact: boolean; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void }) {
+function SuggestionChips({ suggestions, onPick }: { suggestions: string[]; onPick: (prompt: string) => void }) {
+  if (suggestions.length === 0) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Suggested next steps">
+      {suggestions.map((s, i) => (
+        <button
+          key={`${i}-${s}`}
+          type="button"
+          onClick={() => onPick(s)}
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+        >
+          <span aria-hidden className="text-[var(--accent)]">→</span>
+          {s}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion }: { message: MarkMessage; compact: boolean; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void; onSuggestion: (prompt: string) => void }) {
   // Operator: right-aligned bubble (ChatGPT-style), timestamp on hover.
   if (message.role === "operator") {
     return (
@@ -347,6 +366,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate }: { message:
         ) : null}
         {!pending ? <References mentions={message.mentions} /> : null}
         {message.media.length > 0 ? <MessageMedia media={message.media} /> : null}
+        {!pending && !failed ? <SuggestionChips suggestions={message.suggestions} onPick={onSuggestion} /> : null}
         {!pending ? (
           <div className="mt-1.5 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
             {failed ? (
@@ -382,11 +402,13 @@ export function MessageList({
   onRetry,
   onStop,
   onRegenerate,
+  onSuggestion,
 }: {
   messages: MarkMessage[];
   onRetry: () => void;
   onStop: () => void;
   onRegenerate: (markMessageId: string) => void;
+  onSuggestion: (prompt: string) => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -447,7 +469,7 @@ export function MessageList({
                   <DaySeparator label={day} />
                 </div>
               ) : null}
-              <Message message={m} compact={compact} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} />
+              <Message message={m} compact={compact} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} onSuggestion={onSuggestion} />
             </div>
           ))}
           <div ref={endRef} />

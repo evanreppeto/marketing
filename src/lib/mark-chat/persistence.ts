@@ -33,6 +33,8 @@ export type MarkMessage = {
   steps: MarkStep[];
   feedback: "up" | "down" | null;
   actions: MarkActionCard[];
+  /** Proactive follow-up prompts Mark offers after a reply (agent-provided). */
+  suggestions: string[];
   createdAt: string;
 };
 
@@ -92,6 +94,11 @@ function parseSteps(value: unknown): MarkStep[] {
   return out;
 }
 
+function parseSuggestions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((s): s is string => typeof s === "string" && s.trim().length > 0).slice(0, 4);
+}
+
 function toMessage(row: MessageRow): MarkMessage {
   return {
     id: row.id,
@@ -110,6 +117,7 @@ function toMessage(row: MessageRow): MarkMessage {
           ? "down"
           : null,
     actions: parseActions((row.metadata as { actions?: unknown } | null)?.actions),
+    suggestions: parseSuggestions((row.metadata as { suggestions?: unknown } | null)?.suggestions),
     createdAt: row.created_at,
   };
 }
