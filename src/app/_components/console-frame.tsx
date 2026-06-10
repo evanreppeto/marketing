@@ -13,17 +13,15 @@ import { cx, theme } from "./theme";
  * Persistent application chrome, rendered ONCE in the root layout so the sidebar
  * and SideNav pending state survive navigations. The rail is a compact icon strip
  * by default (lg+) and expands on hover, keyboard focus, or when pinned.
- * `agentName`/`agentMonogram` come from the server layout so the connected agent's
- * identity threads through nav + brand. Auth pages render bare.
+ * `agentName` comes from the server layout so the connected agent's identity
+ * threads through nav. Auth pages render bare.
  */
 export function ConsoleFrame({
   agentName,
-  agentMonogram,
   children,
 }: {
   gateEnabled: boolean;
   agentName: string;
-  agentMonogram: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "/";
@@ -50,8 +48,6 @@ export function ConsoleFrame({
     { label: agentName, href: "/mark", icon: "mark", matches: ["/mark", "/"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
   ];
-
-  void agentMonogram;
 
   if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
     return <>{children}</>;
