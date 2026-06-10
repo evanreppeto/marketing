@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { appendAgentRunLog, blockAgentTask, claimAgentTask, completeAgentTask, listAgentTasks } from "../tasks";
+import {
+  appendAgentRunLog,
+  blockAgentTask,
+  claimAgentTask,
+  completeAgentTask,
+  listAgentTasks,
+  moveAgentTask,
+} from "../tasks";
 
 const TASK_ID = "40000000-0000-4000-8000-000000000001";
 
@@ -143,5 +150,53 @@ describe("appendAgentRunLog", () => {
     const result = await appendAgentRunLog(TASK_ID, { message: "x" }, supabase);
 
     expect(result).toMatchObject({ ok: false, reason: "not_found" });
+  });
+});
+
+describe("moveAgentTask", () => {
+  it("rejects a move out of a terminal state without writing", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: taskRow("completed"), error: null },
+    });
+
+    const result = await moveAgentTask(TASK_ID, "queued", supabase);
+
+    expect(result).toEqual({ ok: false, reason: "rejected", code: "terminal" });
+    expect(updateCalls(supabase)).toHaveLength(0);
+  });
+
+  it("blocks completing a task that still has an open approval", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: taskRow("running", { approval_item_id: "ap1" }), error: null },
+      approval_items: { data: { status: "needs_review" }, error: null },
+    });
+
+    const result = await moveAgentTask(TASK_ID, "completed", supabase);
+
+    expect(result).toEqual({ ok: false, reason: "rejected", code: "open_approval" });
+    expect(updateCalls(supabase)).toHaveLength(0);
+  });
+
+  it("performs an allowed move and records an audit log", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: taskRow("queued", { started_at: null }), error: null },
+      agent_run_logs: { data: { id: "log-move-1" }, error: null },
+    });
+
+    const result = await moveAgentTask(TASK_ID, "running", supabase);
+
+    expect(result.ok).toBe(true);
+    const [, patch] = updateCalls(supabase)[0] as [string, Record<string, unknown>];
+    expect(patch).toMatchObject({ status: "running" });
+    expect(patch.started_at).toEqual(expect.any(String));
+    expect(supabase.calls).toContainEqual(["from", "agent_run_logs"]);
+  });
+
+  it("returns not_found for a missing task", async () => {
+    const supabase = createSupabaseQueryMock({ agent_tasks: { data: null, error: null } });
+
+    const result = await moveAgentTask(TASK_ID, "running", supabase);
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
   });
 });

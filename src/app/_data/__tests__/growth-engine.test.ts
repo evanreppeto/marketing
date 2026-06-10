@@ -9,18 +9,13 @@ describe("navItems", () => {
     expect(campaigns?.label).toBe("Campaigns");
   });
 
-  it("orders Campaigns immediately after Activity", () => {
+  it("includes a Mark entry pointing at /mark", () => {
+    const mark = navItems.find((item) => item.href === "/mark");
+    expect(mark?.label).toBe("Mark");
+  });
+
+  it("exposes Mark first, then Campaigns, and nothing else", () => {
     const labels = navItems.map((item) => item.label);
-    expect(labels.indexOf("Campaigns")).toBe(labels.indexOf("Activity") + 1);
-  });
-
-  it("includes an Outbox entry pointing at /outbox", () => {
-    const outbox = navItems.find((item) => item.href === "/outbox");
-    expect(outbox?.label).toBe("Outbox");
-  });
-
-  it("includes a Gallery entry pointing at /gallery", () => {
-    const gallery = navItems.find((item) => item.href === "/gallery");
-    expect(gallery?.label).toBe("Gallery");
+    expect(labels).toEqual(["Mark", "Campaigns"]);
   });
 });

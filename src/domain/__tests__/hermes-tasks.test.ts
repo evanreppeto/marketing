@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   type NormalizeTaskInput,
+  canOperatorMoveTask,
   nextAllowedActions,
   normalizeAgentTask,
   resolveStatusFilter,
@@ -125,5 +126,52 @@ describe("normalizeAgentTask", () => {
     ).toBe("lead");
     expect(normalizeAgentTask(baseInput()).related_type).toBe("other");
     expect(normalizeAgentTask(baseInput()).related_id).toBeNull();
+  });
+});
+
+describe("canOperatorMoveTask", () => {
+  it("allows ordinary lifecycle drags", () => {
+    expect(canOperatorMoveTask("queued", "running", { hasOpenApproval: false })).toEqual({ ok: true });
+    expect(canOperatorMoveTask("blocked", "queued", { hasOpenApproval: false })).toEqual({ ok: true });
+    expect(canOperatorMoveTask("running", "completed", { hasOpenApproval: false })).toEqual({ ok: true });
+  });
+
+  it("never moves a task out of a terminal state", () => {
+    for (const from of ["completed", "failed", "canceled"] as const) {
+      expect(canOperatorMoveTask(from, "queued", { hasOpenApproval: false })).toEqual({
+        ok: false,
+        reason: "terminal",
+      });
+    }
+  });
+
+  it("blocks completing a task that still has an open approval", () => {
+    expect(canOperatorMoveTask("running", "completed", { hasOpenApproval: true })).toEqual({
+      ok: false,
+      reason: "open_approval",
+    });
+  });
+
+  it("forbids dragging straight from needs_approval to completed", () => {
+    expect(canOperatorMoveTask("needs_approval", "completed", { hasOpenApproval: false })).toEqual({
+      ok: false,
+      reason: "approval_gate",
+    });
+  });
+
+  it("allows releasing a needs_approval task back into the workflow", () => {
+    expect(canOperatorMoveTask("needs_approval", "queued", { hasOpenApproval: false })).toEqual({ ok: true });
+    expect(canOperatorMoveTask("needs_approval", "canceled", { hasOpenApproval: false })).toEqual({ ok: true });
+  });
+
+  it("rejects an unknown / same-column target", () => {
+    expect(canOperatorMoveTask("queued", "queued", { hasOpenApproval: false })).toEqual({
+      ok: false,
+      reason: "no_change",
+    });
+    expect(canOperatorMoveTask("queued", "banana", { hasOpenApproval: false })).toEqual({
+      ok: false,
+      reason: "invalid_target",
+    });
   });
 });

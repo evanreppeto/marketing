@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { type OperatorDropTarget, OPERATOR_DROP_TARGETS } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
+import { moveAgentTask } from "@/lib/hermes-api";
 import { runHermesDemoWorkflow } from "@/lib/hermes/demo-workflow";
 import { runHermesPartnerCampaign } from "@/lib/hermes/orchestrator";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -192,4 +194,36 @@ async function ensureMarkAgent() {
 
 function isMarkTaskTemplateKey(value: string): value is MarkTaskTemplateKey {
   return value in markTaskTemplates;
+}
+
+export type MoveTaskActionResult =
+  | { ok: true; status: OperatorDropTarget }
+  | { ok: false; message: string };
+
+export async function moveTaskAction(taskId: string, toStatus: string): Promise<MoveTaskActionResult> {
+  await requireOperator();
+
+  if (!(OPERATOR_DROP_TARGETS as readonly string[]).includes(toStatus)) {
+    return { ok: false, message: "That column is not a valid drop target." };
+  }
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, message: "Supabase is not configured." };
+  }
+
+  const result = await moveAgentTask(taskId, toStatus as OperatorDropTarget);
+  if (!result.ok) {
+    const message =
+      result.reason === "not_found"
+        ? "Task no longer exists."
+        : result.code === "open_approval"
+          ? "Resolve the approval in Activity before completing this task."
+          : result.code === "approval_gate"
+            ? "Approve this in Activity — it can't be completed straight from the board."
+            : "That move isn't allowed.";
+    return { ok: false, message };
+  }
+
+  revalidatePath("/agent-operations");
+  revalidatePath("/");
+  return { ok: true, status: toStatus as OperatorDropTarget };
 }

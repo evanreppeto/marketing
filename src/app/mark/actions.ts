@@ -1,10 +1,15 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
+
+import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
 import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
+import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
@@ -19,6 +24,7 @@ import {
   insertOperatorMessage,
   insertPendingMarkMessage,
   listMessages,
+  parseMarkAttachmentsJson,
   renameConversation,
   renameProject,
   setConversationPinned,
@@ -28,6 +34,7 @@ import {
   type MarkMessage,
 } from "@/lib/mark-chat/persistence";
 import { type ApprovalDecision, decideAsset } from "@/lib/campaigns/decisions";
+import { editDraftAsset, getDraftAsset, type DraftAssetView } from "@/lib/campaigns/draft-editing";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type SendMessageState = { ok: boolean; message: string; conversationId?: string } | null;
@@ -47,10 +54,16 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   const rawBody = String(formData.get("body") ?? "");
   const mentions = parseMentions(String(formData.get("mentions") ?? "[]"));
   const mode = parseMarkMode(formData.get("mode"));
+  // Structured slash command (e.g. "find-leads"); travels to the agent as real
+  // intent alongside the message + mentions, not just text.
+  const command = String(formData.get("command") ?? "").trim() || null;
+  // Operator-uploaded reference images (already in GCS); travel to Mark as context.
+  const attachments = parseMarkAttachmentsJson(String(formData.get("attachments") ?? "[]"));
   let body: string;
   let cleanMentions = mentions;
   try {
-    const validated = validateMarkMessageInput({ body: rawBody, mentions });
+    const effectiveBody = rawBody.trim() === "" && attachments.length > 0 ? "Shared an image for reference." : rawBody;
+    const validated = validateMarkMessageInput({ body: effectiveBody, mentions });
     body = validated.body;
     cleanMentions = validated.mentions;
   } catch (error) {
@@ -69,7 +82,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       const conversation = await createConversation({ operator, title: deriveThreadTitle(body) }, client);
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments }, client);
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
@@ -83,7 +96,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // happened instead of hanging on "thinking".
   try {
     const agentTaskId = await enqueueMarkChatTask(
-      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode },
+      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode, command, attachments },
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
@@ -101,6 +114,8 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       operator,
       route: "fast",
       mode,
+      command,
+      attachments,
     });
     if (delivered) {
       const claimed = await claimChatTask(agentTaskId, client).catch(() => false);
@@ -120,6 +135,57 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // back to "What should Mark work on?" between send and thread.
   if (existingId) revalidatePath("/mark");
   return { ok: true, message: "Sent.", conversationId };
+}
+
+export type MarkAgentStatus = { attached: boolean; name: string };
+
+/**
+ * Connection signal for the Mark header: is an agent actually attached to this
+ * workspace (a runner endpoint is configured AND an agent is registered)? When
+ * false, sends still queue for inbox pickup — the UI says so plainly rather than
+ * leaving the operator guessing.
+ */
+export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
+  const name = getMarkDisplayName();
+  if (!isSupabaseAdminConfigured() || !isMarkRunnerConfigured()) {
+    return { attached: false, name };
+  }
+  try {
+    const client = getSupabaseAdminClient();
+    const { data } = await client
+      .from("agents")
+      .select("id")
+      .in("key", markAgentKeys())
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    return { attached: Boolean(data), name };
+  } catch {
+    return { attached: false, name };
+  }
+}
+
+export type UploadTicket =
+  | { ok: true; uploadUrl: string; objectPath: string; readUrl: string }
+  | { ok: false; message: string };
+
+/**
+ * Mint a one-time signed URL the browser uses to upload a reference image
+ * straight to GCS — image bytes never touch the app server. Operator-gated;
+ * images only. Returns the read URL to display the image and hand it to Mark.
+ */
+export async function createMarkUploadUrlAction(filename: string, contentType: string): Promise<UploadTicket> {
+  await requireOperator();
+  if (!isGcsConfigured()) return { ok: false, message: "Photo storage isn't configured yet." };
+  if (!contentType.startsWith("image/")) return { ok: false, message: "Only images can be attached." };
+  const safe = (filename || "image").replace(/[^\w.\-]+/g, "_").slice(-80) || "image";
+  const objectPath = `mark-uploads/${randomUUID()}-${safe}`;
+  try {
+    const { uploadUrl } = await createSignedUploadUrl(objectPath, contentType);
+    const readUrl = await createSignedReadUrl(objectPath);
+    return { ok: true, uploadUrl, objectPath, readUrl };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't prepare the upload." };
+  }
 }
 
 export type SimpleActionState = { ok: boolean; message: string } | null;
@@ -330,6 +396,59 @@ export async function regenerateMarkReplyAction(
     /* best-effort: leave the thread as-is if Mark can't be reached */
   }
   revalidatePath("/mark");
+}
+
+/** Load the live editable view of a draft asset for the Work Canvas. Operator-gated. */
+export async function getDraftAssetAction(assetId: string): Promise<DraftAssetView | null> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return null;
+  const id = assetId.trim();
+  if (!id) return null;
+  try {
+    return await getDraftAsset(id);
+  } catch {
+    return null;
+  }
+}
+
+export type EditDraftState = { ok: boolean; message: string };
+
+/**
+ * Persist an in-canvas edit to a draft asset (body -> edited_body, structured fields ->
+ * edited_fields). Operator-gated; outbound stays locked. Revalidates Mark + Campaigns.
+ */
+export async function editDraftAssetAction(input: {
+  assetId: string;
+  campaignId: string;
+  title?: string;
+  body?: string;
+  fields: Record<string, string>;
+}): Promise<EditDraftState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
+
+  const assetId = input.assetId?.trim();
+  if (!assetId) return { ok: false, message: "Missing asset." };
+
+  try {
+    await editDraftAsset(
+      {
+        assetId,
+        campaignId: input.campaignId?.trim() ?? "",
+        title: input.title,
+        body: input.body,
+        fields: input.fields ?? {},
+      },
+      getOperatorActor(),
+    );
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save the edit." };
+  }
+
+  revalidatePath("/mark");
+  revalidatePath("/campaigns");
+  if (input.campaignId?.trim()) revalidatePath(`/campaigns/${input.campaignId.trim()}`);
+  return { ok: true, message: "Saved." };
 }
 
 const CHAT_DECISIONS: ApprovalDecision[] = ["approved", "declined", "archived"];

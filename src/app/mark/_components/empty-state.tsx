@@ -56,6 +56,9 @@ export function ChatEmptyHero({ operatorName }: { operatorName: string | null })
       <h2 className="font-display text-[clamp(1.5rem,3vw,1.9rem)] font-bold leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)]">
         What should Mark work on?
       </h2>
+      <p className="max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">
+        Ask about a campaign, lead, or persona. Mark drafts and recommends — outbound stays locked until you approve.
+      </p>
     </div>
   );
 }
@@ -92,20 +95,22 @@ export function ChatEmptyShortcuts({
           key={s.label}
           type="button"
           onClick={() => onPick(s.prompt)}
-          className="flex items-center gap-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3.5 py-3 text-left transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+          className="group flex items-start gap-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 py-3.5 text-left transition hover:border-[var(--accent-border-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
         >
-          <svg
-            viewBox="0 0 20 20"
-            aria-hidden
-            className="h-4.5 w-4.5 shrink-0 text-[var(--accent)]"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            {s.icon}
-          </svg>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-inset)] text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
+            <svg
+              viewBox="0 0 20 20"
+              aria-hidden
+              className="h-4.5 w-4.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {s.icon}
+            </svg>
+          </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
               {s.label}

@@ -3,15 +3,15 @@
 import { useActionState, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkMention, MarkMode } from "@/domain";
+import type { MarkMention } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, type SlashCommand } from "./slash-commands";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkAttachment, MarkMessage } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
-import { sendMarkMessageAction, type SendMessageState } from "../actions";
+import { createMarkUploadUrlAction, sendMarkMessageAction, type SendMessageState } from "../actions";
 
-function tempMessage(conversationId: string, body: string, mentions: MarkMention[]): MarkMessage {
+function tempMessage(conversationId: string, body: string, mentions: MarkMention[], attachments: MarkAttachment[]): MarkMessage {
   return {
     id: `temp-${Date.now()}`,
     conversationId,
@@ -24,6 +24,8 @@ function tempMessage(conversationId: string, body: string, mentions: MarkMention
     steps: [],
     feedback: null,
     actions: [],
+    suggestions: [],
+    attachments,
     createdAt: new Date().toISOString(),
   };
 }
@@ -55,6 +57,9 @@ export function Composer({
   onOptimistic,
   onSent,
   registerSubmit,
+  registerApplyCommand,
+  replyPending,
+  onStopReply,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -64,14 +69,40 @@ export function Composer({
   onOptimistic: (message: MarkMessage) => void;
   onSent: (conversationId?: string) => void;
   registerSubmit?: (fn: () => void) => void;
+  registerApplyCommand?: (fn: (cmd: SlashCommand) => void) => void;
+  replyPending?: boolean;
+  onStopReply?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
-  const [mode, setMode] = useState<MarkMode>("ask");
-  const [modeOpen, setModeOpen] = useState(false);
+  const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
+  const [attachments, setAttachments] = useState<MarkAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) continue;
+        const ticket = await createMarkUploadUrlAction(file.name, file.type);
+        if (!ticket.ok) continue;
+        const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+        if (!put.ok) continue;
+        setAttachments((prev) => [
+          ...prev,
+          { url: ticket.readUrl, objectPath: ticket.objectPath, contentType: file.type, name: file.name },
+        ]);
+      }
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   // Let the parent trigger a send (used by Retry). Submits the current draft.
   useEffect(() => {
@@ -80,6 +111,14 @@ export function Composer({
       formRef.current?.requestSubmit();
     });
   }, [registerSubmit, draft]);
+
+  // Let the parent (command palette) apply a slash command through the same path
+  // the inline popover uses — presets prompt text, structured command id, mode, focus.
+  useEffect(() => {
+    registerApplyCommand?.((c: SlashCommand) => applySlash(c));
+    // applySlash closes over stable setters/refs; re-register only if the registrar changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerApplyCommand]);
 
   // Auto-grow the textarea to fit its content (capped), and shrink on reset.
   useEffect(() => {
@@ -101,19 +140,13 @@ export function Composer({
           onDraftChange("");
           setPicked([]);
           setSlash(null);
+          setCommand(null);
+          setAttachments([]);
           onSent(newId);
         });
       }
     }
   }, [state, onSent, onDraftChange]);
-
-  // Close the mode menu on Escape.
-  useEffect(() => {
-    if (!modeOpen) return;
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setModeOpen(false); }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [modeOpen]);
 
   const suggestions = useMemo(() => {
     if (query === null) return [];
@@ -137,8 +170,9 @@ export function Composer({
   }
 
   function applySlash(c: SlashCommand) {
+    // The command id travels to the agent as structured intent (not just text).
+    setCommand(c.cmd.replace(/^\//, ""));
     onDraftChange(c.prompt);
-    if (c.mode) setMode(c.mode);
     setSlash(null);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
@@ -148,7 +182,7 @@ export function Composer({
     });
   }
 
-  const disabled = isPending || !draft.trim();
+  const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
@@ -157,14 +191,18 @@ export function Composer({
         action={formAction}
         className="relative"
         onSubmit={() => {
-          if (!draft.trim()) return;
-          onOptimistic(tempMessage(conversationId, draft.trim(), picked));
+          if (!draft.trim() && attachments.length === 0) return;
+          onOptimistic(tempMessage(conversationId, draft.trim() || "Shared an image for reference.", picked, attachments));
         }}
       >
         <input type="hidden" name="conversationId" value={conversationId} />
         <input type="hidden" name="body" value={draft} />
         <input type="hidden" name="mentions" value={serializeMentions(picked)} />
-        <input type="hidden" name="mode" value={mode} />
+        {/* Mode selector removed — the approval + policy gates are the real guardrails.
+            Default stance "act"; the agent infers intent and the gate enforces limits. */}
+        <input type="hidden" name="mode" value="act" />
+        <input type="hidden" name="command" value={command ?? ""} />
+        <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
 
         {query !== null && suggestions.length > 0 ? (
           <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
@@ -201,9 +239,45 @@ export function Composer({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
-          {picked.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-[1.25rem] border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
+          {attachments.length > 0 || uploading ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {attachments.map((a) => (
+                <span key={a.objectPath} className="group relative h-14 w-14 overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
+                  <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    aria-label={`Remove ${a.name}`}
+                    onClick={() => setAttachments((prev) => prev.filter((p) => p.objectPath !== a.objectPath))}
+                    className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised)] text-xs text-[var(--text-secondary)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--priority-bright)]"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {uploading ? (
+                <span className="flex h-14 w-14 items-center justify-center rounded-lg text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
+                  <Spinner />
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {command || picked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
+              {command ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-soft)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--accent-strong)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
+                  /{command}
+                  <button
+                    type="button"
+                    aria-label="Remove command"
+                    onClick={() => setCommand(null)}
+                    className="text-[var(--text-muted)] transition hover:text-[var(--priority-bright)]"
+                  >
+                    ×
+                  </button>
+                </span>
+              ) : null}
               {picked.map((m) => (
                 <span
                   key={`${m.type}:${m.id}`}
@@ -223,54 +297,40 @@ export function Composer({
             </div>
           ) : null}
 
-          <div className="flex items-end gap-2">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setModeOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={modeOpen}
-                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
-              >
-                <span
-                  aria-hidden
-                  className={cx(
-                    "h-1.5 w-1.5 rounded-full",
-                    mode === "ask" ? "bg-[var(--text-muted)]" : mode === "act" ? "bg-[var(--accent)]" : "bg-[var(--warn)]",
-                  )}
-                />
-                {mode === "ask" ? "Ask" : mode === "act" ? "Take action" : "Draft"}
-                <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m6 8 4 4 4-4" />
-                </svg>
-              </button>
-              {modeOpen ? (
-                <div role="menu" className="msg-rise absolute bottom-10 left-0 z-20 w-60 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-                  {([
-                    { v: "ask", t: "Ask", d: "Read-only — answers & analysis", dot: "bg-[var(--text-muted)]" },
-                    { v: "act", t: "Take action", d: "May add or update records", dot: "bg-[var(--accent)]" },
-                    { v: "draft", t: "Draft", d: "Create drafts for your approval", dot: "bg-[var(--warn)]" },
-                  ] as const).map((o) => (
-                    <button
-                      key={o.v}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => { setMode(o.v); setModeOpen(false); }}
-                      className={cx(
-                        "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-[var(--surface-inset)]",
-                        mode === o.v ? "bg-[var(--accent-soft)]" : "",
-                      )}
-                    >
-                      <span aria-hidden className={cx("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", o.dot)} />
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-sm font-medium text-[var(--text-primary)]">{o.t}</span>
-                        <span className="text-[11px] text-[var(--text-muted)]">{o.d}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+          <div className="flex items-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              aria-label="Attach image"
+              title="Attach a reference image"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-50"
+            >
+              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4.5" width="14" height="11" rx="2" />
+                <circle cx="7.5" cy="9" r="1.4" />
+                <path d="M4 14l3.5-3.5 2.5 2.5 2-2 4 4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Mention a record"
+              title="Reference a record"
+              onClick={() => { onTextChange((draft ? draft.replace(/\s*$/, " ") : "") + "@"); textareaRef.current?.focus(); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-base text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+            >
+              @
+            </button>
+            <button
+              type="button"
+              aria-label="Run a command"
+              title="Run a command"
+              onClick={() => { onTextChange("/"); textareaRef.current?.focus(); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-base text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+            >
+              /
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
             <textarea
               ref={textareaRef}
               name="body-display"
@@ -287,19 +347,31 @@ export function Composer({
               style={{ outline: "none" }}
               className="max-h-[200px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
-            <button
-              type="submit"
-              disabled={disabled}
-              aria-label="Send message"
-              className={cx(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
-                disabled
-                  ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
-                  : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)] active:scale-95",
-              )}
-            >
-              {isPending ? <Spinner /> : <SendIcon />}
-            </button>
+            {replyPending ? (
+              <button
+                type="button"
+                onClick={() => onStopReply?.()}
+                aria-label="Stop Mark"
+                title="Stop"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--priority-bright)] active:scale-95"
+              >
+                <span aria-hidden className="h-3 w-3 rounded-[2px] bg-current" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={disabled}
+                aria-label="Send message"
+                className={cx(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
+                  disabled
+                    ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
+                    : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)] active:scale-95",
+                )}
+              >
+                {isPending ? <Spinner /> : <SendIcon />}
+              </button>
+            )}
           </div>
         </div>
 

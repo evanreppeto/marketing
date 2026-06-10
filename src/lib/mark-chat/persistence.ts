@@ -21,6 +21,9 @@ export type MarkMessageStatus = "sent" | "pending" | "complete" | "failed";
 
 export type MarkStep = { label: string; status: "running" | "done"; at: string };
 
+/** An operator-uploaded reference image (lives in GCS; `url` is a signed read URL). */
+export type MarkAttachment = { url: string; objectPath: string; contentType: string; name: string };
+
 export type MarkMessage = {
   id: string;
   conversationId: string;
@@ -33,6 +36,10 @@ export type MarkMessage = {
   steps: MarkStep[];
   feedback: "up" | "down" | null;
   actions: MarkActionCard[];
+  /** Proactive follow-up prompts Mark offers after a reply (agent-provided). */
+  suggestions: string[];
+  /** Operator-uploaded reference images attached to this message. */
+  attachments: MarkAttachment[];
   createdAt: string;
 };
 
@@ -92,6 +99,38 @@ function parseSteps(value: unknown): MarkStep[] {
   return out;
 }
 
+function parseSuggestions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((s): s is string => typeof s === "string" && s.trim().length > 0).slice(0, 4);
+}
+
+function parseAttachments(value: unknown): MarkAttachment[] {
+  if (!Array.isArray(value)) return [];
+  const out: MarkAttachment[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    if (typeof o.url === "string" && typeof o.objectPath === "string") {
+      out.push({
+        url: o.url,
+        objectPath: o.objectPath,
+        contentType: typeof o.contentType === "string" ? o.contentType : "image/*",
+        name: typeof o.name === "string" ? o.name : "image",
+      });
+    }
+  }
+  return out.slice(0, 8);
+}
+
+/** Parse the composer's serialized attachments payload (a JSON string), safely. */
+export function parseMarkAttachmentsJson(raw: string): MarkAttachment[] {
+  try {
+    return parseAttachments(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
 function toMessage(row: MessageRow): MarkMessage {
   return {
     id: row.id,
@@ -110,6 +149,8 @@ function toMessage(row: MessageRow): MarkMessage {
           ? "down"
           : null,
     actions: parseActions((row.metadata as { actions?: unknown } | null)?.actions),
+    suggestions: parseSuggestions((row.metadata as { suggestions?: unknown } | null)?.suggestions),
+    attachments: parseAttachments((row.metadata as { attachments?: unknown } | null)?.attachments),
     createdAt: row.created_at,
   };
 }
@@ -202,7 +243,7 @@ export async function listMessages(
 }
 
 export async function insertOperatorMessage(
-  input: { conversationId: string; body: string; mentions: MarkMention[] },
+  input: { conversationId: string; body: string; mentions: MarkMention[]; attachments?: MarkAttachment[] },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<MarkMessage> {
   const { data, error } = await client
@@ -213,6 +254,7 @@ export async function insertOperatorMessage(
       body: input.body,
       status: "sent",
       mentions: input.mentions,
+      metadata: input.attachments && input.attachments.length > 0 ? { attachments: input.attachments } : {},
     })
     .select(MESSAGE_COLUMNS)
     .single<MessageRow>();

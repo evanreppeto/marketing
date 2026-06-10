@@ -2,25 +2,23 @@
 
 ## 1. Visual Theme & Atmosphere
 
-A dark operations command center: layered navy surfaces, a single blue "signal" accent, restoration red reserved for priority/decision moments, and dense-but-readable operating modules. Surfaces step up in lightness (canvas → panel → inset → raised) so modules visibly lift off the background. Executive and field-aware, instrument-like — not developer-first, not a neon dashboard.
+A warm, minimal operations command center: deep obsidian surfaces, an antique gold accent, and dense-but-readable operating modules. Surfaces step up in lightness (canvas → panel → inset → raised) so modules visibly lift off the background. Executive and field-aware, instrument-like — not developer-first, not a neon dashboard.
 
 Tokens live in `src/app/globals.css` (`:root`) and the reusable React class contract lives in `src/app/_components/theme.ts`. Always build from those sources rather than hard-coding new hex values, one-off tone aliases, or local button/pill class maps.
 
-## 2. Color Palette & Roles (OKLCH, tinted toward brand hue ~248)
+## Palette — Obsidian & Gold
 
-- **Canvas** `--canvas` — page background, deepest navy.
-- **Surface / Panel** `--surface-panel` — cards and modules (use the `.signal-panel` class or the `Panel` primitive).
-- **Inset** `--surface-inset` — panel headers, form fields, sub-blocks inside a panel.
-- **Soft** `--surface-soft` — quiet list/strip backgrounds.
-- **Raised** `--surface-raised` — hover, popovers, selected.
-- **Text** `--text-primary` / `--text-secondary` / `--text-muted` — three legible tiers.
-- **Borders** `--border-hairline` / `--border-panel` / `--border-strong`.
-- **Accent (signal blue)** `--accent` / `--accent-strong` / `--accent-soft` — active nav, links, primary non-destructive actions, focus rings.
-- **Priority (restoration red)** `--priority` / `--priority-bright` — decision-required, primary CTAs, destructive/out-of-scope state.
-- **Status** `--ok` (green), `--warn` (amber) — calibrated for dark surfaces.
-- **Elevation** `--elev-panel` / `--elev-raised` — dark, faintly blue-tinted shadows.
+The app uses a warm, minimalist black-and-gold system (token values live in
+`src/app/globals.css` `:root`).
 
-Max one accent + one priority hue. No purple/neon, no pure black/white.
+- **Canvas:** warm near-black — `--canvas` `#16161a`, deepest `--canvas-deep` `#101013`.
+- **Surfaces:** step up `--surface-soft` `#1a1a1e` → `--surface-panel` `#1c1c21` → `--surface-inset` `#202027` → `--surface-raised` `#23232a`.
+- **Text:** warm ivory `--text-primary` `#f1ede2`, secondary `#b9b9c0`, muted `#86868e`.
+- **Accent:** antique gold `--accent` `#c8a24a` (ink-on-gold via `--on-accent` `#16161a`).
+- **Status:** live/ok green `--ok` `#7fb89a`; "needs you"/warn gold `--warn` `#d8b65e`; destructive only red `--priority` `#cc6666`.
+- **Headlines:** serif (`--font-serif`, Fraunces) for page titles and Mark's voice; grotesk (`--font-display`) for metrics/labels; body `--font-sans`.
+
+Rules that carry over: **no emojis, no equal 3-column dashboard rows, no neon/purple "AI" aesthetic.** Premium, calm, low-fatigue.
 
 ## 3. Typography
 

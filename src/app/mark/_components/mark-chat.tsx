@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
@@ -10,10 +9,13 @@ import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 import { cx } from "@/app/_components/theme";
 
 import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
+import { CommandPalette } from "./command-palette";
+import type { SlashCommand } from "./slash-commands";
 import { Composer } from "./composer";
 import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
+import { MarkConnection } from "./mark-connection";
 import { MessageList } from "./message-list";
-import { ThreadContextRail } from "./thread-context-rail";
+import { WorkCanvas } from "./work-canvas";
 import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
 import { ThreadSwitcher } from "./thread-switcher";
@@ -129,6 +131,8 @@ export function MarkChat({
   const [draft, setDraft] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const submitFnRef = useRef<(() => void) | null>(null);
+  const applyCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useThreadPoll(activeId, messages, setMessages);
 
@@ -206,6 +210,8 @@ export function MarkChat({
         steps: [],
         feedback: null,
         actions: [],
+        suggestions: [],
+        attachments: [],
         createdAt: new Date().toISOString(),
       },
     ]);
@@ -225,6 +231,20 @@ export function MarkChat({
     return () => document.removeEventListener("keydown", onKey);
   }, [threadsOpen]);
 
+  // ⌘K / Ctrl+K toggles the command palette from anywhere in the chat.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const replyPending = messages.some((m) => m.role === "mark" && m.status === "pending");
+
   const meta = activeId
     ? (activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
       `${messages.length} message${messages.length === 1 ? "" : "s"}`
@@ -234,8 +254,8 @@ export function MarkChat({
     <div className="flex h-full min-h-0 flex-col">
       <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
       <div
-        className={`grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
-          activeId ? "2xl:grid-cols-[16rem_minmax(0,1fr)_15.5rem]" : ""
+        className={`grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
+          activeId ? "xl:grid-cols-[16rem_minmax(0,1fr)_22rem] 2xl:grid-cols-[16rem_minmax(0,1fr)_25rem]" : ""
         }`}
       >
         <ThreadSidebar
@@ -263,8 +283,8 @@ export function MarkChat({
               <HeaderTitle key={activeId} activeId={activeId} activeTitle={activeTitle} />
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {/* Reserved slot: future "what Mark can reach" connections indicator. */}
+            <div className="flex shrink-0 items-center gap-2">
+              <MarkConnection />
               {activeId ? (
                 <ThreadMenu
                   conversationId={activeId}
@@ -274,15 +294,6 @@ export function MarkChat({
                   isActive
                 />
               ) : null}
-              <Link
-                href="/agent-operations"
-                className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-              >
-                Operations
-                <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m8 5 5 5-5 5" />
-                </svg>
-              </Link>
             </div>
           </header>
           {/* The composer must keep ONE stable tree slot across the empty→thread
@@ -303,6 +314,7 @@ export function MarkChat({
                 onRetry={handleRetry}
                 onStop={handleStop}
                 onRegenerate={handleRegenerate}
+                onSuggestion={pickSuggestion}
               />
             ) : (
               <ChatEmptyHero operatorName={operatorName} />
@@ -320,6 +332,11 @@ export function MarkChat({
                 registerSubmit={(fn) => {
                   submitFnRef.current = fn;
                 }}
+                registerApplyCommand={(fn) => {
+                  applyCommandRef.current = fn;
+                }}
+                replyPending={replyPending}
+                onStopReply={handleStop}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
                   try {
@@ -339,7 +356,7 @@ export function MarkChat({
           </div>
         </section>
 
-        {activeId ? <ThreadContextRail messages={messages} pendingApprovals={pendingApprovals} /> : null}
+        {activeId ? <WorkCanvas messages={messages} /> : null}
       </div>
 
       {threadsOpen ? (
@@ -363,6 +380,12 @@ export function MarkChat({
           </div>
         </div>
       ) : null}
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onSelect={(cmd) => applyCommandRef.current?.(cmd)}
+      />
     </div>
   );
 }
