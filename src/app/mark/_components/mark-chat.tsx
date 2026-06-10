@@ -231,7 +231,7 @@ export function MarkChat({
     : "";
 
   return (
-    <div className="-mx-4 -my-4 flex h-[calc(100%+2rem)] min-h-0 flex-col sm:-mx-6 lg:-mx-8 lg:-my-5 lg:h-screen xl:-mx-10">
+    <div className="flex h-full min-h-0 flex-col">
       <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
       <div
         className={`grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)] lg:grid-cols-[16rem_minmax(0,1fr)] ${

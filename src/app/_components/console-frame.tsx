@@ -53,7 +53,13 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
           <OperatorProfile />
         </aside>
 
-        <section className={theme.shell.content}>
+        <section
+          className={
+            pathname.startsWith("/mark")
+              ? "min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden"
+              : theme.shell.content
+          }
+        >
           <ShellContent>{children}</ShellContent>
         </section>
       </div>
