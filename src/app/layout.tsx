@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Archivo, Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
@@ -11,6 +11,14 @@ const display = Archivo({
   subsets: ["latin"],
   variable: "--ff-display",
   display: "swap",
+});
+
+// Serif display: editorial voice for Mark and page headlines.
+const serif = Fraunces({
+  subsets: ["latin"],
+  variable: "--ff-serif",
+  display: "swap",
+  weight: ["400", "500", "600"],
 });
 
 // Body: a warm, highly legible humanist grotesk for dense operator copy.
@@ -47,7 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`h-full antialiased ${display.variable} ${body.variable} ${mono.variable}`}
+      className={`h-full antialiased ${display.variable} ${serif.variable} ${body.variable} ${mono.variable}`}
     >
       <body className="min-h-full flex flex-col">
         <ConsoleFrame gateEnabled={isOperatorGateEnabled()}>{children}</ConsoleFrame>

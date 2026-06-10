@@ -99,6 +99,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--ff-body), "Hanken Grotesk", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--ff-display), var(--ff-body), "Segoe UI Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--ff-serif), "Fraunces", Georgia, "Times New Roman", serif;
   --font-mono: var(--ff-mono), "Cascadia Mono", ui-monospace, "Segoe UI Mono", monospace;
 }
 
@@ -115,7 +116,13 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3, h4, .font-display {
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+  font-weight: 500;
+}
+
+h4, .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.022em;
   font-feature-settings: "ss01";
