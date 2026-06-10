@@ -72,13 +72,19 @@ function MarkAvatar({ pending }: { pending?: boolean }) {
   return (
     <span
       aria-hidden
-      style={{ fontFamily: "var(--font-serif)" }}
       className={cx(
-        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.6rem] bg-[radial-gradient(120%_120%_at_30%_20%,var(--surface-raised),var(--surface-panel))] text-sm font-semibold text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--border-strong)]",
+        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.6rem]",
         pending ? "motion-safe:[animation:mark-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
       )}
     >
-      M
+      <span
+        style={{ fontFamily: "var(--font-serif)" }}
+        className="flex h-full w-full items-center justify-center rounded-[0.6rem] bg-[radial-gradient(120%_120%_at_30%_20%,var(--surface-raised),var(--surface-panel))] text-sm font-semibold text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--border-strong),inset_0_1px_0_0_rgba(255,255,255,0.05)]"
+      >
+        M
+      </span>
+      {/* Live presence dot — Mark is online (the chat polls). Ring, not glow. */}
+      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[var(--ok)] shadow-[0_0_0_2px_var(--canvas)]" />
     </span>
   );
 }
@@ -134,17 +140,16 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
           <span aria-hidden className="mark-caret" />
         </div>
       ) : !hasSteps ? (
-        <div className="flex flex-col gap-2.5" aria-label="Mark is working">
-          <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
-            Mark is working…
+        <div className="flex flex-col gap-2.5" aria-label="Mark is thinking">
+          <span className="flex items-center gap-2.5">
+            <span aria-hidden className="mark-orbit" />
+            <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
           </span>
           <div className="flex flex-col gap-2 pt-0.5">
             <div className="mark-skel" style={{ width: "92%" }} />
             <div className="mark-skel" style={{ width: "78%" }} />
             <div className="mark-skel" style={{ width: "85%" }} />
           </div>
-          <div className="mark-progress mt-0.5"><span /></div>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">

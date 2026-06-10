@@ -437,6 +437,48 @@ h4, .font-display {
 }
 @media (prefers-reduced-motion: reduce) { .mark-caret { animation: none; opacity: 0.8; } }
 
+/* Whisper ambient background — two heavily-blurred, very-low-opacity gold blooms
+   that drift slowly behind Mark's chat. Premium and calm, NOT neon. Mark-only. */
+.mark-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.mark-aurora::before,
+.mark-aurora::after {
+  content: "";
+  position: absolute;
+  width: 46rem;
+  height: 46rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle at center, var(--accent), transparent 68%);
+  filter: blur(90px);
+  opacity: 0.05;
+  will-change: transform;
+}
+.mark-aurora::before { top: -22rem; left: -14rem; animation: mark-aurora-a 34s ease-in-out infinite; }
+.mark-aurora::after  { bottom: -26rem; right: -16rem; opacity: 0.035; animation: mark-aurora-b 42s ease-in-out infinite; }
+@keyframes mark-aurora-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6rem, 4rem, 0) scale(1.08); }
+}
+@keyframes mark-aurora-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(-5rem, -3rem, 0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark-aurora::before, .mark-aurora::after { animation: none; }
+}
+
+/* Thinking orbital — a small gold-arc ring that spins while Mark generates.
+   Replaces the neon loader rings from generic AI kits with one calm token-gold arc. */
+.mark-orbit {
+  width: 15px;
+  height: 15px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: mark-orbit-spin 0.9s linear infinite;
+}
+@keyframes mark-orbit-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mark-orbit { animation: none; } }
+
 /* ============================================================================
    Utilities & legacy component helpers
    ============================================================================ */

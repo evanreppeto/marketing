@@ -239,7 +239,7 @@ export function Composer({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 rounded-[1.25rem] border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
+        <div className="flex flex-col gap-2 rounded-[1.75rem] border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
           {attachments.length > 0 || uploading ? (
             <div className="flex flex-wrap items-center gap-2">
               {attachments.map((a) => (
@@ -304,12 +304,10 @@ export function Composer({
               disabled={uploading}
               aria-label="Attach image"
               title="Attach a reference image"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
-              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4.5" width="14" height="11" rx="2" />
-                <circle cx="7.5" cy="9" r="1.4" />
-                <path d="M4 14l3.5-3.5 2.5 2.5 2-2 4 4" />
+              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 5v10M5 10h10" />
               </svg>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />

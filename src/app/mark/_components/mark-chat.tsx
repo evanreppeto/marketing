@@ -265,8 +265,10 @@ export function MarkChat({
           showArchived={showArchived}
           activeId={activeId}
         />
-        <section className="flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
-          <header className="flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] px-3 py-2 sm:px-4">
+        <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
+          {/* Whisper ambient gold aurora — Mark-only, calm, reduced-motion safe. */}
+          <div className="mark-aurora" aria-hidden />
+          <header className="relative z-10 flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] px-3 py-2 sm:px-4">
             <button
               type="button"
               onClick={() => setThreadsOpen(true)}
@@ -304,7 +306,7 @@ export function MarkChat({
               their slots; only the hero/list slot swaps. */}
           <div
             className={cx(
-              "flex min-h-0 flex-1 flex-col",
+              "relative z-10 flex min-h-0 flex-1 flex-col",
               !hasMessages && "items-center justify-center gap-7 overflow-y-auto px-4 py-10 sm:px-6",
             )}
           >
