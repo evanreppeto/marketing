@@ -62,7 +62,7 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
                 >
                   {object.label}
                   <span className={`font-mono text-[11px] ${isActive ? "text-[var(--on-priority)] opacity-75" : "text-[var(--accent)]"}`}>
-                    {counts?.[object.key] ?? object.count}
+                    {counts?.[object.key] ?? 0}
                   </span>
                 </Link>
               );

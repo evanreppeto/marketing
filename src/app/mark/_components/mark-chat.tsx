@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
+import { cx } from "@/app/_components/theme";
+
 import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
 import { Composer } from "./composer";
-import { ChatEmptyState } from "./empty-state";
+import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
 import { MessageList } from "./message-list";
 import { ThreadContextRail } from "./thread-context-rail";
 import { ThreadMenu } from "./thread-menu";
@@ -273,8 +275,32 @@ export function MarkChat({
               </Link>
             </div>
           </header>
-          {(() => {
-            const composer = (
+          {/* The composer must keep ONE stable tree slot across the empty→thread
+              flip. If it rendered inside the empty-state component, sending the
+              first message would remount it mid-action, dropping the in-flight
+              useActionState result — and the router.push to the new thread with
+              it, so the send appeared to do nothing. Conditional siblings keep
+              their slots; only the hero/list slot swaps. */}
+          <div
+            className={cx(
+              "flex min-h-0 flex-1 flex-col",
+              !hasMessages && "items-center justify-center gap-7 overflow-y-auto px-4 py-10 sm:px-6",
+            )}
+          >
+            {hasMessages ? (
+              <MessageList
+                messages={messages}
+                onRetry={handleRetry}
+                onStop={handleStop}
+                onRegenerate={handleRegenerate}
+              />
+            ) : (
+              <ChatEmptyHero operatorName={operatorName} />
+            )}
+            <div
+              className={hasMessages ? "w-full" : "msg-rise w-full max-w-2xl"}
+              style={hasMessages ? undefined : { animationDelay: "60ms" }}
+            >
               <Composer
                 conversationId={activeId}
                 mentionGroups={mentionGroups}
@@ -298,26 +324,9 @@ export function MarkChat({
                   }
                 }}
               />
-            );
-            return hasMessages ? (
-              <>
-                <MessageList
-                  messages={messages}
-                  onRetry={handleRetry}
-                  onStop={handleStop}
-                  onRegenerate={handleRegenerate}
-                />
-                {composer}
-              </>
-            ) : (
-              <ChatEmptyState
-                onPick={pickSuggestion}
-                composer={composer}
-                operatorName={operatorName}
-                pendingApprovals={pendingApprovals}
-              />
-            );
-          })()}
+            </div>
+            {!hasMessages ? <ChatEmptyShortcuts onPick={pickSuggestion} pendingApprovals={pendingApprovals} /> : null}
+          </div>
         </section>
 
         {activeId ? <ThreadContextRail messages={messages} pendingApprovals={pendingApprovals} /> : null}

@@ -2,13 +2,7 @@ import Link from "next/link";
 
 import { AppShell } from "../../_components/app-shell";
 import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "../../_components/page-header";
-import {
-  crmObjects,
-  hyperPersonalizationReference,
-  leadEngagementEvents,
-  leadHyperPersonaSnapshot,
-  leadNextBestActions,
-} from "../../_data/growth-engine";
+import { crmObjects } from "../../_data/growth-engine";
 import { CrmCommandHeader } from "./crm-command-header";
 import { CrmObjectTable } from "./crm-object-table";
 import { CrmRecordForm } from "./crm-record-form";
@@ -90,13 +84,6 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
                   {liveMessage}
                 </div>
               ) : null}
-              {objectKey === "leads" ? (
-                <div className="mt-3 rounded-md border border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] px-3 py-2 text-sm leading-6 text-[var(--text-secondary)]">
-                  <span className="font-semibold text-[var(--text-primary)]">Hyper-personalization reference:</span>{" "}
-                  {hyperPersonalizationReference.source} guides persona snapshots, engagement timelines, next-best
-                  actions, campaign handoff, and approval guardrails.
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
@@ -165,99 +152,29 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
 
       {activeSection === "intelligence" ? (
         <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          {objectKey === "leads" ? (
-            <Panel className="module-rise min-w-0 [animation-delay:70ms]">
-              <div className="flex min-w-0 flex-col gap-3">
-                <div className="min-w-0">
-                  <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">
-                    Hyper-persona snapshot
-                  </h2>
-                  <p className="mt-1 max-w-[64ch] text-sm leading-6 text-[var(--text-secondary)]">
-                    {hyperPersonalizationReference.thesis}
-                  </p>
+          <Panel className="module-rise [animation-delay:70ms]">
+            <div className="signal-eyebrow">Intelligence contract</div>
+            <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
+              Mark needs clean relationship context before outreach drafts.
+            </h2>
+            <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
+              This object is ready for scoring tags, evidence links, relationship maturity, and next-best-action fields.
+              Missing values should stay visible as data contracts, not fake operational data.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {[
+                ["Persona", objectKey === "companies" ? "Partner or referral source" : "Record-specific persona"],
+                ["Confidence", "Needs source evidence"],
+                ["CTA rule", objectKey === "contacts" ? "Human-approved relationship touch" : "Approval queue only"],
+                ["Guardrail", "Outbound locked"],
+              ].map(([label, detail]) => (
+                <div className="signal-inset rounded-md border p-3" key={label}>
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+                  <div className="mt-1 text-sm font-bold text-[var(--text-primary)]">{detail}</div>
                 </div>
-                <div className="signal-inset w-fit max-w-full rounded-md border px-3 py-2 font-mono text-xs text-[var(--text-secondary)]">
-                  {hyperPersonalizationReference.source}
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {[
-                  ["Base persona", leadHyperPersonaSnapshot.basePersona],
-                  ["Relationship stage", leadHyperPersonaSnapshot.relationshipStage],
-                  ["Loss pattern", leadHyperPersonaSnapshot.dominantLossPattern],
-                  ["Preferred channel", leadHyperPersonaSnapshot.preferredChannel],
-                ].map(([label, value]) => (
-                  <div className="signal-inset min-w-0 rounded-md border p-3" key={label}>
-                    <div className="text-xs text-[var(--text-muted)]">{label}</div>
-                    <div className="mt-1 break-words text-sm font-semibold leading-5 text-[var(--text-primary)]">{humanizeCrmToken(value)}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-5 grid gap-4">
-                <div className="signal-inset min-w-0 rounded-md border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-[var(--text-primary)]">Next best action</h3>
-                      <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                        {leadHyperPersonaSnapshot.nextBestAction}
-                      </p>
-                    </div>
-                    <StatusPill tone="green">{leadHyperPersonaSnapshot.confidence}</StatusPill>
-                  </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    {leadNextBestActions.map((item) => (
-                      <div className="min-w-0 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={item.action}>
-                        <div className="font-semibold text-[var(--text-primary)]">{item.action}</div>
-                        <p className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">{item.reason}</p>
-                        <div className="mt-3 text-xs font-semibold text-[var(--accent)]">{item.approval}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="signal-inset min-w-0 rounded-md border p-4">
-                  <h3 className="font-semibold text-[var(--text-primary)]">Approval guardrails</h3>
-                  <div className="mt-3 space-y-2">
-                    {leadHyperPersonaSnapshot.riskFlags.map((flag) => (
-                      <div className="grid min-w-0 gap-2 rounded-md border border-[oklch(0.82_0.13_85/0.3)] bg-[oklch(0.82_0.13_85/0.12)] px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" key={flag}>
-                        <span className="break-words text-xs font-semibold leading-5 text-[oklch(0.9_0.09_85)]">{humanizeCrmToken(flag)}</span>
-                        <StatusPill tone="amber">Required</StatusPill>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
-                    Offer: <span className="font-semibold text-[var(--text-primary)]">{leadHyperPersonaSnapshot.recommendedOffer}</span>
-                  </div>
-                </div>
-              </div>
-            </Panel>
-          ) : (
-            <Panel className="module-rise [animation-delay:70ms]">
-              <div className="signal-eyebrow">Intelligence contract</div>
-              <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
-                Mark needs clean relationship context before outreach drafts.
-              </h2>
-              <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
-                This object is ready for scoring tags, evidence links, relationship maturity, and next-best-action fields.
-                Missing values should stay visible as data contracts, not fake operational data.
-              </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {[
-                  ["Persona", objectKey === "companies" ? "Partner or referral source" : "Record-specific persona"],
-                  ["Confidence", "Needs source evidence"],
-                  ["CTA rule", objectKey === "contacts" ? "Human-approved relationship touch" : "Approval queue only"],
-                  ["Guardrail", "Outbound locked"],
-                ].map(([label, detail]) => (
-                  <div className="signal-inset rounded-md border p-3" key={label}>
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-                    <div className="mt-1 text-sm font-bold text-[var(--text-primary)]">{detail}</div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-          )}
+              ))}
+            </div>
+          </Panel>
 
           <RecordPreviewPanel crmObject={crmObject} selectedRow={selectedRow} />
         </div>
@@ -268,28 +185,17 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
           <Panel className="module-rise [animation-delay:70ms]">
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Activity and related work</h2>
             <div className="mt-5 space-y-4">
-              {objectKey === "leads"
-                ? leadEngagementEvents.map((event) => (
-                    <div className="border-b border-[var(--border-hairline)] pb-4 last:border-0 last:pb-0" key={event.event}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="font-semibold text-[var(--text-primary)]">{event.event}</div>
-                        <StatusPill tone="blue">{event.channel}</StatusPill>
-                      </div>
-                      <div className="mt-1 text-xs text-[var(--text-muted)]">{event.time}</div>
-                      <div className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">{event.detail}</div>
-                    </div>
-                  ))
-                : [
-                    ["Last activity", crmObject.lastActivity],
-                    ["Relationships", crmObject.relationships],
-                    ["Detail shell", "Ready"],
-                    ["Create/edit form", "Not wired"],
-                  ].map(([label, detail]) => (
-                    <div className="border-b border-[var(--border-hairline)] pb-4 last:border-0 last:pb-0" key={label}>
-                      <div className="font-semibold text-[var(--text-primary)]">{label}</div>
-                      <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{detail}</div>
-                    </div>
-                  ))}
+              {[
+                ["Last activity", crmObject.lastActivity],
+                ["Relationships", crmObject.relationships],
+                ["Detail shell", "Ready"],
+                ["Create/edit form", "Not wired"],
+              ].map(([label, detail]) => (
+                <div className="border-b border-[var(--border-hairline)] pb-4 last:border-0 last:pb-0" key={label}>
+                  <div className="font-semibold text-[var(--text-primary)]">{label}</div>
+                  <div className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{detail}</div>
+                </div>
+              ))}
             </div>
           </Panel>
 
@@ -477,14 +383,6 @@ function activityRank(updated: string) {
 
   const match = updated.match(/^(\d+)/);
   return match ? Number(match[1]) + 1 : 99;
-}
-
-function humanizeCrmToken(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatCrmDate(value: string) {

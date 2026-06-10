@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { navItems, personaTrackerRows } from "../_data/growth-engine";
+import { navItems } from "../_data/growth-engine";
 import { cx, theme } from "./theme";
 
 type JumpItem = {
@@ -36,12 +36,6 @@ function buildItems(): JumpItem[] {
       label: item.label,
       subtitle: "CRM object",
       href: item.href,
-    })),
-    ...personaTrackerRows.map((row) => ({
-      key: `persona:${row.key}`,
-      label: row.persona,
-      subtitle: `Persona · ${row.segment}`,
-      href: `/persona-intelligence/${row.key}`,
     })),
   ];
 }
@@ -152,7 +146,7 @@ export function QuickJump() {
                   setActiveIndex(0);
                 }}
                 onKeyDown={handleInputKey}
-                placeholder="Jump to a section, CRM object, or persona…"
+                placeholder="Jump to a section or CRM object…"
                 className="w-full bg-transparent px-1 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
                 aria-label="Search"
               />

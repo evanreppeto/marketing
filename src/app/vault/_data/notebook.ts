@@ -1,6 +1,5 @@
 import { OFFICIAL_PERSONA_MAPPINGS, type LinkResolutionContext, type VaultNote } from "@/domain";
 
-import { crmObjects } from "@/app/_data/growth-engine";
 import { seedVaultNotes } from "@/lib/vault/seed-notes";
 
 export const vaultNotes = seedVaultNotes;
@@ -14,23 +13,16 @@ export const vaultCollections = [
 ];
 
 // Build the resolution context from live app data so wiki-links can point at
-// real CRM records and personas, not just other notes. Pass the active notes
-// (from Supabase or the seeds) so note-to-note links resolve correctly.
+// real personas and other notes. Record links resolve only against real CRM
+// rows (none are mapped statically); unresolved targets render as plain text.
 export function buildLinkContext(notes: VaultNote[] = vaultNotes): LinkResolutionContext {
   const noteMap = new Map(notes.map((n) => [n.slug, `/vault/${n.slug}`]));
-
-  const recordMap = new Map<string, string>();
-  for (const object of crmObjects) {
-    for (const row of object.sampleRows) {
-      recordMap.set(row.id, `${object.href}/${row.id}`);
-    }
-  }
 
   const personaMap = new Map<string, string>(
     OFFICIAL_PERSONA_MAPPINGS.map((persona) => [persona, "/persona-intelligence"]),
   );
 
-  return { notes: noteMap, records: recordMap, personas: personaMap };
+  return { notes: noteMap, records: new Map<string, string>(), personas: personaMap };
 }
 
 export type StatusTone = "amber" | "green" | "red" | "gray" | "blue" | "dark";

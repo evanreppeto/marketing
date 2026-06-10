@@ -1,4 +1,4 @@
-import { crmObjects, personaDisplay } from "@/app/_data/growth-engine";
+import { personaDisplay } from "@/app/_data/growth-engine";
 import { OFFICIAL_PERSONA_MAPPINGS, type OfficialPersonaMapping } from "@/domain";
 
 import { seedVaultNotes } from "./seed-notes";
@@ -149,28 +149,12 @@ export type RecordSignal = {
 
 type WikiLinkLike = { kind: string; target: string; label: string };
 
-function recordReference(target: string): RecordSignal | null {
-  for (const object of crmObjects) {
-    const row = object.sampleRows.find((r) => r.id === target);
-    if (row) {
-      return { target, label: row.name, stat: `${row.status} · ${row.owner}`, tone: "gray", live: false };
-    }
-  }
-  return null;
-}
-
 const PERSONA_KEYS = new Set<string>(OFFICIAL_PERSONA_MAPPINGS);
 
 export async function getRecordSignals(links: WikiLinkLike[]): Promise<Map<string, RecordSignal>> {
   const signals = new Map<string, RecordSignal>();
 
   const personaTargets = [...new Set(links.filter((l) => l.kind === "persona" && PERSONA_KEYS.has(l.target)).map((l) => l.target))];
-  const recordTargets = [...new Set(links.filter((l) => l.kind === "record").map((l) => l.target))];
-
-  for (const target of recordTargets) {
-    const ref = recordReference(target);
-    if (ref) signals.set(target, ref);
-  }
 
   if (!isSupabaseAdminConfigured()) {
     for (const target of personaTargets) {
