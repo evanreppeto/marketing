@@ -7,6 +7,7 @@ import type { MarkActionCard, MarkActionFlag, MarkMention } from "@/domain";
 import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
 import { decideCampaignDraftAction } from "../actions";
+import { ChannelArtifact } from "./channel-artifact";
 
 const TYPE_LABELS: Record<string, string> = {
   campaign: "Campaigns",
@@ -247,6 +248,8 @@ export function WorkCanvas({ messages }: { messages: MarkMessage[] }) {
       <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Work canvas</p>
       {building ? (
         <Building steps={last.steps} />
+      ) : draft && draft.approval ? (
+        <ChannelArtifact approval={draft.approval} />
       ) : draft ? (
         <Artifact card={draft} />
       ) : (
