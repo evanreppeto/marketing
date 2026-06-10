@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,12 +8,8 @@ import { SideNav, type ShellNavItem } from "./side-nav";
 import { cx, theme } from "./theme";
 
 const navItems: ShellNavItem[] = [
+  { label: "Mark", href: "/mark", icon: "mark", matches: ["/mark", "/"] },
   { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
-  { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
-  { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
-  { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
-  { label: "Mark", href: "/mark", icon: "mark", matches: ["/mark"] },
-  { label: "Settings", href: "/settings", icon: "settings", matches: ["/settings"] },
 ];
 
 /**
@@ -37,18 +32,19 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
         <aside className={theme.shell.sidebar}>
           <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:pr-1 [&::-webkit-scrollbar]:hidden">
             <Link
-              href="/campaigns"
-              className="group relative flex h-16 min-w-[150px] shrink-0 items-center justify-center overflow-hidden transition hover:opacity-90 lg:mb-2 lg:h-20 lg:min-w-0"
+              href="/mark"
+              className="group mb-2 flex flex-col px-1.5 leading-none transition hover:opacity-90"
+              aria-label="Big Shoulders Marketing — go to Mark"
             >
-              <Image
-                alt="Big Shoulders Restoration M&P"
-                className="h-full w-full object-contain"
-                height={1024}
-                priority
-                sizes="(min-width: 1024px) 160px, 150px"
-                src="/brand/big-shoulders-mp-logo-transparent.png"
-                width={1024}
-              />
+              <span
+                className="text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
+                style={{ fontFamily: "var(--font-serif)" }}
+              >
+                Big Shoulders
+              </span>
+              <span className="mt-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
+                Marketing
+              </span>
             </Link>
 
             <SideNav active={pathname} items={navItems} />
