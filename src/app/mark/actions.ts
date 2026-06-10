@@ -113,7 +113,12 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
     ).catch(() => undefined);
   }
 
-  revalidatePath("/mark");
+  // Only revalidate when the message landed in the thread the user is already
+  // viewing. For a brand-new conversation the client immediately pushes to
+  // /mark?c=<id> (a fresh dynamic render); revalidating here would re-render
+  // the bare /mark hero underneath the in-flight navigation — a visible flash
+  // back to "What should Mark work on?" between send and thread.
+  if (existingId) revalidatePath("/mark");
   return { ok: true, message: "Sent.", conversationId };
 }
 
