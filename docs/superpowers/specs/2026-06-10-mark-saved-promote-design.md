@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-10
 **Status:** Concept approved; spec pending user review
-**Surfaces:** `src/app/mark/` (chat), `src/lib/mark-chat/`, a new Saved view, ties into `/campaigns`
+**Surfaces:** `src/app/mark/` (chat), `src/lib/mark-chat/`, a new Saved view, a chat-settings popover (attach project + campaign), ties into `/campaigns`
 
 ## Goal
 
@@ -74,6 +74,16 @@ create index mark_saved_items_kind_idx on public.mark_saved_items (kind);
 Grant the data-API role select/insert/update/delete (follow the existing grant
 migration pattern). Apply via a new timestamped migration; don't edit shipped ones.
 
+**Attach a campaign to a conversation** (same or a second migration):
+
+```sql
+alter table public.mark_conversations
+  add column campaign_id uuid references public.campaigns(id) on delete set null;
+```
+
+`mark_conversations` already has `project_id`. The conversation read-model
+(`CONVERSATION_COLUMNS`, `toConversation`) gains `campaignId`, mirroring `projectId`.
+
 ## Units
 
 ### 1. Persistence — `src/lib/mark-chat/saved.ts` (new)
@@ -133,7 +143,9 @@ promoteSavedItemAction(savedItemId: string, target: PromoteTarget): Promise<{ ok
 ```
 
 Steps:
-  1. Load the saved item (operator-gated).
+  1. Load the saved item (operator-gated). The Promote dialog **defaults its target to
+     the saved item's source conversation's attached `campaignId`** when present, so an
+     attached-campaign chat promotes straight there.
   2. **Resolve the campaign.** `existing` → use `campaignId`. `new` → insert a
      `campaigns` row (`status:'draft'`, `launch_locked:true`, `persona`,
      `restoration_focus`, `name`, `owner:operator`, `source_system:'mark_saved'`) and a
@@ -160,6 +172,30 @@ Steps:
   restoration-focus `<select>` from the enum). Submitting runs `promoteSavedItemAction`
   with the matching target. Token-native; reuses input/select styles.
 
+### 6. Chat settings (gear) + campaign attachment — `mark-chat.tsx`, new `_components/chat-settings.tsx`, `actions.ts`, persistence
+
+- **Header gear**: a settings button in the chat header (next to `MarkConnection` /
+  `ThreadMenu`) opens a small **Chat settings** popover (same hand-rolled popover
+  pattern as `ThreadMenu` — outside-click + Esc close). It is the home for attaching
+  context to this chat:
+  - **Project** — the same project list; sets `mark_conversations.project_id`
+    (reuses `moveConversationForm` / `assignConversationToProject`).
+  - **Campaign** — pick from the operator's campaigns (`getCampaignWorkspaceList()`);
+    sets `mark_conversations.campaign_id`.
+- **Persistence**: `assignConversationToCampaign(conversationId, campaignId | null)` in
+  `src/lib/mark-chat/persistence.ts` (mirrors `assignConversationToProject`); read-model
+  exposes `campaignId`.
+- **Action**: `attachCampaignForm(formData)` (operator-gated, supabase-guarded) →
+  `assignConversationToCampaign`; `revalidatePath('/mark')`.
+- **Header chip**: when a campaign is attached, the header shows a small campaign chip
+  linking to `/campaigns/<id>` (so "it goes there" is visible and navigable).
+- **Routing effect**: the attached `campaignId` is the Promote default (Unit 5). Mark's
+  worker-side auto-creation of drafts directly under the attached campaign is a noted
+  **follow-on** (the enqueue already carries conversation context; passing `campaignId`
+  through `enqueueMarkChatTask` so Mark files outputs there is out of scope for Phase 1).
+- The composer-footer **Project** selector (already shipped) stays; the settings popover
+  is the fuller context panel (project + campaign together).
+
 ## Data Flow
 
 `/mark` (server) loads saved-source keys for star state → `MessageList`/`ActionCard`
@@ -179,6 +215,9 @@ re-opens/seeds a thread. No change to the approval state machine.
   persona + focus) → new campaign + pending asset both appear; existing Approve flow
   works; Continue-in-chat re-seeds; unsave; reduced-motion; Supabase-unconfigured
   degrades (no crash, save disabled with a note).
+- **Chat settings:** header gear opens the settings popover; attach a project and a
+  campaign; header shows the campaign chip linking to `/campaigns/<id>`; with a campaign
+  attached, the Promote dialog defaults its target to it; detach (set to none) clears it.
 - **Guardrail:** DESIGN.md §8 diff check (no emoji/glow/gradient/purple/nested cards).
 
 ## Risks & Mitigations
