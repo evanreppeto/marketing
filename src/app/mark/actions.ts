@@ -27,6 +27,7 @@ import {
   unarchiveConversation,
   type MarkMessage,
 } from "@/lib/mark-chat/persistence";
+import { type ApprovalDecision, decideAsset } from "@/lib/campaigns/decisions";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type SendMessageState = { ok: boolean; message: string; conversationId?: string } | null;
@@ -324,4 +325,23 @@ export async function regenerateMarkReplyAction(
     /* best-effort: leave the thread as-is if Mark can't be reached */
   }
   revalidatePath("/mark");
+}
+
+const CHAT_DECISIONS: ApprovalDecision[] = ["approved", "declined", "archived"];
+
+/** Approve / decline / archive a draft asset straight from a Mark action card.
+ *  Wraps the campaign decision lib (works gated or ungated). Outbound stays locked. */
+export async function decideCampaignDraftAction(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const assetId = String(formData.get("assetId") ?? "").trim();
+  const campaignId = String(formData.get("campaignId") ?? "").trim();
+  const decision = String(formData.get("decision") ?? "").trim();
+  if (!assetId || !CHAT_DECISIONS.includes(decision as ApprovalDecision)) return;
+  await decideAsset(
+    { assetId, campaignId, decision: decision as ApprovalDecision, operator: getOperatorActor() },
+  ).catch(() => undefined);
+  revalidatePath("/mark");
+  if (campaignId) revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath("/campaigns");
 }
