@@ -1,7 +1,6 @@
 import { PageHeader } from "../_components/page-header";
 import { ConnectionsPanel } from "./connections-panel";
 import { SettingsControls } from "./settings-controls";
-import { SettingsNav } from "./settings-nav";
 
 const guardrails = [
   "No email, SMS, ad launch, page publishing, spend change, or contact action without explicit human approval.",
@@ -28,16 +27,11 @@ export default function SettingsPage() {
       />
 
       <div className="mx-auto w-full max-w-[1040px]">
-        <div className="grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
-          <SettingsNav />
-          <div className="min-w-0 space-y-5">
-            <SettingsControls
-              initialCtaRules={ctaRules.map(([persona, cta]) => ({ persona, cta }))}
-              initialGuardrails={guardrails}
-            />
-            <ConnectionsPanel />
-          </div>
-        </div>
+        <SettingsControls
+          connections={<ConnectionsPanel />}
+          initialCtaRules={ctaRules.map(([persona, cta]) => ({ persona, cta }))}
+          initialGuardrails={guardrails}
+        />
       </div>
     </>
   );
