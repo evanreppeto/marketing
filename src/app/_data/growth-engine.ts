@@ -1,15 +1,8 @@
 import { type OfficialPersonaMapping } from "@/domain";
 
 export const navItems = [
-  { label: "Today", href: "/", icon: "today" },
-  { label: "Activity", href: "/approvals", icon: "approval" },
-  { label: "Campaigns", href: "/campaigns", icon: "approval" },
-  { label: "Outbox", href: "/outbox", icon: "approval" },
-  { label: "Gallery", href: "/gallery", icon: "approval" },
-  { label: "CRM", href: "/crm", icon: "crm" },
-  { label: "Personas", href: "/persona-intelligence", icon: "persona" },
   { label: "Mark", href: "/mark", icon: "agents" },
-  { label: "Settings", href: "/settings", icon: "sliders" },
+  { label: "Campaigns", href: "/campaigns", icon: "approval" },
 ];
 
 // Static metadata for the six CRM objects (labels, routes, field names). All
