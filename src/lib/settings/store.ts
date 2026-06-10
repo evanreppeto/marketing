@@ -10,12 +10,14 @@ export type AppSettings = {
   workspaceName: string;
   supportEmail: string;
   markWebhookEnabled: boolean;
+  agentName: string;
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   workspaceName: "Big Shoulders Restoration M&P",
   supportEmail: "",
   markWebhookEnabled: true,
+  agentName: "",
 };
 
 /** Trim + cap a workspace name. Empty input falls back to the default at save time. */
@@ -39,6 +41,7 @@ function mergeRows(rows: SettingRow[]): AppSettings {
     workspaceName: str("workspace_name", DEFAULT_APP_SETTINGS.workspaceName) || DEFAULT_APP_SETTINGS.workspaceName,
     supportEmail: str("support_email", DEFAULT_APP_SETTINGS.supportEmail),
     markWebhookEnabled: bool("mark_webhook_enabled", DEFAULT_APP_SETTINGS.markWebhookEnabled),
+    agentName: str("agent_name", DEFAULT_APP_SETTINGS.agentName),
   };
 }
 
