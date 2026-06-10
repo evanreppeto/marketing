@@ -27,6 +27,10 @@ export function AgentSettingsDrawer({ open, onClose }: { open: boolean; onClose:
       .then(setInfo)
       .catch(() => {});
     panelRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }
