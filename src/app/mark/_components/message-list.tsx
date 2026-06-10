@@ -164,8 +164,9 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
 function StepTrace({ steps }: { steps: MarkStep[] }) {
   return (
     <details className="mt-3 text-xs text-[var(--text-muted)]">
-      <summary className="cursor-pointer select-none font-mono text-[11px] hover:text-[var(--text-secondary)]">
-        What Mark did · {steps.length}
+      <summary className="flex cursor-pointer select-none items-center gap-1.5 font-mono text-[11px] text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
+        <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7l6 6 6-6" /></svg>
+        Reasoning · {steps.length} step{steps.length === 1 ? "" : "s"}
       </summary>
       <div className="mt-2 flex flex-col">
         {steps.map((s, i) => (
@@ -413,7 +414,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
         {message.media.length > 0 ? <MessageMedia media={message.media} /> : null}
         {!pending && !failed ? <SuggestionChips suggestions={message.suggestions} onPick={onSuggestion} /> : null}
         {!pending ? (
-          <div className="mt-1.5 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+          <div className="mt-1.5 flex items-center gap-1 text-[var(--text-muted)] opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
             {failed ? (
               <button
                 type="button"
