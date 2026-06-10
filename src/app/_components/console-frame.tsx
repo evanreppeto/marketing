@@ -9,6 +9,7 @@ import { cx, theme } from "./theme";
 
 const navItems: ShellNavItem[] = [
   { label: "Mark", href: "/mark", icon: "mark", matches: ["/mark", "/"] },
+  { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
   { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
 ];
 
