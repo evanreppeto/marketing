@@ -269,7 +269,7 @@ export function MarkChat({
         <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
           {/* Ambient silk backdrop — the 21st.dev MeshGradient shader, obsidian+gold. */}
           <MarkBackdrop />
-          <header className="relative z-10 flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] px-3 py-2 sm:px-4">
+          <header className="relative z-20 flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] px-3 py-2 sm:px-4">
             <button
               type="button"
               onClick={() => setThreadsOpen(true)}
@@ -340,7 +340,6 @@ export function MarkChat({
                 }}
                 replyPending={replyPending}
                 onStopReply={handleStop}
-                onOpenCommands={() => setPaletteOpen(true)}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
                   try {

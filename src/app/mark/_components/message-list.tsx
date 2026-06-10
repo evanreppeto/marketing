@@ -10,6 +10,7 @@ import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
 import { setMarkMessageFeedbackAction } from "../actions";
 import { ActionCard } from "./action-card";
+import { MarkOrb } from "./mark-orb";
 import { MessageMedia } from "./message-media";
 
 function CopyButton({ text }: { text: string }) {
@@ -73,18 +74,13 @@ function MarkAvatar({ pending }: { pending?: boolean }) {
     <span
       aria-hidden
       className={cx(
-        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.6rem]",
+        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
         pending ? "motion-safe:[animation:mark-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
       )}
     >
-      <span
-        style={{ fontFamily: "var(--font-serif)" }}
-        className="flex h-full w-full items-center justify-center rounded-[0.6rem] bg-[radial-gradient(120%_120%_at_30%_20%,var(--surface-raised),var(--surface-panel))] text-sm font-semibold text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--border-strong),inset_0_1px_0_0_rgba(255,255,255,0.05)]"
-      >
-        M
-      </span>
+      <MarkOrb size={32} className="shadow-[inset_0_0_0_1px_var(--border-strong)]" />
       {/* Live presence dot — Mark is online (the chat polls). Ring, not glow. */}
-      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[var(--ok)] shadow-[0_0_0_2px_var(--canvas)]" />
+      <span className="absolute -bottom-0.5 -right-0.5 z-[1] h-2.5 w-2.5 rounded-full bg-[var(--ok)] shadow-[0_0_0_2px_var(--canvas)]" />
     </span>
   );
 }

@@ -479,6 +479,46 @@ h4, .font-display {
 @keyframes mark-orbit-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mark-orbit { animation: none; } }
 
+/* Mark's living orb avatar — a swirling molten-gold orb (CSS conic gradients +
+   blur + rotation). Cheap enough to render on every message (no WebGL contexts).
+   Adapted from the 21st.dev "Siri Orb", recolored to Signal gold. */
+@property --mark-orb-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.mark-orb {
+  position: relative;
+  display: grid;
+  grid-template-areas: "stack";
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200, 162, 74, 0.12) 0%, rgba(200, 162, 74, 0.04) 35%, transparent 70%);
+}
+.mark-orb::before {
+  content: "";
+  grid-area: stack;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background:
+    conic-gradient(from calc(var(--mark-orb-angle) * 1.2) at 30% 65%, var(--mark-orb-c3) 0deg, transparent 45deg 315deg, var(--mark-orb-c3) 360deg),
+    conic-gradient(from calc(var(--mark-orb-angle) * 0.8) at 70% 35%, var(--mark-orb-c2) 0deg, transparent 60deg 300deg, var(--mark-orb-c2) 360deg),
+    conic-gradient(from calc(var(--mark-orb-angle) * -1.5) at 65% 75%, var(--mark-orb-c1) 0deg, transparent 90deg 270deg, var(--mark-orb-c1) 360deg),
+    radial-gradient(ellipse 120% 80% at 40% 60%, var(--mark-orb-c3) 0%, transparent 50%);
+  filter: blur(var(--mark-orb-blur, 4px)) contrast(1.5) saturate(1.15);
+  animation: mark-orb-rotate var(--mark-orb-dur, 14s) linear infinite;
+  transform: translateZ(0);
+  will-change: transform;
+}
+.mark-orb::after {
+  content: "";
+  grid-area: stack;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%, rgba(255, 255, 255, 0.2) 0%, transparent 55%);
+  mix-blend-mode: overlay;
+}
+@keyframes mark-orb-rotate { from { --mark-orb-angle: 0deg; } to { --mark-orb-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .mark-orb::before { animation: none; } }
+
 /* ============================================================================
    Utilities & legacy component helpers
    ============================================================================ */

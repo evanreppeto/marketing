@@ -5,7 +5,7 @@ import { useActionState, useEffect, useMemo, useRef, useState, type RefObject } 
 import { cx } from "@/app/_components/theme";
 import type { MarkMention } from "@/domain";
 import { serializeMentions } from "@/domain";
-import { matchSlash, type SlashCommand } from "./slash-commands";
+import { matchSlash, SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
 import type { MarkAttachment, MarkMessage } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
@@ -60,7 +60,6 @@ export function Composer({
   registerApplyCommand,
   replyPending,
   onStopReply,
-  onOpenCommands,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -73,7 +72,6 @@ export function Composer({
   registerApplyCommand?: (fn: (cmd: SlashCommand) => void) => void;
   replyPending?: boolean;
   onStopReply?: () => void;
-  onOpenCommands?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);
@@ -314,9 +312,12 @@ export function Composer({
             </button>
             <button
               type="button"
-              onClick={() => onOpenCommands?.()}
+              onClick={() => {
+                setSlash((s) => (s && s.length ? null : SLASH_COMMANDS));
+                textareaRef.current?.focus();
+              }}
               aria-label="Tools and commands"
-              title="Tools — run a command (⌘K)"
+              title="Tools — run a command"
               className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
