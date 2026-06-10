@@ -312,24 +312,6 @@ export function Composer({
                 <path d="M4 14l3.5-3.5 2.5 2.5 2-2 4 4" />
               </svg>
             </button>
-            <button
-              type="button"
-              aria-label="Mention a record"
-              title="Reference a record"
-              onClick={() => { onTextChange((draft ? draft.replace(/\s*$/, " ") : "") + "@"); textareaRef.current?.focus(); }}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-base text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-            >
-              @
-            </button>
-            <button
-              type="button"
-              aria-label="Run a command"
-              title="Run a command"
-              onClick={() => { onTextChange("/"); textareaRef.current?.focus(); }}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-base text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-            >
-              /
-            </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
             <textarea
               ref={textareaRef}
