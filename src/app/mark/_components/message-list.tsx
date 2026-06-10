@@ -138,7 +138,10 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
       ) : !hasSteps ? (
         <div className="flex flex-col gap-2.5" aria-label="Mark is thinking">
           <span className="flex items-center gap-2.5">
-            <span aria-hidden className="mark-orbit" />
+            <span aria-hidden className="mark-luma h-4 w-4">
+              <span />
+              <span />
+            </span>
             <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
           </span>
           <div className="flex flex-col gap-2 pt-0.5">
