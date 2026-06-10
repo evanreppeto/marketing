@@ -413,6 +413,30 @@ h4, .font-display {
   animation: text-shimmer 1.6s linear infinite;
 }
 
+/* Streaming reveal: soft bottom fade on Mark's in-progress reply, so chunked
+   poll updates read as continuous text emerging rather than hard jumps. */
+.mark-streaming {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 1.6em), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 1.6em), transparent 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark-streaming { -webkit-mask-image: none; mask-image: none; }
+}
+
+/* Writing caret at the tail of a streaming reply. */
+@keyframes mark-caret-blink { 0%, 45% { opacity: 1; } 55%, 100% { opacity: 0.15; } }
+.mark-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: var(--accent);
+  margin-left: 1px;
+  animation: mark-caret-blink 1.1s steps(1, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) { .mark-caret { animation: none; opacity: 0.8; } }
+
 /* ============================================================================
    Utilities & legacy component helpers
    ============================================================================ */
