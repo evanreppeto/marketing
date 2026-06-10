@@ -4,6 +4,7 @@ import { Archivo, Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/goo
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
 import { isOperatorGateEnabled } from "@/lib/auth/operator";
+import { agentProfile, getAgentDisplayName } from "@/lib/mark-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
 // Display: an engineered grotesk — confident, gridded, mechanical. Drives headings and key numbers.
@@ -47,18 +48,27 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { agentName } = await getAppSettings();
+  const profile = agentProfile(getAgentDisplayName(agentName));
+
   return (
     <html
       lang="en"
       className={`h-full antialiased ${display.variable} ${serif.variable} ${body.variable} ${mono.variable}`}
     >
       <body className="min-h-full flex flex-col">
-        <ConsoleFrame gateEnabled={isOperatorGateEnabled()}>{children}</ConsoleFrame>
+        <ConsoleFrame
+          gateEnabled={isOperatorGateEnabled()}
+          agentName={profile.name}
+          agentMonogram={profile.monogram}
+        >
+          {children}
+        </ConsoleFrame>
       </body>
     </html>
   );

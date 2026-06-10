@@ -17,6 +17,8 @@ export type ShellNavItem = {
 type SideNavProps = {
   active: string;
   items: ShellNavItem[];
+  /** When true, labels are visually hidden at lg (icon rail). Mobile always shows labels. */
+  collapsed?: boolean;
 };
 
 function matchesItem(item: ShellNavItem, path: string) {
@@ -26,7 +28,7 @@ function matchesItem(item: ShellNavItem, path: string) {
   return item.matches.some((match) => path === match || (match !== "/" && path.startsWith(match)));
 }
 
-export function SideNav({ active, items }: SideNavProps) {
+export function SideNav({ active, items, collapsed = false }: SideNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, setPending] = useState<{ fromPath: string; href: string } | null>(null);
@@ -56,6 +58,7 @@ export function SideNav({ active, items }: SideNavProps) {
             }`}
             href={item.href}
             key={item.href}
+            title={item.label}
             onClick={() => {
               if (!matchesItem(item, currentPath)) {
                 setPending({ fromPath: currentPath, href: item.href });
@@ -71,7 +74,7 @@ export function SideNav({ active, items }: SideNavProps) {
               }`}
               name={item.icon}
             />
-            <span>{item.label}</span>
+            <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
           </Link>
         );
       })}
