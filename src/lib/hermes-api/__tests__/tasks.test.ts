@@ -174,6 +174,7 @@ describe("moveAgentTask", () => {
     const result = await moveAgentTask(TASK_ID, "completed", supabase);
 
     expect(result).toEqual({ ok: false, reason: "rejected", code: "open_approval" });
+    expect(updateCalls(supabase)).toHaveLength(0);
   });
 
   it("performs an allowed move and records an audit log", async () => {

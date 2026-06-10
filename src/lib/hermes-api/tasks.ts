@@ -34,6 +34,7 @@ type TaskRow = {
   approval_item_id: string | null;
   source_type: string | null;
   source_id: string | null;
+  started_at: string | null;
   created_at: string | null;
   updated_at: string | null;
   metadata: Record<string, unknown> | null;
@@ -306,7 +307,7 @@ export async function moveAgentTask(
   }
 
   const patch: Record<string, unknown> = { status: toStatus };
-  if (toStatus === "running" && !(row.metadata as Record<string, unknown> | null)?.started_at) {
+  if (toStatus === "running" && !row.started_at) {
     patch.started_at = new Date().toISOString();
   }
   if (toStatus === "completed") {
