@@ -413,7 +413,7 @@ function TaskSectionToolbar({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.78fr)] xl:items-end">
         <div className="min-w-0">
           <div className="signal-eyebrow">{eyebrow}</div>
-          <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{title}</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">{title}</h2>
           <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
             {query.trim() ? `${resultCount} matched from ${count}.` : `${count} total records.`}
           </p>
@@ -463,7 +463,7 @@ function TaskSectionToolbar({
             </label>
 
             <button
-              className="min-h-11 cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
+              className="min-h-11 cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition duration-200 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
               disabled={!query}
               onClick={onClear}
               type="button"

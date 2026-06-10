@@ -14,13 +14,13 @@ export function ChatEmptyState({ onPick, composer }: { onPick: (prompt: string) 
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-10">
       <span
         aria-hidden
-        className="msg-rise flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent)] font-display text-lg font-black text-[var(--on-accent)] shadow-[var(--accent-glow)]"
+        className="msg-rise flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent)] font-display text-lg font-bold text-[var(--on-accent)]"
         style={{ animationDelay: "0ms" }}
       >
         M
       </span>
       <div className="msg-rise flex flex-col items-center gap-2 text-center" style={{ animationDelay: "70ms" }}>
-        <h2 className="font-display text-[clamp(1.5rem,3vw,2rem)] font-black leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)]">
+        <h2 className="font-display text-[clamp(1.5rem,3vw,2rem)] font-bold leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)]">
           What can Mark help with?
         </h2>
         <p className="max-w-[52ch] text-xs leading-5 text-[var(--text-muted)]">
@@ -42,7 +42,7 @@ export function ChatEmptyState({ onPick, composer }: { onPick: (prompt: string) 
             key={c.label}
             type="button"
             onClick={() => onPick(c.prompt)}
-            className="rounded-full border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            className="rounded-full border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
             {c.label}
           </button>

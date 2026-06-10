@@ -10,7 +10,7 @@ type FilterSelectProps = {
 export function FilterSelect({ label, name, options, value }: FilterSelectProps) {
   return (
     <label className="min-w-0">
-      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</span>
+      <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</span>
       <span className="relative block">
         <select
           className="h-11 w-full appearance-none rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-2 pl-3 pr-9 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"

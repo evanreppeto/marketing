@@ -250,7 +250,7 @@ function ReportsHeader({ status }: { status: string }) {
         <StatusPill tone="amber">Outbound locked</StatusPill>
         <StatusPill tone="amber">No publishing</StatusPill>
       </div>
-      <h1 className="mt-3 max-w-3xl text-[clamp(1.8rem,3vw,3.2rem)] font-black leading-[0.98] tracking-[-0.05em] text-[var(--text-primary)]">
+      <h1 className="mt-3 max-w-3xl text-[clamp(1.8rem,3vw,3.2rem)] font-bold leading-[0.98] tracking-[-0.05em] text-[var(--text-primary)]">
         Attribute growth work to leads, partners, campaigns, and revenue.
       </h1>
       <p className="mt-3 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
@@ -268,7 +268,7 @@ function ReportsHeader({ status }: { status: string }) {
 function HeaderRule({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value}</div>
     </div>
   );
@@ -330,7 +330,7 @@ function SignalCard({ row }: { row: PerformanceBreakdown }) {
         <div className="font-bold text-[var(--text-primary)]">{row.label}</div>
         <ToneTag tone={row.tone} />
       </div>
-      <div className="mt-3 font-display text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{row.value}</div>
+      <div className="mt-3 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">{row.value}</div>
       <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{row.detail}</p>
     </div>
   );
@@ -359,7 +359,7 @@ function ToneTag({ tone }: { tone: PerformanceTone }) {
             ? "border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] text-[var(--accent)]"
             : "border-[var(--border-hairline)] bg-[var(--surface-soft)] text-[var(--text-muted)]";
 
-  return <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${className}`}>{label}</span>;
+  return <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${className}`}>{label}</span>;
 }
 
 function normalizeTab(value: string | string[] | undefined): PerformanceTabKey {

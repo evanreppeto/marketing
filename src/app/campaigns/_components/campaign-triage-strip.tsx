@@ -33,7 +33,7 @@ export function CampaignTriageStrip({ campaigns }: { campaigns: CampaignWorkspac
           <span aria-hidden className={`shrink-0 text-[var(--text-muted)] transition-transform duration-150 ${open ? "rotate-90" : ""}`}>
             ›
           </span>
-          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">Needs your decision</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Needs your decision</span>
         </span>
         <StatusPill tone="amber">
           {total} awaiting · {needs.length} campaign{needs.length === 1 ? "" : "s"}

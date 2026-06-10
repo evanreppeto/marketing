@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { IntelligencePanel } from "../_components/intelligence-panel";
-import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
+import { EmptyState, PageHeader, StatusPill, buttonClasses } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getAgentOperationsDashboard } from "@/lib/agent-operations/read-model";
 
@@ -129,19 +129,17 @@ export default async function AgentOperationsPage() {
 
 function Header({ status }: { status: string }) {
   return (
-    <header className="module-rise mb-5 rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-6 py-5 shadow-[var(--elev-panel)]">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="signal-eyebrow">Mark Operations</span>
-        <StatusPill tone={statusTone(status)}>{status}</StatusPill>
-        <StatusPill tone="amber">No outbound execution</StatusPill>
-      </div>
-      <h1 className="mt-3 max-w-3xl text-[clamp(1.8rem,3vw,3.2rem)] font-black leading-[0.98] tracking-[-0.05em] text-[var(--text-primary)]">
-        Task queue, audit trail, and safe repair controls.
-      </h1>
-      <p className="mt-3 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">
-        Use this page to see what Mark is doing, what data he touched, what outputs he created, and what needs approval or repair.
-      </p>
-    </header>
+    <PageHeader
+      eyebrow="Mark operations"
+      title="Task queue, audit trail, and safe repair controls."
+      description="Use this page to see what Mark is doing, what data he touched, what outputs he created, and what needs approval or repair."
+      aside={
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill tone={statusTone(status)}>{status}</StatusPill>
+          <StatusPill tone="amber">No outbound execution</StatusPill>
+        </div>
+      }
+    />
   );
 }
 

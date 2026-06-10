@@ -25,7 +25,7 @@ export function ReasoningTab({
               {guardrailCount > 0 ? `${guardrailCount} guardrail${guardrailCount === 1 ? "" : "s"}` : "No flags"}
             </StatusPill>
           </div>
-          <h2 className="mt-3 text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">
+          <h2 className="mt-3 text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
             What Mark decided, why it matters, and what to do next
           </h2>
           <p className="mt-2 max-w-[78ch] text-sm leading-6 text-[var(--text-secondary)]">
@@ -35,11 +35,11 @@ export function ReasoningTab({
         </div>
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
           <div className="border-b border-[var(--border-hairline)] p-5 lg:border-b-0 lg:border-r">
-            <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--accent)]">Decision logic</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Decision logic</div>
             <p className="mt-3 text-base leading-7 text-[var(--text-primary)]">{reasoning.whyBuilt}</p>
           </div>
           <div className="p-5">
-            <div className="text-xs font-black uppercase tracking-[0.14em] text-[oklch(0.84_0.13_155)]">Recommended action</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[oklch(0.84_0.13_155)]">Recommended action</div>
             <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{reasoning.recommendedAction}</p>
           </div>
         </div>
@@ -55,14 +55,14 @@ export function ReasoningTab({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
           <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-            <div className="text-base font-black uppercase tracking-[0.1em] text-[var(--text-primary)]">Evidence Mark used</div>
+            <div className="text-base font-semibold uppercase tracking-[0.1em] text-[var(--text-primary)]">Evidence Mark used</div>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">The inputs and tools that shaped the recommendation.</p>
           </div>
 
           <div className="divide-y divide-[var(--border-hairline)]">
             {reasoning.promptInputs.length > 0 ? (
               <div className="px-5 py-4">
-                <div className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Prompt inputs</div>
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Prompt inputs</div>
                 <dl className="grid gap-3">
                   {reasoning.promptInputs.map((input) => (
                     <div key={input.label} className="grid gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2.5 sm:grid-cols-[170px_minmax(0,1fr)]">
@@ -79,7 +79,7 @@ export function ReasoningTab({
             )}
 
             <div className="px-5 py-4">
-              <div className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Tools and constraints</div>
+              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Tools and constraints</div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <TagGroup
                   empty="No tools logged"
@@ -101,7 +101,7 @@ export function ReasoningTab({
         <aside className="space-y-5">
           <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
             <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-              <div className="text-base font-black uppercase tracking-[0.1em] text-[var(--text-primary)]">Mark outputs</div>
+              <div className="text-base font-semibold uppercase tracking-[0.1em] text-[var(--text-primary)]">Mark outputs</div>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">Generated work that can be inspected or traced.</p>
             </div>
             {activity.length > 0 ? (
@@ -132,7 +132,7 @@ export function ReasoningTab({
 
       <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
         <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-          <div className="text-base font-black uppercase tracking-[0.1em] text-[var(--text-primary)]">Campaign timeline</div>
+          <div className="text-base font-semibold uppercase tracking-[0.1em] text-[var(--text-primary)]">Campaign timeline</div>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">The recent activity trail for approvals, edits, and agent handoffs.</p>
         </div>
         {events.length > 0 ? (
@@ -176,7 +176,7 @@ function SignalTile({
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
         <StatusPill tone={tone}>{value}</StatusPill>
       </div>
-      <div className="mt-3 font-display text-3xl font-black tracking-[-0.05em] text-[var(--text-primary)]">{value}</div>
+      <div className="mt-3 font-display text-3xl font-bold tracking-[-0.05em] text-[var(--text-primary)]">{value}</div>
       <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
     </div>
   );

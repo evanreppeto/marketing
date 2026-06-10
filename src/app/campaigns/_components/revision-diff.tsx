@@ -18,7 +18,7 @@ export function RevisionDiff({ draft, current }: { draft: string; current: strin
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
       >
-        <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">What changed</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">What changed</span>
         <span className="font-mono text-xs font-bold tabular-nums">
           <span className="text-[var(--ok)]">+{added}</span> <span className="text-[var(--priority-bright)]">−{removed}</span>
           <span className="ml-2 text-[var(--text-muted)]">{open ? "Hide" : "Show"}</span>

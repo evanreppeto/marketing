@@ -175,9 +175,9 @@ function TaskSectionTabs({
           return (
             <Link
               aria-current={isActive ? "page" : undefined}
-              className={`rounded-lg border px-4 py-3 transition duration-200 hover:-translate-y-0.5 active:translate-y-px ${
+              className={`rounded-lg border px-4 py-3 transition duration-200 active:translate-y-px ${
                 isActive
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_20px_oklch(0.74_0.115_232/0.18)]"
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
                   : "border-transparent bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
               }`}
               href={href}
@@ -204,7 +204,7 @@ function TaskOverview({ detail }: { detail: Extract<Awaited<ReturnType<typeof ge
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="signal-eyebrow">Task contract</div>
-          <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">What Mark was asked to do</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">What Mark was asked to do</h2>
           <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{task.objective}</p>
         </div>
         <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/agent-operations">
@@ -249,7 +249,7 @@ function TaskOverview({ detail }: { detail: Extract<Awaited<ReturnType<typeof ge
 function OverviewLinkCard({ detail, href, label }: { detail: string; href: string; label: string }) {
   return (
     <Link
-      className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+      className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
       href={href}
     >
       <div className="font-bold text-[var(--text-primary)]">{label}</div>
@@ -292,7 +292,7 @@ function TaskReadinessPanel({ detail }: { detail: Extract<Awaited<ReturnType<typ
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="signal-eyebrow">Task readiness</div>
-          <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Operator checkpoint</h2>
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Operator checkpoint</h2>
         </div>
         <StatusPill tone="amber">Outbound locked</StatusPill>
       </div>
@@ -303,7 +303,7 @@ function TaskReadinessPanel({ detail }: { detail: Extract<Awaited<ReturnType<typ
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{checkpoint.label}</div>
-                <div className="mt-1 truncate text-sm font-black text-[var(--text-primary)]">{checkpoint.value}</div>
+                <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{checkpoint.value}</div>
               </div>
               <StatusPill tone={checkpoint.tone}>{checkpoint.tone === "green" ? "Ready" : checkpoint.tone === "amber" ? "Review" : "Open"}</StatusPill>
             </div>

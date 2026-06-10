@@ -71,7 +71,7 @@ function MarkAvatar({ pending }: { pending?: boolean }) {
     <span
       aria-hidden
       className={cx(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-display text-xs font-black text-[var(--on-accent)]",
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-display text-xs font-bold text-[var(--on-accent)]",
         pending ? "motion-safe:[animation:avatar-breathe_1.8s_ease-in-out_infinite]" : "",
       )}
     >
@@ -277,7 +277,7 @@ export function MessageList({
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4">
         <div className="text-center">
-          <h2 className="font-display text-2xl font-black tracking-[-0.03em] text-[var(--text-primary)]">
+          <h2 className="font-display text-2xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">
             What can Mark help with?
           </h2>
           <p className="mx-auto mt-3 max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">

@@ -89,7 +89,7 @@ export function CreativeTab({
       {/* Review progress — the queue's single status line. */}
       <div className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-4 py-3.5 shadow-[var(--elev-panel)]">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">Review progress</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Review progress</span>
           <div className="flex h-2 min-w-40 flex-1 overflow-hidden rounded-full bg-[var(--surface-raised)]">
             <div
               className="h-full rounded-full bg-[var(--ok)] transition-[width] duration-300 ease-out"
@@ -315,7 +315,7 @@ function DeliverableCover({ asset, kind }: { asset: CampaignWorkspaceAsset; kind
     }
     if (primaryMedia.type === "video") {
       return (
-        <div className="h-40 bg-black">
+        <div className="h-40 bg-[var(--media-void)]">
           <video src={primaryMedia.url} poster={primaryMedia.thumbnailUrl ?? undefined} className="h-full w-full object-contain" />
         </div>
       );
@@ -335,7 +335,7 @@ function DeliverableCover({ asset, kind }: { asset: CampaignWorkspaceAsset; kind
 
   return (
     <div className={`flex h-40 flex-col gap-2 border-b p-3 ${coverTone}`}>
-      <span className="font-mono text-[10px] font-black uppercase tracking-[0.14em]">{label}</span>
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em]">{label}</span>
       {headline ? (
         <span className="line-clamp-2 text-sm font-bold leading-snug text-[var(--text-primary)]">{headline}</span>
       ) : null}
@@ -470,7 +470,7 @@ function ReviewDrawer({
           <div className="flex min-w-0 items-start gap-2.5">
             <KindGlyph kind={kind} />
             <div className="min-w-0">
-              <h2 className="truncate text-base font-black tracking-[-0.02em] text-[var(--text-primary)]">{asset.title}</h2>
+              <h2 className="truncate text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">{asset.title}</h2>
               <p className="mt-0.5 text-xs font-semibold text-[var(--text-muted)]">
                 {kind.label}
                 {isDistinctMeta(kind.label, asset.channel) ? ` · ${asset.channel}` : ""}
@@ -493,7 +493,7 @@ function ReviewDrawer({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div>
-            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent)]">Full draft</div>
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Full draft</div>
             <AssetRecordPreview asset={asset} full />
           </div>
 
@@ -502,7 +502,7 @@ function ReviewDrawer({
           {asset.media.length > 0 ? <AssetMediaLibrary media={asset.media} /> : null}
 
           <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
-            <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Compliance</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Compliance</div>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]">{asset.complianceNotes}</p>
           </div>
 
@@ -569,7 +569,7 @@ function AssetRecordPreview({ asset, full = false }: { asset: CampaignWorkspaceA
     return (
       <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-          <span className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-[var(--accent)]">Email draft</span>
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">Email draft</span>
           <span className="text-xs text-[var(--text-muted)]">Subject</span>
         </div>
         <div className="space-y-3 p-3">
@@ -598,7 +598,7 @@ function AssetRecordPreview({ asset, full = false }: { asset: CampaignWorkspaceA
     return (
       <div className="min-w-0 rounded-lg border border-[oklch(0.68_0.2_26/0.28)] bg-[oklch(0.25_0.04_26/0.28)] p-3">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-[oklch(0.86_0.1_26)]">Ad preview</span>
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[oklch(0.86_0.1_26)]">Ad preview</span>
           <span className="rounded border border-[oklch(0.68_0.2_26/0.3)] px-2 py-0.5 text-[10px] font-bold uppercase text-[oklch(0.86_0.1_26)]">{asset.channel}</span>
         </div>
         <p className={`whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)] ${bodyClamp}`}>{text}</p>
@@ -609,8 +609,8 @@ function AssetRecordPreview({ asset, full = false }: { asset: CampaignWorkspaceA
   return (
     <div className="min-w-0 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">{kind.label}</span>
-        <span className="text-lg font-black text-[var(--text-muted)]">{kind.icon}</span>
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{kind.label}</span>
+        <span className="text-lg font-bold text-[var(--text-muted)]">{kind.icon}</span>
       </div>
       <p className={`whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)] ${bodyClamp}`}>{text}</p>
     </div>
@@ -643,12 +643,12 @@ function MediaHero({ media }: { media: CampaignMediaAsset }) {
   }
 
   if (media.type === "video") {
-    return <video src={media.url} poster={media.thumbnailUrl ?? undefined} controls className="max-h-80 w-full bg-black object-contain" />;
+    return <video src={media.url} poster={media.thumbnailUrl ?? undefined} controls className="max-h-80 w-full bg-[var(--media-void)] object-contain" />;
   }
 
   return (
     <a href={media.url} target="_blank" rel="noreferrer" className="flex h-28 flex-col justify-between bg-[var(--surface-inset)] p-3 transition hover:bg-[var(--surface-raised)]">
-      <span className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
         {media.type === "embed" ? "Video" : media.type === "file" ? "File" : "Link"}
       </span>
       <span className="line-clamp-2 text-sm font-bold text-[var(--text-primary)]">{media.title}</span>
@@ -760,7 +760,7 @@ function ReviewFact({ label, value }: { label: string; value: string }) {
 function AssetMediaLibrary({ media }: { media: CampaignMediaAsset[] }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
-      <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">Media</div>
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Media</div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {media.map((item) => (
           <div key={item.id} className="overflow-hidden rounded-lg border border-[var(--border-hairline)]">
@@ -780,7 +780,7 @@ function KindGlyph({ kind }: { kind: ReturnType<typeof assetKind> }) {
   return (
     <span
       aria-hidden
-      className={`mt-0.5 inline-flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-md border px-1.5 font-mono text-[11px] font-black ${kind.iconClass}`}
+      className={`mt-0.5 inline-flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-md border px-1.5 font-mono text-[11px] font-bold ${kind.iconClass}`}
     >
       {kind.icon}
     </span>

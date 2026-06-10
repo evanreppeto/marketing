@@ -132,7 +132,7 @@ export function CrmObjectTable({
               </label>
 
               <button
-                className="min-h-11 cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
+                className="min-h-11 cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition duration-200 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
                 disabled={!query}
                 onClick={() => {
                   setQuery("");
@@ -150,7 +150,7 @@ export function CrmObjectTable({
           {views.map((listView) => (
             <Link
               aria-current={activeView === listView.key ? "page" : undefined}
-              className={`group flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-md border px-3 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_20px_oklch(0.74_0.115_232/0.16)] active:translate-y-px ${
+              className={`group flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-md border px-3 text-sm font-semibold transition duration-200 active:translate-y-px ${
                 activeView === listView.key
                   ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
                   : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"

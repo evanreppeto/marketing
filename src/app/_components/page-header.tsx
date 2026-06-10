@@ -56,15 +56,6 @@ type PageHeaderProps = {
 export function PageHeader({ eyebrow, title, description, aside, backHref, backLabel }: PageHeaderProps) {
   return (
     <header className={theme.surface.pageHeader}>
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-cover bg-[65%_center] opacity-45"
-        style={{ backgroundImage: "url('/brand/signal-command-header.png')" }}
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-[linear-gradient(90deg,var(--surface-panel)_0%,oklch(0.16_0.04_250/0.9)_46%,oklch(0.11_0.03_250/0.62)_100%)]"
-      />
       <div className="relative flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 max-w-full">
           {backHref ? <BackLink href={backHref} label={backLabel ?? "back"} /> : null}
@@ -72,7 +63,7 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
             <span aria-hidden="true" className="h-2.5 w-0.5 rounded-full bg-[var(--accent)]" />
             {eyebrow}
           </p>
-          <h1 className="mt-2 text-[clamp(1.65rem,3vw,2.25rem)] font-extrabold leading-[1.06] tracking-[-0.03em] text-[var(--text-primary)]">
+          <h1 className="mt-2 text-[clamp(1.65rem,3vw,2.25rem)] font-bold leading-[1.06] tracking-[-0.03em] text-[var(--text-primary)]">
             {title}
           </h1>
           {description ? (
@@ -182,7 +173,7 @@ export function StatusPill({
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-md border px-2.5 py-0.5 text-[11px] font-bold tracking-[0.01em]",
+        "inline-flex items-center rounded-md border px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
         theme.pill[tone],
       )}
     >

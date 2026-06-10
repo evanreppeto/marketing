@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { navItems, personaTrackerRows } from "../_data/growth-engine";
+import { cx, theme } from "./theme";
 
 type JumpItem = {
   key: string;
@@ -131,7 +132,7 @@ export function QuickJump() {
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 px-4 pt-[12vh] backdrop-blur-sm"
+          className={cx(theme.shell.overlay, "flex items-start justify-center px-4 pt-[12vh]")}
           onClick={() => setOpen(false)}
           role="presentation"
         >
@@ -142,7 +143,7 @@ export function QuickJump() {
             aria-modal="true"
             aria-label="Quick jump"
           >
-            <div className="border-b border-white/10 px-3 py-2">
+            <div className="border-b border-[var(--border-hairline)] px-3 py-2">
               <input
                 ref={inputRef}
                 value={query}
@@ -189,13 +190,13 @@ export function QuickJump() {
             <div className="flex items-center justify-between border-t border-[var(--border-hairline)] bg-[var(--canvas-deep)] px-3 py-2 text-[10px] text-[var(--text-muted)]">
               <div className="flex items-center gap-3">
                 <span>
-                  <kbd className="rounded border border-white/15 bg-white/5 px-1 font-mono">↑↓</kbd> navigate
+                  <kbd className={theme.control.kbd}>↑↓</kbd> navigate
                 </span>
                 <span>
-                  <kbd className="rounded border border-white/15 bg-white/5 px-1 font-mono">↵</kbd> jump
+                  <kbd className={theme.control.kbd}>↵</kbd> jump
                 </span>
                 <span>
-                  <kbd className="rounded border border-white/15 bg-white/5 px-1 font-mono">esc</kbd> close
+                  <kbd className={theme.control.kbd}>esc</kbd> close
                 </span>
               </div>
               <span>

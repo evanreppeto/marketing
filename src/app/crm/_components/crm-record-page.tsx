@@ -186,7 +186,7 @@ function RecordSummary({ record }: { record: CrmRecordData }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="signal-eyebrow">Record summary</div>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</h2>
+          <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</h2>
           <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{record.detail}</p>
         </div>
         <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/crm/${record.key}`}>
@@ -216,7 +216,7 @@ function RecordFields({ record }: { record: CrmRecordData }) {
     <Panel className="module-rise p-0">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
         <div className="signal-eyebrow">Stored fields</div>
-        <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">What the database knows</h2>
+        <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">What the database knows</h2>
       </div>
       <dl className="divide-y divide-[var(--border-hairline)]">
         {record.fields.map((field) => (
@@ -238,7 +238,7 @@ function RelatedRecords({ record }: { record: CrmRecordData }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="signal-eyebrow">Relationships</div>
-          <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Connected CRM records</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">Connected CRM records</h2>
         </div>
         <StatusPill tone={record.relationships.length > 0 ? "blue" : "gray"}>{record.relationships.length}</StatusPill>
       </div>
@@ -268,7 +268,7 @@ function MissingFields({ record }: { record: CrmRecordData }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="signal-eyebrow">Data contract</div>
-          <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Missing fields</h2>
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Missing fields</h2>
         </div>
         <StatusPill tone={record.missingFields.length > 0 ? "amber" : "green"}>
           {record.missingFields.length > 0 ? "Needs enrichment" : "Ready"}
@@ -303,7 +303,7 @@ function NextActions({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="signal-eyebrow">Human gate</div>
-          <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Locked record tools</h2>
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Locked record tools</h2>
         </div>
         <StatusPill tone="amber">Locked</StatusPill>
       </div>

@@ -21,7 +21,7 @@ export function TrackedLinkBuilder({ campaignId }: { campaignId: string }) {
 
   return (
     <div>
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Tracked link builder</div>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Tracked link builder</div>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <label className="flex flex-1 flex-col gap-1">
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Destination URL</span>

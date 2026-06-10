@@ -69,7 +69,7 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
         src={media.url}
         poster={media.thumbnailUrl ?? undefined}
         controls
-        className="h-36 w-full rounded-lg border border-[var(--border-hairline)] bg-black object-contain"
+        className="h-36 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--media-void)] object-contain"
       />
     );
   }

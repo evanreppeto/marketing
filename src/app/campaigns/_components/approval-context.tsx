@@ -21,7 +21,7 @@ export function ApprovalContext({
       <div className={`grid gap-2.5 ${hasMedia ? "lg:grid-cols-[minmax(230px,0.78fr)_minmax(0,1fr)]" : ""}`}>
         {hasMedia ? (
           <div>
-            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Produced preview</div>
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Produced preview</div>
             <div className="grid gap-2 sm:grid-cols-2">
               {approval.media.slice(0, 4).map((media) => (
                 <ApprovalMediaTile key={media.id} media={media} />
@@ -31,7 +31,7 @@ export function ApprovalContext({
         ) : null}
 
         <div>
-          <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Draft Mark produced</div>
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Draft Mark produced</div>
           <div className={`overflow-auto rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-2.5 ${compact ? "max-h-28" : "max-h-40"}`}>
             <p className="whitespace-pre-wrap text-sm leading-5 text-[var(--text-secondary)]">{approval.preview}</p>
           </div>
@@ -40,7 +40,7 @@ export function ApprovalContext({
 
       {hasInputs ? (
         <div>
-          <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Prompt inputs</div>
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Prompt inputs</div>
           <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
             {approval.promptInputs.map((input) => (
               <div key={input.label} className="min-w-0">
@@ -55,7 +55,7 @@ export function ApprovalContext({
       ) : null}
 
       <div>
-        <div className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Compliance</div>
+        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Compliance</div>
         <p className="text-sm leading-5 text-[var(--text-secondary)]">{approval.complianceNotes}</p>
       </div>
     </div>
@@ -86,7 +86,7 @@ function ApprovalMediaTile({ media }: { media: CampaignMediaAsset }) {
         src={media.url}
         poster={media.thumbnailUrl ?? undefined}
         controls
-        className="h-24 w-full rounded-lg border border-[var(--border-hairline)] bg-black object-cover"
+        className="h-24 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--media-void)] object-cover"
       />
     );
   }
@@ -99,7 +99,7 @@ function ApprovalMediaTile({ media }: { media: CampaignMediaAsset }) {
       className="flex h-24 flex-col justify-between rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-2.5 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
       title={media.description ?? media.title}
     >
-      <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
       <span className="line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{media.title}</span>
       <span className="truncate text-xs font-semibold text-[var(--accent)]">Open original</span>
     </a>

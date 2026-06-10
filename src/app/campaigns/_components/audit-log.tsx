@@ -57,7 +57,7 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
             {shown.map((entry) => (
               <li key={entry.id} className="flex items-start gap-3 px-5 py-3">
                 <span
-                  className={`mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${ACTOR_META[entry.actorKind].chip}`}
+                  className={`mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${ACTOR_META[entry.actorKind].chip}`}
                 >
                   <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${ACTOR_META[entry.actorKind].dot}`} />
                   {ACTOR_META[entry.actorKind].label}

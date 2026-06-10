@@ -151,7 +151,7 @@ export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
             return (
               <button
                 aria-pressed={selected}
-                className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 active:translate-y-px ${
+                className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition active:translate-y-px ${
                   selected
                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
                     : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
@@ -202,7 +202,7 @@ function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
   return (
     <article
       aria-label={`Open CRM record for ${partner.name}`}
-      className="cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      className="cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       onClick={(event) => {
         if (isInteractiveTarget(event.target)) return;
         router.push(partner.href);
@@ -225,14 +225,14 @@ function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
             {partner.openApprovals > 0 ? <StatusPill tone="amber">{partner.openApprovals} approvals</StatusPill> : null}
             <StatusPill tone="amber">Outbound locked</StatusPill>
           </div>
-          <Link className="mt-3 block truncate text-xl font-black tracking-[-0.025em] text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={partner.href}>
+          <Link className="mt-3 block truncate text-xl font-bold tracking-[-0.025em] text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={partner.href}>
             {partner.name}
           </Link>
           <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{partner.summary}</p>
         </div>
         <div className="shrink-0 text-left sm:text-right">
           <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Revenue</div>
-          <div className="mt-1 font-display text-2xl font-black tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">{partner.revenue}</div>
+          <div className="mt-1 font-display text-2xl font-bold tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">{partner.revenue}</div>
         </div>
       </div>
 

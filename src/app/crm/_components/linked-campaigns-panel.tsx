@@ -18,7 +18,7 @@ export function LinkedCampaignsPanel({ campaigns }: { campaigns: LinkedCampaign[
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="signal-eyebrow">Connected work</div>
-          <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Campaigns referencing this record</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">Campaigns referencing this record</h2>
         </div>
         <StatusPill tone="blue">{campaigns.length}</StatusPill>
       </div>

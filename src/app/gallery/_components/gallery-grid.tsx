@@ -25,14 +25,14 @@ function GalleryCard({ campaign }: { campaign: GalleryCampaign }) {
           // eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config
           <img src={campaign.thumbnailUrl} alt={campaign.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
         ) : (
-          <span className="px-4 text-center font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          <span className="px-4 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
             {campaign.assetTypes.join(" · ") || "No creative cover"}
           </span>
         )}
       </div>
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="min-w-0 truncate font-black text-[var(--text-primary)]">{campaign.name}</h3>
+          <h3 className="min-w-0 truncate font-bold text-[var(--text-primary)]">{campaign.name}</h3>
           <StatusPill tone="blue">Live</StatusPill>
         </div>
         <p className="mt-0.5 truncate text-xs font-semibold text-[var(--text-muted)]">{campaign.persona}</p>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { IntelligencePanel } from "@/app/_components/intelligence-panel";
-import { EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
+import { EmptyState, PageHeader, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { DetailStack, WorkspacePanel } from "@/app/_components/workspace";
 import { getPersonaCtaRule, personaSlug } from "@/lib/persona-intelligence/cta-rules";
 import { getPersonaIntelligenceData } from "@/lib/persona-intelligence/read-model";
@@ -162,15 +162,15 @@ function PersonaDetailTabs({ activeTab, personaKey }: { activeTab: PersonaDetail
         return (
           <Link
             aria-current={selected ? "page" : undefined}
-            className={`cursor-pointer rounded-lg border px-4 py-3 transition duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] active:translate-y-px ${
+            className={`cursor-pointer rounded-lg border px-4 py-3 transition duration-200 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] active:translate-y-px ${
               selected
-                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_20px_oklch(0.74_0.115_232/0.16)]"
+                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
                 : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)]"
             }`}
             href={href}
             key={tab.key}
           >
-            <span className="block text-sm font-black text-[var(--text-primary)]">{tab.label}</span>
+            <span className="block text-sm font-bold text-[var(--text-primary)]">{tab.label}</span>
             <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
           </Link>
         );
@@ -181,17 +181,17 @@ function PersonaDetailTabs({ activeTab, personaKey }: { activeTab: PersonaDetail
 
 function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <header className="module-rise mb-5 rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-6 py-5 shadow-[var(--elev-panel)]">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="signal-eyebrow">Persona Intelligence</span>
-        <StatusPill tone="amber">Internal only</StatusPill>
-        <StatusPill tone="amber">No publishing</StatusPill>
-      </div>
-      <h1 className="mt-3 max-w-3xl text-[clamp(1.8rem,3vw,3.2rem)] font-black leading-[0.98] tracking-[-0.05em] text-[var(--text-primary)]">
-        {title}
-      </h1>
-      <p className="mt-3 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{subtitle}</p>
-    </header>
+    <PageHeader
+      eyebrow="Persona intelligence"
+      title={title}
+      description={subtitle}
+      aside={
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill tone="amber">Internal only</StatusPill>
+          <StatusPill tone="amber">No publishing</StatusPill>
+        </div>
+      }
+    />
   );
 }
 

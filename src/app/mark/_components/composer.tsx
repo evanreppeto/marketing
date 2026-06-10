@@ -201,7 +201,7 @@ export function Composer({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 rounded-3xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)] focus-within:shadow-[var(--accent-soft-glow)]">
+        <div className="flex flex-col gap-2 rounded-3xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
           {picked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {picked.map((m) => (

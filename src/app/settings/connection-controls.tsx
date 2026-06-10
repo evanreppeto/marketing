@@ -64,7 +64,7 @@ export function ResendConnectionControls({ connection }: { connection: Connectio
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <span className="text-sm font-black text-[var(--text-primary)]">{connection.label}</span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">{connection.label}</span>
             <StatusPill tone={STATUS_TONE[connection.status] ?? "gray"}>
               {STATUS_LABEL[connection.status] ?? connection.status}
             </StatusPill>
@@ -130,7 +130,7 @@ export function SocialConnectionControls({ connection }: { connection: Connectio
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <span className="text-sm font-black text-[var(--text-primary)]">{connection.label}</span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">{connection.label}</span>
             <StatusPill tone={STATUS_TONE[connection.status] ?? "gray"}>
               {STATUS_LABEL[connection.status] ?? connection.status}
             </StatusPill>

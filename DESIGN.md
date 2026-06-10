@@ -37,7 +37,8 @@ Loaded via `next/font` in `src/app/layout.tsx`; exposed as Tailwind families.
 - **Eyebrow** (`.signal-eyebrow`): display font, uppercase, 0.2em tracking, accent color; pair with a short accent tick, not a heading restatement.
 - **Button** (`Button` / `buttonClasses` in `page-header.tsx`, backed by `theme.ts`): the canonical button. Variants `primary` (solid `--accent`, `--on-accent` text), `priority` (solid `--priority-solid` red, `--on-priority` text — both AA ≥4.5:1), `ghost` (inset + hairline border). Sizes `md` (44px touch target) / `sm`. Use `<Button>` for buttons, `buttonClasses({variant})` on a `<Link>`. Never hand-roll button classes or wash a CTA into a faint tint.
 - **DataTable** (`data-table.tsx`): config-driven table (columns with custom `cell` renderers, `isSelected`, `minWidth`, `emptyState`). Centralizes thead, row rhythm, hover/selected states, and `scope="col"`. Use for any tabular data.
-- **Tabs** (`TabNav` in `tab-nav.tsx`, backed by `control.tab*` in `theme.ts`): the canonical tabbed-section nav — a card grid of `{key,label,detail?,count?,href}` items with one active treatment (accent border + soft fill + `--accent-shadow` glow). Use it for any in-page section switcher; never hand-roll tab class strings.
+- **Tabs** (`TabNav` in `tab-nav.tsx`, backed by `control.tab*` in `theme.ts`): the canonical tabbed-section nav — a card grid of `{key,label,detail?,count?,href}` items with one active treatment (accent border + soft fill). Use it for any in-page section switcher; never hand-roll tab class strings.
+- **Nav icons** (`nav-icons.tsx`): hand-rolled SVG line icons — 24 viewBox, 1.75 stroke, `currentColor`, rendered at 20px. All iconography follows this style; never raster/PNG icons, no filled or gradient icon styles.
 - **Back-link:** detail/record pages pass `backHref`/`backLabel` to `PageHeader` (renders the shared `BackLink`). Don't hand-roll back buttons.
 - **Mark chat** (`src/app/mark/`): the operator↔Mark conversational surface. Full-height: thread sidebar + message-row conversation (avatar + label + content, alternating bg — not bubbles) + composer with @-mention popover. CSS-only "thinking" indicator (`motion-safe:animate-pulse`, reduced-motion safe). Reuses `PageHeader`, `Button`, and `theme.*` tokens.
 - **On-fill tokens:** `--on-accent` / `--on-priority` are the only correct text colors on solid accent/priority fills (contrast-verified). `--priority-solid` is the button-fill red; `--priority` stays for tints/dots/text.
@@ -51,8 +52,12 @@ Persistent command rail + asymmetric content grids. Avoid repeated equal 3-colum
 
 ## 6. Motion & Interaction
 
-CSS-only transform/opacity. Stagger modules on load (`.module-rise` + `animation-delay`). Active status indicators may breathe (`.status-breathe`/`.status-ripple`). No animating layout dimensions, no bounce/elastic easing. Respect `prefers-reduced-motion`.
+CSS-only transform/opacity. Stagger modules on load (`.module-rise` + `animation-delay`). At most one live status indicator per view may breathe (`.status-breathe`). Hover feedback is a background/border step (the surface tiers exist for this); press feedback is `active:translate-y-px`. No hover levitation (`hover:-translate-y-*`), no glow `box-shadow` on hover or selected states. No animating layout dimensions, no bounce/elastic easing. Respect `prefers-reduced-motion`.
 
-## 7. Anti-Patterns
+## 7. Typographic Weight Discipline
 
-No emojis, no pure black, no purple/neon AI palette, no gradient text, no side-stripe (`border-left`/`right` > 1px) accent borders on cards/lists/callouts, no nested cards, no equal 3-column dashboard rows, no fake round metrics or placeholder names, no glassmorphism-everywhere, no developer jargon in primary UI.
+Reserve 700 (bold) for page titles and hero metrics only. UI labels, pills, table headers, and uppercase microlabels stay at 500–600. Never use 800/900 (`font-extrabold`/`font-black`) — heavy weights at small sizes read loud, not authoritative. Inputs and back-links are 500.
+
+## 8. Anti-Patterns
+
+No emojis, no pure black, no purple/neon AI palette, no gradient text, no side-stripe (`border-left`/`right` > 1px) accent borders on cards/lists/callouts, no nested cards, no equal 3-column dashboard rows, no fake round metrics or placeholder names, no glassmorphism-everywhere, no developer jargon in primary UI. No raster/clip-art iconography (SVG line icons in `currentColor` only). No decorative background imagery behind page headers or panels. No neon glow shadows, no pulsing/radar/ripple ambience. No multi-hue gradient strips as decoration.

@@ -150,7 +150,7 @@ export function CampaignGallery({
               <input type="hidden" name="view" value={viewMode === "cards" ? "" : viewMode} />
               <div className="flex flex-col gap-4">
                 <label className="min-w-0">
-                  <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">Search</span>
+                  <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Search</span>
                   <span className="relative block">
                     <svg
                       aria-hidden
@@ -249,7 +249,7 @@ function ViewToggle({ view, hrefFor }: { view: "cards" | "table"; hrefFor: (next
           key={mode}
           href={hrefFor(mode)}
           aria-current={view === mode ? "true" : undefined}
-          className={`inline-flex min-h-8 items-center justify-center rounded-md px-3 text-xs font-black uppercase tracking-[0.1em] transition ${
+          className={`inline-flex min-h-8 items-center justify-center rounded-md px-3 text-xs font-semibold uppercase tracking-[0.1em] transition ${
             view === mode
               ? "bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_oklch(0.74_0.115_232/0.42)]"
               : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
@@ -361,13 +361,13 @@ function CampaignTable({ rows }: { rows: CampaignWorkspaceListItem[] }) {
     <div className="overflow-x-auto p-4">
       <table className="w-full min-w-[720px] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-[var(--border-hairline)] text-left text-[10px] font-black uppercase tracking-[0.12em] text-[var(--text-muted)]">
-            <th className="py-2 pr-3 font-black">Campaign</th>
-            <th className="px-3 py-2 font-black">Target</th>
-            <th className="px-3 py-2 font-black">Status</th>
-            <th className="px-3 py-2 font-black">Needs you</th>
-            <th className="px-3 py-2 font-black">Deliverables</th>
-            <th className="px-3 py-2 font-black">Updated</th>
+          <tr className="border-b border-[var(--border-hairline)] text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            <th className="py-2 pr-3 font-semibold">Campaign</th>
+            <th className="px-3 py-2 font-semibold">Target</th>
+            <th className="px-3 py-2 font-semibold">Status</th>
+            <th className="px-3 py-2 font-semibold">Needs you</th>
+            <th className="px-3 py-2 font-semibold">Deliverables</th>
+            <th className="px-3 py-2 font-semibold">Updated</th>
             <th className="py-2 pl-3" />
           </tr>
         </thead>
@@ -411,7 +411,7 @@ function CampaignCard({ campaign }: { campaign: CampaignWorkspaceListItem }) {
   return (
     <Link
       href={campaign.href}
-      className={`group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-[var(--surface-soft)] transition hover:-translate-y-0.5 hover:bg-[var(--surface-raised)] ${
+      className={`group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-[var(--surface-soft)] transition hover:bg-[var(--surface-raised)] ${
         needsReview
           ? "border-[oklch(0.82_0.13_85/0.5)] shadow-[0_0_0_1px_oklch(0.82_0.13_85/0.28)] hover:border-[var(--warn)]"
           : "border-[var(--border-panel)] hover:border-[var(--accent)]"
@@ -478,7 +478,7 @@ function CreativeCover({ campaign }: { campaign: CampaignWorkspaceListItem }) {
 
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-2.5 px-5">
-      <span aria-hidden className="pointer-events-none absolute select-none font-display text-[5.5rem] font-black leading-none tracking-[-0.04em] text-[var(--text-primary)] opacity-[0.06]">
+      <span aria-hidden className="pointer-events-none absolute select-none font-display text-[5.5rem] font-bold leading-none tracking-[-0.04em] text-[var(--text-primary)] opacity-[0.06]">
         {coverGlyph(campaign.assetTypes)}
       </span>
       <div className="relative z-10 flex flex-wrap justify-center gap-1.5">

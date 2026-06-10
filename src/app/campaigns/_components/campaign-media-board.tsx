@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import { cx, theme, toneTextClass, type ThemeTone } from "@/app/_components/theme";
 import type { CampaignMediaAsset } from "@/lib/campaigns/read-model";
 
 type GroupKey = "image" | "motion" | "file" | "link";
 type FilterKey = GroupKey | "all";
-type Tone = "blue" | "red" | "amber" | "green";
 
-const GROUP_META: Record<GroupKey, { title: string; detail: string; tone: Tone }> = {
+const GROUP_META: Record<GroupKey, { title: string; detail: string; tone: ThemeTone }> = {
   image: { title: "Images", detail: "Generated visuals, postcards, and mockups.", tone: "blue" },
   motion: { title: "Video", detail: "Rendered video and embedded players.", tone: "red" },
   file: { title: "Files", detail: "Documents and downloadable assets.", tone: "amber" },
@@ -93,7 +93,7 @@ function MediaSection({
     <section>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <div className={`text-base font-black uppercase tracking-[0.1em] ${toneText(meta.tone)}`}>{meta.title}</div>
+          <div className={`text-base font-semibold uppercase tracking-[0.1em] ${toneText(meta.tone)}`}>{meta.title}</div>
           <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{meta.detail}</p>
         </div>
         <span className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
@@ -165,7 +165,7 @@ function ImageTile({ media, onZoom }: { media: CampaignMediaAsset; onZoom: () =>
 function MotionTile({ media }: { media: CampaignMediaAsset }) {
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]">
-      <div className="bg-black">
+      <div className="bg-[var(--media-void)]">
         {media.type === "video" ? (
           <video src={media.url} poster={media.thumbnailUrl ?? undefined} controls className="max-h-80 w-full object-contain" />
         ) : (
@@ -307,7 +307,7 @@ function MediaChip({
 }: {
   active: boolean;
   count: number;
-  tone: Tone;
+  tone: ThemeTone;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -330,9 +330,9 @@ function MediaChip({
   );
 }
 
-function TypeBadge({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+function TypeBadge({ tone, children }: { tone: ThemeTone; children: React.ReactNode }) {
   return (
-    <span className={`shrink-0 rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] ${tonePill(tone)}`}>
+    <span className={cx("shrink-0 rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em]", theme.pill[tone])}>
       {children}
     </span>
   );
@@ -393,23 +393,13 @@ function hostOf(url: string) {
   }
 }
 
-function toneText(tone: Tone) {
-  if (tone === "red") return "text-[oklch(0.86_0.1_26)]";
-  if (tone === "amber") return "text-[oklch(0.89_0.12_76)]";
-  if (tone === "green") return "text-[oklch(0.84_0.13_155)]";
-  return "text-[var(--accent)]";
+function toneText(tone: ThemeTone) {
+  return toneTextClass(tone);
 }
 
-function toneDot(tone: Tone) {
-  if (tone === "red") return "bg-[oklch(0.7_0.18_26)]";
-  if (tone === "amber") return "bg-[oklch(0.82_0.13_85)]";
-  if (tone === "green") return "bg-[oklch(0.78_0.14_158)]";
+function toneDot(tone: ThemeTone) {
+  if (tone === "red") return "bg-[var(--priority)]";
+  if (tone === "amber") return "bg-[var(--warn)]";
+  if (tone === "green") return "bg-[var(--ok)]";
   return "bg-[var(--accent)]";
-}
-
-function tonePill(tone: Tone) {
-  if (tone === "red") return "border-[oklch(0.76_0.14_18/0.4)] bg-[oklch(0.5_0.14_18/0.14)] text-[oklch(0.86_0.1_26)]";
-  if (tone === "amber") return "border-[oklch(0.78_0.14_76/0.4)] bg-[oklch(0.52_0.13_76/0.14)] text-[oklch(0.89_0.12_76)]";
-  if (tone === "green") return "border-[oklch(0.72_0.14_155/0.4)] bg-[oklch(0.43_0.12_155/0.14)] text-[oklch(0.84_0.13_155)]";
-  return "border-[oklch(0.76_0.14_232/0.4)] bg-[oklch(0.48_0.14_232/0.14)] text-[var(--accent)]";
 }

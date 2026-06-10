@@ -143,7 +143,7 @@ export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalC
             return (
               <button
                 aria-pressed={selected}
-                className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 active:translate-y-px ${
+                className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition active:translate-y-px ${
                   selected
                     ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
                     : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
@@ -196,8 +196,8 @@ function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: Ap
   return (
     <article
       aria-label={`Open approval review for ${item.title}`}
-      className={`cursor-pointer rounded-xl border p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-        isSelected ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_0_24px_oklch(0.74_0.115_232/0.14)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
+      className={`cursor-pointer rounded-xl border p-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+        isSelected ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)]"
       }`}
       onClick={(event) => {
         if (isInteractiveTarget(event.target)) return;
@@ -221,7 +221,7 @@ function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: Ap
       </div>
 
       <Link className="mt-3 block rounded-lg transition hover:text-[var(--accent)]" href={detailHref}>
-        <h2 className="line-clamp-2 text-lg font-black tracking-[-0.025em] text-[var(--text-primary)]">{item.title}</h2>
+        <h2 className="line-clamp-2 text-lg font-bold tracking-[-0.025em] text-[var(--text-primary)]">{item.title}</h2>
       </Link>
       <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{item.previewText}</p>
 
@@ -268,7 +268,7 @@ function QueueStat({ detail, label, value }: { detail: string; label: string; va
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
       <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 flex items-baseline justify-between gap-2">
-        <span className="font-mono text-sm font-black text-[var(--accent)]">{value}</span>
+        <span className="font-mono text-sm font-bold text-[var(--accent)]">{value}</span>
         <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{detail}</span>
       </div>
     </div>

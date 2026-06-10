@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill } from "./page-header";
-
-type Tone = "amber" | "green" | "red" | "blue" | "gray";
+import type { ThemeTone } from "./theme";
 
 export type OpportunityRow = {
   id: string;
@@ -14,7 +13,7 @@ export type OpportunityRow = {
   account: string;
   nextStep: string;
   stage: string;
-  tone: Tone;
+  tone: ThemeTone;
   value: string;
   personaTag?: string;
   urgencyTag?: string;
@@ -27,7 +26,7 @@ export type OpportunityBucket = {
   title: string;
   detail: string;
   href: string;
-  tone: Tone;
+  tone: ThemeTone;
   rows: OpportunityRow[];
   emptyTitle: string;
   emptyDetail: string;
@@ -115,9 +114,9 @@ export function OpportunityCommandCenter({ buckets }: { buckets: OpportunityBuck
             return (
               <button
                 aria-pressed={selected}
-                className={`min-h-[96px] cursor-pointer rounded-lg border p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] active:translate-y-px ${
+                className={`min-h-[96px] cursor-pointer rounded-lg border p-3 text-left transition duration-200 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] active:translate-y-px ${
                   selected
-                    ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_0_22px_oklch(0.74_0.115_232/0.16)]"
+                    ? "border-[var(--accent)] bg-[var(--accent-soft)]"
                     : "border-[var(--border-hairline)] bg-[var(--surface-panel)]"
                 }`}
                 key={bucket.key}
@@ -182,15 +181,15 @@ export function OpportunityCommandCenter({ buckets }: { buckets: OpportunityBuck
 
         <aside className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] p-5 xl:border-l xl:border-t-0">
           <div className="signal-eyebrow">Lane contract</div>
-          <h3 className="mt-2 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)]">{activeBucket.title}</h3>
+          <h3 className="mt-2 text-lg font-bold tracking-[-0.03em] text-[var(--text-primary)]">{activeBucket.title}</h3>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{activeBucket.detail}</p>
           <div className="mt-4 grid gap-2">
             <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
               <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Visible records</div>
-              <div className="mt-1 font-mono text-lg font-black tabular-nums text-[var(--text-primary)]">{visibleRows.length}</div>
+              <div className="mt-1 font-mono text-lg font-bold tabular-nums text-[var(--text-primary)]">{visibleRows.length}</div>
             </div>
             <Link
-              className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] active:translate-y-px"
+              className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] active:translate-y-px"
               href={activeBucket.href}
             >
               Open source view

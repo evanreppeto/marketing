@@ -17,8 +17,6 @@
   --surface-raised: oklch(0.335 0.045 244); /* hover, popovers, selected */
   --surface-sidebar: oklch(0.145 0.03 250 / 0.96);
   --surface-operator: linear-gradient(145deg, oklch(0.19 0.036 248 / 0.98), oklch(0.135 0.028 250 / 0.98));
-  --workspace-header-wash: radial-gradient(circle at 14% 12%, oklch(0.74 0.115 232 / 0.16), transparent 34%),
-    linear-gradient(135deg, oklch(0.98 0.01 240 / 0.045), transparent 52%);
   --media-void: oklch(0.12 0.026 250);
   --overlay: oklch(0.1 0.02 250 / 0.88);
 
@@ -39,9 +37,6 @@
   --accent-contrast: var(--chicago-blue-soft);
   --accent-border: oklch(0.74 0.115 232 / 0.24);
   --accent-border-strong: oklch(0.74 0.115 232 / 0.4);
-  --accent-shadow: 0 0 20px oklch(0.74 0.115 232 / 0.18);
-  --accent-glow: 0 0 22px oklch(0.74 0.115 232 / 0.34);
-  --accent-soft-glow: 0 0 18px oklch(0.74 0.115 232 / 0.22);
   --on-accent: oklch(0.18 0.03 248);        /* text/icon on a solid accent fill (8.3:1) */
   --priority: oklch(0.68 0.2 26);           /* restoration red — tints, dots, text */
   --priority-bright: oklch(0.74 0.19 26);
@@ -51,7 +46,6 @@
   --priority-text: oklch(0.86 0.09 26);
   --priority-border: oklch(0.68 0.2 26 / 0.58);
   --priority-border-soft: oklch(0.68 0.2 26 / 0.45);
-  --priority-glow: 0 0 22px oklch(0.68 0.2 26 / 0.32);
   --on-priority: oklch(0.98 0.02 26);       /* text/icon on a solid priority fill (4.6:1) */
 
   /* Status hues (calibrated for dark surfaces) */
@@ -62,7 +56,6 @@
   --ok-text: oklch(0.88 0.1 158);
   --ok-border: oklch(0.78 0.14 158 / 0.55);
   --ok-border-soft: oklch(0.78 0.14 158 / 0.4);
-  --ok-glow: 0 0 20px oklch(0.78 0.14 158 / 0.3);
   --on-ok: oklch(0.14 0.025 160);
   --warn: oklch(0.82 0.13 85);
   --warn-solid: oklch(0.66 0.14 76);
@@ -71,14 +64,12 @@
   --warn-text: oklch(0.9 0.09 85);
   --warn-border: oklch(0.82 0.13 85 / 0.58);
   --warn-border-soft: oklch(0.82 0.13 85 / 0.4);
-  --warn-glow: 0 0 20px oklch(0.82 0.13 85 / 0.26);
   --on-warn: oklch(0.16 0.025 72);
 
   --neutral-solid: oklch(0.38 0.045 245);
   --neutral-hover: oklch(0.44 0.055 245);
   --neutral-on: oklch(0.94 0.015 245);
   --neutral-border: oklch(0.62 0.055 245 / 0.52);
-  --neutral-glow: 0 0 18px oklch(0.62 0.055 245 / 0.24);
 
   /* Elevation — dark, faintly blue-tinted shadows */
   --elev-panel: 0 1px 0 oklch(0.98 0.01 240 / 0.04) inset,
@@ -203,7 +194,7 @@ h1, h2, h3, h4, .font-display {
 .signal-eyebrow {
   font-family: var(--font-display);
   font-size: 0.6875rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--accent);
@@ -299,17 +290,6 @@ h1, h2, h3, h4, .font-display {
   50% { transform: scale(1.28); opacity: 1; }
 }
 
-@keyframes status-ripple {
-  0% { transform: scale(0.6); opacity: 0.55; }
-  100% { transform: scale(2.4); opacity: 0; }
-}
-
-@keyframes radar-sweep {
-  0% { transform: scale(0.85); opacity: 0; }
-  35% { opacity: 0.55; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
-
 @keyframes bar-fill {
   from { width: 0; }
   to { width: var(--bar-target, 100%); }
@@ -323,7 +303,6 @@ h1, h2, h3, h4, .font-display {
   animation-delay: 0s !important;
 }
 .status-breathe { animation: status-breathe 1900ms cubic-bezier(0.16, 1, 0.3, 1) infinite; }
-.status-ripple { animation: status-ripple 2400ms cubic-bezier(0.16, 1, 0.3, 1) infinite; }
 
 .bar-fill {
   width: var(--bar-target, 100%);
@@ -398,19 +377,6 @@ h1, h2, h3, h4, .font-display {
   animation: text-shimmer 1.6s linear infinite;
 }
 
-.signal-radar { position: relative; }
-
-.signal-radar::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  border: 1px solid oklch(0.74 0.115 232 / 0.7);
-  box-shadow: 0 0 18px oklch(0.74 0.115 232 / 0.35);
-  pointer-events: none;
-  animation: radar-sweep 3600ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
 /* ============================================================================
    Utilities & legacy component helpers
    ============================================================================ */
@@ -476,7 +442,6 @@ h1, h2, h3, h4, .font-display {
 @media (prefers-reduced-motion: reduce) {
   .module-rise,
   .status-breathe,
-  .status-ripple,
   .bar-fill,
   .msg-rise,
   .media-rise,
@@ -501,10 +466,5 @@ h1, h2, h3, h4, .font-display {
   .mark-progress > span {
     width: 100%;
     opacity: 0.4;
-  }
-
-  .signal-radar::after {
-    animation: none;
-    opacity: 0;
   }
 }

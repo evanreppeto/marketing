@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AppShell } from "../../_components/app-shell";
-import { ActionFeedback, EmptyState, Panel, StatusPill, buttonClasses } from "../../_components/page-header";
+import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "../../_components/page-header";
 import {
   crmObjects,
   hyperPersonalizationReference,
@@ -59,6 +59,19 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
 
   return (
     <AppShell active="/crm">
+      <PageHeader
+        eyebrow="CRM object"
+        title={`${crmObject.label} workspace`}
+        description={`${crmObject.description} List views, record preview, relationship context, and actions are ready for Mark-created CRM records.`}
+        aside={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill tone={isLive ? "green" : "amber"}>{isLive ? "Live Supabase" : "Supabase unavailable"}</StatusPill>
+            <Link className={buttonClasses({ variant: "primary" })} href={`${crmObject.href}?action=new`}>
+              New {singularLabel(crmObject.label)}
+            </Link>
+          </div>
+        }
+      />
       <CrmCommandHeader activeObject={objectKey} counts={navCounts} />
 
       <section className="signal-panel module-rise mt-4 overflow-hidden">
@@ -66,12 +79,10 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-semibold text-[var(--text-primary)]">{crmObject.label} workspace</span>
-                <StatusPill tone={isLive ? "green" : "amber"}>{isLive ? "Live Supabase" : "Supabase unavailable"}</StatusPill>
+                <span className="font-semibold text-[var(--text-primary)]">Object workspace</span>
               </div>
               <p className="mt-2 max-w-[78ch] text-sm leading-6 text-[var(--text-secondary)]">
-                {crmObject.description} List views, record preview, relationship context, and actions are ready for
-                Mark-created CRM records.
+                Record metrics, table views, relationship context, and live actions for this CRM object.
               </p>
               {!isLive && liveMessage ? (
                 <div className="mt-3 rounded-md border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-3 py-2 text-sm leading-6 text-[oklch(0.9_0.09_85)]">
@@ -86,11 +97,6 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
                   actions, campaign handoff, and approval guardrails.
                 </div>
               ) : null}
-            </div>
-            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-              <Link className={buttonClasses({ variant: "primary" })} href={`${crmObject.href}?action=new`}>
-                New {singularLabel(crmObject.label)}
-              </Link>
             </div>
           </div>
         </div>
@@ -328,9 +334,9 @@ function ObjectSectionTabs({
           return (
             <Link
               aria-current={isActive ? "page" : undefined}
-              className={`rounded-lg border px-4 py-3 transition duration-200 hover:-translate-y-0.5 active:translate-y-px ${
+              className={`rounded-lg border px-4 py-3 transition duration-200 active:translate-y-px ${
                 isActive
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_20px_oklch(0.74_0.115_232/0.18)]"
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
                   : "border-transparent bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
               }`}
               href={href}

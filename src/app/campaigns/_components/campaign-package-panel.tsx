@@ -76,7 +76,7 @@ function LaunchTracker({
         <div className="flex items-center gap-3">
           <span aria-hidden className="status-breathe h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
           <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">Live</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Live</div>
             <p className="mt-0.5 text-sm font-semibold text-[var(--text-secondary)]">
               Launched and handed off to Mark for dispatch. {approvedCount} approved deliverable{approvedCount === 1 ? "" : "s"} are unlocked.
             </p>
@@ -109,7 +109,7 @@ function LaunchTracker({
             <span className="signal-eyebrow">Launch</span>
             <StatusPill tone={LIFECYCLE_TONE[lifecycle]}>{lifecycle}</StatusPill>
           </div>
-          <h2 className="mt-2 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)]">{heading}</h2>
+          <h2 className="mt-2 text-lg font-bold tracking-[-0.03em] text-[var(--text-primary)]">{heading}</h2>
           <p className="mt-1 max-w-[72ch] text-sm leading-5 text-[var(--text-secondary)]">{subtext}</p>
 
           {requiredCount > 0 ? (
@@ -194,14 +194,14 @@ function ExecutiveOverview({ overview }: { overview: CampaignExecutiveOverview }
     <section className="module-rise overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
         <span className="signal-eyebrow">Executive overview</span>
-        <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Campaign brief</h2>
+        <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Campaign brief</h2>
         <p className="mt-2 max-w-[82ch] text-sm leading-6 text-[var(--text-secondary)]">{overview.what}</p>
       </div>
 
       <dl className="grid gap-px bg-[var(--border-hairline)] sm:grid-cols-3">
         {facts.map(([label, value]) => (
           <div key={label} className="bg-[var(--surface-panel)] px-5 py-4">
-            <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</dt>
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</dt>
             <dd className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{value}</dd>
           </div>
         ))}
@@ -214,7 +214,7 @@ function GuardrailNotice({ flags }: { flags: string[] }) {
   return (
     <div className="module-rise rounded-xl border border-[oklch(0.76_0.14_18/0.32)] bg-[oklch(0.5_0.14_18/0.1)] px-4 py-3 shadow-[var(--elev-panel)]">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[oklch(0.86_0.1_26)]">Guardrails</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[oklch(0.86_0.1_26)]">Guardrails</span>
         <StatusPill tone="red">
           {flags.length} flag{flags.length === 1 ? "" : "s"}
         </StatusPill>

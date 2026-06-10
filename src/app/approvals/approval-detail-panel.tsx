@@ -47,7 +47,7 @@ export function ApprovalDetailPanel({
             <StatusPill tone={riskTone(item.riskLevel)}>{item.riskLevel}</StatusPill>
             <StatusPill tone="amber">Outbound locked</StatusPill>
           </div>
-          <h2 className="mt-3 text-2xl font-black leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
+          <h2 className="mt-3 text-2xl font-bold leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
             {item.title}
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{item.previewText}</p>
@@ -97,7 +97,7 @@ export function ApprovalDetailPanel({
           <CreativeAssetList item={item} />
 
           <details className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-            <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">
+            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
               Debug inputs
             </summary>
             <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 text-xs leading-5 text-[var(--text-secondary)]">
@@ -200,7 +200,7 @@ function DecisionForms({ item }: { item: ApprovalCard }) {
   return (
     <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="text-xs font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">Human decision</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Human decision</span>
         <StatusPill tone="amber">{item.statusLabel}</StatusPill>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-1">
@@ -300,7 +300,7 @@ function LeadCandidateCard({ candidate }: { candidate: ApprovalLeadCandidate }) 
     <article className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="line-clamp-2 font-black text-[var(--text-primary)]">{candidate.companyName}</h3>
+          <h3 className="line-clamp-2 font-bold text-[var(--text-primary)]">{candidate.companyName}</h3>
           <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
             {candidate.persona}
           </p>
@@ -398,7 +398,7 @@ function CreativeAssetList({ item }: { item: ApprovalCard }) {
       <div className="grid gap-3">
         {item.creativeAssets.map((asset) => (
           <a
-            className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+            className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
             href={asset.url}
             key={asset.id}
             rel="noreferrer"
@@ -421,7 +421,7 @@ function CreativeAssetList({ item }: { item: ApprovalCard }) {
 function PacketSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <section className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
-      <h3 className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">{title}</h3>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">{title}</h3>
       {children}
     </section>
   );

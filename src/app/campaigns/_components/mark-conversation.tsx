@@ -36,7 +36,7 @@ export function MarkConversation({
           <MarkAvatar />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-black tracking-[-0.02em] text-[var(--text-primary)]">Mark</h2>
+              <h2 className="text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">Mark</h2>
               <StatusPill tone="blue">Drafts only</StatusPill>
             </div>
             <p className="mt-0.5 text-xs font-semibold text-[var(--text-muted)]">
@@ -86,7 +86,7 @@ function MessageBubble({ message }: { message: MarkMessage }) {
       <div className="min-w-0 max-w-[90%]">
         <div className="rounded-2xl rounded-tl-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-4 py-3">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--accent)]">{message.kind}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{message.kind}</span>
             {message.status ? <StatusPill tone={statusTone(message.status)}>{message.status}</StatusPill> : null}
           </div>
           {message.title ? <div className="text-sm font-bold text-[var(--text-primary)]">{message.title}</div> : null}
@@ -170,7 +170,7 @@ function MarkPlan({ reasoning }: { reasoning: CampaignWorkspaceReasoning }) {
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{reasoning.whyBuilt}</p>
         {reasoning.recommendedAction ? (
           <div className="mt-3 border-t border-[var(--border-hairline)] pt-3">
-            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent)]">Recommended next step</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Recommended next step</div>
             <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{reasoning.recommendedAction}</p>
           </div>
         ) : null}
@@ -179,7 +179,7 @@ function MarkPlan({ reasoning }: { reasoning: CampaignWorkspaceReasoning }) {
       {hasGuardrails ? (
         <div className="rounded-xl border border-[oklch(0.76_0.14_18/0.32)] bg-[oklch(0.5_0.14_18/0.1)] p-4">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[oklch(0.86_0.1_26)]">Guardrails</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.86_0.1_26)]">Guardrails</span>
             <StatusPill tone="red">{reasoning.guardrailFlags.length}</StatusPill>
           </div>
           <ul className="mt-2 space-y-1.5">
@@ -210,7 +210,7 @@ function MarkAvatar({ small = false }: { small?: boolean }) {
   return (
     <span
       aria-hidden
-      className={`inline-flex shrink-0 items-center justify-center rounded-lg border border-[oklch(0.74_0.115_232/0.45)] bg-[var(--accent-soft)] font-display font-black text-[var(--accent)] ${
+      className={`inline-flex shrink-0 items-center justify-center rounded-lg border border-[oklch(0.74_0.115_232/0.45)] bg-[var(--accent-soft)] font-display font-bold text-[var(--accent)] ${
         small ? "h-7 w-7 text-xs" : "h-10 w-10 text-base"
       }`}
     >

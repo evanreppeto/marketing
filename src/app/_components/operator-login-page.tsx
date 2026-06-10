@@ -69,7 +69,7 @@ export function OperatorLoginPage({ from, error }: { from: string; error?: strin
       <LogoMark widthClassName="w-40" />
 
       <div className="mt-7 text-center">
-        <h1 className="font-display text-[1.8rem] font-black leading-tight tracking-[-0.04em] text-[var(--text-primary)]">
+        <h1 className="font-display text-[1.8rem] font-bold leading-tight tracking-[-0.04em] text-[var(--text-primary)]">
           Sign in
         </h1>
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
@@ -147,7 +147,7 @@ export function OperatorForgotPasswordPage({ supportEmail }: { supportEmail: str
       <LogoMark widthClassName="w-36" />
 
       <div className="mt-7 text-center">
-        <h1 className="font-display text-[1.8rem] font-black leading-tight tracking-[-0.04em] text-[var(--text-primary)]">
+        <h1 className="font-display text-[1.8rem] font-bold leading-tight tracking-[-0.04em] text-[var(--text-primary)]">
           Reset access
         </h1>
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">

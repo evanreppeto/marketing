@@ -14,7 +14,7 @@ function money(cents: number) {
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 font-display text-lg font-bold tracking-[-0.02em] tabular-nums text-[var(--text-primary)]">
         {value}
       </div>

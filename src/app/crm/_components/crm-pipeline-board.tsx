@@ -176,7 +176,7 @@ export function CrmPipelineBoard({
             return (
               <button
                 aria-pressed={selected}
-                className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 active:translate-y-px ${
+                className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition active:translate-y-px ${
                   selected
                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
                     : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"

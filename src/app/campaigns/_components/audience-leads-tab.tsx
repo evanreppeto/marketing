@@ -1,10 +1,10 @@
 import Link from "next/link";
 
+import { cx, theme, type ThemeTone } from "@/app/_components/theme";
 import type { CampaignWorkspaceMeta, CampaignWorkspaceSource } from "@/lib/campaigns/read-model";
 
 import { SectionHeader } from "./section-header";
 
-type Tone = "blue" | "red" | "amber" | "green" | "gray";
 type SourceGroupKey = "company" | "contact" | "lead" | "evidence";
 
 const KIND_LABELS: Record<CampaignWorkspaceSource["kind"], string> = {
@@ -15,7 +15,7 @@ const KIND_LABELS: Record<CampaignWorkspaceSource["kind"], string> = {
   evidence: "Evidence",
 };
 
-const GROUPS: Array<{ key: SourceGroupKey; eyebrow: string; detail: string; tone: Tone }> = [
+const GROUPS: Array<{ key: SourceGroupKey; eyebrow: string; detail: string; tone: ThemeTone }> = [
   { key: "company", eyebrow: "Companies", detail: "Organizations tied to the campaign target.", tone: "blue" },
   { key: "contact", eyebrow: "Contacts", detail: "People Mark can reference when reviewing the package.", tone: "green" },
   { key: "lead", eyebrow: "Leads", detail: "Qualified demand signals behind the outreach.", tone: "amber" },
@@ -101,8 +101,8 @@ function AudienceBrief({
     <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
-          <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">Audience brief</div>
-          <h3 className="mt-2 text-lg font-black text-[var(--text-primary)]">{cleanAudienceLabel(campaign.persona)}</h3>
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Audience brief</div>
+          <h3 className="mt-2 text-lg font-bold text-[var(--text-primary)]">{cleanAudienceLabel(campaign.persona)}</h3>
           <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{campaign.audienceSummary}</p>
           <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{campaign.offerSummary}</p>
         </div>
@@ -122,11 +122,11 @@ function AudienceBrief({
   );
 }
 
-function SummaryStat({ label, value, tone }: { label: string; value: number; tone: Tone }) {
+function SummaryStat({ label, value, tone }: { label: string; value: number; tone: ThemeTone }) {
   return (
     <div className={`rounded-lg border px-3 py-2 ${tonePanel(tone)}`}>
       <div className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 text-2xl font-black tabular-nums text-[var(--text-primary)]">{value}</div>
+      <div className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{value}</div>
     </div>
   );
 }
@@ -140,20 +140,20 @@ function ContextPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RecordCard({ source, tone }: { source: CampaignWorkspaceSource; tone: Tone }) {
+function RecordCard({ source, tone }: { source: CampaignWorkspaceSource; tone: ThemeTone }) {
   const detailRows = sourceDetails(source);
 
   return (
     <article className="flex min-h-44 min-w-0 flex-col rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 transition">
       <div className="flex items-start justify-between gap-3">
-        <span className={`inline-flex w-fit items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${toneBadge(tone)}`}>
+        <span className={cx("inline-flex w-fit items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]", theme.pill[tone])}>
           {KIND_LABELS[source.kind]}
         </span>
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
           {source.url ? hostOf(source.url) : "Private"}
         </span>
       </div>
-      <h4 className="mt-3 break-words text-base font-black leading-6 text-[var(--text-primary)]">{source.label}</h4>
+      <h4 className="mt-3 break-words text-base font-bold leading-6 text-[var(--text-primary)]">{source.label}</h4>
       <dl className="mt-3 space-y-1.5">
         {detailRows.map((row) => (
           <div key={`${row.label}-${row.value}`} className="min-w-0">
@@ -261,17 +261,8 @@ function hostOf(url: string) {
   }
 }
 
-function toneBadge(tone: Tone) {
-  if (tone === "amber") return "border-[oklch(0.78_0.14_76/0.38)] bg-[oklch(0.52_0.13_76/0.16)] text-[oklch(0.89_0.12_76)]";
-  if (tone === "green") return "border-[oklch(0.72_0.14_155/0.36)] bg-[oklch(0.43_0.12_155/0.14)] text-[oklch(0.84_0.13_155)]";
-  if (tone === "gray") return "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-muted)]";
-  return "border-[oklch(0.76_0.14_232/0.38)] bg-[oklch(0.48_0.14_232/0.14)] text-[var(--accent)]";
-}
-
-function tonePanel(tone: Tone) {
-  if (tone === "amber") return "border-[oklch(0.78_0.14_76/0.28)] bg-[oklch(0.52_0.13_76/0.1)]";
-  if (tone === "green") return "border-[oklch(0.72_0.14_155/0.28)] bg-[oklch(0.43_0.12_155/0.1)]";
-  return "border-[oklch(0.76_0.14_232/0.28)] bg-[oklch(0.48_0.14_232/0.1)]";
+function tonePanel(tone: ThemeTone) {
+  return theme.pill[tone];
 }
 
 function LockIcon() {

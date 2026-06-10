@@ -40,7 +40,7 @@ export function PerformanceTab({ detail }: { detail: LiveCampaignWorkspace }) {
           <span className="signal-eyebrow">Measurement</span>
           <StatusPill tone="amber">Outbound locked</StatusPill>
         </div>
-        <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">Readiness, not performance</h2>
+        <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Readiness, not performance</h2>
         <p className="mt-2 max-w-[80ch] text-sm leading-6 text-[var(--text-secondary)]">
           There&rsquo;s no live results data yet. This shows whether the package has the records needed before anyone can
           make reliable claims — and what stays off-limits until real delivery and outcome data lands.

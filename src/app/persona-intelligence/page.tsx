@@ -133,7 +133,7 @@ function SnapshotsTab({ rows }: { rows: PersonaTrackerRow[] }) {
               key={row.key}
             >
               <div className="min-w-0">
-                <div className="truncate font-black text-[var(--text-primary)]">{row.persona}</div>
+                <div className="truncate font-bold text-[var(--text-primary)]">{row.persona}</div>
                 <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{row.intent}</p>
               </div>
               <RuleField label="Stage" value={humanize(row.stage)} />
@@ -171,7 +171,7 @@ function SignalsTab({
               key={signalKey(row, index)}
             >
               <div className="min-w-0">
-                <div className="font-black text-[var(--text-primary)]">{row.signal}</div>
+                <div className="font-bold text-[var(--text-primary)]">{row.signal}</div>
                 <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{row.engineUse}</p>
               </div>
               <RuleField label="Source" value={humanize(row.source)} />
@@ -189,7 +189,7 @@ function SignalsTab({
 function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTrackerRow | null }) {
   return (
     <Link
-      className="group block cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.04)] transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      className="group block cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.04)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       href={`/persona-intelligence?tab=personas&inspect=${personaSlug(rule.persona)}`}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -197,7 +197,7 @@ function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTr
         <StatusPill tone={live ? "green" : "gray"}>{live ? "Live memory" : "Rule only"}</StatusPill>
         <StatusPill tone="amber">No publish</StatusPill>
       </div>
-      <h2 className="mt-3 text-lg font-black tracking-[-0.03em] text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{rule.label}</h2>
+      <h2 className="mt-3 text-lg font-bold tracking-[-0.03em] text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{rule.label}</h2>
       <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{rule.messageAngle}</p>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">

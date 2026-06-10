@@ -1,14 +1,13 @@
 import Link from "next/link";
 
 import { StatusPill, buttonClasses } from "./page-header";
-
-type Tone = "amber" | "green" | "red" | "blue" | "gray" | "dark";
+import { cx, theme, type ThemeTone } from "./theme";
 
 export type IntelligenceScore = {
   label: string;
   value: number | string | null;
   detail?: string;
-  tone?: Tone;
+  tone?: ThemeTone;
 };
 
 export type IntelligencePanelModel = {
@@ -57,7 +56,7 @@ export function IntelligencePanel({
       <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="signal-eyebrow">Growth intelligence</div>
-          <h2 className="mt-1 text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
             {formatReadableText(model.title ?? "What needs attention")}
           </h2>
         </div>
@@ -83,7 +82,7 @@ export function IntelligencePanel({
                     <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{score.label}</div>
                     <ToneBadge tone={score.tone ?? scoreTone(score.value)} />
                   </div>
-                  <div className="mt-2 break-words font-display text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">
+                  <div className="mt-2 break-words font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
                     {formatValue(score.value, "-")}
                   </div>
                   {score.detail ? <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{formatReadableText(score.detail)}</p> : null}
@@ -171,12 +170,12 @@ export function IntelligenceLinkList({
   items,
 }: {
   title: string;
-  items: Array<{ label: string; detail: string; href: string; tone?: Tone }>;
+  items: Array<{ label: string; detail: string; href: string; tone?: ThemeTone }>;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-        <h2 className="text-lg font-black tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
+        <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
       </div>
       <div className="grid gap-2 p-4">
         {items.map((item) => (
@@ -223,14 +222,14 @@ function formatValue(value: string | number | null | undefined, fallback: string
   return formatReadableText(String(value));
 }
 
-function scoreTone(value: string | number | null | undefined): Tone {
+function scoreTone(value: string | number | null | undefined): ThemeTone {
   if (typeof value !== "number") return "gray";
   if (value >= 80) return "green";
   if (value >= 55) return "amber";
   return "red";
 }
 
-function ToneBadge({ tone }: { tone: Tone }) {
+function ToneBadge({ tone }: { tone: ThemeTone }) {
   const label =
     tone === "green"
       ? "Strong"
@@ -242,18 +241,11 @@ function ToneBadge({ tone }: { tone: Tone }) {
             ? "Missing"
             : "Signal";
 
-  const className =
-    tone === "green"
-      ? "border-[oklch(0.74_0.16_155/0.35)] bg-[oklch(0.74_0.16_155/0.12)] text-[oklch(0.86_0.12_155)]"
-      : tone === "amber"
-        ? "border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] text-[oklch(0.9_0.09_85)]"
-        : tone === "red"
-          ? "border-[oklch(0.68_0.21_25/0.4)] bg-[oklch(0.68_0.21_25/0.13)] text-[oklch(0.82_0.14_25)]"
-          : tone === "gray"
-            ? "border-[var(--border-hairline)] bg-[var(--surface-soft)] text-[var(--text-muted)]"
-            : "border-[oklch(0.74_0.115_232/0.35)] bg-[var(--accent-soft)] text-[var(--accent)]";
-
-  return <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${className}`}>{label}</span>;
+  return (
+    <span className={cx("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]", theme.pill[tone])}>
+      {label}
+    </span>
+  );
 }
 
 function formatReadableText(value: string) {
