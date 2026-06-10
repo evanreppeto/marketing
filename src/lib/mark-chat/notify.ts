@@ -21,6 +21,8 @@ export type MarkNotifyPayload = {
   route: "fast" | "standard";
   /** Operator stance (ask/act/draft); advisory for Mark's worker. */
   mode: "ask" | "act" | "draft";
+  /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
+  command?: string | null;
 };
 
 /**

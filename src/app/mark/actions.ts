@@ -47,6 +47,9 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   const rawBody = String(formData.get("body") ?? "");
   const mentions = parseMentions(String(formData.get("mentions") ?? "[]"));
   const mode = parseMarkMode(formData.get("mode"));
+  // Structured slash command (e.g. "find-leads"); travels to the agent as real
+  // intent alongside the message + mentions, not just text.
+  const command = String(formData.get("command") ?? "").trim() || null;
   let body: string;
   let cleanMentions = mentions;
   try {
@@ -83,7 +86,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // happened instead of hanging on "thinking".
   try {
     const agentTaskId = await enqueueMarkChatTask(
-      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode },
+      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode, command },
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
@@ -101,6 +104,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       operator,
       route: "fast",
       mode,
+      command,
     });
     if (delivered) {
       const claimed = await claimChatTask(agentTaskId, client).catch(() => false);

@@ -14,6 +14,8 @@ export type EnqueueChatTaskInput = {
   route?: "fast" | "standard";
   /** Operator stance for this message; the worker decides what Mark may do. */
   mode?: "ask" | "act" | "draft";
+  /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
+  command?: string | null;
 };
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -57,9 +59,10 @@ export async function enqueueMarkChatTask(
         conversation_id: input.conversationId,
         message_id: input.messageId,
         mentions: input.mentions,
+        command: input.command ?? null,
         source: "mark_chat",
         model_route: input.route ?? "fast",
-        mode: input.mode ?? "ask",
+        mode: input.mode ?? "act",
         outbound_locked: true,
       },
     })
@@ -74,7 +77,7 @@ export async function enqueueMarkChatTask(
     source_table: "mark_conversations",
     source_id: input.conversationId,
     summary: input.message,
-    payload: { message: input.message, requested_by: input.operator, mentions: input.mentions },
+    payload: { message: input.message, requested_by: input.operator, mentions: input.mentions, command: input.command ?? null },
   });
   assertOk("agent_task_inputs insert", inputError);
 

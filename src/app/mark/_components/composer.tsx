@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkMention, MarkMode } from "@/domain";
+import type { MarkMention } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, type SlashCommand } from "./slash-commands";
 import type { MarkMessage } from "@/lib/mark-chat/persistence";
@@ -69,8 +69,7 @@ export function Composer({
   const [picked, setPicked] = useState<MarkMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
-  const [mode, setMode] = useState<MarkMode>("ask");
-  const [modeOpen, setModeOpen] = useState(false);
+  const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
   const formRef = useRef<HTMLFormElement>(null);
 
   // Let the parent trigger a send (used by Retry). Submits the current draft.
@@ -101,19 +100,12 @@ export function Composer({
           onDraftChange("");
           setPicked([]);
           setSlash(null);
+          setCommand(null);
           onSent(newId);
         });
       }
     }
   }, [state, onSent, onDraftChange]);
-
-  // Close the mode menu on Escape.
-  useEffect(() => {
-    if (!modeOpen) return;
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setModeOpen(false); }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [modeOpen]);
 
   const suggestions = useMemo(() => {
     if (query === null) return [];
@@ -137,8 +129,9 @@ export function Composer({
   }
 
   function applySlash(c: SlashCommand) {
+    // The command id travels to the agent as structured intent (not just text).
+    setCommand(c.cmd.replace(/^\//, ""));
     onDraftChange(c.prompt);
-    if (c.mode) setMode(c.mode);
     setSlash(null);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
@@ -164,7 +157,10 @@ export function Composer({
         <input type="hidden" name="conversationId" value={conversationId} />
         <input type="hidden" name="body" value={draft} />
         <input type="hidden" name="mentions" value={serializeMentions(picked)} />
-        <input type="hidden" name="mode" value={mode} />
+        {/* Mode selector removed — the approval + policy gates are the real guardrails.
+            Default stance "act"; the agent infers intent and the gate enforces limits. */}
+        <input type="hidden" name="mode" value="act" />
+        <input type="hidden" name="command" value={command ?? ""} />
 
         {query !== null && suggestions.length > 0 ? (
           <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
@@ -202,8 +198,21 @@ export function Composer({
         ) : null}
 
         <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
-          {picked.length > 0 ? (
+          {command || picked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
+              {command ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-soft)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--accent-strong)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
+                  /{command}
+                  <button
+                    type="button"
+                    aria-label="Remove command"
+                    onClick={() => setCommand(null)}
+                    className="text-[var(--text-muted)] transition hover:text-[var(--priority-bright)]"
+                  >
+                    ×
+                  </button>
+                </span>
+              ) : null}
               {picked.map((m) => (
                 <span
                   key={`${m.type}:${m.id}`}
@@ -224,53 +233,6 @@ export function Composer({
           ) : null}
 
           <div className="flex items-end gap-2">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setModeOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={modeOpen}
-                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
-              >
-                <span
-                  aria-hidden
-                  className={cx(
-                    "h-1.5 w-1.5 rounded-full",
-                    mode === "ask" ? "bg-[var(--text-muted)]" : mode === "act" ? "bg-[var(--accent)]" : "bg-[var(--warn)]",
-                  )}
-                />
-                {mode === "ask" ? "Ask" : mode === "act" ? "Take action" : "Draft"}
-                <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m6 8 4 4 4-4" />
-                </svg>
-              </button>
-              {modeOpen ? (
-                <div role="menu" className="msg-rise absolute bottom-10 left-0 z-20 w-60 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-                  {([
-                    { v: "ask", t: "Ask", d: "Read-only — answers & analysis", dot: "bg-[var(--text-muted)]" },
-                    { v: "act", t: "Take action", d: "May add or update records", dot: "bg-[var(--accent)]" },
-                    { v: "draft", t: "Draft", d: "Create drafts for your approval", dot: "bg-[var(--warn)]" },
-                  ] as const).map((o) => (
-                    <button
-                      key={o.v}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => { setMode(o.v); setModeOpen(false); }}
-                      className={cx(
-                        "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-[var(--surface-inset)]",
-                        mode === o.v ? "bg-[var(--accent-soft)]" : "",
-                      )}
-                    >
-                      <span aria-hidden className={cx("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", o.dot)} />
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-sm font-medium text-[var(--text-primary)]">{o.t}</span>
-                        <span className="text-[11px] text-[var(--text-muted)]">{o.d}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
             <textarea
               ref={textareaRef}
               name="body-display"
