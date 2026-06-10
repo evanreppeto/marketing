@@ -164,6 +164,25 @@ export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
   }
 }
 
+export type AgentConnectionInfo = {
+  attached: boolean;
+  name: string;
+  runnerConfigured: boolean;
+  tokenConfigured: boolean;
+};
+
+/** Full connection snapshot for the Agent settings drawer: live attach state +
+ *  which env credentials are present. No secrets returned, only booleans. */
+export async function getAgentConnectionInfoAction(): Promise<AgentConnectionInfo> {
+  const status = await getMarkAgentStatusAction();
+  return {
+    attached: status.attached,
+    name: status.name,
+    runnerConfigured: isMarkRunnerConfigured(),
+    tokenConfigured: Boolean(process.env.HERMES_AGENT_API_TOKEN?.trim()),
+  };
+}
+
 export type UploadTicket =
   | { ok: true; uploadUrl: string; objectPath: string; readUrl: string }
   | { ok: false; message: string };
