@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -213,6 +213,38 @@ function References({ mentions }: { mentions: MarkMessage["mentions"] }) {
   );
 }
 
+/** Fenced code block with a language header bar and a copy button. */
+function CodeBlock({ className, children }: { className?: string; children?: ReactNode }) {
+  const lang = /language-(\w+)/.exec(className ?? "")?.[1] ?? "";
+  const [copied, setCopied] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  return (
+    <div className="my-2 overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--media-void)]">
+      <div className="flex items-center justify-between border-b border-[var(--border-hairline)] px-3 py-1.5">
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">{lang || "code"}</span>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(ref.current?.innerText ?? "");
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            } catch {
+              /* clipboard unavailable — ignore */
+            }
+          }}
+          className="rounded px-1.5 py-0.5 text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className="overflow-x-auto p-3 font-mono text-xs leading-5 text-[var(--text-secondary)]">
+        <code ref={ref} className={className}>{children}</code>
+      </pre>
+    </div>
+  );
+}
+
 /** Mark replies render as markdown, mapped onto Signal tokens. */
 const mdComponents: Components = {
   p: ({ children }) => <p className="text-sm leading-7 text-[var(--text-primary)]">{children}</p>,
@@ -234,14 +266,15 @@ const mdComponents: Components = {
         {children}
       </a>
     ),
-  code: ({ children }) => (
-    <code className="rounded bg-[var(--surface-inset)] px-1 py-0.5 font-mono text-[12px] text-[var(--text-primary)]">{children}</code>
-  ),
-  pre: ({ children }) => (
-    <pre className="overflow-x-auto rounded-lg bg-[var(--media-void)] p-3 font-mono text-xs leading-5 text-[var(--text-secondary)] [&_code]:bg-transparent [&_code]:p-0">
-      {children}
-    </pre>
-  ),
+  code: ({ className, children }) => {
+    // Inline code has no language- class and no newline; render the small chip.
+    if (!className && !String(children).includes("\n")) {
+      return <code className="rounded bg-[var(--surface-inset)] px-1 py-0.5 font-mono text-[12px] text-[var(--text-primary)]">{children}</code>;
+    }
+    return <CodeBlock className={className}>{children}</CodeBlock>;
+  },
+  // Passthrough: CodeBlock renders its own <pre>, so don't double-wrap.
+  pre: ({ children }) => <>{children}</>,
   blockquote: ({ children }) => (
     <blockquote className="border-l border-[var(--border-strong)] pl-3 text-[var(--text-secondary)]">{children}</blockquote>
   ),
