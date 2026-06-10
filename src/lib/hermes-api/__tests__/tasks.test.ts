@@ -168,13 +168,29 @@ describe("moveAgentTask", () => {
   it("blocks completing a task that still has an open approval", async () => {
     const supabase = createSupabaseQueryMock({
       agent_tasks: { data: taskRow("running", { approval_item_id: "ap1" }), error: null },
-      approval_items: { data: { status: "needs_review" }, error: null },
+      approval_items: { data: { status: "pending_owner_approval" }, error: null },
     });
 
     const result = await moveAgentTask(TASK_ID, "completed", supabase);
 
     expect(result).toEqual({ ok: false, reason: "rejected", code: "open_approval" });
     expect(updateCalls(supabase)).toHaveLength(0);
+  });
+
+  it("allows completing a task whose approval is resolved (approved)", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: taskRow("running", { approval_item_id: "ap1" }), error: null },
+      approval_items: { data: { status: "approved" }, error: null },
+      agent_run_logs: { data: { id: "log-move-2" }, error: null },
+    });
+
+    const result = await moveAgentTask(TASK_ID, "completed", supabase);
+
+    expect(result.ok).toBe(true);
+    const [, patch] = updateCalls(supabase)[0] as [string, Record<string, unknown>];
+    expect(patch).toMatchObject({ status: "completed" });
+    expect(patch.completed_at).toEqual(expect.any(String));
+    expect(supabase.calls).toContainEqual(["from", "agent_run_logs"]);
   });
 
   it("performs an allowed move and records an audit log", async () => {

@@ -150,6 +150,85 @@ export async function createMarkTaskAction(formData: FormData) {
   redirect(`/agent-operations?action=mark-task-created&task=${data.id}`);
 }
 
+type TaskPriority = "low" | "medium" | "high" | "urgent";
+const ALLOWED_PRIORITIES = new Set<TaskPriority>(["low", "medium", "high", "urgent"]);
+
+export async function createTaskAction(formData: FormData): Promise<void> {
+  await requireOperator();
+
+  const objective = String(formData.get("objective") ?? "").trim();
+  const priorityRaw = String(formData.get("priority") ?? "medium").trim().toLowerCase();
+  const taskType = String(formData.get("taskType") ?? "operator_task").trim() || "operator_task";
+  const priority: TaskPriority = (ALLOWED_PRIORITIES as Set<string>).has(priorityRaw)
+    ? (priorityRaw as TaskPriority)
+    : "medium";
+
+  if (objective.length === 0) {
+    redirect("/agent-operations?action=mark-task-error");
+  }
+  if (!isSupabaseAdminConfigured()) {
+    redirect("/agent-operations?action=not-configured");
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const agentId = await ensureMarkAgent();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("agent_tasks")
+    .insert({
+      agent_id: agentId,
+      status: "queued",
+      priority,
+      objective,
+      task_type: taskType,
+      source_type: "operator_request",
+      metadata: {
+        runner_name: "Mark",
+        requested_from: "agent_operations_board",
+        requested_at: now,
+        human_approval_required: true,
+        outbound_dispatch_allowed: false,
+      },
+    })
+    .select("id")
+    .single<{ id: string }>();
+
+  if (error) {
+    throw new Error(`agent_tasks insert failed: ${error.message}`);
+  }
+
+  await supabase.from("agent_task_inputs").insert({
+    task_id: data.id,
+    input_type: "operator_request",
+    summary: objective,
+    payload: {
+      task_type: taskType,
+      guardrails: [
+        "No outbound sending.",
+        "Create approval items for external-facing work.",
+        "Keep dispatch locked until owner approval.",
+      ],
+    },
+  });
+
+  await supabase.from("agent_run_logs").insert({
+    task_id: data.id,
+    agent_id: agentId,
+    run_status: "queued",
+    model_provider: "external_cli",
+    model_name: "mark-mac-mini",
+    reasoning_summary: "Task queued from the board. External runner has not picked it up yet.",
+    started_at: null,
+    completed_at: null,
+    metadata: { runner_name: "Mark", source: "operator_board_create" },
+  });
+
+  revalidatePath("/agent-operations");
+  revalidatePath("/");
+  redirect(`/agent-operations?action=mark-task-created&task=${data.id}`);
+}
+
 async function ensureMarkAgent() {
   const supabase = getSupabaseAdminClient();
 

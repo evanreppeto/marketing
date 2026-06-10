@@ -1,6 +1,14 @@
-export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "mark" | "settings";
+export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "mark" | "settings" | "board";
 
 const paths: Record<NavIconName, React.ReactNode> = {
+  // Three columns — kanban task board
+  board: (
+    <>
+      <rect height="14" rx="1" width="4.2" x="4" y="5" />
+      <rect height="9" rx="1" width="4.2" x="9.9" y="5" />
+      <rect height="11" rx="1" width="4.2" x="15.8" y="5" />
+    </>
+  ),
   // Megaphone — campaign broadcast
   campaigns: (
     <>
