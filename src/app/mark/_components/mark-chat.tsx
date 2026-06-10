@@ -143,7 +143,17 @@ export function MarkChat({
     const stored = window.sessionStorage.getItem(`mark:draft:${activeId || "new"}`);
     // Schedule asynchronously to satisfy the set-state-in-effect lint rule.
     void Promise.resolve().then(() => {
-      setMessages(initialMessages);
+      setMessages((prev) => {
+        // A revalidation can re-render the bare /mark hero while a first-message
+        // send is in flight (optimistic temp bubble on screen, navigation to
+        // /mark?c= pending). Re-seeding to the empty server tree would wipe the
+        // thread and flash the hero — keep the optimistic view; the pushed
+        // thread render re-seeds with real rows.
+        if (!activeId && initialMessages.length === 0 && prev.some((m) => m.id.startsWith("temp-"))) {
+          return prev;
+        }
+        return initialMessages;
+      });
       setDraft(stored ?? "");
     });
   }, [activeId, initialMessages]);
