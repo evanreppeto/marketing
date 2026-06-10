@@ -10,6 +10,7 @@ export * from "./notebook";
 export * from "./campaign-revisions";
 export * from "./campaign-results";
 export * from "./mark-chat";
+export * from "./mark-canvas";
 export * from "./competitor-intel";
 export * from "./attribution";
 export * from "./campaign-drafts";
