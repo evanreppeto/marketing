@@ -160,3 +160,53 @@ export function normalizeAgentTask(input: NormalizeTaskInput): NormalizedTask {
     outbound_locked: true,
   };
 }
+
+/** Columns an operator can drop a card into (Closed tray = canceled). */
+export const OPERATOR_DROP_TARGETS = [
+  "queued",
+  "running",
+  "blocked",
+  "needs_approval",
+  "completed",
+  "canceled",
+] as const;
+export type OperatorDropTarget = (typeof OPERATOR_DROP_TARGETS)[number];
+
+const OPERATOR_TERMINAL = new Set(["completed", "failed", "canceled"]);
+
+export type MoveCheckResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "terminal" | "no_change" | "invalid_target" | "open_approval" | "approval_gate";
+    };
+
+/**
+ * Decide whether an operator drag from `from` to `to` is allowed. Pure: the
+ * caller supplies `hasOpenApproval` (whether the task's linked approval item is
+ * still open). Guardrails: terminal tasks are immovable; a task with an open
+ * approval cannot be completed; a needs_approval task can never be dragged
+ * straight to completed (approval happens in /approvals, not the board).
+ */
+export function canOperatorMoveTask(
+  from: string,
+  to: string,
+  opts: { hasOpenApproval: boolean },
+): MoveCheckResult {
+  if (!(OPERATOR_DROP_TARGETS as readonly string[]).includes(to)) {
+    return { ok: false, reason: "invalid_target" };
+  }
+  if (from === to) {
+    return { ok: false, reason: "no_change" };
+  }
+  if (OPERATOR_TERMINAL.has(from)) {
+    return { ok: false, reason: "terminal" };
+  }
+  if (from === "needs_approval" && to === "completed") {
+    return { ok: false, reason: "approval_gate" };
+  }
+  if (to === "completed" && opts.hasOpenApproval) {
+    return { ok: false, reason: "open_approval" };
+  }
+  return { ok: true };
+}
