@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { Button, Panel, StatusPill } from "../_components/page-header";
+import { SettingsNav } from "./settings-nav";
 import { SettingsSection } from "./settings-section";
+import { type SettingsSectionId } from "./settings-sections";
 
 type CtaRule = {
   persona: string;
@@ -38,10 +40,13 @@ const inputClass =
 export function SettingsControls({
   initialGuardrails,
   initialCtaRules,
+  connections,
 }: {
   initialGuardrails: string[];
   initialCtaRules: CtaRule[];
+  connections: ReactNode;
 }) {
+  const [activeTab, setActiveTab] = useState<SettingsSectionId>("automation");
   const [autonomy, setAutonomy] = useState(() => {
     const stored = readStoredDraft();
     return isAllowedAutonomy(stored?.autonomy) ? stored.autonomy : "2";
@@ -90,105 +95,116 @@ export function SettingsControls({
   }
 
   return (
-    <>
-      <SettingsSection
-        id="automation"
-        title="Automation"
-        description="How much Mark can prepare on its own. Outbound execution stays locked regardless of level."
-      >
-        <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)] sm:items-center">
-          <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="autonomy-level">
-            Autonomy level
-          </label>
-          <select
-            className={inputClass}
-            id="autonomy-level"
-            onChange={(event) => setAutonomy(event.target.value)}
-            value={autonomy}
+    <div className="grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
+      <SettingsNav active={activeTab} onSelect={setActiveTab} />
+
+      <div className="min-w-0 space-y-5">
+        {activeTab === "automation" ? (
+          <SettingsSection
+            description="How much Mark can prepare on its own. Outbound execution stays locked regardless of level."
+            title="Automation"
           >
-            {AUTONOMY_LEVELS.filter((level) => level.id !== "4").map((level) => (
-              <option key={level.id} value={level.id}>
-                {`${level.label} — ${level.detail}`}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusPill tone="amber">Outbound locked</StatusPill>
-          <span className="text-xs leading-5 text-[var(--text-muted)]">
-            No send, publish, launch, spend, or contact without explicit human approval.
-          </span>
-        </div>
-      </SettingsSection>
-
-      <SettingsSection id="guardrails" title="Guardrails" description="Safety checks applied before anything reaches an approval queue.">
-        <div className="grid gap-2">
-          {guardrails.map((item, index) => (
-            <label
-              className="grid cursor-pointer items-start gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-3 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] sm:grid-cols-[auto_minmax(0,1fr)]"
-              key={item.rule}
-            >
-              <input
-                checked={item.enabled}
-                className="mt-1 h-4 w-4 cursor-pointer accent-[var(--accent)]"
-                onChange={(event) => {
-                  const next = [...guardrails];
-                  next[index] = { ...item, enabled: event.target.checked };
-                  setGuardrails(next);
-                }}
-                type="checkbox"
-              />
-              <span className="text-sm leading-6 text-[var(--text-secondary)]">{item.rule}</span>
-            </label>
-          ))}
-        </div>
-      </SettingsSection>
-
-      <SettingsSection id="cta-rules" title="CTA rules" description="The action language Mark uses per persona in internal guidance.">
-        <div className="grid gap-2">
-          {ctaRules.map((rule, index) => (
-            <label
-              className="grid gap-2 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-center"
-              key={rule.persona}
-            >
-              <span className="text-sm font-semibold text-[var(--text-primary)]">{rule.persona}</span>
-              <input
+            <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)] sm:items-center">
+              <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="autonomy-level">
+                Autonomy level
+              </label>
+              <select
                 className={inputClass}
-                onChange={(event) => {
-                  const next = [...ctaRules];
-                  next[index] = { ...rule, cta: event.target.value };
-                  setCtaRules(next);
-                }}
-                value={rule.cta}
-              />
-            </label>
-          ))}
-        </div>
-      </SettingsSection>
+                id="autonomy-level"
+                onChange={(event) => setAutonomy(event.target.value)}
+                value={autonomy}
+              >
+                {AUTONOMY_LEVELS.filter((level) => level.id !== "4").map((level) => (
+                  <option key={level.id} value={level.id}>
+                    {`${level.label} — ${level.detail}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StatusPill tone="amber">Outbound locked</StatusPill>
+              <span className="text-xs leading-5 text-[var(--text-muted)]">
+                No send, publish, launch, spend, or contact without explicit human approval.
+              </span>
+            </div>
+          </SettingsSection>
+        ) : null}
 
-      <SettingsSection id="brand-voice" title="Brand voice" description="Copy posture Mark follows when drafting outbound-facing content.">
-        <textarea
-          className="min-h-32 w-full resize-y rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
-          onChange={(event) => setBrandVoice(event.target.value)}
-          value={brandVoice}
-        />
-      </SettingsSection>
+        {activeTab === "guardrails" ? (
+          <SettingsSection description="Safety checks applied before anything reaches an approval queue." title="Guardrails">
+            <div className="grid gap-2">
+              {guardrails.map((item, index) => (
+                <label
+                  className="grid cursor-pointer items-start gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-3 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] sm:grid-cols-[auto_minmax(0,1fr)]"
+                  key={item.rule}
+                >
+                  <input
+                    checked={item.enabled}
+                    className="mt-1 h-4 w-4 cursor-pointer accent-[var(--accent)]"
+                    onChange={(event) => {
+                      const next = [...guardrails];
+                      next[index] = { ...item, enabled: event.target.checked };
+                      setGuardrails(next);
+                    }}
+                    type="checkbox"
+                  />
+                  <span className="text-sm leading-6 text-[var(--text-secondary)]">{item.rule}</span>
+                </label>
+              ))}
+            </div>
+          </SettingsSection>
+        ) : null}
 
-      <Panel className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs leading-5 text-[var(--text-muted)]">
-          {savedAt ? `Saved ${savedAt} · ` : ""}Stored in this browser only — does not enable outbound. Connections save
-          instantly when toggled.
-        </p>
-        <div className="flex gap-2">
-          <Button onClick={resetDraft} size="sm" variant="ghost">
-            Reset
-          </Button>
-          <Button onClick={saveLocalDraft} size="sm" variant="primary">
-            Save changes
-          </Button>
-        </div>
-      </Panel>
-    </>
+        {activeTab === "cta-rules" ? (
+          <SettingsSection description="The action language Mark uses per persona in internal guidance." title="CTA rules">
+            <div className="grid gap-2">
+              {ctaRules.map((rule, index) => (
+                <label className="grid gap-2 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-center" key={rule.persona}>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">{rule.persona}</span>
+                  <input
+                    className={inputClass}
+                    onChange={(event) => {
+                      const next = [...ctaRules];
+                      next[index] = { ...rule, cta: event.target.value };
+                      setCtaRules(next);
+                    }}
+                    value={rule.cta}
+                  />
+                </label>
+              ))}
+            </div>
+          </SettingsSection>
+        ) : null}
+
+        {activeTab === "brand-voice" ? (
+          <SettingsSection description="Copy posture Mark follows when drafting outbound-facing content." title="Brand voice">
+            <textarea
+              className="min-h-32 w-full resize-y rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              onChange={(event) => setBrandVoice(event.target.value)}
+              value={brandVoice}
+            />
+          </SettingsSection>
+        ) : null}
+
+        {activeTab === "connections" ? connections : null}
+
+        {activeTab === "connections" ? null : (
+          <Panel className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-5 text-[var(--text-muted)]">
+              {savedAt ? `Saved ${savedAt} · ` : ""}Stored in this browser only — does not enable outbound.
+            </p>
+            <div className="flex gap-2">
+              <Button onClick={resetDraft} size="sm" variant="ghost">
+                Reset
+              </Button>
+              <Button onClick={saveLocalDraft} size="sm" variant="primary">
+                Save changes
+              </Button>
+            </div>
+          </Panel>
+        )}
+      </div>
+    </div>
   );
 }
 
