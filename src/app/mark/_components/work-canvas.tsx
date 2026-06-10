@@ -173,6 +173,7 @@ function Building({ steps }: { steps: MarkStep[] }) {
           <div className="mark-skel" style={{ width: "92%" }} />
           <div className="mark-skel" style={{ width: "60%" }} />
         </div>
+        <div className="mark-progress mt-4"><span /></div>
       </div>
     </div>
   );

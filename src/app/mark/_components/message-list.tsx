@@ -137,12 +137,16 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
         </div>
       ) : !hasSteps ? (
         <div className="flex flex-col gap-2.5" aria-label="Mark is working">
-          <span className="text-sm font-medium text-[var(--text-secondary)]">Mark is working…</span>
+          <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
+            Mark is working…
+          </span>
           <div className="flex flex-col gap-2 pt-0.5">
             <div className="mark-skel" style={{ width: "92%" }} />
             <div className="mark-skel" style={{ width: "78%" }} />
             <div className="mark-skel" style={{ width: "85%" }} />
           </div>
+          <div className="mark-progress mt-0.5"><span /></div>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
