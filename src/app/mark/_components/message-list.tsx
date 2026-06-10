@@ -7,6 +7,7 @@ import { cx } from "@/app/_components/theme";
 import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
 import { setMarkMessageFeedbackAction } from "../actions";
+import { ActionCard } from "./action-card";
 import { MessageMedia } from "./message-media";
 
 function CopyButton({ text }: { text: string }) {
@@ -217,6 +218,13 @@ function Message({ message, onRetry, onStop, onRegenerate }: { message: MarkMess
           </div>
         )}
         {!pending && message.steps.length > 0 ? <StepTrace steps={message.steps} /> : null}
+        {!pending && message.actions.length > 0 ? (
+          <div className="flex flex-col">
+            {message.actions.map((card, i) => (
+              <ActionCard key={`${i}-${card.title}`} card={card} />
+            ))}
+          </div>
+        ) : null}
         {!pending ? <References mentions={message.mentions} /> : null}
         {message.media.length > 0 ? <MessageMedia media={message.media} /> : null}
         {!pending ? (
