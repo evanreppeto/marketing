@@ -256,13 +256,13 @@ export async function blockAgentTask(
   return { ok: true, task };
 }
 
-const OPEN_APPROVAL_STATUSES = new Set([
-  "needs_compliance",
-  "needs_review",
-  "pending_approval",
-  "pending_owner_approval",
-  "revision_requested",
-]);
+/**
+ * Resolved (closed) approval states. Any approval whose status is NOT one of
+ * these is still "open" and blocks completing the linked task from the board.
+ * Inverting the list this way is safe-by-default: a newly added approval_status
+ * enum value is treated as open until explicitly classified as resolved.
+ */
+const RESOLVED_APPROVAL_STATUSES = new Set(["approved", "declined", "rejected", "archived"]);
 
 export type MoveTaskResult =
   | { ok: true; task: NormalizedTask }
@@ -283,7 +283,7 @@ async function hasOpenApproval(
     throw new Error(`approval_items lookup failed: ${error.message}`);
   }
   const status = (data as { status: string | null } | null)?.status ?? null;
-  return status !== null && OPEN_APPROVAL_STATUSES.has(status);
+  return status !== null && !RESOLVED_APPROVAL_STATUSES.has(status);
 }
 
 /**
