@@ -15,6 +15,8 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   await connection();
 
   const params = await searchParams;
+  // eslint-disable-next-line react-hooks/purity -- async server component; connection() ensures dynamic render
+  const nowMs = Date.now();
   const list = await getCampaignWorkspaceList();
 
   if (list.status === "unavailable") {
@@ -34,7 +36,7 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
       <CampaignsHeader pendingCount={pendingCount} />
 
       {campaigns.length > 0 ? (
-        <CampaignLibrary campaigns={campaigns} activeStatus={getParam(params.status)} />
+        <CampaignLibrary campaigns={campaigns} activeStatus={getParam(params.status)} nowMs={nowMs} />
       ) : (
         <EmptyState
           title="No campaigns yet"

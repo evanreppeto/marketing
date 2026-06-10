@@ -1,27 +1,27 @@
 import Link from "next/link";
 
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
+import { CollapsedBatchGroup } from "./collapsed-batch-group";
+import { formatWaitTime } from "./format-wait-time";
+import { momentumCounts, partitionAwaiting } from "./library-model";
+import { MomentumStrip } from "./momentum-strip";
 
 type Lifecycle = CampaignWorkspaceListItem["lifecycle"];
 
 /**
- * The redesigned Campaigns library: a single editorial list grouped by where
- * each campaign sits in the approval lifecycle, rather than a paginated card
- * grid. Work awaiting the operator floats to the top and glows gold; every row
- * is visibly Mark's work. Clicking a row opens the campaign workspace.
+ * The Campaigns library: an editorial list grouped by approval lifecycle. Work
+ * awaiting the operator floats to the top, glows gold, and shows Mark's reasoning
+ * plus a content preview so each row is decidable without opening it. Outbound
+ * campaigns get the full treatment; internal CRM batches collapse into one fold.
  */
 
 type GroupDef = {
   key: Lifecycle;
   label: string;
-  /** Status dot color (CSS var expression). */
   dot: string;
-  /** Whether rows in this group get the gold "needs you" treatment. */
   flag: boolean;
-  /** Pill text + classes. */
   pillLabel: string;
   pillClass: string;
-  /** Row action label. */
   cta: string;
 };
 
@@ -72,12 +72,21 @@ const FILTERS: Array<{ key: "All" | Lifecycle; label: string }> = [
   { key: "Drafting", label: "Drafts" },
 ];
 
+const EMPTY_NOTE: Record<Lifecycle, string> = {
+  "In review": "Nothing awaiting you — Mark's drafts will land here.",
+  Ready: "Nothing ready yet — approved campaigns land here.",
+  Live: "Nothing live yet — launched campaigns land here.",
+  Drafting: "No drafts in progress.",
+};
+
 export function CampaignLibrary({
   campaigns,
   activeStatus,
+  nowMs,
 }: {
   campaigns: CampaignWorkspaceListItem[];
   activeStatus: string;
+  nowMs: number;
 }) {
   const status: "All" | Lifecycle = (GROUPS.map((group) => group.key) as string[]).includes(activeStatus)
     ? (activeStatus as Lifecycle)
@@ -88,15 +97,19 @@ export function CampaignLibrary({
     return acc;
   }, {});
 
-  const visibleGroups = GROUPS.filter((group) => status === "All" || group.key === status)
-    .map((group) => ({
-      group,
-      items: campaigns.filter((campaign) => campaign.lifecycle === group.key),
-    }))
-    .filter((entry) => entry.items.length > 0);
+  const showAll = status === "All";
+  const visibleGroups = GROUPS.filter((group) => showAll || group.key === status).map((group) => ({
+    group,
+    items: campaigns.filter((campaign) => campaign.lifecycle === group.key),
+  }));
+  // In a specific-status view we hide empty groups; in "All" we keep them so the
+  // pipeline shape (Awaiting → Ready → Live → Drafts) stays legible.
+  const rendered = showAll ? visibleGroups : visibleGroups.filter((entry) => entry.items.length > 0);
 
   return (
     <div className="space-y-6">
+      <MomentumStrip counts={momentumCounts(campaigns)} />
+
       <nav aria-label="Filter campaigns by lifecycle" className="flex flex-wrap gap-2">
         {FILTERS.map((filter) => {
           const count = filter.key === "All" ? campaigns.length : counts[filter.key] ?? 0;
@@ -121,12 +134,12 @@ export function CampaignLibrary({
         })}
       </nav>
 
-      {visibleGroups.length === 0 ? (
+      {rendered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
           No campaigns in this view.
         </p>
       ) : (
-        visibleGroups.map(({ group, items }) => (
+        rendered.map(({ group, items }) => (
           <section key={group.key} aria-label={group.label}>
             <div className="mb-3 flex items-center gap-3">
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">{group.label}</h2>
@@ -134,13 +147,21 @@ export function CampaignLibrary({
               <span className="font-mono text-xs tabular-nums text-[var(--text-muted)]">{items.length}</span>
             </div>
 
-            <ul className="flex flex-col gap-2.5">
-              {items.map((campaign) => (
-                <li key={campaign.id}>
-                  <CampaignRow campaign={campaign} group={group} />
-                </li>
-              ))}
-            </ul>
+            {items.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-[var(--border-hairline)] bg-[var(--surface-soft)] px-4 py-3 text-xs text-[var(--text-muted)]">
+                {EMPTY_NOTE[group.key]}
+              </p>
+            ) : group.key === "In review" ? (
+              <AwaitingSection items={items} group={group} nowMs={nowMs} />
+            ) : (
+              <ul className="flex flex-col gap-2.5">
+                {items.map((campaign) => (
+                  <li key={campaign.id}>
+                    <CampaignRow campaign={campaign} group={group} nowMs={nowMs} showPreview={false} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         ))
       )}
@@ -148,23 +169,82 @@ export function CampaignLibrary({
   );
 }
 
-function CampaignRow({ campaign, group }: { campaign: CampaignWorkspaceListItem; group: GroupDef }) {
+/** The In-review group: outbound rows (with preview) above the internal CRM fold. */
+function AwaitingSection({ items, group, nowMs }: { items: CampaignWorkspaceListItem[]; group: GroupDef; nowMs: number }) {
+  const { outbound, internal } = partitionAwaiting(items);
+  const split = outbound.length > 0 && internal.length > 0;
+
+  return (
+    <div className="space-y-4">
+      {outbound.length > 0 ? (
+        <div>
+          {split ? <SubLabel>Outbound</SubLabel> : null}
+          <ul className="flex flex-col gap-2.5">
+            {outbound.map((campaign) => (
+              <li key={campaign.id}>
+                <CampaignRow campaign={campaign} group={group} nowMs={nowMs} showPreview />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {internal.length > 0 ? (
+        <div>
+          {split ? <SubLabel>Internal CRM work</SubLabel> : null}
+          {internal.length === 1 ? (
+            <ul className="flex flex-col gap-2.5">
+              <li>
+                <CampaignRow campaign={internal[0]} group={group} nowMs={nowMs} showPreview={false} />
+              </li>
+            </ul>
+          ) : (
+            <CollapsedBatchGroup items={internal} nowMs={nowMs} />
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SubLabel({ children }: { children: React.ReactNode }) {
+  return <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{children}</div>;
+}
+
+function CampaignRow({
+  campaign,
+  group,
+  nowMs,
+  showPreview,
+}: {
+  campaign: CampaignWorkspaceListItem;
+  group: GroupDef;
+  nowMs: number;
+  showPreview: boolean;
+}) {
+  const why = whyLine(campaign);
+  const wait = formatWaitTime(campaign.updatedAtIso, nowMs);
+  const hasPreview = showPreview && Boolean(campaign.previewText || campaign.thumbnailUrl);
+
   return (
     <Link
       href={campaign.href}
-      className={`group flex items-center gap-4 rounded-xl border px-4 py-3.5 transition hover:translate-x-0.5 ${
+      className={`group flex items-stretch gap-4 rounded-xl border px-4 py-3.5 transition hover:translate-x-0.5 ${
         group.flag
           ? "border-[var(--accent-border-strong)] bg-[linear-gradient(90deg,var(--accent-soft),var(--surface-panel)_62%)] hover:border-[var(--accent)]"
           : "border-[var(--border-panel)] bg-[var(--surface-panel)] hover:border-[var(--border-strong)]"
       }`}
     >
-      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: group.dot }} />
+      <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: group.dot }} />
 
       <div className="min-w-0 flex-1">
-        <div className="truncate text-base font-medium tracking-[-0.005em] text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">
-          {campaign.name}
+        <div className="flex items-center gap-2.5">
+          <span className="truncate text-base font-medium tracking-[-0.005em] text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">
+            {campaign.name}
+          </span>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
+        {why ? <p className="mt-1 line-clamp-1 text-xs text-[var(--text-secondary)]">{why}</p> : null}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
           <span className="truncate">{targetLabel(campaign.persona)}</span>
           {channelSummary(campaign.assetTypes) ? (
             <>
@@ -176,29 +256,26 @@ function CampaignRow({ campaign, group }: { campaign: CampaignWorkspaceListItem;
           <span>
             {campaign.assetCount} asset{campaign.assetCount === 1 ? "" : "s"}
           </span>
+          {wait ? (
+            <>
+              <Dot />
+              <span className={group.flag ? "font-medium text-[var(--accent)]" : ""}>waiting {wait}</span>
+            </>
+          ) : null}
         </div>
       </div>
 
-      <div className="hidden shrink-0 items-center gap-2 text-xs text-[var(--text-secondary)] md:flex">
-        <span
-          aria-hidden
-          className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--surface-inset)] font-mono text-[10px] font-bold text-[var(--accent)]"
-          title="Drafted by Mark"
-        >
-          M
-        </span>
-        <span className="whitespace-nowrap text-[var(--text-muted)]">Drafted by Mark · {campaign.updatedAt}</span>
-      </div>
+      {hasPreview ? <CampaignPreview campaign={campaign} /> : null}
 
       <span
-        className={`hidden shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] sm:inline-flex ${group.pillClass}`}
+        className={`hidden shrink-0 items-center gap-1.5 self-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] sm:inline-flex ${group.pillClass}`}
       >
         <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: group.dot }} />
         {group.pillLabel}
       </span>
 
       <span
-        className={`shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+        className={`shrink-0 self-center rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
           group.flag
             ? "bg-[var(--accent)] text-[var(--on-accent)] group-hover:bg-[var(--accent-strong)]"
             : "border border-[var(--border-strong)] text-[var(--text-secondary)] group-hover:border-[var(--accent)] group-hover:text-[var(--text-primary)]"
@@ -208,6 +285,33 @@ function CampaignRow({ campaign, group }: { campaign: CampaignWorkspaceListItem;
       </span>
     </Link>
   );
+}
+
+/** Outbound content peek — thumbnail if present, else label + preview text. */
+function CampaignPreview({ campaign }: { campaign: CampaignWorkspaceListItem }) {
+  return (
+    <div className="hidden w-[240px] shrink-0 self-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-2.5 lg:block">
+      {campaign.thumbnailUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={campaign.thumbnailUrl} alt="" className="h-16 w-full rounded object-cover" />
+      ) : (
+        <>
+          {campaign.previewLabel ? (
+            <div className="mb-1 text-[9px] uppercase tracking-[0.1em] text-[var(--text-muted)]">{campaign.previewLabel}</div>
+          ) : null}
+          <p className="line-clamp-3 text-[11px] leading-snug text-[var(--text-secondary)]">{campaign.previewText}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function whyLine(campaign: CampaignWorkspaceListItem): string {
+  const why = campaign.whyBuilt?.trim();
+  if (why) return why;
+  const objective = campaign.objective?.trim();
+  if (objective && objective !== "No objective captured yet.") return objective;
+  return "";
 }
 
 function Dot() {
