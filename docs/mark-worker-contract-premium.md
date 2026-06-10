@@ -38,5 +38,29 @@ Outbound always stays locked regardless of mode. Default is `ask` when the field
 
 Mark still posts the final reply to `POST /api/v1/hermes/messages` with
 `{ agentTaskId, body, status: "complete" | "failed", metadata }`. The `metadata.media`
-array continues to render attachments. (A future `metadata.actions[]` for rich action
-cards is specified separately in Plan 2 — not required here.)
+array continues to render attachments, and `metadata.actions[]` (below) renders cards.
+
+## 3. Action cards (`metadata.actions[]`)
+
+Include an `actions` array on the reply `metadata` to render structured cards instead of
+loose prose. Each entry:
+
+```json
+{
+  "kind": "result" | "draft",
+  "title": "3 leads added to CRM",
+  "href": "/crm/leads",
+  "rows": [
+    { "name": "Dana Kasprak", "meta": "Emergency Homeowner", "badge": "92", "href": "/crm/leads/abc" }
+  ],
+  "preview": "When the unexpected hits…",
+  "flags": [ { "tone": "ok|warn|risk", "label": "On-brand" } ],
+  "approval": { "kind": "campaign", "campaignId": "<id>", "assetId": "<id>" }
+}
+```
+
+- `kind` + `title` are required; everything else is optional.
+- `rows` render as clickable record lines (result cards); `preview`/`flags` are for draft cards.
+- When a `draft` card carries `approval`, the operator gets inline **Approve / Decline**
+  (wired to the campaign decision flow) plus a **Request revision** link to the campaign.
+- Malformed entries are dropped silently. Outbound stays locked regardless.
