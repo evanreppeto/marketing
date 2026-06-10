@@ -12,6 +12,7 @@ import { cx } from "@/app/_components/theme";
 import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
 import { Composer } from "./composer";
 import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
+import { MarkConnection } from "./mark-connection";
 import { MessageList } from "./message-list";
 import { ThreadContextRail } from "./thread-context-rail";
 import { ThreadMenu } from "./thread-menu";
@@ -263,8 +264,8 @@ export function MarkChat({
               <HeaderTitle key={activeId} activeId={activeId} activeTitle={activeTitle} />
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {/* Reserved slot: future "what Mark can reach" connections indicator. */}
+            <div className="flex shrink-0 items-center gap-2">
+              <MarkConnection />
               {activeId ? (
                 <ThreadMenu
                   conversationId={activeId}

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
+import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
@@ -124,6 +125,33 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // back to "What should Mark work on?" between send and thread.
   if (existingId) revalidatePath("/mark");
   return { ok: true, message: "Sent.", conversationId };
+}
+
+export type MarkAgentStatus = { attached: boolean; name: string };
+
+/**
+ * Connection signal for the Mark header: is an agent actually attached to this
+ * workspace (a runner endpoint is configured AND an agent is registered)? When
+ * false, sends still queue for inbox pickup — the UI says so plainly rather than
+ * leaving the operator guessing.
+ */
+export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
+  const name = getMarkDisplayName();
+  if (!isSupabaseAdminConfigured() || !isMarkRunnerConfigured()) {
+    return { attached: false, name };
+  }
+  try {
+    const client = getSupabaseAdminClient();
+    const { data } = await client
+      .from("agents")
+      .select("id")
+      .in("key", markAgentKeys())
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    return { attached: Boolean(data), name };
+  } catch {
+    return { attached: false, name };
+  }
 }
 
 export type SimpleActionState = { ok: boolean; message: string } | null;

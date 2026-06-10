@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { type MarkMention } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
+import { markAgentKeys } from "./agent-config";
 
 export type EnqueueChatTaskInput = {
   conversationId: string;
@@ -34,7 +35,7 @@ export async function enqueueMarkChatTask(
   const { data: agent, error: agentError } = await client
     .from("agents")
     .select("id")
-    .in("key", ["mark", "hermes"])
+    .in("key", markAgentKeys())
     .limit(1)
     .maybeSingle<{ id: string }>();
   assertOk("agents lookup", agentError);
