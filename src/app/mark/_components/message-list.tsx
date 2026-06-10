@@ -10,7 +10,7 @@ import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
 import { setMarkMessageFeedbackAction } from "../actions";
 import { ActionCard } from "./action-card";
-import { MarkOrb } from "./mark-orb";
+import { MarkSphere } from "./mark-sphere";
 import { MessageMedia } from "./message-media";
 
 function CopyButton({ text }: { text: string }) {
@@ -78,7 +78,7 @@ function MarkAvatar({ pending }: { pending?: boolean }) {
         pending ? "motion-safe:[animation:mark-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
       )}
     >
-      <MarkOrb size={32} className="shadow-[inset_0_0_0_1px_var(--border-strong)]" />
+      <MarkSphere size={32} className="shadow-[inset_0_0_0_1px_var(--border-strong)]" />
       {/* Live presence dot — Mark is online (the chat polls). Ring, not glow. */}
       <span className="absolute -bottom-0.5 -right-0.5 z-[1] h-2.5 w-2.5 rounded-full bg-[var(--ok)] shadow-[0_0_0_2px_var(--canvas)]" />
     </span>
