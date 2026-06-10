@@ -462,10 +462,19 @@ export function Composer({
             ) : null}
           </div>
 
-          <p className="hidden flex-wrap gap-x-3 sm:flex">
-            <span><span className="font-mono">↵</span> send</span>
-            <span><span className="font-mono">@</span> records</span>
-            <span><span className="font-mono">/</span> commands</span>
+          <p className="hidden flex-wrap items-center gap-x-3 gap-y-1 sm:flex">
+            <span className="inline-flex items-center gap-1.5">
+              <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-[10px] leading-none text-[var(--text-muted)]">↵</kbd>
+              send
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-[10px] leading-none text-[var(--text-muted)]">@</kbd>
+              records
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-[10px] leading-none text-[var(--text-muted)]">/</kbd>
+              commands
+            </span>
           </p>
 
           <span className="ml-auto flex items-center gap-1">
