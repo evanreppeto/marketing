@@ -1,3 +1,5 @@
+import { getAppSettings } from "@/lib/settings/store";
+
 import { Button } from "../_components/page-header";
 import { SettingsSection } from "./settings-section";
 
@@ -10,9 +12,10 @@ function initials(email: string | null): string {
 
 /** The operator identity for this console, plus a real sign-out (clears the session
  *  cookie via the existing auth route). */
-export function AccountSettings() {
+export async function AccountSettings() {
   const email = process.env.OPERATOR_EMAIL?.trim() || null;
   const gateEnabled = Boolean(process.env.OPERATOR_ACCESS_TOKEN?.trim());
+  const { supportEmail } = await getAppSettings();
 
   return (
     <SettingsSection description="The operator identity signed in to this console." title="Account">
@@ -33,6 +36,16 @@ export function AccountSettings() {
           </Button>
         </form>
       </div>
+
+      {supportEmail ? (
+        <p className="mt-4 border-t border-[var(--border-hairline)] pt-4 text-sm text-[var(--text-secondary)]">
+          Need help?{" "}
+          <a className="font-semibold text-[var(--accent)] underline-offset-2 hover:underline" href={`mailto:${supportEmail}`}>
+            Contact support
+          </a>{" "}
+          <span className="text-[var(--text-muted)]">({supportEmail})</span>
+        </p>
+      ) : null}
 
       {gateEnabled ? null : (
         <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
