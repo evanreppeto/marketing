@@ -201,7 +201,7 @@ export function Composer({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 rounded-3xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
+        <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
           {picked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {picked.map((m) => (
@@ -230,17 +230,26 @@ export function Composer({
                 onClick={() => setModeOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={modeOpen}
-                className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2.5 text-xs font-bold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
               >
+                <span
+                  aria-hidden
+                  className={cx(
+                    "h-1.5 w-1.5 rounded-full",
+                    mode === "ask" ? "bg-[var(--text-muted)]" : mode === "act" ? "bg-[var(--accent)]" : "bg-[var(--warn)]",
+                  )}
+                />
                 {mode === "ask" ? "Ask" : mode === "act" ? "Take action" : "Draft"}
-                <span className="text-[10px] text-[var(--text-muted)]">▾</span>
+                <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m6 8 4 4 4-4" />
+                </svg>
               </button>
               {modeOpen ? (
-                <div role="menu" className="msg-rise absolute bottom-10 left-0 z-20 w-56 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+                <div role="menu" className="msg-rise absolute bottom-10 left-0 z-20 w-60 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
                   {([
-                    { v: "ask", t: "Ask", d: "Read-only — answers & analysis" },
-                    { v: "act", t: "Take action", d: "May add or update records" },
-                    { v: "draft", t: "Draft", d: "Create drafts for your approval" },
+                    { v: "ask", t: "Ask", d: "Read-only — answers & analysis", dot: "bg-[var(--text-muted)]" },
+                    { v: "act", t: "Take action", d: "May add or update records", dot: "bg-[var(--accent)]" },
+                    { v: "draft", t: "Draft", d: "Create drafts for your approval", dot: "bg-[var(--warn)]" },
                   ] as const).map((o) => (
                     <button
                       key={o.v}
@@ -248,28 +257,20 @@ export function Composer({
                       role="menuitem"
                       onClick={() => { setMode(o.v); setModeOpen(false); }}
                       className={cx(
-                        "flex w-full flex-col rounded-lg px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-inset)]",
+                        "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-[var(--surface-inset)]",
                         mode === o.v ? "bg-[var(--accent-soft)]" : "",
                       )}
                     >
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{o.t}</span>
-                      <span className="text-[11px] text-[var(--text-muted)]">{o.d}</span>
+                      <span aria-hidden className={cx("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", o.dot)} />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{o.t}</span>
+                        <span className="text-[11px] text-[var(--text-muted)]">{o.d}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
               ) : null}
             </div>
-            <button
-              type="button"
-              disabled
-              aria-label="Attach a file (coming soon)"
-              title="Attach a file (coming soon)"
-              className="flex h-9 w-9 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-[var(--text-muted)] opacity-50"
-            >
-              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 4v12M3 10h12" transform="rotate(45 10 10)" />
-              </svg>
-            </button>
             <textarea
               ref={textareaRef}
               name="body-display"
@@ -294,7 +295,7 @@ export function Composer({
                 "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
                 disabled
                   ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
-                  : "bg-[var(--accent)] text-[var(--on-accent)] hover:scale-[1.06] hover:bg-[var(--accent-strong)] active:scale-95",
+                  : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)] active:scale-95",
               )}
             >
               {isPending ? <Spinner /> : <SendIcon />}
@@ -303,15 +304,23 @@ export function Composer({
         </div>
 
         {state && !state.ok ? (
-          <p className="mt-2 text-center text-xs font-semibold text-[var(--priority-bright)]">{state.message}</p>
+          <p className="mt-2 text-xs font-medium text-[var(--priority-bright)]">{state.message}</p>
         ) : (
-          <p className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-center text-[11px] text-[var(--text-muted)]">
-            <span><span className="font-mono">↵</span> send</span>
-            <span><span className="font-mono">⇧↵</span> newline</span>
-            <span><span className="font-mono">/</span> commands</span>
-            <span><span className="font-mono">@</span> records</span>
-            <span>outbound stays locked</span>
-          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-[11px] text-[var(--text-muted)]">
+            <p className="hidden flex-wrap gap-x-3 sm:flex">
+              <span><span className="font-mono">↵</span> send</span>
+              <span><span className="font-mono">⇧↵</span> newline</span>
+              <span><span className="font-mono">@</span> records</span>
+              <span><span className="font-mono">/</span> commands</span>
+            </p>
+            <span className="ml-auto flex items-center gap-1">
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="5" y="9" width="10" height="7" rx="1.5" />
+                <path d="M7 9V7a3 3 0 0 1 6 0v2" />
+              </svg>
+              outbound stays locked
+            </span>
+          </div>
         )}
       </form>
     </div>

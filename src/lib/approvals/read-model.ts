@@ -192,6 +192,22 @@ type AgentOutputRow = {
   structured_payload: JsonObject | null;
 };
 
+/** Lightweight head-only count of items awaiting a decision — for glanceable badges. */
+export async function countActiveApprovals(
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<number> {
+  const { count, error } = await client
+    .from("approval_items")
+    .select("id", { count: "exact", head: true })
+    .in("status", [...ACTIVE_APPROVAL_STATUSES]);
+
+  if (error) {
+    throw new Error(`countActiveApprovals failed: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
 export async function listApprovalCards(
   filter: ApprovalQueueFilter = {},
   client: SupabaseClient = getSupabaseAdminClient(),

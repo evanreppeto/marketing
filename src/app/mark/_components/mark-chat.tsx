@@ -42,7 +42,7 @@ function HeaderTitle({
 
   if (!activeId) {
     return (
-      <h1 className="truncate font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+      <h1 className="truncate font-display text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
         New chat
       </h1>
     );
@@ -61,7 +61,7 @@ function HeaderTitle({
             if (e.key === "Escape") setEditing(false);
           }}
           onBlur={(e) => e.currentTarget.form?.requestSubmit()}
-          className="min-w-0 flex-1 rounded-md border border-[var(--accent)] bg-[var(--surface-inset)] px-2 py-1 font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)] focus-visible:outline-none"
+          className="min-w-0 flex-1 rounded-md border border-[var(--accent)] bg-[var(--surface-panel)] px-2 py-0.5 font-display text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)] focus-visible:outline-none"
         />
       </form>
     );
@@ -74,7 +74,7 @@ function HeaderTitle({
       title="Rename thread"
       className="group flex min-w-0 items-center gap-1.5 text-left"
     >
-      <span className="truncate font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+      <span className="truncate font-display text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
         {activeTitle || "New chat"}
       </span>
       <svg
@@ -104,6 +104,8 @@ export function MarkChat({
   activePinned,
   initialMessages,
   mentionGroups,
+  operatorName,
+  pendingApprovals,
 }: {
   conversations: MarkConversation[];
   projects: MarkProject[];
@@ -115,6 +117,8 @@ export function MarkChat({
   activePinned: boolean;
   initialMessages: MarkMessage[];
   mentionGroups: MentionGroup[];
+  operatorName: string | null;
+  pendingApprovals: number;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<MarkMessage[]>(initialMessages);
@@ -175,43 +179,26 @@ export function MarkChat({
   }
 
   const hasMessages = messages.length > 0;
+  const [threadsOpen, setThreadsOpen] = useState(false);
+
+  // Close the mobile thread drawer on Escape.
+  useEffect(() => {
+    if (!threadsOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setThreadsOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [threadsOpen]);
+
+  const meta = activeId
+    ? (activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
+      `${messages.length} message${messages.length === 1 ? "" : "s"}`
+    : "";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center justify-between gap-3 pb-3">
-        <div className="min-w-0">
-          <p className="signal-eyebrow">Mark</p>
-          {/* key on activeId so switching threads remounts the editor — never carries
-              one thread's in-progress rename text onto another. */}
-          <HeaderTitle key={activeId} activeId={activeId} activeTitle={activeTitle} />
-          {activeId ? (
-            <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
-              {(activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
-                `${messages.length} message${messages.length === 1 ? "" : "s"}`}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {/* Reserved slot: future "what Mark can reach" connections indicator. */}
-          {activeId ? (
-            <ThreadMenu
-              conversationId={activeId}
-              projectId={activeProjectId}
-              pinned={activePinned}
-              projects={projects}
-              isActive
-            />
-          ) : null}
-          <Link
-            href="/agent-operations"
-            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-          >
-            Operations ▸
-          </Link>
-        </div>
-      </header>
-
-      <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] lg:grid-cols-[16rem_minmax(0,1fr)]">
         <ThreadSidebar
           conversations={conversations}
           projects={projects}
@@ -219,7 +206,46 @@ export function MarkChat({
           showArchived={showArchived}
           activeId={activeId}
         />
-        <section className="flex min-h-0 flex-col border-t border-[var(--border-hairline)] lg:border-l lg:border-t-0">
+        <section className="flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
+          <header className="flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] px-3 py-2 sm:px-4">
+            <button
+              type="button"
+              onClick={() => setThreadsOpen(true)}
+              aria-label="Show conversations"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] lg:hidden"
+            >
+              <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M3.5 5.5h13M3.5 10h13M3.5 14.5h8" />
+              </svg>
+            </button>
+            <div className="min-w-0 flex-1">
+              {/* key on activeId so switching threads remounts the editor — never carries
+                  one thread's in-progress rename text onto another. */}
+              <HeaderTitle key={activeId} activeId={activeId} activeTitle={activeTitle} />
+              {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {/* Reserved slot: future "what Mark can reach" connections indicator. */}
+              {activeId ? (
+                <ThreadMenu
+                  conversationId={activeId}
+                  projectId={activeProjectId}
+                  pinned={activePinned}
+                  projects={projects}
+                  isActive
+                />
+              ) : null}
+              <Link
+                href="/agent-operations"
+                className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+              >
+                Operations
+                <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m8 5 5 5-5 5" />
+                </svg>
+              </Link>
+            </div>
+          </header>
           {(() => {
             const composer = (
               <Composer
@@ -252,11 +278,38 @@ export function MarkChat({
                 {composer}
               </>
             ) : (
-              <ChatEmptyState onPick={pickSuggestion} composer={composer} />
+              <ChatEmptyState
+                onPick={pickSuggestion}
+                composer={composer}
+                operatorName={operatorName}
+                pendingApprovals={pendingApprovals}
+              />
             );
           })()}
         </section>
       </div>
+
+      {threadsOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Conversations">
+          <div className="absolute inset-0 bg-[var(--overlay)] backdrop-blur-sm" onClick={() => setThreadsOpen(false)} />
+          <div
+            className="msg-rise absolute inset-y-0 left-0 flex w-72 flex-col overflow-hidden border-r border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-raised)]"
+            onClick={(e) => {
+              // Navigating to a thread should dismiss the drawer.
+              if ((e.target as HTMLElement).closest("a")) setThreadsOpen(false);
+            }}
+          >
+            <ThreadSidebar
+              conversations={conversations}
+              projects={projects}
+              archived={archived}
+              showArchived={showArchived}
+              activeId={activeId}
+              variant="overlay"
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

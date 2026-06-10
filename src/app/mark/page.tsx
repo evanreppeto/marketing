@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 
 import { PageHeader, EmptyState } from "../_components/page-header";
+import { countActiveApprovals } from "@/lib/approvals/read-model";
 import { getOperatorActor } from "@/lib/auth/operator";
 import { getMentionables } from "@/lib/mark-chat/mention-search";
 import { listConversations, listMessages, getConversation, listProjects, listArchivedConversations } from "@/lib/mark-chat/persistence";
@@ -14,6 +15,14 @@ type MarkPageProps = {
 
 function valueOf(v: string | string[] | undefined): string {
   return Array.isArray(v) ? v[0] ?? "" : v ?? "";
+}
+
+/** "evan.reppeto5928@…" → "Evan"; the unconfigured fallback actor gets no name. */
+function displayName(actor: string): string | null {
+  if (!actor.includes("@")) return null;
+  const first = actor.split("@")[0].split(/[._\-+]/)[0].replace(/\d+/g, "");
+  if (!first) return null;
+  return first[0].toUpperCase() + first.slice(1).toLowerCase();
 }
 
 export default async function MarkPage({ searchParams }: MarkPageProps) {
@@ -38,6 +47,14 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
   const params = await searchParams;
   const operator = getOperatorActor();
   const mentionGroups = await getMentionables();
+
+  // Glanceable badge for the work launcher; never fatal if approvals are unavailable.
+  let pendingApprovals = 0;
+  try {
+    pendingApprovals = await countActiveApprovals();
+  } catch {
+    pendingApprovals = 0;
+  }
 
   // Supabase is configured, but the mark_chat tables may not exist yet (migration
   // not applied to this environment). Degrade to a preview instead of 500-ing.
@@ -86,6 +103,8 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
       activePinned={Boolean(activeConversation?.pinnedAt)}
       initialMessages={initialMessages}
       mentionGroups={mentionGroups}
+      operatorName={displayName(operator)}
+      pendingApprovals={pendingApprovals}
     />
   );
 }
