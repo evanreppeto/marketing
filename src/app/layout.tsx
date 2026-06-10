@@ -4,6 +4,7 @@ import { Archivo, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
 import { isOperatorGateEnabled } from "@/lib/auth/operator";
+import { getAppSettings } from "@/lib/settings/store";
 
 // Display: an engineered grotesk — confident, gridded, mechanical. Drives headings and key numbers.
 const display = Archivo({
@@ -26,14 +27,17 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Signal | Big Shoulders",
-  description: "AI-native CRM, persona intelligence, routing, and campaign operations for Big Shoulders Restoration.",
-  icons: {
-    icon: "/icon.svg",
-    apple: "/brand/signal-mark-original.png",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { workspaceName } = await getAppSettings();
+  return {
+    title: `${workspaceName} | Signal`,
+    description: "AI-native CRM, persona intelligence, routing, and campaign operations for Big Shoulders Restoration.",
+    icons: {
+      icon: "/icon.svg",
+      apple: "/brand/signal-mark-original.png",
+    },
+  };
+}
 
 export default function RootLayout({
   children,

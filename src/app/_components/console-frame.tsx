@@ -67,31 +67,18 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
 
 function OperatorProfile() {
   return (
-    <div className={cx("mt-4 hidden border-t pb-7 pt-4 lg:block", theme.surface.divider)}>
-      <div className={theme.surface.operatorCard}>
-        <div className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] font-display text-sm font-semibold text-[var(--accent)]">
-              ER
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
-              <div className="mt-0.5 text-xs text-[var(--text-muted)]">Operator</div>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--media-void)] px-3 py-2.5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-medium text-[var(--text-secondary)]">Human approval gate</span>
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ok-text)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--ok)]" />
-                Active
-              </span>
-            </div>
-            <div className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">
-              Campaign review only. Outbound stays locked.
-            </div>
-          </div>
+    <div className={cx("mt-4 hidden border-t pb-6 pt-4 lg:block", theme.surface.divider)}>
+      <div className="flex items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 transition hover:border-[var(--border-panel)]">
+        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-xs font-semibold text-[var(--accent)]">
+          ER
+          <span
+            aria-label="Active"
+            className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-inset)] bg-[var(--ok)]"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
+          <div className="truncate text-[11px] text-[var(--text-muted)]">Operator</div>
         </div>
       </div>
     </div>
