@@ -47,6 +47,7 @@ export type CampaignWorkspaceListItem = {
   previewText: string | null;
   previewLabel: string | null;
   updatedAt: string;
+  updatedAtIso: string;
   href: string;
 };
 
@@ -452,6 +453,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         previewText: preview?.text ?? null,
         previewLabel: preview?.label ?? null,
         updatedAt: formatDate(campaign.updated_at),
+        updatedAtIso: campaign.updated_at,
         href: `/campaigns/${campaign.id}`,
       };
     });
