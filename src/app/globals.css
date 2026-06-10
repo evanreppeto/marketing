@@ -8,86 +8,89 @@
    ============================================================================ */
 
 :root {
-  /* Surface tiers — each step ~0.05 lighter for unmistakable separation */
-  --canvas: oklch(0.17 0.028 248);          /* page background, deepest */
-  --canvas-deep: oklch(0.14 0.03 250);      /* gutter / behind-rail void */
-  --surface-panel: oklch(0.235 0.033 246);  /* cards & modules */
-  --surface-inset: oklch(0.285 0.038 245);  /* headers, fields, sub-blocks inside a panel */
-  --surface-soft: oklch(0.255 0.03 246);    /* quiet strips, list backgrounds */
-  --surface-raised: oklch(0.335 0.045 244); /* hover, popovers, selected */
-  --surface-sidebar: oklch(0.145 0.03 250 / 0.96);
-  --surface-operator: linear-gradient(145deg, oklch(0.19 0.036 248 / 0.98), oklch(0.135 0.028 250 / 0.98));
-  --media-void: oklch(0.12 0.026 250);
-  --overlay: oklch(0.1 0.02 250 / 0.88);
+  /* Surface tiers — warm near-black, stepping up for separation */
+  --canvas: #16161a;            /* page background, deepest */
+  --canvas-deep: #101013;       /* gutter / behind-rail void */
+  --surface-panel: #1c1c21;     /* cards & modules */
+  --surface-inset: #202027;     /* headers, fields, sub-blocks inside a panel */
+  --surface-soft: #1a1a1e;      /* quiet strips, list backgrounds */
+  --surface-raised: #23232a;    /* hover, popovers, selected */
+  --surface-sidebar: #101013;
+  --surface-operator: linear-gradient(145deg, #1c1c21, #101013);
+  --media-void: #0e0e10;
+  --overlay: rgba(8, 8, 10, 0.78);
 
-  /* Text tiers */
-  --text-primary: oklch(0.97 0.01 240);
-  --text-secondary: oklch(0.79 0.026 242);
-  --text-muted: oklch(0.71 0.03 244);   /* lifted for AA on raised surfaces (4.6:1+) */
+  /* Text tiers — warm ivory */
+  --text-primary: #f1ede2;
+  --text-secondary: #b9b9c0;
+  --text-muted: #86868e;
 
-  /* Borders — bright enough to define edges on dark surfaces */
-  --border-hairline: oklch(0.5 0.04 244 / 0.34);
-  --border-panel: oklch(0.58 0.05 244 / 0.26);
-  --border-strong: oklch(0.66 0.06 244 / 0.42);
+  /* Borders */
+  --border-hairline: #2c2c33;
+  --border-panel: #2c2c33;
+  --border-strong: #3a3a42;
 
-  /* Accents */
-  --accent: oklch(0.74 0.115 232);          /* signal blue #5bb7e8 family */
-  --accent-strong: oklch(0.82 0.1 230);
-  --accent-soft: oklch(0.74 0.115 232 / 0.16);
-  --accent-contrast: var(--chicago-blue-soft);
-  --accent-border: oklch(0.74 0.115 232 / 0.24);
-  --accent-border-strong: oklch(0.74 0.115 232 / 0.4);
-  --on-accent: oklch(0.18 0.03 248);        /* text/icon on a solid accent fill (8.3:1) */
-  --priority: oklch(0.68 0.2 26);           /* restoration red — tints, dots, text */
-  --priority-bright: oklch(0.74 0.19 26);
-  --priority-solid: oklch(0.56 0.2 26);     /* solid red button fill — AA with --on-priority */
-  --priority-hover: oklch(0.5 0.2 26);
-  --priority-soft: oklch(0.68 0.2 26 / 0.16);
-  --priority-text: oklch(0.86 0.09 26);
-  --priority-border: oklch(0.68 0.2 26 / 0.58);
-  --priority-border-soft: oklch(0.68 0.2 26 / 0.45);
-  --on-priority: oklch(0.98 0.02 26);       /* text/icon on a solid priority fill (4.6:1) */
+  /* Accent — antique gold */
+  --accent: #c8a24a;
+  --accent-strong: #d8b65e;
+  --accent-soft: rgba(200, 162, 74, 0.14);
+  --accent-contrast: #e6d29a;
+  --accent-border: rgba(200, 162, 74, 0.30);
+  --accent-border-strong: rgba(200, 162, 74, 0.48);
+  --on-accent: #16161a;         /* ink on a solid gold fill */
 
-  /* Status hues (calibrated for dark surfaces) */
-  --ok: oklch(0.78 0.14 158);
-  --ok-solid: oklch(0.72 0.15 158);
-  --ok-hover: oklch(0.78 0.16 158);
-  --ok-soft: oklch(0.78 0.14 158 / 0.14);
-  --ok-text: oklch(0.88 0.1 158);
-  --ok-border: oklch(0.78 0.14 158 / 0.55);
-  --ok-border-soft: oklch(0.78 0.14 158 / 0.4);
-  --on-ok: oklch(0.14 0.025 160);
-  --warn: oklch(0.82 0.13 85);
-  --warn-solid: oklch(0.66 0.14 76);
-  --warn-hover: oklch(0.74 0.15 76);
-  --warn-soft: oklch(0.82 0.13 85 / 0.14);
-  --warn-text: oklch(0.9 0.09 85);
-  --warn-border: oklch(0.82 0.13 85 / 0.58);
-  --warn-border-soft: oklch(0.82 0.13 85 / 0.4);
-  --on-warn: oklch(0.16 0.025 72);
+  /* Priority — restrained red, for destructive/decline only */
+  --priority: #cc6666;
+  --priority-bright: #d98080;
+  --priority-solid: #b25555;
+  --priority-hover: #c66;
+  --priority-soft: rgba(204, 102, 102, 0.16);
+  --priority-text: #e0a3a3;
+  --priority-border: rgba(204, 102, 102, 0.58);
+  --priority-border-soft: rgba(204, 102, 102, 0.45);
+  --on-priority: #ffffff;
 
-  --neutral-solid: oklch(0.38 0.045 245);
-  --neutral-hover: oklch(0.44 0.055 245);
-  --neutral-on: oklch(0.94 0.015 245);
-  --neutral-border: oklch(0.62 0.055 245 / 0.52);
+  /* Status hues */
+  --ok: #7fb89a;
+  --ok-solid: #6fae8c;
+  --ok-hover: #7fb89a;
+  --ok-soft: rgba(127, 184, 154, 0.15);
+  --ok-text: #a3d0b8;
+  --ok-border: rgba(127, 184, 154, 0.55);
+  --ok-border-soft: rgba(127, 184, 154, 0.40);
+  --on-ok: #0e1612;
 
-  /* Elevation — dark, faintly blue-tinted shadows */
-  --elev-panel: 0 1px 0 oklch(0.98 0.01 240 / 0.04) inset,
-    0 18px 40px -28px oklch(0.05 0.05 250 / 0.9),
-    0 2px 6px -4px oklch(0.05 0.05 250 / 0.7);
-  --elev-raised: 0 1px 0 oklch(0.98 0.01 240 / 0.06) inset,
-    0 28px 60px -30px oklch(0.05 0.05 250 / 0.95);
+  --warn: #d8b65e;
+  --warn-solid: #c8a24a;
+  --warn-hover: #d8b65e;
+  --warn-soft: rgba(216, 182, 94, 0.14);
+  --warn-text: #e6cf8e;
+  --warn-border: rgba(216, 182, 94, 0.58);
+  --warn-border-soft: rgba(216, 182, 94, 0.40);
+  --on-warn: #1a1505;
+
+  --neutral-solid: #2e2e35;
+  --neutral-hover: #3a3a42;
+  --neutral-on: #e7e7ea;
+  --neutral-border: rgba(120, 120, 130, 0.52);
+
+  /* Elevation — neutral shadows */
+  --elev-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 18px 40px -28px rgba(0, 0, 0, 0.9),
+    0 2px 6px -4px rgba(0, 0, 0, 0.7);
+  --elev-raised: 0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 28px 60px -30px rgba(0, 0, 0, 0.95);
 
   --background: var(--canvas);
   --foreground: var(--text-primary);
 
   /* Legacy brand vars kept for any remaining references */
-  --chicago-navy: #07111f;
-  --chicago-blue: #5bb7e8;
-  --chicago-blue-soft: #d4ecfb;
-  --chicago-red: #e53935;
-  --chicago-white: #f7fbff;
-  --chicago-muted: #9fb0c3;
+  --chicago-navy: #101013;
+  --chicago-blue: #c8a24a;
+  --chicago-blue-soft: #e6d29a;
+  --chicago-red: #cc6666;
+  --chicago-white: #f1ede2;
+  --chicago-muted: #86868e;
   --chicago-border: var(--border-hairline);
 }
 
@@ -143,8 +146,8 @@ h1, h2, h3, h4, .font-display {
 
 .chicago-dark {
   background:
-    radial-gradient(120% 80% at 12% -8%, oklch(0.74 0.115 232 / 0.1), transparent 52%),
-    radial-gradient(90% 60% at 96% 0%, oklch(0.68 0.2 26 / 0.06), transparent 46%),
+    radial-gradient(120% 80% at 12% -8%, rgba(200, 162, 74, 0.06), transparent 52%),
+    radial-gradient(90% 60% at 96% 0%, rgba(200, 162, 74, 0.03), transparent 46%),
     var(--canvas);
   color: var(--text-primary);
 }
@@ -249,7 +252,7 @@ h1, h2, h3, h4, .font-display {
 .chicago-dark a[aria-current="page"] {
   background-color: var(--surface-raised) !important;
   color: var(--text-primary) !important;
-  border-color: oklch(0.74 0.115 232 / 0.5) !important;
+  border-color: var(--accent-border-strong) !important;
 }
 
 .chicago-dark a[aria-current="page"] :where(span, svg) {
