@@ -21,3 +21,4 @@ export * from "./jobs";
 export * from "./outcomes";
 export * from "./hermes-tasks";
 export * from "./redaction";
+export * from "./campaign-kind";
