@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
@@ -276,15 +275,6 @@ export function MarkChat({
                   isActive
                 />
               ) : null}
-              <Link
-                href="/agent-operations"
-                className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-              >
-                Operations
-                <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m8 5 5 5-5 5" />
-                </svg>
-              </Link>
             </div>
           </header>
           {/* The composer must keep ONE stable tree slot across the empty→thread
@@ -342,7 +332,7 @@ export function MarkChat({
           </div>
         </section>
 
-        {activeId ? <WorkCanvas messages={messages} pendingApprovals={pendingApprovals} /> : null}
+        {activeId ? <WorkCanvas messages={messages} /> : null}
       </div>
 
       {threadsOpen ? (

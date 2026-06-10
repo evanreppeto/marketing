@@ -180,7 +180,7 @@ function Building({ steps }: { steps: MarkStep[] }) {
 }
 
 /** Fallback when there's no live artifact: what the thread touches. */
-function Context({ messages, pendingApprovals }: { messages: MarkMessage[]; pendingApprovals: number }) {
+function Context({ messages }: { messages: MarkMessage[] }) {
   const seen = new Set<string>();
   const byType = new Map<string, MarkMention[]>();
   for (const m of messages) {
@@ -214,21 +214,6 @@ function Context({ messages, pendingApprovals }: { messages: MarkMessage[]; pend
           When Mark drafts a campaign or asset, it builds here — review and approve it without leaving the chat.
         </p>
       )}
-      <div className="mt-auto border-t border-[var(--border-hairline)] pt-3">
-        <Link
-          href="/approvals"
-          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-        >
-          <span>Approval queue</span>
-          {pendingApprovals > 0 ? (
-            <span className="rounded-full bg-[var(--warn-soft)] px-1.5 py-px text-[10px] font-semibold tabular-nums text-[var(--warn-text)]">
-              {pendingApprovals}
-            </span>
-          ) : (
-            <span className="text-[10px] text-[var(--text-muted)]">clear</span>
-          )}
-        </Link>
-      </div>
     </div>
   );
 }
@@ -239,7 +224,7 @@ function Context({ messages, pendingApprovals }: { messages: MarkMessage[]; pend
  * building (Mark is drafting) → artifact (latest draft) → context (records).
  * Pure: derived from the message list, no extra fetches.
  */
-export function WorkCanvas({ messages, pendingApprovals }: { messages: MarkMessage[]; pendingApprovals: number }) {
+export function WorkCanvas({ messages }: { messages: MarkMessage[] }) {
   const last = messages[messages.length - 1];
   const building = last?.role === "mark" && last.status === "pending";
 
@@ -265,7 +250,7 @@ export function WorkCanvas({ messages, pendingApprovals }: { messages: MarkMessa
       ) : draft ? (
         <Artifact card={draft} />
       ) : (
-        <Context messages={messages} pendingApprovals={pendingApprovals} />
+        <Context messages={messages} />
       )}
     </aside>
   );
