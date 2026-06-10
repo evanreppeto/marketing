@@ -1,11 +1,11 @@
-/** Canonical settings sections — the single source of truth for the in-page nav
- *  and the `id` anchors on each section card. Order = display + scroll order. */
+/** Canonical settings tabs — the single source of truth for the rail and the
+ *  panel map keyed by id. Order = tab order. */
 export const SETTINGS_SECTIONS = [
-  { id: "automation", label: "Automation" },
-  { id: "guardrails", label: "Guardrails" },
-  { id: "cta-rules", label: "CTA rules" },
-  { id: "brand-voice", label: "Brand voice" },
+  { id: "general", label: "General" },
+  { id: "account", label: "Account" },
   { id: "connections", label: "Connections" },
+  { id: "notifications", label: "Notifications" },
+  { id: "system", label: "System status" },
 ] as const;
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"];
