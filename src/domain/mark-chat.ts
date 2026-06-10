@@ -144,3 +144,83 @@ export function parseMarkMode(value: unknown): MarkMode {
     ? (value as MarkMode)
     : "ask";
 }
+
+export type MarkActionFlag = { tone: "ok" | "warn" | "risk"; label: string };
+export type MarkActionRow = { name: string; meta?: string; badge?: string; href?: string };
+export type MarkActionApproval = { kind: "campaign"; campaignId: string; assetId: string };
+export type MarkActionCard = {
+  kind: "result" | "draft";
+  title: string;
+  href?: string;
+  rows: MarkActionRow[];
+  preview?: string;
+  flags: MarkActionFlag[];
+  approval?: MarkActionApproval;
+};
+
+function str(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() ? v : undefined;
+}
+
+function parseRows(value: unknown): MarkActionRow[] {
+  if (!Array.isArray(value)) return [];
+  const out: MarkActionRow[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const name = str((item as { name?: unknown }).name);
+    if (!name) continue;
+    out.push({
+      name,
+      meta: str((item as { meta?: unknown }).meta),
+      badge: str((item as { badge?: unknown }).badge),
+      href: str((item as { href?: unknown }).href),
+    });
+  }
+  return out;
+}
+
+function parseFlags(value: unknown): MarkActionFlag[] {
+  if (!Array.isArray(value)) return [];
+  const tones = new Set(["ok", "warn", "risk"]);
+  const out: MarkActionFlag[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const tone = (item as { tone?: unknown }).tone;
+    const label = str((item as { label?: unknown }).label);
+    if (typeof tone !== "string" || !tones.has(tone) || !label) continue;
+    out.push({ tone: tone as MarkActionFlag["tone"], label });
+  }
+  return out;
+}
+
+function parseApproval(value: unknown): MarkActionApproval | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const kind = (value as { kind?: unknown }).kind;
+  const campaignId = str((value as { campaignId?: unknown }).campaignId);
+  const assetId = str((value as { assetId?: unknown }).assetId);
+  if (kind !== "campaign" || !campaignId || !assetId) return undefined;
+  return { kind: "campaign", campaignId, assetId };
+}
+
+/** Parse Mark's structured action cards from message metadata. Defensive: drops
+ *  malformed entries (must have a valid kind + title), never throws. */
+export function parseActions(value: unknown): MarkActionCard[] {
+  if (!Array.isArray(value)) return [];
+  const out: MarkActionCard[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const kind = (item as { kind?: unknown }).kind;
+    const title = str((item as { title?: unknown }).title);
+    if ((kind !== "result" && kind !== "draft") || !title) continue;
+    out.push({
+      kind,
+      title,
+      href: str((item as { href?: unknown }).href),
+      rows: parseRows((item as { rows?: unknown }).rows),
+      preview: str((item as { preview?: unknown }).preview),
+      flags: parseFlags((item as { flags?: unknown }).flags),
+      approval: parseApproval((item as { approval?: unknown }).approval),
+    });
+  }
+  return out;
+}
