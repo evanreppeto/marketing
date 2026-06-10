@@ -3,6 +3,8 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import {
   type NativeTaskStatus,
   type NormalizedTask,
+  type OperatorDropTarget,
+  canOperatorMoveTask,
   normalizeAgentTask,
   redactDeep,
   redactSecrets,
@@ -248,6 +250,80 @@ export async function blockAgentTask(
   });
   if (logError) {
     throw new Error(`block run-log insert failed: ${logError.message}`);
+  }
+
+  return { ok: true, task };
+}
+
+const OPEN_APPROVAL_STATUSES = new Set([
+  "needs_compliance",
+  "needs_review",
+  "pending_approval",
+  "pending_owner_approval",
+  "revision_requested",
+]);
+
+export type MoveTaskResult =
+  | { ok: true; task: NormalizedTask }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "rejected"; code: string };
+
+async function hasOpenApproval(
+  approvalItemId: string | null,
+  client: SupabaseClient,
+): Promise<boolean> {
+  if (!approvalItemId) return false;
+  const { data, error } = await client
+    .from("approval_items")
+    .select("status")
+    .eq("id", approvalItemId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`approval_items lookup failed: ${error.message}`);
+  }
+  const status = (data as { status: string | null } | null)?.status ?? null;
+  return status !== null && OPEN_APPROVAL_STATUSES.has(status);
+}
+
+/**
+ * Operator-driven board move (drag = immediate state change). Validates the
+ * transition with the pure domain rule, applies status + timestamp updates,
+ * and records an audit entry on the run-log timeline. Never touches approval
+ * decisions or outbound locks.
+ */
+export async function moveAgentTask(
+  taskId: string,
+  toStatus: OperatorDropTarget,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<MoveTaskResult> {
+  const row = await readTaskRow(taskId, client);
+  if (!row) return { ok: false, reason: "not_found" };
+
+  const openApproval = await hasOpenApproval(row.approval_item_id, client);
+  const check = canOperatorMoveTask(row.status ?? "queued", toStatus, { hasOpenApproval: openApproval });
+  if (!check.ok) {
+    return { ok: false, reason: "rejected", code: check.reason };
+  }
+
+  const patch: Record<string, unknown> = { status: toStatus };
+  if (toStatus === "running" && !(row.metadata as Record<string, unknown> | null)?.started_at) {
+    patch.started_at = new Date().toISOString();
+  }
+  if (toStatus === "completed") {
+    patch.completed_at = new Date().toISOString();
+  }
+
+  const task = await updateAndNormalize(taskId, patch, client);
+
+  const { error: logError } = await client.from("agent_run_logs").insert({
+    task_id: taskId,
+    agent_id: row.agent_id,
+    run_status: toStatus === "completed" ? "succeeded" : "running",
+    reasoning_summary: `Operator moved task to ${toStatus} from the board.`,
+    metadata: { source: "operator_board_move", from_status: row.status, to_status: toStatus },
+  });
+  if (logError) {
+    throw new Error(`move run-log insert failed: ${logError.message}`);
   }
 
   return { ok: true, task };
