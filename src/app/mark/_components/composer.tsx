@@ -239,7 +239,7 @@ export function Composer({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
+        <div className="flex flex-col gap-2 rounded-[1.25rem] border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
           {attachments.length > 0 || uploading ? (
             <div className="flex flex-wrap items-center gap-2">
               {attachments.map((a) => (
@@ -297,7 +297,7 @@ export function Composer({
             </div>
           ) : null}
 
-          <div className="flex items-end gap-2">
+          <div className="flex items-end gap-1.5">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -311,6 +311,24 @@ export function Composer({
                 <circle cx="7.5" cy="9" r="1.4" />
                 <path d="M4 14l3.5-3.5 2.5 2.5 2-2 4 4" />
               </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Mention a record"
+              title="Reference a record"
+              onClick={() => { onTextChange((draft ? draft.replace(/\s*$/, " ") : "") + "@"); textareaRef.current?.focus(); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-base text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+            >
+              @
+            </button>
+            <button
+              type="button"
+              aria-label="Run a command"
+              title="Run a command"
+              onClick={() => { onTextChange("/"); textareaRef.current?.focus(); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-base text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+            >
+              /
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
             <textarea
@@ -329,19 +347,31 @@ export function Composer({
               style={{ outline: "none" }}
               className="max-h-[200px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
-            <button
-              type="submit"
-              disabled={disabled}
-              aria-label="Send message"
-              className={cx(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
-                disabled
-                  ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
-                  : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)] active:scale-95",
-              )}
-            >
-              {isPending ? <Spinner /> : <SendIcon />}
-            </button>
+            {replyPending ? (
+              <button
+                type="button"
+                onClick={() => onStopReply?.()}
+                aria-label="Stop Mark"
+                title="Stop"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--priority-bright)] active:scale-95"
+              >
+                <span aria-hidden className="h-3 w-3 rounded-[2px] bg-current" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={disabled}
+                aria-label="Send message"
+                className={cx(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
+                  disabled
+                    ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
+                    : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)] active:scale-95",
+                )}
+              >
+                {isPending ? <Spinner /> : <SendIcon />}
+              </button>
+            )}
           </div>
         </div>
 
