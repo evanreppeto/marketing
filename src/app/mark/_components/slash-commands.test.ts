@@ -12,8 +12,9 @@ describe("matchSlash", () => {
   });
   it("filters by the typed query (cmd or label)", () => {
     const out = matchSlash("/find");
-    expect(out.length).toBeGreaterThan(0);
-    expect(out.every((c) => c.cmd.includes("find") || c.label.toLowerCase().includes("find"))).toBe(true);
+    expect(out).not.toBeNull();
+    expect(out!.length).toBeGreaterThan(0);
+    expect(out!.every((c) => c.cmd.includes("find") || c.label.toLowerCase().includes("find"))).toBe(true);
   });
   it("draft-campaign presets draft mode", () => {
     const draft = SLASH_COMMANDS.find((c) => c.cmd === "/draft-campaign");
