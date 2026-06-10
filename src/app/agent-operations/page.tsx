@@ -6,7 +6,7 @@ import { EmptyState, PageHeader, StatusPill, buttonClasses } from "../_component
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getAgentOperationsDashboard } from "@/lib/agent-operations/read-model";
 
-import { AgentTaskBoard } from "./agent-task-board";
+import { BoardViewSwitch } from "./board-view-switch";
 
 export default async function AgentOperationsPage() {
   await connection();
@@ -48,7 +48,7 @@ export default async function AgentOperationsPage() {
             description="Mark can prepare drafts, enrich records, classify, score, and create approval packets. External action remains disabled."
             aside={<StatusPill tone={dashboard.tasks.length > 0 ? "blue" : "gray"}>{dashboard.tasks.length} tasks</StatusPill>}
           >
-            <AgentTaskBoard tasks={dashboard.tasks} />
+            <BoardViewSwitch agents={dashboard.agents} tasks={dashboard.tasks} />
           </WorkspacePanel>
 
           <WorkspacePanel
