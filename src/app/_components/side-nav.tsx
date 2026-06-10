@@ -71,7 +71,7 @@ export function SideNav({ active, items }: SideNavProps) {
               }`}
               name={item.icon}
             />
-            <span>{item.label}</span>
+            <span className="whitespace-nowrap transition-transform duration-150 group-hover:translate-x-0.5">{item.label}</span>
           </Link>
         );
       })}
