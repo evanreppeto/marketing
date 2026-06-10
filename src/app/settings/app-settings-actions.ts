@@ -61,3 +61,25 @@ export async function setMarkWebhookEnabledAction(
   revalidatePath("/settings");
   return { ok: true, message: enabled ? "Mark webhook enabled." : "Mark webhook paused — Mark will poll the inbox." };
 }
+
+/** Save the operator-editable agent display name (empty = fall back to env default). */
+export async function saveAgentNameAction(
+  _previous: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const agentName = String(formData.get("agentName") ?? "").trim().slice(0, 60);
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), { agent_name: agentName });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save the agent name." };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/mark");
+  revalidatePath("/", "layout"); // refresh the shell nav label
+  return { ok: true, message: "Agent name saved." };
+}
