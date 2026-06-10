@@ -27,19 +27,18 @@ Promoting reuses it so there's one source of truth for what's real.
 
 ## Scope — Phased
 
-### Phase 1 (MVP) — Save assets + Promote to an existing campaign
+### Phase 1 (MVP) — Save assets + angles, Promote to existing OR new campaign
 
-The tightest, highest-value loop: save the *creative* Mark generates (a media asset or
-an ad/draft action card), revisit it, and promote it into a campaign for approval.
-(Whole-thread saving already exists as sidebar **Pin to top**; angles and a cross-type
-pinboard are Phase 2.)
+Save the *creative* Mark generates (a media asset or an ad/draft action card) **and**
+arbitrary message text as a **campaign angle/strategy**; revisit any of them in a Saved
+view; and promote a winner into the campaign approval flow — either attached to an
+**existing** campaign or by **creating a new** campaign (capturing persona +
+restoration-focus). (Whole-thread saving already exists as sidebar **Pin to top**.)
 
 ### Phase 2 (later, not built here)
 
-- Save arbitrary message text as a **campaign angle/strategy**.
-- A unified **favorites pinboard** across assets, angles, and pinned threads.
-- **Create a new campaign** from a saved item (needs a persona + restoration-focus
-  capture step, since `campaigns` requires both NOT NULL).
+- A unified **favorites pinboard** that also folds in pinned threads as a saved kind.
+- AI "make variants" generation from a saved item (beyond re-seeding a chat).
 
 ## Data Model
 
@@ -53,7 +52,7 @@ New migration `supabase/migrations/<ts>_mark_saved_items.sql`:
 create table public.mark_saved_items (
   id uuid primary key default gen_random_uuid(),
   operator text not null,
-  kind text not null check (kind in ('media','draft')),   -- Phase 2 adds 'angle'
+  kind text not null check (kind in ('media','draft','angle')),
   title text,
   body text,                       -- ad copy / draft preview
   media_url text,                  -- for kind='media'
@@ -97,7 +96,9 @@ Unit-tested with the same Supabase-mock pattern as `persistence.test.ts`.
   - `unsaveMarkItemAction(id): Promise<void>`
 - UI: a quiet ⭐ button on
   - each **media item** in `message-media.tsx` (saves `kind:'media'`, `mediaUrl`, `caption`),
-  - each **draft `ActionCard`** in `action-card.tsx` (saves `kind:'draft'`, `title`, `body`=preview, `sourceCampaignId/assetId` from `card.approval`).
+  - each **draft `ActionCard`** in `action-card.tsx` (saves `kind:'draft'`, `title`, `body`=preview, `sourceCampaignId/assetId` from `card.approval`),
+  - each **Mark message** (the message action bar in `message-list.tsx`) as a
+    **campaign angle** (saves `kind:'angle'`, `body`=message text, `title`=first line).
 - Filled star = saved (toggle to unsave). Save state seeded from server (the page
   passes a set of saved source keys), updated optimistically on click.
 - Token-native, no glow; star uses `--accent` when active.
@@ -107,8 +108,8 @@ Unit-tested with the same Supabase-mock pattern as `persistence.test.ts`.
 - New route `/mark/saved`, reachable from a **"Saved"** link in the thread sidebar
   footer (next to the existing **Archived** link).
 - Server component: `listSavedItems(operator)`; renders cards grouped by kind
-  (Media / Drafts), each showing preview, source-thread link, the operator note, and
-  two actions: **Continue in chat** and **Promote**. Empty state per Signal.
+  (Media / Drafts / Angles), each showing preview, source-thread link, the operator
+  note, and two actions: **Continue in chat** and **Promote**. Empty state per Signal.
 - Reuses `PageHeader`/`Panel`/`EmptyState` primitives; obsidian+gold.
 
 ### 4. Keep experimenting — re-seed a chat
@@ -119,25 +120,45 @@ Unit-tested with the same Supabase-mock pattern as `persistence.test.ts`.
 - Implemented by linking to `/mark?c=…&seed=…` or passing the seed via the existing
   per-thread draft mechanism (sessionStorage `mark:draft:*`). No backend change.
 
-### 5. Promote → existing campaign — `src/app/mark/actions.ts` + `src/lib/campaigns/`
+### 5. Promote → existing OR new campaign — `src/app/mark/actions.ts` + `src/lib/campaigns/`
 
-- `promoteSavedItemAction(savedItemId, campaignId): Promise<{ ok; assetId?; message? }>`:
+One action with a discriminated target:
+
+```ts
+type PromoteTarget =
+  | { mode: "existing"; campaignId: string }
+  | { mode: "new"; name: string; persona: string; restorationFocus: RestorationFocus };
+
+promoteSavedItemAction(savedItemId: string, target: PromoteTarget): Promise<{ ok; campaignId?; assetId?; message? }>
+```
+
+Steps:
   1. Load the saved item (operator-gated).
-  2. Insert a `campaign_assets` row under `campaignId`: `status:'pending_approval'`,
-     `asset_type` inferred (`'social_ad'` default; `'image_prompt'`/`'social_ad'` for
-     media), `title` from item, `draft_body` from `body`, `dispatch_locked:true`,
+  2. **Resolve the campaign.** `existing` → use `campaignId`. `new` → insert a
+     `campaigns` row (`status:'draft'`, `launch_locked:true`, `persona`,
+     `restoration_focus`, `name`, `owner:operator`, `source_system:'mark_saved'`) and a
+     `campaign_events` `created`. Validate `persona` ∈ `OFFICIAL_PERSONA_MAPPINGS`
+     (`@/domain`) and `restorationFocus` ∈ the `restoration_focus` enum; reject otherwise.
+  3. Insert a `campaign_assets` row under the resolved campaign: `status:'pending_approval'`,
+     `asset_type` inferred (media → `'image_prompt'`, draft → `'social_ad'`, angle →
+     `'social_ad'`), `title` from item, `draft_body` from `body`, `dispatch_locked:true`,
      `tool_source:'mark_saved'`, `audit_payload` carrying `media_url`/source ids.
-  3. Insert an `approval_items` row gating it (`campaign_asset_id`, `item_type:'campaign_asset'`,
-     `status:'pending_approval'`, `locked_until_approved:true`, `requested_by:operator`).
-  4. Log a `campaign_events` `asset_generated` (actor=operator, detail='promoted from Mark saved').
-  5. `markPromoted(savedItemId, …)`; `revalidatePath('/campaigns')` + `'/mark/saved'`.
-- A new persistence helper `promoteAssetToCampaign(input)` in `src/lib/campaigns/create.ts`
-  (factored from the existing `insertPhotoAsset` insert shape, but `pending_approval`
-  instead of pre-approved). Reuse existing column knowledge; do not invent fields.
-- **UI**: Promote opens a small picker of the operator's existing campaigns (read via
-  `getCampaignWorkspaceList()`); choosing one runs the action. If the operator has no
-  campaigns, the picker explains that creating a campaign-from-saved is Phase 2 and
-  links to `/campaigns` to make one first.
+  4. Insert an `approval_items` row gating it (`campaign_asset_id`, `campaign_id`,
+     `item_type:'campaign_asset'`, `status:'pending_approval'`, `locked_until_approved:true`,
+     `requested_by:operator`).
+  5. Log a `campaign_events` `asset_generated` (actor=operator, detail='promoted from Mark saved').
+  6. `markPromoted(savedItemId, { campaignId, assetId })`; `revalidatePath('/campaigns')` + `'/mark/saved'`.
+- New persistence helpers in `src/lib/campaigns/create.ts`:
+  - `createCampaignShell(input): Promise<{ campaignId }>` — the `campaigns`-row insert
+    above (factored from `createOperatorCampaign`'s campaign insert; reuse its column shape).
+  - `promoteAssetToCampaign(input): Promise<{ assetId }>` — the asset + approval_item +
+    event inserts (factored from `insertPhotoAsset`, but `pending_approval`, not pre-approved).
+  Reuse existing column knowledge; do not invent fields.
+- **UI** (`_components/promote-dialog.tsx`): a small dialog with two tabs —
+  **Existing** (a picker of the operator's campaigns via `getCampaignWorkspaceList()`)
+  and **New** (name input + persona `<select>` from `OFFICIAL_PERSONA_MAPPINGS` +
+  restoration-focus `<select>` from the enum). Submitting runs `promoteSavedItemAction`
+  with the matching target. Token-native; reuses input/select styles.
 
 ## Data Flow
 
@@ -150,17 +171,21 @@ re-opens/seeds a thread. No change to the approval state machine.
 ## Testing
 
 - **Unit (vitest):** `saved.ts` (save/list/remove/find/markPromoted) with the Supabase
-  mock; `promoteAssetToCampaign` insert-shape test; star toggle-state derivation.
-- **Manual:** save a media item + a draft card; star reflects saved; `/mark/saved`
-  lists them; Promote → asset appears in `/campaigns` as pending approval and the
-  existing Approve flow works; Continue-in-chat re-seeds; unsave; reduced-motion;
-  Supabase-unconfigured degrades (no crash, save disabled with a note).
+  mock; `createCampaignShell` + `promoteAssetToCampaign` insert-shape tests; promote
+  persona/focus validation (rejects invalid); star toggle-state derivation.
+- **Manual:** save a media item, a draft card, and a message as an angle; star
+  reflects saved; `/mark/saved` lists all three groups; Promote → **existing** campaign
+  → asset appears in `/campaigns` pending approval; Promote → **new** campaign (pick
+  persona + focus) → new campaign + pending asset both appear; existing Approve flow
+  works; Continue-in-chat re-seeds; unsave; reduced-motion; Supabase-unconfigured
+  degrades (no crash, save disabled with a note).
 - **Guardrail:** DESIGN.md §8 diff check (no emoji/glow/gradient/purple/nested cards).
 
 ## Risks & Mitigations
 
-- **Promote needs a campaign** → MVP attaches to an existing one (no persona/focus
-  requirement); create-new is Phase 2. Picker handles the "no campaigns yet" case.
+- **Promote needs a campaign** → the dialog offers both attach-to-existing and
+  create-new (with persona + restoration-focus capture, validated against `@/domain`).
+  The "no existing campaigns yet" case still works via the New tab.
 - **Source message changes/scrolls** → saved item snapshots title/body/media at save
   time, so it's stable; source ids are best-effort links.
 - **Supabase not configured** → all save/promote paths guard with
