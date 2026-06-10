@@ -24,3 +24,23 @@ export function matchSlash(text: string): SlashCommand[] | null {
   if (!q) return SLASH_COMMANDS;
   return SLASH_COMMANDS.filter((c) => c.cmd.slice(1).includes(q) || c.label.toLowerCase().includes(q));
 }
+
+/** Case-insensitive subsequence test: do all chars of `q` appear in `text` in order? */
+function isSubsequence(q: string, text: string): boolean {
+  let i = 0;
+  for (let j = 0; j < text.length && i < q.length; j++) {
+    if (text[j] === q[i]) i++;
+  }
+  return i === q.length;
+}
+
+/** Palette filter: fuzzy (subsequence) match over cmd + label + hint.
+ *  Empty query returns every command. Used by the ⌘K command palette. */
+export function filterCommands(query: string): SlashCommand[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return SLASH_COMMANDS;
+  return SLASH_COMMANDS.filter((c) => {
+    const hay = `${c.cmd} ${c.label} ${c.hint}`.toLowerCase();
+    return hay.includes(q) || isSubsequence(q, hay.replace(/[^a-z0-9]/g, ""));
+  });
+}
