@@ -118,7 +118,7 @@ export function CampaignLibrary({
             <Link
               key={filter.key}
               href={filter.key === "All" ? "/campaigns" : `/campaigns?status=${encodeURIComponent(filter.key)}`}
-              aria-current={active ? "true" : undefined}
+              aria-current={active ? "page" : undefined}
               className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition ${
                 active
                   ? "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
@@ -224,6 +224,7 @@ function CampaignRow({
 }) {
   const why = whyLine(campaign);
   const wait = formatWaitTime(campaign.updatedAtIso, nowMs);
+  const channel = channelSummary(campaign.assetTypes);
   const hasPreview = showPreview && Boolean(campaign.previewText || campaign.thumbnailUrl);
 
   return (
@@ -246,10 +247,10 @@ function CampaignRow({
         {why ? <p className="mt-1 line-clamp-1 text-xs text-[var(--text-secondary)]">{why}</p> : null}
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
           <span className="truncate">{targetLabel(campaign.persona)}</span>
-          {channelSummary(campaign.assetTypes) ? (
+          {channel ? (
             <>
               <Dot />
-              <span className="truncate">{channelSummary(campaign.assetTypes)}</span>
+              <span className="truncate">{channel}</span>
             </>
           ) : null}
           <Dot />
@@ -292,8 +293,8 @@ function CampaignPreview({ campaign }: { campaign: CampaignWorkspaceListItem }) 
   return (
     <div className="hidden w-[240px] shrink-0 self-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-2.5 lg:block">
       {campaign.thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={campaign.thumbnailUrl} alt="" className="h-16 w-full rounded object-cover" />
+        // eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no Next image-optimizer domain config
+        <img src={campaign.thumbnailUrl} alt={`Preview — ${campaign.name}`} className="h-16 w-full rounded object-cover" />
       ) : (
         <>
           {campaign.previewLabel ? (
