@@ -29,8 +29,8 @@ export type AgentProfile = { name: string; shortName: string; monogram: string }
 /** Derive display identity from a resolved name. Pure; empty falls back to "Mark". */
 export function agentProfile(rawName: string | null | undefined): AgentProfile {
   const name = (rawName ?? "").trim() || "Mark";
-  const shortName = name.split(/\s+/)[0] || name;
-  const firstAlnum = name.replace(/[^A-Za-z0-9]/g, "")[0] ?? "M";
+  const shortName = name.split(/\s+/)[0];
+  const firstAlnum = name.replace(/[^A-Za-z0-9]/g, "")[0] ?? name[0];
   return { name, shortName, monogram: firstAlnum.toUpperCase() };
 }
 

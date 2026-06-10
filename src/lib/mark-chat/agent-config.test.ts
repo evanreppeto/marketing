@@ -10,6 +10,7 @@ describe("agentProfile", () => {
   it("defaults to Mark/M for empty input", () => {
     expect(agentProfile("")).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
     expect(agentProfile(undefined)).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
+    expect(agentProfile(null)).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
   });
 
   it("derives first-word shortName and uppercase monogram", () => {
