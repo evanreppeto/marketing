@@ -23,6 +23,10 @@ describe("channelPreviewKind", () => {
     expect(channelPreviewKind("SMS", null)).toBe("sms");
     expect(channelPreviewKind("text message", null)).toBe("sms");
   });
+  it("normalizes underscores/hyphens before matching", () => {
+    expect(channelPreviewKind("text_message", null)).toBe("sms");
+    expect(channelPreviewKind(null, "e-mail")).toBe("email");
+  });
   it("falls back to generic", () => {
     expect(channelPreviewKind(null, null)).toBe("generic");
     expect(channelPreviewKind("billboard", "physical")).toBe("generic");
@@ -59,6 +63,16 @@ describe("resolveDraftFields", () => {
     expect(fields.body).toBe("edited body");
     expect(fields.subject).toBe("Edited subject");
     expect(fields.headline).toBe("PI headline");
+  });
+  it("title prefers the db column over prompt_inputs (edits persist to the title column)", () => {
+    const fields = resolveDraftFields({
+      title: "Edited title",
+      draftBody: "",
+      editedBody: null,
+      promptInputs: { title: "Original prompt title" },
+      editedFields: {},
+    });
+    expect(fields.title).toBe("Edited title");
   });
   it("falls back to draft body when no edited body", () => {
     const fields = resolveDraftFields({

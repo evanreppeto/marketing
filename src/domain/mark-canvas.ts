@@ -36,7 +36,7 @@ export type DraftAssetRaw = {
 
 /** Map a channel/asset_type to a preview frame. Deterministic, case-insensitive. */
 export function channelPreviewKind(channel: string | null, assetType: string | null): ChannelPreviewKind {
-  const hay = `${channel ?? ""} ${assetType ?? ""}`.toLowerCase();
+  const hay = `${channel ?? ""} ${assetType ?? ""}`.toLowerCase().replace(/[_-]+/g, " ");
   if (/\b(sms|mms)\b/.test(hay) || /\btext\b/.test(hay)) return "sms";
   if (/(email|newsletter|mail)/.test(hay)) return "email";
   if (/\bads?\b/.test(hay) || /(advert|meta|facebook|instagram|paid|social)/.test(hay)) return "ad";
@@ -81,6 +81,9 @@ export function resolveDraftFields(raw: DraftAssetRaw): ResolvedDraftFields {
   const pi = raw.promptInputs ?? {};
   const body = raw.editedBody ?? raw.draftBody ?? "";
   return {
+    // title edits persist to the `title` column (not edited_fields), so the DB
+    // column outranks prompt_inputs here — otherwise a saved edit would be masked
+    // by Mark's original prompt input on reload.
     title: pick(ef.title, raw.title ?? undefined, pi.title),
     subject: pick(ef.subject, pi.subject),
     primaryText: pick(ef.primaryText, pi.primaryText, pi.primary_text),

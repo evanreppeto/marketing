@@ -112,7 +112,7 @@ export async function editDraftAsset(
 
   const editedKeys = Object.keys(cleanFields);
   const parts = [...editedKeys];
-  if (typeof body === "string") parts.push("body");
+  if (typeof body === "string" && body.trim()) parts.push("body");
   const detail = `Draft edited by ${operator}${parts.length ? `: ${parts.join(", ")}` : ""}`;
 
   const { error: eventError } = await client.from("campaign_events").insert({
