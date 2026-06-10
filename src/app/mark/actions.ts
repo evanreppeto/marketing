@@ -34,6 +34,7 @@ import {
   type MarkMessage,
 } from "@/lib/mark-chat/persistence";
 import { type ApprovalDecision, decideAsset } from "@/lib/campaigns/decisions";
+import { editDraftAsset, getDraftAsset, type DraftAssetView } from "@/lib/campaigns/draft-editing";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type SendMessageState = { ok: boolean; message: string; conversationId?: string } | null;
@@ -395,6 +396,59 @@ export async function regenerateMarkReplyAction(
     /* best-effort: leave the thread as-is if Mark can't be reached */
   }
   revalidatePath("/mark");
+}
+
+/** Load the live editable view of a draft asset for the Work Canvas. Operator-gated. */
+export async function getDraftAssetAction(assetId: string): Promise<DraftAssetView | null> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return null;
+  const id = assetId.trim();
+  if (!id) return null;
+  try {
+    return await getDraftAsset(id);
+  } catch {
+    return null;
+  }
+}
+
+export type EditDraftState = { ok: boolean; message: string };
+
+/**
+ * Persist an in-canvas edit to a draft asset (body -> edited_body, structured fields ->
+ * edited_fields). Operator-gated; outbound stays locked. Revalidates Mark + Campaigns.
+ */
+export async function editDraftAssetAction(input: {
+  assetId: string;
+  campaignId: string;
+  title?: string;
+  body?: string;
+  fields: Record<string, string>;
+}): Promise<EditDraftState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured yet." };
+
+  const assetId = input.assetId?.trim();
+  if (!assetId) return { ok: false, message: "Missing asset." };
+
+  try {
+    await editDraftAsset(
+      {
+        assetId,
+        campaignId: input.campaignId?.trim() ?? "",
+        title: input.title,
+        body: input.body,
+        fields: input.fields ?? {},
+      },
+      getOperatorActor(),
+    );
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save the edit." };
+  }
+
+  revalidatePath("/mark");
+  revalidatePath("/campaigns");
+  if (input.campaignId?.trim()) revalidatePath(`/campaigns/${input.campaignId.trim()}`);
+  return { ok: true, message: "Saved." };
 }
 
 const CHAT_DECISIONS: ApprovalDecision[] = ["approved", "declined", "archived"];
