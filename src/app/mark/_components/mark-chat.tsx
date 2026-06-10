@@ -14,7 +14,7 @@ import { Composer } from "./composer";
 import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
 import { MarkConnection } from "./mark-connection";
 import { MessageList } from "./message-list";
-import { ThreadContextRail } from "./thread-context-rail";
+import { WorkCanvas } from "./work-canvas";
 import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
 import { ThreadSwitcher } from "./thread-switcher";
@@ -237,7 +237,7 @@ export function MarkChat({
       <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
       <div
         className={`grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
-          activeId ? "2xl:grid-cols-[16rem_minmax(0,1fr)_15.5rem]" : ""
+          activeId ? "xl:grid-cols-[16rem_minmax(0,1fr)_22rem] 2xl:grid-cols-[16rem_minmax(0,1fr)_25rem]" : ""
         }`}
       >
         <ThreadSidebar
@@ -342,7 +342,7 @@ export function MarkChat({
           </div>
         </section>
 
-        {activeId ? <ThreadContextRail messages={messages} pendingApprovals={pendingApprovals} /> : null}
+        {activeId ? <WorkCanvas messages={messages} pendingApprovals={pendingApprovals} /> : null}
       </div>
 
       {threadsOpen ? (
