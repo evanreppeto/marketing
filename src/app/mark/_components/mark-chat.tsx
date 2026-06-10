@@ -10,6 +10,7 @@ import { cx } from "@/app/_components/theme";
 
 import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
 import { CommandPalette } from "./command-palette";
+import { MarkBackdrop } from "./mark-backdrop";
 import type { SlashCommand } from "./slash-commands";
 import { Composer } from "./composer";
 import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
@@ -266,8 +267,8 @@ export function MarkChat({
           activeId={activeId}
         />
         <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
-          {/* Whisper ambient gold aurora — Mark-only, calm, reduced-motion safe. */}
-          <div className="mark-aurora" aria-hidden />
+          {/* Ambient silk backdrop — the 21st.dev MeshGradient shader, obsidian+gold. */}
+          <MarkBackdrop />
           <header className="relative z-10 flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] px-3 py-2 sm:px-4">
             <button
               type="button"
@@ -339,6 +340,7 @@ export function MarkChat({
                 }}
                 replyPending={replyPending}
                 onStopReply={handleStop}
+                onOpenCommands={() => setPaletteOpen(true)}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
                   try {

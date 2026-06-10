@@ -60,6 +60,7 @@ export function Composer({
   registerApplyCommand,
   replyPending,
   onStopReply,
+  onOpenCommands,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -72,6 +73,7 @@ export function Composer({
   registerApplyCommand?: (fn: (cmd: SlashCommand) => void) => void;
   replyPending?: boolean;
   onStopReply?: () => void;
+  onOpenCommands?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);
@@ -309,6 +311,21 @@ export function Composer({
               <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 5v10M5 10h10" />
               </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenCommands?.()}
+              aria-label="Tools and commands"
+              title="Tools — run a command (⌘K)"
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 7h-9" />
+                <path d="M14 17H5" />
+                <circle cx="17" cy="17" r="3" />
+                <circle cx="7" cy="7" r="3" />
+              </svg>
+              Tools
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
             <textarea
