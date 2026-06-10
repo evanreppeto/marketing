@@ -56,7 +56,7 @@ export function CampaignOverview({
  * in the Deliverables list; this tracks readiness and owns the one Launch
  * action. Lifecycle is derived: Drafting → In review → Ready → Live.
  */
-function LaunchTracker({
+export function LaunchTracker({
   campaignId,
   launchState,
   onReviewPieces,
@@ -224,7 +224,7 @@ function GuardrailNotice({ flags }: { flags: string[] }) {
   );
 }
 
-function FullBrief({ campaign, sourceCount }: { campaign: CampaignWorkspaceMeta; sourceCount: number }) {
+export function FullBrief({ campaign, sourceCount }: { campaign: CampaignWorkspaceMeta; sourceCount: number }) {
   const rows: Array<[string, string]> = [
     ["Objective", campaign.objective],
     ["Audience", campaign.audienceSummary],
