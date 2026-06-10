@@ -58,6 +58,8 @@ export function Composer({
   onSent,
   registerSubmit,
   registerApplyCommand,
+  replyPending,
+  onStopReply,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -68,6 +70,8 @@ export function Composer({
   onSent: (conversationId?: string) => void;
   registerSubmit?: (fn: () => void) => void;
   registerApplyCommand?: (fn: (cmd: SlashCommand) => void) => void;
+  replyPending?: boolean;
+  onStopReply?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);

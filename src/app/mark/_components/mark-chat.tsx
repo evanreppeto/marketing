@@ -9,6 +9,8 @@ import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 import { cx } from "@/app/_components/theme";
 
 import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
+import { CommandPalette } from "./command-palette";
+import type { SlashCommand } from "./slash-commands";
 import { Composer } from "./composer";
 import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
 import { MarkConnection } from "./mark-connection";
@@ -129,6 +131,8 @@ export function MarkChat({
   const [draft, setDraft] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const submitFnRef = useRef<(() => void) | null>(null);
+  const applyCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useThreadPoll(activeId, messages, setMessages);
 
@@ -227,6 +231,20 @@ export function MarkChat({
     return () => document.removeEventListener("keydown", onKey);
   }, [threadsOpen]);
 
+  // ⌘K / Ctrl+K toggles the command palette from anywhere in the chat.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const replyPending = messages.some((m) => m.role === "mark" && m.status === "pending");
+
   const meta = activeId
     ? (activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
       `${messages.length} message${messages.length === 1 ? "" : "s"}`
@@ -314,6 +332,11 @@ export function MarkChat({
                 registerSubmit={(fn) => {
                   submitFnRef.current = fn;
                 }}
+                registerApplyCommand={(fn) => {
+                  applyCommandRef.current = fn;
+                }}
+                replyPending={replyPending}
+                onStopReply={handleStop}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
                   try {
@@ -357,6 +380,12 @@ export function MarkChat({
           </div>
         </div>
       ) : null}
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onSelect={(cmd) => applyCommandRef.current?.(cmd)}
+      />
     </div>
   );
 }
