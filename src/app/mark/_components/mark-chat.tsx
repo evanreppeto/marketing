@@ -15,6 +15,8 @@ import type { SlashCommand } from "./slash-commands";
 import { Composer } from "./composer";
 import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
 import { MarkConnection } from "./mark-connection";
+import { IconButton } from "./icon-button";
+import { AgentSettingsDrawer } from "./agent-settings-drawer";
 import { MessageList } from "./message-list";
 import { WorkCanvas } from "./work-canvas";
 import { ThreadMenu } from "./thread-menu";
@@ -134,6 +136,7 @@ export function MarkChat({
   const submitFnRef = useRef<(() => void) | null>(null);
   const applyCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [agentSettingsOpen, setAgentSettingsOpen] = useState(false);
 
   useThreadPoll(activeId, messages, setMessages);
 
@@ -287,6 +290,12 @@ export function MarkChat({
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <IconButton label="Agent settings" onClick={() => setAgentSettingsOpen(true)}>
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+                </svg>
+              </IconButton>
               <MarkConnection />
               {activeId ? (
                 <ThreadMenu
@@ -389,6 +398,8 @@ export function MarkChat({
         onClose={() => setPaletteOpen(false)}
         onSelect={(cmd) => applyCommandRef.current?.(cmd)}
       />
+
+      <AgentSettingsDrawer open={agentSettingsOpen} onClose={() => setAgentSettingsOpen(false)} />
     </div>
   );
 }
