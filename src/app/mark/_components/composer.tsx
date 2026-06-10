@@ -57,6 +57,7 @@ export function Composer({
   onOptimistic,
   onSent,
   registerSubmit,
+  registerApplyCommand,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -66,6 +67,7 @@ export function Composer({
   onOptimistic: (message: MarkMessage) => void;
   onSent: (conversationId?: string) => void;
   registerSubmit?: (fn: () => void) => void;
+  registerApplyCommand?: (fn: (cmd: SlashCommand) => void) => void;
 }) {
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);
@@ -105,6 +107,14 @@ export function Composer({
       formRef.current?.requestSubmit();
     });
   }, [registerSubmit, draft]);
+
+  // Let the parent (command palette) apply a slash command through the same path
+  // the inline popover uses — presets prompt text, structured command id, mode, focus.
+  useEffect(() => {
+    registerApplyCommand?.((c: SlashCommand) => applySlash(c));
+    // applySlash closes over stable setters/refs; re-register only if the registrar changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerApplyCommand]);
 
   // Auto-grow the textarea to fit its content (capped), and shrink on reset.
   useEffect(() => {
