@@ -188,12 +188,12 @@ export async function getConversation(
 }
 
 export async function createConversation(
-  input: { operator: string; title: string },
+  input: { operator: string; title: string; projectId?: string | null },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<MarkConversation> {
   const { data, error } = await client
     .from("mark_conversations")
-    .insert({ operator: input.operator, title: input.title })
+    .insert({ operator: input.operator, title: input.title, project_id: input.projectId ?? null })
     .select(CONVERSATION_COLUMNS)
     .single<ConversationRow>();
   assertOk("mark_conversations insert", error);

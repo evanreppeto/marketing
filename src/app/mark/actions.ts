@@ -74,12 +74,14 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   const operator = getOperatorActor();
   const client = getSupabaseAdminClient();
   const existingId = String(formData.get("conversationId") ?? "").trim();
+  // Optional project chosen in the composer footer — assigned on a new thread.
+  const projectId = String(formData.get("projectId") ?? "").trim() || null;
 
   let conversationId = existingId;
   let messageId: string;
   try {
     if (!conversationId) {
-      const conversation = await createConversation({ operator, title: deriveThreadTitle(body) }, client);
+      const conversation = await createConversation({ operator, title: deriveThreadTitle(body), projectId }, client);
       conversationId = conversation.id;
     }
     const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments }, client);

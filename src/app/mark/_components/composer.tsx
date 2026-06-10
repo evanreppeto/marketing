@@ -6,10 +6,10 @@ import { cx } from "@/app/_components/theme";
 import type { MarkMention } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
-import type { MarkAttachment, MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkAttachment, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
-import { createMarkUploadUrlAction, sendMarkMessageAction, type SendMessageState } from "../actions";
+import { createMarkUploadUrlAction, moveConversationForm, sendMarkMessageAction, type SendMessageState } from "../actions";
 
 function tempMessage(conversationId: string, body: string, mentions: MarkMention[], attachments: MarkAttachment[]): MarkMessage {
   return {
@@ -60,9 +60,13 @@ export function Composer({
   registerApplyCommand,
   replyPending,
   onStopReply,
+  projects,
+  activeProjectId,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
+  projects: MarkProject[];
+  activeProjectId: string | null;
   draft: string;
   onDraftChange: (value: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -73,6 +77,47 @@ export function Composer({
   replyPending?: boolean;
   onStopReply?: () => void;
 }) {
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  // For a new chat the picked project rides along as a hidden input (assigned on
+  // create); for an existing chat changing it moves the thread immediately.
+  const [newChatProjectId, setNewChatProjectId] = useState<string | null>(null);
+  const projectWrapRef = useRef<HTMLDivElement>(null);
+  const selectedProjectId = conversationId ? activeProjectId : newChatProjectId;
+  const selectedProjectName = projects.find((p) => p.id === selectedProjectId)?.name ?? null;
+
+  useEffect(() => {
+    if (!projectMenuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (projectWrapRef.current && !projectWrapRef.current.contains(e.target as Node)) setProjectMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setProjectMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [projectMenuOpen]);
+
+  async function chooseProject(id: string | null) {
+    setProjectMenuOpen(false);
+    if (conversationId) {
+      const fd = new FormData();
+      fd.set("conversationId", conversationId);
+      fd.set("projectId", id ?? "");
+      await moveConversationForm(fd);
+    } else {
+      setNewChatProjectId(id);
+    }
+  }
+
+  const projectItemCls = (active: boolean) =>
+    cx(
+      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition hover:bg-[var(--surface-inset)]",
+      active ? "font-semibold text-[var(--accent-contrast)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+    );
   const [state, formAction, isPending] = useActionState<SendMessageState, FormData>(sendMarkMessageAction, null);
   const [picked, setPicked] = useState<MarkMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
@@ -203,6 +248,8 @@ export function Composer({
         <input type="hidden" name="mode" value="act" />
         <input type="hidden" name="command" value={command ?? ""} />
         <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
+        {/* Project chosen in the footer selector — assigned when this send creates a new thread. */}
+        <input type="hidden" name="projectId" value={newChatProjectId ?? ""} />
 
         {query !== null && suggestions.length > 0 ? (
           <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
@@ -375,23 +422,60 @@ export function Composer({
 
         {state && !state.ok ? (
           <p className="mt-2 text-xs font-medium text-[var(--priority-bright)]">{state.message}</p>
-        ) : (
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-[11px] text-[var(--text-muted)]">
-            <p className="hidden flex-wrap gap-x-3 sm:flex">
-              <span><span className="font-mono">↵</span> send</span>
-              <span><span className="font-mono">⇧↵</span> newline</span>
-              <span><span className="font-mono">@</span> records</span>
-              <span><span className="font-mono">/</span> commands</span>
-            </p>
-            <span className="ml-auto flex items-center gap-1">
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <rect x="5" y="9" width="10" height="7" rx="1.5" />
-                <path d="M7 9V7a3 3 0 0 1 6 0v2" />
+        ) : null}
+
+        {/* Visible context selectors below the box (project picker), like the reference composer. */}
+        <div className="mt-2 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[var(--text-muted)]">
+          <div ref={projectWrapRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setProjectMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={projectMenuOpen}
+              className={cx(
+                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+                selectedProjectName ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
+              )}
+            >
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
               </svg>
-              outbound stays locked
-            </span>
+              {selectedProjectName ?? "No project"}
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 8 4 4 4-4" />
+              </svg>
+            </button>
+            {projectMenuOpen ? (
+              <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 max-h-56 w-52 overflow-y-auto rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+                <button type="button" role="menuitem" onClick={() => chooseProject(null)} className={projectItemCls(selectedProjectId === null)}>
+                  No project
+                </button>
+                {projects.map((p) => (
+                  <button key={p.id} type="button" role="menuitem" onClick={() => chooseProject(p.id)} className={projectItemCls(selectedProjectId === p.id)}>
+                    {p.name}
+                  </button>
+                ))}
+                {projects.length === 0 ? (
+                  <p className="px-2.5 py-2 text-xs text-[var(--text-muted)]">No projects yet. Create one in the sidebar.</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-        )}
+
+          <p className="hidden flex-wrap gap-x-3 sm:flex">
+            <span><span className="font-mono">↵</span> send</span>
+            <span><span className="font-mono">@</span> records</span>
+            <span><span className="font-mono">/</span> commands</span>
+          </p>
+
+          <span className="ml-auto flex items-center gap-1">
+            <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="5" y="9" width="10" height="7" rx="1.5" />
+              <path d="M7 9V7a3 3 0 0 1 6 0v2" />
+            </svg>
+            outbound stays locked
+          </span>
+        </div>
       </form>
     </div>
   );

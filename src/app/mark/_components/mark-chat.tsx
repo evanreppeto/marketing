@@ -340,6 +340,8 @@ export function MarkChat({
                 }}
                 replyPending={replyPending}
                 onStopReply={handleStop}
+                projects={projects}
+                activeProjectId={activeProjectId}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
                   try {
