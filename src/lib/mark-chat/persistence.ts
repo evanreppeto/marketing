@@ -11,6 +11,7 @@ export type MarkConversation = {
   status: "active" | "archived";
   pinnedAt: string | null;
   projectId: string | null;
+  campaignId: string | null;
   createdAt: string;
   updatedAt: string;
   lastMessageAt: string;
@@ -50,6 +51,7 @@ type ConversationRow = {
   status: "active" | "archived";
   pinned_at: string | null;
   project_id: string | null;
+  campaign_id: string | null;
   created_at: string;
   updated_at: string;
   last_message_at: string;
@@ -68,7 +70,7 @@ type MessageRow = {
 };
 
 const CONVERSATION_COLUMNS =
-  "id, operator, title, status, project_id, pinned_at, created_at, updated_at, last_message_at";
+  "id, operator, title, status, project_id, campaign_id, pinned_at, created_at, updated_at, last_message_at";
 const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): MarkConversation {
@@ -79,6 +81,7 @@ function toConversation(row: ConversationRow): MarkConversation {
     status: row.status,
     pinnedAt: row.pinned_at ?? null,
     projectId: row.project_id ?? null,
+    campaignId: row.campaign_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastMessageAt: row.last_message_at,
@@ -391,6 +394,15 @@ export async function assignConversationToProject(
 ): Promise<void> {
   const { error } = await client.from("mark_conversations").update({ project_id: projectId }).eq("id", conversationId);
   assertOk("mark_conversations assign project", error);
+}
+
+export async function assignConversationToCampaign(
+  conversationId: string,
+  campaignId: string | null,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client.from("mark_conversations").update({ campaign_id: campaignId }).eq("id", conversationId);
+  assertOk("mark_conversations assign campaign", error);
 }
 
 export async function setConversationPinned(

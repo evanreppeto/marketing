@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createSupabaseQueryMock, type MockSupabase } from "@/lib/repos/__tests__/test-helpers";
 
 import {
+  assignConversationToCampaign,
   cancelPendingMarkMessage,
   deleteConversation,
   listConversations,
@@ -133,5 +134,25 @@ describe("setMarkMessageFeedback", () => {
 
     const update = calls(supabase, "update")[0];
     expect(update.metadata).toMatchObject({ feedback: null });
+  });
+});
+
+describe("assignConversationToCampaign", () => {
+  it("updates campaign_id on the conversation row", async () => {
+    const supabase = createSupabaseQueryMock({ mark_conversations: { data: null, error: null } });
+
+    await assignConversationToCampaign("conv-1", "camp-9", supabase);
+
+    const update = calls(supabase, "update")[0];
+    expect(update).toEqual({ campaign_id: "camp-9" });
+  });
+
+  it("clears campaign_id with null", async () => {
+    const supabase = createSupabaseQueryMock({ mark_conversations: { data: null, error: null } });
+
+    await assignConversationToCampaign("conv-1", null, supabase);
+
+    const update = calls(supabase, "update")[0];
+    expect(update).toEqual({ campaign_id: null });
   });
 });
