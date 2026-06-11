@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 
@@ -40,6 +40,14 @@ export function TicketEditableHeader({
   const [continueMessage, setContinueMessage] = useState<string | null>(null);
   const [isInstructionPending, startInstructionTransition] = useTransition();
   const [isContinuePending, startContinueTransition] = useTransition();
+  const titleRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const element = titleRef.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [title]);
 
   function saveTextField(field: Extract<EditableField, "objective" | "description">, value: string) {
     const nextValue = value.trim();
@@ -91,16 +99,18 @@ export function TicketEditableHeader({
 
             <label className="mt-3 block">
               <span className="sr-only">Task objective</span>
-              <input
-                className="w-full rounded-lg border border-transparent bg-transparent px-0 py-1 font-display text-2xl font-bold leading-tight text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--border-hairline)] focus:bg-[var(--surface-inset)] focus:px-3 focus:outline focus:outline-2 focus:outline-[var(--accent)] sm:text-3xl"
+              <textarea
+                className="min-h-[96px] w-full resize-none overflow-hidden rounded-lg border border-transparent bg-transparent px-0 py-1 font-display text-xl font-bold leading-tight text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--border-hairline)] focus:bg-[var(--surface-inset)] focus:px-3 focus:outline focus:outline-2 focus:outline-[var(--accent)] sm:text-2xl"
                 onBlur={() => saveTextField("objective", title)}
                 onChange={(event) => setTitle(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+                  if ((event.metaKey || event.ctrlKey) && (event.key === "Enter" || event.key === "NumpadEnter")) {
                     event.preventDefault();
                     event.currentTarget.blur();
                   }
                 }}
+                ref={titleRef}
+                rows={1}
                 value={title}
               />
             </label>

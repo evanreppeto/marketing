@@ -157,6 +157,72 @@ describe("getAgentOperationsDashboard", () => {
       message: "agents lookup failed: permission denied",
     });
   });
+
+  it("falls back to legacy task columns when shared ownership columns are not migrated yet", async () => {
+    const supabase = createSupabaseQueryMock({
+      agents: {
+        data: [
+          {
+            id: "agent-1",
+            key: "mark",
+            name: "Mark",
+            description: "Runs marketing tasks.",
+            status: "running",
+            allowed_actions: [],
+            blocked_actions: [],
+            default_approval_policy: "Human approval required",
+            metadata: {},
+            updated_at: "2026-05-29T18:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      agent_tasks: [
+        { data: null, error: { message: "column agent_tasks.description does not exist" } },
+        {
+          data: [
+            {
+              id: "task-legacy",
+              agent_id: "agent-1",
+              status: "running",
+              priority: "high",
+              objective: "Legacy board task.",
+              task_type: "campaign_draft",
+              source_type: null,
+              source_id: null,
+              campaign_id: null,
+              approval_item_id: null,
+              completed_at: null,
+              created_at: "2026-05-29T18:01:00.000Z",
+              updated_at: "2026-05-29T18:02:00.000Z",
+              metadata: {},
+            },
+          ],
+          error: null,
+        },
+      ],
+      approval_items: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+      campaigns: { data: [], error: null },
+    });
+
+    const dashboard = await getAgentOperationsDashboard(supabase);
+
+    expect(dashboard.status).toBe("live");
+    if (dashboard.status !== "live") return;
+
+    expect(dashboard.tasks[0]).toMatchObject({
+      id: "task-legacy",
+      objective: "Legacy board task.",
+      owner: { kind: "human", label: "Operator" },
+      driver: { kind: "agent", label: "Mark", agentId: "agent-1" },
+      approverLabel: "Owner",
+      description: null,
+      dueAt: null,
+      scheduledFor: null,
+    });
+    expect(supabase.calls.filter((call) => call[0] === "from" && call[1] === "agent_tasks")).toHaveLength(2);
+  });
 });
 
 describe("getAgentTaskDetail", () => {
@@ -356,5 +422,73 @@ describe("getAgentTaskDetail", () => {
       ]),
     );
     expect(supabase.calls).toContainEqual(["from", "agent_task_events"]);
+  });
+
+  it("falls back to legacy task detail data when shared ticket tables are not migrated yet", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: [
+        { data: null, error: { message: "column agent_tasks.description does not exist" } },
+        {
+          data: {
+            id: "task-legacy",
+            agent_id: "agent-1",
+            status: "running",
+            priority: "high",
+            objective: "Legacy detail task.",
+            task_type: "campaign_draft",
+            source_type: null,
+            source_id: null,
+            campaign_id: null,
+            approval_item_id: null,
+            started_at: "2026-05-29T18:01:30.000Z",
+            completed_at: null,
+            created_at: "2026-05-29T18:01:00.000Z",
+            updated_at: "2026-05-29T18:08:00.000Z",
+            metadata: {},
+          },
+          error: null,
+        },
+      ],
+      agents: {
+        data: {
+          id: "agent-1",
+          key: "mark",
+          name: "Mark",
+          description: "Runs marketing tasks.",
+          status: "running",
+          allowed_actions: [],
+          blocked_actions: [],
+          default_approval_policy: "Human approval required",
+          metadata: {},
+          updated_at: "2026-05-29T18:00:00.000Z",
+        },
+        error: null,
+      },
+      agent_task_inputs: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+      agent_run_logs: { data: [], error: null },
+      agent_task_events: {
+        data: null,
+        error: { message: "relation agent_task_events does not exist" },
+      },
+    });
+
+    const detail = await getAgentTaskDetail("task-legacy", supabase);
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+
+    expect(detail.task).toMatchObject({
+      id: "task-legacy",
+      objective: "Legacy detail task.",
+      owner: { kind: "human", label: "Operator" },
+      driver: { kind: "agent", label: "Mark", agentId: "agent-1" },
+      approverLabel: "Owner",
+      description: null,
+      dueAt: null,
+      scheduledFor: null,
+      startedAt: "2026-05-29T18:01:30.000Z",
+    });
+    expect(detail.timeline).toEqual([]);
   });
 });
