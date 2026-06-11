@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
-import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
+import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError, OFFICIAL_PERSONA_MAPPINGS, RESTORATION_FOCUS_VALUES } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
 import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
@@ -15,6 +15,7 @@ import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
 import {
   archiveConversation,
+  assignConversationToCampaign,
   assignConversationToProject,
   cancelPendingMarkMessage,
   createConversation,
@@ -35,6 +36,8 @@ import {
 } from "@/lib/mark-chat/persistence";
 import { type ApprovalDecision, decideAsset } from "@/lib/campaigns/decisions";
 import { editDraftAsset, getDraftAsset, type DraftAssetView } from "@/lib/campaigns/draft-editing";
+import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { saveItem, removeSavedItem, getSavedItem, markPromoted, type SavedKind } from "@/lib/mark-chat/saved";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type SendMessageState = { ok: boolean; message: string; conversationId?: string } | null;
@@ -470,4 +473,92 @@ export async function decideCampaignDraftAction(formData: FormData): Promise<voi
   revalidatePath("/mark");
   if (campaignId) revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
+}
+
+// ── Save & Promote ───────────────────────────────────────────────────────────
+
+export type PromoteTarget =
+  | { mode: "existing"; campaignId: string }
+  | { mode: "new"; name: string; persona: string; restorationFocus: string };
+
+/** Pure: validate a promote target. Exported for unit testing. */
+export function validatePromoteTarget(target: PromoteTarget): { ok: true } | { ok: false; message: string } {
+  if (target.mode === "existing") {
+    return target.campaignId ? { ok: true } : { ok: false, message: "Pick a campaign." };
+  }
+  if (!target.name.trim()) return { ok: false, message: "Name the campaign." };
+  if (!(OFFICIAL_PERSONA_MAPPINGS as readonly string[]).includes(target.persona)) return { ok: false, message: "Choose a persona." };
+  if (!(RESTORATION_FOCUS_VALUES as readonly string[]).includes(target.restorationFocus)) return { ok: false, message: "Choose a restoration focus." };
+  return { ok: true };
+}
+
+export type SaveItemActionInput = {
+  kind: SavedKind;
+  title?: string;
+  body?: string;
+  mediaUrl?: string;
+  caption?: string;
+  sourceConversationId?: string;
+  sourceMessageId?: string;
+  sourceCampaignId?: string;
+  sourceAssetId?: string;
+};
+
+export async function saveMarkItemAction(input: SaveItemActionInput): Promise<{ ok: boolean; id?: string; message?: string }> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Connect Supabase to save items." };
+  const saved = await saveItem({ operator: getOperatorActor(), ...input });
+  revalidatePath("/mark/saved");
+  return { ok: true, id: saved.id };
+}
+
+export async function unsaveMarkItemAction(id: string): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  await removeSavedItem(id, getOperatorActor());
+  revalidatePath("/mark/saved");
+}
+
+export async function attachCampaignForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const conversationId = String(formData.get("conversationId") ?? "").trim();
+  const campaignId = String(formData.get("campaignId") ?? "").trim() || null;
+  if (!conversationId) return;
+  await assignConversationToCampaign(conversationId, campaignId);
+  revalidatePath("/mark");
+}
+
+export async function promoteSavedItemAction(
+  savedItemId: string,
+  target: PromoteTarget,
+): Promise<{ ok: boolean; campaignId?: string; assetId?: string; message?: string }> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "Connect Supabase to promote." };
+  const valid = validatePromoteTarget(target);
+  if (!valid.ok) return { ok: false, message: valid.message };
+
+  const operator = getOperatorActor();
+  const item = await getSavedItem(savedItemId, operator);
+  if (!item) return { ok: false, message: "Saved item not found." };
+
+  const campaignId =
+    target.mode === "existing"
+      ? target.campaignId
+      : (await createCampaignShell({ operator, name: target.name, persona: target.persona, restorationFocus: target.restorationFocus })).campaignId;
+
+  const assetType = item.kind === "media" ? "image_prompt" : "social_ad";
+  const { assetId } = await promoteAssetToCampaign({
+    operator,
+    campaignId,
+    assetType,
+    title: item.title ?? "Promoted from Mark",
+    body: item.body,
+    mediaUrl: item.mediaUrl,
+  });
+
+  await markPromoted(savedItemId, { campaignId, assetId });
+  revalidatePath("/campaigns");
+  revalidatePath("/mark/saved");
+  return { ok: true, campaignId, assetId };
 }
