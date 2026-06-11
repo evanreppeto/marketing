@@ -4,13 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { CampaignDraftValidationError, parseCampaignDraft, RevisionInstructionError, validateRevisionInstruction } from "@/domain";
-import { createOperatorCampaign, type CampaignPhoto } from "@/lib/campaigns/create";
+import { createCampaignShell, createOperatorCampaign, type CampaignPhoto } from "@/lib/campaigns/create";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { type ApprovalDecision, decideApprovalItem, decideAsset, reopenAsset } from "@/lib/campaigns/decisions";
 import { deployAsset, launchCampaign } from "@/lib/campaigns/launch";
 import { sendMarkDirective } from "@/lib/campaigns/mark-conversation";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { assignConversationToCampaign, createConversation, insertOperatorMessage } from "@/lib/mark-chat/persistence";
+import { parseBuildPrompt, deriveCampaignName } from "./build-campaign";
 
 const DECISIONS: ApprovalDecision[] = ["approved", "declined", "archived"];
 
@@ -400,4 +402,112 @@ async function readPhotos(formData: FormData): Promise<CampaignPhoto[]> {
     });
   }
   return photos;
+}
+
+/**
+ * Operator describes a campaign; Mark builds it. Creates a shell campaign, a Mark
+ * conversation linked to it, files the operator's first message, queues a board
+ * task for Mark, then sends the operator into the chat. Outbound stays locked.
+ *
+ * Persona seed: `persona_homeowner_emergency` (the DB rejects `unassigned_persona`
+ * via check constraint; Mark fills in the real persona during the build).
+ * Restoration focus seed: `flood` (first valid enum value; Mark updates it).
+ */
+export async function askMarkToBuildCampaignAction(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) {
+    redirect("/campaigns?action=not-configured");
+  }
+
+  let prompt: string;
+  try {
+    prompt = parseBuildPrompt(formData.get("prompt"));
+  } catch {
+    redirect("/campaigns?action=build-error");
+  }
+
+  const operator = getOperatorActor();
+  const client = getSupabaseAdminClient();
+  const name = deriveCampaignName(prompt);
+
+  const { campaignId } = await createCampaignShell({
+    operator,
+    name,
+    // DB rejects "unassigned_persona" (check constraint). Seed with a valid enum
+    // value; Mark fills in the correct persona during the campaign build.
+    persona: "persona_homeowner_emergency",
+    // "general" is not in the restoration_focus enum. Seed with "flood" (first
+    // valid value); Mark updates this when drafting the campaign.
+    restorationFocus: "flood",
+    client,
+  });
+
+  const conversation = await createConversation(
+    { operator, title: name },
+    client,
+  );
+  await assignConversationToCampaign(conversation.id, campaignId, client);
+  await insertOperatorMessage(
+    { conversationId: conversation.id, body: prompt, mentions: [] },
+    client,
+  );
+
+  await client.from("agent_tasks").insert({
+    agent_id: await ensureMarkAgentId(client),
+    status: "queued",
+    priority: "high",
+    objective: `Build campaign package: ${prompt}`,
+    task_type: "campaign_brief_draft",
+    campaign_id: campaignId,
+    source_type: "campaign_directive",
+    source_id: campaignId,
+    metadata: {
+      requested_from: "campaigns_ask_mark",
+      conversation_id: conversation.id,
+      human_approval_required: true,
+      outbound_dispatch_allowed: false,
+    },
+  });
+
+  revalidatePath("/campaigns");
+  redirect(`/mark?c=${conversation.id}`);
+}
+
+/** Hand an existing campaign to Mark to keep building. Queues a board task linked
+ *  to the campaign. */
+export async function handToMarkAction(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) {
+    redirect("/campaigns?action=not-configured");
+  }
+  const campaignId = String(formData.get("campaignId") ?? "").trim();
+  if (!campaignId) redirect("/campaigns?action=build-error");
+
+  const client = getSupabaseAdminClient();
+  await client.from("agent_tasks").insert({
+    agent_id: await ensureMarkAgentId(client),
+    status: "queued",
+    priority: "medium",
+    objective: "Continue building this campaign — draft the remaining assets.",
+    task_type: "campaign_directive",
+    campaign_id: campaignId,
+    source_type: "campaign_directive",
+    source_id: campaignId,
+    metadata: { requested_from: "campaign_overview_hand_to_mark", human_approval_required: true, outbound_dispatch_allowed: false },
+  });
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath("/campaigns");
+  redirect(`/campaigns/${campaignId}?action=handed-to-mark`);
+}
+
+/** Ensure the Mark agent row exists; return its id. */
+async function ensureMarkAgentId(client = getSupabaseAdminClient()): Promise<string> {
+  const { data, error } = await client
+    .from("agents")
+    .upsert({ key: "mark", name: "Mark", status: "ready" }, { onConflict: "key" })
+    .select("id")
+    .single<{ id: string }>();
+  if (error) throw new Error(`agents upsert failed: ${error.message}`);
+  return data.id;
 }
