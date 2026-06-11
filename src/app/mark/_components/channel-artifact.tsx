@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 
-import type { MarkActionApproval, ResolvedDraftFields } from "@/domain";
+import type { MarkActionApproval, MarkMedia, ResolvedDraftFields } from "@/domain";
 import type { DraftAssetView } from "@/lib/campaigns/draft-editing";
 
 import { decideCampaignDraftAction, editDraftAssetAction, getDraftAssetAction } from "../actions";
+import { ArtifactImage } from "./artifact-image";
 import { ChannelPreview } from "./channel-preview";
 
 const STRUCTURED_KEYS = ["subject", "primaryText", "headline", "cta"] as const;
@@ -31,7 +32,16 @@ function LockNote() {
   );
 }
 
-export function ChannelArtifact({ approval }: { approval: MarkActionApproval }) {
+export function ChannelArtifact({
+  approval,
+  image,
+  fallback,
+}: {
+  approval: MarkActionApproval;
+  image?: MarkMedia;
+  /** Rendered when the editable draft can't be loaded (preview mode / unmigrated env). */
+  fallback?: ReactNode;
+}) {
   const [view, setView] = useState<DraftAssetView | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -105,7 +115,13 @@ export function ChannelArtifact({ approval }: { approval: MarkActionApproval }) 
   }
 
   if (!view) {
-    return <p className="text-xs leading-5 text-[var(--text-muted)]">This draft isn&apos;t available to edit right now.</p>;
+    return (
+      <>
+        {fallback ?? (
+          <p className="text-xs leading-5 text-[var(--text-muted)]">This draft isn&apos;t available to edit right now.</p>
+        )}
+      </>
+    );
   }
 
   const liveFields: ResolvedDraftFields = {
@@ -129,6 +145,7 @@ export function ChannelArtifact({ approval }: { approval: MarkActionApproval }) 
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {image ? <div className="mb-3"><ArtifactImage image={image} /></div> : null}
         <ChannelPreview kind={view.kind} fields={liveFields} onField={(k, v) => setField(k, v)} />
         {error ? <p className="mt-2 text-[11px] text-[var(--priority-bright)]">{error}</p> : null}
       </div>

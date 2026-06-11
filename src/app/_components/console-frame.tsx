@@ -27,13 +27,15 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
     return <>{children}</>;
   }
 
-  // Focus mode: on the Mark chat the nav collapses to a slim, always-visible icon
+  // Focus mode (now app-wide): the nav collapses to a slim, always-visible icon
   // rail that expands to the full labelled panel on hover or keyboard focus,
-  // floating over the chat. The whole rail is the hover target — no hunting for
-  // the edge. Desktop only (lg+); on mobile it stays the normal top strip.
+  // floating over the content. The whole rail is the hover target — no hunting
+  // for the edge. Desktop only (lg+); on mobile it stays the normal top strip.
+  // Mark keeps a full-height, non-scrolling chat content area; every other page
+  // gets the normal scrollable content column, offset to clear the fixed rail.
   const isMark = pathname.startsWith("/mark");
 
-  const markRailAside =
+  const railAside =
     "border-b border-[var(--border-panel)] bg-[var(--surface-sidebar)] px-4 py-3 " +
     "group/rail lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:flex lg:h-screen lg:min-h-0 lg:flex-col " +
     "lg:border-b-0 lg:border-r lg:py-5 lg:px-2 lg:w-[64px] lg:overflow-x-hidden " +
@@ -43,62 +45,44 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
 
   return (
     <main className={theme.shell.canvas}>
-      <div className={isMark ? "min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden" : theme.shell.layout}>
-        <aside className={isMark ? markRailAside : theme.shell.sidebar}>
+      <div className="min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
+        <aside className={railAside}>
           <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:pr-1 [&::-webkit-scrollbar]:hidden">
-            {isMark ? (
-              <Link
-                href="/mark"
-                className="mb-2 flex items-center gap-2.5 px-1 leading-none transition hover:opacity-90"
-                aria-label="Big Shoulders Marketing — go to Mark"
+            <Link
+              href="/mark"
+              className="mb-2 flex items-center gap-2.5 px-1 leading-none transition hover:opacity-90"
+              aria-label="Big Shoulders Marketing — go to Mark"
+            >
+              <span
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--accent-soft)] text-[0.75rem] font-bold text-[var(--accent-strong)]"
+                style={{ fontFamily: "var(--font-serif)" }}
               >
-                <span
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--accent-soft)] text-[0.75rem] font-bold text-[var(--accent-strong)]"
-                  style={{ fontFamily: "var(--font-serif)" }}
-                >
-                  BS
-                </span>
-                <span className="flex min-w-0 flex-col whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">
-                  <span
-                    className="text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
-                    style={{ fontFamily: "var(--font-serif)" }}
-                  >
-                    Big Shoulders
-                  </span>
-                  <span className="mt-1 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
-                    Marketing
-                  </span>
-                </span>
-              </Link>
-            ) : (
-              <Link
-                href="/mark"
-                className="group mb-2 flex flex-col px-1.5 leading-none transition hover:opacity-90"
-                aria-label="Big Shoulders Marketing — go to Mark"
-              >
+                BS
+              </span>
+              <span className="flex min-w-0 flex-col whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">
                 <span
                   className="text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
                   style={{ fontFamily: "var(--font-serif)" }}
                 >
                   Big Shoulders
                 </span>
-                <span className="mt-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
+                <span className="mt-1 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
                   Marketing
                 </span>
-              </Link>
-            )}
+              </span>
+            </Link>
 
-            <SideNav active={pathname} items={navItems} collapsible={isMark} />
+            <SideNav active={pathname} items={navItems} collapsible />
           </div>
 
-          <OperatorProfile rail={isMark} />
+          <OperatorProfile rail />
         </aside>
 
         <section
           className={
             isMark
               ? "min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden lg:pl-[64px]"
-              : theme.shell.content
+              : cx(theme.shell.content, "lg:ml-[64px]")
           }
         >
           <ShellContent>{children}</ShellContent>

@@ -20,7 +20,7 @@ export type MarkConversation = {
 export type MarkMessageRole = "operator" | "mark" | "system";
 export type MarkMessageStatus = "sent" | "pending" | "complete" | "failed";
 
-export type MarkStep = { label: string; status: "running" | "done"; at: string };
+export type MarkStep = { label: string; status: "running" | "done"; at: string; detail?: string[] };
 
 /** An operator-uploaded reference image (lives in GCS; `url` is a signed read URL). */
 export type MarkAttachment = { url: string; objectPath: string; contentType: string; name: string };
@@ -97,7 +97,11 @@ function parseSteps(value: unknown): MarkStep[] {
     if (typeof label !== "string" || !label.trim()) continue;
     const status = (item as { status?: unknown }).status === "done" ? "done" : "running";
     const at = typeof (item as { at?: unknown }).at === "string" ? (item as { at: string }).at : "";
-    out.push({ label, status, at });
+    const rawDetail = (item as { detail?: unknown }).detail;
+    const detail = Array.isArray(rawDetail)
+      ? rawDetail.filter((d): d is string => typeof d === "string" && d.trim().length > 0)
+      : undefined;
+    out.push({ label, status, at, detail: detail && detail.length > 0 ? detail : undefined });
   }
   return out;
 }

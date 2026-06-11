@@ -27,6 +27,14 @@ export type MarkMention = {
 
 export type MarkMediaKind = "image" | "video";
 
+/** Where a piece of creative came from (CLAUDE.md: Asset Review and Provenance). */
+export type MarkMediaSource = "bsr_real" | "ai_generated" | "composite" | "stock" | "external";
+/** Review/approval state of an asset or media item. */
+export type MarkAssetStatus = "draft" | "revision" | "approved" | "rejected";
+
+const MEDIA_SOURCES: readonly MarkMediaSource[] = ["bsr_real", "ai_generated", "composite", "stock", "external"];
+const ASSET_STATUSES: readonly MarkAssetStatus[] = ["draft", "revision", "approved", "rejected"];
+
 /** A piece of media Mark generated, attached to a reply via metadata.media. */
 export type MarkMedia = {
   kind: MarkMediaKind;
@@ -36,6 +44,14 @@ export type MarkMedia = {
   caption?: string;
   alt?: string;
   href?: string; // optional link (e.g. open in gallery / approval)
+  // Provenance + review metadata — what it is, where it came from, whether it's safe.
+  source?: MarkMediaSource;
+  sourceId?: string; // approved-media source id when reusing real BSR media
+  jobId?: string; // generation job id (AI)
+  model?: string; // generation model (AI)
+  format?: string; // aspect/format label: "1:1" | "4:5" | "9:16" | "16:9" | "pdf" | "mp4" | …
+  status?: MarkAssetStatus;
+  riskFlags?: string[]; // e.g. "embedded text", "claim risk", "privacy/redaction"
 };
 
 export class MarkMessageError extends Error {
@@ -88,7 +104,13 @@ export function serializeMentions(mentions: MarkMention[]): string {
   return JSON.stringify(mentions.filter(isMarkMention));
 }
 
-const STRING_FIELDS = ["thumbnailUrl", "poster", "caption", "alt", "href"] as const;
+const STRING_FIELDS = ["thumbnailUrl", "poster", "caption", "alt", "href", "sourceId", "jobId", "model", "format"] as const;
+
+function parseRiskFlags(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const flags = value.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+  return flags.length > 0 ? flags : undefined;
+}
 
 /** Parse Mark's attached media from a reply's metadata.media (array or JSON). */
 export function parseMedia(value: unknown): MarkMedia[] {
@@ -115,6 +137,14 @@ export function parseMedia(value: unknown): MarkMedia[] {
       const v = m[field];
       if (typeof v === "string" && v.trim()) media[field] = v;
     }
+    if (typeof m.source === "string" && (MEDIA_SOURCES as readonly string[]).includes(m.source)) {
+      media.source = m.source as MarkMediaSource;
+    }
+    if (typeof m.status === "string" && (ASSET_STATUSES as readonly string[]).includes(m.status)) {
+      media.status = m.status as MarkAssetStatus;
+    }
+    const flags = parseRiskFlags(m.riskFlags);
+    if (flags) media.riskFlags = flags;
     out.push(media);
   }
   return out;
@@ -156,6 +186,11 @@ export type MarkActionCard = {
   preview?: string;
   flags: MarkActionFlag[];
   approval?: MarkActionApproval;
+  // Self-describing fields so a card stands alone in a campaign deck / asset library.
+  media?: MarkMedia; // the asset's own visual
+  channel?: string; // "Meta / Instagram" | "Email" | "SMS" | …
+  format?: string; // aspect/format label
+  status?: MarkAssetStatus;
 };
 
 function str(v: unknown): string | undefined {
@@ -212,6 +247,13 @@ export function parseActions(value: unknown): MarkActionCard[] {
     const kind = (item as { kind?: unknown }).kind;
     const title = str((item as { title?: unknown }).title);
     if ((kind !== "result" && kind !== "draft") || !title) continue;
+    const mediaValue = (item as { media?: unknown }).media;
+    const media = mediaValue ? parseMedia([mediaValue])[0] : undefined;
+    const statusRaw = (item as { status?: unknown }).status;
+    const status =
+      typeof statusRaw === "string" && (ASSET_STATUSES as readonly string[]).includes(statusRaw)
+        ? (statusRaw as MarkAssetStatus)
+        : undefined;
     out.push({
       kind,
       title,
@@ -220,6 +262,10 @@ export function parseActions(value: unknown): MarkActionCard[] {
       preview: str((item as { preview?: unknown }).preview),
       flags: parseFlags((item as { flags?: unknown }).flags),
       approval: parseApproval((item as { approval?: unknown }).approval),
+      media,
+      channel: str((item as { channel?: unknown }).channel),
+      format: str((item as { format?: unknown }).format),
+      status,
     });
   }
   return out;

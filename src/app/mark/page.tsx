@@ -1,6 +1,5 @@
 import { connection } from "next/server";
 
-import { PageHeader, EmptyState } from "../_components/page-header";
 import { countActiveApprovals } from "@/lib/approvals/read-model";
 import { getOperatorActor } from "@/lib/auth/operator";
 import { getMentionables } from "@/lib/mark-chat/mention-search";
@@ -9,6 +8,7 @@ import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { MarkChat } from "./_components/mark-chat";
+import { getDemoChat } from "./_data/demo";
 
 type MarkPageProps = {
   searchParams?: Promise<{ c?: string | string[]; archived?: string | string[] }>;
@@ -29,20 +29,10 @@ function displayName(actor: string): string | null {
 export default async function MarkPage({ searchParams }: MarkPageProps) {
   await connection();
 
+  // Preview mode: when Supabase isn't configured, render the full chat with sample
+  // data instead of an empty state, so the whole experience is visible without backend.
   if (!isSupabaseAdminConfigured()) {
-    return (
-      <>
-        <PageHeader
-          eyebrow="Mark"
-          title="Talk to Mark"
-          description="Ask Mark about a campaign, a lead, or a persona. Mark drafts and recommends; outbound stays locked."
-        />
-        <EmptyState
-          title="Connect Supabase to chat with Mark"
-          detail="Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to enable conversations. Until then this is a preview."
-        />
-      </>
-    );
+    return <MarkChat {...getDemoChat()} demo />;
   }
 
   const params = await searchParams;
@@ -84,19 +74,9 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
     activeConversation = activeId ? await getConversation(activeId) : null;
     initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
   } catch {
-    return (
-      <>
-        <PageHeader
-          eyebrow="Mark"
-          title="Talk to Mark"
-          description="Ask Mark about a campaign, a lead, or a persona. Mark drafts and recommends; outbound stays locked."
-        />
-        <EmptyState
-          title="Mark chat isn't initialized yet"
-          detail="The conversation tables aren't available. Apply the latest database migration (mark_conversations / mark_messages) to start chatting with Mark."
-        />
-      </>
-    );
+    // Tables/columns not available (e.g. migration not applied). Fall back to the
+    // full preview experience with sample data rather than a dead-end message.
+    return <MarkChat {...getDemoChat()} demo />;
   }
 
   return (

@@ -62,6 +62,8 @@ export function Composer({
   onStopReply,
   projects,
   activeProjectId,
+  demo = false,
+  onDemoSend,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -76,6 +78,9 @@ export function Composer({
   registerApplyCommand?: (fn: (cmd: SlashCommand) => void) => void;
   replyPending?: boolean;
   onStopReply?: () => void;
+  /** Preview mode: send locally (no server action) via onDemoSend. */
+  demo?: boolean;
+  onDemoSend?: (text: string) => void;
 }) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   // For a new chat the picked project rides along as a hidden input (assigned on
@@ -233,10 +238,16 @@ export function Composer({
     <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
       <form
         ref={formRef}
-        action={formAction}
+        action={demo ? undefined : formAction}
         className="relative"
-        onSubmit={() => {
+        onSubmit={(e) => {
           if (!draft.trim() && attachments.length === 0) return;
+          if (demo) {
+            // Preview mode: no server action — echo locally so the flow is testable.
+            e.preventDefault();
+            onDemoSend?.(draft.trim());
+            return;
+          }
           onOptimistic(tempMessage(conversationId, draft.trim() || "Shared an image for reference.", picked, attachments));
         }}
       >

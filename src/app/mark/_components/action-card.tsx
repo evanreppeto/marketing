@@ -3,9 +3,11 @@
 import Link from "next/link";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkActionCard, MarkActionFlag } from "@/domain";
+import type { MarkActionCard, MarkActionFlag, MarkMedia } from "@/domain";
 
 import { decideCampaignDraftAction } from "../actions";
+import { ArtifactImage } from "./artifact-image";
+import { MediaProvenance, StatusPill } from "./asset-meta";
 import { SaveStar } from "./save-star";
 
 function flagClass(tone: MarkActionFlag["tone"]): string {
@@ -26,8 +28,23 @@ function LockNote() {
   );
 }
 
-export function ActionCard({ card, sourceConversationId, sourceMessageId }: { card: MarkActionCard; sourceConversationId: string; sourceMessageId: string }) {
+export function ActionCard({
+  card,
+  sourceConversationId,
+  sourceMessageId,
+  image,
+  onReview,
+}: {
+  card: MarkActionCard;
+  sourceConversationId: string;
+  sourceMessageId: string;
+  /** Concept visual attached to the same reply — folded into the card. */
+  image?: MarkMedia;
+  /** Opens the full deliverable in the work canvas (draft cards only). */
+  onReview?: () => void;
+}) {
   const isDraft = card.kind === "draft";
+  const media = image ?? card.media;
   return (
     <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-inset)]">
       <div className="flex items-center gap-2 border-b border-[var(--border-hairline)] px-3 py-2.5">
@@ -39,6 +56,7 @@ export function ActionCard({ card, sourceConversationId, sourceMessageId }: { ca
           )}
         </span>
         <span className="min-w-0 flex-1 truncate text-sm font-bold text-[var(--text-primary)]">{card.title}</span>
+        {card.status ? <StatusPill status={card.status} /> : null}
         {isDraft ? (
           <SaveStar
             input={{
@@ -53,12 +71,23 @@ export function ActionCard({ card, sourceConversationId, sourceMessageId }: { ca
             label="Save draft"
           />
         ) : null}
-        {card.href ? (
+        {onReview ? (
+          <button
+            type="button"
+            onClick={onReview}
+            className="shrink-0 text-xs font-semibold text-[var(--accent-contrast)] transition hover:underline"
+          >
+            Review in Studio ▸
+          </button>
+        ) : card.href ? (
           <Link href={card.href} className="shrink-0 text-xs font-semibold text-[var(--accent-contrast)] hover:underline">
             {isDraft ? "Open draft ▸" : "View ▸"}
           </Link>
         ) : null}
       </div>
+
+      {media ? <ArtifactImage image={media} bare /> : null}
+      {media ? <MediaProvenance media={media} className="border-b border-[var(--border-hairline)] px-3 py-2" /> : null}
 
       {card.preview ? (
         <p className="border-b border-[var(--border-hairline)] px-3 py-2.5 text-xs italic leading-relaxed text-[var(--text-secondary)]">

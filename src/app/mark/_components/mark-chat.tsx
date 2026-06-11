@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
@@ -24,6 +24,7 @@ import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
 import { ThreadSwitcher } from "./thread-switcher";
 import { useThreadPoll } from "./use-thread-poll";
+import { demoReply } from "../_data/demo";
 
 function HeaderTitle({
   activeId,
@@ -118,6 +119,7 @@ export function MarkChat({
   mentionGroups,
   operatorName,
   pendingApprovals,
+  demo = false,
 }: {
   conversations: MarkConversation[];
   projects: MarkProject[];
@@ -133,16 +135,79 @@ export function MarkChat({
   mentionGroups: MentionGroup[];
   operatorName: string | null;
   pendingApprovals: number;
+  /** Preview mode: render the full UI with sample data, no backend writes. */
+  demo?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<MarkMessage[]>(initialMessages);
+  // Preview-only optimistic review: real mode persists via the server action, but
+  // in demo we flip the asset's status locally so the full approve/decline/revision
+  // loop is demonstrable.
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, "approved" | "rejected" | "revision">>({});
   const [draft, setDraft] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const submitFnRef = useRef<(() => void) | null>(null);
   const applyCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  useThreadPoll(activeId, messages, setMessages);
+  // Work canvas visibility. Docked as a third column at xl+, a slide-over drawer
+  // below that. One flag drives both: at xl it expands/collapses the column; below
+  // xl it opens/closes the drawer. Defaults open (matches the wide layout), but on
+  // first mount we collapse it on narrow viewports so the drawer never covers the
+  // chat on load. `canvasMounted` gates the drawer markup to avoid an SSR flash.
+  const [canvasOpen, setCanvasOpen] = useState(true);
+  const [canvasMounted, setCanvasMounted] = useState(false);
+  useEffect(() => {
+    // Schedule asynchronously to satisfy the set-state-in-effect lint rule.
+    void Promise.resolve().then(() => {
+      setCanvasMounted(true);
+      if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1280px)").matches) {
+        setCanvasOpen(false);
+      }
+    });
+  }, []);
+
+  // Lets the chat open the Studio focused on a specific asset. `seq` bumps so the
+  // Studio re-focuses even when the same asset is requested twice.
+  const [studioFocus, setStudioFocus] = useState<{ assetId: string; seq: number } | null>(null);
+  const focusSeq = useRef(0);
+  function openStudioAsset(assetId?: string) {
+    setCanvasOpen(true);
+    if (assetId) {
+      focusSeq.current += 1;
+      setStudioFocus({ assetId, seq: focusSeq.current });
+    }
+  }
+
+  // No polling in preview mode (it would hit the server and fail).
+  useThreadPoll(demo ? "" : activeId, messages, setMessages);
+
+  // Preview-mode send: append the operator message + a canned Mark reply locally.
+  function demoSend(text: string) {
+    if (!text.trim()) return;
+    const now = new Date().toISOString();
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `demo-op-${prev.length}`,
+        conversationId: activeId,
+        role: "operator",
+        body: text.trim(),
+        status: "sent",
+        agentTaskId: null,
+        mentions: [],
+        media: [],
+        steps: [],
+        feedback: null,
+        actions: [],
+        suggestions: [],
+        attachments: [],
+        createdAt: now,
+      },
+    ]);
+    setDraft("");
+    window.setTimeout(() => setMessages((prev) => [...prev, demoReply(text)]), 650);
+  }
 
   // Per-thread draft persistence: typed-but-unsent text survives switching
   // threads (and navigating away within the tab). Keyed per thread; "new"
@@ -253,6 +318,30 @@ export function MarkChat({
 
   const replyPending = messages.some((m) => m.role === "mark" && m.status === "pending");
 
+  // The campaign this thread is producing — drives the Studio Assets-tab cover.
+  const activeCampaign = activeCampaignId
+    ? { id: activeCampaignId, name: campaigns.find((c) => c.id === activeCampaignId)?.name ?? "Campaign" }
+    : undefined;
+
+  // Apply preview-mode optimistic approvals onto the rendered messages so the deck,
+  // library tiles, and cover progress all reflect a click without a backend.
+  const displayMessages = useMemo(() => {
+    if (Object.keys(statusOverrides).length === 0) return messages;
+    return messages.map((m) => ({
+      ...m,
+      actions: m.actions.map((a) => {
+        const id = a.approval?.assetId;
+        const next = id ? statusOverrides[id] : undefined;
+        return next ? { ...a, status: next } : a;
+      }),
+    }));
+  }, [messages, statusOverrides]);
+
+  function demoDecide(assetId: string, decision: "approved" | "declined" | "revision") {
+    const status = decision === "declined" ? "rejected" : decision === "revision" ? "revision" : "approved";
+    setStatusOverrides((prev) => ({ ...prev, [assetId]: status }));
+  }
+
   const meta = activeId
     ? (activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
       `${messages.length} message${messages.length === 1 ? "" : "s"}`
@@ -263,7 +352,7 @@ export function MarkChat({
       <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
       <div
         className={`grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
-          activeId ? "xl:grid-cols-[16rem_minmax(0,1fr)_22rem] 2xl:grid-cols-[16rem_minmax(0,1fr)_25rem]" : ""
+          activeId && canvasOpen ? "xl:grid-cols-[16rem_minmax(0,1fr)_22rem] 2xl:grid-cols-[16rem_minmax(0,1fr)_25rem]" : ""
         }`}
       >
         <ThreadSidebar
@@ -305,6 +394,22 @@ export function MarkChat({
               <MarkConnection />
               {activeId ? (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => setCanvasOpen((v) => !v)}
+                    aria-pressed={canvasOpen}
+                    title={canvasOpen ? "Hide Studio" : "Show Studio"}
+                    aria-label={canvasOpen ? "Hide Studio" : "Show Studio"}
+                    className={cx(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition hover:bg-[var(--surface-inset)]",
+                      canvasOpen ? "text-[var(--accent-contrast)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]",
+                    )}
+                  >
+                    <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="14" height="12" rx="2" />
+                      <path d="M12.5 4v12" />
+                    </svg>
+                  </button>
                   <ChatSettings
                     conversationId={activeId}
                     projects={projects}
@@ -337,11 +442,13 @@ export function MarkChat({
           >
             {hasMessages ? (
               <MessageList
-                messages={messages}
+                messages={displayMessages}
                 onRetry={handleRetry}
                 onStop={handleStop}
                 onRegenerate={handleRegenerate}
                 onSuggestion={pickSuggestion}
+                onOpenAsset={openStudioAsset}
+                onDecision={demo ? demoDecide : undefined}
               />
             ) : (
               <ChatEmptyHero operatorName={operatorName} />
@@ -356,6 +463,8 @@ export function MarkChat({
                 draft={draft}
                 onDraftChange={handleDraftChange}
                 textareaRef={composerRef}
+                demo={demo}
+                onDemoSend={demoSend}
                 registerSubmit={(fn) => {
                   submitFnRef.current = fn;
                 }}
@@ -385,8 +494,34 @@ export function MarkChat({
           </div>
         </section>
 
-        {activeId ? <WorkCanvas messages={messages} /> : null}
+        {activeId ? <WorkCanvas messages={displayMessages} open={canvasOpen} focus={studioFocus} campaign={activeCampaign} onDecision={demo ? demoDecide : undefined} /> : null}
       </div>
+
+      {/* Below xl the canvas isn't docked — open it as a right-side slide-over so the
+          deliverable is reachable on laptops without crowding the chat. */}
+      {activeId && canvasMounted && canvasOpen ? (
+        <div className="fixed inset-0 z-50 xl:hidden" role="dialog" aria-modal="true" aria-label="Studio">
+          <div className="absolute inset-0 bg-[var(--overlay)] backdrop-blur-sm" onClick={() => setCanvasOpen(false)} />
+          <div className="msg-rise absolute inset-y-0 right-0 flex w-[22rem] max-w-[88vw] flex-col overflow-hidden border-l border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-raised)]">
+            <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-hairline)] px-4 py-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Studio</span>
+              <button
+                type="button"
+                onClick={() => setCanvasOpen(false)}
+                aria-label="Close Studio"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+              >
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M5 5l10 10M15 5L5 15" />
+                </svg>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <WorkCanvas messages={displayMessages} variant="drawer" focus={studioFocus} campaign={activeCampaign} onDecision={demo ? demoDecide : undefined} />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {threadsOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Conversations">

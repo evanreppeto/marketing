@@ -14,30 +14,13 @@ type JumpItem = {
   href: string;
 };
 
-const crmSubroutes: Array<{ label: string; href: string }> = [
-  { label: "Companies", href: "/crm/companies" },
-  { label: "Contacts", href: "/crm/contacts" },
-  { label: "Properties", href: "/crm/properties" },
-  { label: "Leads", href: "/crm/leads" },
-  { label: "Jobs", href: "/crm/jobs" },
-  { label: "Outcomes", href: "/crm/outcomes" },
-];
-
 function buildItems(): JumpItem[] {
-  return [
-    ...navItems.map((item) => ({
-      key: `nav:${item.href}`,
-      label: item.label,
-      subtitle: "Section",
-      href: item.href,
-    })),
-    ...crmSubroutes.map((item) => ({
-      key: `crm:${item.href}`,
-      label: item.label,
-      subtitle: "CRM object",
-      href: item.href,
-    })),
-  ];
+  return navItems.map((item) => ({
+    key: `nav:${item.href}`,
+    label: item.label,
+    subtitle: "Section",
+    href: item.href,
+  }));
 }
 
 export function QuickJump() {

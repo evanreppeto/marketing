@@ -10,7 +10,8 @@ import type { MarkMessage, MarkStep } from "@/lib/mark-chat/persistence";
 
 import { setMarkMessageFeedbackAction } from "../actions";
 import { ActionCard } from "./action-card";
-import { MarkSphere } from "./mark-sphere";
+import { CampaignDeck } from "./campaign-deck";
+import { MarkAvatar } from "./mark-avatar";
 import { MessageMedia } from "./message-media";
 import { SaveStar } from "./save-star";
 
@@ -70,21 +71,6 @@ function useElapsed(active: boolean): string {
   return `${mm}:${ss}`;
 }
 
-function MarkAvatar({ pending }: { pending?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cx(
-        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-        pending ? "motion-safe:[animation:mark-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
-      )}
-    >
-      <MarkSphere size={32} className="shadow-[inset_0_0_0_1px_var(--border-strong)]" />
-      {/* Live presence dot — Mark is online (the chat polls). Ring, not glow. */}
-      <span className="absolute -bottom-0.5 -right-0.5 z-[1] h-2.5 w-2.5 rounded-full bg-[var(--ok)] shadow-[0_0_0_2px_var(--canvas)]" />
-    </span>
-  );
-}
 
 function StepRow({ step, active, last }: { step: MarkStep; active?: boolean; last?: boolean }) {
   const done = step.status === "done";
@@ -105,7 +91,19 @@ function StepRow({ step, active, last }: { step: MarkStep; active?: boolean; las
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
         ) : null}
       </span>
-      <span className={cx("pt-px text-sm leading-snug", active ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]")}>{step.label}</span>
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className={cx("pt-px text-sm leading-snug", active ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]")}>{step.label}</span>
+        {step.detail && step.detail.length > 0 ? (
+          <ul className="flex flex-col gap-0.5">
+            {step.detail.map((d, i) => (
+              <li key={`${i}-${d}`} className="flex gap-1.5 text-[12px] leading-snug text-[var(--text-muted)]">
+                <span aria-hidden className="select-none text-[var(--border-strong)]">–</span>
+                <span className="min-w-0">{d}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -168,12 +166,16 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
 
 function StepTrace({ steps }: { steps: MarkStep[] }) {
   return (
-    <details className="mt-3 text-xs text-[var(--text-muted)]">
-      <summary className="flex cursor-pointer select-none items-center gap-1.5 font-mono text-[11px] text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
-        <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7l6 6 6-6" /></svg>
-        Reasoning · {steps.length} step{steps.length === 1 ? "" : "s"}
+    <details className="group mt-3">
+      <summary className="flex cursor-pointer select-none items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
+        <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6z" />
+        </svg>
+        Chain of thought
+        <span className="text-[var(--text-muted)]">· {steps.length} step{steps.length === 1 ? "" : "s"}</span>
+        <svg viewBox="0 0 20 20" aria-hidden className="ml-0.5 h-3 w-3 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8l4 4 4-4" /></svg>
       </summary>
-      <div className="mt-2 flex flex-col">
+      <div className="mt-2.5 flex flex-col pl-0.5">
         {steps.map((s, i) => (
           <StepRow key={`${i}-${s.label}`} step={{ ...s, status: "done" }} last={i === steps.length - 1} />
         ))}
@@ -356,7 +358,7 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: string[]; onPic
   );
 }
 
-function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion }: { message: MarkMessage; compact: boolean; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void; onSuggestion: (prompt: string) => void }) {
+function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion, onOpenAsset, onDecision }: { message: MarkMessage; compact: boolean; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void; onSuggestion: (prompt: string) => void; onOpenAsset?: (assetId?: string) => void; onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void }) {
   // Operator: right-aligned bubble (ChatGPT-style), timestamp on hover.
   if (message.role === "operator") {
     return (
@@ -386,6 +388,15 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
   // Mark messages within a few minutes render compact (no repeated avatar/name).
   const pending = message.status === "pending";
   const failed = message.status === "failed";
+  // A concept image attached to a draft is folded INTO the draft card (and into
+  // the work canvas) rather than shown as a loose attachment below it — one
+  // deliverable, not three scattered blocks. Any extra media still gets a gallery.
+  const draftCards = message.actions.filter((a) => a.kind === "draft");
+  const isPackage = draftCards.length >= 2;
+  const nonDraftCards = message.actions.filter((a) => a.kind !== "draft");
+  const draftAction = draftCards[0];
+  const cardImage = draftAction ? message.media.find((m) => m.kind === "image") : undefined;
+  const galleryMedia = cardImage ? message.media.filter((m) => m !== cardImage) : message.media;
   return (
     <div className="group flex gap-3">
       {compact && !pending ? <span aria-hidden className="w-7 shrink-0" /> : <MarkAvatar pending={pending} />}
@@ -409,14 +420,34 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
         )}
         {!pending && message.steps.length > 0 ? <StepTrace steps={message.steps} /> : null}
         {!pending && message.actions.length > 0 ? (
-          <div className="flex flex-col">
-            {message.actions.map((card, i) => (
-              <ActionCard key={`${i}-${card.title}`} card={card} sourceConversationId={message.conversationId} sourceMessageId={message.id} />
-            ))}
-          </div>
+          isPackage ? (
+            <>
+              <CampaignDeck cards={draftCards} onOpenAsset={onOpenAsset} onDecision={onDecision} />
+              {nonDraftCards.length > 0 ? (
+                <div className="flex flex-col">
+                  {nonDraftCards.map((card, i) => (
+                    <ActionCard key={`${i}-${card.title}`} card={card} sourceConversationId={message.conversationId} sourceMessageId={message.id} />
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="flex flex-col">
+              {message.actions.map((card, i) => (
+                <ActionCard
+                  key={`${i}-${card.title}`}
+                  card={card}
+                  sourceConversationId={message.conversationId}
+                  sourceMessageId={message.id}
+                  image={card === draftAction ? cardImage : undefined}
+                  onReview={card.kind === "draft" ? () => onOpenAsset?.(card.approval?.assetId) : undefined}
+                />
+              ))}
+            </div>
+          )
         ) : null}
         {!pending ? <References mentions={message.mentions} /> : null}
-        {message.media.length > 0 ? <MessageMedia media={message.media} conversationId={message.conversationId} messageId={message.id} /> : null}
+        {galleryMedia.length > 0 ? <MessageMedia media={galleryMedia} conversationId={message.conversationId} messageId={message.id} /> : null}
         {!pending && !failed ? <SuggestionChips suggestions={message.suggestions} onPick={onSuggestion} /> : null}
         {!pending ? (
           <div className="mt-1.5 flex items-center gap-1 text-[var(--text-muted)] opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
@@ -464,12 +495,16 @@ export function MessageList({
   onStop,
   onRegenerate,
   onSuggestion,
+  onOpenAsset,
+  onDecision,
 }: {
   messages: MarkMessage[];
   onRetry: () => void;
   onStop: () => void;
   onRegenerate: (markMessageId: string) => void;
   onSuggestion: (prompt: string) => void;
+  onOpenAsset?: (assetId?: string) => void;
+  onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -530,7 +565,7 @@ export function MessageList({
                   <DaySeparator label={day} />
                 </div>
               ) : null}
-              <Message message={m} compact={compact} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} onSuggestion={onSuggestion} />
+              <Message message={m} compact={compact} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} onSuggestion={onSuggestion} onOpenAsset={onOpenAsset} onDecision={onDecision} />
             </div>
           ))}
           <div ref={endRef} />

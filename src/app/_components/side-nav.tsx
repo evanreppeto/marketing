@@ -64,10 +64,13 @@ export function SideNav({ active, items, collapsible = false }: SideNavProps) {
             )}
             href={item.href}
             key={item.href}
-            onClick={() => {
+            onClick={(event) => {
               if (!matchesItem(item, currentPath)) {
                 setPending({ fromPath: currentPath, href: item.href });
               }
+              // Drop focus so the rail doesn't stay held open via focus-within
+              // after navigating (the click leaves the link focused otherwise).
+              event.currentTarget.blur();
             }}
             onFocus={() => router.prefetch(item.href)}
             onMouseEnter={() => router.prefetch(item.href)}
