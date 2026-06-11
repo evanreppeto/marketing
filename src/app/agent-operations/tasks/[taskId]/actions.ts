@@ -44,11 +44,21 @@ export async function updateTaskFieldAction(
 ): Promise<ActionResult> {
   await requireOperator();
 
-  if (!isEditableField(input.field)) {
+  if (!isNonEmptyString(taskId)) {
+    return { ok: false, message: "Task id is required." };
+  }
+
+  const payload = input as unknown;
+  if (!isRecord(payload)) {
+    return { ok: false, message: "Task update input is invalid." };
+  }
+
+  if (!isEditableField(payload.field)) {
     return { ok: false, message: "That field cannot be edited." };
   }
 
-  const normalized = normalizeFieldValue(input.field, input.value);
+  const field = payload.field;
+  const normalized = normalizeFieldValue(field, payload.value);
   if (!normalized.ok) {
     return normalized;
   }
@@ -60,19 +70,19 @@ export async function updateTaskFieldAction(
   const supabase = getSupabaseAdminClient();
   const { error: updateError } = await supabase
     .from("agent_tasks")
-    .update(updatePayload(input.field, normalized.value))
+    .update(updatePayload(field, normalized.value))
     .eq("id", taskId);
 
   if (updateError) {
     return { ok: false, message: `Task update failed: ${updateError.message}` };
   }
 
-  const fieldLabel = humanize(input.field);
+  const fieldLabel = humanize(field);
   const eventResult = await insertTaskEvent(taskId, {
-    event_type: input.field === "status" ? "status_changed" : "property_changed",
+    event_type: field === "status" ? "status_changed" : "property_changed",
     title: `${fieldLabel} changed`,
     body: `${fieldLabel} changed to ${formatValueForBody(normalized.value)}.`,
-    metadata: { field: input.field, value: normalized.value },
+    metadata: { field, value: normalized.value },
   });
 
   if (!eventResult.ok) {
@@ -89,11 +99,24 @@ export async function addTaskEventAction(
 ): Promise<ActionResult> {
   await requireOperator();
 
-  if (input.eventType !== "comment" && input.eventType !== "instruction") {
+  if (!isNonEmptyString(taskId)) {
+    return { ok: false, message: "Task id is required." };
+  }
+
+  const payload = input as unknown;
+  if (!isRecord(payload)) {
+    return { ok: false, message: "Task event input is invalid." };
+  }
+
+  if (payload.eventType !== "comment" && payload.eventType !== "instruction") {
     return { ok: false, message: "That event type is not supported." };
   }
 
-  const body = input.body.trim();
+  if (typeof payload.body !== "string") {
+    return { ok: false, message: "Comment or instruction body is required." };
+  }
+
+  const body = payload.body.trim();
   if (body.length < 2) {
     return { ok: false, message: "Add at least 2 characters." };
   }
@@ -105,9 +128,9 @@ export async function addTaskEventAction(
     return { ok: false, message: "Supabase is not configured." };
   }
 
-  const title = input.eventType === "comment" ? "Comment added" : "Instruction added";
+  const title = payload.eventType === "comment" ? "Comment added" : "Instruction added";
   const eventResult = await insertTaskEvent(taskId, {
-    event_type: input.eventType,
+    event_type: payload.eventType,
     title,
     body,
     metadata: {},
@@ -127,6 +150,16 @@ export async function toggleAcceptanceCriterionAction(
   completed: boolean,
 ): Promise<ActionResult> {
   await requireOperator();
+
+  if (!isNonEmptyString(taskId)) {
+    return { ok: false, message: "Task id is required." };
+  }
+  if (!isNonEmptyString(criterionId)) {
+    return { ok: false, message: "Acceptance criterion id is required." };
+  }
+  if (typeof completed !== "boolean") {
+    return { ok: false, message: "Acceptance criterion completed state must be boolean." };
+  }
 
   if (!isSupabaseAdminConfigured()) {
     return { ok: false, message: "Supabase is not configured." };
@@ -191,7 +224,11 @@ export async function toggleAcceptanceCriterionAction(
   return { ok: true };
 }
 
-function normalizeFieldValue(field: EditableField, value: string | null): NormalizedFieldValue {
+function normalizeFieldValue(field: EditableField, value: unknown): NormalizedFieldValue {
+  if (value !== null && typeof value !== "string") {
+    return { ok: false, message: `${humanize(field)} must be a string or empty.` };
+  }
+
   const normalizedValue = value === null ? null : value.trim();
 
   if (field === "objective" && (!normalizedValue || normalizedValue.length < 3)) {
@@ -288,8 +325,8 @@ function revalidateTaskViews(taskId: string) {
   revalidatePath("/");
 }
 
-function isEditableField(field: string): field is EditableField {
-  return (EDITABLE_FIELDS as readonly string[]).includes(field);
+function isEditableField(field: unknown): field is EditableField {
+  return typeof field === "string" && (EDITABLE_FIELDS as readonly string[]).includes(field);
 }
 
 function isRequiredTextField(field: EditableField) {
@@ -323,4 +360,8 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }

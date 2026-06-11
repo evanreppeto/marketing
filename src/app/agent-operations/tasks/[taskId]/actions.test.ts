@@ -79,6 +79,21 @@ describe("task detail actions", () => {
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("rejects malformed update field values before trimming or updating", async () => {
+    const supabase = mockSupabase({
+      agent_tasks: { data: null, error: null },
+      agent_task_events: { data: null, error: null },
+    });
+
+    const result = await (updateTaskFieldAction as any)("task-1", { field: "owner_label", value: {} });
+
+    expect(result.ok).toBe(false);
+    expect(supabase.calls).not.toContainEqual(["from", "agent_tasks"]);
+    expect(supabase.calls.some((call) => call[0] === "update")).toBe(false);
+    expect(supabase.calls.some((call) => call[0] === "insert")).toBe(false);
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
   it("adds a human instruction event", async () => {
     const supabase = mockSupabase({
       agent_task_events: { data: null, error: null },
@@ -99,6 +114,18 @@ describe("task detail actions", () => {
       body: "Keep this partner-facing.",
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/agent-operations/tasks/task-1");
+  });
+
+  it("rejects malformed event bodies before trimming or inserting", async () => {
+    const supabase = mockSupabase({
+      agent_task_events: { data: null, error: null },
+    });
+
+    const result = await (addTaskEventAction as any)("task-1", { eventType: "instruction", body: 123 });
+
+    expect(result.ok).toBe(false);
+    expect(supabase.calls.some((call) => call[0] === "insert")).toBe(false);
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("updates acceptance criteria metadata and writes an event", async () => {
@@ -142,6 +169,29 @@ describe("task detail actions", () => {
       metadata: { criterion_id: "ac-1", completed: true },
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/agent-operations/tasks/task-1");
+  });
+
+  it("rejects malformed acceptance criterion toggles before updating metadata", async () => {
+    const supabase = mockSupabase({
+      agent_tasks: {
+        data: {
+          metadata: {
+            acceptance_criteria: [
+              { id: "ac-1", label: "Partner-facing copy is approved", completed: false },
+            ],
+          },
+        },
+        error: null,
+      },
+      agent_task_events: { data: null, error: null },
+    });
+
+    const result = await (toggleAcceptanceCriterionAction as any)("task-1", "ac-1", "true");
+
+    expect(result.ok).toBe(false);
+    expect(supabase.calls.some((call) => call[0] === "update")).toBe(false);
+    expect(supabase.calls.some((call) => call[0] === "insert")).toBe(false);
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 });
 
