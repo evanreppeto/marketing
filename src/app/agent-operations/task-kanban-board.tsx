@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
 import { EntityAvatar } from "../_components/entity-avatar";
 
-import { initialDemoFrame, nextDemoFrame, type DemoStatus } from "@/domain";
+import { formatScheduleLabel, initialDemoFrame, nextDemoFrame, type DemoStatus } from "@/domain";
 
 import { moveTaskAction } from "./actions";
 import { type AgentOperationsAgent, type AgentOperationsTask } from "@/lib/agent-operations/read-model";
@@ -331,6 +331,11 @@ function Card({
     task.progress && task.progress.total > 0
       ? Math.min(100, Math.round((task.progress.done / task.progress.total) * 100))
       : null;
+  const now = useMemo(() => new Date(), []);
+  const scheduledLabel =
+    task.status === "queued" && task.scheduledFor && new Date(task.scheduledFor).getTime() > now.getTime()
+      ? formatScheduleLabel(task.scheduledFor, now)
+      : null;
 
   return (
     <article
@@ -386,7 +391,11 @@ function Card({
       </div>
 
       <div className="mt-2 flex items-center justify-between pl-7">
-        <span className="text-[10px] font-medium text-[var(--text-muted)]">{formatDue(task.dueAt)}</span>
+        {scheduledLabel ? (
+          <span className="text-[10px] font-semibold text-[var(--accent-strong)]">Scheduled · {scheduledLabel}</span>
+        ) : (
+          <span className="text-[10px] font-medium text-[var(--text-muted)]">{formatDue(task.dueAt)}</span>
+        )}
         {working ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-strong)]">
             <span className="kanban-presence" />
