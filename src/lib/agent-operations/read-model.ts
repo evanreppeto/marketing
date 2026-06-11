@@ -42,6 +42,7 @@ export type AgentOperationsTask = {
   status: string;
   priority: string;
   dueAt: string | null;
+  scheduledFor: string | null;
   progress: { done: number; total: number } | null;
   updated: string;
   href: string;
@@ -120,6 +121,7 @@ type AgentTaskRow = {
   campaign_id: string | null;
   approval_item_id: string | null;
   due_at: string | null;
+  scheduled_for: string | null;
   completed_at: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -274,7 +276,7 @@ export async function getAgentOperationsDashboard(client?: SupabaseClient): Prom
       supabase
         .from("agent_tasks")
         .select(
-          "id,agent_id,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,due_at,completed_at,created_at,updated_at,metadata",
+          "id,agent_id,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,due_at,scheduled_for,completed_at,created_at,updated_at,metadata",
         )
         .order("updated_at", { ascending: false })
         .limit(50),
@@ -585,6 +587,7 @@ function mapTask(
     status: task.status,
     priority: titleize(task.priority ?? "medium"),
     dueAt: task.due_at ?? null,
+    scheduledFor: task.scheduled_for ?? null,
     progress: parseProgress(metadata.progress),
     updated: task.updated_at ?? task.created_at ?? "Now",
     href: `/agent-operations/tasks/${task.id}`,

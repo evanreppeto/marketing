@@ -180,6 +180,7 @@ export function TaskKanbanBoard({
         status: demoFrame.status,
         priority: "Medium",
         dueAt: null,
+        scheduledFor: null,
         progress: demoFrame.working ? { done: 12, total: 20 } : null,
         updated: "now",
         href: "/board",

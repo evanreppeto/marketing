@@ -38,6 +38,7 @@ describe("getAgentOperationsDashboard", () => {
             campaign_id: "campaign-1",
             approval_item_id: "approval-1",
             due_at: "2026-06-15T18:00:00.000Z",
+            scheduled_for: "2026-06-20T09:00:00.000Z",
             completed_at: null,
             created_at: "2026-05-29T18:01:00.000Z",
             updated_at: "2026-05-29T18:02:00.000Z",
@@ -116,6 +117,7 @@ describe("getAgentOperationsDashboard", () => {
       approvalHref: "/approvals?item=approval-1",
       priority: "High",
       dueAt: "2026-06-15T18:00:00.000Z",
+      scheduledFor: "2026-06-20T09:00:00.000Z",
       progress: { done: 12, total: 20 },
     });
     expect(dashboard.approvals[0]).toMatchObject({
