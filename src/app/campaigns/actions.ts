@@ -16,6 +16,8 @@ import { parseBuildPrompt, deriveCampaignName } from "./build-campaign";
 
 const DECISIONS: ApprovalDecision[] = ["approved", "declined", "archived"];
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export type RevisionActionState = { ok: boolean; message: string } | null;
 
 /**
@@ -456,7 +458,7 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
     agent_id: await ensureMarkAgentId(client),
     status: "queued",
     priority: "high",
-    objective: `Build campaign package: ${prompt}`,
+    objective: `Build campaign package: ${prompt.slice(0, 180)}`,
     task_type: "campaign_brief_draft",
     campaign_id: campaignId,
     source_type: "campaign_directive",
@@ -481,7 +483,7 @@ export async function handToMarkAction(formData: FormData): Promise<void> {
     redirect("/campaigns?action=not-configured");
   }
   const campaignId = String(formData.get("campaignId") ?? "").trim();
-  if (!campaignId) redirect("/campaigns?action=build-error");
+  if (!UUID_RE.test(campaignId)) redirect("/campaigns?action=build-error");
 
   const client = getSupabaseAdminClient();
   await client.from("agent_tasks").insert({
@@ -501,11 +503,22 @@ export async function handToMarkAction(formData: FormData): Promise<void> {
   redirect(`/campaigns/${campaignId}?action=handed-to-mark`);
 }
 
-/** Ensure the Mark agent row exists; return its id. */
+/** Ensure the Mark agent row exists; return its id.
+ *  Canonical full definition lives in ensureMarkAgent (agent-operations/actions.ts).
+ *  This carries the safety-critical subset; a shared helper is a future cleanup. */
 async function ensureMarkAgentId(client = getSupabaseAdminClient()): Promise<string> {
   const { data, error } = await client
     .from("agents")
-    .upsert({ key: "mark", name: "Mark", status: "ready" }, { onConflict: "key" })
+    .upsert(
+      {
+        key: "mark",
+        name: "Mark",
+        status: "ready",
+        blocked_actions: ["send_email", "send_sms", "publish_social_post", "launch_ads", "change_ad_spend"],
+        default_approval_policy: "human_required_before_outbound",
+      },
+      { onConflict: "key" },
+    )
     .select("id")
     .single<{ id: string }>();
   if (error) throw new Error(`agents upsert failed: ${error.message}`);
