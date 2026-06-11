@@ -55,6 +55,43 @@ These write no data, intentionally, until each feature is wired. Don't convert s
 
 When wiring approval actions, make them real backend state transitions. Use the ContentEngine-style pattern for campaigns and ads: Hermes/Mark creates a draft, the item enters approval with prompt inputs/source records/output/risk flags, and the human can approve, decline, request revision, or archive. Approved items unlock the next backend step; declined or blocked items stay unavailable.
 
+## Mark as BSR Lead Marketing Agent
+
+Mark is **not** a generic chatbot. Mark operates as Big Shoulders Restoration's (BSR) lead marketing operator/orchestrator. This app is Mark's command center for finding source-backed opportunities, mapping them to personas, generating approval-gated campaign packages, organizing creative assets, and learning from performance. Build BSR-specific marketing workflows over generic SaaS/CRM patterns.
+
+### Core operating principle (non-negotiable)
+
+- **Agent does the work. Human approves decisions. Database remembers everything.**
+- **No outbound send/publish/launch/spend/contact action happens without explicit human approval.** Never add automatic outbound behavior. Keep every change approval-safe.
+- Mark may draft, recommend, score, prepare assets, and create approval-ready records — nothing that reaches the outside world without a human gate.
+- Prefer **approved real BSR media** wherever possible. AI creative should enhance/package/resize/test authentic BSR proof, not replace it.
+- **Higgsfield** (ad production, reframing, UGC-style variants, background removal, upscaling, virality analysis) stays **operationally off** until Evan confirms the subscription is active. Wire behind a flag; do not enable.
+
+### Product direction: a marketing operating system
+
+The durable architecture is a shared **Persona Revenue Intelligence Layer** that powers CRM, campaigns, landing pages, approval cards, personalization, reporting, and Mark/subagent decisions — not just a CRM or campaign list. Mark should become proactive: finding leads, identifying persona groups, watching signals, drafting campaigns, preparing creative, and learning what works.
+
+### Frontend priorities
+
+1. **Mark Marketing Command Center** — surface waiting Mark tasks, blocked tasks, opportunity recommendations, campaign packages needing approval, recent assets, competitor/weather signals, and run logs.
+
+2. **Persona Revenue Intelligence fields** — expose on companies, contacts, leads, campaigns, and approval cards where relevant: primary persona, secondary personas, persona confidence, relationship stage, urgency, service need, lead score, revenue opportunity score, relationship score, next best action, recommended CTA, recommended message angle, recommended proof points, recommended nurture/follow-up. (Note the existing 12-persona contract in `src/domain/personas.ts`.)
+
+3. **Campaign Package Builder** — campaign records support complete packages: campaign brief; target audience; similar/lookalike audiences considered; persona and relationship logic; email draft; SMS draft; paid social/ad copy; landing/one-pager copy; sales/partner handoff note; asset list; approved media references; generated asset IDs/URLs/paths; guardrail result; human approval status.
+
+4. **Asset Review and Provenance** — asset cards clearly show: source type (real BSR media, AI-generated, composite, stock, external); approved-media source ID when available; prompt/job ID/model when generated; format/aspect ratio (1:1, 4:5, 9:16, 16:9, PDF, MP4, etc.); status (draft, needs revision, approved, rejected); risk flags (embedded text/logo issues, unrealistic scene, privacy/redaction, claim risk); reviewer and timestamp.
+
+5. **Opportunity Intelligence Inbox** — an inbox for source-backed opportunities from CRM inactivity, new lead/company discovery, weather events, competitor activity, newly approved media, performance anomalies, and persona segment gaps. Each opportunity shows: evidence/source links, confidence, recommended action, suggested campaign type, required approval path.
+
+6. **Performance Learning Loop** — track outcomes so Mark can learn: campaign/channel/persona/asset attribution; impressions/clicks/replies/booked jobs/referrals where available; cost/spend if applicable; message angle used; proof/media used; conversion/business outcome; Mark's recommendation for next iteration.
+
+### Design + implementation expectations
+
+- The UI must make **evidence, approval state, media, and next actions obvious**. Campaign cards should not look empty when assets exist.
+- Mark-created work must be **reviewable by humans before anything goes outbound** — visible, auditable, easy to approve/reject/revise.
+- Before modifying the frontend: inspect existing app structure; reuse existing components and styling patterns (`page-header.tsx` primitives, `DESIGN.md`).
+- If backend fields/routes are missing, **document the required schema/API additions** (new `supabase/migrations/` file, `src/lib/<feature>/` layer, route) instead of faking frontend-only data. Wire persistence + the `requireOperator()` gate following the vault/campaigns reference shape above.
+
 ## Lead Ingestion Contract (don't break this)
 
 - 12 official personas live in `OFFICIAL_PERSONA_MAPPINGS` (`src/domain/personas.ts`). They must stay in sync with the `persona_mapping` enum in the Supabase migration.
