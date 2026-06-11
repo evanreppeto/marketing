@@ -48,7 +48,7 @@ export default async function AgentOperationsPage() {
             description="Mark can prepare drafts, enrich records, classify, score, and create approval packets. External action remains disabled."
             aside={<StatusPill tone={dashboard.tasks.length > 0 ? "blue" : "gray"}>{dashboard.tasks.length} tasks</StatusPill>}
           >
-            <BoardViewSwitch agents={dashboard.agents} tasks={dashboard.tasks} />
+            <BoardViewSwitch tasks={dashboard.tasks} />
           </WorkspacePanel>
 
           <WorkspacePanel

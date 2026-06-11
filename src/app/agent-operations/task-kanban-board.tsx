@@ -6,10 +6,10 @@ import { createPortal } from "react-dom";
 
 import { EntityAvatar } from "../_components/entity-avatar";
 
-import { formatScheduleLabel, initialDemoFrame, nextDemoFrame, type DemoStatus } from "@/domain";
+import { formatScheduleLabel } from "@/domain";
 
 import { moveTaskAction } from "./actions";
-import { type AgentOperationsAgent, type AgentOperationsTask } from "@/lib/agent-operations/read-model";
+import { type AgentOperationsTask } from "@/lib/agent-operations/read-model";
 
 const COLUMNS: Array<{ key: string; label: string }> = [
   { key: "queued", label: "Queued" },
@@ -40,16 +40,9 @@ type DragState = {
 
 type OptimisticMove = { taskId: string; toStatus: string };
 
-export function TaskKanbanBoard({
-  agents,
-  tasks,
-}: {
-  agents: AgentOperationsAgent[];
-  tasks: AgentOperationsTask[];
-}) {
+export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [agentFilter, setAgentFilter] = useState<string>("all");
   const [drag, setDrag] = useState<DragState | null>(null);
   const [, startTransition] = useTransition();
   const [optimisticTasks, applyOptimistic] = useOptimistic(
@@ -57,9 +50,6 @@ export function TaskKanbanBoard({
     (state: AgentOperationsTask[], move: OptimisticMove) =>
       state.map((task) => (task.fullId === move.taskId ? { ...task, status: move.toStatus } : task)),
   );
-
-  const [demo, setDemo] = useState(false);
-  const [demoFrame, setDemoFrame] = useState(initialDemoFrame);
 
   // Live polling: refresh server data while the board is visible. When Mark moves
   // a task or reports progress via his API, the next refresh reflects it.
@@ -69,15 +59,6 @@ export function TaskKanbanBoard({
     }, 8000);
     return () => window.clearInterval(id);
   }, [router]);
-
-  // Demo simulation: a visual-only card that loops the lifecycle. Writes nothing.
-  useEffect(() => {
-    if (!demo) return;
-    const id = window.setInterval(() => {
-      setDemoFrame((frame) => nextDemoFrame(frame.step));
-    }, 1600);
-    return () => window.clearInterval(id);
-  }, [demo]);
 
   const dragRef = useRef<DragState | null>(null);
   useEffect(() => {
@@ -95,7 +76,6 @@ export function TaskKanbanBoard({
 
   function startDrag(event: React.PointerEvent, task: AgentOperationsTask) {
     if (event.button !== 0) return;
-    if (task.fullId === "__demo__") return;
     const rect = event.currentTarget.getBoundingClientRect();
     setDrag({
       taskId: task.fullId,
@@ -155,77 +135,16 @@ export function TaskKanbanBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const agentName = (key: string) =>
-    agents.find((a) => a.key === key)?.name ?? tasks.find((t) => t.agentKey === key)?.agentName ?? key;
-  const agentOptions = [...new Set(optimisticTasks.map((t) => t.agentKey))];
-
-  const visible = optimisticTasks.filter((t) => agentFilter === "all" || t.agentKey === agentFilter);
-  const open = visible.filter((t) => !CLOSED_STATUSES.has(t.status));
-  const closedCount = visible.length - open.length;
+  const open = optimisticTasks.filter((t) => !CLOSED_STATUSES.has(t.status));
+  const closedCount = optimisticTasks.length - open.length;
   const dragging = drag?.moved ?? false;
-
-  const demoTask: AgentOperationsTask | null = demo
-    ? {
-        id: "demo",
-        fullId: "__demo__",
-        agentKey: "mark",
-        agentName: "Mark",
-        task: "Demo",
-        objective: "Demo · Mark working a task across the board",
-        linkedObject: "Campaign: Demo Walkthrough",
-        linkedHref: "/board",
-        approvalHref: null,
-        risk: "Low",
-        approval: "Internal task",
-        status: demoFrame.status,
-        priority: "Medium",
-        dueAt: null,
-        scheduledFor: null,
-        progress: demoFrame.working ? { done: 12, total: 20 } : null,
-        updated: "now",
-        href: "/board",
-      }
-    : null;
 
   return (
     <section className={`overflow-hidden ${dragging ? "select-none" : ""}`}>
       <style>{KANBAN_CSS}</style>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-hairline)] px-4 py-2.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Agent</span>
-        <select
-          className="h-8 cursor-pointer rounded-md border border-[var(--border-panel)] bg-[var(--surface-inset)] px-2 text-xs font-semibold text-[var(--text-primary)]"
-          onChange={(event) => setAgentFilter(event.target.value)}
-          value={agentFilter}
-        >
-          <option value="all">All agents</option>
-          {agentOptions.map((key) => (
-            <option key={key} value={key}>
-              {agentName(key)}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          aria-pressed={demo}
-          onClick={() => {
-            setDemo((value) => {
-              if (value) setDemoFrame(initialDemoFrame());
-              return !value;
-            });
-          }}
-          className={`h-8 cursor-pointer rounded-md border px-3 text-xs font-bold ${
-            demo
-              ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
-              : "border-[var(--border-panel)] bg-[var(--surface-inset)] text-[var(--text-muted)]"
-          }`}
-          title="Visual-only simulation — writes no data"
-        >
-          {demo ? "Demo: on" : "Demo"}
-        </button>
-        <span className="ml-auto text-[11px] font-medium text-[var(--text-muted)]">
-          {open.length} open · outbound locked
-        </span>
+      <div className="flex items-center justify-end border-b border-[var(--border-hairline)] px-4 py-2">
+        <span className="text-[11px] font-medium text-[var(--text-muted)]">{open.length} open · outbound locked</span>
       </div>
 
       {error ? (
@@ -237,10 +156,7 @@ export function TaskKanbanBoard({
       <div className="overflow-x-auto p-3">
         <div className="grid min-w-[940px] grid-cols-5 gap-3">
           {COLUMNS.map((col) => {
-            const cards = [
-              ...open.filter((task) => task.status === col.key),
-              ...(demoTask && (demoTask.status as DemoStatus) === col.key ? [demoTask] : []),
-            ];
+            const cards = open.filter((task) => task.status === col.key);
             const isValidTarget = dragging && drag?.overStatus === col.key && drag?.fromStatus !== col.key;
             return (
               <div

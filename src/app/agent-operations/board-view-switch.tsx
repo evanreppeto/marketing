@@ -5,15 +5,9 @@ import { useState } from "react";
 import { AgentTaskBoard } from "./agent-task-board";
 import { NewTaskDialog } from "./new-task-dialog";
 import { TaskKanbanBoard } from "./task-kanban-board";
-import { type AgentOperationsAgent, type AgentOperationsTask } from "@/lib/agent-operations/read-model";
+import { type AgentOperationsTask } from "@/lib/agent-operations/read-model";
 
-export function BoardViewSwitch({
-  agents,
-  tasks,
-}: {
-  agents: AgentOperationsAgent[];
-  tasks: AgentOperationsTask[];
-}) {
+export function BoardViewSwitch({ tasks }: { tasks: AgentOperationsTask[] }) {
   const [view, setView] = useState<"board" | "table">("board");
 
   return (
@@ -42,7 +36,7 @@ export function BoardViewSwitch({
         </div>
       </div>
 
-      {view === "board" ? <TaskKanbanBoard agents={agents} tasks={tasks} /> : <AgentTaskBoard tasks={tasks} />}
+      {view === "board" ? <TaskKanbanBoard tasks={tasks} /> : <AgentTaskBoard tasks={tasks} />}
     </div>
   );
 }

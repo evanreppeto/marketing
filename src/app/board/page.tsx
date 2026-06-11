@@ -29,7 +29,7 @@ export default async function BoardPage() {
         description="You and Mark share this board. Create work, drag cards across the lifecycle. External action stays disabled — outbound waits behind approval."
         aside={<StatusPill tone="amber">Outbound locked</StatusPill>}
       >
-        <BoardViewSwitch agents={dashboard.agents} tasks={dashboard.tasks} />
+        <BoardViewSwitch tasks={dashboard.tasks} />
       </WorkspacePanel>
     </>
   );
