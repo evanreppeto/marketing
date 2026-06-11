@@ -3,7 +3,6 @@ import { Archivo, Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/goo
 
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
-import { isOperatorGateEnabled } from "@/lib/auth/operator";
 import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
@@ -62,7 +61,6 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ConsoleFrame
-          gateEnabled={isOperatorGateEnabled()}
           agentName={getAgentDisplayName(agentName)}
         >
           {children}

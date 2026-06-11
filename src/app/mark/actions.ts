@@ -9,7 +9,8 @@ import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/l
 import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
-import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
+import { getAppSettings } from "@/lib/settings/store";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
@@ -146,7 +147,7 @@ export type MarkAgentStatus = { attached: boolean; name: string };
  * leaving the operator guessing.
  */
 export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
-  const name = getMarkDisplayName();
+  const name = getAgentDisplayName((await getAppSettings()).agentName);
   if (!isSupabaseAdminConfigured() || !isMarkRunnerConfigured()) {
     return { attached: false, name };
   }

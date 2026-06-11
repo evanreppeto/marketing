@@ -20,7 +20,6 @@ export function ConsoleFrame({
   agentName,
   children,
 }: {
-  gateEnabled: boolean;
   agentName: string;
   children: React.ReactNode;
 }) {
