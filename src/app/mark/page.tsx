@@ -5,6 +5,7 @@ import { countActiveApprovals } from "@/lib/approvals/read-model";
 import { getOperatorActor } from "@/lib/auth/operator";
 import { getMentionables } from "@/lib/mark-chat/mention-search";
 import { listConversations, listMessages, getConversation, listProjects, listArchivedConversations } from "@/lib/mark-chat/persistence";
+import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { MarkChat } from "./_components/mark-chat";
@@ -64,9 +65,16 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
   let archived = [] as Awaited<ReturnType<typeof listArchivedConversations>>;
   let activeConversation = null;
   let initialMessages = [] as Awaited<ReturnType<typeof listMessages>>;
+  let campaigns: { id: string; name: string }[] = [];
   try {
     conversations = await listConversations(operator);
     projects = await listProjects(operator);
+    try {
+      const list = await getCampaignWorkspaceList();
+      campaigns = list.status === "live" ? list.campaigns.map((c) => ({ id: c.id, name: c.name })) : [];
+    } catch {
+      campaigns = [];
+    }
     if (showArchived) archived = await listArchivedConversations(operator);
     // A bare /mark is a fresh "new chat" (blank composer); a thread opens only
     // when explicitly selected via ?c=. Defaulting to the latest thread would
@@ -100,6 +108,8 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
       activeId={activeConversation?.id ?? ""}
       activeTitle={activeConversation?.title ?? ""}
       activeProjectId={activeConversation?.projectId ?? null}
+      activeCampaignId={activeConversation?.campaignId ?? null}
+      campaigns={campaigns}
       activePinned={Boolean(activeConversation?.pinnedAt)}
       initialMessages={initialMessages}
       mentionGroups={mentionGroups}

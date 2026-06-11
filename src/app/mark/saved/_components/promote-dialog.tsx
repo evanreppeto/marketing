@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { cx } from "@/app/_components/theme";
 import type { SavedItem } from "@/lib/mark-chat/saved";
 import { OFFICIAL_PERSONA_MAPPINGS, RESTORATION_FOCUS_VALUES } from "@/domain";
-import { promoteSavedItemAction, type PromoteTarget } from "../../actions";
+import { promoteSavedItemAction } from "../../actions";
+import type { PromoteTarget } from "@/app/mark/promote-target";
 
 function humanize(s: string) {
   return s.replace(/^persona_/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

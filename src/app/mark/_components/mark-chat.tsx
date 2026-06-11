@@ -9,6 +9,9 @@ import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 import { cx } from "@/app/_components/theme";
 
 import { cancelReplyAction, regenerateMarkReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
+import Link from "next/link";
+
+import { ChatSettings } from "./chat-settings";
 import { CommandPalette } from "./command-palette";
 import { MarkBackdrop } from "./mark-backdrop";
 import type { SlashCommand } from "./slash-commands";
@@ -108,6 +111,8 @@ export function MarkChat({
   activeId,
   activeTitle,
   activeProjectId,
+  activeCampaignId,
+  campaigns,
   activePinned,
   initialMessages,
   mentionGroups,
@@ -121,6 +126,8 @@ export function MarkChat({
   activeId: string;
   activeTitle: string;
   activeProjectId: string | null;
+  activeCampaignId: string | null;
+  campaigns: { id: string; name: string }[];
   activePinned: boolean;
   initialMessages: MarkMessage[];
   mentionGroups: MentionGroup[];
@@ -287,15 +294,32 @@ export function MarkChat({
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {activeId && activeCampaignId ? (
+                <Link
+                  href={`/campaigns/${activeCampaignId}`}
+                  className="hidden items-center gap-1 rounded-md bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)] transition hover:text-[var(--text-primary)] sm:inline-flex"
+                >
+                  {campaigns.find((c) => c.id === activeCampaignId)?.name ?? "Campaign"}
+                </Link>
+              ) : null}
               <MarkConnection />
               {activeId ? (
-                <ThreadMenu
-                  conversationId={activeId}
-                  projectId={activeProjectId}
-                  pinned={activePinned}
-                  projects={projects}
-                  isActive
-                />
+                <>
+                  <ChatSettings
+                    conversationId={activeId}
+                    projects={projects}
+                    activeProjectId={activeProjectId}
+                    campaigns={campaigns}
+                    activeCampaignId={activeCampaignId}
+                  />
+                  <ThreadMenu
+                    conversationId={activeId}
+                    projectId={activeProjectId}
+                    pinned={activePinned}
+                    projects={projects}
+                    isActive
+                  />
+                </>
               ) : null}
             </div>
           </header>
