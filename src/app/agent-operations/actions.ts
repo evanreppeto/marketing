@@ -158,7 +158,10 @@ export async function createTaskAction(formData: FormData): Promise<void> {
 
   const objective = String(formData.get("objective") ?? "").trim();
   const priorityRaw = String(formData.get("priority") ?? "medium").trim().toLowerCase();
-  const taskType = String(formData.get("taskType") ?? "operator_task").trim() || "operator_task";
+  const campaignIdForType = String(formData.get("campaignId") ?? "").trim();
+  const taskType =
+    String(formData.get("taskType") ?? "").trim() ||
+    (campaignIdForType ? "campaign_directive" : "operator_task");
   const priority: TaskPriority = (ALLOWED_PRIORITIES as Set<string>).has(priorityRaw)
     ? (priorityRaw as TaskPriority)
     : "medium";
@@ -171,6 +174,8 @@ export async function createTaskAction(formData: FormData): Promise<void> {
       scheduledFor = parsed.toISOString();
     }
   }
+
+  const campaignId = String(formData.get("campaignId") ?? "").trim() || null;
 
   if (objective.length === 0) {
     redirect("/agent-operations?action=mark-task-error");
@@ -191,6 +196,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
       priority,
       objective,
       task_type: taskType,
+      campaign_id: campaignId,
       scheduled_for: scheduledFor,
       source_type: "operator_request",
       metadata: {
@@ -237,6 +243,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     metadata: { runner_name: "Mark", source: "operator_board_create" },
   });
 
+  if (campaignId) revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/agent-operations");
   revalidatePath("/board");
   revalidatePath("/");
