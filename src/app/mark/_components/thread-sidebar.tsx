@@ -410,15 +410,26 @@ export function ThreadSidebar({
         )}
       </nav>
 
-      <Link
-        href="/mark?archived=1"
-        className="mt-auto flex items-center gap-1 px-2 pb-1 pt-3 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
-      >
-        Archived
-        <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m8 5 5 5-5 5" />
-        </svg>
-      </Link>
+      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+        <Link
+          href="/mark/saved"
+          className="flex items-center gap-1.5 px-2 pb-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 2.5l2.2 4.6 5 .7-3.6 3.5.9 5L10 14l-4.5 2.4.9-5L2.8 7.8l5-.7z" />
+          </svg>
+          Saved
+        </Link>
+        <Link
+          href="/mark?archived=1"
+          className="flex items-center gap-1 px-2 pb-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+        >
+          Archived
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m8 5 5 5-5 5" />
+          </svg>
+        </Link>
+      </div>
     </aside>
   );
 }
