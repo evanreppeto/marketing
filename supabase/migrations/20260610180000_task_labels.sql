@@ -27,3 +27,7 @@ create table public.agent_task_label_assignments (
 
 create index agent_task_label_assignments_task_idx on public.agent_task_label_assignments (task_id);
 create index agent_task_label_assignments_label_idx on public.agent_task_label_assignments (label_id);
+
+create trigger task_labels_set_updated_at
+  before update on public.task_labels
+  for each row execute function public.set_updated_at();
