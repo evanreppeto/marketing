@@ -193,6 +193,8 @@ export type AgentTaskDetail =
         sourceId: string | null;
         campaignId: string | null;
         approvalItemId: string | null;
+        dueAt: string | null;
+        scheduledFor: string | null;
         startedAt: string | null;
         completedAt: string | null;
         createdAt: string | null;
@@ -413,7 +415,7 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
     const { data: taskData, error: taskError } = await supabase
       .from("agent_tasks")
       .select(
-        "id,agent_id,description,owner_kind,owner_label,driver_kind,driver_agent_id,driver_label,approver_label,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,started_at,completed_at,created_at,updated_at,metadata",
+        "id,agent_id,description,owner_kind,owner_label,driver_kind,driver_agent_id,driver_label,approver_label,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,due_at,scheduled_for,started_at,completed_at,created_at,updated_at,metadata",
       )
       .eq("id", taskId)
       .maybeSingle<AgentTaskRow & { started_at: string | null }>();
@@ -504,6 +506,8 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
         sourceId: taskData.source_id,
         campaignId: taskData.campaign_id,
         approvalItemId: taskData.approval_item_id,
+        dueAt: taskData.due_at,
+        scheduledFor: taskData.scheduled_for,
         startedAt: taskData.started_at,
         completedAt: taskData.completed_at,
         createdAt: taskData.created_at,

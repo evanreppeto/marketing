@@ -181,6 +181,8 @@ describe("getAgentTaskDetail", () => {
           source_id: "campaign-1",
           campaign_id: "campaign-1",
           approval_item_id: "approval-1",
+          due_at: "2026-06-15T18:00:00.000Z",
+          scheduled_for: "2026-06-20T09:00:00.000Z",
           started_at: "2026-05-29T18:01:30.000Z",
           completed_at: null,
           created_at: "2026-05-29T18:01:00.000Z",
@@ -310,6 +312,8 @@ describe("getAgentTaskDetail", () => {
       driver: { kind: "agent", label: "Mark", agentId: "agent-1" },
       approverLabel: "Owner",
       description: "Build the first partner-facing draft and keep outbound locked.",
+      dueAt: "2026-06-15T18:00:00.000Z",
+      scheduledFor: "2026-06-20T09:00:00.000Z",
     });
     expect(detail.acceptanceCriteria).toEqual([
       { id: "criteria-1", label: "Draft is partner-facing", completed: true },
