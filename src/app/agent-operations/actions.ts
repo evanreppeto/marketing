@@ -163,6 +163,15 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     ? (priorityRaw as TaskPriority)
     : "medium";
 
+  const scheduledForRaw = String(formData.get("scheduledFor") ?? "").trim();
+  let scheduledFor: string | null = null;
+  if (scheduledForRaw) {
+    const parsed = new Date(scheduledForRaw);
+    if (!Number.isNaN(parsed.getTime()) && parsed.getTime() > Date.now()) {
+      scheduledFor = parsed.toISOString();
+    }
+  }
+
   if (objective.length === 0) {
     redirect("/agent-operations?action=mark-task-error");
   }
@@ -182,6 +191,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
       priority,
       objective,
       task_type: taskType,
+      scheduled_for: scheduledFor,
       source_type: "operator_request",
       metadata: {
         runner_name: "Mark",
@@ -189,6 +199,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
         requested_at: now,
         human_approval_required: true,
         outbound_dispatch_allowed: false,
+        scheduled_for: scheduledFor,
       },
     })
     .select("id")
@@ -218,7 +229,9 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     run_status: "queued",
     model_provider: "external_cli",
     model_name: "mark-mac-mini",
-    reasoning_summary: "Task queued from the board. External runner has not picked it up yet.",
+    reasoning_summary: scheduledFor
+      ? `Task queued from the board, scheduled to start ${scheduledFor}. External runner has not picked it up yet.`
+      : "Task queued from the board. External runner has not picked it up yet.",
     started_at: null,
     completed_at: null,
     metadata: { runner_name: "Mark", source: "operator_board_create" },
