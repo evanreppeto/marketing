@@ -16,6 +16,8 @@ function msg(over: Partial<MarkMessage>): MarkMessage {
     steps: [],
     feedback: null,
     actions: [],
+    suggestions: [],
+    attachments: [],
     createdAt: "t",
     ...over,
   };
