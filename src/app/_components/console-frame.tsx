@@ -36,7 +36,7 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
   const markRailAside =
     "border-b border-[var(--border-panel)] bg-[var(--surface-sidebar)] px-4 py-3 " +
     "group/rail lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:flex lg:h-screen lg:min-h-0 lg:flex-col " +
-    "lg:border-b-0 lg:border-r lg:py-5 lg:px-3 lg:w-[64px] lg:overflow-x-hidden " +
+    "lg:border-b-0 lg:border-r lg:py-5 lg:px-2 lg:w-[64px] lg:overflow-x-hidden " +
     "lg:transition-[width,padding,box-shadow] lg:duration-200 lg:ease-out " +
     "lg:hover:w-[280px] lg:focus-within:w-[280px] lg:hover:px-4 lg:focus-within:px-4 " +
     "lg:hover:shadow-[0_24px_70px_-20px_rgba(0,0,0,0.85)] lg:focus-within:shadow-[0_24px_70px_-20px_rgba(0,0,0,0.85)]";
@@ -88,7 +88,7 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
               </Link>
             )}
 
-            <SideNav active={pathname} items={navItems} />
+            <SideNav active={pathname} items={navItems} collapsible={isMark} />
           </div>
 
           <OperatorProfile rail={isMark} />

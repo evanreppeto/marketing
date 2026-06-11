@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { NavIcon, type NavIconName } from "./nav-icons";
+import { cx } from "./theme";
 
 export type ShellNavItem = {
   label: string;
@@ -17,6 +18,9 @@ export type ShellNavItem = {
 type SideNavProps = {
   active: string;
   items: ShellNavItem[];
+  /** Collapsed icon-rail mode (Mark focus mode): items are centered icon squares
+   *  that expand to full labelled rows when the rail (group/rail) is hovered/focused. */
+  collapsible?: boolean;
 };
 
 function matchesItem(item: ShellNavItem, path: string) {
@@ -26,7 +30,7 @@ function matchesItem(item: ShellNavItem, path: string) {
   return item.matches.some((match) => path === match || (match !== "/" && path.startsWith(match)));
 }
 
-export function SideNav({ active, items }: SideNavProps) {
+export function SideNav({ active, items, collapsible = false }: SideNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, setPending] = useState<{ fromPath: string; href: string } | null>(null);
@@ -49,11 +53,15 @@ export function SideNav({ active, items }: SideNavProps) {
         return (
           <Link
             aria-current={isActive ? "page" : undefined}
-            className={`group inline-flex min-h-11 shrink-0 items-center gap-3 rounded-lg border px-3.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:w-full ${
+            className={cx(
+              "group inline-flex min-h-11 shrink-0 items-center rounded-lg border text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+              collapsible
+                ? "gap-3 px-3.5 lg:h-11 lg:w-11 lg:self-center lg:justify-center lg:gap-0 lg:overflow-hidden lg:px-0 lg:group-hover/rail:w-full lg:group-hover/rail:self-stretch lg:group-hover/rail:justify-start lg:group-hover/rail:gap-3 lg:group-hover/rail:px-3.5 lg:group-focus-within/rail:w-full lg:group-focus-within/rail:self-stretch lg:group-focus-within/rail:justify-start lg:group-focus-within/rail:gap-3 lg:group-focus-within/rail:px-3.5"
+                : "gap-3 px-3.5 lg:w-full",
               isActive
                 ? "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_3px_0_0_var(--accent)]"
-                : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-            }`}
+                : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+            )}
             href={item.href}
             key={item.href}
             onClick={() => {
