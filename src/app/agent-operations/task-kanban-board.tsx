@@ -257,8 +257,8 @@ export function TaskKanbanBoard({
                   >
                     {col.label}
                   </span>
-                  <span className="rounded-full bg-[var(--surface-raised)] px-1.5 text-[10px] font-bold text-[var(--text-muted)]">
-                    {cards.length}
+                  <span className="rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-bold text-[var(--text-muted)]">
+                    {cards.length} {cards.length === 1 ? "card" : "cards"}
                   </span>
                 </div>
 
@@ -277,7 +277,9 @@ export function TaskKanbanBoard({
                   ))}
 
                   {cards.length === 0 && !isValidTarget ? (
-                    <div className="px-1 py-3 text-[11px] italic text-[var(--text-muted)]">No tasks</div>
+                    <div className="rounded-lg border border-dashed border-[var(--border-hairline)] px-2 py-5 text-center text-[10.5px] font-medium text-[var(--text-muted)]">
+                      Nothing {col.label.toLowerCase()}
+                    </div>
                   ) : null}
                 </div>
               </div>
