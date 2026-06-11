@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { buttonClasses } from "@/app/_components/page-header";
@@ -43,6 +45,7 @@ export function CampaignCockpit({
 }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const creativeRef = useRef<HTMLDivElement | null>(null);
 
   // Drawer + focused item are derived from the URL so the cockpit is
   // deep-linkable, refresh-safe, and back/forward navigable. A bare ?item=…
@@ -82,63 +85,61 @@ export function CampaignCockpit({
     writeParams({ drawer: null, item: null });
   }
 
-  const DRAWER_TITLES: Record<DrawerKey, string> = {
-    reasoning: `Talk to ${agentName}`,
-    approvals: "Decision log",
-    performance: "Measurement",
-    audit: "Audit",
-    dispatch: "Dispatch",
-    media: "Media",
-    economics: "Economics",
-    brief: "Full brief",
+  // Single source of truth for per-drawer trigger label/count and the open
+  // drawer's title (they're identical). Rendered in canonical DRAWER_KEYS order.
+  const DRAWER_META: Record<DrawerKey, { title: string; count?: number }> = {
+    reasoning: { title: `Talk to ${agentName}`, count: detail.markConversation.length },
+    approvals: { title: "Decision log", count: detail.approvals.length },
+    performance: { title: "Measurement" },
+    audit: { title: "Audit", count: detail.auditLog.length },
+    dispatch: { title: "Dispatch", count: dispatches.length },
+    media: { title: "Media", count: detail.media.length },
+    economics: { title: "Economics" },
+    brief: { title: "Full brief" },
   };
-
-  const triggers: Array<{ key: DrawerKey; label: string; count?: number }> = [
-    { key: "reasoning", label: `Talk to ${agentName}`, count: detail.markConversation.length },
-    { key: "approvals", label: "Decision log", count: detail.approvals.length },
-    { key: "performance", label: "Measurement" },
-    { key: "audit", label: "Audit", count: detail.auditLog.length },
-    { key: "dispatch", label: "Dispatch", count: dispatches.length },
-    { key: "media", label: "Media", count: detail.media.length },
-    { key: "economics", label: "Economics" },
-    { key: "brief", label: "Full brief" },
-  ];
-  // Render in canonical drawer order.
-  const orderedTriggers = DRAWER_KEYS.map((key) => triggers.find((t) => t.key === key)!);
 
   return (
     <>
       <CampaignHeader campaign={detail.campaign} launchState={detail.launchState} />
 
-      <LaunchTracker campaignId={detail.campaign.id} launchState={detail.launchState} onReviewPieces={() => {}} />
+      <LaunchTracker
+        campaignId={detail.campaign.id}
+        launchState={detail.launchState}
+        onReviewPieces={() => creativeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      />
 
       <nav aria-label="Campaign details" className="module-rise mb-5 mt-5 flex flex-wrap gap-2">
-        {orderedTriggers.map((trigger) => (
-          <button
-            key={trigger.key}
-            type="button"
-            onClick={() => openDrawer(trigger.key)}
-            className={buttonClasses({ variant: "ghost", size: "sm" })}
-          >
-            {trigger.label}
-            {typeof trigger.count === "number" ? (
-              <span className="ml-2 font-mono text-xs tabular-nums text-[var(--text-muted)]">{trigger.count}</span>
-            ) : null}
-          </button>
-        ))}
+        {DRAWER_KEYS.map((key) => {
+          const m = DRAWER_META[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => openDrawer(key)}
+              className={buttonClasses({ variant: "ghost", size: "sm" })}
+            >
+              {m.title}
+              {typeof m.count === "number" ? (
+                <span className="ml-2 font-mono text-xs tabular-nums text-[var(--text-muted)]">{m.count}</span>
+              ) : null}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <CreativeTab
-          groups={detail.groupedAssets}
-          campaignId={detail.campaign.id}
-          filter={filterParam}
-          onFilterChange={(value) => replaceParams({ filter: value })}
-        />
+        <div ref={creativeRef}>
+          <CreativeTab
+            groups={detail.groupedAssets}
+            campaignId={detail.campaign.id}
+            filter={filterParam}
+            onFilterChange={(value) => replaceParams({ filter: value })}
+          />
+        </div>
         <CockpitRail detail={detail} />
       </div>
 
-      <WorkspaceDrawer open={drawer != null} title={DRAWER_TITLES[drawer ?? "approvals"]} onClose={closeDrawer}>
+      <WorkspaceDrawer key={drawer} open={drawer != null} title={drawer != null ? DRAWER_META[drawer].title : ""} onClose={closeDrawer}>
         {drawer === "reasoning" ? (
           <MarkConversation campaignId={detail.campaign.id} conversation={detail.markConversation} reasoning={detail.reasoning} />
         ) : null}
