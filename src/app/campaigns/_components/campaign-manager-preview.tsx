@@ -5,12 +5,12 @@ import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 import { campaignManagerWhere, campaignNextStep } from "./library-model";
 
-export function CampaignManagerPreview({ campaign }: { campaign: CampaignWorkspaceListItem }) {
+export function CampaignManagerPreview({ campaign, id }: { campaign: CampaignWorkspaceListItem; id?: string }) {
   const where = campaignManagerWhere(campaign);
   const nextStep = campaignNextStep(campaign);
 
   return (
-    <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-4 sm:px-5">
+    <div id={id} className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-4 sm:px-5">
       <div className="grid gap-3 xl:grid-cols-[1.15fr_0.9fr_0.8fr]">
         <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-3">
           <h3 className="text-sm font-bold text-[var(--text-primary)]">Campaign preview</h3>
@@ -47,7 +47,7 @@ export function CampaignManagerPreview({ campaign }: { campaign: CampaignWorkspa
           <h3 className="text-sm font-bold text-[var(--text-primary)]">Can it go out?</h3>
           <dl className="mt-2 space-y-2 text-sm">
             <PreviewFact label="Destinations" value={where.join(", ")} />
-            <PreviewFact label="Ready pieces" value={campaign.pendingCount > 0 ? "Not yet" : "Ready"} />
+            <PreviewFact label="Ready pieces" value={readinessLabel(campaign)} />
             <PreviewFact label="Best next step" value={nextStep} />
           </dl>
         </section>
@@ -67,4 +67,9 @@ function PreviewFact({ label, value }: { label: string; value: string }) {
 
 function humanize(value: string) {
   return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function readinessLabel(campaign: CampaignWorkspaceListItem) {
+  if (campaign.assetCount === 0 || campaign.lifecycle === "Drafting" || campaign.pendingCount > 0) return "Not yet";
+  return "Ready";
 }

@@ -216,7 +216,7 @@ describe("campaign manager helpers", () => {
       all: 5,
       "ready-to-send": 1,
       "mark-working": 1,
-      live: 2,
+      live: 1,
       archived: 1,
     });
   });
@@ -228,5 +228,27 @@ describe("campaign manager helpers", () => {
     ];
 
     expect(filterCampaignManagerItems(items, "archived").map((campaignItem) => campaignItem.id)).toEqual(["archived"]);
+  });
+
+  it("keeps archived campaigns in all and archived, but excludes them from active views", () => {
+    const items = [
+      campaign({ id: "active-live", status: "Live", lifecycle: "Live", pendingCount: 0 }),
+      campaign({ id: "active-review", status: "Pending approval", lifecycle: "In review", pendingCount: 1 }),
+      campaign({ id: "archived-live", status: "Archived", lifecycle: "Live", pendingCount: 1 }),
+    ];
+
+    expect(filterCampaignManagerItems(items, "archived").map((campaignItem) => campaignItem.id)).toEqual(["archived-live"]);
+    expect(filterCampaignManagerItems(items, "all").map((campaignItem) => campaignItem.id)).toEqual([
+      "active-live",
+      "active-review",
+      "archived-live",
+    ]);
+    expect(filterCampaignManagerItems(items, "live").map((campaignItem) => campaignItem.id)).toEqual(["active-live"]);
+    expect(filterCampaignManagerItems(items, "needs-attention").map((campaignItem) => campaignItem.id)).toEqual(["active-review"]);
+
+    expect(managerViewCounts(items).archived).toBe(1);
+    expect(managerViewCounts(items).all).toBe(3);
+    expect(managerViewCounts(items).live).toBe(1);
+    expect(managerViewCounts(items)["needs-attention"]).toBe(1);
   });
 });

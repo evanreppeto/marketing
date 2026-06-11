@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
@@ -25,6 +25,7 @@ const TONE: Record<CampaignManagerTone, "amber" | "blue" | "green" | "gray" | "r
 
 export function CampaignManagerRow({ campaign }: { campaign: CampaignWorkspaceListItem }) {
   const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
   const status = campaignManagerStatus(campaign);
   const summary = campaignManagerSummary(campaign);
   const where = campaignManagerWhere(campaign);
@@ -36,6 +37,7 @@ export function CampaignManagerRow({ campaign }: { campaign: CampaignWorkspaceLi
         <button
           type="button"
           aria-expanded={expanded}
+          aria-controls={panelId}
           aria-label={`${expanded ? "Collapse" : "Expand"} ${campaign.name}`}
           onClick={() => setExpanded((value) => !value)}
           className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] font-mono text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
@@ -52,23 +54,37 @@ export function CampaignManagerRow({ campaign }: { campaign: CampaignWorkspaceLi
           </p>
         </div>
 
-        <StatusPill tone={TONE[status.tone]}>{status.label}</StatusPill>
+        <div className="min-w-0">
+          <MobileLabel>Status</MobileLabel>
+          <StatusPill tone={TONE[status.tone]}>{status.label}</StatusPill>
+        </div>
 
         <div className="text-xs leading-5 text-[var(--text-secondary)]">
+          <MobileLabel>Content</MobileLabel>
           <div className="font-semibold text-[var(--text-primary)]">{summary.primary}</div>
           <div>{summary.secondary}</div>
         </div>
 
-        <div className="text-xs leading-5 text-[var(--text-secondary)]">{where.slice(0, 2).join(", ")}</div>
+        <div className="text-xs leading-5 text-[var(--text-secondary)]">
+          <MobileLabel>Where</MobileLabel>
+          {where.slice(0, 2).join(", ")}
+        </div>
 
-        <div className="text-xs font-bold leading-5 text-[var(--text-primary)]">{nextStep}</div>
+        <div className="text-xs font-bold leading-5 text-[var(--text-primary)]">
+          <MobileLabel>Next step</MobileLabel>
+          {nextStep}
+        </div>
 
         <Link href={campaign.href} className={buttonClasses({ variant: "ghost", size: "sm" })}>
           Open
         </Link>
       </div>
 
-      {expanded ? <CampaignManagerPreview campaign={campaign} /> : null}
+      {expanded ? <CampaignManagerPreview campaign={campaign} id={panelId} /> : null}
     </article>
   );
+}
+
+function MobileLabel({ children }: { children: React.ReactNode }) {
+  return <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">{children}</div>;
 }

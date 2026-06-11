@@ -130,12 +130,15 @@ export function managerViewCounts(campaigns: CampaignWorkspaceListItem[]): Recor
 }
 
 function matchesManagerView(campaign: CampaignWorkspaceListItem, view: CampaignManagerView): boolean {
+  const archived = /archived/i.test(campaign.status);
+  if (view === "archived") return archived;
   if (view === "all") return true;
+  if (archived) return false;
   if (view === "needs-attention") return campaign.pendingCount > 0 || campaign.lifecycle === "In review";
   if (view === "ready-to-send") return campaign.lifecycle === "Ready";
   if (view === "mark-working") return campaign.lifecycle === "Drafting";
   if (view === "live") return campaign.lifecycle === "Live";
-  return /archived/i.test(campaign.status);
+  return false;
 }
 
 function assetTypeKey(type: string): string {
