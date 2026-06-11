@@ -1094,6 +1094,13 @@ export type Database = {
           status: Database["public"]["Enums"]["agent_task_status"];
           priority: Database["public"]["Enums"]["agent_task_priority"];
           objective: string;
+          description: string | null;
+          owner_kind: string;
+          owner_label: string;
+          driver_kind: string;
+          driver_agent_id: string | null;
+          driver_label: string;
+          approver_label: string;
           task_type: string;
           source_type: string | null;
           source_id: string | null;
@@ -1116,6 +1123,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["agent_task_status"];
           priority?: Database["public"]["Enums"]["agent_task_priority"];
           objective: string;
+          description?: string | null;
+          owner_kind?: string;
+          owner_label?: string;
+          driver_kind?: string;
+          driver_agent_id?: string | null;
+          driver_label?: string;
+          approver_label?: string;
           task_type: string;
           source_type?: string | null;
           source_id?: string | null;
@@ -1138,6 +1152,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["agent_task_status"];
           priority?: Database["public"]["Enums"]["agent_task_priority"];
           objective?: string;
+          description?: string | null;
+          owner_kind?: string;
+          owner_label?: string;
+          driver_kind?: string;
+          driver_agent_id?: string | null;
+          driver_label?: string;
+          approver_label?: string;
           task_type?: string;
           source_type?: string | null;
           source_id?: string | null;
@@ -1153,6 +1174,42 @@ export type Database = {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      agent_task_events: {
+        Row: {
+          id: string;
+          task_id: string;
+          actor_kind: string;
+          actor_label: string;
+          event_type: string;
+          title: string;
+          body: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          actor_kind: string;
+          actor_label: string;
+          event_type: string;
+          title: string;
+          body?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          actor_kind?: string;
+          actor_label?: string;
+          event_type?: string;
+          title?: string;
+          body?: string | null;
+          metadata?: Json;
+          created_at?: string;
         };
         Relationships: [];
       };
