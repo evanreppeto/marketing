@@ -1,9 +1,10 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { campaignDriver, type CampaignDriver } from "@/domain";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 const CAMPAIGN_SELECT =
-  "id,name,persona,restoration_focus,status,company_id,contact_id,lead_id,owner,objective,audience_summary,offer_summary,compliance_notes,launch_locked,source_signal,reasoning_payload,audit_payload,created_at,updated_at";
+  "id,name,persona,restoration_focus,status,company_id,contact_id,lead_id,owner,objective,audience_summary,offer_summary,compliance_notes,launch_locked,source_signal,source_system,reasoning_payload,audit_payload,created_at,updated_at";
 const ASSET_SELECT =
   "id,campaign_id,asset_type,channel,title,status,tool_source,prompt_input,prompt_inputs,draft_body,edited_body,approved_body,dispatch_locked,compliance_notes,reasoning_payload,audit_payload,created_at,updated_at";
 const APPROVAL_SELECT =
@@ -44,6 +45,10 @@ export type CampaignWorkspaceListItem = {
   sourceCount: number;
   thumbnailUrl: string | null;
   assetTypes: string[];
+  /** "operator" | "agent" — who is driving, for the card avatar. */
+  driver: CampaignDriver;
+  /** Distinct channel labels for the card subline, e.g. ["Meta", "Email"]. */
+  channels: string[];
   previewText: string | null;
   previewLabel: string | null;
   updatedAt: string;
@@ -270,6 +275,7 @@ type CampaignRow = {
   compliance_notes: string | null;
   launch_locked: boolean;
   source_signal: unknown;
+  source_system: string | null | undefined;
   reasoning_payload: unknown;
   audit_payload: unknown;
   created_at: string;
@@ -432,6 +438,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
       const preview = pickWorkspacePreview(campaignAssets);
       const reasoning = buildReasoning(campaign, campaignAssetRows);
       const launch = buildLaunchState(campaignAssets, campaign.launch_locked);
+      const assetTypes = uniqueStrings(campaignAssets.map((asset) => asset.assetType)).slice(0, 4);
       return {
         id: campaign.id,
         name: cleanCampaignName(campaign.name),
@@ -449,7 +456,9 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         mediaCount: mediaByCampaign.get(campaign.id)?.length ?? 0,
         sourceCount: sourceCountByCampaign.get(campaign.id) ?? 0,
         thumbnailUrl: pickThumbnail(mediaByCampaign.get(campaign.id) ?? []),
-        assetTypes: uniqueStrings(campaignAssets.map((asset) => asset.assetType)).slice(0, 4),
+        assetTypes,
+        driver: campaignDriver({ sourceSystem: campaign.source_system ?? null, lifecycle: launch.lifecycle }),
+        channels: Array.from(new Set(assetTypes.map(humanizeChannel))).slice(0, 3),
         previewText: preview?.text ?? null,
         previewLabel: preview?.label ?? null,
         updatedAt: formatDate(campaign.updated_at),
@@ -1682,6 +1691,17 @@ function uniqueMedia(items: CampaignMediaAsset[]) {
     if (!byUrl.has(item.url)) byUrl.set(item.url, item);
   }
   return [...byUrl.values()];
+}
+
+function humanizeChannel(raw: string): string {
+  const map: Record<string, string> = {
+    social_ad: "Meta",
+    email: "Email",
+    sms: "SMS",
+    landing_page: "Landing",
+    one_pager: "Print",
+  };
+  return map[raw] ?? raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function uniqueStrings(values: Array<string | null | undefined>) {

@@ -22,6 +22,8 @@ function item(overrides: Partial<CampaignWorkspaceListItem>): CampaignWorkspaceL
     sourceCount: 0,
     thumbnailUrl: null,
     assetTypes: ["Email"],
+    driver: "agent",
+    channels: ["Email"],
     previewText: null,
     previewLabel: null,
     updatedAt: "Jun 10",
