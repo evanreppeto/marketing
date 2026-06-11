@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
-import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError, OFFICIAL_PERSONA_MAPPINGS, RESTORATION_FOCUS_VALUES } from "@/domain";
+import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
 import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
@@ -39,6 +39,7 @@ import { editDraftAsset, getDraftAsset, type DraftAssetView } from "@/lib/campai
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { saveItem, removeSavedItem, getSavedItem, markPromoted, type SavedKind } from "@/lib/mark-chat/saved";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { validatePromoteTarget, type PromoteTarget } from "./promote-target";
 
 export type SendMessageState = { ok: boolean; message: string; conversationId?: string } | null;
 
@@ -476,21 +477,6 @@ export async function decideCampaignDraftAction(formData: FormData): Promise<voi
 }
 
 // ── Save & Promote ───────────────────────────────────────────────────────────
-
-export type PromoteTarget =
-  | { mode: "existing"; campaignId: string }
-  | { mode: "new"; name: string; persona: string; restorationFocus: string };
-
-/** Pure: validate a promote target. Exported for unit testing. */
-export function validatePromoteTarget(target: PromoteTarget): { ok: true } | { ok: false; message: string } {
-  if (target.mode === "existing") {
-    return target.campaignId ? { ok: true } : { ok: false, message: "Pick a campaign." };
-  }
-  if (!target.name.trim()) return { ok: false, message: "Name the campaign." };
-  if (!(OFFICIAL_PERSONA_MAPPINGS as readonly string[]).includes(target.persona)) return { ok: false, message: "Choose a persona." };
-  if (!(RESTORATION_FOCUS_VALUES as readonly string[]).includes(target.restorationFocus)) return { ok: false, message: "Choose a restoration focus." };
-  return { ok: true };
-}
 
 export type SaveItemActionInput = {
   kind: SavedKind;

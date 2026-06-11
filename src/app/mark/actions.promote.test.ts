@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validatePromoteTarget } from "./actions";
+import { validatePromoteTarget } from "./promote-target";
 
 describe("validatePromoteTarget", () => {
   it("accepts an existing campaign", () => {
