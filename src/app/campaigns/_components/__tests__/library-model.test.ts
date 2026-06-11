@@ -115,10 +115,18 @@ describe("campaign manager helpers", () => {
     ["In review", 2, { label: "Review needed", tone: "amber" }],
     ["In review", 0, { label: "Ready", tone: "blue" }],
     ["Ready", 0, { label: "Ready", tone: "blue" }],
+    ["Live", 1, { label: "Review needed", tone: "amber" }],
     ["Live", 0, { label: "Live", tone: "green" }],
     ["Drafting", 0, { label: "Mark drafting", tone: "gray" }],
   ])("maps lifecycle %s and pending %s to plain status", (lifecycle, pendingCount, expected) => {
     expect(campaignManagerStatus(campaign({ lifecycle, pendingCount }))).toEqual(expected);
+  });
+
+  it("shows archived display status regardless of lifecycle", () => {
+    expect(campaignManagerStatus(campaign({ status: "Archived", lifecycle: "Live", pendingCount: 0 }))).toEqual({
+      label: "Archived",
+      tone: "gray",
+    });
   });
 
   it("summarizes content with review count", () => {

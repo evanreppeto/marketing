@@ -66,10 +66,11 @@ const WHERE_LABELS: Record<string, string> = {
 };
 
 export function campaignManagerStatus(campaign: CampaignWorkspaceListItem): CampaignManagerStatus {
+  if (/archived/i.test(campaign.status)) return { label: "Archived", tone: "gray" };
+  if (campaign.pendingCount > 0) return { label: "Review needed", tone: "amber" };
   if (campaign.lifecycle === "Live") return { label: "Live", tone: "green" };
   if (campaign.lifecycle === "Drafting") return { label: "Mark drafting", tone: "gray" };
   if (campaign.lifecycle === "Ready") return { label: "Ready", tone: "blue" };
-  if (campaign.pendingCount > 0) return { label: "Review needed", tone: "amber" };
   return { label: "Ready", tone: "blue" };
 }
 
