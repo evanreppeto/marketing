@@ -8,7 +8,7 @@ export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["tim
     <section className="module-rise rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
       <div className="border-b border-[var(--border-hairline)] px-4 py-4 sm:px-5">
         <div className="signal-eyebrow">Activity</div>
-        <h2 className="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Ticket timeline</h2>
+        <h2 className="mt-1 font-display text-xl font-bold text-[var(--text-primary)]">Ticket timeline</h2>
       </div>
 
       {timeline.length > 0 ? (

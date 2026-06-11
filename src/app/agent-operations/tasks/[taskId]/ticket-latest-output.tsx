@@ -32,7 +32,7 @@ export function TicketLatestOutput({
             <StatusPill tone="blue">{humanize(output.outputType)}</StatusPill>
             <StatusPill tone={approvalTone(output.approvalStatus)}>{humanize(output.approvalStatus)}</StatusPill>
           </div>
-          <h2 className="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{output.title}</h2>
+          <h2 className="mt-2 font-display text-xl font-bold text-[var(--text-primary)]">{output.title}</h2>
           <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">Created {formatDate(output.createdAt)}</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">

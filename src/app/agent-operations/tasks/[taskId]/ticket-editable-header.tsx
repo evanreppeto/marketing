@@ -92,7 +92,7 @@ export function TicketEditableHeader({
             <label className="mt-3 block">
               <span className="sr-only">Task objective</span>
               <input
-                className="w-full rounded-lg border border-transparent bg-transparent px-0 py-1 font-display text-[clamp(1.45rem,2.4vw,2rem)] font-bold leading-tight tracking-[-0.03em] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--border-hairline)] focus:bg-[var(--surface-inset)] focus:px-3 focus:outline focus:outline-2 focus:outline-[var(--accent)]"
+                className="w-full rounded-lg border border-transparent bg-transparent px-0 py-1 font-display text-2xl font-bold leading-tight text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--border-hairline)] focus:bg-[var(--surface-inset)] focus:px-3 focus:outline focus:outline-2 focus:outline-[var(--accent)] sm:text-3xl"
                 onBlur={() => saveTextField("objective", title)}
                 onChange={(event) => setTitle(event.target.value)}
                 onKeyDown={(event) => {

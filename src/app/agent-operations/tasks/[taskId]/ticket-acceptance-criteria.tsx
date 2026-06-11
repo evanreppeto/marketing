@@ -45,7 +45,7 @@ export function TicketAcceptanceCriteria({
       <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
         <div>
           <div className="signal-eyebrow">Acceptance</div>
-          <h2 className="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Criteria</h2>
+          <h2 className="mt-1 font-display text-xl font-bold text-[var(--text-primary)]">Criteria</h2>
         </div>
         <div className="font-mono text-xs font-semibold text-[var(--text-muted)]">
           {completedCount}/{items.length} complete
