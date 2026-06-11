@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
-import { EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "@/app/_components/page-header";
+import { EmptyState, PageHeader, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 import { TaskInputsPanel, TaskLogsPanel, TaskOutputsPanel } from "./task-record-panels";
@@ -13,6 +13,8 @@ type PageProps = {
 };
 
 type TaskSectionKey = "overview" | "inputs" | "outputs" | "logs";
+
+type LiveDetail = Extract<Awaited<ReturnType<typeof getAgentTaskDetail>>, { status: "live" }>;
 
 export default async function Page({ params, searchParams }: PageProps) {
   await connection();
@@ -36,34 +38,49 @@ export default async function Page({ params, searchParams }: PageProps) {
   }
 
   const task = detail.task;
+  const counts = { inputs: detail.inputs.length, outputs: detail.outputs.length, logs: detail.logs.length };
 
   return (
-    <>
-      <PageHeader
-        eyebrow={`${detail.agent.name} task`}
-        title={task.objective}
-        description={`${humanize(task.taskType)} · ${humanize(task.priority)} priority`}
-        aside={
-          <div className="flex flex-wrap gap-2">
-            <StatusPill tone={statusTone(task.status)}>{humanize(task.status)}</StatusPill>
-            <StatusPill tone="amber">Outbound locked</StatusPill>
+    <div className="mx-auto w-full max-w-[1080px]">
+      <Link
+        href="/board"
+        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+      >
+        <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10 4 6 8l4 4" />
+        </svg>
+        Task board
+      </Link>
+
+      <div className="mt-5 grid items-start gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+        {/* Main column */}
+        <div className="min-w-0">
+          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            {humanize(task.taskType)}
           </div>
-        }
-      />
+          <h1
+            className="mt-2 text-[22px] font-semibold leading-snug tracking-[-0.01em] text-[var(--text-primary)]"
+            style={{ fontFamily: "var(--font-sans)" }}
+          >
+            {task.objective}
+          </h1>
 
-      <div className="mx-auto w-full max-w-[760px] space-y-4">
-        <TaskSectionTabs
-          activeSection={activeSection}
-          counts={{ inputs: detail.inputs.length, outputs: detail.outputs.length, logs: detail.logs.length }}
-          taskId={task.id}
-        />
+          <div className="mt-5">
+            <TaskSectionTabs activeSection={activeSection} counts={counts} taskId={task.id} />
+          </div>
 
-        {activeSection === "overview" ? <TaskOverview detail={detail} /> : null}
-        {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
-        {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
-        {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
+          <div className="mt-4">
+            {activeSection === "overview" ? <TaskOverview detail={detail} /> : null}
+            {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
+            {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
+            {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
+          </div>
+        </div>
+
+        {/* Properties rail */}
+        <TaskSidebar detail={detail} />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -84,27 +101,30 @@ function TaskSectionTabs({
   ];
 
   return (
-    <nav
-      aria-label="Mark task sections"
-      className="flex gap-1 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1"
-    >
+    <nav aria-label="Task sections" className="flex items-center gap-5 border-b border-[var(--border-hairline)]">
       {tabs.map((tab) => {
         const isActive = activeSection === tab.key;
         const href = tab.key === "overview" ? `/agent-operations/tasks/${taskId}` : `/agent-operations/tasks/${taskId}?section=${tab.key}`;
         return (
           <Link
             aria-current={isActive ? "page" : undefined}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold transition ${
+            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 pb-2.5 text-[13px] font-semibold transition ${
               isActive
-                ? "bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--elev-panel)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                ? "border-[var(--accent)] text-[var(--text-primary)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
             }`}
             href={href}
             key={tab.key}
           >
             {tab.label}
             {tab.count !== null ? (
-              <span className="rounded-full bg-current/10 px-1.5 text-xs tabular-nums">{tab.count}</span>
+              <span
+                className={`rounded-full px-1.5 text-[11px] font-bold tabular-nums ${
+                  isActive ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "bg-[var(--surface-inset)] text-[var(--text-muted)]"
+                }`}
+              >
+                {tab.count}
+              </span>
             ) : null}
           </Link>
         );
@@ -113,15 +133,39 @@ function TaskSectionTabs({
   );
 }
 
-function TaskOverview({ detail }: { detail: Extract<Awaited<ReturnType<typeof getAgentTaskDetail>>, { status: "live" }> }) {
+function TaskOverview({ detail }: { detail: LiveDetail }) {
+  const tiles: Array<{ label: string; value: number; section: TaskSectionKey }> = [
+    { label: "Inputs", value: detail.inputs.length, section: "inputs" },
+    { label: "Outputs", value: detail.outputs.length, section: "outputs" },
+    { label: "Logs", value: detail.logs.length, section: "logs" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[13.5px] leading-6 text-[var(--text-secondary)]">
+        Mark is preparing this work for you. Nothing is sent, published, or launched from here — anything outbound waits
+        for your approval.
+      </p>
+
+      <div className="grid grid-cols-3 gap-2.5">
+        {tiles.map((tile) => (
+          <Link
+            href={`/agent-operations/tasks/${detail.task.id}?section=${tile.section}`}
+            key={tile.label}
+            className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--border-strong)]"
+          >
+            <div className="text-[22px] font-bold tabular-nums leading-none text-[var(--text-primary)]">{tile.value}</div>
+            <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{tile.label}</div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TaskSidebar({ detail }: { detail: LiveDetail }) {
   const task = detail.task;
   const relatedRecord = relatedRecordHref(task.sourceType, task.sourceId);
-  const facts: Array<[string, string]> = [
-    ["Agent", detail.agent.name],
-    ["Status", humanize(task.status)],
-    ["Created", formatDate(task.createdAt)],
-    ["Updated", formatDate(task.updatedAt)],
-  ];
   const links = [
     detail.campaign ? { label: "Campaign", value: detail.campaign.name, href: `/campaigns/${detail.campaign.id}` } : null,
     detail.approval ? { label: "Approval", value: humanize(detail.approval.status), href: detail.approval.href } : null,
@@ -129,26 +173,42 @@ function TaskOverview({ detail }: { detail: Extract<Awaited<ReturnType<typeof ge
   ].filter((link): link is { label: string; value: string; href: string } => Boolean(link));
 
   return (
-    <Panel>
-      <div className="signal-eyebrow">Objective</div>
-      <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{task.objective}</p>
-
-      <dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        {facts.map(([label, value]) => (
-          <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] pb-2" key={label}>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</dt>
-            <dd className="truncate text-sm font-bold text-[var(--text-primary)]">{value}</dd>
-          </div>
-        ))}
-      </dl>
+    <aside className="space-y-5 lg:sticky lg:top-5 lg:self-start lg:border-l lg:border-[var(--border-hairline)] lg:pl-6">
+      <div className="space-y-3.5">
+        <Property label="Status">
+          <StatusPill tone={statusTone(task.status)}>{humanize(task.status)}</StatusPill>
+        </Property>
+        <Property label="Priority">
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-primary)]">
+            <span className="h-2 w-2 rounded-full" style={{ background: priorityDot(task.priority) }} />
+            {humanize(task.priority)}
+          </span>
+        </Property>
+        <Property label="Agent">
+          <span className="text-[13px] font-semibold text-[var(--text-primary)]">{detail.agent.name}</span>
+        </Property>
+        <Property label="Outbound">
+          <StatusPill tone="amber">Locked</StatusPill>
+        </Property>
+        <Property label="Created">
+          <span className="text-[13px] text-[var(--text-secondary)]">{formatDate(task.createdAt)}</span>
+        </Property>
+        <Property label="Updated">
+          <span className="text-[13px] text-[var(--text-secondary)]">{formatDate(task.updatedAt)}</span>
+        </Property>
+      </div>
 
       {links.length > 0 ? (
-        <div className="mt-5">
-          <div className="signal-eyebrow">Linked work</div>
-          <div className="mt-2 grid gap-2">
+        <div className="border-t border-[var(--border-hairline)] pt-4">
+          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Linked</div>
+          <div className="mt-2.5 space-y-1.5">
             {links.map((link) => (
-              <Link className={buttonClasses({ variant: "ghost", className: "justify-between" })} href={link.href} key={link.label}>
-                {link.label}
+              <Link
+                key={link.label}
+                href={link.href}
+                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[13px] transition hover:bg-[var(--surface-inset)]"
+              >
+                <span className="font-semibold text-[var(--text-secondary)]">{link.label}</span>
                 <span className="truncate text-[var(--text-muted)]">{link.value}</span>
               </Link>
             ))}
@@ -157,12 +217,28 @@ function TaskOverview({ detail }: { detail: Extract<Awaited<ReturnType<typeof ge
       ) : null}
 
       {detail.approval ? (
-        <Link className={buttonClasses({ variant: "primary", className: "mt-5 w-full" })} href={detail.approval.href}>
+        <Link className={buttonClasses({ variant: "primary", size: "sm", className: "w-full" })} href={detail.approval.href}>
           Open human review
         </Link>
       ) : null}
-    </Panel>
+    </aside>
   );
+}
+
+function Property({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[12px] font-medium text-[var(--text-muted)]">{label}</span>
+      <span className="min-w-0 text-right">{children}</span>
+    </div>
+  );
+}
+
+function priorityDot(priority: string): string {
+  if (/urgent/i.test(priority)) return "var(--priority)";
+  if (/high/i.test(priority)) return "var(--warn)";
+  if (/low/i.test(priority)) return "var(--text-muted)";
+  return "var(--accent)";
 }
 
 function relatedRecordHref(sourceType: string | null, sourceId: string | null) {

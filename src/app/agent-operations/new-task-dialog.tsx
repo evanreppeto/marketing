@@ -31,6 +31,7 @@ export function NewTaskDialog() {
   const [priority, setPriority] = useState<(typeof PRIORITY_OPTIONS)[number]["value"]>("medium");
   const [whenPreset, setWhenPreset] = useState<SchedulePreset>("now");
   const [customIso, setCustomIso] = useState("");
+  const [isMac] = useState(() => typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent));
 
   function openDialog(mode: "task" | "schedule") {
     setOpen(true);
@@ -72,6 +73,9 @@ export function NewTaskDialog() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  // Show the right modifier glyph for the platform (⌘ on Mac, Ctrl elsewhere).
+  const modKey = isMac ? "⌘" : "Ctrl";
 
   const priorityOption = PRIORITY_OPTIONS.find((option) => option.value === priority)!;
   const scheduledForValue =
@@ -127,7 +131,7 @@ export function NewTaskDialog() {
             </div>
 
             <div className="px-5 py-4">
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+              <label className="block text-[13px] font-semibold text-[var(--text-secondary)]">
                 What should Mark work on?
                 <textarea
                   autoFocus
@@ -203,9 +207,14 @@ export function NewTaskDialog() {
             </div>
 
             <div className="flex items-center justify-between border-t border-[var(--border-hairline)] px-5 py-4">
-              <span className="text-[11px] text-[var(--text-muted)]">
-                <kbd className="rounded border border-[var(--border-panel)] px-1 font-bold">⌘</kbd>
-                <kbd className="ml-0.5 rounded border border-[var(--border-panel)] px-1 font-bold">↵</kbd> to create
+              <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                <kbd className="rounded border border-[var(--border-panel)] bg-[var(--surface-inset)] px-1.5 py-0.5 font-sans text-[10px] font-semibold text-[var(--text-secondary)]">
+                  {modKey}
+                </kbd>
+                <kbd className="rounded border border-[var(--border-panel)] bg-[var(--surface-inset)] px-1.5 py-0.5 font-sans text-[10px] font-semibold text-[var(--text-secondary)]">
+                  ↵
+                </kbd>
+                <span className="ml-0.5">to create</span>
               </span>
               <div className="flex gap-2">
                 <button className={buttonClasses({ variant: "ghost", size: "sm" })} onClick={closeDialog} type="button">
