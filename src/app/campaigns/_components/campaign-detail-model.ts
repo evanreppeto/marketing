@@ -28,8 +28,36 @@ export type SendExportFact = {
   value: "Ready" | "Blocked" | "Not connected" | "Sent" | "Live";
 };
 
+const WHERE_LABELS: Record<string, string> = {
+  email: "Email",
+  sms: "SMS",
+  text: "SMS",
+  social: "Social",
+  social_ad: "Social",
+  meta: "Social",
+  meta_ad: "Social",
+  facebook: "Social",
+  instagram: "Social",
+  paid_social: "Social",
+  ad: "Social",
+  ads: "Social",
+  landing_page: "Website",
+  website: "Website",
+  web: "Website",
+  one_pager: "Export",
+  pdf: "Export",
+  print: "Export",
+  packet: "Export",
+  file: "Export",
+  call_script: "CRM",
+  script: "CRM",
+  crm: "CRM",
+  lead: "CRM",
+  lead_list: "CRM",
+};
+
 export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
-  const status = asset.status.toLowerCase();
+  const status = (asset.approval?.status ?? asset.status).toLowerCase();
   if (status.includes("deployed") || status.includes("sent") || status.includes("live")) return { label: "Live", tone: "green" };
   if (status.includes("revision") || status.includes("declined") || status.includes("blocked")) return { label: "Blocked", tone: "red" };
   if (status.includes("pending")) return { label: "Review", tone: "amber" };
@@ -39,18 +67,18 @@ export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
 }
 
 export function contentWhere(asset: CampaignWorkspaceAsset): string {
-  const assetType = asset.assetType.toLowerCase();
-  const value = `${asset.assetType} ${asset.channel}`.toLowerCase();
-  if (/one.pager|pdf|print|packet|file/.test(assetType)) return "Export";
-  if (/call|script|crm|lead/.test(assetType)) return "CRM";
-  if (/landing|website|web/.test(assetType)) return "Website";
-  if (/social|meta|facebook|instagram|ad/.test(assetType)) return "Social";
-  if (/email/.test(value)) return "Email";
-  if (/sms|text/.test(value)) return "SMS";
-  if (/social|meta|facebook|instagram|ad/.test(value)) return "Social";
-  if (/landing|website|web/.test(value)) return "Website";
-  if (/one.pager|pdf|print|packet|file/.test(value)) return "Export";
-  if (/call|script|crm|lead/.test(value)) return "CRM";
+  const assetType = destinationKey(asset.assetType);
+  const channel = destinationKey(asset.channel);
+  const direct = WHERE_LABELS[assetType] ?? WHERE_LABELS[channel];
+  if (direct) return direct;
+
+  const tokens = new Set([...assetType.split("_"), ...channel.split("_")].filter(Boolean));
+  if (tokens.has("email")) return "Email";
+  if (tokens.has("sms") || tokens.has("text")) return "SMS";
+  if (tokens.has("social") || tokens.has("meta") || tokens.has("facebook") || tokens.has("instagram") || tokens.has("ad") || tokens.has("ads")) return "Social";
+  if (tokens.has("landing") || tokens.has("website") || tokens.has("web")) return "Website";
+  if (tokens.has("pager") || tokens.has("pdf") || tokens.has("print") || tokens.has("packet") || tokens.has("file")) return "Export";
+  if (tokens.has("call") || tokens.has("script") || tokens.has("crm") || tokens.has("lead")) return "CRM";
   return "Export";
 }
 
@@ -70,17 +98,23 @@ export function buildCampaignContentRows(detail: LiveCampaignWorkspace): Campaig
 }
 
 export function buildCampaignChecklist(detail: LiveCampaignWorkspace): ChecklistStep[] {
-  const { pendingCount, approvedCount, ready, live } = detail.launchState;
+  const { requiredCount, pendingCount, approvedCount, ready, live } = detail.launchState;
+  const hasContent = requiredCount > 0;
+  const allApproved = hasContent && pendingCount === 0 && approvedCount >= requiredCount;
   return [
     {
       label: "Review content",
-      detail: pendingCount > 0 ? `${pendingCount} piece${pendingCount === 1 ? "" : "s"} need review.` : "All content has been reviewed.",
-      state: pendingCount > 0 ? "active" : "done",
+      detail: !hasContent
+        ? "Mark is still building content."
+        : pendingCount > 0
+          ? `${pendingCount} piece${pendingCount === 1 ? "" : "s"} need review.`
+          : "All content has been reviewed.",
+      state: !hasContent || pendingCount > 0 ? "active" : "done",
     },
     {
       label: "Approve pieces",
-      detail: `${approvedCount} approved.`,
-      state: pendingCount > 0 ? "active" : "done",
+      detail: hasContent ? `${approvedCount} approved.` : "Content must be created before approval.",
+      state: !hasContent ? "locked" : allApproved ? "done" : "active",
     },
     {
       label: "Send or export",
@@ -122,4 +156,12 @@ function nextActionForStatus(status: PlainStatus): string {
   if (status.label === "Live") return "Check results";
   if (status.label === "Blocked") return "Ask Mark to revise";
   return "Wait for Mark";
+}
+
+function destinationKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }

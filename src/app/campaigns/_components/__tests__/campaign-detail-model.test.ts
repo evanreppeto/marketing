@@ -25,14 +25,24 @@ function asset(overrides: Partial<CampaignWorkspaceAsset> = {}): CampaignWorkspa
     updatedAt: overrides.updatedAt ?? "Jun 11, 2026",
     media: overrides.media ?? [],
     revision: overrides.revision ?? null,
-    approval: overrides.approval ?? { id: "approval-1", status: "pending_owner_approval" },
+    approval: "approval" in overrides ? (overrides.approval ?? null) : { id: "approval-1", status: "pending_owner_approval" },
   };
 }
 
 function detail(overrides: Partial<LiveCampaignWorkspace> = {}): LiveCampaignWorkspace {
   const assets =
     overrides.assets ??
-    [asset(), asset({ id: "asset-2", title: "One-pager", assetType: "one_pager", status: "approved", dispatchLocked: false })];
+    [
+      asset(),
+      asset({
+        id: "asset-2",
+        title: "One-pager",
+        assetType: "one_pager",
+        status: "approved",
+        dispatchLocked: false,
+        approval: { id: "approval-2", status: "approved" },
+      }),
+    ];
   return {
     status: "live",
     campaign: {
@@ -70,13 +80,35 @@ function detail(overrides: Partial<LiveCampaignWorkspace> = {}): LiveCampaignWor
 
 describe("campaign detail model", () => {
   it("maps asset status to plain labels", () => {
-    expect(contentStatus(asset({ status: "pending_approval", dispatchLocked: true }))).toEqual({ label: "Review", tone: "amber" });
-    expect(contentStatus(asset({ status: "pending_approval", dispatchLocked: false }))).toEqual({ label: "Review", tone: "amber" });
-    expect(contentStatus(asset({ status: "approved", dispatchLocked: false }))).toEqual({ label: "Ready", tone: "blue" });
-    expect(contentStatus(asset({ status: "deployed", dispatchLocked: false }))).toEqual({ label: "Live", tone: "green" });
-    expect(contentStatus(asset({ status: "revision_requested", dispatchLocked: true }))).toEqual({ label: "Blocked", tone: "red" });
-    expect(contentStatus(asset({ status: "draft", dispatchLocked: true }))).toEqual({ label: "Draft", tone: "gray" });
-    expect(contentStatus(asset({ status: "other", dispatchLocked: true }))).toEqual({ label: "Draft", tone: "gray" });
+    expect(contentStatus(asset({ status: "pending_approval", dispatchLocked: true, approval: null }))).toEqual({ label: "Review", tone: "amber" });
+    expect(contentStatus(asset({ status: "pending_approval", dispatchLocked: false, approval: null }))).toEqual({ label: "Review", tone: "amber" });
+    expect(contentStatus(asset({ status: "approved", dispatchLocked: false, approval: null }))).toEqual({ label: "Ready", tone: "blue" });
+    expect(contentStatus(asset({ status: "deployed", dispatchLocked: false, approval: null }))).toEqual({ label: "Live", tone: "green" });
+    expect(contentStatus(asset({ status: "revision_requested", dispatchLocked: true, approval: null }))).toEqual({ label: "Blocked", tone: "red" });
+    expect(contentStatus(asset({ status: "draft", dispatchLocked: true, approval: null }))).toEqual({ label: "Draft", tone: "gray" });
+    expect(contentStatus(asset({ status: "other", dispatchLocked: true, approval: null }))).toEqual({ label: "Draft", tone: "gray" });
+  });
+
+  it("lets approval status override asset status", () => {
+    expect(
+      contentStatus(asset({ status: "approved", dispatchLocked: false, approval: { id: "approval-1", status: "pending_owner_approval" } })),
+    ).toEqual({ label: "Review", tone: "amber" });
+    expect(contentStatus(asset({ status: "draft", dispatchLocked: true, approval: { id: "approval-1", status: "approved" } }))).toEqual({
+      label: "Ready",
+      tone: "blue",
+    });
+    expect(contentStatus(asset({ status: "pending_approval", dispatchLocked: false, approval: { id: "approval-1", status: "approved" } }))).toEqual({
+      label: "Ready",
+      tone: "blue",
+    });
+    expect(contentStatus(asset({ status: "approved", dispatchLocked: false, approval: { id: "approval-1", status: "revision_requested" } }))).toEqual({
+      label: "Blocked",
+      tone: "red",
+    });
+    expect(contentStatus(asset({ status: "approved", dispatchLocked: false, approval: { id: "approval-1", status: "declined" } }))).toEqual({
+      label: "Blocked",
+      tone: "red",
+    });
   });
 
   it("maps content to plain destinations", () => {
@@ -85,6 +117,7 @@ describe("campaign detail model", () => {
     expect(contentWhere(asset({ assetType: "landing_page", channel: "web" }))).toBe("Website");
     expect(contentWhere(asset({ assetType: "one_pager", channel: "pdf" }))).toBe("Export");
     expect(contentWhere(asset({ assetType: "call_script", channel: "crm" }))).toBe("CRM");
+    expect(contentWhere(asset({ assetType: "lead_list", channel: "admin" }))).toBe("CRM");
   });
 
   it("builds content rows with next actions", () => {
@@ -100,6 +133,52 @@ describe("campaign detail model", () => {
       { label: "Approve pieces", state: "active" },
       { label: "Send or export", state: "locked" },
       { label: "Watch results", state: "locked" },
+    ]);
+  });
+
+  it("keeps empty drafting checklist steps honest", () => {
+    expect(
+      buildCampaignChecklist(
+        detail({
+          assets: [],
+          launchState: { requiredCount: 0, approvedCount: 0, pendingCount: 0, deployedCount: 0, ready: false, live: false, lifecycle: "Drafting" },
+        }),
+      ).map((step) => ({ label: step.label, detail: step.detail, state: step.state })),
+    ).toEqual([
+      { label: "Review content", detail: "Mark is still building content.", state: "active" },
+      { label: "Approve pieces", detail: "Content must be created before approval.", state: "locked" },
+      { label: "Send or export", detail: "Approve content first.", state: "locked" },
+      { label: "Watch results", detail: "Results appear after sending.", state: "locked" },
+    ]);
+  });
+
+  it("marks ready checklist send/export as active", () => {
+    expect(
+      buildCampaignChecklist(
+        detail({
+          launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 0, ready: true, live: false, lifecycle: "Ready" },
+        }),
+      ).map((step) => ({ label: step.label, state: step.state })),
+    ).toEqual([
+      { label: "Review content", state: "done" },
+      { label: "Approve pieces", state: "done" },
+      { label: "Send or export", state: "active" },
+      { label: "Watch results", state: "locked" },
+    ]);
+  });
+
+  it("marks live checklist send/export done and results active", () => {
+    expect(
+      buildCampaignChecklist(
+        detail({
+          launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 2, ready: true, live: true, lifecycle: "Live" },
+        }),
+      ).map((step) => ({ label: step.label, state: step.state })),
+    ).toEqual([
+      { label: "Review content", state: "done" },
+      { label: "Approve pieces", state: "done" },
+      { label: "Send or export", state: "done" },
+      { label: "Watch results", state: "active" },
     ]);
   });
 
