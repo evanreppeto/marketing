@@ -71,9 +71,12 @@ function detail(overrides: Partial<LiveCampaignWorkspace> = {}): LiveCampaignWor
 describe("campaign detail model", () => {
   it("maps asset status to plain labels", () => {
     expect(contentStatus(asset({ status: "pending_approval", dispatchLocked: true }))).toEqual({ label: "Review", tone: "amber" });
+    expect(contentStatus(asset({ status: "pending_approval", dispatchLocked: false }))).toEqual({ label: "Review", tone: "amber" });
     expect(contentStatus(asset({ status: "approved", dispatchLocked: false }))).toEqual({ label: "Ready", tone: "blue" });
     expect(contentStatus(asset({ status: "deployed", dispatchLocked: false }))).toEqual({ label: "Live", tone: "green" });
     expect(contentStatus(asset({ status: "revision_requested", dispatchLocked: true }))).toEqual({ label: "Blocked", tone: "red" });
+    expect(contentStatus(asset({ status: "draft", dispatchLocked: true }))).toEqual({ label: "Draft", tone: "gray" });
+    expect(contentStatus(asset({ status: "other", dispatchLocked: true }))).toEqual({ label: "Draft", tone: "gray" });
   });
 
   it("maps content to plain destinations", () => {

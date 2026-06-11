@@ -32,9 +32,10 @@ export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
   const status = asset.status.toLowerCase();
   if (status.includes("deployed") || status.includes("sent") || status.includes("live")) return { label: "Live", tone: "green" };
   if (status.includes("revision") || status.includes("declined") || status.includes("blocked")) return { label: "Blocked", tone: "red" };
-  if (!asset.dispatchLocked || status.includes("approved")) return { label: "Ready", tone: "blue" };
+  if (status.includes("pending")) return { label: "Review", tone: "amber" };
   if (status.includes("draft")) return { label: "Draft", tone: "gray" };
-  return { label: "Review", tone: "amber" };
+  if (!asset.dispatchLocked || status.includes("approved")) return { label: "Ready", tone: "blue" };
+  return { label: "Draft", tone: "gray" };
 }
 
 export function contentWhere(asset: CampaignWorkspaceAsset): string {
