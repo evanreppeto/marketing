@@ -57,8 +57,10 @@ const WHERE_LABELS: Record<string, string> = {
 };
 
 export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
+  const assetStatus = asset.status.toLowerCase();
+  if (assetStatus.includes("deployed") || assetStatus.includes("sent") || assetStatus.includes("live")) return { label: "Live", tone: "green" };
+
   const status = (asset.approval?.status ?? asset.status).toLowerCase();
-  if (status.includes("deployed") || status.includes("sent") || status.includes("live")) return { label: "Live", tone: "green" };
   if (status.includes("revision") || status.includes("declined") || status.includes("blocked")) return { label: "Blocked", tone: "red" };
   if (status.includes("pending")) return { label: "Review", tone: "amber" };
   if (status.includes("draft")) return { label: "Draft", tone: "gray" };

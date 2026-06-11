@@ -109,6 +109,10 @@ describe("campaign detail model", () => {
       label: "Blocked",
       tone: "red",
     });
+    expect(contentStatus(asset({ status: "deployed", dispatchLocked: false, approval: { id: "approval-1", status: "approved" } }))).toEqual({
+      label: "Live",
+      tone: "green",
+    });
   });
 
   it("maps content to plain destinations", () => {
@@ -118,6 +122,7 @@ describe("campaign detail model", () => {
     expect(contentWhere(asset({ assetType: "one_pager", channel: "pdf" }))).toBe("Export");
     expect(contentWhere(asset({ assetType: "call_script", channel: "crm" }))).toBe("CRM");
     expect(contentWhere(asset({ assetType: "lead_list", channel: "admin" }))).toBe("CRM");
+    expect(contentWhere(asset({ assetType: "roadshow", channel: "admin" }))).toBe("Export");
   });
 
   it("builds content rows with next actions", () => {
