@@ -38,14 +38,6 @@ export function BoardViewSwitch({
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            className="cursor-not-allowed rounded-lg border border-[var(--border-panel)] bg-[var(--surface-inset)] px-3 py-1.5 text-xs font-bold text-[var(--text-muted)]"
-            disabled
-            title="Scheduling arrives in the next release"
-            type="button"
-          >
-            Schedule
-          </button>
           <NewTaskDialog />
         </div>
       </div>
