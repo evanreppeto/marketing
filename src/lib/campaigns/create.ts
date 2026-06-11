@@ -148,3 +148,80 @@ export async function insertNoReturn(client: SupabaseClient, table: string, valu
   const { error } = await client.from(table).insert(values);
   if (error) throw new Error(`${table} insert failed: ${error.message}`);
 }
+
+export type CreateCampaignShellInput = {
+  operator: string;
+  name: string;
+  persona: string;
+  restorationFocus: string;
+  client?: SupabaseClient;
+};
+
+/** Minimal campaign row (draft, launch-locked) for promoting a saved item into a
+ *  brand-new campaign. Mirrors the campaign insert in createOperatorCampaign. */
+export async function createCampaignShell(input: CreateCampaignShellInput): Promise<{ campaignId: string }> {
+  const client = input.client ?? getSupabaseAdminClient();
+  const campaignId = await insertOne(client, "campaigns", {
+    name: input.name,
+    persona: input.persona,
+    restoration_focus: input.restorationFocus,
+    status: "draft",
+    launch_locked: true,
+    owner: input.operator,
+    source_system: "mark_saved",
+  });
+  await insertNoReturn(client, "campaign_events", {
+    campaign_id: campaignId,
+    event_type: "created",
+    actor: input.operator,
+    detail: "created from Mark saved item",
+  });
+  return { campaignId };
+}
+
+export type PromoteAssetInput = {
+  operator: string;
+  campaignId: string;
+  assetType: string; // e.g. "social_ad" | "image_prompt"
+  title: string;
+  body: string | null;
+  mediaUrl: string | null;
+  client?: SupabaseClient;
+};
+
+/** Insert a pending-approval campaign asset + its approval gate + an event, so the
+ *  asset shows up in /campaigns awaiting the operator's decision. Mirrors
+ *  insertPhotoAsset but stays pending_approval instead of pre-approved. */
+export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<{ assetId: string }> {
+  const client = input.client ?? getSupabaseAdminClient();
+  const assetId = await insertOne(client, "campaign_assets", {
+    campaign_id: input.campaignId,
+    asset_type: input.assetType,
+    title: input.title,
+    status: "pending_approval",
+    draft_body: input.body,
+    dispatch_locked: true,
+    tool_source: "mark_saved",
+    audit_payload: input.mediaUrl
+      ? { media_assets: [{ url: input.mediaUrl }], outbound_locked: true }
+      : { outbound_locked: true },
+  });
+  await insertNoReturn(client, "approval_items", {
+    campaign_id: input.campaignId,
+    campaign_asset_id: assetId,
+    item_type: "campaign_asset",
+    status: "pending_approval",
+    approval_required: true,
+    locked_until_approved: true,
+    requested_by: input.operator,
+    risk_level: "medium",
+  });
+  await insertNoReturn(client, "campaign_events", {
+    campaign_id: input.campaignId,
+    campaign_asset_id: assetId,
+    event_type: "asset_generated",
+    actor: input.operator,
+    detail: "promoted from Mark saved",
+  });
+  return { assetId };
+}
