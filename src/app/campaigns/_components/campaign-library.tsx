@@ -94,9 +94,9 @@ export function CampaignLibrary({
           </div>
         ) : (
           <div className="px-4 py-10 text-center">
-            <h2 className="text-sm font-bold text-[var(--text-primary)]">No campaigns match this view</h2>
+            <h2 className="text-sm font-bold text-[var(--text-primary)]">No campaigns in this view</h2>
             <p className="mx-auto mt-2 max-w-[52ch] text-sm leading-6 text-[var(--text-secondary)]">
-              Try a different saved view or search term.
+              Try another view or clear the search.
             </p>
           </div>
         )}
