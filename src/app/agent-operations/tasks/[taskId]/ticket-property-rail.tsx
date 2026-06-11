@@ -76,17 +76,37 @@ export function TicketPropertyRail({
   }
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-5 lg:self-start">
-      <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-3 shadow-[var(--elev-panel)]">
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] pb-3">
-          <div>
-            <div className="signal-eyebrow">Properties</div>
-            <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">Shared ticket control</div>
-          </div>
-          <StatusPill tone="amber">Locked</StatusPill>
-        </div>
+    <section className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] p-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <InlineMeta label="Status">
+          <StatusPill tone={statusTone(values.status)}>{humanize(values.status)}</StatusPill>
+        </InlineMeta>
+        <InlineMeta label="Owner">{values.owner_label}</InlineMeta>
+        <InlineMeta label="Driver">{values.driver_label}</InlineMeta>
+        <InlineMeta label="Priority">{humanize(values.priority)}</InlineMeta>
+        <InlineMeta label="Due">{values.due_at ? formatDate(fromDateTimeLocalValue(values.due_at)) : "No due date"}</InlineMeta>
+        {campaign ? (
+          <InlineMeta label="Campaign">
+            <Link className="font-medium text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`/campaigns/${campaign.id}`}>
+              {campaign.name}
+            </Link>
+          </InlineMeta>
+        ) : null}
+        {source ? (
+          <InlineMeta label="Source">
+            <Link className="font-medium text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={source.href}>
+              {source.label}
+            </Link>
+          </InlineMeta>
+        ) : null}
+        <StatusPill tone="amber">Outbound locked</StatusPill>
+      </div>
 
-        <div className="mt-3 space-y-3">
+      <details className="mt-3 border-t border-[var(--border-hairline)] pt-3">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
+          Edit properties
+        </summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <RailSelect
             label="Status"
             onChange={(value) => {
@@ -150,38 +170,24 @@ export function TicketPropertyRail({
         </div>
 
         {error ? <p className="mt-3 text-xs font-semibold text-[var(--warn)]">{error}</p> : null}
-      </section>
+      </details>
 
-      <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-3 shadow-[var(--elev-panel)]">
-        <div className="signal-eyebrow">Growth context</div>
-        <dl className="mt-3 space-y-3">
-          <ContextRow label="Campaign">
-            {campaign ? (
-              <Link className="truncate font-semibold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`/campaigns/${campaign.id}`}>
-                {campaign.name}
-              </Link>
-            ) : (
-              <span className="text-[var(--text-muted)]">No campaign</span>
-            )}
-          </ContextRow>
-          <ContextRow label="Source">
-            {source ? (
-              <Link className="font-semibold text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={source.href}>
-                {source.label}
-              </Link>
-            ) : (
-              <span className="text-[var(--text-muted)]">Not linked</span>
-            )}
-          </ContextRow>
-          <ContextRow label="Outbound">
-            <StatusPill tone="amber">Locked</StatusPill>
-          </ContextRow>
-          {scheduledFor ? <ContextRow label="Scheduled">{formatDate(scheduledFor)}</ContextRow> : null}
-          <ContextRow label="Created">{formatDate(createdAt)}</ContextRow>
-          <ContextRow label="Updated">{formatDate(updatedAt)}</ContextRow>
-        </dl>
-      </section>
-    </aside>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
+        {scheduledFor ? <span>Scheduled {formatDate(scheduledFor)}</span> : null}
+        <span>Created {formatDate(createdAt)}</span>
+        <span>Updated {formatDate(updatedAt)}</span>
+        <span>Approver {values.approver_label}</span>
+      </div>
+    </section>
+  );
+}
+
+function InlineMeta({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex min-h-7 items-center gap-1.5">
+      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
+      <span className="max-w-[240px] truncate font-semibold text-[var(--text-secondary)]">{children}</span>
+    </span>
   );
 }
 
@@ -281,19 +287,18 @@ function RailLabel({ label, state }: { label: string; state: FieldState[string] 
   );
 }
 
-function ContextRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</dt>
-      <dd className="min-w-0 text-right text-sm text-[var(--text-secondary)]">{children}</dd>
-    </div>
-  );
-}
-
 function stateText(state: NonNullable<FieldState[string]>) {
   if (state === "saving") return "Saving";
   if (state === "saved") return "Saved";
   return "Failed";
+}
+
+function statusTone(status: string): "amber" | "green" | "red" | "blue" | "gray" {
+  if (["completed", "approved", "passed"].includes(status)) return "green";
+  if (["running", "processing"].includes(status)) return "blue";
+  if (["blocked", "failed", "error", "canceled"].includes(status)) return "red";
+  if (["queued", "needs_approval", "pending"].includes(status)) return "amber";
+  return "gray";
 }
 
 function toDateTimeLocalValue(value: string | null) {

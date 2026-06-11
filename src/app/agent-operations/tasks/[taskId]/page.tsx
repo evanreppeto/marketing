@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "@/app/_components/page-header";
-import { TabNav } from "@/app/_components/tab-nav";
 import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 import { TaskInputsPanel, TaskLogsPanel, TaskOutputsPanel } from "./task-record-panels";
@@ -52,7 +51,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   const outputsHref = `/agent-operations/tasks/${task.id}?section=outputs`;
 
   return (
-    <div className="mx-auto w-full max-w-[1180px]">
+    <div className="mx-auto w-full max-w-[940px]">
       <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted)]" aria-label="Breadcrumb">
         <Link className="transition hover:text-[var(--text-primary)]" href="/board">
           Task board
@@ -61,29 +60,15 @@ export default async function Page({ params, searchParams }: PageProps) {
         <span className="font-mono text-[var(--text-secondary)]">{task.id.slice(0, 8)}</span>
       </nav>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <main className="min-w-0">
-          <TicketEditableHeader
-            description={task.description}
-            driverLabel={task.driver.label}
-            latestOutputHref={detail.latestOutput ? outputsHref : null}
-            objective={task.objective}
-            status={task.status}
-            taskId={task.id}
-            taskType={task.taskType}
-          />
-
-          <div className="mt-4">
-            <TaskSectionTabs activeSection={activeSection} counts={counts} taskId={task.id} />
-          </div>
-
-          <div className="mt-4">
-            {activeSection === "overview" ? <TaskOverview detail={detail} outputsHref={outputsHref} /> : null}
-            {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
-            {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
-            {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
-          </div>
-        </main>
+      <main className="min-w-0 space-y-4">
+        <TicketEditableHeader
+          description={task.description}
+          driverLabel={task.driver.label}
+          objective={task.objective}
+          status={task.status}
+          taskId={task.id}
+          taskType={task.taskType}
+        />
 
         <TicketPropertyRail
           approverLabel={task.approverLabel}
@@ -101,7 +86,14 @@ export default async function Page({ params, searchParams }: PageProps) {
           taskId={task.id}
           updatedAt={task.updatedAt}
         />
-      </div>
+
+        <TaskSectionTabs activeSection={activeSection} counts={counts} taskId={task.id} />
+
+        {activeSection === "overview" ? <TaskOverview detail={detail} outputsHref={outputsHref} /> : null}
+        {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
+        {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
+        {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
+      </main>
     </div>
   );
 }
@@ -116,49 +108,46 @@ function TaskSectionTabs({
   taskId: string;
 }) {
   return (
-    <TabNav
-      activeKey={activeSection}
-      ariaLabel="Task sections"
-      columns="sm:grid-cols-2 xl:grid-cols-4"
-      tabs={[
-        {
-          key: "overview",
-          label: "Overview",
-          detail: "Criteria, latest output, and activity",
-          href: `/agent-operations/tasks/${taskId}`,
-        },
-        {
-          key: "inputs",
-          label: "Inputs",
-          detail: "Context records",
-          count: counts.inputs,
-          href: `/agent-operations/tasks/${taskId}?section=inputs`,
-        },
-        {
-          key: "outputs",
-          label: "Outputs",
-          detail: "Mark deliverables",
-          count: counts.outputs,
-          href: `/agent-operations/tasks/${taskId}?section=outputs`,
-        },
-        {
-          key: "logs",
-          label: "Logs",
-          detail: "Runner trace",
-          count: counts.logs,
-          href: `/agent-operations/tasks/${taskId}?section=logs`,
-        },
-      ]}
-    />
+    <nav className="flex flex-wrap items-center gap-1 border-b border-[var(--border-hairline)]" aria-label="Task sections">
+      {[
+        { key: "overview", label: "Overview", href: `/agent-operations/tasks/${taskId}` },
+        { key: "inputs", label: "Inputs", count: counts.inputs, href: `/agent-operations/tasks/${taskId}?section=inputs` },
+        { key: "outputs", label: "Outputs", count: counts.outputs, href: `/agent-operations/tasks/${taskId}?section=outputs` },
+        { key: "logs", label: "Logs", count: counts.logs, href: `/agent-operations/tasks/${taskId}?section=logs` },
+      ].map((tab) => {
+        const active = activeSection === tab.key;
+        return (
+          <Link
+            aria-current={active ? "page" : undefined}
+            className={`inline-flex min-h-9 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition ${
+              active
+                ? "border-[var(--accent)] text-[var(--text-primary)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}
+            href={tab.href}
+            key={tab.key}
+          >
+            {tab.label}
+            {"count" in tab ? <span className="text-xs text-[var(--text-muted)]">{tab.count}</span> : null}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
 function TaskOverview({ detail, outputsHref }: { detail: LiveDetail; outputsHref: string }) {
   return (
     <div className="space-y-4">
-      <TicketAcceptanceCriteria criteria={detail.acceptanceCriteria} taskId={detail.task.id} />
       <TicketLatestOutput output={detail.latestOutput} outputsHref={outputsHref} />
-      <TicketActivityTimeline timeline={detail.timeline} />
+      {detail.acceptanceCriteria.length > 0 ? <TicketAcceptanceCriteria criteria={detail.acceptanceCriteria} taskId={detail.task.id} /> : null}
+      <details className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
+          Activity timeline
+          <span className="ml-2 text-xs font-medium text-[var(--text-muted)]">{detail.timeline.length}</span>
+        </summary>
+        <TicketActivityTimeline timeline={detail.timeline} />
+      </details>
     </div>
   );
 }

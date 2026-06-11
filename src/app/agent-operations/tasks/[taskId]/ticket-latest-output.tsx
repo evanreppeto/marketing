@@ -14,7 +14,7 @@ export function TicketLatestOutput({
 }) {
   if (!output) {
     return (
-      <section className="module-rise rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
+      <section className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4">
         <EmptyState
           title="No output yet"
           detail="When Mark creates a draft, recommendation, or structured packet, the latest version will appear here before anything outbound can move."
@@ -24,20 +24,20 @@ export function TicketLatestOutput({
   }
 
   return (
-    <section className="module-rise rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
-      <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+    <section className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)]">
+      <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="signal-eyebrow">Latest output</span>
+            <span className="text-xs font-semibold text-[var(--text-muted)]">Latest output</span>
             <StatusPill tone="blue">{humanize(output.outputType)}</StatusPill>
             <StatusPill tone={approvalTone(output.approvalStatus)}>{humanize(output.approvalStatus)}</StatusPill>
           </div>
-          <h2 className="mt-2 font-display text-xl font-bold text-[var(--text-primary)]">{output.title}</h2>
-          <p className="mt-1 text-xs font-semibold text-[var(--text-muted)]">Created {formatDate(output.createdAt)}</p>
+          <h2 className="mt-2 text-lg font-semibold text-[var(--text-primary)]">{output.title}</h2>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">Created {formatDate(output.createdAt)}</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={outputsHref}>
-            Open outputs
+            All outputs
           </Link>
           {output.approvalHref ? (
             <Link className={buttonClasses({ variant: "primary", size: "sm" })} href={output.approvalHref}>
@@ -47,11 +47,11 @@ export function TicketLatestOutput({
         </div>
       </div>
 
-      <div className="px-4 py-4 sm:px-5">
-        <p className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 text-sm leading-6 text-[var(--text-secondary)]">
+      <div className="px-4 py-4">
+        <p className="whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">
           {output.readableBody || "No readable output body captured."}
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
           <span>Compliance: {humanize(output.complianceStatus)}</span>
           <span>Risk: {humanize(output.riskLevel)}</span>
         </div>

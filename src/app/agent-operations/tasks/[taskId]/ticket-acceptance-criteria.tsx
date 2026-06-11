@@ -41,20 +41,17 @@ export function TicketAcceptanceCriteria({
   const completedCount = items.filter((item) => item.completed).length;
 
   return (
-    <section className="module-rise rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
-      <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
-        <div>
-          <div className="signal-eyebrow">Acceptance</div>
-          <h2 className="mt-1 font-display text-xl font-bold text-[var(--text-primary)]">Criteria</h2>
-        </div>
-        <div className="font-mono text-xs font-semibold text-[var(--text-muted)]">
+    <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
+      <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">Acceptance criteria</h2>
+        <div className="text-xs font-medium text-[var(--text-muted)]">
           {completedCount}/{items.length} complete
         </div>
       </div>
 
       <div className="divide-y divide-[var(--border-hairline)]">
         {items.map((criterion) => (
-          <label className="flex cursor-pointer items-start gap-3 px-4 py-3 transition hover:bg-[var(--surface-inset)] sm:px-5" key={criterion.id}>
+          <label className="flex cursor-pointer items-start gap-3 px-4 py-3 transition hover:bg-[var(--surface-inset)]" key={criterion.id}>
             <input
               checked={criterion.completed}
               className="mt-1 h-4 w-4 rounded border-[var(--border-strong)] bg-[var(--surface-inset)] accent-[var(--accent)]"
@@ -69,7 +66,7 @@ export function TicketAcceptanceCriteria({
         ))}
       </div>
 
-      {message ? <p className="border-t border-[var(--border-hairline)] px-4 py-3 text-xs font-semibold text-[var(--warn)] sm:px-5">{message}</p> : null}
+      {message ? <p className="border-t border-[var(--border-hairline)] px-4 py-3 text-xs font-semibold text-[var(--warn)]">{message}</p> : null}
     </section>
   );
 }

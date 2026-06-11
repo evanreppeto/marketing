@@ -5,19 +5,14 @@ type LiveDetail = Extract<AgentTaskDetail, { status: "live" }>;
 
 export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["timeline"] }) {
   return (
-    <section className="module-rise rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
-      <div className="border-b border-[var(--border-hairline)] px-4 py-4 sm:px-5">
-        <div className="signal-eyebrow">Activity</div>
-        <h2 className="mt-1 font-display text-xl font-bold text-[var(--text-primary)]">Ticket timeline</h2>
-      </div>
-
+    <div>
       {timeline.length > 0 ? (
         <ol className="divide-y divide-[var(--border-hairline)]">
           {timeline.map((item) => (
-            <li className="grid gap-3 px-4 py-4 sm:grid-cols-[112px_minmax(0,1fr)] sm:px-5" key={`${item.source}-${item.id}-${item.eventType}`}>
+            <li className="grid gap-3 px-4 py-4 sm:grid-cols-[96px_minmax(0,1fr)]" key={`${item.source}-${item.id}-${item.eventType}`}>
               <div className="flex flex-wrap items-start gap-2 sm:block">
                 <StatusPill tone={sourceTone(item.source)}>{item.source}</StatusPill>
-                <div className="mt-0 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] sm:mt-2">
+                <div className="mt-0 text-xs font-medium text-[var(--text-muted)] sm:mt-2">
                   {humanize(item.eventType)}
                 </div>
               </div>
@@ -32,11 +27,11 @@ export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["tim
           ))}
         </ol>
       ) : (
-        <div className="p-4 sm:p-5">
+        <div className="p-4">
           <EmptyState title="No timeline entries yet" detail="Task events, Mark outputs, and approval movement will collect here as the shared ticket changes." />
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
