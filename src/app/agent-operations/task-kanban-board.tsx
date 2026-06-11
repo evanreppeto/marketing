@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
+import { EntityAvatar } from "../_components/entity-avatar";
+
 import { moveTaskAction } from "./actions";
 import { type AgentOperationsAgent, type AgentOperationsTask } from "@/lib/agent-operations/read-model";
 
@@ -17,7 +19,6 @@ const COLUMNS: Array<{ key: string; label: string }> = [
 
 const CLOSED_STATUSES = new Set(["failed", "canceled"]);
 const DRAG_THRESHOLD = 5;
-const AGENT_TINTS = ["gold", "teal", "blue", "green"] as const;
 
 type DragState = {
   taskId: string;
@@ -201,7 +202,6 @@ export function TaskKanbanBoard({
 
                   {cards.map((task) => (
                     <Card
-                      agentName={agentName(task.agentKey)}
                       ghost={drag?.taskId === task.fullId && dragging}
                       key={task.fullId}
                       onPointerDown={(event) => startDrag(event, task)}
@@ -231,7 +231,7 @@ export function TaskKanbanBoard({
               className="kanban-overlay"
               style={{ left: drag.x - drag.offsetX, top: drag.y - drag.offsetY, width: drag.width }}
             >
-              <Card agentName={agentName(drag.task.agentKey)} overlay task={drag.task} />
+              <Card overlay task={drag.task} />
             </div>,
             document.body,
           )
@@ -242,20 +242,25 @@ export function TaskKanbanBoard({
 
 function Card({
   task,
-  agentName,
   ghost = false,
   overlay = false,
   onPointerDown,
 }: {
   task: AgentOperationsTask;
-  agentName: string;
   ghost?: boolean;
   overlay?: boolean;
   onPointerDown?: (event: React.PointerEvent) => void;
 }) {
   const accent = riskAccent(task.risk);
-  const campaign = task.linkedObject.startsWith("Campaign:") ? task.linkedObject.replace(/^Campaign:\s*/, "") : null;
+  const campaign = task.linkedObject.startsWith("Campaign:")
+    ? task.linkedObject.replace(/^Campaign:\s*/, "")
+    : null;
   const needsApproval = /approval/i.test(task.approval);
+  const working = task.status === "running";
+  const pct =
+    task.progress && task.progress.total > 0
+      ? Math.min(100, Math.round((task.progress.done / task.progress.total) * 100))
+      : null;
 
   return (
     <article
@@ -266,24 +271,36 @@ function Card({
       style={{ boxShadow: `inset 3px 0 0 ${accent.bar}` }}
     >
       <div className="flex items-start gap-2">
-        <span
-          aria-hidden
-          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-extrabold"
-          style={{ background: agentTint(task.agentKey).soft, color: agentTint(task.agentKey).fg }}
-          title={agentName}
-        >
-          {initials(agentName)}
-        </span>
-        <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-[var(--text-primary)]">
-          {task.objective}
-        </p>
+        <EntityAvatar owner={{ kind: "agent" }} size={22} pending={working} />
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-[var(--text-primary)]">
+            {task.objective}
+          </p>
+          <p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">
+            {task.task} · #{task.id}
+          </p>
+        </div>
       </div>
+
+      {pct !== null ? (
+        <div className="mt-2 pl-7">
+          <div className="h-1 overflow-hidden rounded-full bg-[var(--surface-inset)]">
+            <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="mt-1 block text-[9.5px] font-medium text-[var(--text-muted)]">
+            {task.progress!.done} of {task.progress!.total}
+          </span>
+        </div>
+      ) : null}
+
+      {working && !overlay ? <div className="kanban-shimmer ml-7 mt-2" /> : null}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-7">
         <span className="inline-flex items-center gap-1 text-[10px] font-bold" style={{ color: accent.text }}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent.bar }} />
           {task.risk}
         </span>
+        <span className="text-[10px] font-semibold text-[var(--text-muted)]">{task.priority}</span>
         {campaign ? (
           <span className="inline-flex max-w-[150px] items-center gap-1 truncate text-[10px] font-semibold text-[var(--text-secondary)]">
             <span className="text-[var(--text-muted)]">◆</span>
@@ -297,15 +314,18 @@ function Card({
           </span>
         ) : null}
       </div>
+
+      <div className="mt-2 flex items-center justify-between pl-7">
+        <span className="text-[10px] font-medium text-[var(--text-muted)]">{formatDue(task.dueAt)}</span>
+        {working ? (
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-strong)]">
+            <span className="kanban-presence" />
+            Mark · live
+          </span>
+        ) : null}
+      </div>
     </article>
   );
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function riskAccent(risk: string): { bar: string; text: string } {
@@ -314,17 +334,15 @@ function riskAccent(risk: string): { bar: string; text: string } {
   return { bar: "var(--ok)", text: "var(--ok-text)" };
 }
 
-function agentTint(key: string): { soft: string; fg: string } {
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-  const tint = AGENT_TINTS[hash % AGENT_TINTS.length];
-  const map: Record<(typeof AGENT_TINTS)[number], { soft: string; fg: string }> = {
-    gold: { soft: "var(--accent-soft)", fg: "var(--accent-strong)" },
-    teal: { soft: "var(--ok-soft)", fg: "var(--ok-text)" },
-    blue: { soft: "rgba(36,86,166,0.16)", fg: "#9bbcf0" },
-    green: { soft: "var(--ok-soft)", fg: "var(--ok-text)" },
-  };
-  return map[tint];
+function formatDue(dueAt: string | null): string {
+  if (!dueAt) return "No due date";
+  const due = new Date(dueAt);
+  if (Number.isNaN(due.getTime())) return "No due date";
+  const days = Math.round((due.getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return `Overdue ${Math.abs(days)}d`;
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  return `Due in ${days}d`;
 }
 
 const KANBAN_CSS = `
@@ -353,4 +371,15 @@ const KANBAN_CSS = `
 }
 @keyframes kanban-lift { from { transform: rotate(0deg) scale(1); } to { transform: rotate(2.5deg) scale(1.04); } }
 @media (prefers-reduced-motion: reduce) { .kanban-overlay { animation: none; transform: scale(1.02); } .kanban-slot { animation: none; } }
+.kanban-card { animation: kanban-card-in 200ms cubic-bezier(0.16,1,0.3,1); }
+@keyframes kanban-card-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+.kanban-presence { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: kanban-pulse 1.5s infinite; }
+@keyframes kanban-pulse { 0% { box-shadow: 0 0 0 0 var(--accent-soft); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.kanban-shimmer { height: 4px; border-radius: 3px; background: linear-gradient(90deg, var(--surface-inset), var(--accent-soft), var(--surface-inset)); background-size: 200% 100%; animation: kanban-shimmer-move 1.3s linear infinite; }
+@keyframes kanban-shimmer-move { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .kanban-card { animation: none; }
+  .kanban-presence { animation: none; }
+  .kanban-shimmer { animation: none; }
+}
 `;
