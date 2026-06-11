@@ -195,9 +195,16 @@ export async function createTaskAction(formData: FormData): Promise<void> {
       status: "queued",
       priority,
       objective,
+      description: objective,
       task_type: taskType,
       campaign_id: campaignId,
       scheduled_for: scheduledFor,
+      owner_kind: "human",
+      owner_label: "Operator",
+      driver_kind: "agent",
+      driver_agent_id: agentId,
+      driver_label: "Mark",
+      approver_label: "Owner",
       source_type: "operator_request",
       metadata: {
         runner_name: "Mark",
@@ -241,6 +248,16 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     started_at: null,
     completed_at: null,
     metadata: { runner_name: "Mark", source: "operator_board_create" },
+  });
+
+  await supabase.from("agent_task_events").insert({
+    task_id: data.id,
+    actor_kind: "human",
+    actor_label: "Operator",
+    event_type: "system_event",
+    title: "Task created",
+    body: objective,
+    metadata: { source: "board_create", driver: "Mark" },
   });
 
   if (campaignId) revalidatePath(`/campaigns/${campaignId}`);

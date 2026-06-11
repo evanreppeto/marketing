@@ -252,6 +252,9 @@ function Card({
     task.status === "queued" && task.scheduledFor && new Date(task.scheduledFor).getTime() > now.getTime()
       ? formatScheduleLabel(task.scheduledFor, now)
       : null;
+  const ownerLabel = task.owner?.label ?? "Operator";
+  const driverLabel = task.driver?.label ?? task.agentName;
+  const driverIsMark = task.driver?.kind === "agent";
 
   return (
     <article
@@ -262,13 +265,17 @@ function Card({
       style={{ boxShadow: `inset 3px 0 0 ${accent.bar}` }}
     >
       <div className="flex items-start gap-2">
-        <EntityAvatar owner={{ kind: "agent" }} size={22} pending={working} />
+        <EntityAvatar
+          owner={driverIsMark ? { kind: "agent" } : { kind: "human", name: driverLabel }}
+          size={22}
+          pending={working}
+        />
         <div className="min-w-0">
           <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-[var(--text-primary)]">
             {task.objective}
           </p>
           <p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">
-            {task.task} · #{task.id}
+            Owner: {ownerLabel} / Driver: {driverLabel}
           </p>
         </div>
       </div>
@@ -315,7 +322,7 @@ function Card({
         {working ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-strong)]">
             <span className="kanban-presence" />
-            Mark · live
+            {driverLabel} live
           </span>
         ) : null}
       </div>
