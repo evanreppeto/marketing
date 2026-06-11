@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 
 import { EntityAvatar } from "../_components/entity-avatar";
 
+import { initialDemoFrame, nextDemoFrame, type DemoStatus } from "@/domain";
+
 import { moveTaskAction } from "./actions";
 import { type AgentOperationsAgent, type AgentOperationsTask } from "@/lib/agent-operations/read-model";
 
@@ -56,6 +58,27 @@ export function TaskKanbanBoard({
       state.map((task) => (task.fullId === move.taskId ? { ...task, status: move.toStatus } : task)),
   );
 
+  const [demo, setDemo] = useState(false);
+  const [demoFrame, setDemoFrame] = useState(initialDemoFrame);
+
+  // Live polling: refresh server data while the board is visible. When Mark moves
+  // a task or reports progress via his API, the next refresh reflects it.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!document.hidden) router.refresh();
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [router]);
+
+  // Demo simulation: a visual-only card that loops the lifecycle. Writes nothing.
+  useEffect(() => {
+    if (!demo) return;
+    const id = window.setInterval(() => {
+      setDemoFrame((frame) => nextDemoFrame(frame.step));
+    }, 1600);
+    return () => window.clearInterval(id);
+  }, [demo]);
+
   const dragRef = useRef<DragState | null>(null);
   useEffect(() => {
     dragRef.current = drag;
@@ -72,6 +95,7 @@ export function TaskKanbanBoard({
 
   function startDrag(event: React.PointerEvent, task: AgentOperationsTask) {
     if (event.button !== 0) return;
+    if (task.fullId === "__demo__") return;
     const rect = event.currentTarget.getBoundingClientRect();
     setDrag({
       taskId: task.fullId,
@@ -140,6 +164,28 @@ export function TaskKanbanBoard({
   const closedCount = visible.length - open.length;
   const dragging = drag?.moved ?? false;
 
+  const demoTask: AgentOperationsTask | null = demo
+    ? {
+        id: "demo",
+        fullId: "__demo__",
+        agentKey: "mark",
+        agentName: "Mark",
+        task: "Demo",
+        objective: "Demo · Mark working a task across the board",
+        linkedObject: "Campaign: Demo Walkthrough",
+        linkedHref: "/board",
+        approvalHref: null,
+        risk: "Low",
+        approval: "Internal task",
+        status: demoFrame.status,
+        priority: "Medium",
+        dueAt: null,
+        progress: demoFrame.working ? { done: 12, total: 20 } : null,
+        updated: "now",
+        href: "/board",
+      }
+    : null;
+
   return (
     <section className={`overflow-hidden ${dragging ? "select-none" : ""}`}>
       <style>{KANBAN_CSS}</style>
@@ -158,6 +204,24 @@ export function TaskKanbanBoard({
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          aria-pressed={demo}
+          onClick={() => {
+            setDemo((value) => {
+              if (value) setDemoFrame(initialDemoFrame());
+              return !value;
+            });
+          }}
+          className={`h-8 cursor-pointer rounded-md border px-3 text-xs font-bold ${
+            demo
+              ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+              : "border-[var(--border-panel)] bg-[var(--surface-inset)] text-[var(--text-muted)]"
+          }`}
+          title="Visual-only simulation — writes no data"
+        >
+          {demo ? "Demo: on" : "Demo"}
+        </button>
         <span className="ml-auto text-[11px] font-medium text-[var(--text-muted)]">
           {open.length} open · outbound locked
         </span>
@@ -172,7 +236,10 @@ export function TaskKanbanBoard({
       <div className="overflow-x-auto p-3">
         <div className="grid min-w-[940px] grid-cols-5 gap-3">
           {COLUMNS.map((col) => {
-            const cards = open.filter((task) => task.status === col.key);
+            const cards = [
+              ...open.filter((task) => task.status === col.key),
+              ...(demoTask && (demoTask.status as DemoStatus) === col.key ? [demoTask] : []),
+            ];
             const isValidTarget = dragging && drag?.overStatus === col.key && drag?.fromStatus !== col.key;
             return (
               <div
