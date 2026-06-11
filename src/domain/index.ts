@@ -24,3 +24,4 @@ export * from "./hermes-tasks";
 export * from "./redaction";
 export * from "./campaign-kind";
 export * from "./board-demo";
+export * from "./task-schedule";
