@@ -6,6 +6,7 @@ import { cx } from "@/app/_components/theme";
 import type { MarkActionCard, MarkActionFlag } from "@/domain";
 
 import { decideCampaignDraftAction } from "../actions";
+import { SaveStar } from "./save-star";
 
 function flagClass(tone: MarkActionFlag["tone"]): string {
   if (tone === "ok") return "text-[var(--ok-text)] bg-[var(--ok-soft)]";
@@ -25,7 +26,7 @@ function LockNote() {
   );
 }
 
-export function ActionCard({ card }: { card: MarkActionCard }) {
+export function ActionCard({ card, sourceConversationId, sourceMessageId }: { card: MarkActionCard; sourceConversationId: string; sourceMessageId: string }) {
   const isDraft = card.kind === "draft";
   return (
     <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-inset)]">
@@ -38,6 +39,20 @@ export function ActionCard({ card }: { card: MarkActionCard }) {
           )}
         </span>
         <span className="min-w-0 flex-1 truncate text-sm font-bold text-[var(--text-primary)]">{card.title}</span>
+        {isDraft ? (
+          <SaveStar
+            input={{
+              kind: "draft",
+              title: card.title,
+              body: card.preview ?? card.rows.map((r) => r.name).join("\n"),
+              sourceCampaignId: card.approval?.campaignId,
+              sourceAssetId: card.approval?.assetId,
+              sourceConversationId,
+              sourceMessageId,
+            }}
+            label="Save draft"
+          />
+        ) : null}
         {card.href ? (
           <Link href={card.href} className="shrink-0 text-xs font-semibold text-[var(--accent-contrast)] hover:underline">
             {isDraft ? "Open draft ▸" : "View ▸"}

@@ -7,9 +7,11 @@ import Link from "next/link";
 import { cx } from "@/app/_components/theme";
 import type { MarkMedia } from "@/domain";
 
+import { SaveStar } from "./save-star";
+
 /** Showcases the images/videos Mark attaches to a reply: a responsive gallery
  *  with a smooth fullscreen lightbox for images and inline players for video. */
-export function MessageMedia({ media }: { media: MarkMedia[] }) {
+export function MessageMedia({ media, conversationId, messageId }: { media: MarkMedia[]; conversationId: string; messageId: string }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const lightboxItem = activeIndex !== null ? media[activeIndex] : null;
   const lightboxOpen = lightboxItem?.kind === "image";
@@ -67,6 +69,18 @@ export function MessageMedia({ media }: { media: MarkMedia[] }) {
                   />
                 </button>
               )}
+              <span className="absolute right-1.5 top-1.5 rounded-md bg-[var(--overlay)] backdrop-blur-sm">
+                <SaveStar
+                  input={{
+                    kind: "media",
+                    mediaUrl: item.url,
+                    caption: item.caption ?? undefined,
+                    sourceConversationId: conversationId,
+                    sourceMessageId: messageId,
+                  }}
+                  label="Save media"
+                />
+              </span>
             </div>
             {item.caption || item.href ? (
               <figcaption className="mt-1.5 flex items-center justify-between gap-2 px-0.5">

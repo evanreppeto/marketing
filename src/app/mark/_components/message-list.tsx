@@ -12,6 +12,7 @@ import { setMarkMessageFeedbackAction } from "../actions";
 import { ActionCard } from "./action-card";
 import { MarkSphere } from "./mark-sphere";
 import { MessageMedia } from "./message-media";
+import { SaveStar } from "./save-star";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -410,12 +411,12 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
         {!pending && message.actions.length > 0 ? (
           <div className="flex flex-col">
             {message.actions.map((card, i) => (
-              <ActionCard key={`${i}-${card.title}`} card={card} />
+              <ActionCard key={`${i}-${card.title}`} card={card} sourceConversationId={message.conversationId} sourceMessageId={message.id} />
             ))}
           </div>
         ) : null}
         {!pending ? <References mentions={message.mentions} /> : null}
-        {message.media.length > 0 ? <MessageMedia media={message.media} /> : null}
+        {message.media.length > 0 ? <MessageMedia media={message.media} conversationId={message.conversationId} messageId={message.id} /> : null}
         {!pending && !failed ? <SuggestionChips suggestions={message.suggestions} onPick={onSuggestion} /> : null}
         {!pending ? (
           <div className="mt-1.5 flex items-center gap-1 text-[var(--text-muted)] opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
@@ -438,6 +439,16 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
                   Regenerate
                 </button>
                 <FeedbackButtons messageId={message.id} current={message.feedback} />
+                <SaveStar
+                  input={{
+                    kind: "angle",
+                    title: message.body.split("\n")[0].slice(0, 80),
+                    body: message.body,
+                    sourceConversationId: message.conversationId,
+                    sourceMessageId: message.id,
+                  }}
+                  label="Save as angle"
+                />
               </>
             )}
           </div>
