@@ -37,10 +37,11 @@ describe("getAgentOperationsDashboard", () => {
             source_id: "campaign-1",
             campaign_id: "campaign-1",
             approval_item_id: "approval-1",
+            due_at: "2026-06-15T18:00:00.000Z",
             completed_at: null,
             created_at: "2026-05-29T18:01:00.000Z",
             updated_at: "2026-05-29T18:02:00.000Z",
-            metadata: { risk_level: "medium" },
+            metadata: { risk_level: "medium", progress: { done: 12, total: 20 } },
           },
         ],
         error: null,
@@ -113,6 +114,9 @@ describe("getAgentOperationsDashboard", () => {
       linkedObject: "Campaign: Plumbing Partner Outreach Demo",
       href: "/agent-operations/tasks/task-123456789",
       approvalHref: "/approvals?item=approval-1",
+      priority: "High",
+      dueAt: "2026-06-15T18:00:00.000Z",
+      progress: { done: 12, total: 20 },
     });
     expect(dashboard.approvals[0]).toMatchObject({
       source: "Email",
