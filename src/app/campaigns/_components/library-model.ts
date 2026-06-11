@@ -87,7 +87,7 @@ export function campaignManagerSummary(campaign: CampaignWorkspaceListItem): Cam
 
 export function campaignManagerWhere(campaign: CampaignWorkspaceListItem): string[] {
   const labels = campaign.assetTypes
-    .map((type) => WHERE_LABELS[type] ?? campaign.channels.find((channel) => channel.toLowerCase() === type.toLowerCase()) ?? "")
+    .map((type) => WHERE_LABELS[assetTypeKey(type)] ?? campaign.channels.find((channel) => channel.toLowerCase() === type.toLowerCase()) ?? "")
     .filter(Boolean);
   const distinct = Array.from(new Set(labels));
   return distinct.length > 0 ? distinct.slice(0, 4) : ["Not chosen"];
@@ -135,6 +135,14 @@ function matchesManagerView(campaign: CampaignWorkspaceListItem, view: CampaignM
   if (view === "mark-working") return campaign.lifecycle === "Drafting";
   if (view === "live") return campaign.lifecycle === "Live";
   return /archived/i.test(campaign.status);
+}
+
+function assetTypeKey(type: string): string {
+  return type
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function campaignSearchText(campaign: CampaignWorkspaceListItem): string {

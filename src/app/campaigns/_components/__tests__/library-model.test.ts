@@ -144,6 +144,15 @@ describe("campaign manager helpers", () => {
     ]);
   });
 
+  it("maps humanized asset types from the read model to plain where labels", () => {
+    expect(campaignManagerWhere(campaign({ assetTypes: ["Email", "Social Ad", "Landing Page", "One Pager"] }))).toEqual([
+      "Email",
+      "Social",
+      "Website",
+      "Export",
+    ]);
+  });
+
   it("derives the next step in plain language", () => {
     expect(campaignNextStep(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe("Review 2 pieces");
     expect(campaignNextStep(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe("Send or export");
@@ -170,10 +179,19 @@ describe("campaign manager helpers", () => {
     const items = [
       campaign({ id: "plumber", name: "Plumber referral campaign", audienceSummary: "Plumbing partners", assetTypes: ["email"] }),
       campaign({ id: "storm", name: "Storm response ads", persona: "Persona Homeowner", audienceSummary: "Homeowners", assetTypes: ["social_ad"] }),
+      campaign({
+        id: "mail",
+        name: "Homeowner follow-up",
+        persona: "Persona Homeowner",
+        audienceSummary: "Recent customers",
+        assetTypes: ["Email"],
+        channels: ["Direct Mail"],
+      }),
     ];
 
     expect(filterCampaignManagerItems(items, "all", "plumbing").map((campaignItem) => campaignItem.id)).toEqual(["plumber"]);
     expect(filterCampaignManagerItems(items, "all", "social").map((campaignItem) => campaignItem.id)).toEqual(["storm"]);
+    expect(filterCampaignManagerItems(items, "all", "direct mail").map((campaignItem) => campaignItem.id)).toEqual(["mail"]);
   });
 
   it("counts manager views", () => {
@@ -182,15 +200,25 @@ describe("campaign manager helpers", () => {
       campaign({ id: "ready", lifecycle: "Ready", pendingCount: 0 }),
       campaign({ id: "live", lifecycle: "Live", pendingCount: 0 }),
       campaign({ id: "draft", lifecycle: "Drafting", pendingCount: 0 }),
+      campaign({ id: "archived", status: "Archived", lifecycle: "Live", pendingCount: 0 }),
     ]);
 
     expect(counts satisfies Record<CampaignManagerView, number>).toEqual({
       "needs-attention": 1,
-      all: 4,
+      all: 5,
       "ready-to-send": 1,
       "mark-working": 1,
-      live: 1,
-      archived: 0,
+      live: 2,
+      archived: 1,
     });
+  });
+
+  it("filters archived campaigns", () => {
+    const items = [
+      campaign({ id: "active", status: "Pending approval", lifecycle: "Ready", pendingCount: 0 }),
+      campaign({ id: "archived", status: "Archived", lifecycle: "Live", pendingCount: 0 }),
+    ];
+
+    expect(filterCampaignManagerItems(items, "archived").map((campaignItem) => campaignItem.id)).toEqual(["archived"]);
   });
 });
