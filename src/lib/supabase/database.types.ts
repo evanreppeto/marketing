@@ -1101,6 +1101,7 @@ export type Database = {
           persona_snapshot_id: string | null;
           approval_item_id: string | null;
           due_at: string | null;
+          scheduled_for: string | null;
           started_at: string | null;
           completed_at: string | null;
           retry_count: number;
@@ -1122,6 +1123,7 @@ export type Database = {
           persona_snapshot_id?: string | null;
           approval_item_id?: string | null;
           due_at?: string | null;
+          scheduled_for?: string | null;
           started_at?: string | null;
           completed_at?: string | null;
           retry_count?: number;
@@ -1143,6 +1145,7 @@ export type Database = {
           persona_snapshot_id?: string | null;
           approval_item_id?: string | null;
           due_at?: string | null;
+          scheduled_for?: string | null;
           started_at?: string | null;
           completed_at?: string | null;
           retry_count?: number;
