@@ -156,7 +156,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
       <div className="overflow-x-auto p-3">
         <div className="grid min-w-[940px] grid-cols-5 gap-3">
           {COLUMNS.map((col) => {
-            const cards = open.filter((task) => task.status === col.key);
+            const cards = open.filter((task) => task.status === col.key).sort(compareTaskPriority);
             const isValidTarget = dragging && drag?.overStatus === col.key && drag?.fromStatus !== col.key;
             return (
               <div
@@ -237,7 +237,7 @@ function Card({
   overlay?: boolean;
   onPointerDown?: (event: React.PointerEvent) => void;
 }) {
-  const accent = riskAccent(task.risk);
+  const accent = priorityAccent(task.priority);
   const needsApproval = Boolean(task.approvalHref) || /approval/i.test(`${task.status} ${task.approval}`);
   const working = task.status === "running";
   const pct =
@@ -312,10 +312,42 @@ function Card({
   );
 }
 
-function riskAccent(risk: string): { bar: string; text: string } {
-  if (/high|blocked/i.test(risk)) return { bar: "var(--priority)", text: "var(--priority-text)" };
-  if (/medium|warn/i.test(risk)) return { bar: "var(--warn)", text: "var(--warn-text)" };
+function priorityAccent(priority: string): { bar: string; text: string } {
+  if (/urgent/i.test(priority)) return { bar: "var(--priority)", text: "var(--priority-text)" };
+  if (/high/i.test(priority)) return { bar: "var(--warn)", text: "var(--warn-text)" };
+  if (/medium/i.test(priority)) return { bar: "var(--accent)", text: "var(--accent-strong)" };
   return { bar: "var(--ok)", text: "var(--ok-text)" };
+}
+
+function compareTaskPriority(left: AgentOperationsTask, right: AgentOperationsTask) {
+  const priorityDelta = priorityRank(right.priority) - priorityRank(left.priority);
+  if (priorityDelta !== 0) return priorityDelta;
+
+  const dueDelta = dueRank(left.dueAt) - dueRank(right.dueAt);
+  if (dueDelta !== 0) return dueDelta;
+
+  return timestampRank(right.updated) - timestampRank(left.updated);
+}
+
+function priorityRank(priority: string) {
+  const normalized = priority.toLowerCase();
+  if (normalized.includes("urgent")) return 4;
+  if (normalized.includes("high")) return 3;
+  if (normalized.includes("medium")) return 2;
+  if (normalized.includes("low")) return 1;
+  return 0;
+}
+
+function dueRank(value: string | null) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+}
+
+function timestampRank(value: string | null) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function formatDue(dueAt: string | null): string {

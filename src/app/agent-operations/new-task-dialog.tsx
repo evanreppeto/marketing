@@ -15,6 +15,13 @@ const PRIORITY_OPTIONS = [
   { value: "low", label: "Low", dot: "var(--text-muted)" },
 ] as const;
 
+const STATUS_OPTIONS = [
+  { value: "queued", label: "Queued", dot: "var(--text-muted)" },
+  { value: "running", label: "Running", dot: "var(--ok)" },
+  { value: "needs_approval", label: "Needs review", dot: "var(--accent)" },
+  { value: "blocked", label: "Blocked", dot: "var(--priority)" },
+] as const;
+
 const WHEN_OPTIONS: ReadonlyArray<{ value: SchedulePreset; label: string }> = [
   { value: "now", label: "Now" },
   { value: "few_hours", label: "In a few hours" },
@@ -23,11 +30,12 @@ const WHEN_OPTIONS: ReadonlyArray<{ value: SchedulePreset; label: string }> = [
   { value: "custom", label: "Pick date & time…" },
 ];
 
-type MenuKey = "priority" | "when" | null;
+type MenuKey = "status" | "priority" | "when" | null;
 
 export function NewTaskDialog() {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<MenuKey>(null);
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>("queued");
   const [priority, setPriority] = useState<(typeof PRIORITY_OPTIONS)[number]["value"]>("medium");
   const [whenPreset, setWhenPreset] = useState<SchedulePreset>("now");
   const [customIso, setCustomIso] = useState("");
@@ -77,6 +85,7 @@ export function NewTaskDialog() {
   // Show the right modifier glyph for the platform (⌘ on Mac, Ctrl elsewhere).
   const modKey = isMac ? "⌘" : "Ctrl";
 
+  const statusOption = STATUS_OPTIONS.find((option) => option.value === status)!;
   const priorityOption = PRIORITY_OPTIONS.find((option) => option.value === priority)!;
   const scheduledForValue =
     whenPreset === "now" ? "" : resolveScheduledFor(whenPreset, new Date(), customIso || null) ?? "";
@@ -119,14 +128,15 @@ export function NewTaskDialog() {
             className="w-full max-w-lg rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-raised)]"
             onClick={(event) => event.stopPropagation()}
           >
+            <input type="hidden" name="status" value={status} />
             <input type="hidden" name="priority" value={priority} />
             <input type="hidden" name="scheduledFor" value={scheduledForValue} />
 
             <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] px-5 py-4">
               <MarkAvatar size={28} />
               <div>
-                <h2 className="text-sm font-bold text-[var(--text-primary)]">New task for Mark</h2>
-                <p className="text-xs text-[var(--text-muted)]">Mark prepares the work. You approve anything that goes out.</p>
+                <h2 className="text-sm font-bold text-[var(--text-primary)]">New ticket</h2>
+                <p className="text-xs text-[var(--text-muted)]">Assign status, priority, and timing before Mark picks it up.</p>
               </div>
             </div>
 
@@ -146,6 +156,11 @@ export function NewTaskDialog() {
               </label>
 
               <div className="relative mt-3 flex flex-wrap items-center gap-2">
+                <PillButton active={menu === "status"} onClick={() => setMenu(menu === "status" ? null : "status")}>
+                  <span className="h-2 w-2 rounded-full" style={{ background: statusOption.dot }} />
+                  {statusOption.label}
+                  <Chevron />
+                </PillButton>
                 <PillButton active={menu === "priority"} onClick={() => setMenu(menu === "priority" ? null : "priority")}>
                   <span className="h-2 w-2 rounded-full" style={{ background: priorityOption.dot }} />
                   {priorityOption.label}
@@ -158,6 +173,24 @@ export function NewTaskDialog() {
                 </PillButton>
 
                 {menu ? <div className="fixed inset-0 z-[1]" onClick={() => setMenu(null)} /> : null}
+
+                {menu === "status" ? (
+                  <Menu>
+                    {STATUS_OPTIONS.map((option) => (
+                      <MenuItem
+                        key={option.value}
+                        selected={option.value === status}
+                        onClick={() => {
+                          setStatus(option.value);
+                          setMenu(null);
+                        }}
+                      >
+                        <span className="h-2 w-2 rounded-full" style={{ background: option.dot }} />
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                ) : null}
 
                 {menu === "priority" ? (
                   <Menu>

@@ -47,30 +47,12 @@ export function TicketLatestOutput({
           {output.readableBody || "No readable output body captured."}
         </p>
 
-        <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-3">
-          <div className="text-xs font-semibold text-[var(--text-primary)]">Check before approving</div>
-          <div className="mt-2 grid gap-2 text-xs text-[var(--text-secondary)] sm:grid-cols-3">
-            <ReviewCheck label="No outbound send" />
-            <ReviewCheck label="Customer relationship protected" />
-            <ReviewCheck label="Approval required" />
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
           <span>Compliance {humanize(output.complianceStatus)}</span>
           <span>Risk {humanize(output.riskLevel)}</span>
         </div>
       </div>
     </section>
-  );
-}
-
-function ReviewCheck({ label }: { label: string }) {
-  return (
-    <span className="inline-flex min-h-7 items-center gap-2">
-      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-      {label}
-    </span>
   );
 }
 

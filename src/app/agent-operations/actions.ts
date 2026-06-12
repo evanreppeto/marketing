@@ -151,12 +151,15 @@ export async function createMarkTaskAction(formData: FormData) {
 }
 
 type TaskPriority = "low" | "medium" | "high" | "urgent";
+type CreateTaskStatus = "queued" | "running" | "blocked" | "needs_approval";
 const ALLOWED_PRIORITIES = new Set<TaskPriority>(["low", "medium", "high", "urgent"]);
+const ALLOWED_CREATE_STATUSES = new Set<CreateTaskStatus>(["queued", "running", "blocked", "needs_approval"]);
 
 export async function createTaskAction(formData: FormData): Promise<void> {
   await requireOperator();
 
   const objective = String(formData.get("objective") ?? "").trim();
+  const statusRaw = String(formData.get("status") ?? "queued").trim().toLowerCase();
   const priorityRaw = String(formData.get("priority") ?? "medium").trim().toLowerCase();
   const campaignIdForType = String(formData.get("campaignId") ?? "").trim();
   const taskType =
@@ -165,6 +168,9 @@ export async function createTaskAction(formData: FormData): Promise<void> {
   const priority: TaskPriority = (ALLOWED_PRIORITIES as Set<string>).has(priorityRaw)
     ? (priorityRaw as TaskPriority)
     : "medium";
+  const status: CreateTaskStatus = (ALLOWED_CREATE_STATUSES as Set<string>).has(statusRaw)
+    ? (statusRaw as CreateTaskStatus)
+    : "queued";
 
   const scheduledForRaw = String(formData.get("scheduledFor") ?? "").trim();
   let scheduledFor: string | null = null;
@@ -192,13 +198,14 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     .from("agent_tasks")
     .insert({
       agent_id: agentId,
-      status: "queued",
+      status,
       priority,
       objective,
       description: objective,
       task_type: taskType,
       campaign_id: campaignId,
       scheduled_for: scheduledFor,
+      started_at: status === "running" ? now : null,
       owner_kind: "human",
       owner_label: "Operator",
       driver_kind: "agent",
@@ -210,6 +217,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
         runner_name: "Mark",
         requested_from: "agent_operations_board",
         requested_at: now,
+        initial_status: status,
         human_approval_required: true,
         outbound_dispatch_allowed: false,
         scheduled_for: scheduledFor,
@@ -228,6 +236,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     summary: objective,
     payload: {
       task_type: taskType,
+      initial_status: status,
       guardrails: [
         "No outbound sending.",
         "Create approval items for external-facing work.",
@@ -239,15 +248,15 @@ export async function createTaskAction(formData: FormData): Promise<void> {
   await supabase.from("agent_run_logs").insert({
     task_id: data.id,
     agent_id: agentId,
-    run_status: "queued",
+    run_status: status === "running" ? "running" : status === "blocked" ? "failed" : "queued",
     model_provider: "external_cli",
     model_name: "mark-mac-mini",
     reasoning_summary: scheduledFor
-      ? `Task queued from the board, scheduled to start ${scheduledFor}. External runner has not picked it up yet.`
-      : "Task queued from the board. External runner has not picked it up yet.",
-    started_at: null,
+      ? `Task created from the board with status ${status}, scheduled to start ${scheduledFor}. External runner has not picked it up yet.`
+      : `Task created from the board with status ${status}. External runner has not picked it up yet.`,
+    started_at: status === "running" ? now : null,
     completed_at: null,
-    metadata: { runner_name: "Mark", source: "operator_board_create" },
+    metadata: { runner_name: "Mark", source: "operator_board_create", initial_status: status },
   });
 
   await supabase.from("agent_task_events").insert({
@@ -255,9 +264,9 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     actor_kind: "human",
     actor_label: "Operator",
     event_type: "system_event",
-    title: "Task created",
+    title: "Ticket created",
     body: objective,
-    metadata: { source: "board_create", driver: "Mark" },
+    metadata: { source: "board_create", driver: "Mark", initial_status: status, priority },
   });
 
   if (campaignId) revalidatePath(`/campaigns/${campaignId}`);
