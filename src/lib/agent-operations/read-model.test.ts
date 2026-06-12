@@ -158,6 +158,32 @@ describe("getAgentOperationsDashboard", () => {
     });
   });
 
+  it("summarizes Supabase HTML DNS errors instead of surfacing raw HTML", async () => {
+    const supabase = createSupabaseQueryMock({
+      agents: { data: [], error: null },
+      agent_tasks: {
+        data: null,
+        error: {
+          message:
+            '<!doctype html><html><head><title>Origin DNS error | fpjvgqrfqncnudqeudee.supabase.co | Cloudflare</title></head><body><h1>Error 1016</h1><h2>Origin DNS error</h2></body></html>',
+        },
+      },
+      approval_items: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+      campaigns: { data: [], error: null },
+    });
+
+    const dashboard = await getAgentOperationsDashboard(supabase);
+
+    expect(dashboard.status).toBe("unavailable");
+    if (dashboard.status !== "unavailable") return;
+
+    expect(dashboard.message).toContain("Cloudflare 1016");
+    expect(dashboard.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
+    expect(dashboard.message).not.toContain("<!doctype");
+    expect(dashboard.message).not.toContain("<html");
+  });
+
   it("falls back to legacy task columns when shared ownership columns are not migrated yet", async () => {
     const supabase = createSupabaseQueryMock({
       agents: {
@@ -422,6 +448,43 @@ describe("getAgentTaskDetail", () => {
       ]),
     );
     expect(supabase.calls).toContainEqual(["from", "agent_task_events"]);
+  });
+
+  it("summarizes Supabase HTML DNS errors on task detail lookup", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: {
+        data: null,
+        error: {
+          message:
+            '<!doctype html><html><head><title>Origin DNS error | fpjvgqrfqncnudqeudee.supabase.co | Cloudflare</title></head><body><h1>Error 1016</h1><h2>Origin DNS error</h2></body></html>',
+        },
+      },
+    });
+
+    const detail = await getAgentTaskDetail("task-123456789", supabase);
+
+    expect(detail.status).toBe("unavailable");
+    if (detail.status !== "unavailable") return;
+
+    expect(detail.message).toContain("Cloudflare 1016");
+    expect(detail.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
+    expect(detail.message).not.toContain("<!doctype");
+    expect(detail.message).not.toContain("<html");
+  });
+
+  it("summarizes Supabase fetch failures on task detail lookup", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: null, error: { message: "TypeError: fetch failed" } },
+    });
+
+    const detail = await getAgentTaskDetail("task-123456789", supabase);
+
+    expect(detail.status).toBe("unavailable");
+    if (detail.status !== "unavailable") return;
+
+    expect(detail.message).toBe(
+      "agent_tasks lookup failed: Supabase connection failed: the data API could not be reached. Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.",
+    );
   });
 
   it("falls back to legacy task detail data when shared ticket tables are not migrated yet", async () => {

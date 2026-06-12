@@ -648,8 +648,45 @@ async function fetchTaskEvents(supabase: SupabaseClient, taskId: string) {
 
 function assertSupabaseResult(table: string, error: { message?: string } | null) {
   if (error) {
-    throw new Error(`${table} lookup failed: ${error.message ?? "Unknown Supabase error"}`);
+    throw new Error(`${table} lookup failed: ${formatSupabaseLookupError(error.message)}`);
   }
+}
+
+function formatSupabaseLookupError(message: string | undefined) {
+  const rawMessage = message ?? "";
+  const cleanedMessage = stripHtmlMessage(rawMessage);
+
+  if (!cleanedMessage) return "Unknown Supabase error";
+
+  if (/cloudflare/i.test(cleanedMessage) && /(origin dns error|error 1016)/i.test(cleanedMessage)) {
+    return "Supabase connection failed: project host could not be resolved (Cloudflare 1016 Origin DNS error). Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.";
+  }
+
+  if (/fetch failed/i.test(cleanedMessage)) {
+    return "Supabase connection failed: the data API could not be reached. Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.";
+  }
+
+  if (/<!doctype html|<html/i.test(rawMessage)) {
+    return "Supabase connection failed: the data API returned an HTML error page instead of JSON. Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.";
+  }
+
+  return cleanedMessage.length > 320 ? `${cleanedMessage.slice(0, 317).trimEnd()}...` : cleanedMessage;
+}
+
+function stripHtmlMessage(message: string) {
+  return message
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&bull;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isMissingSharedTaskSchemaError(error: { message?: string } | null) {
