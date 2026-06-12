@@ -5,7 +5,7 @@ import { type Database } from "./database.types";
 export type TypedSupabaseClient = SupabaseClient<Database>;
 
 let adminClient: TypedSupabaseClient | null = null;
-const SUPABASE_FETCH_TIMEOUT_MS = 4000;
+const SUPABASE_FETCH_TIMEOUT_MS = 2500;
 
 const supabaseFetch: typeof fetch = async (input, init) => {
   const controller = new AbortController();
