@@ -8,7 +8,7 @@ import { CampaignCreateForm } from "../_components/campaign-create-form";
 export default async function NewCampaignPage() {
   await requireOperator();
   const { workspaceName } = await getAppSettings();
-  const assistantName = getMarkDisplayName();
+  const assistantName = await getMarkDisplayName();
 
   return (
     <>

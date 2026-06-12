@@ -10,6 +10,7 @@ import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, valida
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
+import { hasActiveAgentTokens } from "@/lib/agent/tokens";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
 import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
@@ -202,6 +203,27 @@ export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
   } catch {
     return { attached: false, ...base };
   }
+}
+
+export type AgentConnectionInfo = MarkAgentStatus & {
+  runnerConfigured: boolean;
+  tokenConfigured: boolean;
+};
+
+export async function getAgentConnectionInfoAction(): Promise<AgentConnectionInfo> {
+  await requireOperator();
+
+  const connection = await resolveAgentConnection();
+  const status = await getMarkAgentStatusAction();
+  const dbTokenConfigured = isSupabaseAdminConfigured()
+    ? await hasActiveAgentTokens(getSupabaseAdminClient()).catch(() => false)
+    : false;
+
+  return {
+    ...status,
+    runnerConfigured: Boolean(connection.webhookUrl && connection.enabled),
+    tokenConfigured: Boolean(process.env.HERMES_AGENT_API_TOKEN?.trim()) || dbTokenConfigured,
+  };
 }
 
 export type AgentTestResult = {

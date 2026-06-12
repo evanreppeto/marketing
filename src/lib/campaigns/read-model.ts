@@ -731,12 +731,18 @@ function assetDecisionState(asset: CampaignWorkspaceAsset): "approved" | "declin
 }
 
 function collectPieceStatuses(assets: CampaignAssetRow[], approvals: ApprovalItemRow[]): string[] {
-  const assetIds = new Set(assets.map((asset) => asset.id));
+  const approvalByAssetId = new Map<string, ApprovalItemRow>();
+  const standaloneApprovals: ApprovalItemRow[] = [];
+  for (const approval of approvals) {
+    if (approval.campaign_asset_id) {
+      if (!approvalByAssetId.has(approval.campaign_asset_id)) approvalByAssetId.set(approval.campaign_asset_id, approval);
+    } else {
+      standaloneApprovals.push(approval);
+    }
+  }
   return [
-    ...assets.map((asset) => asset.status),
-    ...approvals
-      .filter((approval) => !approval.campaign_asset_id || assetIds.has(approval.campaign_asset_id))
-      .map((approval) => approval.status),
+    ...assets.map((asset) => approvalByAssetId.get(asset.id)?.status ?? (/approved|deployed/i.test(asset.status) ? asset.status : "draft")),
+    ...standaloneApprovals.map((approval) => approval.status),
   ];
 }
 

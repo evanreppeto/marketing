@@ -60,6 +60,15 @@ function detail(overrides: Partial<LiveCampaignWorkspace> = {}): LiveCampaignWor
       launchLocked: true,
       createdAt: "Jun 10, 2026",
       updatedAt: "Jun 11, 2026",
+      rollup: {
+        state: "needs_review",
+        label: "Needs your review · 1 pending",
+        approved: 1,
+        pending: 1,
+        changes: 0,
+        draft: 0,
+        total: 2,
+      },
     },
     assets,
     groupedAssets: {

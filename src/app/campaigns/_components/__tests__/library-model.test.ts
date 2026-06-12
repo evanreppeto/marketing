@@ -17,6 +17,16 @@ import {
   type CampaignManagerView,
 } from "../library-model";
 
+const defaultRollup: CampaignWorkspaceListItem["rollup"] = {
+  state: "needs_review",
+  label: "Needs your review · 1 pending",
+  approved: 0,
+  pending: 1,
+  changes: 0,
+  draft: 0,
+  total: 1,
+};
+
 function item(overrides: Partial<CampaignWorkspaceListItem>): CampaignWorkspaceListItem {
   return {
     id: "c1",
@@ -43,6 +53,7 @@ function item(overrides: Partial<CampaignWorkspaceListItem>): CampaignWorkspaceL
     updatedAt: "Jun 10",
     updatedAtIso: "2026-06-10T12:00:00Z",
     href: "/campaigns/c1",
+    rollup: defaultRollup,
     ...overrides,
   };
 }
@@ -107,6 +118,7 @@ function campaign(overrides: Partial<CampaignWorkspaceListItem> = {}): CampaignW
     updatedAt: overrides.updatedAt ?? "Jun 11, 2026, 3:00 PM",
     updatedAtIso: overrides.updatedAtIso ?? "2026-06-11T19:00:00.000Z",
     href: overrides.href ?? "/campaigns/campaign-1",
+    rollup: overrides.rollup ?? defaultRollup,
   };
 }
 

@@ -60,7 +60,9 @@ export function createSupabaseQueryMock(
       onRejected?: (reason: unknown) => unknown,
     ) => {
       const queue = responseQueues.get(tableName);
-      const response = queue && queue.length > 0 ? (queue.shift() ?? queue[0]) : { data: [], error: null };
+      const response: MockResponse = queue && queue.length > 0
+        ? (queue.length > 1 ? queue.shift()! : queue[0]!)
+        : { data: [], error: null };
       return Promise.resolve(response).then(onFulfilled, onRejected);
     };
 
