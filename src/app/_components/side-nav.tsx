@@ -59,7 +59,7 @@ export function SideNav({ active, items, collapsed = false }: SideNavProps) {
               collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""
             } ${
               isActive
-                ? "text-[var(--text-primary)] shadow-[inset_3px_0_0_var(--accent)]"
+                ? "font-semibold text-[var(--accent)] shadow-[inset_4px_0_0_var(--accent)]"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
             }`}
             href={item.href}

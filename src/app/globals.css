@@ -361,8 +361,17 @@ h4, .font-display {
   border-color: transparent !important;
 }
 
-.chicago-dark nav[aria-label="Main navigation"] a[aria-current="page"] svg {
+.chicago-dark nav[aria-label="Main navigation"] a[aria-current="page"],
+.chicago-dark nav[aria-label="Main navigation"] a[aria-current="page"] :where(span, svg) {
   color: var(--accent) !important;
+}
+
+/* Sidebar nav keeps a quiet, hugging focus ring instead of the loud accent
+   box the global rule (above) applies to rounded links — the active item is
+   already clearly marked, so the focus ring just needs to be subtle. */
+.chicago-dark nav[aria-label="Main navigation"] :where(a, button)[class*="rounded"]:focus-visible {
+  outline: 1px solid var(--border-strong) !important;
+  outline-offset: 0 !important;
 }
 
 .chicago-dark nav[aria-label="CRM object navigation"] {
