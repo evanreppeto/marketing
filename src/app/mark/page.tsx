@@ -4,7 +4,15 @@ import type { ComponentProps } from "react";
 import { countActiveApprovals } from "@/lib/approvals/read-model";
 import { getOperatorActor } from "@/lib/auth/operator";
 import { getMentionables } from "@/lib/mark-chat/mention-search";
-import { listConversations, listMessages, getConversation, listProjects, listArchivedConversations } from "@/lib/mark-chat/persistence";
+import {
+  listConversations,
+  listMessages,
+  getConversation,
+  listProjects,
+  listArchivedConversations,
+  listProjectAssetMessages,
+  type MarkMessage,
+} from "@/lib/mark-chat/persistence";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -71,6 +79,19 @@ async function loadLiveMarkChatProps(params: Awaited<MarkPageProps["searchParams
   const activeConversation = requestedId ? await getConversation(requestedId) : null;
   const initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
 
+  // Project-wide assets for the Studio: asset-bearing messages from sibling chats
+  // in the same project. Non-fatal — the chat still works if this read fails.
+  let projectMessages: MarkMessage[] = [];
+  if (activeConversation?.projectId) {
+    try {
+      projectMessages = await listProjectAssetMessages(activeConversation.projectId, operator, {
+        excludeConversationId: activeConversation.id,
+      });
+    } catch {
+      projectMessages = [];
+    }
+  }
+
   return {
     conversations,
     projects,
@@ -83,6 +104,7 @@ async function loadLiveMarkChatProps(params: Awaited<MarkPageProps["searchParams
     campaigns,
     activePinned: Boolean(activeConversation?.pinnedAt),
     initialMessages,
+    projectMessages,
     mentionGroups,
     operatorName: displayName(operator),
     pendingApprovals,
