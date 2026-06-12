@@ -63,10 +63,12 @@ export type RecentActivity =
   | { status: "unavailable"; message: string };
 
 const SOURCE_LIMIT = 50;
+const NEEDS_REVIEW_SOURCE_LIMIT = 250;
 const DEFAULT_LIMIT = 100;
 
 export async function getRecentActivity(query: ActivityQuery = {}, client?: SupabaseClient): Promise<RecentActivity> {
   const limit = query.limit ?? DEFAULT_LIMIT;
+  const sourceLimit = sourceLimitForQuery(query);
 
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
@@ -79,27 +81,27 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
         .from("approval_decisions")
         .select("id,approval_item_id,decision,decided_by,decided_at,decision_notes")
         .order("decided_at", { ascending: false })
-        .limit(SOURCE_LIMIT),
+        .limit(sourceLimit),
       supabase
         .from("agent_run_logs")
         .select("id,task_id,run_status,model_provider,model_name,reasoning_summary,error_message,started_at,completed_at,created_at")
         .order("created_at", { ascending: false })
-        .limit(SOURCE_LIMIT),
+        .limit(sourceLimit),
       supabase
         .from("agent_outputs")
         .select("id,task_id,approval_item_id,title,output_type,risk_level,compliance_status,approval_status,created_at")
         .order("created_at", { ascending: false })
-        .limit(SOURCE_LIMIT),
+        .limit(sourceLimit),
       supabase
         .from("campaign_events")
         .select("id,campaign_id,approval_item_id,event_type,actor,detail,occurred_at")
         .order("occurred_at", { ascending: false })
-        .limit(SOURCE_LIMIT),
+        .limit(sourceLimit),
       supabase
         .from("events")
         .select("id,actor,subject_type,subject_id,type,payload,occurred_at")
         .order("occurred_at", { ascending: false })
-        .limit(SOURCE_LIMIT),
+        .limit(sourceLimit),
     ]);
 
     assertOk("approval_decisions", decisions.error);
@@ -128,6 +130,10 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
   } catch (error) {
     return { status: "unavailable", message: error instanceof Error ? error.message : "Activity is unavailable." };
   }
+}
+
+export function sourceLimitForQuery(query: ActivityQuery): number {
+  return query.needsReview === true ? NEEDS_REVIEW_SOURCE_LIMIT : SOURCE_LIMIT;
 }
 
 /** Pure merge: drop entries with no timestamp, sort newest-first, cap to `limit`. */

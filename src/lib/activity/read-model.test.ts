@@ -6,6 +6,7 @@ import {
   groupActivityEntriesByDay,
   mapEvent,
   mergeActivityEntries,
+  sourceLimitForQuery,
   type ActivityEntry,
 } from "./read-model";
 
@@ -62,6 +63,16 @@ describe("mergeActivityEntries", () => {
     const before = input.map((e) => e.id);
     mergeActivityEntries(input, 10);
     expect(input.map((e) => e.id)).toEqual(before);
+  });
+});
+
+describe("sourceLimitForQuery", () => {
+  it("keeps the normal source cap for default activity queries", () => {
+    expect(sourceLimitForQuery({})).toBe(50);
+  });
+
+  it("widens the source cap for needs-review activity queries", () => {
+    expect(sourceLimitForQuery({ needsReview: true })).toBe(250);
   });
 });
 
