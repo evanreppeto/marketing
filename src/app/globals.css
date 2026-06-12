@@ -272,7 +272,7 @@ h4, .font-display {
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text-muted);
 }
 
 /* The page-body utility classes are now fully tokenized, so the old
