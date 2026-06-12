@@ -88,16 +88,32 @@ const supabaseFetch = createResilientFetch(fetch, {
   cooldownMs: SUPABASE_BREAKER_COOLDOWN_MS,
 });
 
+/**
+ * Resolve the project URL and service-role key, preferring the canonical names
+ * but falling back to the `MARKETING_`-prefixed variants. The Vercel project for
+ * this app stores the live values under the prefixed names while the canonical
+ * `SUPABASE_SERVICE_ROLE_KEY` is left empty; the fallback keeps both local dev
+ * and production working without duplicating secrets. Empty strings are falsy,
+ * so an empty canonical var correctly falls through to the populated prefix.
+ */
+function resolveSupabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_MARKETING_SUPABASE_URL || process.env.MARKETING_SUPABASE_URL || "";
+}
+
+function resolveServiceRoleKey() {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.MARKETING_SUPABASE_SERVICE_ROLE_KEY || "";
+}
+
 export function isSupabaseAdminConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(resolveSupabaseUrl() && resolveServiceRoleKey());
 }
 
 export function getSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = resolveSupabaseUrl();
+  const serviceRoleKey = resolveServiceRoleKey();
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase admin client requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+    throw new Error("Supabase admin client requires a project URL and service-role key (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY, or the MARKETING_ equivalents).");
   }
 
   adminClient ??= createClient<Database>(supabaseUrl, serviceRoleKey, {

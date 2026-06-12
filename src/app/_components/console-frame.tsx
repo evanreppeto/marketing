@@ -71,6 +71,7 @@ export function ConsoleFrame({
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
+    { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
   ];
 
   const settingsNavItems: ShellNavItem[] = [
