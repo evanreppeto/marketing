@@ -3,23 +3,24 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import { priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import { formatScheduleLabel, resolveScheduledFor, type SchedulePreset } from "@/domain";
 
 import { createTaskAction } from "./actions";
 import { buttonClasses } from "../_components/page-header";
 
 const PRIORITY_OPTIONS = [
-  { value: "urgent", label: "Urgent", dot: "var(--priority)" },
-  { value: "high", label: "High", dot: "var(--warn)" },
-  { value: "medium", label: "Medium", dot: "var(--accent)" },
-  { value: "low", label: "Low", dot: "var(--text-muted)" },
+  { value: "urgent", label: "Urgent" },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
 ] as const;
 
 const STATUS_OPTIONS = [
-  { value: "queued", label: "Queued", dot: "var(--text-muted)" },
-  { value: "running", label: "Running", dot: "var(--ok)" },
-  { value: "needs_approval", label: "Needs review", dot: "var(--accent)" },
-  { value: "blocked", label: "Blocked", dot: "var(--priority)" },
+  { value: "queued", label: "Queued" },
+  { value: "running", label: "Running" },
+  { value: "needs_approval", label: "Needs review" },
+  { value: "blocked", label: "Blocked" },
 ] as const;
 
 const WHEN_OPTIONS: ReadonlyArray<{ value: SchedulePreset; label: string }> = [
@@ -157,12 +158,12 @@ export function NewTaskDialog() {
 
               <div className="relative mt-3 flex flex-wrap items-center gap-2">
                 <PillButton active={menu === "status"} onClick={() => setMenu(menu === "status" ? null : "status")}>
-                  <span className="h-2 w-2 rounded-full" style={{ background: statusOption.dot }} />
+                  <IconSlot>{statusIcon(statusOption.value)}</IconSlot>
                   {statusOption.label}
                   <Chevron />
                 </PillButton>
                 <PillButton active={menu === "priority"} onClick={() => setMenu(menu === "priority" ? null : "priority")}>
-                  <span className="h-2 w-2 rounded-full" style={{ background: priorityOption.dot }} />
+                  <IconSlot>{priorityIcon(priorityOption.value)}</IconSlot>
                   {priorityOption.label}
                   <Chevron />
                 </PillButton>
@@ -185,7 +186,7 @@ export function NewTaskDialog() {
                           setMenu(null);
                         }}
                       >
-                        <span className="h-2 w-2 rounded-full" style={{ background: option.dot }} />
+                        <IconSlot>{statusIcon(option.value)}</IconSlot>
                         {option.label}
                       </MenuItem>
                     ))}
@@ -203,7 +204,7 @@ export function NewTaskDialog() {
                           setMenu(null);
                         }}
                       >
-                        <span className="h-2 w-2 rounded-full" style={{ background: option.dot }} />
+                        <IconSlot>{priorityIcon(option.value)}</IconSlot>
                         {option.label}
                       </MenuItem>
                     ))}
@@ -279,6 +280,10 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
       {children}
     </button>
   );
+}
+
+function IconSlot({ children }: { children: ReactNode }) {
+  return <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">{children}</span>;
 }
 
 function Menu({ children }: { children: ReactNode }) {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { StatusPill } from "@/app/_components/page-header";
+import { labelIcon, priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 
 import { updateTaskFieldAction } from "./actions";
 import type { EditableField } from "./actions";
@@ -80,16 +81,25 @@ export function TicketPropertyRail({
       <summary className="cursor-pointer list-none px-3 py-3 transition hover:bg-[var(--surface-inset)] [&::-webkit-details-marker]:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <span className="font-semibold text-[var(--text-primary)]">Properties</span>
+            <span className="font-semibold text-[var(--text-primary)]">Details</span>
             <InlineMeta label="Status">
-              <StatusPill tone={statusTone(values.status)}>{humanize(values.status)}</StatusPill>
+              <StatusPill icon={statusIcon(values.status)} tone={statusTone(values.status)}>
+                {humanize(values.status)}
+              </StatusPill>
+            </InlineMeta>
+            <InlineMeta label="Priority">
+              <StatusPill icon={priorityIcon(values.priority)} tone={priorityTone(values.priority)}>
+                {humanize(values.priority)}
+              </StatusPill>
             </InlineMeta>
             <InlineMeta label="Owner">{values.owner_label}</InlineMeta>
             <InlineMeta label="Driver">{values.driver_label}</InlineMeta>
             <InlineMeta label="Due">{values.due_at ? compactDate(fromDateTimeLocalValue(values.due_at)) : "No due date"}</InlineMeta>
           </div>
           <div className="flex items-center gap-2">
-            <StatusPill tone="amber">Outbound locked</StatusPill>
+            <StatusPill icon={labelIcon("lock")} tone="amber">
+              Outbound locked
+            </StatusPill>
             <span className="text-xs font-semibold text-[var(--text-muted)]">Edit</span>
           </div>
         </div>
@@ -299,6 +309,14 @@ function statusTone(status: string): "amber" | "green" | "red" | "blue" | "gray"
   if (["running", "processing"].includes(status)) return "blue";
   if (["blocked", "failed", "error", "canceled"].includes(status)) return "red";
   if (["queued", "needs_approval", "pending"].includes(status)) return "amber";
+  return "gray";
+}
+
+function priorityTone(priority: string): "amber" | "green" | "red" | "blue" | "gray" {
+  const normalized = priority.toLowerCase();
+  if (normalized.includes("urgent")) return "red";
+  if (normalized.includes("high")) return "amber";
+  if (normalized.includes("medium")) return "blue";
   return "gray";
 }
 

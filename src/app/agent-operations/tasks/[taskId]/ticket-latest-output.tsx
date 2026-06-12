@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
+import { labelIcon, priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import type { AgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 type LiveDetail = Extract<AgentTaskDetail, { status: "live" }>;
@@ -29,8 +30,12 @@ export function TicketLatestOutput({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-[var(--text-muted)]">Latest output</span>
-            <StatusPill tone="blue">{humanize(output.outputType)}</StatusPill>
-            <StatusPill tone={approvalTone(output.approvalStatus)}>{humanize(output.approvalStatus)}</StatusPill>
+            <StatusPill icon={labelIcon("output")} tone="blue">
+              {humanize(output.outputType)}
+            </StatusPill>
+            <StatusPill icon={statusIcon(output.approvalStatus)} tone={approvalTone(output.approvalStatus)}>
+              {humanize(output.approvalStatus)}
+            </StatusPill>
           </div>
           <h2 className="mt-2 text-lg font-semibold text-[var(--text-primary)]">{output.title}</h2>
           <p className="mt-1 text-xs text-[var(--text-muted)]">Created {formatDate(output.createdAt)}</p>
@@ -48,8 +53,12 @@ export function TicketLatestOutput({
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
-          <span>Compliance {humanize(output.complianceStatus)}</span>
-          <span>Risk {humanize(output.riskLevel)}</span>
+          <StatusPill icon={statusIcon(output.complianceStatus)} tone={approvalTone(output.complianceStatus)}>
+            Compliance {humanize(output.complianceStatus)}
+          </StatusPill>
+          <StatusPill icon={priorityIcon(output.riskLevel)} tone={riskTone(output.riskLevel)}>
+            Risk {humanize(output.riskLevel)}
+          </StatusPill>
         </div>
       </div>
     </section>
@@ -61,6 +70,14 @@ function approvalTone(status: string): "amber" | "green" | "red" | "blue" | "gra
   if (["approved", "auto_approved"].includes(normalized)) return "green";
   if (normalized.includes("blocked") || normalized.includes("rejected") || normalized.includes("failed")) return "red";
   if (normalized.includes("pending") || normalized.includes("needs")) return "amber";
+  return "gray";
+}
+
+function riskTone(risk: string): "amber" | "green" | "red" | "blue" | "gray" {
+  const normalized = risk.toLowerCase();
+  if (normalized.includes("high") || normalized.includes("urgent")) return "red";
+  if (normalized.includes("medium")) return "amber";
+  if (normalized.includes("low")) return "green";
   return "gray";
 }
 

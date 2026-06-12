@@ -166,17 +166,20 @@ export function EmptyState({
 export function StatusPill({
   children,
   tone = "gray",
+  icon,
 }: {
   children: React.ReactNode;
   tone?: ThemeTone;
+  icon?: React.ReactNode;
 }) {
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-md border px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
         theme.pill[tone],
       )}
     >
+      {icon ? <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center [&>svg]:h-3 [&>svg]:w-3">{icon}</span> : null}
       {children}
     </span>
   );

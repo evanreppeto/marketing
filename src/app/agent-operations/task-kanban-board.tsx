@@ -5,6 +5,7 @@ import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } fr
 import { createPortal } from "react-dom";
 
 import { EntityAvatar } from "../_components/entity-avatar";
+import { priorityIcon, statusIcon } from "../_components/ticket-icons";
 
 import { formatScheduleLabel } from "@/domain";
 
@@ -168,10 +169,11 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
               >
                 <div className="sticky top-0 z-[1] flex items-center justify-between rounded-t-xl border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
                   <span
-                    className={`text-[10.5px] font-extrabold uppercase tracking-wider ${
+                    className={`inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider ${
                       col.key === "needs_approval" ? "text-[var(--accent-strong)]" : "text-[var(--text-secondary)]"
                     }`}
                   >
+                    <CardIconSlot>{statusIcon(col.key)}</CardIconSlot>
                     {col.label}
                   </span>
                   <span className="rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-bold text-[var(--text-muted)]">
@@ -279,7 +281,7 @@ function Card({
       <div className="mt-3 border-t border-[var(--border-hairline)] pt-2">
         <div className="flex items-center gap-2 text-[12px] font-semibold text-[var(--text-primary)]">
           <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Next</span>
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: needsApproval ? "var(--accent)" : accent.bar }} />
+          <CardIconSlot>{statusIcon(needsApproval ? "needs_approval" : task.status)}</CardIconSlot>
           <span className="min-w-0 truncate">{nextAction}</span>
         </div>
       </div>
@@ -305,11 +307,18 @@ function Card({
             Live
           </span>
         ) : (
-          <span className="shrink-0 font-semibold">{task.priority}</span>
+          <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
+            <CardIconSlot>{priorityIcon(task.priority)}</CardIconSlot>
+            {task.priority}
+          </span>
         )}
       </div>
     </article>
   );
+}
+
+function CardIconSlot({ children }: { children: React.ReactNode }) {
+  return <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">{children}</span>;
 }
 
 function priorityAccent(priority: string): { bar: string; text: string } {
