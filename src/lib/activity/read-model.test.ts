@@ -143,7 +143,7 @@ describe("applyActivityFilters", () => {
     );
     const olderNeedsReviewEntry = entry("older-needs-review", "2026-06-11T12:00:00Z", {
       category: "approval",
-      insightLabel: null,
+      insightLabel: "Needs review",
       tone: "amber",
     });
     const query = { needsReview: true };
@@ -152,6 +152,31 @@ describe("applyActivityFilters", () => {
     const merged = mergeActivityEntries(filtered, 5);
 
     expect(merged.map((item) => item.id)).toEqual(["older-needs-review"]);
+  });
+
+  it("does not treat historical approval decisions as active review work", () => {
+    const filtered = applyActivityFilters(
+      [
+        entry("active-review", "2026-06-12T14:00:00Z", {
+          category: "asset",
+          insightLabel: "Needs review",
+          tone: "amber",
+        }),
+        entry("declined-history", "2026-06-12T13:00:00Z", {
+          category: "approval",
+          insightLabel: "Risk blocked",
+          tone: "red",
+        }),
+        entry("revision-history", "2026-06-12T12:00:00Z", {
+          category: "approval",
+          insightLabel: "Data changed",
+          tone: "amber",
+        }),
+      ],
+      { needsReview: true },
+    );
+
+    expect(filtered.map((item) => item.id)).toEqual(["active-review"]);
   });
 });
 
@@ -187,6 +212,23 @@ describe("buildActivitySummary", () => {
       campaignProgress: 1,
       blockedOrRisky: 1,
     });
+  });
+
+  it("counts only explicit active-review rows as needs review", () => {
+    const summary = buildActivitySummary([
+      entry("active-review", "2026-06-12T14:00:00Z", {
+        category: "asset",
+        insightLabel: "Needs review",
+        tone: "amber",
+      }),
+      entry("declined-history", "2026-06-12T13:00:00Z", {
+        category: "approval",
+        insightLabel: "Risk blocked",
+        tone: "red",
+      }),
+    ]);
+
+    expect(summary.needsReview).toBe(1);
   });
 });
 

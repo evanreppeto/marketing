@@ -65,6 +65,8 @@ export type RecentActivity =
 const SOURCE_LIMIT = 50;
 const NEEDS_REVIEW_SOURCE_LIMIT = 250;
 const DEFAULT_LIMIT = 100;
+const ACTIVE_REVIEW_STATUSES = new Set(["needs_compliance", "pending_approval", "pending_owner_approval", "revision_requested"]);
+const TERMINAL_REVIEW_STATUSES = new Set(["approved", "rejected", "declined", "archived"]);
 
 export async function getRecentActivity(query: ActivityQuery = {}, client?: SupabaseClient): Promise<RecentActivity> {
   const limit = query.limit ?? DEFAULT_LIMIT;
@@ -204,7 +206,7 @@ export function groupActivityEntriesByDay(entries: ActivityEntry[], now = new Da
 }
 
 function isNeedsReviewEntry(entry: ActivityEntry): boolean {
-  return entry.insightLabel === "Needs review" || (entry.category === "approval" && entry.tone !== "green");
+  return entry.insightLabel === "Needs review";
 }
 
 function mapDecision(row: Record<string, unknown>): ActivityEntry {
@@ -221,7 +223,7 @@ function mapDecision(row: Record<string, unknown>): ActivityEntry {
     actor: decidedBy,
     actorType: "human",
     category: "approval",
-    insightLabel: decision.toLowerCase().includes("approv") ? "Marketing progress" : "Needs review",
+    insightLabel: insightForDecision(decision),
     relatedLabel: approvalId ? "Approval item" : null,
     occurredAt: str(row.decided_at) ?? "",
     href: approvalId ? `/approvals?item=${approvalId}` : null,
@@ -267,7 +269,7 @@ function mapOutput(row: Record<string, unknown>): ActivityEntry {
     actor: "Hermes",
     actorType: "hermes",
     category: tone === "red" ? "risk" : "asset",
-    insightLabel: approval.toLowerCase().includes("approved") ? "Marketing progress" : "Needs review",
+    insightLabel: insightForOutput(approval, compliance, tone),
     relatedLabel: str(row.title) ?? titleize(str(row.output_type) ?? "Draft"),
     occurredAt: str(row.created_at) ?? "",
     href: approvalId ? `/approvals?item=${approvalId}` : taskId ? `/agent-operations/tasks/${taskId}` : null,
@@ -331,6 +333,22 @@ function decisionTone(decision: string): ActivityTone {
   return "blue";
 }
 
+function insightForDecision(decision: string): ActivityInsightLabel {
+  const value = normalizeStatus(decision);
+  if (value.includes("approve")) return "Marketing progress";
+  if (value.includes("decline") || value.includes("reject")) return "Risk blocked";
+  return "Data changed";
+}
+
+function insightForOutput(approval: string, compliance: string, tone: ActivityTone): ActivityInsightLabel {
+  if (isActiveReviewStatus(approval) || isActiveReviewStatus(compliance)) return "Needs review";
+  if (!approval && !compliance) return "Needs review";
+  if (isApprovedStatus(approval)) return "Marketing progress";
+  if (tone === "red") return "Risk blocked";
+  if (isTerminalReviewStatus(approval) || isTerminalReviewStatus(compliance)) return "Data changed";
+  return "Agent work";
+}
+
 function runTone(status: string): ActivityTone {
   const value = status.toLowerCase();
   if (value === "completed" || value === "succeeded") return "green";
@@ -341,10 +359,26 @@ function runTone(status: string): ActivityTone {
 
 function outputTone(signals: string): ActivityTone {
   const value = signals.toLowerCase();
-  if (value.includes("blocked")) return "red";
+  if (value.includes("blocked") || value.includes("rejected") || value.includes("declined")) return "red";
   if (value.includes("approved")) return "green";
   if (value.includes("needs") || value.includes("revision")) return "amber";
   return "blue";
+}
+
+function isActiveReviewStatus(value: string): boolean {
+  return ACTIVE_REVIEW_STATUSES.has(normalizeStatus(value));
+}
+
+function isTerminalReviewStatus(value: string): boolean {
+  return TERMINAL_REVIEW_STATUSES.has(normalizeStatus(value));
+}
+
+function isApprovedStatus(value: string): boolean {
+  return normalizeStatus(value).includes("approved");
+}
+
+function normalizeStatus(value: string): string {
+  return value.trim().toLowerCase().replaceAll("-", "_").replaceAll(" ", "_");
 }
 
 function campaignTone(eventType: string): ActivityTone {
