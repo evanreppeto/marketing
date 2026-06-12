@@ -10,7 +10,7 @@ import { claimAgentTask } from "@/lib/hermes-api";
  *   POST /api/v1/hermes/tasks/:id/claim
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const { id } = await params;

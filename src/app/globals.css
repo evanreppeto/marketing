@@ -94,6 +94,71 @@
   --chicago-border: var(--border-hairline);
 }
 
+html[data-accent="blue"] {
+  --accent: #5bb7e8;
+  --accent-strong: #86cff3;
+  --accent-soft: rgba(91, 183, 232, 0.16);
+  --accent-contrast: #a8def7;
+  --accent-border: rgba(91, 183, 232, 0.32);
+  --accent-border-strong: rgba(91, 183, 232, 0.52);
+  --on-accent: #081620;
+  --chicago-blue: var(--accent);
+  --chicago-blue-soft: var(--accent-contrast);
+}
+
+html[data-accent="red"] {
+  --accent: #d98080;
+  --accent-strong: #eda2a2;
+  --accent-soft: rgba(217, 128, 128, 0.16);
+  --accent-contrast: #f0b7b7;
+  --accent-border: rgba(217, 128, 128, 0.34);
+  --accent-border-strong: rgba(217, 128, 128, 0.56);
+  --on-accent: #230b0b;
+  --chicago-blue: var(--accent);
+  --chicago-blue-soft: var(--accent-contrast);
+}
+
+html[data-accent="steel"] {
+  --accent: #aeb5c2;
+  --accent-strong: #ccd2dc;
+  --accent-soft: rgba(174, 181, 194, 0.15);
+  --accent-contrast: #d9dde5;
+  --accent-border: rgba(174, 181, 194, 0.30);
+  --accent-border-strong: rgba(174, 181, 194, 0.50);
+  --on-accent: #111318;
+  --chicago-blue: var(--accent);
+  --chicago-blue-soft: var(--accent-contrast);
+}
+
+html[data-accent="emerald"] {
+  --accent: #7fb89a;
+  --accent-strong: #9fd0b6;
+  --accent-soft: rgba(127, 184, 154, 0.16);
+  --accent-contrast: #b7dbc8;
+  --accent-border: rgba(127, 184, 154, 0.34);
+  --accent-border-strong: rgba(127, 184, 154, 0.56);
+  --on-accent: #0e1612;
+  --chicago-blue: var(--accent);
+  --chicago-blue-soft: var(--accent-contrast);
+}
+
+html[data-density="compact"] {
+  font-size: 15px;
+}
+
+html[data-density="compact"] .signal-panel {
+  border-radius: 0.58rem;
+}
+
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

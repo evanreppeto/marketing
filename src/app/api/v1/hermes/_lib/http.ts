@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { checkBearerToken } from "@/lib/auth/api-token";
+import { checkAgentBearer } from "@/lib/auth/api-token";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -11,8 +11,8 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  */
 
 /** Bearer-token gate. Returns an error response, or null when authorized. */
-export function bearerGuard(request: Request): NextResponse | null {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+export async function bearerGuard(request: Request): Promise<NextResponse | null> {
+  const auth = await checkAgentBearer(request);
   if (auth.ok) return null;
   return NextResponse.json(
     auth.reason === "not_configured"
@@ -40,8 +40,8 @@ export function supabaseGuard(): NextResponse | null {
 }
 
 /** Bearer + Supabase guard in one call (the common case). */
-export function guard(request: Request): NextResponse | null {
-  return bearerGuard(request) ?? supabaseGuard();
+export async function guard(request: Request): Promise<NextResponse | null> {
+  return (await bearerGuard(request)) ?? supabaseGuard();
 }
 
 export function ok(payload: Record<string, unknown>, httpStatus = 200): NextResponse {

@@ -8,7 +8,7 @@ import { listContacts } from "@/lib/repos";
  *   GET /api/v1/hermes/crm/contacts?status=active&persona=...&company_id=...&limit=50
  */
 export async function GET(request: Request) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const url = new URL(request.url);

@@ -47,15 +47,20 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const settings = await getAppSettings();
+
   return (
     <html
       lang="en"
       className={`h-full antialiased ${display.variable} ${serif.variable} ${body.variable} ${mono.variable}`}
+      data-accent={settings.appearanceAccent}
+      data-density={settings.appearanceDensity}
+      data-motion={settings.appearanceMotion}
     >
       <body className="min-h-full flex flex-col">
         <ConsoleFrame gateEnabled={isOperatorGateEnabled()}>{children}</ConsoleFrame>

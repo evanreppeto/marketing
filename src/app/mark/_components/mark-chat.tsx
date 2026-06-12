@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
+import type { MarkMode, MarkRoute } from "@/domain";
 
 import { cx } from "@/app/_components/theme";
 
@@ -119,6 +120,8 @@ export function MarkChat({
   mentionGroups,
   operatorName,
   pendingApprovals,
+  defaultMode = "act",
+  defaultRoute = "fast",
   demo = false,
 }: {
   conversations: MarkConversation[];
@@ -135,6 +138,8 @@ export function MarkChat({
   mentionGroups: MentionGroup[];
   operatorName: string | null;
   pendingApprovals: number;
+  defaultMode?: MarkMode;
+  defaultRoute?: MarkRoute;
   /** Preview mode: render the full UI with sample data, no backend writes. */
   demo?: boolean;
 }) {
@@ -475,6 +480,8 @@ export function MarkChat({
                 onStopReply={handleStop}
                 projects={projects}
                 activeProjectId={activeProjectId}
+                defaultMode={defaultMode}
+                defaultRoute={defaultRoute}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
                   try {

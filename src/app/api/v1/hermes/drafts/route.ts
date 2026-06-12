@@ -18,7 +18,7 @@ import { createApprovalDraft } from "@/lib/hermes-api";
  *   }
  */
 export async function POST(request: Request) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const payload = await readJson(request);

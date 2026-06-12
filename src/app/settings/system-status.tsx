@@ -1,6 +1,7 @@
+import { resolveAgentConnection } from "@/lib/agent/connection";
+import { hasActiveAgentTokens } from "@/lib/agent/tokens";
 import { getConnections } from "@/lib/connections/read-model";
-import { getAppSettings } from "@/lib/settings/store";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { type ThemeTone } from "../_components/theme";
 import { SettingRow } from "./setting-row";
@@ -19,11 +20,13 @@ function pill(ok: boolean, onText = "Connected", offText = "Not configured"): { 
  */
 export async function SystemStatus() {
   const connections = await getConnections();
-  const settings = await getAppSettings();
+  const agentConnection = await resolveAgentConnection();
   const resend = connections.find((connection) => connection.provider === "resend");
   const social = connections.filter((connection) => connection.kind === "social");
   const socialConnected = social.filter((connection) => connection.status === "connected").length;
-  const webhookLive = Boolean(process.env.MARK_RUNNER_URL?.trim() || process.env.MARK_WEBHOOK_URL?.trim()) && settings.markWebhookEnabled;
+  const webhookLive = Boolean(agentConnection.webhookUrl) && agentConnection.enabled;
+  const dbTokenConfigured = isSupabaseAdminConfigured() ? await hasActiveAgentTokens(getSupabaseAdminClient()).catch(() => false) : false;
+  const agentApiConfigured = isSet("HERMES_AGENT_API_TOKEN") || dbTokenConfigured;
 
   return (
     <SettingsSection
@@ -40,7 +43,7 @@ export async function SystemStatus() {
         <SettingRow
           detail="Bearer token Mark uses to reach the /api/v1/hermes/* control-plane API."
           label="Mark agent API"
-          pill={pill(isSet("HERMES_AGENT_API_TOKEN"), "Configured")}
+          pill={pill(agentApiConfigured, "Configured")}
         />
         <SettingRow
           detail="Event-driven wake for Mark chat — URL configured and the operator switch on."

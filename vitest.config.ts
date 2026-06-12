@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     // mark-runner/ is a standalone service with its own node:test suite.
-    exclude: [...configDefaults.exclude, "mark-runner/**"],
+    exclude: [...configDefaults.exclude, "mark-runner/**", ".worktrees/**", ".claude/worktrees/**"],
   },
   resolve: {
     alias: {

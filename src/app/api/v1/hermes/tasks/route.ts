@@ -12,7 +12,7 @@ import { listAgentTasks } from "@/lib/hermes-api";
  * native enum (queued|running|blocked|needs_approval|completed|failed|canceled).
  */
 export async function GET(request: Request) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const url = new URL(request.url);

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { checkBearerToken } from "@/lib/auth/api-token";
+import { checkAgentBearer } from "@/lib/auth/api-token";
 import { persistCompetitorIntel } from "@/lib/competitor-intel/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = await checkAgentBearer(request);
   if (!auth.ok) {
     return NextResponse.json(
       auth.reason === "not_configured"

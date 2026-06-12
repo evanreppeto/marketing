@@ -38,7 +38,7 @@ export async function enqueueMarkChatTask(
   const { data: agent, error: agentError } = await client
     .from("agents")
     .select("id")
-    .in("key", markAgentKeys())
+    .in("key", await markAgentKeys())
     .limit(1)
     .maybeSingle<{ id: string }>();
   assertOk("agents lookup", agentError);

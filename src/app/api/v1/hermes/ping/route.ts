@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { checkBearerToken } from "@/lib/auth/api-token";
+import { checkAgentBearer } from "@/lib/auth/api-token";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -16,7 +16,7 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  *   503 -> token not configured on this deployment
  */
 export async function GET(request: Request) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = await checkAgentBearer(request);
 
   if (!auth.ok) {
     return NextResponse.json(

@@ -8,7 +8,7 @@ import { getApprovalForApi } from "@/lib/hermes-api";
  *   GET /api/v1/hermes/approvals/:id
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const { id } = await params;

@@ -165,14 +165,23 @@ export function validateMarkMessageInput(input: { body: string; mentions: MarkMe
 }
 
 export type MarkMode = "ask" | "act" | "draft";
+export type MarkRoute = "fast" | "standard";
 
 const MARK_MODES: readonly MarkMode[] = ["ask", "act", "draft"];
+const MARK_ROUTES: readonly MarkRoute[] = ["fast", "standard"];
 
 /** Parse the composer's stance; anything unrecognized falls back to read-only "ask". */
 export function parseMarkMode(value: unknown): MarkMode {
   return typeof value === "string" && (MARK_MODES as readonly string[]).includes(value)
     ? (value as MarkMode)
     : "ask";
+}
+
+/** Parse the model routing hint; anything unrecognized stays on the cheap/fast lane. */
+export function parseMarkRoute(value: unknown): MarkRoute {
+  return typeof value === "string" && (MARK_ROUTES as readonly string[]).includes(value)
+    ? (value as MarkRoute)
+    : "fast";
 }
 
 export type MarkActionFlag = { tone: "ok" | "warn" | "risk"; label: string };

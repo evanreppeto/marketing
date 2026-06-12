@@ -13,6 +13,13 @@ const navItems: ShellNavItem[] = [
   { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
 ];
 
+const settingsNavItem: ShellNavItem = {
+  label: "Settings",
+  href: "/settings?section=agent",
+  icon: "settings",
+  matches: ["/settings"],
+};
+
 /**
  * The persistent application chrome. Rendered ONCE in the root layout so the
  * sidebar and SideNav's pending state survive navigations; only the page
@@ -72,9 +79,17 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
               </span>
             </Link>
 
-            <SideNav active={pathname} items={navItems} collapsible />
+            <div className="lg:hidden">
+              <SideNav active={pathname} items={[...navItems, settingsNavItem]} />
+            </div>
+            <div className="hidden lg:block">
+              <SideNav active={pathname} items={navItems} collapsible />
+            </div>
           </div>
 
+          <div className={cx("mt-3 hidden border-t pt-3 lg:block", theme.surface.divider)}>
+            <SideNav active={pathname} items={[settingsNavItem]} collapsible />
+          </div>
           <OperatorProfile rail />
         </aside>
 

@@ -2,7 +2,8 @@ import { createHmac } from "node:crypto";
 
 import { type MarkMention } from "@/domain";
 
-import { getAppSettings } from "@/lib/settings/store";
+import { resolveAgentConnection } from "@/lib/agent/connection";
+import { resolveWebhookSecret } from "@/lib/agent/secret";
 import { type MarkAttachment } from "./persistence";
 
 export type MarkNotifyPayload = {
@@ -56,18 +57,15 @@ export type MarkNotifyPayload = {
  *   MARK_WEBHOOK_SECRET  — the route's secret (used to HMAC-sign the body)
  */
 export async function notifyMarkWebhook(payload: MarkNotifyPayload): Promise<boolean> {
-  const url = process.env.MARK_RUNNER_URL ?? process.env.MARK_WEBHOOK_URL;
+  const connection = await resolveAgentConnection();
+  const url = connection.webhookUrl;
   if (!url) return false;
-
-  // Operator kill-switch (Settings → Notifications). When paused, skip the push and
-  // let Mark catch the message via the inbox poll. Defaults to enabled.
-  const { markWebhookEnabled } = await getAppSettings();
-  if (!markWebhookEnabled) return false;
+  if (!connection.enabled) return false;
 
   const body = JSON.stringify({ type: "mark_chat_message", ...payload });
   const headers: Record<string, string> = { "content-type": "application/json" };
 
-  const secret = process.env.MARK_WEBHOOK_SECRET;
+  const secret = await resolveWebhookSecret(connection.webhookSecretRef);
   if (secret) {
     headers["x-webhook-signature"] = createHmac("sha256", secret).update(body).digest("hex");
   }

@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkMention } from "@/domain";
+import type { MarkMention, MarkMode, MarkRoute } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
 import type { MarkAttachment, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
@@ -62,6 +62,8 @@ export function Composer({
   onStopReply,
   projects,
   activeProjectId,
+  defaultMode = "act",
+  defaultRoute = "fast",
   demo = false,
   onDemoSend,
 }: {
@@ -69,6 +71,8 @@ export function Composer({
   mentionGroups: MentionGroup[];
   projects: MarkProject[];
   activeProjectId: string | null;
+  defaultMode?: MarkMode;
+  defaultRoute?: MarkRoute;
   draft: string;
   onDraftChange: (value: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -254,9 +258,9 @@ export function Composer({
         <input type="hidden" name="conversationId" value={conversationId} />
         <input type="hidden" name="body" value={draft} />
         <input type="hidden" name="mentions" value={serializeMentions(picked)} />
-        {/* Mode selector removed — the approval + policy gates are the real guardrails.
-            Default stance "act"; the agent infers intent and the gate enforces limits. */}
-        <input type="hidden" name="mode" value="act" />
+        {/* Defaults come from Settings; approval + policy gates still enforce limits. */}
+        <input type="hidden" name="mode" value={defaultMode} />
+        <input type="hidden" name="route" value={defaultRoute} />
         <input type="hidden" name="command" value={command ?? ""} />
         <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
         {/* Project chosen in the footer selector — assigned when this send creates a new thread. */}

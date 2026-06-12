@@ -9,7 +9,7 @@ import { listApprovalsForApi } from "@/lib/hermes-api";
  * `status` may be comma-separated. Omitting it returns the active queue.
  */
 export async function GET(request: Request) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const url = new URL(request.url);

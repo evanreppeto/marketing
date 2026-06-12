@@ -1,7 +1,7 @@
 import { getAppSettings } from "@/lib/settings/store";
 
 import { SettingRow } from "./setting-row";
-import { GeneralSettingsForm } from "./settings-forms";
+import { GeneralSettingsForm, MarkDefaultsForm } from "./settings-forms";
 import { SettingsSection } from "./settings-section";
 
 const env = (name: string) => process.env[name]?.trim() || null;
@@ -12,23 +12,32 @@ export async function GeneralSettings() {
   const gateEnabled = Boolean(env("OPERATOR_ACCESS_TOKEN"));
 
   return (
-    <SettingsSection
-      description="Workspace preferences. The fields below save to the app; the rest are managed via environment variables."
-      title="General"
-    >
-      <GeneralSettingsForm initialSupportEmail={settings.supportEmail} initialWorkspaceName={settings.workspaceName} />
+    <>
+      <SettingsSection
+        description="Workspace preferences. The fields below save to the app; the rest are managed via environment variables."
+        title="General"
+      >
+        <GeneralSettingsForm initialSupportEmail={settings.supportEmail} initialWorkspaceName={settings.workspaceName} />
 
-      <div className="mt-5 border-t border-[var(--border-hairline)]">
-        <div className="-mx-5 divide-y divide-[var(--border-hairline)]">
-          <SettingRow label="Operator email" value={env("OPERATOR_EMAIL") ?? "Not set"} />
-          <SettingRow label="Environment" value={process.env.NODE_ENV ?? "development"} />
-          <SettingRow
-            detail="When enabled, every page route requires operator sign-in."
-            label="Operator access gate"
-            pill={gateEnabled ? { tone: "green", text: "Enabled" } : { tone: "amber", text: "Open (dev)" }}
-          />
+        <div className="mt-5 border-t border-[var(--border-hairline)]">
+          <div className="-mx-5 divide-y divide-[var(--border-hairline)]">
+            <SettingRow label="Operator email" value={env("OPERATOR_EMAIL") ?? "Not set"} />
+            <SettingRow label="Environment" value={process.env.NODE_ENV ?? "development"} />
+            <SettingRow
+              detail="When enabled, every page route requires operator sign-in."
+              label="Operator access gate"
+              pill={gateEnabled ? { tone: "green", text: "Enabled" } : { tone: "amber", text: "Open (dev)" }}
+            />
+          </div>
         </div>
-      </div>
-    </SettingsSection>
+      </SettingsSection>
+
+      <SettingsSection
+        description="Defaults applied to new Mark messages. These values are written into the queued agent task and webhook payload."
+        title="Mark defaults"
+      >
+        <MarkDefaultsForm initialMode={settings.markDefaultMode} initialRoute={settings.markDefaultRoute} />
+      </SettingsSection>
+    </>
   );
 }

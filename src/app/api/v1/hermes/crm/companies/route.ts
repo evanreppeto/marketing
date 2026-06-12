@@ -8,7 +8,7 @@ import { listCompanies } from "@/lib/repos";
  *   GET /api/v1/hermes/crm/companies?status=active&persona=...&limit=50
  */
 export async function GET(request: Request) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const url = new URL(request.url);
