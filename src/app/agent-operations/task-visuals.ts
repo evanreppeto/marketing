@@ -9,7 +9,9 @@ export type TaskVisualAppearance = {
 };
 
 export function statusAppearance(status: string): TaskVisualAppearance {
-  if (status === "running") {
+  const normalized = status.toLowerCase().replaceAll("-", "_").replaceAll(" ", "_");
+
+  if (normalized === "running" || normalized === "processing") {
     return {
       label: "Working",
       accent: "oklch(0.72 0.13 235)",
@@ -18,7 +20,7 @@ export function statusAppearance(status: string): TaskVisualAppearance {
       text: "oklch(0.84 0.08 235)",
     };
   }
-  if (status === "blocked") {
+  if (normalized.includes("blocked") || normalized.includes("failed") || normalized.includes("error") || normalized.includes("canceled")) {
     return {
       label: "Blocked",
       accent: "oklch(0.70 0.16 25)",
@@ -27,7 +29,7 @@ export function statusAppearance(status: string): TaskVisualAppearance {
       text: "oklch(0.82 0.09 25)",
     };
   }
-  if (status === "needs_approval") {
+  if (normalized.includes("approval") || normalized.includes("review") || normalized.includes("pending")) {
     return {
       label: "Review",
       accent: "oklch(0.78 0.13 80)",
@@ -36,7 +38,7 @@ export function statusAppearance(status: string): TaskVisualAppearance {
       text: "oklch(0.88 0.09 80)",
     };
   }
-  if (status === "completed") {
+  if (normalized.includes("completed") || normalized.includes("approved") || normalized.includes("passed") || normalized.includes("done")) {
     return {
       label: "Done",
       accent: "oklch(0.74 0.12 150)",

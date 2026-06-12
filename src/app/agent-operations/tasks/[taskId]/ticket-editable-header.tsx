@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef, useState, useTransition } from "react";
 
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { labelIcon, priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
+import { badgeStyle, priorityAppearance, statusAppearance } from "../../task-visuals";
 
 import { addTaskEventAction, updateTaskFieldAction } from "./actions";
 import type { EditableField } from "./actions";
@@ -94,20 +95,29 @@ export function TicketEditableHeader({
 
   const approvalStatus = latestOutput?.approvalStatus.toLowerCase() ?? "";
   const needsApproval = Boolean(latestOutput?.approvalHref) && !["approved", "auto_approved"].includes(approvalStatus);
+  const statusVisual = statusAppearance(status);
+  const priorityVisual = priorityAppearance(priority);
+  const approvalVisual = statusAppearance(latestOutput?.approvalStatus ?? status);
 
   return (
-    <section className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)]">
+    <section
+      className="rounded-lg border bg-[var(--surface-panel)]"
+      style={{
+        borderColor: statusVisual.border,
+        boxShadow: `inset 0 2px 0 ${statusVisual.accent}`,
+      }}
+    >
       <div className="px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-[var(--text-muted)]">{humanize(taskType)}</span>
               <span className="text-[var(--text-muted)]">/</span>
-              <StatusPill icon={statusIcon(status)} tone={statusTone(status)}>
-                {humanize(status)}
+              <StatusPill icon={statusIcon(status)} style={badgeStyle(statusVisual)}>
+                {statusVisual.label}
               </StatusPill>
-              <StatusPill icon={priorityIcon(priority)} tone={priorityTone(priority)}>
-                {humanize(priority)}
+              <StatusPill icon={priorityIcon(priority)} style={badgeStyle(priorityVisual)}>
+                {priorityVisual.label}
               </StatusPill>
               <StatusPill icon={labelIcon("owner")} tone="gray">
                 {ownerLabel}
@@ -170,7 +180,7 @@ export function TicketEditableHeader({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-semibold text-[var(--text-muted)]">Next</span>
-                  <StatusPill icon={statusIcon(latestOutput.approvalStatus)} tone={approvalTone(latestOutput.approvalStatus)}>
+                  <StatusPill icon={statusIcon(latestOutput.approvalStatus)} style={badgeStyle(approvalVisual)}>
                     {needsApproval ? "Review needed" : humanize(latestOutput.approvalStatus)}
                   </StatusPill>
                 </div>
@@ -258,30 +268,6 @@ function SaveLabel({ label, state }: { label: string; state: SaveState }) {
       {label}: {text}
     </span>
   );
-}
-
-function statusTone(status: string): "amber" | "green" | "red" | "blue" | "gray" {
-  if (["completed", "approved", "passed"].includes(status)) return "green";
-  if (["running", "processing"].includes(status)) return "blue";
-  if (["blocked", "failed", "error"].includes(status)) return "red";
-  if (["queued", "needs_approval", "pending"].includes(status)) return "amber";
-  return "gray";
-}
-
-function priorityTone(priority: string): "amber" | "green" | "red" | "blue" | "gray" {
-  const normalized = priority.toLowerCase();
-  if (normalized.includes("urgent")) return "red";
-  if (normalized.includes("high")) return "amber";
-  if (normalized.includes("medium")) return "blue";
-  return "gray";
-}
-
-function approvalTone(status: string): "amber" | "green" | "red" | "blue" | "gray" {
-  const normalized = status.toLowerCase();
-  if (["approved", "auto_approved"].includes(normalized)) return "green";
-  if (normalized.includes("blocked") || normalized.includes("rejected") || normalized.includes("failed")) return "red";
-  if (normalized.includes("pending") || normalized.includes("needs")) return "amber";
-  return "gray";
 }
 
 function compactDate(value: string | null) {

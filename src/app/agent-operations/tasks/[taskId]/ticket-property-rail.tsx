@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { StatusPill } from "@/app/_components/page-header";
 import { labelIcon, priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
+import { badgeStyle, priorityAppearance, statusAppearance } from "../../task-visuals";
 
 import { updateTaskFieldAction } from "./actions";
 import type { EditableField } from "./actions";
@@ -83,13 +84,13 @@ export function TicketPropertyRail({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <span className="font-semibold text-[var(--text-primary)]">Details</span>
             <InlineMeta label="Status">
-              <StatusPill icon={statusIcon(values.status)} tone={statusTone(values.status)}>
-                {humanize(values.status)}
+              <StatusPill icon={statusIcon(values.status)} style={badgeStyle(statusAppearance(values.status))}>
+                {statusAppearance(values.status).label}
               </StatusPill>
             </InlineMeta>
             <InlineMeta label="Priority">
-              <StatusPill icon={priorityIcon(values.priority)} tone={priorityTone(values.priority)}>
-                {humanize(values.priority)}
+              <StatusPill icon={priorityIcon(values.priority)} style={badgeStyle(priorityAppearance(values.priority))}>
+                {priorityAppearance(values.priority).label}
               </StatusPill>
             </InlineMeta>
             <InlineMeta label="Owner">{values.owner_label}</InlineMeta>
@@ -302,22 +303,6 @@ function stateText(state: NonNullable<FieldState[string]>) {
   if (state === "saving") return "Saving";
   if (state === "saved") return "Saved";
   return "Failed";
-}
-
-function statusTone(status: string): "amber" | "green" | "red" | "blue" | "gray" {
-  if (["completed", "approved", "passed"].includes(status)) return "green";
-  if (["running", "processing"].includes(status)) return "blue";
-  if (["blocked", "failed", "error", "canceled"].includes(status)) return "red";
-  if (["queued", "needs_approval", "pending"].includes(status)) return "amber";
-  return "gray";
-}
-
-function priorityTone(priority: string): "amber" | "green" | "red" | "blue" | "gray" {
-  const normalized = priority.toLowerCase();
-  if (normalized.includes("urgent")) return "red";
-  if (normalized.includes("high")) return "amber";
-  if (normalized.includes("medium")) return "blue";
-  return "gray";
 }
 
 function toDateTimeLocalValue(value: string | null) {

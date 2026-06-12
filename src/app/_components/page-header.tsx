@@ -167,13 +167,16 @@ export function StatusPill({
   children,
   tone = "gray",
   icon,
+  style,
 }: {
   children: React.ReactNode;
   tone?: ThemeTone;
   icon?: React.ReactNode;
+  style?: React.CSSProperties;
 }) {
   return (
     <span
+      style={style}
       className={cx(
         "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
         theme.pill[tone],

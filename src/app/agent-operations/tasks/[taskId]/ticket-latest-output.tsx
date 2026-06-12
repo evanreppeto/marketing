@@ -3,6 +3,7 @@ import Link from "next/link";
 import { EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { labelIcon, priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import type { AgentTaskDetail } from "@/lib/agent-operations/read-model";
+import { badgeStyle, priorityAppearance, statusAppearance } from "../../task-visuals";
 
 type LiveDetail = Extract<AgentTaskDetail, { status: "live" }>;
 
@@ -33,7 +34,7 @@ export function TicketLatestOutput({
             <StatusPill icon={labelIcon("output")} tone="blue">
               {humanize(output.outputType)}
             </StatusPill>
-            <StatusPill icon={statusIcon(output.approvalStatus)} tone={approvalTone(output.approvalStatus)}>
+            <StatusPill icon={statusIcon(output.approvalStatus)} style={badgeStyle(statusAppearance(output.approvalStatus))}>
               {humanize(output.approvalStatus)}
             </StatusPill>
           </div>
@@ -53,32 +54,16 @@ export function TicketLatestOutput({
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
-          <StatusPill icon={statusIcon(output.complianceStatus)} tone={approvalTone(output.complianceStatus)}>
+          <StatusPill icon={statusIcon(output.complianceStatus)} style={badgeStyle(statusAppearance(output.complianceStatus))}>
             Compliance {humanize(output.complianceStatus)}
           </StatusPill>
-          <StatusPill icon={priorityIcon(output.riskLevel)} tone={riskTone(output.riskLevel)}>
+          <StatusPill icon={priorityIcon(output.riskLevel)} style={badgeStyle(priorityAppearance(output.riskLevel))}>
             Risk {humanize(output.riskLevel)}
           </StatusPill>
         </div>
       </div>
     </section>
   );
-}
-
-function approvalTone(status: string): "amber" | "green" | "red" | "blue" | "gray" {
-  const normalized = status.toLowerCase();
-  if (["approved", "auto_approved"].includes(normalized)) return "green";
-  if (normalized.includes("blocked") || normalized.includes("rejected") || normalized.includes("failed")) return "red";
-  if (normalized.includes("pending") || normalized.includes("needs")) return "amber";
-  return "gray";
-}
-
-function riskTone(risk: string): "amber" | "green" | "red" | "blue" | "gray" {
-  const normalized = risk.toLowerCase();
-  if (normalized.includes("high") || normalized.includes("urgent")) return "red";
-  if (normalized.includes("medium")) return "amber";
-  if (normalized.includes("low")) return "green";
-  return "gray";
 }
 
 function formatDate(value: string | null) {
