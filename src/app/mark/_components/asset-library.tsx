@@ -3,37 +3,14 @@
 import { useMemo, useState } from "react";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkActionCard, MarkMedia } from "@/domain";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkActionCard } from "@/domain";
 
+import type { StudioAsset } from "./asset-collect";
 import { SourceBadge, StatusPill } from "./asset-meta";
 import { AssetThumb } from "./asset-thumb";
 
-export type StudioAsset = {
-  id: string;
-  card: MarkActionCard;
-  /** Resolved visual: the card's own media, else the reply's first image. */
-  media?: MarkMedia;
-  conversationId: string;
-  messageId: string;
-};
-
-/** Gather every asset Mark generated in the thread — the Studio's library source. */
-export function collectAssets(messages: MarkMessage[]): StudioAsset[] {
-  const out: StudioAsset[] = [];
-  const seen = new Set<string>();
-  for (const m of messages) {
-    m.actions.forEach((card, i) => {
-      if (card.kind !== "draft" && !card.media) return;
-      const id = card.approval?.assetId ?? `${m.id}-${i}`;
-      if (seen.has(id)) return;
-      seen.add(id);
-      const media = card.media ?? m.media.find((x) => x.kind === "image");
-      out.push({ id, card, media, conversationId: m.conversationId, messageId: m.id });
-    });
-  }
-  return out;
-}
+export type { StudioAsset } from "./asset-collect";
+export { collectAssets } from "./asset-collect";
 
 function category(card: MarkActionCard): string {
   const c = `${card.channel ?? ""} ${card.format ?? ""}`.toLowerCase();
