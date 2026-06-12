@@ -57,6 +57,7 @@ export function ConsoleFrame({
     { label: agentName, href: "/mark", icon: "mark", matches: ["/mark", "/"] },
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
+    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
   ];
 
   const settingsNavItems: ShellNavItem[] = [

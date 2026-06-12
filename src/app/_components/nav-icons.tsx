@@ -1,4 +1,4 @@
-export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "mark" | "settings" | "board";
+export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "mark" | "settings" | "board" | "analytics" | "brain";
 
 const paths: Record<NavIconName, React.ReactNode> = {
   // Three columns — kanban task board
@@ -49,6 +49,24 @@ const paths: Record<NavIconName, React.ReactNode> = {
       <path d="M5.5 4.5h13A1.5 1.5 0 0 1 20 6v9a1.5 1.5 0 0 1-1.5 1.5H10L6 20v-3.5H5.5A1.5 1.5 0 0 1 4 15V6a1.5 1.5 0 0 1 1.5-1.5Z" />
       <path d="M8.5 9h7" />
       <path d="M8.5 12.2h4.5" />
+    </>
+  ),
+  // Trend line over an axis — analytics
+  analytics: (
+    <>
+      <path d="M4.5 4.5v13a1.5 1.5 0 0 0 1.5 1.5h13" />
+      <path d="m7.5 14 3.3-3.6 2.7 2.3L19 7" />
+    </>
+  ),
+  // Connected nodes — knowledge graph / marketing brain
+  brain: (
+    <>
+      <circle cx="7" cy="7" r="2.1" />
+      <circle cx="17" cy="9" r="2.1" />
+      <circle cx="10" cy="17.2" r="2.1" />
+      <path d="m9 7.4 5.9 1.2" />
+      <path d="m7.6 9 1.8 6.1" />
+      <path d="m15.4 10.7-4 4.8" />
     </>
   ),
   // Sliders — configuration
