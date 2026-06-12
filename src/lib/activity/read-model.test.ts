@@ -121,6 +121,27 @@ describe("applyActivityFilters", () => {
     expect(applyActivityFilters(entries, { search: "marketing progress" }).map((item) => item.id)).toEqual(["campaign"]);
     expect(applyActivityFilters(entries, { search: "approval" }).map((item) => item.id)).toEqual(["approval"]);
   });
+
+  it("keeps older review-needed entries before applying the feed limit", () => {
+    const newerNonReviewEntries = Array.from({ length: 12 }, (_, index) =>
+      entry(`newer-${index}`, `2026-06-12T14:${String(index).padStart(2, "0")}:00Z`, {
+        category: "agent",
+        insightLabel: "Agent work",
+        tone: "green",
+      }),
+    );
+    const olderNeedsReviewEntry = entry("older-needs-review", "2026-06-11T12:00:00Z", {
+      category: "approval",
+      insightLabel: null,
+      tone: "amber",
+    });
+    const query = { needsReview: true };
+
+    const filtered = applyActivityFilters([...newerNonReviewEntries, olderNeedsReviewEntry], query);
+    const merged = mergeActivityEntries(filtered, 5);
+
+    expect(merged.map((item) => item.id)).toEqual(["older-needs-review"]);
+  });
 });
 
 describe("buildActivitySummary", () => {

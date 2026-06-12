@@ -39,6 +39,7 @@ export type ActivityEntry = {
 export type ActivityQuery = {
   categories?: ActivityCategory[];
   actorTypes?: ActivityActorType[];
+  needsReview?: boolean;
   since?: string;
   until?: string;
   search?: string;
@@ -148,6 +149,7 @@ export function applyActivityFilters(entries: ActivityEntry[], query: ActivityQu
   return entries.filter((entry) => {
     if (categorySet && !categorySet.has(entry.category)) return false;
     if (actorSet && !actorSet.has(entry.actorType)) return false;
+    if (query.needsReview && !isNeedsReviewEntry(entry)) return false;
 
     const time = Date.parse(entry.occurredAt);
     if (since !== null && Number.isFinite(since) && time < since) return false;
@@ -173,7 +175,7 @@ export function applyActivityFilters(entries: ActivityEntry[], query: ActivityQu
 
 export function buildActivitySummary(entries: ActivityEntry[]): ActivitySummary {
   return {
-    needsReview: entries.filter((entry) => entry.insightLabel === "Needs review").length,
+    needsReview: entries.filter(isNeedsReviewEntry).length,
     hermesActions: entries.filter((entry) => entry.actorType === "hermes" || entry.actorType === "sub_agent").length,
     campaignProgress: entries.filter(
       (entry) => entry.category === "campaign" || entry.insightLabel === "Marketing progress",
@@ -193,6 +195,10 @@ export function groupActivityEntriesByDay(entries: ActivityEntry[], now = new Da
   }
 
   return Array.from(groups, ([label, groupedEntries]) => ({ label, entries: groupedEntries }));
+}
+
+function isNeedsReviewEntry(entry: ActivityEntry): boolean {
+  return entry.insightLabel === "Needs review" || (entry.category === "approval" && entry.tone !== "green");
 }
 
 function mapDecision(row: Record<string, unknown>): ActivityEntry {

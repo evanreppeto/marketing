@@ -4,9 +4,7 @@ import { connection } from "next/server";
 import { EmptyState, PageHeader, StatusPill } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import {
-  buildActivitySummary,
   getRecentActivity,
-  groupActivityEntriesByDay,
   type ActivityActorType,
   type ActivityCategory,
   type ActivityEntry,
@@ -67,8 +65,6 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
     );
   }
 
-  const visibleActivity = selectedFilter === "needs-review" ? filterNeedsReviewActivity(activity) : activity;
-
   return (
     <>
       <ActivityHeader />
@@ -77,43 +73,43 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
         metrics={[
           {
             label: "Needs review",
-            value: visibleActivity.summary.needsReview,
+            value: activity.summary.needsReview,
             detail:
-              visibleActivity.summary.needsReview > 0
-                ? `${visibleActivity.summary.needsReview} ${plural(visibleActivity.summary.needsReview, "item")} waiting on a decision.`
+              activity.summary.needsReview > 0
+                ? `${activity.summary.needsReview} ${plural(activity.summary.needsReview, "item")} waiting on a decision.`
                 : "Nothing is waiting on you.",
-            tone: visibleActivity.summary.needsReview > 0 ? "amber" : "green",
-            href: visibleActivity.summary.needsReview > 0 ? "/activity?filter=needs-review" : undefined,
+            tone: activity.summary.needsReview > 0 ? "amber" : "green",
+            href: activity.summary.needsReview > 0 ? "/activity?filter=needs-review" : undefined,
           },
           {
             label: "Hermes actions",
-            value: visibleActivity.summary.hermesActions,
+            value: activity.summary.hermesActions,
             detail:
-              visibleActivity.summary.hermesActions > 0
-                ? `${visibleActivity.summary.hermesActions} ${plural(visibleActivity.summary.hermesActions, "agent action")} in this view.`
+              activity.summary.hermesActions > 0
+                ? `${activity.summary.hermesActions} ${plural(activity.summary.hermesActions, "agent action")} in this view.`
                 : "No Hermes work in this range.",
-            tone: visibleActivity.summary.hermesActions > 0 ? "blue" : "gray",
-            href: visibleActivity.summary.hermesActions > 0 ? "/activity?filter=hermes" : undefined,
+            tone: activity.summary.hermesActions > 0 ? "blue" : "gray",
+            href: activity.summary.hermesActions > 0 ? "/activity?filter=hermes" : undefined,
           },
           {
             label: "Campaign progress",
-            value: visibleActivity.summary.campaignProgress,
+            value: activity.summary.campaignProgress,
             detail:
-              visibleActivity.summary.campaignProgress > 0
-                ? `${visibleActivity.summary.campaignProgress} ${plural(visibleActivity.summary.campaignProgress, "campaign update")} moved forward.`
+              activity.summary.campaignProgress > 0
+                ? `${activity.summary.campaignProgress} ${plural(activity.summary.campaignProgress, "campaign update")} moved forward.`
                 : "No campaign movement in this range.",
-            tone: visibleActivity.summary.campaignProgress > 0 ? "green" : "gray",
-            href: visibleActivity.summary.campaignProgress > 0 ? "/activity?filter=campaign" : undefined,
+            tone: activity.summary.campaignProgress > 0 ? "green" : "gray",
+            href: activity.summary.campaignProgress > 0 ? "/activity?filter=campaign" : undefined,
           },
           {
             label: "Blocked or risky",
-            value: visibleActivity.summary.blockedOrRisky,
+            value: activity.summary.blockedOrRisky,
             detail:
-              visibleActivity.summary.blockedOrRisky > 0
-                ? `${visibleActivity.summary.blockedOrRisky} ${plural(visibleActivity.summary.blockedOrRisky, "risk")} needs a closer look.`
+              activity.summary.blockedOrRisky > 0
+                ? `${activity.summary.blockedOrRisky} ${plural(activity.summary.blockedOrRisky, "risk")} needs a closer look.`
                 : "No risk events in this range.",
-            tone: visibleActivity.summary.blockedOrRisky > 0 ? "red" : "green",
-            href: visibleActivity.summary.blockedOrRisky > 0 ? "/activity?filter=risk" : undefined,
+            tone: activity.summary.blockedOrRisky > 0 ? "red" : "green",
+            href: activity.summary.blockedOrRisky > 0 ? "/activity?filter=risk" : undefined,
           },
         ]}
       />
@@ -121,13 +117,13 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
       <WorkspacePanel
         title="Workspace log"
         description="A plain-English record of what people, Hermes, integrations, and the system have done across the workspace."
-        aside={<ResultCount count={visibleActivity.entries.length} />}
+        aside={<ResultCount count={activity.entries.length} />}
       >
         <ActivityFilters selectedFilter={selectedFilter} selectedRange={selectedRange} search={search} />
 
-        {visibleActivity.groups.length > 0 ? (
+        {activity.groups.length > 0 ? (
           <div className="divide-y divide-[var(--border-hairline)]">
-            {visibleActivity.groups.map((group) => (
+            {activity.groups.map((group) => (
               <section key={group.label} aria-labelledby={`activity-${slug(group.label)}`}>
                 <div className="bg-[var(--surface-soft)] px-5 py-3">
                   <h2
@@ -284,7 +280,8 @@ function ResultCount({ count }: { count: number }) {
 function buildActivityQuery(filter: string, range: string, search: string): ActivityQuery {
   const query: ActivityQuery = { limit: 100 };
 
-  if (filter === "humans") query.actorTypes = ["human"];
+  if (filter === "needs-review") query.needsReview = true;
+  else if (filter === "humans") query.actorTypes = ["human"];
   else if (filter === "hermes") query.actorTypes = ["hermes", "sub_agent"];
   else if (isCategory(filter)) query.categories = [filter];
 
@@ -295,23 +292,6 @@ function buildActivityQuery(filter: string, range: string, search: string): Acti
   query.search = search || undefined;
 
   return query;
-}
-
-type LiveActivity = Extract<Awaited<ReturnType<typeof getRecentActivity>>, { status: "live" }>;
-
-function filterNeedsReviewActivity(activity: LiveActivity): LiveActivity {
-  const entries = activity.entries.filter(isNeedsReviewEntry);
-
-  return {
-    ...activity,
-    entries,
-    summary: buildActivitySummary(entries),
-    groups: groupActivityEntriesByDay(entries),
-  };
-}
-
-function isNeedsReviewEntry(entry: ActivityEntry) {
-  return entry.insightLabel === "Needs review";
 }
 
 function rangeBounds(range: string): { since?: string; until?: string } {
