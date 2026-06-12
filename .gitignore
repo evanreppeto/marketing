@@ -58,5 +58,6 @@ next-env.d.ts
 
 # Transient dev + brainstorm artifacts
 .superpowers/
+.worktrees/
 dev-server-*.log
 dev-server-*.err.log

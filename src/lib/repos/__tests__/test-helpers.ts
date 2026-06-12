@@ -35,9 +35,15 @@ const CHAIN_METHODS = [
 ] as const;
 
 export function createSupabaseQueryMock(
-  responses: Record<string, MockResponse>,
+  responses: Record<string, MockResponse | MockResponse[]>,
 ): MockSupabase {
   const calls: Array<[string, ...unknown[]]> = [];
+  const responseQueues = new Map(
+    Object.entries(responses).map(([tableName, response]) => [
+      tableName,
+      Array.isArray(response) ? [...response] : [response],
+    ]),
+  );
 
   const makeChain = (tableName: string) => {
     const chain: Record<string, unknown> = {};
@@ -53,7 +59,8 @@ export function createSupabaseQueryMock(
       onFulfilled?: (value: MockResponse) => unknown,
       onRejected?: (reason: unknown) => unknown,
     ) => {
-      const response = responses[tableName] ?? { data: [], error: null };
+      const queue = responseQueues.get(tableName);
+      const response = queue && queue.length > 0 ? (queue.shift() ?? queue[0]) : { data: [], error: null };
       return Promise.resolve(response).then(onFulfilled, onRejected);
     };
 

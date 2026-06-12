@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { getAgentOperationsDashboard } from "./read-model";
+import { getAgentOperationsDashboard, getAgentTaskDetail } from "./read-model";
 
 describe("getAgentOperationsDashboard", () => {
   it("maps Supabase agent operations into UI-ready dashboard data", async () => {
@@ -29,6 +29,13 @@ describe("getAgentOperationsDashboard", () => {
           {
             id: "task-123456789",
             agent_id: "agent-1",
+            description: "Build the first partner-facing draft and keep outbound locked.",
+            owner_kind: "human",
+            owner_label: "Evan",
+            driver_kind: "agent",
+            driver_agent_id: "agent-1",
+            driver_label: "Mark",
+            approver_label: "Owner",
             status: "running",
             priority: "high",
             objective: "Prepare plumbing partner outreach draft.",
@@ -119,6 +126,10 @@ describe("getAgentOperationsDashboard", () => {
       dueAt: "2026-06-15T18:00:00.000Z",
       scheduledFor: "2026-06-20T09:00:00.000Z",
       progress: { done: 12, total: 20 },
+      owner: { kind: "human", label: "Evan" },
+      driver: { kind: "agent", label: "Mark", agentId: "agent-1" },
+      approverLabel: "Owner",
+      description: "Build the first partner-facing draft and keep outbound locked.",
     });
     expect(dashboard.approvals[0]).toMatchObject({
       source: "Email",
@@ -145,5 +156,402 @@ describe("getAgentOperationsDashboard", () => {
       status: "unavailable",
       message: "agents lookup failed: permission denied",
     });
+  });
+
+  it("summarizes Supabase HTML DNS errors instead of surfacing raw HTML", async () => {
+    const supabase = createSupabaseQueryMock({
+      agents: { data: [], error: null },
+      agent_tasks: {
+        data: null,
+        error: {
+          message:
+            '<!doctype html><html><head><title>Origin DNS error | fpjvgqrfqncnudqeudee.supabase.co | Cloudflare</title></head><body><h1>Error 1016</h1><h2>Origin DNS error</h2></body></html>',
+        },
+      },
+      approval_items: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+      campaigns: { data: [], error: null },
+    });
+
+    const dashboard = await getAgentOperationsDashboard(supabase);
+
+    expect(dashboard.status).toBe("unavailable");
+    if (dashboard.status !== "unavailable") return;
+
+    expect(dashboard.message).toContain("Cloudflare 1016");
+    expect(dashboard.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
+    expect(dashboard.message).not.toContain("<!doctype");
+    expect(dashboard.message).not.toContain("<html");
+  });
+
+  it("falls back to legacy task columns when shared ownership columns are not migrated yet", async () => {
+    const supabase = createSupabaseQueryMock({
+      agents: {
+        data: [
+          {
+            id: "agent-1",
+            key: "mark",
+            name: "Mark",
+            description: "Runs marketing tasks.",
+            status: "running",
+            allowed_actions: [],
+            blocked_actions: [],
+            default_approval_policy: "Human approval required",
+            metadata: {},
+            updated_at: "2026-05-29T18:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      agent_tasks: [
+        { data: null, error: { message: "column agent_tasks.description does not exist" } },
+        {
+          data: [
+            {
+              id: "task-legacy",
+              agent_id: "agent-1",
+              status: "running",
+              priority: "high",
+              objective: "Legacy board task.",
+              task_type: "campaign_draft",
+              source_type: null,
+              source_id: null,
+              campaign_id: null,
+              approval_item_id: null,
+              completed_at: null,
+              created_at: "2026-05-29T18:01:00.000Z",
+              updated_at: "2026-05-29T18:02:00.000Z",
+              metadata: {},
+            },
+          ],
+          error: null,
+        },
+      ],
+      approval_items: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+      campaigns: { data: [], error: null },
+    });
+
+    const dashboard = await getAgentOperationsDashboard(supabase);
+
+    expect(dashboard.status).toBe("live");
+    if (dashboard.status !== "live") return;
+
+    expect(dashboard.tasks[0]).toMatchObject({
+      id: "task-legacy",
+      objective: "Legacy board task.",
+      owner: { kind: "human", label: "Operator" },
+      driver: { kind: "agent", label: "Mark", agentId: "agent-1" },
+      approverLabel: "Owner",
+      description: null,
+      dueAt: null,
+      scheduledFor: null,
+    });
+    expect(supabase.calls.filter((call) => call[0] === "from" && call[1] === "agent_tasks")).toHaveLength(2);
+  });
+});
+
+describe("getAgentTaskDetail", () => {
+  it("maps shared human and Mark ticket state into task detail data", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: {
+        data: {
+          id: "task-123456789",
+          agent_id: "agent-1",
+          description: "Build the first partner-facing draft and keep outbound locked.",
+          owner_kind: "human",
+          owner_label: "Evan",
+          driver_kind: "agent",
+          driver_agent_id: "agent-1",
+          driver_label: "Mark",
+          approver_label: "Owner",
+          status: "running",
+          priority: "high",
+          objective: "Prepare plumbing partner outreach draft.",
+          task_type: "campaign_draft",
+          source_type: "campaign",
+          source_id: "campaign-1",
+          campaign_id: "campaign-1",
+          approval_item_id: "approval-1",
+          due_at: "2026-06-15T18:00:00.000Z",
+          scheduled_for: "2026-06-20T09:00:00.000Z",
+          started_at: "2026-05-29T18:01:30.000Z",
+          completed_at: null,
+          created_at: "2026-05-29T18:01:00.000Z",
+          updated_at: "2026-05-29T18:08:00.000Z",
+          metadata: {
+            acceptance_criteria: [
+              { id: "criteria-1", label: "Draft is partner-facing", completed: true },
+              { id: "criteria-2", label: "Outbound stays locked", completed: false },
+              { id: "bad", completed: true },
+              "ignore-me",
+            ],
+          },
+        },
+        error: null,
+      },
+      agents: {
+        data: {
+          id: "agent-1",
+          key: "mark",
+          name: "Mark",
+          description: "Runs partner-facing marketing tasks.",
+          status: "running",
+          allowed_actions: ["Draft"],
+          blocked_actions: ["Send"],
+          default_approval_policy: "Human approval required",
+          metadata: {},
+          updated_at: "2026-05-29T18:00:00.000Z",
+        },
+        error: null,
+      },
+      agent_task_inputs: { data: [], error: null },
+      agent_outputs: {
+        data: [
+          {
+            id: "output-new",
+            task_id: "task-123456789",
+            approval_item_id: "approval-1",
+            campaign_asset_id: "asset-1",
+            title: "Partner outreach draft v2",
+            output_type: "email",
+            body: "Updated draft",
+            edited_body: null,
+            structured_payload: { subject: "Partner handoff" },
+            risk_level: "medium",
+            compliance_status: "passed",
+            approval_status: "pending_owner_approval",
+            created_at: "2026-05-29T18:06:00.000Z",
+          },
+          {
+            id: "output-old",
+            task_id: "task-123456789",
+            approval_item_id: null,
+            campaign_asset_id: null,
+            title: "Partner outreach draft v1",
+            output_type: "email",
+            body: "First draft",
+            edited_body: null,
+            structured_payload: {},
+            risk_level: "low",
+            compliance_status: "pending",
+            approval_status: "draft",
+            created_at: "2026-05-29T18:04:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      agent_run_logs: { data: [], error: null },
+      campaigns: {
+        data: {
+          id: "campaign-1",
+          name: "Plumbing Partner Outreach Demo",
+          persona: "Plumbing Partner",
+          status: "draft",
+          objective: "Grow partner referrals.",
+        },
+        error: null,
+      },
+      approval_items: {
+        data: {
+          id: "approval-1",
+          item_type: "email",
+          status: "pending_owner_approval",
+          risk_level: "medium",
+          submitted_at: "2026-05-29T18:07:00.000Z",
+          reviewed_at: null,
+          decision_notes: null,
+        },
+        error: null,
+      },
+      agent_task_events: {
+        data: [
+          {
+            id: "event-human",
+            task_id: "task-123456789",
+            actor_kind: "human",
+            actor_label: "Evan",
+            event_type: "owner_note",
+            title: "Owner brief added",
+            body: "Keep outbound locked.",
+            metadata: {},
+            created_at: "2026-05-29T18:05:00.000Z",
+          },
+          {
+            id: "event-mark",
+            task_id: "task-123456789",
+            actor_kind: "agent",
+            actor_label: "Mark",
+            event_type: "agent_started",
+            title: "Mark started",
+            body: null,
+            metadata: {},
+            created_at: "2026-05-29T18:03:00.000Z",
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const detail = await getAgentTaskDetail("task-123456789", supabase);
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+
+    expect(detail.task).toMatchObject({
+      id: "task-123456789",
+      owner: { kind: "human", label: "Evan" },
+      driver: { kind: "agent", label: "Mark", agentId: "agent-1" },
+      approverLabel: "Owner",
+      description: "Build the first partner-facing draft and keep outbound locked.",
+      dueAt: "2026-06-15T18:00:00.000Z",
+      scheduledFor: "2026-06-20T09:00:00.000Z",
+    });
+    expect(detail.acceptanceCriteria).toEqual([
+      { id: "criteria-1", label: "Draft is partner-facing", completed: true },
+      { id: "criteria-2", label: "Outbound stays locked", completed: false },
+    ]);
+    expect(detail.latestOutput).toMatchObject({
+      id: "output-new",
+      title: "Partner outreach draft v2",
+    });
+    expect(detail.timeline.map((item) => item.source)).toEqual(["Approval", "Mark", "Human", "Mark", "Mark"]);
+    expect(detail.timeline).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "event-human",
+          source: "Human",
+          eventType: "owner_note",
+          title: "Owner brief added",
+          body: "Keep outbound locked.",
+        }),
+        expect.objectContaining({
+          id: "event-mark",
+          source: "Mark",
+          eventType: "agent_started",
+          title: "Mark started",
+        }),
+        expect.objectContaining({
+          id: "output-new",
+          source: "Mark",
+          eventType: "output_created",
+          title: "Partner outreach draft v2",
+          body: "Subject: Partner handoff",
+        }),
+        expect.objectContaining({
+          id: "approval-1",
+          source: "Approval",
+          eventType: "approval_event",
+          title: "Pending Owner Approval",
+          body: "Email approval is pending_owner_approval.",
+        }),
+      ]),
+    );
+    expect(supabase.calls).toContainEqual(["from", "agent_task_events"]);
+  });
+
+  it("summarizes Supabase HTML DNS errors on task detail lookup", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: {
+        data: null,
+        error: {
+          message:
+            '<!doctype html><html><head><title>Origin DNS error | fpjvgqrfqncnudqeudee.supabase.co | Cloudflare</title></head><body><h1>Error 1016</h1><h2>Origin DNS error</h2></body></html>',
+        },
+      },
+    });
+
+    const detail = await getAgentTaskDetail("task-123456789", supabase);
+
+    expect(detail.status).toBe("unavailable");
+    if (detail.status !== "unavailable") return;
+
+    expect(detail.message).toContain("Cloudflare 1016");
+    expect(detail.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
+    expect(detail.message).not.toContain("<!doctype");
+    expect(detail.message).not.toContain("<html");
+  });
+
+  it("summarizes Supabase fetch failures on task detail lookup", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: null, error: { message: "TypeError: fetch failed" } },
+    });
+
+    const detail = await getAgentTaskDetail("task-123456789", supabase);
+
+    expect(detail.status).toBe("unavailable");
+    if (detail.status !== "unavailable") return;
+
+    expect(detail.message).toBe(
+      "agent_tasks lookup failed: Supabase connection failed: the data API could not be reached. Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.",
+    );
+  });
+
+  it("falls back to legacy task detail data when shared ticket tables are not migrated yet", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: [
+        { data: null, error: { message: "column agent_tasks.description does not exist" } },
+        {
+          data: {
+            id: "task-legacy",
+            agent_id: "agent-1",
+            status: "running",
+            priority: "high",
+            objective: "Legacy detail task.",
+            task_type: "campaign_draft",
+            source_type: null,
+            source_id: null,
+            campaign_id: null,
+            approval_item_id: null,
+            started_at: "2026-05-29T18:01:30.000Z",
+            completed_at: null,
+            created_at: "2026-05-29T18:01:00.000Z",
+            updated_at: "2026-05-29T18:08:00.000Z",
+            metadata: {},
+          },
+          error: null,
+        },
+      ],
+      agents: {
+        data: {
+          id: "agent-1",
+          key: "mark",
+          name: "Mark",
+          description: "Runs marketing tasks.",
+          status: "running",
+          allowed_actions: [],
+          blocked_actions: [],
+          default_approval_policy: "Human approval required",
+          metadata: {},
+          updated_at: "2026-05-29T18:00:00.000Z",
+        },
+        error: null,
+      },
+      agent_task_inputs: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+      agent_run_logs: { data: [], error: null },
+      agent_task_events: {
+        data: null,
+        error: { message: "relation agent_task_events does not exist" },
+      },
+    });
+
+    const detail = await getAgentTaskDetail("task-legacy", supabase);
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+
+    expect(detail.task).toMatchObject({
+      id: "task-legacy",
+      objective: "Legacy detail task.",
+      owner: { kind: "human", label: "Operator" },
+      driver: { kind: "agent", label: "Mark", agentId: "agent-1" },
+      approverLabel: "Owner",
+      description: null,
+      dueAt: null,
+      scheduledFor: null,
+      startedAt: "2026-05-29T18:01:30.000Z",
+    });
+    expect(detail.timeline).toEqual([]);
   });
 });

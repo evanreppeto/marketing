@@ -2,10 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
-import { EmptyState, PageHeader, StatusPill, buttonClasses } from "@/app/_components/page-header";
+import { EmptyState, PageHeader } from "@/app/_components/page-header";
+import { labelIcon } from "@/app/_components/ticket-icons";
 import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 import { TaskInputsPanel, TaskLogsPanel, TaskOutputsPanel } from "./task-record-panels";
+import { TicketAcceptanceCriteria } from "./ticket-acceptance-criteria";
+import { TicketActivityTimeline } from "./ticket-activity-timeline";
+import { TicketEditableHeader } from "./ticket-editable-header";
+import { TicketLatestOutput } from "./ticket-latest-output";
+import { TicketPropertyRail } from "./ticket-property-rail";
 
 type PageProps = {
   params: Promise<{ taskId: string }>;
@@ -15,6 +21,10 @@ type PageProps = {
 type TaskSectionKey = "overview" | "inputs" | "outputs" | "logs";
 
 type LiveDetail = Extract<Awaited<ReturnType<typeof getAgentTaskDetail>>, { status: "live" }>;
+type TaskWithOptionalSchedule = LiveDetail["task"] & {
+  dueAt?: string | null;
+  scheduledFor?: string | null;
+};
 
 export default async function Page({ params, searchParams }: PageProps) {
   await connection();
@@ -37,54 +47,62 @@ export default async function Page({ params, searchParams }: PageProps) {
     );
   }
 
-  const task = detail.task;
+  const task = detail.task as TaskWithOptionalSchedule;
   const counts = { inputs: detail.inputs.length, outputs: detail.outputs.length, logs: detail.logs.length };
+  const outputsHref = `/agent-operations/tasks/${task.id}?section=outputs`;
 
   return (
-    <div className="mx-auto w-full max-w-[1080px]">
-      <Link
-        href="/board"
-        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
-      >
-        <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10 4 6 8l4 4" />
-        </svg>
-        Task board
-      </Link>
+    <div className="mx-auto w-full max-w-[940px]">
+      <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted)]" aria-label="Breadcrumb">
+        <Link className="transition hover:text-[var(--text-primary)]" href="/board">
+          Task board
+        </Link>
+        <span className="text-[var(--border-strong)]">/</span>
+        <span className="font-mono text-[var(--text-secondary)]">{task.id.slice(0, 8)}</span>
+      </nav>
 
-      <div className="mt-5 grid items-start gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-        {/* Main column */}
-        <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-            {humanize(task.taskType)}
-          </div>
-          <h1
-            className="mt-2 text-[22px] font-semibold leading-snug tracking-[-0.01em] text-[var(--text-primary)]"
-            style={{ fontFamily: "var(--font-sans)" }}
-          >
-            {task.objective}
-          </h1>
+      <main className="min-w-0 space-y-4">
+        <TicketEditableHeader
+          description={task.description}
+          driverLabel={task.driver.label}
+          dueAt={task.dueAt ?? null}
+          latestOutput={detail.latestOutput}
+          objective={task.objective}
+          ownerLabel={task.owner.label}
+          priority={task.priority}
+          status={task.status}
+          taskId={task.id}
+          taskType={task.taskType}
+        />
 
-          <div className="mt-5">
-            <TaskSectionTabs activeSection={activeSection} counts={counts} taskId={task.id} />
-          </div>
+        <TicketPropertyRail
+          approverLabel={task.approverLabel}
+          campaign={detail.campaign}
+          createdAt={task.createdAt}
+          driverKind={task.driver.kind}
+          driverLabel={task.driver.label}
+          dueAt={task.dueAt ?? null}
+          ownerLabel={task.owner.label}
+          priority={task.priority}
+          scheduledFor={task.scheduledFor ?? null}
+          sourceId={task.sourceId}
+          sourceType={task.sourceType}
+          status={task.status}
+          taskId={task.id}
+          updatedAt={task.updatedAt}
+        />
 
-          <div className="mt-4">
-            {activeSection === "overview" ? <TaskOverview detail={detail} /> : null}
-            {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
-            {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
-            {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
-          </div>
-        </div>
-
-        {/* Properties rail */}
-        <TaskSidebar detail={detail} />
-      </div>
+        {activeSection === "overview" ? <TaskOverview counts={counts} detail={detail} outputsHref={outputsHref} taskId={task.id} /> : null}
+        {activeSection !== "overview" ? <TaskRecordHeader activeSection={activeSection} counts={counts} taskId={task.id} /> : null}
+        {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
+        {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
+        {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
+      </main>
     </div>
   );
 }
 
-function TaskSectionTabs({
+function TaskRecordHeader({
   activeSection,
   counts,
   taskId,
@@ -93,186 +111,129 @@ function TaskSectionTabs({
   counts: { inputs: number; outputs: number; logs: number };
   taskId: string;
 }) {
-  const tabs: Array<{ key: TaskSectionKey; label: string; count: number | null }> = [
-    { key: "overview", label: "Overview", count: null },
-    { key: "inputs", label: "Inputs", count: counts.inputs },
-    { key: "outputs", label: "Outputs", count: counts.outputs },
-    { key: "logs", label: "Logs", count: counts.logs },
-  ];
+  const active = recordLinks(taskId, counts).find((link) => link.key === activeSection);
 
   return (
-    <nav aria-label="Task sections" className="flex items-center gap-5 border-b border-[var(--border-hairline)]">
-      {tabs.map((tab) => {
-        const isActive = activeSection === tab.key;
-        const href = tab.key === "overview" ? `/agent-operations/tasks/${taskId}` : `/agent-operations/tasks/${taskId}?section=${tab.key}`;
-        return (
-          <Link
-            aria-current={isActive ? "page" : undefined}
-            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 pb-2.5 text-[13px] font-semibold transition ${
-              isActive
-                ? "border-[var(--accent)] text-[var(--text-primary)]"
-                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-            }`}
-            href={href}
-            key={tab.key}
-          >
-            {tab.label}
-            {tab.count !== null ? (
-              <span
-                className={`rounded-full px-1.5 text-[11px] font-bold tabular-nums ${
-                  isActive ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "bg-[var(--surface-inset)] text-[var(--text-muted)]"
-                }`}
-              >
-                {tab.count}
-              </span>
-            ) : null}
+    <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 py-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <Link className="text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]" href={`/agent-operations/tasks/${taskId}`}>
+            Back to ticket
           </Link>
-        );
-      })}
-    </nav>
+          <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">{active?.label ?? "Supporting records"}</h2>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{active?.description ?? "Records Mark used or created while working this ticket."}</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {recordLinks(taskId, counts).map((link) => (
+            <Link
+              aria-current={activeSection === link.key ? "page" : undefined}
+              className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition ${
+                activeSection === link.key
+                  ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
+                  : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              }`}
+              href={link.href}
+              key={link.key}
+            >
+              {link.label}
+              <span className="text-[var(--text-muted)]">{link.count}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
-function TaskOverview({ detail }: { detail: LiveDetail }) {
-  const tiles: Array<{ label: string; value: number; section: TaskSectionKey }> = [
-    { label: "Inputs", value: detail.inputs.length, section: "inputs" },
-    { label: "Outputs", value: detail.outputs.length, section: "outputs" },
-    { label: "Logs", value: detail.logs.length, section: "logs" },
-  ];
-
+function TaskOverview({
+  counts,
+  detail,
+  outputsHref,
+  taskId,
+}: {
+  counts: { inputs: number; outputs: number; logs: number };
+  detail: LiveDetail;
+  outputsHref: string;
+  taskId: string;
+}) {
   return (
     <div className="space-y-4">
-      <p className="text-[13.5px] leading-6 text-[var(--text-secondary)]">
-        Mark is preparing this work for you. Nothing is sent, published, or launched from here — anything outbound waits
-        for your approval.
-      </p>
+      <TicketLatestOutput output={detail.latestOutput} outputsHref={outputsHref} />
+      {detail.acceptanceCriteria.length > 0 ? <TicketAcceptanceCriteria criteria={detail.acceptanceCriteria} taskId={detail.task.id} /> : null}
+      <SupportingRecords counts={counts} taskId={taskId} />
+      <details className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
+          Activity timeline
+          <span className="ml-2 text-xs font-medium text-[var(--text-muted)]">{detail.timeline.length}</span>
+        </summary>
+        <TicketActivityTimeline timeline={detail.timeline} />
+      </details>
+    </div>
+  );
+}
 
-      <div className="grid grid-cols-3 gap-2.5">
-        {tiles.map((tile) => (
+function SupportingRecords({ counts, taskId }: { counts: { inputs: number; outputs: number; logs: number }; taskId: string }) {
+  return (
+    <details className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
+      <summary className="cursor-pointer list-none px-4 py-3 transition hover:bg-[var(--surface-inset)] [&::-webkit-details-marker]:hidden">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+              <span className="inline-flex h-4 w-4 items-center justify-center text-[var(--text-muted)] [&>svg]:h-4 [&>svg]:w-4">
+                {labelIcon("tag")}
+              </span>
+              Supporting records
+            </div>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">Inputs, outputs, and logs are here if you need the audit trail.</p>
+          </div>
+          <span className="text-xs font-semibold text-[var(--text-muted)]">
+            {counts.inputs} input / {counts.outputs} output / {counts.logs} logs
+          </span>
+        </div>
+      </summary>
+      <div className="grid gap-2 border-t border-[var(--border-hairline)] p-3 sm:grid-cols-3">
+        {recordLinks(taskId, counts).map((link) => (
           <Link
-            href={`/agent-operations/tasks/${detail.task.id}?section=${tile.section}`}
-            key={tile.label}
-            className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--border-strong)]"
+            className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
+            href={link.href}
+            key={link.key}
           >
-            <div className="text-[22px] font-bold tabular-nums leading-none text-[var(--text-primary)]">{tile.value}</div>
-            <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{tile.label}</div>
+            <div className="flex items-center justify-between gap-2 text-sm font-semibold text-[var(--text-primary)]">
+              <span>{link.label}</span>
+              <span className="text-xs text-[var(--text-muted)]">{link.count}</span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{link.description}</p>
           </Link>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 
-function TaskSidebar({ detail }: { detail: LiveDetail }) {
-  const task = detail.task;
-  const relatedRecord = relatedRecordHref(task.sourceType, task.sourceId);
-  const links = [
-    detail.campaign ? { label: "Campaign", value: detail.campaign.name, href: `/campaigns/${detail.campaign.id}` } : null,
-    detail.approval ? { label: "Approval", value: humanize(detail.approval.status), href: detail.approval.href } : null,
-    relatedRecord ? { label: "Source record", value: relatedRecord.label, href: relatedRecord.href } : null,
-  ].filter((link): link is { label: string; value: string; href: string } => Boolean(link));
-
-  return (
-    <aside className="space-y-5 lg:sticky lg:top-5 lg:self-start lg:border-l lg:border-[var(--border-hairline)] lg:pl-6">
-      <div className="space-y-3.5">
-        <Property label="Status">
-          <StatusPill tone={statusTone(task.status)}>{humanize(task.status)}</StatusPill>
-        </Property>
-        <Property label="Priority">
-          <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-primary)]">
-            <span className="h-2 w-2 rounded-full" style={{ background: priorityDot(task.priority) }} />
-            {humanize(task.priority)}
-          </span>
-        </Property>
-        <Property label="Agent">
-          <span className="text-[13px] font-semibold text-[var(--text-primary)]">{detail.agent.name}</span>
-        </Property>
-        <Property label="Outbound">
-          <StatusPill tone="amber">Locked</StatusPill>
-        </Property>
-        <Property label="Created">
-          <span className="text-[13px] text-[var(--text-secondary)]">{formatDate(task.createdAt)}</span>
-        </Property>
-        <Property label="Updated">
-          <span className="text-[13px] text-[var(--text-secondary)]">{formatDate(task.updatedAt)}</span>
-        </Property>
-      </div>
-
-      {links.length > 0 ? (
-        <div className="border-t border-[var(--border-hairline)] pt-4">
-          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Linked</div>
-          <div className="mt-2.5 space-y-1.5">
-            {links.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[13px] transition hover:bg-[var(--surface-inset)]"
-              >
-                <span className="font-semibold text-[var(--text-secondary)]">{link.label}</span>
-                <span className="truncate text-[var(--text-muted)]">{link.value}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {detail.approval ? (
-        <Link className={buttonClasses({ variant: "primary", size: "sm", className: "w-full" })} href={detail.approval.href}>
-          Open human review
-        </Link>
-      ) : null}
-    </aside>
-  );
-}
-
-function Property({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-[12px] font-medium text-[var(--text-muted)]">{label}</span>
-      <span className="min-w-0 text-right">{children}</span>
-    </div>
-  );
-}
-
-function priorityDot(priority: string): string {
-  if (/urgent/i.test(priority)) return "var(--priority)";
-  if (/high/i.test(priority)) return "var(--warn)";
-  if (/low/i.test(priority)) return "var(--text-muted)";
-  return "var(--accent)";
-}
-
-function relatedRecordHref(sourceType: string | null, sourceId: string | null) {
-  if (!sourceType || !sourceId) return null;
-  if (sourceType === "company" || sourceType === "companies") return { href: `/crm/companies/${sourceId}`, label: "Company" };
-  if (sourceType === "contact" || sourceType === "contacts") return { href: `/crm/contacts/${sourceId}`, label: "Contact" };
-  if (sourceType === "lead" || sourceType === "leads") return { href: `/crm/leads/${sourceId}`, label: "Lead" };
-  if (sourceType === "property" || sourceType === "properties") return { href: `/crm/properties/${sourceId}`, label: "Property" };
-  if (sourceType === "job" || sourceType === "jobs") return { href: `/crm/jobs/${sourceId}`, label: "Job" };
-  if (sourceType === "outcome" || sourceType === "outcomes") return { href: `/crm/outcomes/${sourceId}`, label: "Outcome" };
-  return null;
-}
-
-function statusTone(status: string): "amber" | "green" | "red" | "blue" | "gray" {
-  if (["completed", "approved", "passed"].includes(status)) return "green";
-  if (["running", "processing"].includes(status)) return "blue";
-  if (["blocked", "failed", "error"].includes(status)) return "red";
-  if (["queued", "needs_approval", "pending"].includes(status)) return "amber";
-  return "gray";
-}
-
-function humanize(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "Not recorded";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+function recordLinks(taskId: string, counts: { inputs: number; outputs: number; logs: number }) {
+  return [
+    {
+      key: "inputs" as const,
+      label: "Inputs",
+      count: counts.inputs,
+      description: "What Mark used to do the work.",
+      href: `/agent-operations/tasks/${taskId}?section=inputs`,
+    },
+    {
+      key: "outputs" as const,
+      label: "Outputs",
+      count: counts.outputs,
+      description: "Drafts and packets Mark produced.",
+      href: `/agent-operations/tasks/${taskId}?section=outputs`,
+    },
+    {
+      key: "logs" as const,
+      label: "Logs",
+      count: counts.logs,
+      description: "Step-by-step activity and audit events.",
+      href: `/agent-operations/tasks/${taskId}?section=logs`,
+    },
+  ];
 }
 
 function normalizeTaskSection(value: string | undefined): TaskSectionKey {

@@ -11,6 +11,17 @@ const ACTIVE_APPROVAL_STATUSES = new Set([
   "revision_requested",
 ]);
 
+type AgentTaskActorKind = "human" | "agent" | "system";
+
+type AgentTaskActor = {
+  kind: AgentTaskActorKind;
+  label: string;
+};
+
+type AgentTaskDriver = AgentTaskActor & {
+  agentId: string | null;
+};
+
 export type AgentOperationsMetric = {
   label: string;
   value: number | string;
@@ -44,6 +55,10 @@ export type AgentOperationsTask = {
   dueAt: string | null;
   scheduledFor: string | null;
   progress: { done: number; total: number } | null;
+  owner: AgentTaskActor;
+  driver: AgentTaskDriver;
+  approverLabel: string;
+  description: string | null;
   updated: string;
   href: string;
 };
@@ -81,6 +96,32 @@ export type AgentOperationsOutput = {
   time: string;
 };
 
+export type AgentTaskOutput = {
+  id: string;
+  title: string;
+  outputType: string;
+  body: string;
+  readableBody: string;
+  structuredSections: Array<{ label: string; value: string }>;
+  evidence: Array<{ label: string; href: string }>;
+  media: Array<{ label: string; href: string; type: "image" | "video" | "file" | "link" }>;
+  riskLevel: string;
+  complianceStatus: string;
+  approvalStatus: string;
+  approvalHref: string | null;
+  campaignAssetId: string | null;
+  createdAt: string | null;
+};
+
+type AgentTaskTimelineItem = {
+  id: string;
+  source: "Human" | "Mark" | "System" | "Approval";
+  title: string;
+  body: string | null;
+  createdAt: string | null;
+  eventType: string;
+};
+
 export type AgentOperationsDashboard =
   | {
       status: "live";
@@ -112,6 +153,13 @@ type AgentRow = {
 type AgentTaskRow = {
   id: string;
   agent_id: string | null;
+  description: string | null;
+  owner_kind: string | null;
+  owner_label: string | null;
+  driver_kind: string | null;
+  driver_agent_id: string | null;
+  driver_label: string | null;
+  approver_label: string | null;
   status: string | null;
   priority: string | null;
   objective: string | null;
@@ -128,6 +176,53 @@ type AgentTaskRow = {
   metadata: unknown;
 };
 
+type AgentTaskDetailRow = AgentTaskRow & {
+  started_at: string | null;
+};
+
+type LegacyAgentTaskRow = Omit<
+  AgentTaskRow,
+  | "description"
+  | "owner_kind"
+  | "owner_label"
+  | "driver_kind"
+  | "driver_agent_id"
+  | "driver_label"
+  | "approver_label"
+  | "due_at"
+  | "scheduled_for"
+> &
+  Partial<
+    Pick<
+      AgentTaskRow,
+      | "description"
+      | "owner_kind"
+      | "owner_label"
+      | "driver_kind"
+      | "driver_agent_id"
+      | "driver_label"
+      | "approver_label"
+      | "due_at"
+      | "scheduled_for"
+    >
+  >;
+
+type LegacyAgentTaskDetailRow = LegacyAgentTaskRow & {
+  started_at: string | null;
+};
+
+const TASK_SELECT =
+  "id,agent_id,description,owner_kind,owner_label,driver_kind,driver_agent_id,driver_label,approver_label,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,due_at,scheduled_for,completed_at,created_at,updated_at,metadata";
+
+const LEGACY_TASK_SELECT =
+  "id,agent_id,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,completed_at,created_at,updated_at,metadata";
+
+const TASK_DETAIL_SELECT =
+  "id,agent_id,description,owner_kind,owner_label,driver_kind,driver_agent_id,driver_label,approver_label,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,due_at,scheduled_for,started_at,completed_at,created_at,updated_at,metadata";
+
+const LEGACY_TASK_DETAIL_SELECT =
+  "id,agent_id,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,started_at,completed_at,created_at,updated_at,metadata";
+
 export type AgentTaskDetail =
   | {
       status: "live";
@@ -136,17 +231,26 @@ export type AgentTaskDetail =
         status: string;
         priority: string;
         objective: string;
+        owner: AgentTaskActor;
+        driver: AgentTaskDriver;
+        approverLabel: string;
+        description: string | null;
         taskType: string;
         sourceType: string | null;
         sourceId: string | null;
         campaignId: string | null;
         approvalItemId: string | null;
+        dueAt: string | null;
+        scheduledFor: string | null;
         startedAt: string | null;
         completedAt: string | null;
         createdAt: string | null;
         updatedAt: string | null;
         metadata: Record<string, unknown>;
       };
+      acceptanceCriteria: Array<{ id: string; label: string; completed: boolean }>;
+      latestOutput: AgentTaskOutput | null;
+      timeline: AgentTaskTimelineItem[];
       agent: {
         id: string;
         key: string;
@@ -179,22 +283,7 @@ export type AgentTaskDetail =
         summary: string;
         payload: Record<string, unknown>;
       }>;
-      outputs: Array<{
-        id: string;
-        title: string;
-        outputType: string;
-        body: string;
-        readableBody: string;
-        structuredSections: Array<{ label: string; value: string }>;
-        evidence: Array<{ label: string; href: string }>;
-        media: Array<{ label: string; href: string; type: "image" | "video" | "file" | "link" }>;
-        riskLevel: string;
-        complianceStatus: string;
-        approvalStatus: string;
-        approvalHref: string | null;
-        campaignAssetId: string | null;
-        createdAt: string | null;
-      }>;
+      outputs: AgentTaskOutput[];
       logs: Array<{
         id: string;
         runStatus: string;
@@ -233,6 +322,16 @@ type ApprovalItemRow = {
   decision_notes: string | null;
 };
 
+type AgentTaskApprovalRow = {
+  id: string;
+  item_type: string | null;
+  status: string | null;
+  risk_level: string | null;
+  submitted_at?: string | null;
+  reviewed_at?: string | null;
+  decision_notes?: string | null;
+};
+
 type AgentOutputRow = {
   id: string;
   task_id: string | null;
@@ -257,6 +356,18 @@ type CampaignRow = {
   objective: string | null;
 };
 
+type AgentTaskEventRow = {
+  id: string;
+  task_id: string | null;
+  actor_kind: string | null;
+  actor_label: string | null;
+  event_type: string | null;
+  title: string | null;
+  body: string | null;
+  metadata: unknown;
+  created_at: string | null;
+};
+
 export async function getAgentOperationsDashboard(client?: SupabaseClient): Promise<AgentOperationsDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
     return {
@@ -273,13 +384,7 @@ export async function getAgentOperationsDashboard(client?: SupabaseClient): Prom
         .select("id,key,name,description,status,allowed_actions,blocked_actions,default_approval_policy,metadata,updated_at")
         .order("updated_at", { ascending: false })
         .limit(25),
-      supabase
-        .from("agent_tasks")
-        .select(
-          "id,agent_id,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,due_at,scheduled_for,completed_at,created_at,updated_at,metadata",
-        )
-        .order("updated_at", { ascending: false })
-        .limit(50),
+      fetchDashboardTasks(supabase),
       supabase
         .from("approval_items")
         .select(
@@ -348,25 +453,20 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
 
   try {
     const supabase = client ?? getSupabaseAdminClient();
-    const { data: taskData, error: taskError } = await supabase
-      .from("agent_tasks")
-      .select(
-        "id,agent_id,status,priority,objective,task_type,source_type,source_id,campaign_id,approval_item_id,started_at,completed_at,created_at,updated_at,metadata",
-      )
-      .eq("id", taskId)
-      .maybeSingle<AgentTaskRow & { started_at: string | null }>();
+    const { data: taskData, error: taskError } = await fetchTaskDetailRow(supabase, taskId);
 
     assertSupabaseResult("agent_tasks", taskError);
 
     if (!taskData) {
       return { status: "not_found" };
     }
+    const task = normalizeTaskRow(taskData);
 
-    const [agentResult, inputsResult, outputsResult, logsResult, campaignResult, approvalResult] = await Promise.all([
+    const [agentResult, inputsResult, outputsResult, logsResult, campaignResult, approvalResult, eventsResult] = await Promise.all([
       supabase
         .from("agents")
         .select("id,key,name,description,status,allowed_actions,blocked_actions,default_approval_policy,metadata,updated_at")
-        .eq("id", taskData.agent_id ?? "")
+        .eq("id", task.agent_id ?? "")
         .maybeSingle<AgentRow>(),
       supabase
         .from("agent_task_inputs")
@@ -383,20 +483,21 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
         .select("id,run_status,model_provider,model_name,input_token_count,output_token_count,cost_estimate_cents,reasoning_summary,error_message,started_at,completed_at,retry_count,metadata")
         .eq("task_id", taskId)
         .order("created_at", { ascending: false }),
-      taskData.campaign_id
+      task.campaign_id
         ? supabase
             .from("campaigns")
             .select("id,name,persona,status,objective")
-            .eq("id", taskData.campaign_id)
+            .eq("id", task.campaign_id)
             .maybeSingle<CampaignRow>()
         : Promise.resolve({ data: null, error: null }),
-      taskData.approval_item_id
+      task.approval_item_id
         ? supabase
             .from("approval_items")
-            .select("id,item_type,status,risk_level")
-            .eq("id", taskData.approval_item_id)
-            .maybeSingle<{ id: string; item_type: string | null; status: string | null; risk_level: string | null }>()
+            .select("id,item_type,status,risk_level,submitted_at,reviewed_at,decision_notes")
+            .eq("id", task.approval_item_id)
+            .maybeSingle<AgentTaskApprovalRow>()
         : Promise.resolve({ data: null, error: null }),
+      fetchTaskEvents(supabase, taskId),
     ]);
 
     assertSupabaseResult("agents", agentResult.error);
@@ -405,29 +506,50 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
     assertSupabaseResult("agent_run_logs", logsResult.error);
     assertSupabaseResult("campaigns", campaignResult.error);
     assertSupabaseResult("approval_items", approvalResult.error);
+    assertSupabaseResult("agent_task_events", eventsResult.error);
 
     const agent = agentResult.data ? normalizeAgentRow(agentResult.data) : null;
+    const taskMetadata = asRecord(task.metadata);
+    const outputs = sortByCreatedAtDesc(((outputsResult.data ?? []) as Array<Record<string, unknown>>).map(mapTaskOutputDetail));
+    const approval = approvalResult.data
+      ? {
+          id: approvalResult.data.id,
+          itemType: approvalResult.data.item_type ?? "approval_item",
+          status: approvalResult.data.status ?? "needs_review",
+          riskLevel: approvalResult.data.risk_level ?? "medium",
+          href: `/approvals?item=${approvalResult.data.id}`,
+        }
+      : null;
 
     return {
       status: "live",
       task: {
-        id: taskData.id,
-        status: taskData.status ?? "queued",
-        priority: taskData.priority ?? "medium",
-        objective: taskData.objective ?? "Agent task awaiting details.",
-        taskType: taskData.task_type ?? "agent_task",
-        sourceType: taskData.source_type,
-        sourceId: taskData.source_id,
-        campaignId: taskData.campaign_id,
-        approvalItemId: taskData.approval_item_id,
-        startedAt: taskData.started_at,
-        completedAt: taskData.completed_at,
-        createdAt: taskData.created_at,
-        updatedAt: taskData.updated_at,
-        metadata: asRecord(taskData.metadata),
+        id: task.id,
+        status: task.status ?? "queued",
+        priority: task.priority ?? "medium",
+        objective: task.objective ?? "Agent task awaiting details.",
+        owner: mapActor(task.owner_kind, task.owner_label),
+        driver: mapDriver(task),
+        approverLabel: getString(task.approver_label) ?? "Owner",
+        description: getString(task.description),
+        taskType: task.task_type ?? "agent_task",
+        sourceType: task.source_type,
+        sourceId: task.source_id,
+        campaignId: task.campaign_id,
+        approvalItemId: task.approval_item_id,
+        dueAt: task.due_at,
+        scheduledFor: task.scheduled_for,
+        startedAt: "started_at" in task ? task.started_at : null,
+        completedAt: task.completed_at,
+        createdAt: task.created_at,
+        updatedAt: task.updated_at,
+        metadata: taskMetadata,
       },
+      acceptanceCriteria: parseAcceptanceCriteria(taskMetadata),
+      latestOutput: outputs[0] ?? null,
+      timeline: composeTaskTimeline((eventsResult.data ?? []) as AgentTaskEventRow[], outputs, approvalResult.data ?? null),
       agent: {
-        id: agent?.id ?? taskData.agent_id ?? "unassigned",
+        id: agent?.id ?? task.agent_id ?? "unassigned",
         key: agent?.key ?? "unassigned-agent",
         name: agent?.name ?? "Unassigned agent",
         description: agent?.description ?? "No agent record found.",
@@ -445,15 +567,7 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
             objective: campaignResult.data.objective ?? "Campaign objective pending.",
           }
         : null,
-      approval: approvalResult.data
-        ? {
-            id: approvalResult.data.id,
-            itemType: approvalResult.data.item_type ?? "approval_item",
-            status: approvalResult.data.status ?? "needs_review",
-            riskLevel: approvalResult.data.risk_level ?? "medium",
-            href: `/approvals?item=${approvalResult.data.id}`,
-          }
-        : null,
+      approval,
       inputs: ((inputsResult.data ?? []) as Array<Record<string, unknown>>).map((input) => ({
         id: String(input.id),
         inputType: getString(input.input_type) ?? "input",
@@ -462,7 +576,7 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
         summary: getString(input.summary) ?? "No input summary captured.",
         payload: asRecord(input.payload),
       })),
-      outputs: ((outputsResult.data ?? []) as Array<Record<string, unknown>>).map(mapTaskOutputDetail),
+      outputs,
       logs: ((logsResult.data ?? []) as Array<Record<string, unknown>>).map((log) => ({
         id: String(log.id),
         runStatus: getString(log.run_status) ?? "queued",
@@ -487,10 +601,123 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
   }
 }
 
+async function fetchDashboardTasks(supabase: SupabaseClient) {
+  const result = await supabase
+    .from("agent_tasks")
+    .select(TASK_SELECT)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+
+  if (!isMissingSharedTaskSchemaError(result.error)) return result;
+
+  return supabase
+    .from("agent_tasks")
+    .select(LEGACY_TASK_SELECT)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+}
+
+async function fetchTaskDetailRow(supabase: SupabaseClient, taskId: string) {
+  const result = await supabase
+    .from("agent_tasks")
+    .select(TASK_DETAIL_SELECT)
+    .eq("id", taskId)
+    .maybeSingle<AgentTaskDetailRow>();
+
+  if (!isMissingSharedTaskSchemaError(result.error)) return result;
+
+  return supabase
+    .from("agent_tasks")
+    .select(LEGACY_TASK_DETAIL_SELECT)
+    .eq("id", taskId)
+    .maybeSingle<LegacyAgentTaskDetailRow>();
+}
+
+async function fetchTaskEvents(supabase: SupabaseClient, taskId: string) {
+  const result = await supabase
+    .from("agent_task_events")
+    .select("id,task_id,actor_kind,actor_label,event_type,title,body,metadata,created_at")
+    .eq("task_id", taskId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (!isMissingTaskEventsSchemaError(result.error)) return result;
+
+  return { data: [], error: null };
+}
+
 function assertSupabaseResult(table: string, error: { message?: string } | null) {
   if (error) {
-    throw new Error(`${table} lookup failed: ${error.message ?? "Unknown Supabase error"}`);
+    throw new Error(`${table} lookup failed: ${formatSupabaseLookupError(error.message)}`);
   }
+}
+
+function formatSupabaseLookupError(message: string | undefined) {
+  const rawMessage = message ?? "";
+  const cleanedMessage = stripHtmlMessage(rawMessage);
+
+  if (!cleanedMessage) return "Unknown Supabase error";
+
+  if (/cloudflare/i.test(cleanedMessage) && /(origin dns error|error 1016)/i.test(cleanedMessage)) {
+    return "Supabase connection failed: project host could not be resolved (Cloudflare 1016 Origin DNS error). Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.";
+  }
+
+  if (/fetch failed/i.test(cleanedMessage)) {
+    return "Supabase connection failed: the data API could not be reached. Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.";
+  }
+
+  if (/<!doctype html|<html/i.test(rawMessage)) {
+    return "Supabase connection failed: the data API returned an HTML error page instead of JSON. Check NEXT_PUBLIC_SUPABASE_URL and Supabase project status.";
+  }
+
+  return cleanedMessage.length > 320 ? `${cleanedMessage.slice(0, 317).trimEnd()}...` : cleanedMessage;
+}
+
+function stripHtmlMessage(message: string) {
+  return message
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&bull;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isMissingSharedTaskSchemaError(error: { message?: string } | null) {
+  if (!error?.message) return false;
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes("agent_tasks") &&
+    [
+      "description",
+      "owner_kind",
+      "owner_label",
+      "driver_kind",
+      "driver_agent_id",
+      "driver_label",
+      "approver_label",
+      "due_at",
+      "scheduled_for",
+    ].some((column) => message.includes(column)) &&
+    (message.includes("does not exist") || message.includes("schema cache") || message.includes("could not find"))
+  );
+}
+
+function isMissingTaskEventsSchemaError(error: { message?: string } | null) {
+  if (!error?.message) return false;
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes("agent_task_events") &&
+    (message.includes("does not exist") || message.includes("schema cache") || message.includes("could not find"))
+  );
 }
 
 function normalizeAgentRow(row: AgentRow) {
@@ -503,9 +730,18 @@ function normalizeAgentRow(row: AgentRow) {
   };
 }
 
-function normalizeTaskRow(row: AgentTaskRow) {
+function normalizeTaskRow(row: AgentTaskRow | LegacyAgentTaskRow | AgentTaskDetailRow | LegacyAgentTaskDetailRow) {
   return {
     ...row,
+    description: row.description ?? null,
+    owner_kind: row.owner_kind ?? null,
+    owner_label: row.owner_label ?? null,
+    driver_kind: row.driver_kind ?? null,
+    driver_agent_id: row.driver_agent_id ?? null,
+    driver_label: row.driver_label ?? null,
+    approver_label: row.approver_label ?? null,
+    due_at: row.due_at ?? null,
+    scheduled_for: row.scheduled_for ?? null,
     status: row.status ?? "queued",
     task_type: row.task_type ?? "agent_task",
     objective: row.objective ?? "Agent task awaiting details.",
@@ -589,6 +825,10 @@ function mapTask(
     dueAt: task.due_at ?? null,
     scheduledFor: task.scheduled_for ?? null,
     progress: parseProgress(metadata.progress),
+    owner: mapActor(task.owner_kind, task.owner_label),
+    driver: mapDriver(task),
+    approverLabel: getString(task.approver_label) ?? "Owner",
+    description: getString(task.description),
     updated: task.updated_at ?? task.created_at ?? "Now",
     href: `/agent-operations/tasks/${task.id}`,
   };
@@ -669,7 +909,106 @@ function countRiskFlags(approvals: ReturnType<typeof normalizeApprovalRow>[], ou
   return riskyApprovals + riskyOutputs;
 }
 
-function mapTaskOutputDetail(output: Record<string, unknown>) {
+function mapActor(kind: string | null | undefined, label: string | null | undefined): AgentTaskActor {
+  const normalizedKind = normalizeActorKind(kind);
+  return {
+    kind: normalizedKind,
+    label: getString(label) ?? (normalizedKind === "agent" ? "Mark" : "Operator"),
+  };
+}
+
+function mapDriver(row: Pick<AgentTaskRow, "agent_id" | "driver_kind" | "driver_agent_id" | "driver_label">): AgentTaskDriver {
+  const actor = mapActor(row.driver_kind ?? (row.driver_agent_id || row.agent_id ? "agent" : null), row.driver_label);
+
+  return {
+    ...actor,
+    agentId: actor.kind === "agent" ? row.driver_agent_id ?? row.agent_id ?? null : null,
+  };
+}
+
+function normalizeActorKind(kind: string | null | undefined): AgentTaskActorKind {
+  if (kind === "agent" || kind === "system") return kind;
+  return "human";
+}
+
+function parseAcceptanceCriteria(metadata: Record<string, unknown>) {
+  const rawCriteria = metadata.acceptance_criteria;
+  if (!Array.isArray(rawCriteria)) return [];
+
+  return rawCriteria.flatMap((item) => {
+    if (!isObject(item)) return [];
+    const id = getString(item.id);
+    const label = getString(item.label);
+    if (!id || !label || typeof item.completed !== "boolean") return [];
+    return [{ id, label, completed: item.completed }];
+  });
+}
+
+function mapEventSource(row: Pick<AgentTaskEventRow, "actor_kind">): AgentTaskTimelineItem["source"] {
+  if (row.actor_kind === "approval") return "Approval";
+  if (row.actor_kind === "agent") return "Mark";
+  if (row.actor_kind === "system") return "System";
+  return "Human";
+}
+
+function composeTaskTimeline(
+  events: AgentTaskEventRow[],
+  outputs: AgentTaskOutput[],
+  approval: AgentTaskApprovalRow | null,
+): AgentTaskTimelineItem[] {
+  const eventItems = events.map((event) => ({
+    id: event.id,
+    source: mapEventSource(event),
+    title: getString(event.title) ?? titleize(event.event_type ?? "task_event"),
+    body: getString(event.body),
+    createdAt: event.created_at,
+    eventType: event.event_type ?? "task_event",
+  }));
+
+  const outputItems = outputs.map((output) => ({
+    id: output.id,
+    source: "Mark" as const,
+    title: output.title,
+    body: output.readableBody,
+    createdAt: output.createdAt,
+    eventType: "output_created",
+  }));
+
+  const approvalItem = approval
+    ? [
+        {
+          id: approval.id,
+          source: "Approval" as const,
+          title: titleize(approval.status ?? "approval_event"),
+          body: `${titleize(approval.item_type ?? "approval item")} approval is ${approval.status ?? "pending"}.`,
+          createdAt: approval.reviewed_at ?? approval.submitted_at ?? null,
+          eventType: "approval_event",
+        },
+      ]
+    : [];
+
+  return sortByCreatedAtDesc([...eventItems, ...outputItems, ...approvalItem]);
+}
+
+function sortByCreatedAtDesc<T extends { createdAt: string | null }>(items: T[]) {
+  return [...items].sort((left, right) => compareCreatedAtDesc(left.createdAt, right.createdAt));
+}
+
+function compareCreatedAtDesc(left: string | null, right: string | null) {
+  if (left === right) return 0;
+  if (!left) return 1;
+  if (!right) return -1;
+
+  const leftTime = Date.parse(left);
+  const rightTime = Date.parse(right);
+  if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) {
+    return rightTime - leftTime;
+  }
+
+  return right.localeCompare(left);
+}
+
+function mapTaskOutputDetail(output: Record<string, unknown>): AgentTaskOutput {
   const structuredPayload = asRecord(output.structured_payload);
   const rawBody = getString(output.edited_body) ?? getString(output.body) ?? "";
   const readableBody = buildReadableOutput(rawBody, structuredPayload);

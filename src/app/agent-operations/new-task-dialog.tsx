@@ -1,18 +1,27 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import { priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import { formatScheduleLabel, resolveScheduledFor, type SchedulePreset } from "@/domain";
 
 import { createTaskAction } from "./actions";
+import { badgeStyle, priorityAppearance, statusAppearance } from "./task-visuals";
 import { buttonClasses } from "../_components/page-header";
 
 const PRIORITY_OPTIONS = [
-  { value: "urgent", label: "Urgent", dot: "var(--priority)" },
-  { value: "high", label: "High", dot: "var(--warn)" },
-  { value: "medium", label: "Medium", dot: "var(--accent)" },
-  { value: "low", label: "Low", dot: "var(--text-muted)" },
+  { value: "urgent", label: "Urgent" },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+] as const;
+
+const STATUS_OPTIONS = [
+  { value: "queued", label: "Queued" },
+  { value: "running", label: "Running" },
+  { value: "needs_approval", label: "Needs review" },
+  { value: "blocked", label: "Blocked" },
 ] as const;
 
 const WHEN_OPTIONS: ReadonlyArray<{ value: SchedulePreset; label: string }> = [
@@ -23,11 +32,12 @@ const WHEN_OPTIONS: ReadonlyArray<{ value: SchedulePreset; label: string }> = [
   { value: "custom", label: "Pick date & time…" },
 ];
 
-type MenuKey = "priority" | "when" | null;
+type MenuKey = "status" | "priority" | "when" | null;
 
 export function NewTaskDialog() {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<MenuKey>(null);
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>("queued");
   const [priority, setPriority] = useState<(typeof PRIORITY_OPTIONS)[number]["value"]>("medium");
   const [whenPreset, setWhenPreset] = useState<SchedulePreset>("now");
   const [customIso, setCustomIso] = useState("");
@@ -77,7 +87,10 @@ export function NewTaskDialog() {
   // Show the right modifier glyph for the platform (⌘ on Mac, Ctrl elsewhere).
   const modKey = isMac ? "⌘" : "Ctrl";
 
+  const statusOption = STATUS_OPTIONS.find((option) => option.value === status)!;
   const priorityOption = PRIORITY_OPTIONS.find((option) => option.value === priority)!;
+  const statusVisual = statusAppearance(statusOption.value);
+  const priorityVisual = priorityAppearance(priorityOption.value);
   const scheduledForValue =
     whenPreset === "now" ? "" : resolveScheduledFor(whenPreset, new Date(), customIso || null) ?? "";
   const whenLabel =
@@ -119,14 +132,15 @@ export function NewTaskDialog() {
             className="w-full max-w-lg rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-raised)]"
             onClick={(event) => event.stopPropagation()}
           >
+            <input type="hidden" name="status" value={status} />
             <input type="hidden" name="priority" value={priority} />
             <input type="hidden" name="scheduledFor" value={scheduledForValue} />
 
             <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] px-5 py-4">
               <MarkAvatar size={28} />
               <div>
-                <h2 className="text-sm font-bold text-[var(--text-primary)]">New task for Mark</h2>
-                <p className="text-xs text-[var(--text-muted)]">Mark prepares the work. You approve anything that goes out.</p>
+                <h2 className="text-sm font-bold text-[var(--text-primary)]">New ticket</h2>
+                <p className="text-xs text-[var(--text-muted)]">Assign status, priority, and timing before Mark picks it up.</p>
               </div>
             </div>
 
@@ -146,9 +160,14 @@ export function NewTaskDialog() {
               </label>
 
               <div className="relative mt-3 flex flex-wrap items-center gap-2">
-                <PillButton active={menu === "priority"} onClick={() => setMenu(menu === "priority" ? null : "priority")}>
-                  <span className="h-2 w-2 rounded-full" style={{ background: priorityOption.dot }} />
-                  {priorityOption.label}
+                <PillButton active={menu === "status"} onClick={() => setMenu(menu === "status" ? null : "status")} style={badgeStyle(statusVisual)}>
+                  <IconSlot>{statusIcon(statusOption.value)}</IconSlot>
+                  {statusVisual.label}
+                  <Chevron />
+                </PillButton>
+                <PillButton active={menu === "priority"} onClick={() => setMenu(menu === "priority" ? null : "priority")} style={badgeStyle(priorityVisual)}>
+                  <IconSlot>{priorityIcon(priorityOption.value)}</IconSlot>
+                  {priorityVisual.label}
                   <Chevron />
                 </PillButton>
                 <PillButton active={menu === "when"} onClick={() => setMenu(menu === "when" ? null : "when")}>
@@ -159,18 +178,38 @@ export function NewTaskDialog() {
 
                 {menu ? <div className="fixed inset-0 z-[1]" onClick={() => setMenu(null)} /> : null}
 
+                {menu === "status" ? (
+                  <Menu>
+                    {STATUS_OPTIONS.map((option) => (
+                      <MenuItem
+                        key={option.value}
+                        selected={option.value === status}
+                        style={option.value === status ? badgeStyle(statusAppearance(option.value)) : undefined}
+                        onClick={() => {
+                          setStatus(option.value);
+                          setMenu(null);
+                        }}
+                      >
+                        <IconSlot>{statusIcon(option.value)}</IconSlot>
+                        {statusAppearance(option.value).label}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                ) : null}
+
                 {menu === "priority" ? (
                   <Menu>
                     {PRIORITY_OPTIONS.map((option) => (
                       <MenuItem
                         key={option.value}
                         selected={option.value === priority}
+                        style={option.value === priority ? badgeStyle(priorityAppearance(option.value)) : undefined}
                         onClick={() => {
                           setPriority(option.value);
                           setMenu(null);
                         }}
                       >
-                        <span className="h-2 w-2 rounded-full" style={{ background: option.dot }} />
+                        <IconSlot>{priorityIcon(option.value)}</IconSlot>
                         {option.label}
                       </MenuItem>
                     ))}
@@ -232,11 +271,22 @@ export function NewTaskDialog() {
   );
 }
 
-function PillButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function PillButton({
+  active,
+  onClick,
+  children,
+  style,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      style={style}
       className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold ${
         active
           ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
@@ -248,6 +298,10 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
+function IconSlot({ children }: { children: ReactNode }) {
+  return <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">{children}</span>;
+}
+
 function Menu({ children }: { children: ReactNode }) {
   return (
     <div className="absolute left-0 top-full z-[2] mt-1.5 w-56 overflow-hidden rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] py-1 shadow-[var(--elev-raised)]">
@@ -256,11 +310,22 @@ function Menu({ children }: { children: ReactNode }) {
   );
 }
 
-function MenuItem({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: ReactNode }) {
+function MenuItem({
+  selected,
+  onClick,
+  children,
+  style,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      style={style}
       className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm font-medium ${
         selected ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]"
       }`}
