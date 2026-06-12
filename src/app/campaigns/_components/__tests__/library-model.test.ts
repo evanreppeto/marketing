@@ -5,7 +5,11 @@ import {
   campaignManagerSummary,
   campaignManagerStatus,
   campaignManagerWhere,
+  campaignDecisionPrompt,
   campaignNextStep,
+  campaignPreviewText,
+  buildCampaignStartActions,
+  campaignAssetKindLabel,
   filterCampaignManagerItems,
   managerViewCounts,
   momentumCounts,
@@ -176,6 +180,56 @@ describe("campaign manager helpers", () => {
     expect(campaignNextStep(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe("Send or export");
     expect(campaignNextStep(campaign({ lifecycle: "Live", pendingCount: 0 }))).toBe("Check results");
     expect(campaignNextStep(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe("Wait for Mark");
+  });
+
+  it("explains what the user needs to decide", () => {
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe(
+      "Decide whether to approve, revise, or hold these pieces.",
+    );
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe(
+      "Choose where this campaign should be handed off.",
+    );
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Live", pendingCount: 0 }))).toBe("Watch replies, dispatches, and outcomes.");
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe(
+      "Add guidance for Mark if the campaign needs a different direction.",
+    );
+  });
+
+  it("uses the real preview text when one exists", () => {
+    expect(campaignPreviewText(campaign({ previewLabel: "Email", previewText: "Subject: We can help" }))).toEqual({
+      label: "Email",
+      text: "Subject: We can help",
+    });
+  });
+
+  it("falls back to why Mark built it when no preview text exists", () => {
+    expect(campaignPreviewText(campaign({ previewText: "", previewLabel: "", whyBuilt: "Mark found a strong partner fit." }))).toEqual({
+      label: "Why this exists",
+      text: "Mark found a strong partner fit.",
+    });
+  });
+
+  it("builds start-here action cards", () => {
+    const actions = buildCampaignStartActions([
+      campaign({ id: "review", lifecycle: "In review", pendingCount: 2 }),
+      campaign({ id: "ready", lifecycle: "Ready", pendingCount: 0 }),
+      campaign({ id: "draft", lifecycle: "Drafting", pendingCount: 0 }),
+      campaign({ id: "live", lifecycle: "Live", pendingCount: 0 }),
+    ]);
+
+    expect(actions.map((action) => ({ key: action.key, count: action.count, cta: action.cta, tone: action.tone }))).toEqual([
+      { key: "needs-attention", count: 1, cta: "Start reviewing", tone: "amber" },
+      { key: "ready-to-send", count: 1, cta: "View ready", tone: "blue" },
+      { key: "mark-working", count: 1, cta: "Check drafts", tone: "blue" },
+      { key: "live", count: 1, cta: "View live", tone: "green" },
+    ]);
+    expect(actions[0].detail).toBe("2 pieces need a yes, a revision note, or a hold.");
+  });
+
+  it("uses plain labels for deliverable kinds", () => {
+    expect(campaignAssetKindLabel("campaign_brief")).toBe("Export");
+    expect(campaignAssetKindLabel("crm_gap_fill_review")).toBe("CRM");
+    expect(campaignAssetKindLabel("handoff-note")).toBe("Handoff Note");
   });
 
   it("filters saved views", () => {

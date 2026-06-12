@@ -50,6 +50,22 @@ export type CampaignManagerSummary = {
   secondary: string;
 };
 
+export type CampaignStartAction = {
+  key: CampaignManagerView;
+  title: string;
+  count: number;
+  countLabel: string;
+  detail: string;
+  cta: string;
+  href: string;
+  tone: CampaignManagerTone;
+};
+
+export type CampaignPreviewText = {
+  label: string;
+  text: string;
+};
+
 const WHERE_LABELS: Record<string, string> = {
   email: "Email",
   sms: "SMS",
@@ -100,6 +116,10 @@ export function campaignManagerWhere(campaign: CampaignWorkspaceListItem): strin
   return distinct.length > 0 ? distinct.slice(0, 4) : ["Not chosen"];
 }
 
+export function campaignAssetKindLabel(kind: string): string {
+  return plainWhereLabel(kind) ?? humanize(kind);
+}
+
 export function campaignNextStep(campaign: CampaignWorkspaceListItem): string {
   if (campaign.pendingCount > 0) {
     return `Review ${campaign.pendingCount} piece${campaign.pendingCount === 1 ? "" : "s"}`;
@@ -109,6 +129,81 @@ export function campaignNextStep(campaign: CampaignWorkspaceListItem): string {
   if (campaign.lifecycle === "Drafting") return "Wait for Mark";
   if (campaign.assetCount === 0) return "Add content";
   return "Open campaign";
+}
+
+export function campaignDecisionPrompt(campaign: CampaignWorkspaceListItem): string {
+  if (campaign.pendingCount > 0) {
+    return `Decide whether to approve, revise, or hold ${campaign.pendingCount === 1 ? "this piece" : "these pieces"}.`;
+  }
+  if (campaign.lifecycle === "Ready") return "Choose where this campaign should be handed off.";
+  if (campaign.lifecycle === "Live") return "Watch replies, dispatches, and outcomes.";
+  if (campaign.lifecycle === "Drafting") return "Add guidance for Mark if the campaign needs a different direction.";
+  if (campaign.assetCount === 0) return "Add content or ask Mark to keep building.";
+  return "Open the campaign to choose the next action.";
+}
+
+export function campaignPreviewText(campaign: CampaignWorkspaceListItem): CampaignPreviewText {
+  if (campaign.previewText) {
+    return {
+      label: campaign.previewLabel || "Preview",
+      text: campaign.previewText,
+    };
+  }
+  return {
+    label: "Why this exists",
+    text: campaign.whyBuilt || campaign.objective || "Open the campaign to see what Mark is building.",
+  };
+}
+
+export function buildCampaignStartActions(campaigns: CampaignWorkspaceListItem[]): CampaignStartAction[] {
+  const counts = managerViewCounts(campaigns);
+  const reviewPieces = campaigns.reduce((total, campaign) => total + (matchesManagerView(campaign, "needs-attention") ? campaign.pendingCount : 0), 0);
+
+  return [
+    {
+      key: "needs-attention",
+      title: "Review needed",
+      count: counts["needs-attention"],
+      countLabel: `${counts["needs-attention"]} campaign${counts["needs-attention"] === 1 ? "" : "s"}`,
+      detail:
+        reviewPieces > 0
+          ? `${reviewPieces} piece${reviewPieces === 1 ? "" : "s"} need a yes, a revision note, or a hold.`
+          : "Nothing needs review right now.",
+      cta: counts["needs-attention"] > 0 ? "Start reviewing" : "No review needed",
+      href: "/campaigns?view=needs-attention",
+      tone: counts["needs-attention"] > 0 ? "amber" : "gray",
+    },
+    {
+      key: "ready-to-send",
+      title: "Ready to hand off",
+      count: counts["ready-to-send"],
+      countLabel: `${counts["ready-to-send"]} campaign${counts["ready-to-send"] === 1 ? "" : "s"}`,
+      detail: counts["ready-to-send"] > 0 ? "Approved campaigns are waiting for send or export." : "No approved campaigns are waiting.",
+      cta: "View ready",
+      href: "/campaigns?view=ready-to-send",
+      tone: counts["ready-to-send"] > 0 ? "blue" : "gray",
+    },
+    {
+      key: "mark-working",
+      title: "Mark is drafting",
+      count: counts["mark-working"],
+      countLabel: `${counts["mark-working"]} campaign${counts["mark-working"] === 1 ? "" : "s"}`,
+      detail: counts["mark-working"] > 0 ? "Drafts are still being prepared." : "Mark is not drafting campaigns right now.",
+      cta: "Check drafts",
+      href: "/campaigns?view=mark-working",
+      tone: counts["mark-working"] > 0 ? "blue" : "gray",
+    },
+    {
+      key: "live",
+      title: "Watch results",
+      count: counts.live,
+      countLabel: `${counts.live} campaign${counts.live === 1 ? "" : "s"}`,
+      detail: counts.live > 0 ? "Live campaigns are ready for results and follow-up." : "No campaigns are live yet.",
+      cta: "View live",
+      href: "/campaigns?view=live",
+      tone: counts.live > 0 ? "green" : "gray",
+    },
+  ];
 }
 
 export function filterCampaignManagerItems(
@@ -168,6 +263,10 @@ function plainWhereLabel(type: string): string | undefined {
   if (tokens.has("crm") || tokens.has("lead") || tokens.has("script")) return "CRM";
   if (tokens.has("brief") || tokens.has("pager") || tokens.has("pdf") || tokens.has("export")) return "Export";
   return undefined;
+}
+
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function campaignSearchText(campaign: CampaignWorkspaceListItem): string {

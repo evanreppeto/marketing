@@ -76,7 +76,7 @@ export function CampaignManagerRow({ campaign }: { campaign: CampaignWorkspaceLi
         </div>
 
         <Link href={campaign.href} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-          Open
+          {openLabel(campaign)}
         </Link>
       </div>
 
@@ -87,4 +87,12 @@ export function CampaignManagerRow({ campaign }: { campaign: CampaignWorkspaceLi
 
 function MobileLabel({ children }: { children: React.ReactNode }) {
   return <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">{children}</div>;
+}
+
+function openLabel(campaign: CampaignWorkspaceListItem) {
+  if (campaign.pendingCount > 0) return "Review";
+  if (campaign.lifecycle === "Ready") return "Send";
+  if (campaign.lifecycle === "Live") return "Results";
+  if (campaign.lifecycle === "Drafting") return "Guide Mark";
+  return "Open";
 }

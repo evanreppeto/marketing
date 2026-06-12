@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 import { CampaignManagerRow } from "./campaign-manager-row";
-import { filterCampaignManagerItems, managerViewCounts, type CampaignManagerView } from "./library-model";
+import { buildCampaignStartActions, filterCampaignManagerItems, managerViewCounts, type CampaignManagerTone, type CampaignManagerView } from "./library-model";
 
 const VIEWS: Array<{ key: CampaignManagerView; label: string }> = [
   { key: "needs-attention", label: "Needs attention" },
@@ -24,11 +24,46 @@ export function CampaignLibrary({
   query: string;
 }) {
   const counts = managerViewCounts(campaigns);
+  const startActions = buildCampaignStartActions(campaigns);
   const filteredCampaigns = filterCampaignManagerItems(campaigns, activeView, query);
   const trimmedQuery = query.trim();
 
   return (
     <section className="space-y-4" aria-label="Campaign manager">
+      <div className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="signal-eyebrow">Start here</span>
+            <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">What needs attention?</h2>
+          </div>
+          <p className="max-w-[56ch] text-sm leading-5 text-[var(--text-secondary)]">
+            Use these cards like a daily checklist. They point to the campaigns that need a decision, a handoff, or follow-up.
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {startActions.map((action) => (
+            <Link
+              key={action.key}
+              href={action.href}
+              className={`rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-[var(--elev-panel)] ${actionClass(action.tone)}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-[var(--text-primary)]">{action.title}</div>
+                  <div className="mt-1 font-mono text-xs font-bold text-[var(--text-muted)]">{action.countLabel}</div>
+                </div>
+                <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-2 py-1 font-mono text-xs font-bold text-[var(--text-primary)]">
+                  {action.count}
+                </span>
+              </div>
+              <p className="mt-3 min-h-[2.5rem] text-xs leading-5 text-[var(--text-secondary)]">{action.detail}</p>
+              <span className="mt-3 inline-flex text-xs font-bold text-[var(--accent)]">{action.cta}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <nav aria-label="Saved campaign views" className="flex flex-wrap gap-2">
           {VIEWS.map((view) => {
@@ -103,6 +138,13 @@ export function CampaignLibrary({
       </div>
     </section>
   );
+}
+
+function actionClass(tone: CampaignManagerTone) {
+  if (tone === "amber") return "border-[var(--warn-border-soft)] bg-[var(--warn-soft)]";
+  if (tone === "green") return "border-[var(--ok-border-soft)] bg-[var(--ok-soft)]";
+  if (tone === "blue") return "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]";
+  return "border-[var(--border-hairline)] bg-[var(--surface-soft)]";
 }
 
 function viewHref(view: CampaignManagerView, query: string) {
