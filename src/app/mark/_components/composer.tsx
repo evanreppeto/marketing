@@ -64,6 +64,7 @@ export function Composer({
   activeProjectId,
   defaultMode = "act",
   defaultRoute = "fast",
+  assistantName = "Mark",
   demo = false,
   onDemoSend,
 }: {
@@ -73,6 +74,7 @@ export function Composer({
   activeProjectId: string | null;
   defaultMode?: MarkMode;
   defaultRoute?: MarkRoute;
+  assistantName?: string;
   draft: string;
   onDraftChange: (value: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -403,7 +405,7 @@ export function Composer({
                 }
               }}
               rows={1}
-              placeholder="Message Mark…"
+              placeholder={`Message ${assistantName}...`}
               style={{ outline: "none" }}
               className="max-h-[200px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
@@ -411,7 +413,7 @@ export function Composer({
               <button
                 type="button"
                 onClick={() => onStopReply?.()}
-                aria-label="Stop Mark"
+                aria-label={`Stop ${assistantName}`}
                 title="Stop"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--priority-bright)] active:scale-95"
               >

@@ -8,7 +8,14 @@ import {
   appAppearanceAccent,
   appAppearanceDensity,
   appAppearanceMotion,
+  appApprovalStrictness,
+  appAssistantResponseStyle,
+  appAssistantTone,
+  appWorkspaceProfile,
   isValidSupportEmail,
+  normalizeBrandShortName,
+  normalizeBrandUrl,
+  normalizeDisplayLabel,
   normalizeWorkspaceName,
   saveAppSettings,
 } from "@/lib/settings/store";
@@ -51,6 +58,76 @@ export async function saveGeneralSettingsAction(
   revalidatePath("/login");
   revalidatePath("/", "layout"); // refresh the document title / shell
   return { ok: true, message: "Settings saved." };
+}
+
+/** Save user/company branding consumed by the app shell, metadata, and chat UI. */
+export async function saveBrandingSettingsAction(
+  _previous: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), "Big Shoulders", 80);
+  const workspaceProfile = appWorkspaceProfile(formData.get("workspaceProfile"));
+  const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), "Marketing", 42);
+  const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), "Mark", 32);
+  const brandShortName = normalizeBrandShortName(String(formData.get("brandShortName") ?? ""));
+  const clearBrandLogo = String(formData.get("clearBrandLogo") ?? "") === "1";
+  const uploadedLogo = normalizeBrandUrl(String(formData.get("brandLogoUpload") ?? ""));
+  const typedLogo = normalizeBrandUrl(String(formData.get("brandLogoUrl") ?? ""));
+  const faviconUrl = normalizeBrandUrl(String(formData.get("brandFaviconUrl") ?? "")) || "/icon.svg";
+  const brandLogoUrl = clearBrandLogo ? "" : uploadedLogo || typedLogo;
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), {
+      workspace_name: workspaceName,
+      workspace_profile: workspaceProfile,
+      product_label: productLabel,
+      assistant_name: assistantName,
+      brand_short_name: brandShortName,
+      brand_logo_url: brandLogoUrl,
+      brand_favicon_url: faviconUrl,
+    });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save branding." };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/settings");
+  revalidatePath("/mark");
+  return { ok: true, message: "Branding saved." };
+}
+
+/** Save operator-facing agent behavior preferences consumed by new chat tasks. */
+export async function saveAgentBehaviorSettingsAction(
+  _previous: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const assistantTone = appAssistantTone(formData.get("assistantTone"));
+  const assistantResponseStyle = appAssistantResponseStyle(formData.get("assistantResponseStyle"));
+  const approvalStrictness = appApprovalStrictness(formData.get("approvalStrictness"));
+  const markDefaultMode = parseMarkMode(formData.get("markDefaultMode"));
+  const markDefaultRoute = parseMarkRoute(formData.get("markDefaultRoute"));
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), {
+      assistant_tone: assistantTone,
+      assistant_response_style: assistantResponseStyle,
+      approval_strictness: approvalStrictness,
+      mark_default_mode: markDefaultMode,
+      mark_default_route: markDefaultRoute,
+    });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save agent behavior." };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/mark");
+  return { ok: true, message: "Agent behavior saved." };
 }
 
 /** Save defaults applied to newly-sent Mark chat messages. */

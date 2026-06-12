@@ -1,12 +1,12 @@
 import { getAppSettings } from "@/lib/settings/store";
 
 import { SettingRow } from "./setting-row";
-import { GeneralSettingsForm, MarkDefaultsForm } from "./settings-forms";
+import { GeneralSettingsForm } from "./settings-forms";
 import { SettingsSection } from "./settings-section";
 
 const env = (name: string) => process.env[name]?.trim() || null;
 
-/** Editable workspace prefs (persisted) + read-only deployment info (from env). */
+/** Editable support prefs (persisted) + read-only deployment info (from env). */
 export async function GeneralSettings() {
   const settings = await getAppSettings();
   const gateEnabled = Boolean(env("OPERATOR_ACCESS_TOKEN"));
@@ -14,7 +14,7 @@ export async function GeneralSettings() {
   return (
     <>
       <SettingsSection
-        description="Workspace preferences. The fields below save to the app; the rest are managed via environment variables."
+        description="Support contact and deployment basics. Names, logos, and chat identity live in Branding."
         title="General"
       >
         <GeneralSettingsForm initialSupportEmail={settings.supportEmail} initialWorkspaceName={settings.workspaceName} />
@@ -30,13 +30,6 @@ export async function GeneralSettings() {
             />
           </div>
         </div>
-      </SettingsSection>
-
-      <SettingsSection
-        description="Defaults applied to new Mark messages. These values are written into the queued agent task and webhook payload."
-        title="Mark defaults"
-      >
-        <MarkDefaultsForm initialMode={settings.markDefaultMode} initialRoute={settings.markDefaultRoute} />
       </SettingsSection>
     </>
   );

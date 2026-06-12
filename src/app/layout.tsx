@@ -36,13 +36,13 @@ const mono = JetBrains_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { workspaceName } = await getAppSettings();
+  const { workspaceName, productLabel, brandFaviconUrl } = await getAppSettings();
   return {
-    title: `${workspaceName} | Signal`,
-    description: "AI-native CRM, persona intelligence, routing, and campaign operations for Big Shoulders Restoration.",
+    title: `${workspaceName} | ${productLabel}`,
+    description: "AI-native CRM, persona intelligence, routing, and campaign operations.",
     icons: {
-      icon: "/icon.svg",
-      apple: "/brand/signal-mark-original.png",
+      icon: brandFaviconUrl,
+      apple: brandFaviconUrl,
     },
   };
 }
@@ -63,7 +63,17 @@ export default async function RootLayout({
       data-motion={settings.appearanceMotion}
     >
       <body className="min-h-full flex flex-col">
-        <ConsoleFrame gateEnabled={isOperatorGateEnabled()}>{children}</ConsoleFrame>
+        <ConsoleFrame
+          gateEnabled={isOperatorGateEnabled()}
+          brand={{
+            workspaceName: settings.workspaceName,
+            productLabel: settings.productLabel,
+            shortName: settings.brandShortName,
+            logoUrl: settings.brandLogoUrl,
+          }}
+        >
+          {children}
+        </ConsoleFrame>
       </body>
     </html>
   );

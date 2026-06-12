@@ -11,6 +11,8 @@ import {
   setConnectionEnabledAction,
   testConnectionAction,
 } from "./connections-actions";
+import { ProviderLogo } from "./provider-logo";
+import type { ConnectionProvider } from "@/domain";
 
 export type ConnectionRowView = {
   provider: string;
@@ -63,6 +65,14 @@ const PROVIDER_COPY: Record<string, { enables: string; setup: string }> = {
   },
 };
 
+const PROVIDER_STEPS: Record<string, string[]> = {
+  resend: ["Create or open your Resend account.", "Add the API key and sender email to the app environment.", "Test the connection, then send a test email."],
+  instagram: ["Create a Meta app or use the existing company app.", "Connect the Instagram business user and page access token.", "Test credentials here before enabling posting workflows."],
+  facebook: ["Create a Meta app or use the existing company app.", "Connect the Facebook page and page access token.", "Test credentials here before enabling posting workflows."],
+  linkedin: ["Create or open the LinkedIn developer app.", "Add the organization URN and access token.", "Test credentials here before enabling posting workflows."],
+  x: ["Create or open the X developer app.", "Add the app key, secret, access token, and access secret.", "Test credentials here before enabling posting workflows."],
+};
+
 function Feedback({ state }: { state: ConnectionActionState }) {
   if (!state) return null;
   return (
@@ -81,6 +91,23 @@ function nextStep(connection: ConnectionRowView): string {
   if (connection.status === "disabled") return "Enable it when you want this integration available again.";
   if (connection.status === "error") return connection.lastTestError ?? "Run a test to see the current error.";
   return PROVIDER_COPY[connection.provider]?.setup ?? "Add the required credentials, then test again.";
+}
+
+function SetupSteps({ connection }: { connection: ConnectionRowView }) {
+  const steps = PROVIDER_STEPS[connection.provider] ?? ["Add credentials.", "Test the connection.", "Enable the integration."];
+  return (
+    <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+      <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Guided setup</div>
+      <ol className="grid gap-2 md:grid-cols-3">
+        {steps.map((step, index) => (
+          <li className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={step}>
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Step {index + 1}</div>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{step}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 function ToggleConnection({ connection }: { connection: ConnectionRowView }) {
@@ -151,13 +178,18 @@ export function ConnectionSetupCard({ connection }: { connection: ConnectionRowV
     <li className="grid gap-4 px-5 py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h3 className="text-base font-bold text-[var(--text-primary)]">{connection.label}</h3>
-            <StatusPill tone={STATUS_TONE[connection.status] ?? "gray"}>
-              {STATUS_LABEL[connection.status] ?? connection.status}
-            </StatusPill>
+          <div className="flex items-start gap-3">
+            <ProviderLogo provider={connection.provider as ConnectionProvider} size="lg" />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h3 className="text-base font-bold text-[var(--text-primary)]">{connection.label}</h3>
+                <StatusPill tone={STATUS_TONE[connection.status] ?? "gray"}>
+                  {STATUS_LABEL[connection.status] ?? connection.status}
+                </StatusPill>
+              </div>
+              <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">{copy.enables}</p>
+            </div>
           </div>
-          <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">{copy.enables}</p>
         </div>
         <ToggleConnection connection={connection} />
       </div>
@@ -169,6 +201,8 @@ export function ConnectionSetupCard({ connection }: { connection: ConnectionRowV
         </div>
         <TestConnection connection={connection} />
       </div>
+
+      <SetupSteps connection={connection} />
 
       {connection.provider === "resend" ? <SendTestEmail /> : null}
 
@@ -197,13 +231,18 @@ export function AgentConnectionShortcut() {
     <li className="grid gap-3 px-5 py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h3 className="text-base font-bold text-[var(--text-primary)]">Mark / Hermes agent</h3>
-            <StatusPill tone="blue">Managed in Agent</StatusPill>
+          <div className="flex items-start gap-3">
+            <ProviderLogo provider="agent" size="lg" />
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h3 className="text-base font-bold text-[var(--text-primary)]">Chat agent</h3>
+                <StatusPill tone="blue">Managed in Agent</StatusPill>
+              </div>
+              <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">
+                Controls the worker that reads chat tasks, returns replies, and wakes when an operator sends a message.
+              </p>
+            </div>
           </div>
-          <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">
-            Controls the worker that reads Mark tasks, returns replies, and wakes when an operator sends a chat message.
-          </p>
         </div>
         <Link
           className="inline-flex min-h-9 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)]"

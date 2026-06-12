@@ -38,7 +38,6 @@ export default async function BoardPage() {
 function Header() {
   return (
     <PageHeader
-      eyebrow="Mark"
       title="Task Board"
       description="A shared Kanban board for you and Mark. Drag a card to change its state; the approval gate keeps outbound locked."
       aside={<StatusPill tone="amber">No outbound execution</StatusPill>}

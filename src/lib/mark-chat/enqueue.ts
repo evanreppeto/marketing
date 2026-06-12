@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type MarkMention } from "@/domain";
+import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTone } from "@/lib/settings/store";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 import { markAgentKeys } from "./agent-config";
@@ -18,6 +19,10 @@ export type EnqueueChatTaskInput = {
   mode?: "ask" | "act" | "draft";
   /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
   command?: string | null;
+  /** Operator-selected behavior hints from Settings -> Agent behavior. */
+  assistantTone?: AssistantTone;
+  assistantResponseStyle?: AssistantResponseStyle;
+  approvalStrictness?: ApprovalStrictness;
   /** Operator-uploaded reference images (GCS, signed read URLs) for Mark to use. */
   attachments?: MarkAttachment[];
 };
@@ -68,6 +73,9 @@ export async function enqueueMarkChatTask(
         source: "mark_chat",
         model_route: input.route ?? "fast",
         mode: input.mode ?? "act",
+        assistant_tone: input.assistantTone ?? "direct",
+        response_style: input.assistantResponseStyle ?? "balanced",
+        approval_strictness: input.approvalStrictness ?? "standard",
         outbound_locked: true,
       },
     })

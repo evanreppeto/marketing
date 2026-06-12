@@ -22,7 +22,7 @@ export const theme = {
     soft: "signal-soft",
     media: "bg-[var(--media-void)]",
     pageHeader:
-      "module-rise relative mb-5 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-5 py-5 shadow-[var(--elev-panel)]",
+      "module-rise relative mb-6 px-1 pb-5 pt-1",
     workspaceHeader:
       "module-rise mb-5 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]",
     workspacePanel: "signal-panel module-rise overflow-hidden",

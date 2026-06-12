@@ -16,6 +16,7 @@ import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
+import { getAppSettings } from "@/lib/settings/store";
 import {
   archiveConversation,
   assignConversationToCampaign,
@@ -62,6 +63,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   const mentions = parseMentions(String(formData.get("mentions") ?? "[]"));
   const mode = parseMarkMode(formData.get("mode"));
   const route = parseMarkRoute(formData.get("route"));
+  const settings = await getAppSettings();
   // Structured slash command (e.g. "find-leads"); travels to the agent as real
   // intent alongside the message + mentions, not just text.
   const command = String(formData.get("command") ?? "").trim() || null;
@@ -106,7 +108,20 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // happened instead of hanging on "thinking".
   try {
     const agentTaskId = await enqueueMarkChatTask(
-      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route, mode, command, attachments },
+      {
+        conversationId,
+        messageId,
+        message: body,
+        mentions: cleanMentions,
+        operator,
+        route,
+        mode,
+        command,
+        assistantTone: settings.assistantTone,
+        assistantResponseStyle: settings.assistantResponseStyle,
+        approvalStrictness: settings.approvalStrictness,
+        attachments,
+      },
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
@@ -124,6 +139,9 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       operator,
       route,
       mode,
+      assistantTone: settings.assistantTone,
+      assistantResponseStyle: settings.assistantResponseStyle,
+      approvalStrictness: settings.approvalStrictness,
       command,
       attachments,
     });
@@ -444,6 +462,7 @@ export async function regenerateMarkReplyAction(
   if (!lastOperator) return;
 
   const operator = getOperatorActor();
+  const settings = await getAppSettings();
   try {
     const agentTaskId = await enqueueMarkChatTask(
       {
@@ -454,6 +473,9 @@ export async function regenerateMarkReplyAction(
         operator,
         route: "fast",
         mode: "ask",
+        assistantTone: settings.assistantTone,
+        assistantResponseStyle: settings.assistantResponseStyle,
+        approvalStrictness: settings.approvalStrictness,
       },
       client,
     );
@@ -467,6 +489,9 @@ export async function regenerateMarkReplyAction(
       operator,
       route: "fast",
       mode: "ask",
+      assistantTone: settings.assistantTone,
+      assistantResponseStyle: settings.assistantResponseStyle,
+      approvalStrictness: settings.approvalStrictness,
     });
     if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
   } catch {

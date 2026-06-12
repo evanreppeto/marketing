@@ -95,11 +95,13 @@ export function WorkspacePanel({
   return (
     <section className={cx(theme.surface.workspacePanel, className)}>
       {title || eyebrow || description || aside ? (
-        <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            {eyebrow ? <div className={theme.text.eyebrow}>{eyebrow}</div> : null}
-            {title ? <h2 className="mt-1 text-xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">{title}</h2> : null}
-            {description ? <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">{description}</p> : null}
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              {eyebrow ? <div className={theme.text.eyebrow}>{eyebrow}</div> : null}
+              {title ? <h2 className="font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2> : null}
+            </div>
+            {description ? <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">{description}</p> : null}
           </div>
           {aside ? <div className="shrink-0">{aside}</div> : null}
         </div>

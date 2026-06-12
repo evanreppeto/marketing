@@ -28,6 +28,9 @@ describe("enqueueMarkChatTask", () => {
         route: "standard",
         mode: "draft",
         command: "campaign",
+        assistantTone: "friendly",
+        assistantResponseStyle: "detailed",
+        approvalStrictness: "strict",
       },
       supabase,
     );
@@ -40,6 +43,9 @@ describe("enqueueMarkChatTask", () => {
       metadata: {
         model_route: "standard",
         mode: "draft",
+        assistant_tone: "friendly",
+        response_style: "detailed",
+        approval_strictness: "strict",
         command: "campaign",
         outbound_locked: true,
       },

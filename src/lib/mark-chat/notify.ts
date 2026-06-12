@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 
 import { type MarkMention } from "@/domain";
+import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTone } from "@/lib/settings/store";
 
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
@@ -23,6 +24,10 @@ export type MarkNotifyPayload = {
   route: "fast" | "standard";
   /** Operator stance (ask/act/draft); advisory for Mark's worker. */
   mode: "ask" | "act" | "draft";
+  /** Operator-selected behavior hints from Settings -> Agent behavior. */
+  assistantTone?: AssistantTone;
+  assistantResponseStyle?: AssistantResponseStyle;
+  approvalStrictness?: ApprovalStrictness;
   /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
   command?: string | null;
   /** Operator-uploaded reference images (GCS signed read URLs) for Mark to use. */

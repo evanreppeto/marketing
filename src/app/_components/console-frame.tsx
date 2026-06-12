@@ -15,10 +15,33 @@ const navItems: ShellNavItem[] = [
 
 const settingsNavItem: ShellNavItem = {
   label: "Settings",
-  href: "/settings?section=agent",
+  href: "/settings?section=branding",
   icon: "settings",
   matches: ["/settings"],
 };
+
+type ConsoleBrand = {
+  workspaceName: string;
+  productLabel: string;
+  shortName: string;
+  logoUrl: string;
+};
+
+function BrandMark({ brand }: { brand: ConsoleBrand }) {
+  return (
+    <span
+      className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-[var(--accent-soft)] text-[0.75rem] font-bold text-[var(--accent-strong)]"
+      style={{ fontFamily: "var(--font-serif)" }}
+    >
+      {brand.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- user-configured logo can be an external/data URL.
+        <img alt="" className="h-full w-full object-contain p-1" src={brand.logoUrl} />
+      ) : (
+        brand.shortName
+      )}
+    </span>
+  );
+}
 
 /**
  * The persistent application chrome. Rendered ONCE in the root layout so the
@@ -27,7 +50,14 @@ const settingsNavItem: ShellNavItem = {
  * bare (it provides its own full-screen layout). `gateEnabled` comes from the
  * server layout because the operator gate reads server-only env.
  */
-export function ConsoleFrame({ children }: { gateEnabled: boolean; children: React.ReactNode }) {
+export function ConsoleFrame({
+  brand,
+  children,
+}: {
+  gateEnabled: boolean;
+  brand: ConsoleBrand;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname() ?? "/";
 
   if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
@@ -58,23 +88,18 @@ export function ConsoleFrame({ children }: { gateEnabled: boolean; children: Rea
             <Link
               href="/mark"
               className="mb-2 flex items-center gap-2.5 px-1 leading-none transition hover:opacity-90"
-              aria-label="Big Shoulders Marketing — go to Mark"
+              aria-label={`${brand.workspaceName} ${brand.productLabel} - go to chat`}
             >
-              <span
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--accent-soft)] text-[0.75rem] font-bold text-[var(--accent-strong)]"
-                style={{ fontFamily: "var(--font-serif)" }}
-              >
-                BS
-              </span>
+              <BrandMark brand={brand} />
               <span className="flex min-w-0 flex-col whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">
                 <span
                   className="text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
                   style={{ fontFamily: "var(--font-serif)" }}
                 >
-                  Big Shoulders
+                  {brand.workspaceName}
                 </span>
                 <span className="mt-1 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
-                  Marketing
+                  {brand.productLabel}
                 </span>
               </span>
             </Link>

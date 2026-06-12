@@ -99,6 +99,7 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
       pendingApprovals={pendingApprovals}
       defaultMode={settings.markDefaultMode}
       defaultRoute={settings.markDefaultRoute}
+      assistantName={settings.assistantName}
     />
   );
 }
