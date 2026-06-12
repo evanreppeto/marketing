@@ -71,43 +71,6 @@ export async function createNode(input: KnowledgeNodeInput, deps: WriteDeps = {}
   return { ok: true, id: data.id };
 }
 
-/** Insert or update by the (org, kind, key) natural key when `key` is provided. */
-export async function upsertNodeByKey(input: KnowledgeNodeInput, deps: WriteDeps = {}): Promise<WriteResult> {
-  if (!input.key) return createNode(input, deps);
-  const parsed = validateNodeInput(input);
-  if (!parsed.ok) return { ok: false, error: parsed.error };
-  const resolved = await resolveDeps(deps);
-  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
-  const { client, orgId } = resolved;
-
-  const existing = await client
-    .from("knowledge_nodes")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("kind", parsed.value.kind)
-    .eq("key", input.key)
-    .maybeSingle<{ id: string }>();
-  if (existing.error) return { ok: false, error: existing.error.message };
-  if (!existing.data) return createNode(input, deps);
-
-  const { data, error } = await client
-    .from("knowledge_nodes")
-    .update({
-      label: parsed.value.label,
-      body: parsed.value.body,
-      summary: parsed.value.summary,
-      confidence: parsed.value.confidence,
-      tags: parsed.value.tags ?? [],
-      props: (parsed.value.props ?? {}) as never,
-    })
-    .eq("id", existing.data.id)
-    .eq("org_id", orgId)
-    .select("id")
-    .single<{ id: string }>();
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, id: data.id };
-}
-
 export async function createEdge(input: KnowledgeEdgeInput, deps: WriteDeps = {}): Promise<WriteResult> {
   const parsed = validateEdgeInput(input);
   if (!parsed.ok) return { ok: false, error: parsed.error };
