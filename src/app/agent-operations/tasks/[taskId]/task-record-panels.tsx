@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { PaginationControls } from "@/app/_components/pagination-controls";
+import { statusIcon } from "@/app/_components/ticket-icons";
+import { badgeStyle, statusAppearance } from "../../task-visuals";
 
 type TaskInputRecord = {
   id: string;
@@ -100,6 +102,8 @@ export function TaskInputsPanel({ inputs }: { inputs: TaskInputRecord[] }) {
         placeholder="Search task inputs..."
         query={query}
         resultCount={filtered.length}
+        searchLabel="Filter inputs"
+        searchHelp="Search the context Mark received before doing the work."
         title="Context Mark received"
       />
 
@@ -188,6 +192,8 @@ export function TaskOutputsPanel({ outputs }: { outputs: TaskOutputRecord[] }) {
         placeholder="Search Mark outputs..."
         query={query}
         resultCount={filtered.length}
+        searchLabel="Filter outputs"
+        searchHelp="Search drafts, risk notes, approval state, and evidence."
         title="What Mark created"
       />
 
@@ -309,12 +315,13 @@ export function TaskLogsPanel({ logs }: { logs: TaskLogRecord[] }) {
   }, [logs, query]);
 
   const pageState = getPageState(filtered.length, page, pageSize);
+  const visibleLogs = pageState.items(filtered);
 
   return (
     <section className="module-rise overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
       <TaskSectionToolbar
         count={logs.length}
-        eyebrow="Audit logs"
+        eyebrow="Activity log"
         onClear={() => {
           setQuery("");
           setPage(1);
@@ -329,40 +336,19 @@ export function TaskLogsPanel({ logs }: { logs: TaskLogRecord[] }) {
         }}
         pageSize={pageSize}
         pageSizes={LOG_PAGE_SIZES}
-        placeholder="Search run logs..."
+        placeholder="Search status, model, error, or detail..."
         query={query}
         resultCount={filtered.length}
-        title="Runner trace"
+        searchLabel="Filter logs"
+        searchHelp="Search only these log records. It helps you find errors, model runs, retries, or a specific step."
+        title="What happened behind the scenes"
       />
 
+      <LogSummaryStrip logs={filtered} />
+
       <div className="divide-y divide-[var(--border-hairline)]">
-        {pageState.items(filtered).length > 0 ? (
-          pageState.items(filtered).map((log) => (
-            <article key={log.id} className="px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <StatusPill tone={statusTone(log.runStatus)}>{humanize(log.runStatus)}</StatusPill>
-                <span className="text-xs font-semibold text-[var(--text-muted)]">
-                  {[log.modelProvider, log.modelName].filter(Boolean).join(" / ") || "Runner not recorded"}
-                </span>
-              </div>
-              {log.reasoningSummary ? <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{log.reasoningSummary}</p> : null}
-              {log.errorMessage ? (
-                <p className="mt-3 rounded-lg border border-[oklch(0.68_0.2_26/0.45)] bg-[oklch(0.68_0.2_26/0.14)] px-3 py-2 text-sm leading-6 text-[oklch(0.86_0.09_26)]">
-                  {log.errorMessage}
-                </p>
-              ) : null}
-              <div className="mt-3 text-xs text-[var(--text-muted)]">
-                Started {formatDate(log.startedAt)} / Completed {formatDate(log.completedAt)}
-              </div>
-              <dl className="mt-3 grid gap-2 sm:grid-cols-4">
-                <SmallLogStat label="Input tokens" value={log.inputTokens ?? "Missing"} />
-                <SmallLogStat label="Output tokens" value={log.outputTokens ?? "Missing"} />
-                <SmallLogStat label="Cost" value={log.costEstimate ?? "Missing"} />
-                <SmallLogStat label="Retries" value={log.retryCount} />
-              </dl>
-              <KeyValuePreview payload={log.metadata} />
-            </article>
-          ))
+        {visibleLogs.length > 0 ? (
+          visibleLogs.map((log, index) => <LogEntryCard key={log.id} log={log} ordinal={pageState.startIndex + index + 1} />)
         ) : (
           <div className="p-5">
             <EmptyState title="No matching run logs" detail={query ? "Clear the search or try another term." : "Mark should write run logs as he claims, processes, blocks, or completes tasks."} />
@@ -394,6 +380,8 @@ function TaskSectionToolbar({
   placeholder,
   query,
   resultCount,
+  searchHelp,
+  searchLabel,
   title,
 }: {
   count: number;
@@ -406,6 +394,8 @@ function TaskSectionToolbar({
   placeholder: string;
   query: string;
   resultCount: number;
+  searchHelp: string;
+  searchLabel: string;
   title: string;
 }) {
   return (
@@ -420,8 +410,11 @@ function TaskSectionToolbar({
         </div>
 
         <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2">
-          <div className="mb-2 flex items-center justify-between gap-3 px-1">
-            <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">Section search</span>
+          <div className="mb-2 flex items-start justify-between gap-3 px-1">
+            <div className="min-w-0">
+              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{searchLabel}</span>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{searchHelp}</p>
+            </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">{resultCount} visible</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_118px_auto]">
@@ -448,7 +441,7 @@ function TaskSectionToolbar({
             </label>
 
             <label className="block">
-              <span className="sr-only">Records per page</span>
+              <span className="sr-only">Rows per page</span>
               <select
                 className="h-11 w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-bold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -456,7 +449,7 @@ function TaskSectionToolbar({
               >
                 {pageSizes.map((size) => (
                   <option key={size} value={size}>
-                    {size} rows
+                    {size} per page
                   </option>
                 ))}
               </select>
@@ -474,6 +467,105 @@ function TaskSectionToolbar({
         </div>
       </div>
     </div>
+  );
+}
+
+function LogSummaryStrip({ logs }: { logs: TaskLogRecord[] }) {
+  const issueCount = logs.filter((log) => /blocked|failed|error/i.test(log.runStatus) || log.errorMessage).length;
+  const retryTotal = logs.reduce((sum, log) => sum + log.retryCount, 0);
+  const lastCompleted = logs
+    .map((log) => log.completedAt ?? log.startedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const modelCount = new Set(logs.map((log) => [log.modelProvider, log.modelName].filter(Boolean).join(" / ")).filter(Boolean)).size;
+
+  return (
+    <div className="grid gap-2 border-b border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 sm:grid-cols-4">
+      <SmallLogStat label="Log records" value={logs.length} />
+      <SmallLogStat label="Needs attention" value={issueCount} />
+      <SmallLogStat label="Retries" value={retryTotal} />
+      <SmallLogStat label="Models used" value={modelCount || "None"} />
+      <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 sm:col-span-4">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Most recent activity</div>
+        <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{formatDate(lastCompleted ?? null)}</div>
+      </div>
+    </div>
+  );
+}
+
+function LogEntryCard({ log, ordinal }: { log: TaskLogRecord; ordinal: number }) {
+  const appearance = statusAppearance(log.runStatus);
+  const model = [log.modelProvider, log.modelName].filter(Boolean).join(" / ") || "Runner not recorded";
+  const duration = formatDuration(log.startedAt, log.completedAt);
+
+  return (
+    <article className="px-5 py-4">
+      <div className="grid gap-3 sm:grid-cols-[28px_minmax(0,1fr)]">
+        <div className="hidden pt-1 sm:block">
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold"
+            style={badgeStyle(appearance)}
+            title={`Log ${ordinal}`}
+          >
+            {ordinal}
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusPill icon={statusIcon(log.runStatus)} style={badgeStyle(appearance)}>
+                  {appearance.label}
+                </StatusPill>
+                <span className="text-xs font-semibold text-[var(--text-muted)]">Log {ordinal}</span>
+              </div>
+              <h3 className="mt-2 text-base font-semibold text-[var(--text-primary)]">{logTitle(log)}</h3>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">{model}</p>
+            </div>
+            <div className="shrink-0 text-xs font-semibold text-[var(--text-muted)]">
+              {formatDate(log.completedAt ?? log.startedAt)}
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">What this row means</div>
+            <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+              This is one recorded step from Mark's runner: a claim, model run, retry, block, or completion event for this ticket.
+            </p>
+          </div>
+
+          {log.reasoningSummary ? (
+            <div className="mt-3">
+              <div className="text-xs font-semibold text-[var(--text-muted)]">Summary</div>
+              <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{log.reasoningSummary}</p>
+            </div>
+          ) : null}
+
+          {log.errorMessage ? (
+            <div className="mt-3 rounded-lg border border-[oklch(0.68_0.2_26/0.45)] bg-[oklch(0.68_0.2_26/0.14)] px-3 py-2">
+              <div className="text-xs font-semibold text-[oklch(0.86_0.09_26)]">Needs attention</div>
+              <p className="mt-1 text-sm leading-6 text-[oklch(0.86_0.09_26)]">{log.errorMessage}</p>
+            </div>
+          ) : null}
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-5">
+            <SmallLogStat label="Started" value={compactDateTime(log.startedAt)} />
+            <SmallLogStat label="Finished" value={compactDateTime(log.completedAt)} />
+            <SmallLogStat label="Duration" value={duration} />
+            <SmallLogStat label="Retries" value={log.retryCount} />
+            <SmallLogStat label="Cost" value={log.costEstimate ?? "Missing"} />
+          </div>
+
+          <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+            <SmallLogStat label="Input tokens" value={log.inputTokens ?? "Missing"} />
+            <SmallLogStat label="Output tokens" value={log.outputTokens ?? "Missing"} />
+          </dl>
+
+          <KeyValuePreview payload={log.metadata} />
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -528,12 +620,31 @@ function readablePayloadValues(payload: Record<string, unknown>) {
     .map(([key, value]) => `${key} ${String(value)}`);
 }
 
-function statusTone(status: string): "amber" | "green" | "red" | "blue" | "gray" {
-  if (["completed", "approved", "passed"].includes(status)) return "green";
-  if (["running", "processing"].includes(status)) return "blue";
-  if (["blocked", "failed", "error"].includes(status)) return "red";
-  if (["queued", "needs_approval", "pending"].includes(status)) return "amber";
-  return "gray";
+function logTitle(log: TaskLogRecord) {
+  if (log.errorMessage) return "Mark hit an issue while working";
+  if (/completed|approved|passed/i.test(log.runStatus)) return "Mark finished this step";
+  if (/running|processing/i.test(log.runStatus)) return "Mark is working on this step";
+  if (/blocked|failed|error/i.test(log.runStatus)) return "This step needs a human look";
+  return "Mark recorded a runner step";
+}
+
+function formatDuration(startedAt: string | null, completedAt: string | null) {
+  if (!startedAt || !completedAt) return "Not recorded";
+  const start = new Date(startedAt).getTime();
+  const end = new Date(completedAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return "Not recorded";
+  const seconds = Math.round((end - start) / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
+}
+
+function compactDateTime(value: string | null) {
+  if (!value) return "Missing";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 function humanize(value: string) {
