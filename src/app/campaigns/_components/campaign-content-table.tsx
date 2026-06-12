@@ -5,7 +5,7 @@ import { useActionState, useMemo, useState } from "react";
 import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
-import { decideAssetAction, requestRevisionAction } from "../actions";
+import { decideAssetAction, deployAssetAction, requestRevisionAction } from "../actions";
 import { buildCampaignContentRows, type CampaignContentRow } from "./campaign-detail-model";
 
 export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace }) {
@@ -13,6 +13,7 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
   const [selectedId, setSelectedId] = useState<string | null>(rows[0]?.id ?? null);
   const selected = rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
   const selectedAsset = selected ? detail.assets.find((asset) => asset.id === selected.id) ?? null : null;
+  const previewId = "campaign-content-preview";
 
   if (rows.length === 0) {
     return (
@@ -53,13 +54,19 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
           </div>
           <div className="divide-y divide-[var(--border-hairline)]">
             {rows.map((row) => (
-              <ContentRowButton key={row.id} row={row} selected={row.id === selected?.id} onSelect={() => setSelectedId(row.id)} />
+              <ContentRowButton
+                key={row.id}
+                row={row}
+                selected={row.id === selected?.id}
+                previewId={previewId}
+                onSelect={() => setSelectedId(row.id)}
+              />
             ))}
           </div>
         </div>
 
         <div className="min-w-0 bg-[var(--surface-panel)]">
-          {selected && selectedAsset ? <ContentPreview row={selected} asset={selectedAsset} campaignId={detail.campaign.id} /> : null}
+          {selected && selectedAsset ? <ContentPreview id={previewId} row={selected} asset={selectedAsset} campaignId={detail.campaign.id} /> : null}
         </div>
       </div>
     </section>
@@ -69,17 +76,20 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
 function ContentRowButton({
   row,
   selected,
+  previewId,
   onSelect,
 }: {
   row: CampaignContentRow;
   selected: boolean;
+  previewId: string;
   onSelect: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
-      aria-current={selected ? "true" : undefined}
+      aria-pressed={selected}
+      aria-controls={previewId}
       className={`grid w-full min-w-0 gap-2 px-4 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] md:grid-cols-[minmax(11rem,1.4fr)_8rem_7rem_minmax(9rem,1fr)] md:items-center md:gap-3 ${
         selected ? "bg-[var(--accent-soft)]" : "bg-[var(--surface-panel)] hover:bg-[var(--surface-inset)]"
       }`}
@@ -105,16 +115,19 @@ function ContentRowButton({
 }
 
 function ContentPreview({
+  id,
   row,
   asset,
   campaignId,
 }: {
+  id: string;
   row: CampaignContentRow;
   asset: CampaignWorkspaceAsset;
   campaignId: string;
 }) {
   const [copied, setCopied] = useState(false);
   const canApprove = row.status.label === "Review";
+  const canDeploy = row.status.label === "Ready";
   const canRevise = row.status.label !== "Live";
 
   async function copyPreview() {
@@ -125,7 +138,7 @@ function ContentPreview({
   }
 
   return (
-    <aside className="sticky top-4 min-w-0 p-4">
+    <aside id={id} className="sticky top-4 min-w-0 p-4" aria-label={`Preview for ${row.title}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Preview</span>
@@ -149,6 +162,7 @@ function ContentPreview({
 
       <div className="mt-4 space-y-3">
         {canApprove ? <ApprovePiece assetId={asset.id} campaignId={campaignId} /> : null}
+        {canDeploy ? <DeployPiece assetId={asset.id} campaignId={campaignId} /> : null}
         {canRevise ? <RevisePiece assetId={asset.id} campaignId={campaignId} /> : null}
         {!canApprove && !canRevise ? (
           <p className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-secondary)]">
@@ -157,6 +171,27 @@ function ContentPreview({
         ) : null}
       </div>
     </aside>
+  );
+}
+
+function DeployPiece({ assetId, campaignId }: { assetId: string; campaignId: string }) {
+  const [state, formAction, isPending] = useActionState(deployAssetAction, null);
+
+  return (
+    <form action={formAction} className="rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] p-3">
+      <input type="hidden" name="assetId" value={assetId} />
+      <input type="hidden" name="campaignId" value={campaignId} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-[var(--accent-contrast)]">Ready to hand this piece off?</span>
+        <Button type="submit" variant="primary" size="sm" disabled={isPending}>
+          {isPending ? "Recording..." : "Hand off piece"}
+        </Button>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
+        Records a dispatch handoff for Mark. This does not directly send to customers.
+      </p>
+      {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
+    </form>
   );
 }
 

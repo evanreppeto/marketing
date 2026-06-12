@@ -22,7 +22,9 @@ export function CampaignHeader({ campaign, launchState }: { campaign: CampaignWo
         <div className="flex flex-col items-start gap-3 xl:items-end">
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill tone={LIFECYCLE_TONE[launchState.lifecycle]}>{launchState.lifecycle}</StatusPill>
-            {launchState.ready || launchState.live ? (
+            {launchState.live ? (
+              <StatusPill tone="green">Outbound active</StatusPill>
+            ) : launchState.ready ? (
               <StatusPill tone="green">Ready</StatusPill>
             ) : (
               <StatusPill tone="amber">{launchState.pendingCount} to review</StatusPill>

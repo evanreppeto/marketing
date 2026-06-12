@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { useActionState } from "react";
 import type { ReactNode } from "react";
 
-import { buttonClasses, StatusPill } from "@/app/_components/page-header";
+import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import { statusLabel, STATUS_TONE, type DispatchView } from "@/lib/dispatch/status";
 
+import { launchCampaignAction } from "../actions";
 import { buildSendExportFacts } from "./campaign-detail-model";
 
 export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCampaignWorkspace; dispatches?: DispatchView[] }) {
@@ -41,6 +45,12 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
         <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
           The app shows readiness here. It only sends after approved dispatch records exist.
         </p>
+        {launchState.ready && !launchState.live ? <LaunchCampaignForm campaignId={campaign.id} /> : null}
+        {launchState.live ? (
+          <p className="mt-3 rounded-lg border border-[var(--ok-border-soft)] bg-[var(--ok-soft)] px-3 py-2 text-xs font-semibold text-[var(--ok-text)]">
+            Campaign handoff is active.
+          </p>
+        ) : null}
       </RailPanel>
 
       <RailPanel id="mark" title="Mark">
@@ -97,6 +107,26 @@ function Fact({ label, value }: { label: string; value: string }) {
       <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</dt>
       <dd className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{value}</dd>
     </div>
+  );
+}
+
+function LaunchCampaignForm({ campaignId }: { campaignId: string }) {
+  const [state, formAction, isPending] = useActionState(launchCampaignAction, null);
+
+  return (
+    <form action={formAction} className="mt-3 rounded-lg border border-[var(--ok-border-soft)] bg-[var(--ok-soft)] p-3">
+      <input type="hidden" name="campaignId" value={campaignId} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-[var(--ok-text)]">All pieces are approved.</span>
+        <Button type="submit" variant="approve" size="sm" disabled={isPending}>
+          {isPending ? "Recording..." : "Launch handoff"}
+        </Button>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
+        Records the campaign handoff and queues approved pieces. This does not directly send to customers.
+      </p>
+      {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
+    </form>
   );
 }
 

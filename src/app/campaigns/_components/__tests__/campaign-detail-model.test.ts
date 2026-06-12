@@ -138,6 +138,23 @@ describe("campaign detail model", () => {
     ]);
   });
 
+  it("marks unlocked approved content live after campaign launch", () => {
+    expect(
+      buildCampaignContentRows(
+        detail({
+          assets: [
+            asset({
+              status: "approved",
+              dispatchLocked: false,
+              approval: { id: "approval-1", status: "approved" },
+            }),
+          ],
+          launchState: { requiredCount: 1, approvedCount: 1, pendingCount: 0, deployedCount: 1, ready: true, live: true, lifecycle: "Live" },
+        }),
+      ).map((row) => ({ status: row.status.label, nextAction: row.nextAction })),
+    ).toEqual([{ status: "Live", nextAction: "Check results" }]);
+  });
+
   it("builds checklist steps from launch state", () => {
     expect(buildCampaignChecklist(detail()).map((step) => ({ label: step.label, state: step.state }))).toEqual([
       { label: "Review content", state: "active" },

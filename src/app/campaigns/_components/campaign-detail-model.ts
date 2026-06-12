@@ -1,4 +1,4 @@
-import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
+import type { CampaignLaunchState, CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
 export type PlainTone = "amber" | "blue" | "green" | "gray" | "red";
 
@@ -68,6 +68,12 @@ export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
   return { label: "Draft", tone: "gray" };
 }
 
+export function contentStatusForLaunch(asset: CampaignWorkspaceAsset, launchState: CampaignLaunchState): PlainStatus {
+  const status = contentStatus(asset);
+  if (launchState.live && status.label === "Ready" && !asset.dispatchLocked) return { label: "Live", tone: "green" };
+  return status;
+}
+
 export function contentWhere(asset: CampaignWorkspaceAsset): string {
   const assetType = destinationKey(asset.assetType);
   const channel = destinationKey(asset.channel);
@@ -86,7 +92,7 @@ export function contentWhere(asset: CampaignWorkspaceAsset): string {
 
 export function buildCampaignContentRows(detail: LiveCampaignWorkspace): CampaignContentRow[] {
   return detail.assets.map((asset) => {
-    const status = contentStatus(asset);
+    const status = contentStatusForLaunch(asset, detail.launchState);
     return {
       id: asset.id,
       title: asset.title,
@@ -135,7 +141,7 @@ export function buildSendExportFacts(detail: LiveCampaignWorkspace): SendExportF
   const byWhere = new Map<string, SendExportFact["value"]>();
   for (const asset of detail.assets) {
     const where = contentWhere(asset);
-    const status = contentStatus(asset);
+    const status = contentStatusForLaunch(asset, detail.launchState);
     const value: SendExportFact["value"] = status.label === "Live" ? "Live" : status.label === "Ready" ? "Ready" : "Blocked";
     const existing = byWhere.get(where);
     if (!existing || existing === "Ready" || value === "Blocked") byWhere.set(where, value);
