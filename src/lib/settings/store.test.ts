@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_APP_SETTINGS,
@@ -131,5 +131,38 @@ describe("settings store helpers", () => {
     };
 
     await expect(getAppSettings(client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
+  });
+
+  it("keeps expected app settings fallbacks quiet in production", async () => {
+    const originalDebug = process.env.DEBUG_APP_SETTINGS;
+    const originalVercelEnv = process.env.VERCEL_ENV;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const client = {
+      from: () => ({
+        select: async () => {
+          throw new Error("fetch failed");
+        },
+      }),
+    };
+
+    try {
+      process.env.DEBUG_APP_SETTINGS = "1";
+      process.env.VERCEL_ENV = "production";
+
+      await expect(getAppSettings(client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      if (originalDebug === undefined) {
+        delete process.env.DEBUG_APP_SETTINGS;
+      } else {
+        process.env.DEBUG_APP_SETTINGS = originalDebug;
+      }
+      if (originalVercelEnv === undefined) {
+        delete process.env.VERCEL_ENV;
+      } else {
+        process.env.VERCEL_ENV = originalVercelEnv;
+      }
+      warn.mockRestore();
+    }
   });
 });

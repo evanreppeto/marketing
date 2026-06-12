@@ -44,17 +44,23 @@ export function SideNav({ active, items, collapsed = false }: SideNavProps) {
   }, [currentPath, items, router]);
 
   return (
-    <nav aria-busy={pendingHref ? "true" : undefined} aria-label="Main navigation" className="flex gap-2 lg:flex-col">
+    <nav
+      aria-busy={pendingHref ? "true" : undefined}
+      aria-label="Main navigation"
+      className={`flex gap-2 lg:flex-col${collapsed ? " side-rail-collapsed" : ""}`}
+    >
       {items.map((item) => {
         const isActive = pendingHref ? item.href === pendingHref : matchesItem(item, currentPath);
 
         return (
           <Link
             aria-current={isActive ? "page" : undefined}
-            className={`group inline-flex min-h-11 shrink-0 items-center gap-3 rounded-lg border px-3.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:w-full ${
+            className={`group inline-flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:w-full ${
+              collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""
+            } ${
               isActive
-                ? "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_3px_0_0_var(--accent)]"
-                : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                ? "text-[var(--text-primary)] shadow-[inset_3px_0_0_var(--accent)]"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
             }`}
             href={item.href}
             key={item.href}

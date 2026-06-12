@@ -97,7 +97,13 @@ export function isValidSupportEmail(input: string): boolean {
 type SettingRow = { key: string; value: unknown };
 
 function logAppSettingsFallback(message: string): void {
-  if (process.env.DEBUG_APP_SETTINGS !== "1") return;
+  if (
+    process.env.DEBUG_APP_SETTINGS !== "1" ||
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production"
+  ) {
+    return;
+  }
   console.warn(`app_settings lookup failed, using defaults: ${message}`);
 }
 

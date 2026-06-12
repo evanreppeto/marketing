@@ -52,6 +52,11 @@ next-env.d.ts
 /screenshots-current/
 .chrome-pid
 .codex-dev-server*.log
+.codex-*.log
+.dev-verify.log
+.dev-server*.log
+.preview-*.png
+.shot*
 
 # Brainstorming visual companion mockups
 .superpowers/

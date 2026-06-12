@@ -331,6 +331,40 @@ h4, .font-display {
   color: var(--text-primary) !important;
 }
 
+/* Collapsed sidebar icon rail: clean, boxless icons. Overrides the global
+   rounded-affordance + active-state treatment above, but only at lg (the
+   mobile bar and the hover-expanded rail keep their labeled pills). The
+   active page is shown by the accent-colored icon instead of a box. */
+@media (min-width: 1024px) {
+  .chicago-dark nav.side-rail-collapsed :where(a)[class*="rounded"],
+  .chicago-dark nav.side-rail-collapsed a[aria-current="page"] {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .chicago-dark nav.side-rail-collapsed :where(a)[class*="rounded"]:hover {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  .chicago-dark nav.side-rail-collapsed a[aria-current="page"] :where(svg) {
+    color: var(--accent) !important;
+  }
+}
+
+/* Main sidebar nav stays flat at every width: the active item has no filled box
+   or border (overriding the global active-state treatment above). The current
+   page is marked by the accent left-bar (inline box-shadow) + accent icon. */
+.chicago-dark nav[aria-label="Main navigation"] :where(a, button)[aria-current="page"] {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+.chicago-dark nav[aria-label="Main navigation"] a[aria-current="page"] svg {
+  color: var(--accent) !important;
+}
+
 .chicago-dark nav[aria-label="CRM object navigation"] {
   background-color: var(--surface-inset) !important;
   border-color: var(--border-panel) !important;
