@@ -1,3 +1,9 @@
+/**
+ * BSR default/seed persona taxonomy. This is the product's *default* set and the
+ * fallback for callers that have not been made org-aware — it is NOT the global
+ * validation authority. Per-org validity comes from `persona_definitions` rows
+ * loaded via `src/lib/personas/read-model.ts`.
+ */
 export const OFFICIAL_PERSONA_MAPPINGS = [
   "persona_homeowner_emergency",
   "persona_homeowner_preventative",
@@ -45,10 +51,17 @@ export function isAllowedForLeadIngestion(
   return isOfficialPersonaMapping(persona);
 }
 
+export function isAllowedPersona(
+  persona: unknown,
+  allowedKeys: readonly string[],
+): persona is string {
+  return typeof persona === "string" && allowedKeys.includes(persona);
+}
+
 export type PersonaValidationResult =
   | {
       ok: true;
-      persona: LeadIngestionPersonaMapping;
+      persona: string;
     }
   | {
       ok: false;
@@ -62,6 +75,7 @@ export type PersonaValidationResult =
 
 export function validateLeadIngestionPersona(
   persona: unknown,
+  allowedKeys: readonly string[] = OFFICIAL_PERSONA_MAPPINGS,
 ): PersonaValidationResult {
   if (persona == null || persona === "") {
     return {
@@ -87,7 +101,7 @@ export function validateLeadIngestionPersona(
     };
   }
 
-  if (!isOfficialPersonaMapping(persona)) {
+  if (!allowedKeys.includes(persona)) {
     return {
       ok: false,
       code: "persona_unknown",

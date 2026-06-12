@@ -4,6 +4,7 @@ import {
   INTERNAL_UNASSIGNED_PERSONA,
   OFFICIAL_PERSONA_MAPPINGS,
   isAllowedForLeadIngestion,
+  isAllowedPersona,
   isOfficialPersonaMapping,
   validateLeadIngestionPersona,
 } from "../personas";
@@ -58,6 +59,42 @@ describe("persona mappings", () => {
       ok: false,
       code: "persona_required",
       message: "Lead ingestion requires a verified operational persona tag.",
+    });
+  });
+});
+
+describe("injected allowed persona sets", () => {
+  const orgKeys = ["persona_wedding_lead", "persona_corporate_event"] as const;
+
+  it("accepts a persona in the org's set", () => {
+    expect(validateLeadIngestionPersona("persona_wedding_lead", orgKeys)).toEqual({
+      ok: true,
+      persona: "persona_wedding_lead",
+    });
+    expect(isAllowedPersona("persona_wedding_lead", orgKeys)).toBe(true);
+  });
+
+  it("rejects a persona not in the org's set, even an official BSR one", () => {
+    expect(validateLeadIngestionPersona("persona_plumbing_partner", orgKeys)).toEqual({
+      ok: false,
+      code: "persona_unknown",
+      message: "Unknown persona tag: persona_plumbing_partner",
+    });
+    expect(isAllowedPersona("persona_plumbing_partner", orgKeys)).toBe(false);
+  });
+
+  it("still rejects the internal unassigned sentinel regardless of set", () => {
+    expect(validateLeadIngestionPersona("unassigned_persona", orgKeys)).toEqual({
+      ok: false,
+      code: "persona_internal_only",
+      message: "unassigned_persona is internal-only and cannot ingest new leads.",
+    });
+  });
+
+  it("falls back to the BSR default set when allowedKeys is omitted", () => {
+    expect(validateLeadIngestionPersona("persona_plumbing_partner")).toEqual({
+      ok: true,
+      persona: "persona_plumbing_partner",
     });
   });
 });
