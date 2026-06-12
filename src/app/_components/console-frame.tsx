@@ -80,7 +80,7 @@ export function ConsoleFrame({
     <main className={theme.shell.canvas}>
       <div className={layout}>
         <aside
-          className={theme.shell.sidebar}
+          className={cx(theme.shell.sidebar, "lg:overflow-hidden")}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           onFocus={() => setFocusWithin(true)}
@@ -99,14 +99,19 @@ export function ConsoleFrame({
               title={`${brand.workspaceName} ${brand.productLabel}`}
             >
               <BrandMark brand={brand} />
-              <span className={cx("flex flex-col", collapsed && "lg:hidden")}>
+              <span
+                className={cx(
+                  "flex min-w-0 max-w-[190px] flex-col overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                  collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
+                )}
+              >
                 <span
-                  className="text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
+                  className="truncate text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
                   style={{ fontFamily: "var(--font-serif)" }}
                 >
                   {brand.workspaceName}
                 </span>
-                <span className="mt-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
+                <span className="mt-1.5 truncate text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
                   {brand.productLabel}
                 </span>
               </span>
@@ -154,7 +159,12 @@ function OperatorProfile({ collapsed }: { collapsed: boolean }) {
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-sidebar)] bg-[var(--ok)]"
           />
         </div>
-        <div className={cx("min-w-0 flex-1", collapsed && "lg:hidden")}>
+        <div
+          className={cx(
+            "min-w-0 max-w-[180px] flex-1 overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+            collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
+          )}
+        >
           <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
           <div className="truncate text-[11px] text-[var(--text-muted)]">Operator</div>
         </div>
