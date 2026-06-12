@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { campaignDriver, type CampaignDriver } from "@/domain";
+import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup } from "@/domain";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 const CAMPAIGN_SELECT =
@@ -54,6 +54,7 @@ export type CampaignWorkspaceListItem = {
   updatedAt: string;
   updatedAtIso: string;
   href: string;
+  rollup: CampaignRollup;
 };
 
 export type CampaignWorkspaceList =
@@ -167,6 +168,7 @@ export type CampaignWorkspaceMeta = {
   launchLocked: boolean;
   createdAt: string;
   updatedAt: string;
+  rollup: CampaignRollup;
 };
 
 export type CampaignWorkspaceMetrics = {
@@ -438,6 +440,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
       const preview = pickWorkspacePreview(campaignAssets);
       const reasoning = buildReasoning(campaign, campaignAssetRows);
       const launch = buildLaunchState(campaignAssets, campaign.launch_locked);
+      const rollup = deriveCampaignRollup(collectPieceStatuses(campaignAssetRows, campaignApprovals));
       const assetTypes = uniqueStrings(campaignAssets.map((asset) => asset.assetType)).slice(0, 4);
       return {
         id: campaign.id,
@@ -464,6 +467,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         updatedAt: formatDate(campaign.updated_at),
         updatedAtIso: campaign.updated_at,
         href: `/campaigns/${campaign.id}`,
+        rollup,
       };
     });
 
@@ -532,6 +536,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
     ]);
     const sources = buildSources({ campaign, assets, approvals, companies, contacts, leads, outputs });
     const reasoning = buildReasoning(campaign, assets);
+    const rollup = deriveCampaignRollup(collectPieceStatuses(assets, approvals));
 
     return {
       status: "live",
@@ -549,6 +554,7 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
         launchLocked: campaign.launch_locked,
         createdAt: formatDate(campaign.created_at),
         updatedAt: formatDate(campaign.updated_at),
+        rollup,
       },
       assets: assetsView,
       groupedAssets: groupAssets(assetsView),
@@ -722,6 +728,16 @@ function assetDecisionState(asset: CampaignWorkspaceAsset): "approved" | "declin
   if (/declined|rejected/i.test(status)) return "declined";
   if (/archived/i.test(status)) return "archived";
   return "pending";
+}
+
+function collectPieceStatuses(assets: CampaignAssetRow[], approvals: ApprovalItemRow[]): string[] {
+  const assetIds = new Set(assets.map((asset) => asset.id));
+  return [
+    ...assets.map((asset) => asset.status),
+    ...approvals
+      .filter((approval) => !approval.campaign_asset_id || assetIds.has(approval.campaign_asset_id))
+      .map((approval) => approval.status),
+  ];
 }
 
 /** Pure: derive launch readiness + lifecycle. Every (non-removed) deliverable

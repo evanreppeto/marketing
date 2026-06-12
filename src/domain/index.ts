@@ -8,6 +8,7 @@ export * from "./integrity-findings";
 export * from "./leads";
 export * from "./notebook";
 export * from "./campaign-revisions";
+export * from "./campaign-rollup";
 export * from "./campaign-results";
 export * from "./mark-chat";
 export * from "./mark-canvas";

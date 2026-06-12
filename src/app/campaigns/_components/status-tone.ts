@@ -10,6 +10,15 @@ export function statusTone(status: string): PillTone {
   return "blue";
 }
 
+/** Map a roll-up state to a StatusPill tone. */
+export function rollupTone(state: string): PillTone {
+  if (state === "needs_review") return "amber";
+  if (state === "changes_requested") return "red";
+  if (state === "ready") return "green";
+  if (state === "in_progress") return "blue";
+  return "gray"; // drafting, empty
+}
+
 /** Map a humanized risk level ("Low" / "Medium" / "High") to a pill tone. */
 export function riskTone(risk: string): PillTone {
   const r = risk.toLowerCase();

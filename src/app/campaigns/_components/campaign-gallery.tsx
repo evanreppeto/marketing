@@ -4,6 +4,7 @@ import { StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 import { FilterSelect } from "./filter-select";
+import { CampaignRollupBar } from "./campaign-rollup-bar";
 
 type Lifecycle = CampaignWorkspaceListItem["lifecycle"];
 
@@ -427,6 +428,10 @@ function CampaignCard({ campaign }: { campaign: CampaignWorkspaceListItem }) {
         </div>
         <h3 className="font-bold leading-tight text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{campaign.name}</h3>
         <p className="mt-1.5 line-clamp-2 flex-1 text-sm leading-6 text-[var(--text-secondary)]">{campaign.objective}</p>
+
+        <div className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+          <CampaignRollupBar rollup={campaign.rollup} />
+        </div>
 
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
           <Stat value={campaign.assetCount} label="assets" />
