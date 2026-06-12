@@ -53,13 +53,14 @@ type PageHeaderProps = {
   backLabel?: string;
 };
 
-export function PageHeader({ title, description, aside, backHref, backLabel }: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, description, aside, backHref, backLabel }: PageHeaderProps) {
   return (
     <header className={theme.surface.pageHeader}>
       <div aria-hidden="true" className="absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-[var(--accent-border-strong)] via-[var(--border-hairline)] to-transparent sm:inset-x-5" />
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 max-w-[76ch]">
           {backHref ? <BackLink href={backHref} label={backLabel ?? "back"} /> : null}
+          {eyebrow ? <div className={cx("mb-2", theme.text.eyebrow)}>{eyebrow}</div> : null}
           <h1 className="font-serif text-[clamp(1.75rem,2.6vw,2.45rem)] font-semibold leading-[1.02] tracking-[-0.018em] text-[var(--text-primary)]">
             {title}
           </h1>

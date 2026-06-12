@@ -360,8 +360,8 @@ function dayLabel(occurredAt: string, now: Date): string {
   const date = new Date(occurredAt);
   if (!Number.isFinite(date.getTime())) return "Unknown date";
 
-  const day = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const day = localDayStart(date);
+  const today = localDayStart(now);
   const diffDays = Math.round((today - day) / 86_400_000);
 
   if (diffDays === 0) return "Today";
@@ -371,8 +371,11 @@ function dayLabel(occurredAt: string, now: Date): string {
     month: "long",
     day: "numeric",
     year: "numeric",
-    timeZone: "UTC",
   }).format(date);
+}
+
+function localDayStart(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
 function displayActor(actor: string | null): string {

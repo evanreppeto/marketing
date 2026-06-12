@@ -4,7 +4,9 @@ import { connection } from "next/server";
 import { EmptyState, PageHeader, StatusPill } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import {
+  buildActivitySummary,
   getRecentActivity,
+  groupActivityEntriesByDay,
   type ActivityActorType,
   type ActivityCategory,
   type ActivityEntry,
@@ -303,31 +305,13 @@ function filterNeedsReviewActivity(activity: LiveActivity): LiveActivity {
   return {
     ...activity,
     entries,
-    summary: buildDisplayedSummary(entries),
-    groups: activity.groups
-      .map((group) => ({
-        ...group,
-        entries: group.entries.filter(isNeedsReviewEntry),
-      }))
-      .filter((group) => group.entries.length > 0),
+    summary: buildActivitySummary(entries),
+    groups: groupActivityEntriesByDay(entries),
   };
 }
 
 function isNeedsReviewEntry(entry: ActivityEntry) {
   return entry.insightLabel === "Needs review";
-}
-
-function buildDisplayedSummary(entries: ActivityEntry[]): LiveActivity["summary"] {
-  return {
-    needsReview: entries.filter((entry) => entry.insightLabel === "Needs review").length,
-    hermesActions: entries.filter((entry) => entry.actorType === "hermes" || entry.actorType === "sub_agent").length,
-    campaignProgress: entries.filter(
-      (entry) => entry.category === "campaign" || entry.insightLabel === "Marketing progress",
-    ).length,
-    blockedOrRisky: entries.filter(
-      (entry) => entry.category === "risk" || entry.tone === "red" || entry.insightLabel === "Risk blocked",
-    ).length,
-  };
 }
 
 function rangeBounds(range: string): { since?: string; until?: string } {

@@ -172,6 +172,15 @@ describe("groupActivityEntriesByDay", () => {
     expect(groups.map((group) => group.label)).toEqual(["Today", "Yesterday", "June 10, 2026"]);
     expect(groups.map((group) => group.entries.map((item) => item.id))).toEqual([["today"], ["yesterday"], ["older"]]);
   });
+
+  it("groups entries by the same local day basis used by row time formatting", () => {
+    const now = new Date(2026, 5, 12, 0, 30);
+    const lateYesterday = new Date(2026, 5, 11, 23, 45).toISOString();
+
+    const groups = groupActivityEntriesByDay([entry("late-yesterday", lateYesterday)], now);
+
+    expect(groups.map((group) => group.label)).toEqual(["Yesterday"]);
+  });
 });
 
 describe("mapEvent", () => {
