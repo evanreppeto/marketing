@@ -13,6 +13,7 @@ import Link from "next/link";
 
 import { ChatSettings } from "./chat-settings";
 import { CommandPalette } from "./command-palette";
+import { AgentSettingsDrawer } from "./agent-settings-drawer";
 import { MarkBackdrop } from "./mark-backdrop";
 import type { SlashCommand } from "./slash-commands";
 import { Composer } from "./composer";
@@ -149,6 +150,7 @@ export function MarkChat({
   const submitFnRef = useRef<(() => void) | null>(null);
   const applyCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [agentSettingsOpen, setAgentSettingsOpen] = useState(false);
 
   // Work canvas visibility. Docked as a third column at xl+, a slide-over drawer
   // below that. One flag drives both: at xl it expands/collapses the column; below
@@ -391,6 +393,18 @@ export function MarkChat({
                   {campaigns.find((c) => c.id === activeCampaignId)?.name ?? "Campaign"}
                 </Link>
               ) : null}
+              <button
+                type="button"
+                onClick={() => setAgentSettingsOpen(true)}
+                title="Agent settings"
+                aria-label="Agent settings"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+                </svg>
+              </button>
               <MarkConnection />
               {activeId ? (
                 <>
@@ -550,6 +564,7 @@ export function MarkChat({
         onClose={() => setPaletteOpen(false)}
         onSelect={(cmd) => applyCommandRef.current?.(cmd)}
       />
+      <AgentSettingsDrawer open={agentSettingsOpen} onClose={() => setAgentSettingsOpen(false)} />
     </div>
   );
 }

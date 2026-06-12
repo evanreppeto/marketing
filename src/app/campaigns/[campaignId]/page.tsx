@@ -3,10 +3,11 @@ import { connection } from "next/server";
 import { EmptyState, PageHeader } from "../../_components/page-header";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getCampaignDispatches } from "@/lib/dispatch/read-model";
+import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
 import { getCampaignEconomics } from "@/lib/performance/attribution-read-model";
+import { getAppSettings } from "@/lib/settings/store";
 
-import { CampaignEconomicsPanel } from "../_components/campaign-economics-panel";
-import { CampaignWorkspace } from "../_components/campaign-workspace";
+import { CampaignCockpit } from "../_components/campaign-cockpit";
 
 type CampaignDetailPageProps = {
   params: Promise<{ campaignId: string }>;
@@ -44,10 +45,14 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
     );
   }
 
+  const { agentName } = await getAppSettings();
+
   return (
-    <>
-      <CampaignWorkspace detail={detail} dispatches={dispatches} />
-      <CampaignEconomicsPanel economics={economics} campaignId={campaignId} />
-    </>
+    <CampaignCockpit
+      detail={detail}
+      dispatches={dispatches}
+      economics={economics}
+      agentName={getAgentDisplayName(agentName)}
+    />
   );
 }

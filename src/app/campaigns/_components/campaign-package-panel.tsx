@@ -3,16 +3,10 @@
 import { useActionState, useState } from "react";
 
 import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
-import type {
-  CampaignExecutiveOverview,
-  CampaignLaunchState,
-  CampaignWorkspaceMeta,
-  LiveCampaignWorkspace,
-} from "@/lib/campaigns/read-model";
+import type { CampaignLaunchState, CampaignWorkspaceMeta } from "@/lib/campaigns/read-model";
 
 import { launchCampaignAction } from "../actions";
 
-type TabKey = "creative" | "media" | "audience" | "reasoning" | "approvals" | "performance";
 type PillTone = "blue" | "green" | "amber" | "gray";
 
 const LIFECYCLE_TONE: Record<CampaignLaunchState["lifecycle"], PillTone> = {
@@ -23,40 +17,11 @@ const LIFECYCLE_TONE: Record<CampaignLaunchState["lifecycle"], PillTone> = {
 };
 
 /**
- * Broad, full-width operational snapshot for a single campaign. Replaces the
- * old two-aside "decision packet": one decision strip, one metric row (the
- * single source of truth), distinct brief cards, and a collapsible full brief.
- * No side rails — the content column owns the full width.
- */
-export function CampaignOverview({
-  detail,
-  onOpenTab,
-}: {
-  detail: LiveCampaignWorkspace;
-  onOpenTab: (tab: TabKey) => void;
-}) {
-  const { campaign, sources, reasoning, executiveOverview, launchState } = detail;
-  const guardrailCount = reasoning.guardrailFlags.length;
-
-  return (
-    <section className="mb-5 space-y-4">
-      <LaunchTracker campaignId={campaign.id} launchState={launchState} onReviewPieces={() => onOpenTab("creative")} />
-
-      <ExecutiveOverview overview={executiveOverview} />
-
-      {guardrailCount > 0 ? <GuardrailNotice flags={reasoning.guardrailFlags} /> : null}
-
-      <FullBrief campaign={campaign} sourceCount={sources.length} />
-    </section>
-  );
-}
-
-/**
  * The campaign's single decision-to-deploy surface. Approval happens per piece
  * in the Deliverables list; this tracks readiness and owns the one Launch
  * action. Lifecycle is derived: Drafting → In review → Ready → Live.
  */
-function LaunchTracker({
+export function LaunchTracker({
   campaignId,
   launchState,
   onReviewPieces,
@@ -181,50 +146,7 @@ function LaunchTracker({
   );
 }
 
-function ExecutiveOverview({ overview }: { overview: CampaignExecutiveOverview }) {
-  // Uniform, scannable facts — no rainbow labels, no clamps (this is reference
-  // copy you should be able to read). "Where" is dropped: it restated the brief.
-  const facts: Array<[string, string]> = [
-    ["Why", overview.why],
-    ["Timeframe", overview.timeframe],
-    ["How we measure success", overview.successTracking],
-  ];
-
-  return (
-    <section className="module-rise overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
-      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-        <span className="signal-eyebrow">Executive overview</span>
-        <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Campaign brief</h2>
-        <p className="mt-2 max-w-[82ch] text-sm leading-6 text-[var(--text-secondary)]">{overview.what}</p>
-      </div>
-
-      <dl className="grid gap-px bg-[var(--border-hairline)] sm:grid-cols-3">
-        {facts.map(([label, value]) => (
-          <div key={label} className="bg-[var(--surface-panel)] px-5 py-4">
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</dt>
-            <dd className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-function GuardrailNotice({ flags }: { flags: string[] }) {
-  return (
-    <div className="module-rise rounded-xl border border-[oklch(0.76_0.14_18/0.32)] bg-[oklch(0.5_0.14_18/0.1)] px-4 py-3 shadow-[var(--elev-panel)]">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[oklch(0.86_0.1_26)]">Guardrails</span>
-        <StatusPill tone="red">
-          {flags.length} flag{flags.length === 1 ? "" : "s"}
-        </StatusPill>
-      </div>
-      <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-secondary)]">{flags.slice(0, 3).join(" / ")}</p>
-    </div>
-  );
-}
-
-function FullBrief({ campaign, sourceCount }: { campaign: CampaignWorkspaceMeta; sourceCount: number }) {
+export function FullBrief({ campaign, sourceCount }: { campaign: CampaignWorkspaceMeta; sourceCount: number }) {
   const rows: Array<[string, string]> = [
     ["Objective", campaign.objective],
     ["Audience", campaign.audienceSummary],

@@ -23,3 +23,23 @@ export function isMarkRunnerConfigured(): boolean {
 export function getMarkDisplayName(): string {
   return process.env.MARK_DISPLAY_NAME?.trim() || "Mark";
 }
+
+export type AgentProfile = { name: string; shortName: string; monogram: string };
+
+/** Derive display identity from a resolved name. Pure; empty falls back to "Mark". */
+export function agentProfile(rawName: string | null | undefined): AgentProfile {
+  const name = (rawName ?? "").trim() || "Mark";
+  const shortName = name.split(/\s+/)[0];
+  const firstAlnum = name.replace(/[^A-Za-z0-9]/g, "")[0] ?? name[0];
+  return { name, shortName, monogram: firstAlnum.toUpperCase() };
+}
+
+/** Resolve the agent's display name: operator override (DB) → env → "Mark". */
+export function getAgentDisplayName(override: string | null | undefined): string {
+  return override?.trim() || getMarkDisplayName();
+}
+
+/** Whether any agent link is configured (runner endpoint or inbound API token). */
+export function isAgentConfigured(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(env.MARK_RUNNER_URL ?? env.MARK_WEBHOOK_URL) || Boolean(env.HERMES_AGENT_API_TOKEN?.trim());
+}

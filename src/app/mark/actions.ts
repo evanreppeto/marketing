@@ -9,7 +9,8 @@ import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/l
 import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
-import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
+import { getAppSettings } from "@/lib/settings/store";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
@@ -152,7 +153,7 @@ export type MarkAgentStatus = { attached: boolean; name: string };
  * leaving the operator guessing.
  */
 export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
-  const name = getMarkDisplayName();
+  const name = getAgentDisplayName((await getAppSettings()).agentName);
   if (!isSupabaseAdminConfigured() || !isMarkRunnerConfigured()) {
     return { attached: false, name };
   }
@@ -168,6 +169,25 @@ export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
   } catch {
     return { attached: false, name };
   }
+}
+
+export type AgentConnectionInfo = {
+  attached: boolean;
+  name: string;
+  runnerConfigured: boolean;
+  tokenConfigured: boolean;
+};
+
+/** Full connection snapshot for the Agent settings drawer: live attach state +
+ *  which env credentials are present. No secrets returned, only booleans. */
+export async function getAgentConnectionInfoAction(): Promise<AgentConnectionInfo> {
+  const status = await getMarkAgentStatusAction();
+  return {
+    attached: status.attached,
+    name: status.name,
+    runnerConfigured: isMarkRunnerConfigured(),
+    tokenConfigured: Boolean(process.env.HERMES_AGENT_API_TOKEN?.trim()),
+  };
 }
 
 export type UploadTicket =

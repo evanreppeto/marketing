@@ -4,7 +4,10 @@ import { connection } from "next/server";
 
 import { buttonClasses, EmptyState, PageHeader, StatusPill } from "../_components/page-header";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
+import { getAgentDisplayName, isAgentConfigured } from "@/lib/mark-chat/agent-config";
+import { getAppSettings } from "@/lib/settings/store";
 
+import { ConnectAgentPanel } from "../_components/connect-agent-panel";
 import { CampaignLibrary } from "./_components/campaign-library";
 
 type CampaignsPageProps = {
@@ -30,6 +33,9 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
 
   const { campaigns } = list;
   const pendingCount = campaigns.filter((campaign) => campaign.lifecycle === "In review").length;
+  const configured = isAgentConfigured();
+  const { agentName } = await getAppSettings();
+  const displayName = getAgentDisplayName(agentName);
 
   return (
     <>
@@ -37,11 +43,13 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
 
       {campaigns.length > 0 ? (
         <CampaignLibrary campaigns={campaigns} activeStatus={getParam(params.status)} nowMs={nowMs} />
-      ) : (
+      ) : configured ? (
         <EmptyState
           title="No campaigns yet"
           detail="When Mark drafts a campaign it appears here with its creative, the leads and reasoning behind it, and a human-gate approval record. Outbound stays locked until you approve."
         />
+      ) : (
+        <ConnectAgentPanel agentName={displayName} />
       )}
     </>
   );
