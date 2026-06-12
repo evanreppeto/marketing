@@ -96,7 +96,7 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
         .limit(sourceLimit),
       supabase
         .from("campaign_events")
-        .select("id,campaign_id,approval_item_id,event_type,actor,detail,occurred_at")
+        .select("id,campaign_id,approval_item_id,event_type,actor,detail,payload,occurred_at")
         .order("occurred_at", { ascending: false })
         .limit(sourceLimit),
       supabase
@@ -276,24 +276,27 @@ function mapOutput(row: Record<string, unknown>): ActivityEntry {
   };
 }
 
-function mapCampaignEvent(row: Record<string, unknown>): ActivityEntry {
+export function mapCampaignEvent(row: Record<string, unknown>): ActivityEntry {
   const eventType = str(row.event_type) ?? "campaign_event";
   const approvalId = str(row.approval_item_id);
   const campaignId = str(row.campaign_id);
-  const tone = campaignTone(eventType);
+  const payload = object(row.payload);
+  const detail = str(row.detail);
+  const decisionSignal = campaignDecisionSignal(eventType, payload, detail);
+  const tone = campaignTone(eventType, decisionSignal);
   const actor = displayActor(str(row.actor));
 
   return {
     id: `campaign:${String(row.id)}`,
     kind: "campaign",
     tone,
-    title: titleize(eventType),
-    detail: str(row.detail) ?? "Campaign lifecycle update.",
+    title: campaignEventTitle(eventType, decisionSignal),
+    detail: detail ?? "Campaign lifecycle update.",
     actor,
     actorType: actorTypeFromActor(actor),
     category: tone === "red" ? "risk" : "campaign",
-    insightLabel: tone === "red" ? "Risk blocked" : "Marketing progress",
-    relatedLabel: str(row.detail) ?? "Campaign update",
+    insightLabel: insightForCampaignEvent(eventType, tone),
+    relatedLabel: detail ?? "Campaign update",
     occurredAt: str(row.occurred_at) ?? "",
     href: approvalId ? `/approvals?item=${approvalId}` : campaignId ? `/campaigns/${campaignId}` : null,
   };
@@ -381,12 +384,62 @@ function normalizeStatus(value: string): string {
   return value.trim().toLowerCase().replaceAll("-", "_").replaceAll(" ", "_");
 }
 
-function campaignTone(eventType: string): ActivityTone {
-  const value = eventType.toLowerCase();
-  if (value.includes("block")) return "red";
-  if (value.includes("approv")) return "green";
-  if (value.includes("reject") || value.includes("declin")) return "red";
+function campaignDecisionSignal(eventType: string, payload: Record<string, unknown>, detail: string | null): string | null {
+  const value = normalizeStatus(eventType);
+  if (!value.includes("approval")) return null;
+
+  return str(payload.action) ?? str(payload.decision) ?? str(payload.next_status) ?? decisionSignalFromDetail(detail);
+}
+
+function decisionSignalFromDetail(detail: string | null): string | null {
+  if (!detail) return null;
+  const value = normalizeStatus(detail);
+  if (value.includes("revision")) return "revision_requested";
+  if (value.includes("decline")) return "declined";
+  if (value.includes("reject")) return "rejected";
+  if (value.includes("archive")) return "archived";
+  if (value.includes("approve")) return "approved";
+  return null;
+}
+
+function campaignEventTitle(eventType: string, decisionSignal: string | null): string {
+  if (normalizeStatus(eventType) === "approval_decided" && decisionSignal) {
+    return `Approval ${campaignDecisionLabel(decisionSignal)}`;
+  }
+  return titleize(eventType);
+}
+
+function campaignDecisionLabel(decisionSignal: string): string {
+  const signal = normalizeStatus(decisionSignal);
+  if (signal.includes("approve")) return "Approved";
+  if (signal.includes("reject") || signal.includes("declin")) return "Declined";
+  if (signal.includes("revis")) return "Revision Requested";
+  if (signal.includes("archive")) return "Archived";
+  return titleize(decisionSignal);
+}
+
+function campaignTone(eventType: string, decisionSignal: string | null): ActivityTone {
+  const signal = normalizeStatus(decisionSignal ?? "");
+  if (signal.includes("approve")) return "green";
+  if (signal.includes("reject") || signal.includes("declin") || signal.includes("block")) return "red";
+  if (signal.includes("revis") || signal.includes("pending") || signal.includes("needs")) return "amber";
+  if (signal.includes("archive")) return "gray";
+
+  const value = normalizeStatus(eventType);
+  if (value.includes("block") || value.includes("reject") || value.includes("declin")) return "red";
+  if (value.includes("submitted") || value.includes("review") || value.includes("pending") || value.includes("needs")) {
+    return "amber";
+  }
+  if (value === "approval_decided") return "blue";
+  if (value.includes("approved") || value.includes("launched") || value.includes("sent")) return "green";
   return "blue";
+}
+
+function insightForCampaignEvent(eventType: string, tone: ActivityTone): ActivityInsightLabel {
+  if (tone === "red") return "Risk blocked";
+  if (tone === "amber" && normalizeStatus(eventType).includes("submitted")) return "Needs review";
+  if (tone === "green") return "Marketing progress";
+  return "Data changed";
 }
 
 function eventTone(eventType: string): ActivityTone {

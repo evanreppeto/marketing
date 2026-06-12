@@ -4,6 +4,7 @@ import {
   applyActivityFilters,
   buildActivitySummary,
   groupActivityEntriesByDay,
+  mapCampaignEvent,
   mapEvent,
   mergeActivityEntries,
   sourceLimitForQuery,
@@ -254,6 +255,80 @@ describe("groupActivityEntriesByDay", () => {
     const groups = groupActivityEntriesByDay([entry("late-yesterday", lateYesterday)], now);
 
     expect(groups.map((group) => group.label)).toEqual(["Yesterday"]);
+  });
+});
+
+describe("mapCampaignEvent", () => {
+  it("uses campaign approval decision payloads instead of the generic approval_decided event name", () => {
+    const approved = mapCampaignEvent({
+      id: "campaign_1",
+      campaign_id: "camp_1",
+      approval_item_id: "approval_1",
+      event_type: "approval_decided",
+      actor: "Evan",
+      detail: "approve recorded for approval item.",
+      payload: { action: "approve", next_status: "approved" },
+      occurred_at: "2026-06-12T14:00:00Z",
+    });
+    const rejected = mapCampaignEvent({
+      id: "campaign_2",
+      campaign_id: "camp_1",
+      approval_item_id: "approval_2",
+      event_type: "approval_decided",
+      actor: "Evan",
+      detail: "reject recorded for approval item.",
+      payload: { action: "reject", next_status: "declined" },
+      occurred_at: "2026-06-12T13:00:00Z",
+    });
+    const revision = mapCampaignEvent({
+      id: "campaign_3",
+      campaign_id: "camp_1",
+      approval_item_id: "approval_3",
+      event_type: "approval_decided",
+      actor: "Evan",
+      detail: "Revision requested: tighten the hook",
+      payload: { decision: "revision_requested" },
+      occurred_at: "2026-06-12T12:00:00Z",
+    });
+
+    expect(approved).toMatchObject({
+      tone: "green",
+      title: "Approval Approved",
+      category: "campaign",
+      insightLabel: "Marketing progress",
+    });
+    expect(rejected).toMatchObject({
+      tone: "red",
+      title: "Approval Declined",
+      category: "risk",
+      insightLabel: "Risk blocked",
+    });
+    expect(revision).toMatchObject({
+      tone: "amber",
+      title: "Approval Revision Requested",
+      category: "campaign",
+      insightLabel: "Data changed",
+    });
+  });
+
+  it("marks campaign approval submissions as active review work", () => {
+    const mapped = mapCampaignEvent({
+      id: "campaign_4",
+      campaign_id: "camp_1",
+      approval_item_id: "approval_4",
+      event_type: "approval_submitted",
+      actor: "Hermes",
+      detail: "Draft is ready for review.",
+      payload: {},
+      occurred_at: "2026-06-12T14:00:00Z",
+    });
+
+    expect(mapped).toMatchObject({
+      tone: "amber",
+      category: "campaign",
+      insightLabel: "Needs review",
+      href: "/approvals?item=approval_4",
+    });
   });
 });
 
