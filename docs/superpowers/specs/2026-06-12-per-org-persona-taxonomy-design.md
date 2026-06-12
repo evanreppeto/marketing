@@ -82,23 +82,33 @@ Edited at the source because the baseline is not yet applied.
 
 ### 2. Domain (`src/domain/personas.ts`)
 
-The set of valid personas is now org data (I/O), so the domain stops owning the
-list. The pure validators are refactored to **take the allowed set as a
-parameter**:
+The *lead-ingestion validation path* becomes org-aware by injecting the allowed
+set, while the existing hardcoded set is retained as the **BSR default/seed**
+list so the product still has a sane default and the broad set of existing
+consumers keeps compiling.
 
-- `validateLeadIngestionPersona(persona, allowedKeys)` — replaces the
-  hardcoded-set version. Same result shape and error codes
-  (`persona_required`, `persona_internal_only`, `persona_invalid_type`,
-  `persona_unknown`).
-- `isAllowedPersona(persona, allowedKeys)` and related helpers take the set as a
-  parameter.
+- `validateLeadIngestionPersona(persona, allowedKeys?)` — validates against the
+  injected `allowedKeys`. Same result shape and error codes (`persona_required`,
+  `persona_internal_only`, `persona_invalid_type`, `persona_unknown`). When
+  `allowedKeys` is omitted it falls back to `OFFICIAL_PERSONA_MAPPINGS`, so any
+  caller that has not been updated keeps its current behavior.
+- `isAllowedPersona(persona, allowedKeys)` — new injected-set membership helper.
 - `INTERNAL_UNASSIGNED_PERSONA` and the internal-only rule stay as domain
   constants — that rule is product-wide, not per-org.
-- `OFFICIAL_PERSONA_MAPPINGS` is removed from the domain. Any remaining
-  reference to a "default BSR set" lives in seed/data, not in pure logic.
+- `OFFICIAL_PERSONA_MAPPINGS` is **kept** but its doc comment is changed to mark
+  it as the BSR default/seed taxonomy, not the global validation authority.
+  Existing helpers (`isOfficialPersonaMapping`, `isAllowedForLeadIngestion`)
+  remain for the consumers that still use the default set.
 
-Domain stays pure and unit-tested; the allowed set is injected rather than
-imported.
+Domain stays pure and unit-tested; the *ingestion* allowed set is injected.
+
+**Deliberately not cascaded this slice.** `OFFICIAL_PERSONA_MAPPINGS` is consumed
+by ~20 files (CRM record-form dropdowns, the mark promote dialog, the campaign
+create form, mention search, vault links, and as the `z.enum()` source for the
+Hermes contracts, `competitor-intel`, and the CRM domain record schemas in
+`companies/contacts/jobs/outcomes/properties`). Migrating those surfaces to read
+per-org personas is later-slice work, scoped to each surface as it is
+productized. This slice changes only the ingestion validation source.
 
 ### 3. Read-model (`src/lib/personas/`)
 
