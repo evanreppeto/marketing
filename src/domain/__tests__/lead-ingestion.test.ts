@@ -130,6 +130,33 @@ describe("lead ingestion parsing", () => {
   });
 });
 
+describe("parseLeadIngestionPayload with an org persona set", () => {
+  const basePayload = {
+    persona: "persona_wedding_lead",
+    source: "website",
+    lossSignals: ["ceremony tent flooded"],
+    contact: { firstName: "Dana", email: "dana@example.com" },
+  };
+
+  it("accepts a persona that is in the provided org set", () => {
+    const result = parseLeadIngestionPayload(basePayload, undefined, [
+      "persona_wedding_lead",
+      "persona_corporate_event",
+    ]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.persona).toBe("persona_wedding_lead");
+  });
+
+  it("rejects a persona that is not in the provided org set", () => {
+    const result = parseLeadIngestionPayload(basePayload, undefined, ["persona_corporate_event"]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.httpStatus).toBe(400);
+      expect(result.errors[0]).toMatchObject({ code: "persona_unknown", path: ["persona"] });
+    }
+  });
+});
+
 describe("lead ingestion attribution", () => {
   const base = {
     persona: "persona_homeowner_emergency",
