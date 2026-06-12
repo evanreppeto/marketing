@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
-import { EmptyState, PageHeader } from "@/app/_components/page-header";
+import { EmptyState, PageHeader, buttonClasses } from "@/app/_components/page-header";
 import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 import { TaskInputsPanel, TaskLogsPanel, TaskOutputsPanel } from "./task-record-panels";
@@ -87,6 +87,8 @@ export default async function Page({ params, searchParams }: PageProps) {
           updatedAt={task.updatedAt}
         />
 
+        <NextDecision detail={detail} />
+
         <TaskSectionTabs activeSection={activeSection} counts={counts} taskId={task.id} />
 
         {activeSection === "overview" ? <TaskOverview detail={detail} outputsHref={outputsHref} /> : null}
@@ -95,6 +97,40 @@ export default async function Page({ params, searchParams }: PageProps) {
         {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
       </main>
     </div>
+  );
+}
+
+function NextDecision({ detail }: { detail: LiveDetail }) {
+  const output = detail.latestOutput;
+  if (!output) return null;
+
+  const approvalStatus = output.approvalStatus.toLowerCase();
+  const needsApproval = Boolean(output.approvalHref) && !["approved", "auto_approved"].includes(approvalStatus);
+
+  return (
+    <section className="rounded-lg border border-[var(--accent-border)] bg-[var(--accent-soft)] px-4 py-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold text-[var(--accent-strong)]">Next decision</div>
+          <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+            {needsApproval ? "Review this draft before anything outbound can happen." : "Mark has a draft ready for review."}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            Check the latest output, then approve it or leave Mark an instruction.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {output.approvalHref ? (
+            <Link className={buttonClasses({ variant: "primary", size: "sm" })} href={output.approvalHref}>
+              Review approval
+            </Link>
+          ) : null}
+          <a className={buttonClasses({ variant: "ghost", size: "sm" })} href="#mark-instruction">
+            Add instruction
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }
 

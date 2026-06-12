@@ -91,7 +91,7 @@ export function TicketEditableHeader({
               <span className="text-xs font-semibold text-[var(--text-muted)]">{humanize(taskType)}</span>
               <span className="text-[var(--text-muted)]">/</span>
               <StatusPill tone={statusTone(status)}>{humanize(status)}</StatusPill>
-              <span className="text-xs font-semibold text-[var(--text-muted)]">{driverLabel} owns the work. Outbound is locked.</span>
+              <span className="text-xs font-semibold text-[var(--text-muted)]">{driverLabel} is doing the work. Outbound is locked.</span>
             </div>
 
             <label className="mt-3 block">
@@ -112,21 +112,23 @@ export function TicketEditableHeader({
               />
             </label>
 
-            <details className="mt-2 max-w-[720px]" open={Boolean(savedBrief)}>
-              <summary className="cursor-pointer text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
-                {savedBrief ? "Brief" : "Add brief"}
-              </summary>
-              <label className="mt-2 block">
-                <span className="sr-only">Task brief</span>
-                <textarea
-                  className="min-h-[72px] w-full resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-secondary)] outline-none transition placeholder:text-[var(--text-muted)] focus:outline focus:outline-2 focus:outline-[var(--accent)]"
-                  onBlur={() => saveTextField("description", brief)}
-                  onChange={(event) => setBrief(event.target.value)}
-                  placeholder="Add what Mark should know."
-                  value={brief}
-                />
-              </label>
-            </details>
+            {savedBrief ? (
+              <details className="mt-2 max-w-[720px]" open>
+                <summary className="cursor-pointer text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
+                  Brief
+                </summary>
+                <label className="mt-2 block">
+                  <span className="sr-only">Task brief</span>
+                  <textarea
+                    className="min-h-[72px] w-full resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-secondary)] outline-none transition placeholder:text-[var(--text-muted)] focus:outline focus:outline-2 focus:outline-[var(--accent)]"
+                    onBlur={() => saveTextField("description", brief)}
+                    onChange={(event) => setBrief(event.target.value)}
+                    placeholder="Add what Mark should know."
+                    value={brief}
+                  />
+                </label>
+              </details>
+            ) : null}
 
             <div className="mt-2 flex min-h-5 flex-wrap items-center gap-3 text-xs font-semibold text-[var(--text-muted)]" aria-live="polite">
               <SaveLabel label="Title" state={titleState} />
@@ -134,60 +136,60 @@ export function TicketEditableHeader({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-[var(--border-hairline)] pt-3">
-            <button
-              className={buttonClasses({ variant: "ghost", size: "sm" })}
-              disabled={isContinuePending}
-              onClick={() => {
-                setContinueMessage(null);
-                startContinueTransition(async () => {
-                  const result = await addTaskEventAction(taskId, {
-                    eventType: "instruction",
-                    body: "Please continue this task. Keep outbound locked and add the next useful update here.",
-                  });
-                  setContinueMessage(result.ok ? "Mark was asked to continue." : result.message);
-                });
-              }}
-              type="button"
-            >
-              {isContinuePending ? "Sending..." : "Ask Mark to continue"}
-            </button>
-          </div>
         </div>
-
-        {continueMessage ? <p className="mt-3 text-xs font-semibold text-[var(--text-muted)]">{continueMessage}</p> : null}
       </div>
 
       <form
-        className="grid gap-2 border-t border-[var(--border-hairline)] px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-5"
+        className="border-t border-[var(--border-hairline)] px-4 py-3 sm:px-5"
         onSubmit={(event) => {
           event.preventDefault();
           submitInstruction(instruction, () => setInstruction(""));
         }}
       >
-        <label className="block">
-          <span className="sr-only">Instruction for Mark</span>
-          <input
-            className="min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-            onChange={(event) => setInstruction(event.target.value)}
-            onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && (event.key === "Enter" || event.key === "NumpadEnter")) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <label className="block">
+            <span className="sr-only">Instruction for Mark</span>
+            <input
+              className="min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              id="mark-instruction"
+              onChange={(event) => setInstruction(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && (event.key === "Enter" || event.key === "NumpadEnter")) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+              placeholder="Add instruction for Mark"
+              value={instruction}
+            />
+          </label>
+          <button className={buttonClasses({ variant: "primary", size: "md" })} disabled={isInstructionPending || instruction.trim().length < 2} type="submit">
+            {isInstructionPending ? "Adding..." : "Add"}
+          </button>
+          <button
+            className={buttonClasses({ variant: "ghost", size: "md" })}
+            disabled={isContinuePending}
+            onClick={() => {
+              setContinueMessage(null);
+              startContinueTransition(async () => {
+                const result = await addTaskEventAction(taskId, {
+                  eventType: "instruction",
+                  body: "Please continue this task. Keep outbound locked and add the next useful update here.",
+                });
+                setContinueMessage(result.ok ? "Mark was asked for the next step." : result.message);
+              });
             }}
-            placeholder="Tell Mark what to do next"
-            value={instruction}
-          />
-        </label>
-        <button className={buttonClasses({ variant: "primary", size: "md" })} disabled={isInstructionPending || instruction.trim().length < 2} type="submit">
-          {isInstructionPending ? "Sending..." : "Send"}
-        </button>
+            type="button"
+          >
+            {isContinuePending ? "Sending..." : "Ask for next step"}
+          </button>
+        </div>
         {instructionMessage ? (
-          <p className="text-xs font-semibold text-[var(--text-muted)] sm:col-span-2" aria-live="polite">
+          <p className="mt-2 text-xs font-semibold text-[var(--text-muted)]" aria-live="polite">
             {instructionMessage}
           </p>
         ) : null}
+        {continueMessage ? <p className="mt-2 text-xs font-semibold text-[var(--text-muted)]">{continueMessage}</p> : null}
       </form>
     </section>
   );

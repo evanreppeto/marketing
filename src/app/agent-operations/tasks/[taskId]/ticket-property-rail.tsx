@@ -87,14 +87,14 @@ export function TicketPropertyRail({
         <InlineMeta label="Due">{values.due_at ? formatDate(fromDateTimeLocalValue(values.due_at)) : "No due date"}</InlineMeta>
         {campaign ? (
           <InlineMeta label="Campaign">
-            <Link className="font-medium text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={`/campaigns/${campaign.id}`}>
+            <Link className="text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]" href={`/campaigns/${campaign.id}`}>
               {campaign.name}
             </Link>
           </InlineMeta>
         ) : null}
         {source ? (
           <InlineMeta label="Source">
-            <Link className="font-medium text-[var(--text-primary)] transition hover:text-[var(--accent)]" href={source.href}>
+            <Link className="text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]" href={source.href}>
               {source.label}
             </Link>
           </InlineMeta>
@@ -186,7 +186,7 @@ function InlineMeta({ label, children }: { label: string; children: React.ReactN
   return (
     <span className="inline-flex min-h-7 items-center gap-1.5">
       <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
-      <span className="max-w-[240px] truncate font-semibold text-[var(--text-secondary)]">{children}</span>
+      <span className="max-w-[190px] truncate text-[var(--text-secondary)]">{children}</span>
     </span>
   );
 }
