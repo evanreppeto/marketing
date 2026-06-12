@@ -118,9 +118,18 @@ async function seedMediaCampaign() {
   const supabase = getSupabase();
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
 
+  const { data: org, error: orgError } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("slug", "big-shoulders-restoration")
+    .single();
+  if (orgError || !org) throw new Error("Seed requires the big-shoulders-restoration organization (run the tenancy migration first).");
+  const orgId = org.id;
+
   const companyId = await insertOne(supabase, "companies", {
     name: `North Shore Creative Showcase ${runId}`,
     persona: PERSONA,
+    org_id: orgId,
     status: "active",
     metadata: { demo_seed: true, run_id: runId, service_area_zips: ["60091", "60093", "60201"] },
   });
@@ -128,6 +137,7 @@ async function seedMediaCampaign() {
   const contactId = await insertOne(supabase, "contacts", {
     company_id: companyId,
     persona: PERSONA,
+    org_id: orgId,
     status: "active",
     first_name: "Dana",
     last_name: "Whitfield",
@@ -140,6 +150,7 @@ async function seedMediaCampaign() {
     company_id: companyId,
     contact_id: contactId,
     persona: PERSONA,
+    org_id: orgId,
     status: "qualified",
     source: "seed_media_campaign",
     external_lead_id: `seed-media-campaign-${runId}`,
