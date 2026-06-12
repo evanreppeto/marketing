@@ -1,4 +1,5 @@
-import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
+import { StatusPill } from "@/app/_components/page-header";
+import type { CampaignDecisionEvent, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import { type DispatchView } from "@/lib/dispatch/status";
 
 import { AuditLog } from "./audit-log";
@@ -34,6 +35,7 @@ export function CampaignWorkspace({ detail, dispatches = [] }: { detail: LiveCam
               </span>
             </summary>
             <div className="mt-4 space-y-5">
+              <DecisionHistoryPanel history={detail.approvalHistory} />
               <MarkConversation campaignId={detail.campaign.id} conversation={detail.markConversation} reasoning={detail.reasoning} />
               <AuditLog entries={detail.auditLog} />
             </div>
@@ -43,5 +45,50 @@ export function CampaignWorkspace({ detail, dispatches = [] }: { detail: LiveCam
         <CampaignRightRail detail={detail} dispatches={dispatches} />
       </div>
     </div>
+  );
+}
+
+function DecisionHistoryPanel({ history }: { history: CampaignDecisionEvent[] }) {
+  const shown = history.slice(0, 8);
+
+  return (
+    <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
+        <span className="signal-eyebrow">Decision history</span>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">Approvals recorded for this campaign</h2>
+          <span className="font-mono text-xs font-bold text-[var(--text-muted)]">{history.length}</span>
+        </div>
+      </div>
+
+      {history.length === 0 ? (
+        <p className="px-4 py-3 text-sm leading-6 text-[var(--text-secondary)]">
+          No decisions recorded yet. Approve a piece or send one back to Mark and the record appears here.
+        </p>
+      ) : (
+        <ol className="divide-y divide-[var(--border-hairline)]">
+          {shown.map((event) => (
+            <li key={event.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill tone={event.tone}>{event.action}</StatusPill>
+                  <span className="min-w-0 font-semibold text-[var(--text-primary)]">{event.itemTitle}</span>
+                </div>
+                <p className="mt-1 font-mono text-xs text-[var(--text-muted)]">
+                  {event.decidedBy} | {event.at}
+                </p>
+                {event.notes ? <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{event.notes}</p> : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {history.length > shown.length ? (
+        <p className="border-t border-[var(--border-hairline)] px-4 py-2 text-xs font-semibold text-[var(--text-muted)]">
+          Showing latest {shown.length} of {history.length} decisions.
+        </p>
+      ) : null}
+    </section>
   );
 }

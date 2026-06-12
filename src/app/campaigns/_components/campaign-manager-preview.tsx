@@ -19,7 +19,7 @@ export function CampaignManagerPreview({ campaign, id }: { campaign: CampaignWor
             <Link href={campaign.href} className={buttonClasses({ size: "sm" })}>
               Open full page
             </Link>
-            <Link href={`${campaign.href}?focus=mark`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+            <Link href={`${campaign.href}#mark`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
               Ask Mark
             </Link>
           </div>

@@ -37,7 +37,7 @@ export function CampaignHeader({ campaign, launchState }: { campaign: CampaignWo
             <Link href="#send-export" className={buttonClasses({ variant: "ghost", size: "sm" })}>
               Send / Export
             </Link>
-            <Link href="/mark" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+            <Link href="#mark" className={buttonClasses({ variant: "ghost", size: "sm" })}>
               Ask Mark
             </Link>
           </div>

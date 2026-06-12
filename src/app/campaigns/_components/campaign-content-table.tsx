@@ -5,7 +5,7 @@ import { useActionState, useMemo, useState } from "react";
 import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
-import { decideAssetAction, deployAssetAction, requestRevisionAction } from "../actions";
+import { decideAssetAction, deployAssetAction, reopenAssetAction, requestRevisionAction } from "../actions";
 import { buildCampaignContentRows, type CampaignContentRow } from "./campaign-detail-model";
 
 export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace }) {
@@ -129,6 +129,7 @@ function ContentPreview({
   const canApprove = row.status.label === "Review";
   const canDeploy = row.status.label === "Ready";
   const canRevise = row.status.label !== "Live";
+  const canReopen = row.status.label === "Live";
 
   async function copyPreview() {
     if (!navigator.clipboard) return;
@@ -164,11 +165,7 @@ function ContentPreview({
         {canApprove ? <ApprovePiece assetId={asset.id} campaignId={campaignId} /> : null}
         {canDeploy ? <DeployPiece assetId={asset.id} campaignId={campaignId} /> : null}
         {canRevise ? <RevisePiece assetId={asset.id} campaignId={campaignId} /> : null}
-        {!canApprove && !canRevise ? (
-          <p className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-            This piece is live. Use results and history to decide what to do next.
-          </p>
-        ) : null}
+        {canReopen ? <ReopenPiece assetId={asset.id} campaignId={campaignId} /> : null}
       </div>
     </aside>
   );
@@ -190,6 +187,25 @@ function DeployPiece({ assetId, campaignId }: { assetId: string; campaignId: str
       <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
         Records a dispatch handoff for Mark. This does not directly send to customers.
       </p>
+      {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
+    </form>
+  );
+}
+
+function ReopenPiece({ assetId, campaignId }: { assetId: string; campaignId: string }) {
+  const [state, formAction, isPending] = useActionState(reopenAssetAction, null);
+
+  return (
+    <form action={formAction} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
+      <input type="hidden" name="assetId" value={assetId} />
+      <input type="hidden" name="campaignId" value={campaignId} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-[var(--text-primary)]">Need to change this live piece?</span>
+        <Button type="submit" variant="ghost" size="sm" disabled={isPending}>
+          {isPending ? "Re-opening..." : "Send back to review"}
+        </Button>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">Re-locks this piece so Mark can revise it before it is used again.</p>
       {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
     </form>
   );

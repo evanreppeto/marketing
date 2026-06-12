@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useActionState } from "react";
 import type { ReactNode } from "react";
 
-import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
+import { Button, StatusPill } from "@/app/_components/page-header";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import { statusLabel, STATUS_TONE, type DispatchView } from "@/lib/dispatch/status";
 
-import { launchCampaignAction } from "../actions";
+import { launchCampaignAction, sendMarkMessageAction } from "../actions";
 import { buildSendExportFacts } from "./campaign-detail-model";
 
 export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCampaignWorkspace; dispatches?: DispatchView[] }) {
@@ -63,9 +63,7 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{reasoning.guardrailFlags.join(" / ")}</p>
           </div>
         ) : null}
-        <Link href="/mark" className={`${buttonClasses({ variant: "ghost", size: "sm" })} mt-3 w-full`}>
-          Ask Mark
-        </Link>
+        <MarkMessageForm campaignId={campaign.id} />
       </RailPanel>
 
       <RailPanel id="results" title="Results">
@@ -126,6 +124,32 @@ function LaunchCampaignForm({ campaignId }: { campaignId: string }) {
         Records the campaign handoff and queues approved pieces. This does not directly send to customers.
       </p>
       {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
+    </form>
+  );
+}
+
+function MarkMessageForm({ campaignId }: { campaignId: string }) {
+  const [state, formAction, isPending] = useActionState(sendMarkMessageAction, null);
+
+  return (
+    <form action={formAction} className="mt-3 space-y-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
+      <input type="hidden" name="campaignId" value={campaignId} />
+      <label className="block">
+        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Ask Mark</span>
+        <textarea
+          name="message"
+          rows={3}
+          placeholder="Tell Mark what to revise, add, or explain."
+          className="mt-2 w-full resize-y rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+        />
+      </label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs leading-5 text-[var(--text-muted)]">Queues a campaign-specific message.</span>
+        <Button type="submit" variant="ghost" size="sm" disabled={isPending}>
+          {isPending ? "Sending..." : "Send to Mark"}
+        </Button>
+      </div>
+      {state ? <p className={`text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
     </form>
   );
 }
