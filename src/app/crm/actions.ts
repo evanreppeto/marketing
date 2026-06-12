@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain/personas";
 import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
 import { type Database, type TablesInsert, type TablesUpdate } from "@/lib/supabase/database.types";
 import { isCrmEntityKey, type CrmEntityKey } from "./entity-keys";
@@ -30,7 +31,9 @@ export async function createCrmRecordAction(formData: FormData) {
     redirect(`/crm/${objectKey}?action=crm-error&message=${encodeURIComponent(result.error)}`);
   }
 
-  const inserted = await insertEntity(supabase, objectKey, result.insert);
+  const orgId = await getCurrentOrgId();
+  const insertWithOrg = { ...result.insert, org_id: orgId } as typeof result.insert;
+  const inserted = await insertEntity(supabase, objectKey, insertWithOrg);
   if ("error" in inserted) {
     redirect(`/crm/${objectKey}?action=crm-error&message=${encodeURIComponent(inserted.error)}`);
   }

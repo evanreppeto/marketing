@@ -59,11 +59,11 @@ function groupByDate(rows: MarkConversation[], nowMs: number): { label: string; 
   return BUCKET_ORDER.filter((k) => map.has(k)).map((label) => ({ label, rows: map.get(label)! }));
 }
 
-function NewChatLink() {
+function NewChatLink({ assistantName }: { assistantName: string }) {
   return (
     <Link
       href="/mark"
-      aria-label="Start a new chat with Mark"
+      aria-label={`Start a new chat with ${assistantName}`}
       className="group flex items-center gap-2 rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-raised)] active:translate-y-px"
     >
       <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--accent)] text-[var(--on-accent)] transition group-hover:scale-105">
@@ -237,6 +237,7 @@ export function ThreadSidebar({
   showArchived,
   activeId,
   variant = "rail",
+  assistantName = "Mark",
 }: {
   conversations: MarkConversation[];
   projects: MarkProject[];
@@ -244,6 +245,7 @@ export function ThreadSidebar({
   showArchived: boolean;
   activeId: string;
   variant?: "rail" | "overlay";
+  assistantName?: string;
 }) {
   const [query, setQuery] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
@@ -262,7 +264,7 @@ export function ThreadSidebar({
   if (showArchived) {
     return (
       <aside className={asideClass}>
-        <NewChatLink />
+        <NewChatLink assistantName={assistantName} />
         <Link
           href="/mark"
           className="mt-1 flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
@@ -320,7 +322,7 @@ export function ThreadSidebar({
 
   return (
     <aside className={asideClass}>
-      <NewChatLink />
+      <NewChatLink assistantName={assistantName} />
 
       <label className="relative mt-1 block px-1">
         <span className="sr-only">Search chats</span>
@@ -396,7 +398,7 @@ export function ThreadSidebar({
       <nav aria-label="Conversations" className="flex min-h-0 flex-col">
         {unprojected.length === 0 ? (
           <p className="px-2 py-3 text-xs text-[var(--text-muted)]">
-            {q ? "No matches." : "No conversations yet. Say hello to Mark."}
+            {q ? "No matches." : `No conversations yet. Say hello to ${assistantName}.`}
           </p>
         ) : (
           groupByDate(unprojected, nowMs).map((bucket) => (

@@ -33,8 +33,8 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   const { campaigns } = list;
   const pendingCount = campaigns.filter((campaign) => campaign.pendingCount > 0 || campaign.lifecycle === "In review").length;
   const configured = isAgentConfigured();
-  const { agentName } = await getAppSettings();
-  const displayName = getAgentDisplayName(agentName);
+  const { assistantName } = await getAppSettings();
+  const displayName = getAgentDisplayName(assistantName);
 
   return (
     <>

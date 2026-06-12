@@ -10,15 +10,12 @@ import {
   isOperatorGateEnabled,
   isValidOperatorValue,
 } from "@/lib/auth/operator-shared";
+import { getAppSettings, getSupportContactEmail } from "@/lib/settings/store";
 
 type LoginSearchParams = {
   from?: string;
   error?: string;
 };
-
-function getSupportEmail() {
-  return process.env.OPERATOR_SUPPORT_EMAIL?.trim() || process.env.OPERATOR_EMAIL?.trim() || "support@bigshouldersmp.com";
-}
 
 export async function getOperatorLoginProps(searchParams?: Promise<LoginSearchParams>) {
   const query = searchParams ? await searchParams : {};
@@ -52,7 +49,7 @@ export async function getOperatorForgotPasswordProps() {
   }
 
   return {
-    supportEmail: getSupportEmail(),
+    supportEmail: getSupportContactEmail(await getAppSettings()),
   };
 }
 

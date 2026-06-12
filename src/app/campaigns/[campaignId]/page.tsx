@@ -45,14 +45,14 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
     );
   }
 
-  const { agentName } = await getAppSettings();
+  const { assistantName } = await getAppSettings();
 
   return (
     <CampaignCockpit
       detail={detail}
       dispatches={dispatches}
       economics={economics}
-      agentName={getAgentDisplayName(agentName)}
+      agentName={getAgentDisplayName(assistantName)}
     />
   );
 }

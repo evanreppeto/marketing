@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { checkBearerToken } from "@/lib/auth/api-token";
+import { checkAgentBearer } from "@/lib/auth/api-token";
 import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "@/lib/mark-chat/inbox";
 import {
   completeMarkMessage,
@@ -22,7 +22,7 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  *   200 -> { ok: true, messages: [{ agentTaskId, conversationId, message, mentions, operator, createdAt }] }
  */
 export async function GET(request: Request) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = await checkAgentBearer(request);
   if (!auth.ok) {
     return NextResponse.json(
       auth.reason === "not_configured"
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
  *   body: { agentTaskId: string, body: string, status?: "complete"|"failed", metadata?: object }
  */
 export async function POST(request: Request) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = await checkAgentBearer(request);
   if (!auth.ok) {
     return NextResponse.json(
       auth.reason === "not_configured"

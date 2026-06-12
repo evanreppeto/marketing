@@ -11,7 +11,7 @@ import { appendAgentRunLog } from "@/lib/hermes-api";
  *   body: { message?, reasoning_summary?, run_status?, model_provider?, model_name?, metadata? }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const { id } = await params;

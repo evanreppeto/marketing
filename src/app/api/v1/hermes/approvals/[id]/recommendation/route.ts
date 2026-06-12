@@ -12,7 +12,7 @@ import { addApprovalRecommendation } from "@/lib/hermes-api";
  *   body: { recommendation, rationale?, risk_flags?, suggested_edits?, agent?, metadata? }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const { id } = await params;

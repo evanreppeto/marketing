@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { checkBearerToken } from "@/lib/auth/api-token";
+import { checkAgentBearer } from "@/lib/auth/api-token";
 import { appendMarkStep } from "@/lib/mark-chat/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -13,7 +13,7 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  *   body: { label: string, status?: "running" | "done" }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ agentTaskId: string }> }) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = await checkAgentBearer(request);
   if (!auth.ok) {
     return NextResponse.json(
       auth.reason === "not_configured"

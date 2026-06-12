@@ -10,8 +10,27 @@ import { getCrmRecordData, type CrmObjectKey, type CrmRecordData } from "@/lib/c
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getCampaignsForRecord, type LinkedCampaignRecordKind } from "@/lib/campaigns/read-model";
 import { LinkedCampaignsPanel } from "./linked-campaigns-panel";
+import { entityTypeFromCrmObjectKey } from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { getRecordNotes, getRecordTasks, getRecordTimeline } from "@/lib/interactions/read-model";
+import { RecordTimeline } from "./record-interactions/timeline";
+import { NotesPanel } from "./record-interactions/notes-panel";
+import { TasksPanel } from "./record-interactions/tasks-panel";
 
-const RECORD_FEEDBACK = ["created", "updated", "crm-error", "not-configured"];
+const RECORD_FEEDBACK = [
+  "created",
+  "updated",
+  "crm-error",
+  "not-configured",
+  "note-added",
+  "note-updated",
+  "note-error",
+  "task-created",
+  "task-completed",
+  "task-error",
+  "activity-logged",
+  "activity-error",
+];
 
 type CrmRecordPageProps = {
   action?: string;
@@ -19,56 +38,6 @@ type CrmRecordPageProps = {
   recordId: string;
 };
 
-const actionLabels: Record<string, string> = {
-  note: "Add note",
-  owner: "Assign owner",
-  convert: "Convert to job",
-  approve: "Approve message",
-  property: "Link property",
-};
-
-const actionCards = [
-  {
-    key: "note",
-    label: "Add note",
-    detail: "Log internal context for Mark and the CRM timeline.",
-    state: "Locked",
-    tone: "blue",
-    icon: "N",
-  },
-  {
-    key: "owner",
-    label: "Assign owner",
-    detail: "Route the record to a human operator before action.",
-    state: "Locked",
-    tone: "gray",
-    icon: "O",
-  },
-  {
-    key: "convert",
-    label: "Convert to job",
-    detail: "Create an operations handoff only after qualification.",
-    state: "Locked",
-    tone: "red",
-    icon: "J",
-  },
-  {
-    key: "approve",
-    label: "Approval queue",
-    detail: "Outbound copy decisions belong in the approval queue.",
-    state: "Use approvals",
-    tone: "green",
-    icon: "A",
-  },
-  {
-    key: "property",
-    label: "Link property",
-    detail: "Attach address context for scoring and routing.",
-    state: "Locked",
-    tone: "blue",
-    icon: "P",
-  },
-] as const;
 
 export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProps) {
   if (!isUuid(recordId)) {
@@ -93,9 +62,18 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
   const record = recordResult;
   const linkKind = recordLinkKind(objectKey);
   const linkedCampaigns = linkKind ? await getCampaignsForRecord(linkKind, recordId) : [];
-  const actionMessage = action
-    ? `"${actionLabels[action] ?? action}" is not connected to a write workflow yet.`
-    : "Record write actions stay locked until a human-approved workflow is available.";
+  const entityType = entityTypeFromCrmObjectKey(objectKey);
+  let timeline: Awaited<ReturnType<typeof getRecordTimeline>> | null = null;
+  let notes: Awaited<ReturnType<typeof getRecordNotes>> | null = null;
+  let tasks: Awaited<ReturnType<typeof getRecordTasks>> | null = null;
+  if (entityType && isSupabaseAdminConfigured()) {
+    const orgId = await getCurrentOrgId();
+    [timeline, notes, tasks] = await Promise.all([
+      getRecordTimeline(entityType, recordId, orgId),
+      getRecordNotes(entityType, recordId, orgId),
+      getRecordTasks(entityType, recordId, orgId),
+    ]);
+  }
   const showEditForm = action === "edit" && isCrmEntityKey(objectKey);
   const feedbackAction = RECORD_FEEDBACK.includes(action ?? "") ? action : undefined;
   let editValues: Record<string, unknown> | undefined;
@@ -126,6 +104,14 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
           updated: "Changes saved.",
           "crm-error": "That change could not be saved. Check the fields and try again.",
           "not-configured": "Supabase is not connected, so nothing was written.",
+          "note-added": "Note added.",
+          "note-updated": "Note updated.",
+          "note-error": "That note could not be saved.",
+          "task-created": "Task created.",
+          "task-completed": "Task marked complete.",
+          "task-error": "That task could not be saved.",
+          "activity-logged": "Activity logged.",
+          "activity-error": "That activity could not be logged.",
         }}
       />
 
@@ -140,6 +126,17 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
           <RecordSummary record={record} />
           <RecordFields record={record} />
           <RelatedRecords record={record} />
+          {entityType ? (
+            <>
+              {tasks?.status === "live" ? (
+                <TasksPanel entityType={entityType} entityId={recordId} tasks={tasks.tasks} />
+              ) : null}
+              {notes?.status === "live" ? (
+                <NotesPanel entityType={entityType} entityId={recordId} notes={notes.notes} />
+              ) : null}
+              {timeline?.status === "live" ? <RecordTimeline entries={timeline.entries} /> : null}
+            </>
+          ) : null}
           <LinkedCampaignsPanel campaigns={linkedCampaigns} />
         </div>
 
@@ -168,7 +165,6 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
           />
 
           <MissingFields record={record} />
-          <NextActions record={record} action={action} actionMessage={actionMessage} />
         </aside>
       </div>
     </AppShell>
@@ -289,73 +285,11 @@ function MissingFields({ record }: { record: CrmRecordData }) {
   );
 }
 
-function NextActions({
-  record,
-  action,
-  actionMessage,
-}: {
-  record: CrmRecordData;
-  action?: string;
-  actionMessage: string;
-}) {
-  return (
-    <Panel className="module-rise">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="signal-eyebrow">Human gate</div>
-          <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Locked record tools</h2>
-        </div>
-        <StatusPill tone="amber">Locked</StatusPill>
-      </div>
-      <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{actionMessage}</p>
-      <div className="mt-4 grid gap-3">
-        {actionCards.map((item) => (
-          <Link
-            aria-disabled="true"
-            className={`grid min-h-[76px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-lg border px-3 py-3 text-left transition active:-translate-y-px ${
-              action === item.key
-                ? actionCardActiveClass(item.tone)
-                : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] hover:border-[var(--border-strong)]"
-            }`}
-            href={`/crm/${record.key}/${record.id}?action=${item.key}`}
-            key={item.key}
-          >
-            <span className={`flex h-10 w-10 items-center justify-center rounded-md border text-sm font-bold ${actionIconClass(item.tone)}`}>
-              {item.icon}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold">{item.label}</span>
-              <span className="mt-0.5 block text-xs leading-5 text-[var(--text-secondary)]">{item.detail}</span>
-            </span>
-            <StatusPill tone={item.tone === "red" ? "red" : item.tone === "green" ? "green" : item.tone === "blue" ? "blue" : "gray"}>
-              {item.state}
-            </StatusPill>
-          </Link>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
 function statusTone(status: string): "amber" | "green" | "red" {
   const lower = status.toLowerCase();
   if (["active", "ready", "won", "high priority", "qualified", "converted", "completed"].includes(lower)) return "green";
   if (["out of scope", "lost", "inactive", "do not contact", "do_not_contact"].includes(lower)) return "red";
   return "amber";
-}
-
-function actionIconClass(tone: string) {
-  if (tone === "red") return "border-[oklch(0.68_0.2_26/0.4)] bg-[oklch(0.68_0.2_26/0.16)] text-[oklch(0.86_0.09_26)]";
-  if (tone === "green") return "border-[oklch(0.78_0.14_158/0.4)] bg-[oklch(0.78_0.14_158/0.14)] text-[oklch(0.88_0.1_158)]";
-  if (tone === "blue") return "border-[oklch(0.74_0.115_232/0.4)] bg-[var(--accent-soft)] text-[var(--accent)]";
-  return "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-secondary)]";
-}
-
-function actionCardActiveClass(tone: string) {
-  if (tone === "red") return "border-[oklch(0.68_0.2_26/0.5)] bg-[oklch(0.68_0.2_26/0.14)] text-[var(--text-primary)]";
-  if (tone === "green") return "border-[oklch(0.78_0.14_158/0.5)] bg-[oklch(0.78_0.14_158/0.12)] text-[var(--text-primary)]";
-  if (tone === "blue") return "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--accent-soft)] text-[var(--text-primary)]";
-  return "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]";
 }
 
 function formatDate(value: string) {

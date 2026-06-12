@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { hashToken, generateToken, verifyAgentToken } from "../tokens";
+
+import { generateToken, hashToken, verifyAgentToken } from "../tokens";
 
 describe("token primitives", () => {
   it("hashes deterministically to 64 hex chars", () => {
@@ -8,11 +9,12 @@ describe("token primitives", () => {
     expect(hashToken("abc")).not.toBe(hashToken("abd"));
   });
 
-  it("generates an sk_live_ token whose hash/prefix match the plaintext", () => {
-    const t = generateToken();
-    expect(t.plaintext.startsWith("sk_live_")).toBe(true);
-    expect(t.prefix).toBe(t.plaintext.slice(0, 12));
-    expect(t.hash).toBe(hashToken(t.plaintext));
+  it("generates an sk_live token whose hash and prefix match the plaintext", () => {
+    const token = generateToken();
+
+    expect(token.plaintext.startsWith("sk_live_")).toBe(true);
+    expect(token.prefix).toBe(token.plaintext.slice(0, 12));
+    expect(token.hash).toBe(hashToken(token.plaintext));
   });
 });
 
@@ -21,20 +23,27 @@ describe("verifyAgentToken", () => {
     const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
     return {
       from: () => ({
-        select: () => ({ eq: () => ({ is: () => ({ maybeSingle: async () => ({ data: row, error: null }) }) }) }),
+        select: () => ({
+          eq: () => ({
+            is: () => ({
+              maybeSingle: async () => ({ data: row, error: null }),
+            }),
+          }),
+        }),
         update,
       }),
-      _update: update,
     } as never;
   }
 
   it("returns the workspace for a known, non-revoked token", async () => {
-    const res = await verifyAgentToken("sk_live_known", fakeClient({ workspace_id: "default" }));
-    expect(res).toEqual({ ok: true, workspaceId: "default" });
+    const result = await verifyAgentToken("sk_live_known", fakeClient({ workspace_id: "default" }));
+
+    expect(result).toEqual({ ok: true, workspaceId: "default" });
   });
 
   it("returns not-ok for an unknown token", async () => {
-    const res = await verifyAgentToken("sk_live_nope", fakeClient(null));
-    expect(res.ok).toBe(false);
+    const result = await verifyAgentToken("sk_live_nope", fakeClient(null));
+
+    expect(result.ok).toBe(false);
   });
 });

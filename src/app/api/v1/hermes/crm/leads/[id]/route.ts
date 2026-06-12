@@ -7,7 +7,7 @@ import { getLead } from "@/lib/repos";
  *   GET /api/v1/hermes/crm/leads/:id
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const { id } = await params;

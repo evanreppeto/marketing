@@ -108,14 +108,14 @@ function StepRow({ step, active, last }: { step: MarkStep; active?: boolean; las
   );
 }
 
-function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string; onStop: () => void }) {
+function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: string; steps: MarkStep[]; body: string; onStop: () => void }) {
   const elapsed = useElapsed(true);
   const hasSteps = steps.length > 0;
   const hasBody = body.trim().length > 0;
   return (
     <div className="flex flex-col gap-2">
       {hasSteps ? (
-        <div className="flex flex-col" aria-label="What Mark is doing">
+        <div className="flex flex-col" aria-label={`What ${assistantName} is doing`}>
           {steps.map((s, i) => (
             <StepRow
               key={`${i}-${s.label}`}
@@ -130,18 +130,18 @@ function PendingBlock({ steps, body, onStop }: { steps: MarkStep[]; body: string
         // Staged reply: the worker streams partial body text into the message
         // row; render it live with a bottom-fade mask + writing caret so chunked
         // updates read as continuous streaming rather than hard jumps.
-        <div aria-label="Mark is writing" className="mark-streaming">
+        <div aria-label={`${assistantName} is writing`} className="mark-streaming">
           <MarkBody body={body} />
           <span aria-hidden className="mark-caret" />
         </div>
       ) : !hasSteps ? (
-        <div className="flex flex-col gap-2.5" aria-label="Mark is thinking">
+        <div className="flex flex-col gap-2.5" aria-label={`${assistantName} is thinking`}>
           <span className="flex items-center gap-2.5">
             <span aria-hidden className="mark-luma h-4 w-4">
               <span />
               <span />
             </span>
-            <span className="mark-shimmer text-sm font-medium">Mark is thinking…</span>
+            <span className="mark-shimmer text-sm font-medium">{assistantName} is thinking...</span>
           </span>
           <div className="flex flex-col gap-2 pt-0.5">
             <div className="mark-skel" style={{ width: "92%" }} />
@@ -201,11 +201,11 @@ function MentionChips({ mentions, align }: { mentions: MarkMessage["mentions"]; 
   );
 }
 
-function References({ mentions }: { mentions: MarkMessage["mentions"] }) {
+function References({ assistantName, mentions }: { assistantName: string; mentions: MarkMessage["mentions"] }) {
   if (mentions.length === 0) return null;
   return (
     <div className="mt-3">
-      <p className="signal-eyebrow mb-1.5">Sources Mark used</p>
+      <p className="signal-eyebrow mb-1.5">Sources {assistantName} used</p>
       <div className="flex flex-wrap gap-1.5">
         {mentions.map((m) => (
           <Link
@@ -358,7 +358,27 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: string[]; onPic
   );
 }
 
-function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion, onOpenAsset, onDecision }: { message: MarkMessage; compact: boolean; onRetry: () => void; onStop: () => void; onRegenerate: (markMessageId: string) => void; onSuggestion: (prompt: string) => void; onOpenAsset?: (assetId?: string) => void; onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void }) {
+function Message({
+  message,
+  compact,
+  assistantName,
+  onRetry,
+  onStop,
+  onRegenerate,
+  onSuggestion,
+  onOpenAsset,
+  onDecision,
+}: {
+  message: MarkMessage;
+  compact: boolean;
+  assistantName: string;
+  onRetry: () => void;
+  onStop: () => void;
+  onRegenerate: (markMessageId: string) => void;
+  onSuggestion: (prompt: string) => void;
+  onOpenAsset?: (assetId?: string) => void;
+  onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void;
+}) {
   // Operator: right-aligned bubble (ChatGPT-style), timestamp on hover.
   if (message.role === "operator") {
     return (
@@ -403,7 +423,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
       <div className="min-w-0 flex-1 pt-0.5">
         {compact && !pending ? null : (
           <div className="mb-1 flex items-baseline gap-2">
-            <span style={{ fontFamily: "var(--font-serif)" }} className="text-[13px] font-semibold text-[var(--text-primary)]">Mark</span>
+            <span style={{ fontFamily: "var(--font-serif)" }} className="text-[13px] font-semibold text-[var(--text-primary)]">{assistantName}</span>
             {!pending ? (
               <span className="text-[10px] tabular-nums text-[var(--text-muted)]" suppressHydrationWarning>
                 {formatTime(message.createdAt)}
@@ -412,7 +432,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
           </div>
         )}
         {pending ? (
-          <PendingBlock steps={message.steps} body={message.body} onStop={onStop} />
+          <PendingBlock assistantName={assistantName} steps={message.steps} body={message.body} onStop={onStop} />
         ) : failed ? (
           <div className="whitespace-pre-wrap text-sm leading-7 text-[var(--priority-bright)]">{message.body}</div>
         ) : (
@@ -446,7 +466,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
             </div>
           )
         ) : null}
-        {!pending ? <References mentions={message.mentions} /> : null}
+        {!pending ? <References assistantName={assistantName} mentions={message.mentions} /> : null}
         {galleryMedia.length > 0 ? <MessageMedia media={galleryMedia} conversationId={message.conversationId} messageId={message.id} /> : null}
         {!pending && !failed ? <SuggestionChips suggestions={message.suggestions} onPick={onSuggestion} /> : null}
         {!pending ? (
@@ -491,6 +511,7 @@ function Message({ message, compact, onRetry, onStop, onRegenerate, onSuggestion
 
 export function MessageList({
   messages,
+  assistantName = "Mark",
   onRetry,
   onStop,
   onRegenerate,
@@ -499,6 +520,7 @@ export function MessageList({
   onDecision,
 }: {
   messages: MarkMessage[];
+  assistantName?: string;
   onRetry: () => void;
   onStop: () => void;
   onRegenerate: (markMessageId: string) => void;
@@ -530,12 +552,12 @@ export function MessageList({
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4">
         <div className="max-w-[48ch] text-center">
           <h2 style={{ fontFamily: "var(--font-serif)" }} className="text-2xl font-medium tracking-[-0.01em] text-[var(--text-primary)]">
-            What should Mark work on?
+            What should {assistantName} work on?
           </h2>
           <p className="mx-auto mt-3 text-sm leading-7 text-[var(--text-secondary)]">
             Ask about a campaign, a lead, or a persona. Type{" "}
             <span className="font-mono text-[var(--accent)]">@</span> to reference a record, or{" "}
-            <span className="font-mono text-[var(--accent)]">/</span> for a command. Mark drafts and recommends; outbound stays locked.
+            <span className="font-mono text-[var(--accent)]">/</span> for a command. {assistantName} drafts and recommends; outbound stays locked.
           </p>
         </div>
       </div>
@@ -565,7 +587,17 @@ export function MessageList({
                   <DaySeparator label={day} />
                 </div>
               ) : null}
-              <Message message={m} compact={compact} onRetry={onRetry} onStop={onStop} onRegenerate={onRegenerate} onSuggestion={onSuggestion} onOpenAsset={onOpenAsset} onDecision={onDecision} />
+              <Message
+                message={m}
+                compact={compact}
+                assistantName={assistantName}
+                onRetry={onRetry}
+                onStop={onStop}
+                onRegenerate={onRegenerate}
+                onSuggestion={onSuggestion}
+                onOpenAsset={onOpenAsset}
+                onDecision={onDecision}
+              />
             </div>
           ))}
           <div ref={endRef} />

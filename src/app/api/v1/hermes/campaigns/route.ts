@@ -8,7 +8,7 @@ import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
  *   GET /api/v1/hermes/campaigns?status=pending_approval&needs_review=true&limit=20
  */
 export async function GET(request: Request) {
-  const denied = guard(request);
+  const denied = await guard(request);
   if (denied) return denied;
 
   const url = new URL(request.url);

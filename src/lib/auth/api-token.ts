@@ -7,8 +7,9 @@
  * enforced the moment a token IS configured (so configured deployments are closed).
  */
 
-import { verifyAgentToken } from "@/lib/agent/tokens";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { hasActiveAgentTokens, verifyAgentToken, type VerifyAgentTokenResult } from "@/lib/agent/tokens";
+import { recordAgentSeen } from "@/lib/agent/health";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type BearerTokenResult =
   | { ok: true }
@@ -39,36 +40,63 @@ export function checkBearerToken(
 }
 
 type AgentBearerDeps = {
-  verify: (plaintext: string) => Promise<{ ok: boolean }>;
-  /** True when an env token OR Supabase (where DB tokens live) is configured. */
-  anyConfigured: () => Promise<boolean>;
+  verify?: (plaintext: string) => Promise<VerifyAgentTokenResult>;
+  anyConfigured?: () => Promise<boolean>;
+  recordSeen?: () => Promise<void>;
 };
 
-const DEFAULT_DEPS: AgentBearerDeps = {
-  verify: (p) => verifyAgentToken(p),
-  anyConfigured: async () => Boolean(process.env.HERMES_AGENT_API_TOKEN) || isSupabaseAdminConfigured(),
-};
+function bearerValue(request: HeaderCarrier): string | null {
+  const authorization = request.headers.get("authorization");
+  if (!authorization?.startsWith("Bearer ")) return null;
+  return authorization.slice("Bearer ".length);
+}
+
+async function anyAgentTokenConfigured(): Promise<boolean> {
+  if (process.env.HERMES_AGENT_API_TOKEN) return true;
+  if (!isSupabaseAdminConfigured()) return false;
+  try {
+    return await hasActiveAgentTokens(getSupabaseAdminClient());
+  } catch {
+    return false;
+  }
+}
+
+async function verifyConfiguredAgentToken(plaintext: string): Promise<VerifyAgentTokenResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false };
+  try {
+    return await verifyAgentToken(plaintext, getSupabaseAdminClient());
+  } catch {
+    return { ok: false };
+  }
+}
 
 /**
- * Bearer auth for the agent (Hermes) API surface. Accepts the env
- * HERMES_AGENT_API_TOKEN (back-compat) OR any non-revoked app-issued DB token.
- * 503 when nothing is configured; 401 on mismatch.
+ * Agent bearer gate for /api/v1/hermes. Back-compat env token wins, then
+ * app-issued hashed DB tokens are accepted when configured.
  */
-export async function checkAgentBearer(
-  request: HeaderCarrier,
-  deps: AgentBearerDeps = DEFAULT_DEPS,
-): Promise<BearerTokenResult> {
-  const header = request.headers.get("authorization");
-  const presented = header?.startsWith("Bearer ") ? header.slice(7) : null;
-
+export async function checkAgentBearer(request: HeaderCarrier, deps: AgentBearerDeps = {}): Promise<BearerTokenResult> {
+  const token = bearerValue(request);
   const envToken = process.env.HERMES_AGENT_API_TOKEN;
-  if (envToken && presented === envToken) return { ok: true };
+  const verify = deps.verify ?? verifyConfiguredAgentToken;
+  const anyConfigured = deps.anyConfigured ?? anyAgentTokenConfigured;
+  const recordSeen = deps.recordSeen ?? recordAgentSeen;
 
-  if (presented) {
-    const r = await deps.verify(presented);
-    if (r.ok) return { ok: true };
+  if (token && envToken && token === envToken) {
+    await recordSeen().catch(() => undefined);
+    return { ok: true };
   }
 
-  if (!(await deps.anyConfigured())) return { ok: false, status: 503, reason: "not_configured" };
+  if (token) {
+    const verified = await verify(token);
+    if (verified.ok) {
+      await recordSeen().catch(() => undefined);
+      return { ok: true };
+    }
+  }
+
+  if (!(await anyConfigured())) {
+    return { ok: false, status: 503, reason: "not_configured" };
+  }
+
   return { ok: false, status: 401, reason: "unauthorized" };
 }

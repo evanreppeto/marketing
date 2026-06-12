@@ -45,7 +45,7 @@ export function BackLink({ href, label }: { href: string; label: string }) {
 }
 
 type PageHeaderProps = {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   description?: string;
   aside?: React.ReactNode;
@@ -56,21 +56,30 @@ type PageHeaderProps = {
 export function PageHeader({ eyebrow, title, description, aside, backHref, backLabel }: PageHeaderProps) {
   return (
     <header className={theme.surface.pageHeader}>
-      <div className="relative flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0 max-w-full">
+      <div aria-hidden="true" className="absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-[var(--accent-border-strong)] via-[var(--border-hairline)] to-transparent sm:inset-x-5" />
+      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 max-w-[76ch]">
           {backHref ? <BackLink href={backHref} label={backLabel ?? "back"} /> : null}
-          <p className={cx("flex items-center gap-2.5", theme.text.eyebrow)}>
-            <span aria-hidden="true" className="h-2.5 w-0.5 rounded-full bg-[var(--accent)]" />
-            {eyebrow}
-          </p>
-          <h1 className="mt-2 text-[clamp(1.65rem,3vw,2.25rem)] font-bold leading-[1.06] tracking-[-0.03em] text-[var(--text-primary)]">
+          {eyebrow ? (
+            <div className="flex items-center gap-2.5">
+              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_var(--accent-soft)]" />
+              <p className={theme.text.eyebrow}>
+                {eyebrow}
+              </p>
+            </div>
+          ) : null}
+          <h1 className={cx(eyebrow ? "mt-1.5" : "", "font-serif text-[clamp(1.75rem,2.6vw,2.45rem)] font-semibold leading-[1.02] tracking-[-0.018em] text-[var(--text-primary)]")}>
             {title}
           </h1>
           {description ? (
-            <p className={cx("mt-2 max-w-[62ch]", theme.text.body)}>{description}</p>
+            <p className={cx("mt-2 max-w-[72ch] text-[0.95rem] leading-7", theme.text.body)}>{description}</p>
           ) : null}
         </div>
-        {aside ? <div className="shrink-0">{aside}</div> : null}
+        {aside ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:justify-end">
+            {aside}
+          </div>
+        ) : null}
       </div>
     </header>
   );

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { resolveAttribution, type ResolvedAttribution } from "./attribution";
 import { classifyLossSignals } from "./loss-classification";
-import { validateLeadIngestionPersona } from "./personas";
+import { OFFICIAL_PERSONA_MAPPINGS, validateLeadIngestionPersona } from "./personas";
 import { calculateScores } from "./scoring";
 
 const stringField = z.string().trim().min(1);
@@ -97,6 +97,7 @@ export type LeadIngestionResult =
 export function parseLeadIngestionPayload(
   payload: unknown,
   calculatedAt?: Date | string,
+  allowedPersonaKeys: readonly string[] = OFFICIAL_PERSONA_MAPPINGS,
 ): LeadIngestionResult {
   const parsed = leadIngestionSchema.safeParse(payload);
 
@@ -113,7 +114,7 @@ export function parseLeadIngestionPayload(
     };
   }
 
-  const persona = validateLeadIngestionPersona(parsed.data.persona);
+  const persona = validateLeadIngestionPersona(parsed.data.persona, allowedPersonaKeys);
 
   if (!persona.ok) {
     return {

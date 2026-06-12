@@ -11,7 +11,7 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  *   GET /api/v1/hermes/health   Authorization: Bearer <HERMES_AGENT_API_TOKEN>
  */
 export async function GET(request: Request) {
-  const denied = bearerGuard(request);
+  const denied = await bearerGuard(request);
   if (denied) return denied;
 
   return NextResponse.json(

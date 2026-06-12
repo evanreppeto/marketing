@@ -34,7 +34,7 @@ describe("persistLeadIngestion attribution", () => {
       leads: { data: { id: "lead-1" }, error: null },
     });
 
-    await persistLeadIngestion({ input: result.normalizedInput, result, supabase });
+    await persistLeadIngestion({ input: result.normalizedInput, result, supabase, orgId: "org-test" });
 
     expect(insertFor(supabase, "leads")[0]).toMatchObject({
       attributed_campaign_id: "11111111-1111-1111-1111-111111111111",

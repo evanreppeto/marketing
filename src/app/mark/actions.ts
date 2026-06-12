@@ -1,19 +1,22 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 
 import { revalidatePath } from "next/cache";
 
 import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
-import { deriveThreadTitle, parseMarkMode, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
+import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
+import { resolveAgentConnection } from "@/lib/agent/connection";
+import { recordTestResult } from "@/lib/agent/health";
+import { resolveWebhookSecret } from "@/lib/agent/secret";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
-import { getAgentDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
-import { getAppSettings } from "@/lib/settings/store";
+import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
+import { getAppSettings } from "@/lib/settings/store";
 import {
   archiveConversation,
   assignConversationToCampaign,
@@ -59,6 +62,8 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   const rawBody = String(formData.get("body") ?? "");
   const mentions = parseMentions(String(formData.get("mentions") ?? "[]"));
   const mode = parseMarkMode(formData.get("mode"));
+  const route = parseMarkRoute(formData.get("route"));
+  const settings = await getAppSettings();
   // Structured slash command (e.g. "find-leads"); travels to the agent as real
   // intent alongside the message + mentions, not just text.
   const command = String(formData.get("command") ?? "").trim() || null;
@@ -103,7 +108,20 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // happened instead of hanging on "thinking".
   try {
     const agentTaskId = await enqueueMarkChatTask(
-      { conversationId, messageId, message: body, mentions: cleanMentions, operator, route: "fast", mode, command, attachments },
+      {
+        conversationId,
+        messageId,
+        message: body,
+        mentions: cleanMentions,
+        operator,
+        route,
+        mode,
+        command,
+        assistantTone: settings.assistantTone,
+        assistantResponseStyle: settings.assistantResponseStyle,
+        approvalStrictness: settings.approvalStrictness,
+        attachments,
+      },
       client,
     );
     await insertPendingMarkMessage({ conversationId, agentTaskId }, client);
@@ -119,8 +137,11 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       message: body,
       mentions: cleanMentions,
       operator,
-      route: "fast",
+      route,
       mode,
+      assistantTone: settings.assistantTone,
+      assistantResponseStyle: settings.assistantResponseStyle,
+      approvalStrictness: settings.approvalStrictness,
       command,
       attachments,
     });
@@ -144,7 +165,12 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   return { ok: true, message: "Sent.", conversationId };
 }
 
-export type MarkAgentStatus = { attached: boolean; name: string };
+export type MarkAgentStatus = {
+  attached: boolean;
+  name: string;
+  lastSeenAt: string | null;
+  lastStatus: "ok" | "error" | "unreachable" | null;
+};
 
 /**
  * Connection signal for the Mark header: is an agent actually attached to this
@@ -153,41 +179,84 @@ export type MarkAgentStatus = { attached: boolean; name: string };
  * leaving the operator guessing.
  */
 export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
-  const name = getAgentDisplayName((await getAppSettings()).agentName);
-  if (!isSupabaseAdminConfigured() || !isMarkRunnerConfigured()) {
-    return { attached: false, name };
+  const connection = await resolveAgentConnection();
+  const name = await getMarkDisplayName();
+  const base = {
+    name,
+    lastSeenAt: connection.health.lastSeenAt,
+    lastStatus: connection.health.lastStatus,
+  };
+
+  if (!isSupabaseAdminConfigured() || !(await isMarkRunnerConfigured())) {
+    return { attached: false, ...base };
   }
   try {
     const client = getSupabaseAdminClient();
     const { data } = await client
       .from("agents")
       .select("id")
-      .in("key", markAgentKeys())
+      .in("key", await markAgentKeys())
       .limit(1)
       .maybeSingle<{ id: string }>();
-    return { attached: Boolean(data), name };
+    return { attached: Boolean(data), ...base };
   } catch {
-    return { attached: false, name };
+    return { attached: false, ...base };
   }
 }
 
-export type AgentConnectionInfo = {
-  attached: boolean;
-  name: string;
-  runnerConfigured: boolean;
-  tokenConfigured: boolean;
+export type AgentTestResult = {
+  ok: boolean;
+  status: "ok" | "error" | "unreachable";
+  roundTripMs: number;
+  message: string;
 };
 
-/** Full connection snapshot for the Agent settings drawer: live attach state +
- *  which env credentials are present. No secrets returned, only booleans. */
-export async function getAgentConnectionInfoAction(): Promise<AgentConnectionInfo> {
-  const status = await getMarkAgentStatusAction();
-  return {
-    attached: status.attached,
-    name: status.name,
-    runnerConfigured: isMarkRunnerConfigured(),
-    tokenConfigured: Boolean(process.env.HERMES_AGENT_API_TOKEN?.trim()),
-  };
+export async function testAgentConnectionAction(): Promise<AgentTestResult> {
+  await requireOperator();
+  const connection = await resolveAgentConnection();
+
+  if (!connection.webhookUrl) {
+    await recordTestResult({ status: "unreachable", error: "No webhook URL configured." });
+    return { ok: false, status: "unreachable", roundTripMs: 0, message: "Set a webhook URL first." };
+  }
+
+  const body = JSON.stringify({
+    type: "ping",
+    workspaceId: connection.workspaceId,
+    nonce: randomUUID(),
+    at: new Date().toISOString(),
+  });
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const secret = await resolveWebhookSecret(connection.webhookSecretRef);
+  if (secret) headers["x-webhook-signature"] = createHmac("sha256", secret).update(body).digest("hex");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  const started = Date.now();
+
+  try {
+    const response = await fetch(connection.webhookUrl, { method: "POST", headers, body, signal: controller.signal });
+    const roundTripMs = Date.now() - started;
+    const status = response.ok ? "ok" : "error";
+    await recordTestResult({ status, error: response.ok ? null : `HTTP ${response.status}` });
+    return {
+      ok: response.ok,
+      status,
+      roundTripMs,
+      message: response.ok ? "Agent responded." : `Agent returned HTTP ${response.status}.`,
+    };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Could not reach the agent webhook.";
+    await recordTestResult({ status: "unreachable", error: reason });
+    return {
+      ok: false,
+      status: "unreachable",
+      roundTripMs: Date.now() - started,
+      message: "Could not reach the agent webhook.",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export type UploadTicket =
@@ -393,6 +462,7 @@ export async function regenerateMarkReplyAction(
   if (!lastOperator) return;
 
   const operator = getOperatorActor();
+  const settings = await getAppSettings();
   try {
     const agentTaskId = await enqueueMarkChatTask(
       {
@@ -403,6 +473,9 @@ export async function regenerateMarkReplyAction(
         operator,
         route: "fast",
         mode: "ask",
+        assistantTone: settings.assistantTone,
+        assistantResponseStyle: settings.assistantResponseStyle,
+        approvalStrictness: settings.approvalStrictness,
       },
       client,
     );
@@ -416,6 +489,9 @@ export async function regenerateMarkReplyAction(
       operator,
       route: "fast",
       mode: "ask",
+      assistantTone: settings.assistantTone,
+      assistantResponseStyle: settings.assistantResponseStyle,
+      approvalStrictness: settings.approvalStrictness,
     });
     if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
   } catch {

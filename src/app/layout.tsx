@@ -36,13 +36,13 @@ const mono = JetBrains_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { workspaceName } = await getAppSettings();
+  const { workspaceName, productLabel, brandFaviconUrl } = await getAppSettings();
   return {
-    title: `${workspaceName} | Signal`,
-    description: "AI-native CRM, persona intelligence, routing, and campaign operations for Big Shoulders Restoration.",
+    title: `${workspaceName} | ${productLabel}`,
+    description: "AI-native CRM, persona intelligence, routing, and campaign operations.",
     icons: {
-      icon: "/icon.svg",
-      apple: "/brand/signal-mark-original.png",
+      icon: brandFaviconUrl,
+      apple: brandFaviconUrl,
     },
   };
 }
@@ -52,16 +52,25 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { agentName } = await getAppSettings();
+  const settings = await getAppSettings();
 
   return (
     <html
       lang="en"
       className={`h-full antialiased ${display.variable} ${serif.variable} ${body.variable} ${mono.variable}`}
+      data-accent={settings.appearanceAccent}
+      data-density={settings.appearanceDensity}
+      data-motion={settings.appearanceMotion}
     >
       <body className="min-h-full flex flex-col">
         <ConsoleFrame
-          agentName={getAgentDisplayName(agentName)}
+          agentName={getAgentDisplayName(settings.assistantName)}
+          brand={{
+            workspaceName: settings.workspaceName,
+            productLabel: settings.productLabel,
+            shortName: settings.brandShortName,
+            logoUrl: settings.brandLogoUrl,
+          }}
         >
           {children}
         </ConsoleFrame>

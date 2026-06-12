@@ -9,18 +9,42 @@ import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded, readPinnedPreference, writePinnedPreference } from "./sidebar-state";
 import { cx, theme } from "./theme";
 
+type ConsoleBrand = {
+  workspaceName: string;
+  productLabel: string;
+  shortName: string;
+  logoUrl: string;
+};
+
+function BrandMark({ brand }: { brand: ConsoleBrand }) {
+  return (
+    <span
+      className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-sm font-semibold text-[var(--accent)]"
+      aria-hidden
+    >
+      {brand.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or data URL.
+        <img alt="" className="h-full w-full object-contain p-1" src={brand.logoUrl} />
+      ) : (
+        brand.shortName
+      )}
+    </span>
+  );
+}
+
 /**
  * Persistent application chrome, rendered ONCE in the root layout so the sidebar
  * and SideNav pending state survive navigations. The rail is a compact icon strip
  * by default (lg+) and expands on hover, keyboard focus, or when pinned.
- * `agentName` comes from the server layout so the connected agent's identity
- * threads through nav. Auth pages render bare.
+ * Brand and agent identity come from the server layout. Auth pages render bare.
  */
 export function ConsoleFrame({
   agentName,
+  brand,
   children,
 }: {
   agentName: string;
+  brand: ConsoleBrand;
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "/";
@@ -47,6 +71,7 @@ export function ConsoleFrame({
     { label: agentName, href: "/mark", icon: "mark", matches: ["/mark", "/"] },
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
+    { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
   ];
 
   if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
@@ -78,27 +103,19 @@ export function ConsoleFrame({
             <Link
               href="/mark"
               className="group mb-2 flex items-center px-1.5 leading-none transition hover:opacity-90"
-              aria-label="Big Shoulders Marketing — go to home"
-              title="Big Shoulders Marketing"
+              aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
+              title={`${brand.workspaceName} ${brand.productLabel}`}
             >
-              <span
-                aria-hidden
-                className={cx(
-                  "hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-sm font-semibold text-[var(--accent)]",
-                  collapsed && "lg:flex",
-                )}
-              >
-                BS
-              </span>
+              <BrandMark brand={brand} />
               <span className={cx("flex flex-col", collapsed && "lg:hidden")}>
                 <span
                   className="text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
                   style={{ fontFamily: "var(--font-serif)" }}
                 >
-                  Big Shoulders
+                  {brand.workspaceName}
                 </span>
                 <span className="mt-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
-                  Marketing
+                  {brand.productLabel}
                 </span>
               </span>
             </Link>

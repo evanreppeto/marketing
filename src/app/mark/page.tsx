@@ -5,6 +5,7 @@ import { getOperatorActor } from "@/lib/auth/operator";
 import { getMentionables } from "@/lib/mark-chat/mention-search";
 import { listConversations, listMessages, getConversation, listProjects, listArchivedConversations } from "@/lib/mark-chat/persistence";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
+import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { MarkChat } from "./_components/mark-chat";
@@ -38,6 +39,7 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
   const params = await searchParams;
   const operator = getOperatorActor();
   const mentionGroups = await getMentionables();
+  const settings = await getAppSettings();
 
   // Glanceable badge for the work launcher; never fatal if approvals are unavailable.
   let pendingApprovals = 0;
@@ -95,6 +97,9 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
       mentionGroups={mentionGroups}
       operatorName={displayName(operator)}
       pendingApprovals={pendingApprovals}
+      defaultMode={settings.markDefaultMode}
+      defaultRoute={settings.markDefaultRoute}
+      assistantName={settings.assistantName}
     />
   );
 }

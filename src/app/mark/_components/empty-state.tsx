@@ -42,7 +42,7 @@ const ICON = {
 /** Centered greeting for a fresh thread. Rendered as a sibling of the composer
  *  (not a wrapper around it) so the composer keeps its tree position when the
  *  first message lands — see the slot layout in MarkChat. */
-export function ChatEmptyHero({ operatorName }: { operatorName: string | null }) {
+export function ChatEmptyHero({ assistantName, operatorName }: { assistantName: string; operatorName: string | null }) {
   // Stable per-mount hour; suppressHydrationWarning guards the tiny window where
   // server and client render across an hour boundary.
   const [hour] = useState(() => new Date().getHours());
@@ -54,24 +54,26 @@ export function ChatEmptyHero({ operatorName }: { operatorName: string | null })
         {operatorName ? `, ${operatorName}` : ""}.
       </p>
       <h2 className="font-display text-[clamp(1.5rem,3vw,1.9rem)] font-bold leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)]">
-        What should Mark work on?
+        What should {assistantName} work on?
       </h2>
       <p className="max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">
-        Ask about a campaign, lead, or persona. Mark drafts and recommends — outbound stays locked until you approve.
+        Ask about a campaign, lead, or persona. {assistantName} drafts and recommends - outbound stays locked until you approve.
       </p>
     </div>
   );
 }
 
 export function ChatEmptyShortcuts({
+  assistantName,
   onPick,
   pendingApprovals,
 }: {
+  assistantName: string;
   onPick: (prompt: string) => void;
   pendingApprovals: number;
 }) {
   const shortcuts: Shortcut[] = [
-    { label: "Draft a campaign", hint: "Mark drafts; you approve", prompt: "Draft a campaign for @", icon: ICON.draft },
+    { label: "Draft a campaign", hint: `${assistantName} drafts; you approve`, prompt: "Draft a campaign for @", icon: ICON.draft },
     { label: "Find new leads", hint: "Search and propose prospects", prompt: "Find new leads for @", icon: ICON.leads },
     {
       label: "Review pending",

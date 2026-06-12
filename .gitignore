@@ -61,3 +61,5 @@ next-env.d.ts
 .worktrees/
 dev-server-*.log
 dev-server-*.err.log
+
+.claude/worktrees/

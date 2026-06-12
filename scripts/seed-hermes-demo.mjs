@@ -89,11 +89,20 @@ async function seedHermesDemo() {
   const sourceSystem = "hermes_demo_seed";
   const persona = "persona_plumbing_partner";
 
+  const { data: org, error: orgError } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("slug", "big-shoulders-restoration")
+    .single();
+  if (orgError || !org) throw new Error("Seed requires the big-shoulders-restoration organization (run the tenancy migration first).");
+  const orgId = org.id;
+
   const agentId = await upsertAgent(supabase);
 
   const companyId = await insertOne(supabase, "companies", {
     name: `Demo Plumbing Partner ${runId}`,
     persona,
+    org_id: orgId,
     status: "active",
     website_url: "https://example-plumbing.local",
     phone: "312-555-0142",
@@ -110,6 +119,7 @@ async function seedHermesDemo() {
   const contactId = await insertOne(supabase, "contacts", {
     company_id: companyId,
     persona,
+    org_id: orgId,
     status: "active",
     first_name: "Jordan",
     last_name: "Demo",
@@ -128,6 +138,7 @@ async function seedHermesDemo() {
     company_id: companyId,
     contact_id: contactId,
     persona,
+    org_id: orgId,
     status: "needs_review",
     routing_recommendation: "target",
     source: "hermes_demo",

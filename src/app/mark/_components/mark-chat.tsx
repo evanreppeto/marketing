@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { MarkConversation, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
+import type { MarkMode, MarkRoute } from "@/domain";
 
 import { cx } from "@/app/_components/theme";
 
@@ -120,6 +121,9 @@ export function MarkChat({
   mentionGroups,
   operatorName,
   pendingApprovals,
+  defaultMode = "act",
+  defaultRoute = "fast",
+  assistantName = "Mark",
   demo = false,
 }: {
   conversations: MarkConversation[];
@@ -136,6 +140,9 @@ export function MarkChat({
   mentionGroups: MentionGroup[];
   operatorName: string | null;
   pendingApprovals: number;
+  defaultMode?: MarkMode;
+  defaultRoute?: MarkRoute;
+  assistantName?: string;
   /** Preview mode: render the full UI with sample data, no backend writes. */
   demo?: boolean;
 }) {
@@ -363,6 +370,7 @@ export function MarkChat({
           archived={archived}
           showArchived={showArchived}
           activeId={activeId}
+          assistantName={assistantName}
         />
         <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
           {/* Ambient silk backdrop — the 21st.dev MeshGradient shader, obsidian+gold. */}
@@ -457,6 +465,7 @@ export function MarkChat({
             {hasMessages ? (
               <MessageList
                 messages={displayMessages}
+                assistantName={assistantName}
                 onRetry={handleRetry}
                 onStop={handleStop}
                 onRegenerate={handleRegenerate}
@@ -465,7 +474,7 @@ export function MarkChat({
                 onDecision={demo ? demoDecide : undefined}
               />
             ) : (
-              <ChatEmptyHero operatorName={operatorName} />
+              <ChatEmptyHero assistantName={assistantName} operatorName={operatorName} />
             )}
             <div
               className={hasMessages ? "w-full" : "msg-rise w-full max-w-2xl"}
@@ -489,6 +498,9 @@ export function MarkChat({
                 onStopReply={handleStop}
                 projects={projects}
                 activeProjectId={activeProjectId}
+                defaultMode={defaultMode}
+                defaultRoute={defaultRoute}
+                assistantName={assistantName}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {
                   try {
@@ -504,11 +516,20 @@ export function MarkChat({
                 }}
               />
             </div>
-            {!hasMessages ? <ChatEmptyShortcuts onPick={pickSuggestion} pendingApprovals={pendingApprovals} /> : null}
+            {!hasMessages ? <ChatEmptyShortcuts assistantName={assistantName} onPick={pickSuggestion} pendingApprovals={pendingApprovals} /> : null}
           </div>
         </section>
 
-        {activeId ? <WorkCanvas messages={displayMessages} open={canvasOpen} focus={studioFocus} campaign={activeCampaign} onDecision={demo ? demoDecide : undefined} /> : null}
+        {activeId ? (
+          <WorkCanvas
+            messages={displayMessages}
+            open={canvasOpen}
+            focus={studioFocus}
+            campaign={activeCampaign}
+            assistantName={assistantName}
+            onDecision={demo ? demoDecide : undefined}
+          />
+        ) : null}
       </div>
 
       {/* Below xl the canvas isn't docked — open it as a right-side slide-over so the
@@ -531,7 +552,14 @@ export function MarkChat({
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden">
-              <WorkCanvas messages={displayMessages} variant="drawer" focus={studioFocus} campaign={activeCampaign} onDecision={demo ? demoDecide : undefined} />
+              <WorkCanvas
+                messages={displayMessages}
+                variant="drawer"
+                focus={studioFocus}
+                campaign={activeCampaign}
+                assistantName={assistantName}
+                onDecision={demo ? demoDecide : undefined}
+              />
             </div>
           </div>
         </div>
@@ -554,6 +582,7 @@ export function MarkChat({
               showArchived={showArchived}
               activeId={activeId}
               variant="overlay"
+              assistantName={assistantName}
             />
           </div>
         </div>

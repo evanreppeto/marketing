@@ -38,7 +38,6 @@ export default async function BoardPage() {
 function Header() {
   return (
     <PageHeader
-      eyebrow="Mark"
       title="Task Board"
       description="A simple shared queue: what Mark is doing, what humans need to review, and what is done."
       aside={<StatusPill tone="amber">Approval gated</StatusPill>}

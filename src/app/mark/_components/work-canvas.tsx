@@ -245,7 +245,7 @@ function Building({ steps }: { steps: MarkStep[] }) {
 }
 
 /** Fallback when there's no live artifact: what the thread touches. */
-function Context({ messages }: { messages: MarkMessage[] }) {
+function Context({ assistantName, messages }: { assistantName: string; messages: MarkMessage[] }) {
   const seen = new Set<string>();
   const byType = new Map<string, MarkMention[]>();
   for (const m of messages) {
@@ -276,7 +276,7 @@ function Context({ messages }: { messages: MarkMessage[] }) {
         ))
       ) : (
         <p className="text-xs leading-5 text-[var(--text-muted)]">
-          When Mark drafts a campaign or asset, it builds here — review and approve it without leaving the chat.
+          When {assistantName} drafts a campaign or asset, it builds here - review and approve it without leaving the chat.
         </p>
       )}
     </div>
@@ -342,6 +342,7 @@ export function WorkCanvas({
   open = true,
   focus,
   campaign,
+  assistantName = "Mark",
   onDecision,
 }: {
   messages: MarkMessage[];
@@ -353,6 +354,7 @@ export function WorkCanvas({
   focus?: { assetId: string; seq: number } | null;
   /** The campaign this thread is producing (shown as the Assets-tab cover). */
   campaign?: { id: string; name: string };
+  assistantName?: string;
   /** Preview-mode optimistic review (real mode uses the server forms). */
   onDecision?: (assetId: string, decision: AssetDecision) => void;
 }) {
@@ -409,7 +411,11 @@ export function WorkCanvas({
   } else if (tab === "audience") {
     content = <AudiencePanel messages={messages} assets={assets} />;
   } else {
-    content = latestDraft ? <AssetDetail asset={latestDraft} onDecision={onDecision} /> : <Context messages={messages} />;
+    content = latestDraft ? (
+      <AssetDetail asset={latestDraft} onDecision={onDecision} />
+    ) : (
+      <Context assistantName={assistantName} messages={messages} />
+    );
   }
 
   const body = (
