@@ -24,12 +24,15 @@ function messageRow(over: Record<string, unknown> = {}) {
 }
 
 describe("listProjectAssetMessages", () => {
-  it("returns [] when the project has no other active conversations", async () => {
+  it("returns [] and never queries messages when the project has no other active conversations", async () => {
     const supabase = createSupabaseQueryMock({
       mark_conversations: { data: [{ id: "cur" }], error: null },
     });
     const out = await listProjectAssetMessages("p1", "Evan", { excludeConversationId: "cur" }, supabase);
     expect(out).toEqual([]);
+    // short-circuited before touching mark_messages
+    expect(calls(supabase, "from")).toEqual([["mark_conversations"]]);
+    expect(calls(supabase, "in")).toEqual([]);
   });
 
   it("loads asset-bearing mark messages from sibling conversations", async () => {
@@ -44,15 +47,17 @@ describe("listProjectAssetMessages", () => {
       },
     });
     const out = await listProjectAssetMessages("p1", "Evan", { excludeConversationId: "cur" }, supabase);
+    expect(out).toHaveLength(1);
     expect(out.map((m) => m.id)).toEqual(["m1"]);
-    expect(calls(supabase, "eq")).toEqual(
-      expect.arrayContaining([
-        ["operator", "Evan"],
-        ["project_id", "p1"],
-        ["status", "active"],
-        ["role", "mark"],
-      ]),
-    );
+    expect(out.every((m) => m.actions.length > 0)).toBe(true);
+    // both queries ran, in deterministic order: conversations (operator, project_id, status) then messages (role)
+    expect(calls(supabase, "from")).toEqual([["mark_conversations"], ["mark_messages"]]);
+    expect(calls(supabase, "eq")).toEqual([
+      ["operator", "Evan"],
+      ["project_id", "p1"],
+      ["status", "active"],
+      ["role", "mark"],
+    ]);
     // the active conversation is dropped from the IN list
     expect(calls(supabase, "in")[0]).toEqual(["conversation_id", ["c2"]]);
     expect(calls(supabase, "limit")[0]).toEqual([100]);
