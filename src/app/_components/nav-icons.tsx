@@ -1,4 +1,14 @@
-export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "mark" | "settings" | "board" | "analytics" | "brain";
+export type NavIconName =
+  | "campaigns"
+  | "crm"
+  | "outbox"
+  | "gallery"
+  | "mark"
+  | "settings"
+  | "board"
+  | "analytics"
+  | "brain"
+  | "activity";
 
 const paths: Record<NavIconName, React.ReactNode> = {
   // Three columns — kanban task board
@@ -7,6 +17,14 @@ const paths: Record<NavIconName, React.ReactNode> = {
       <rect height="14" rx="1" width="4.2" x="4" y="5" />
       <rect height="9" rx="1" width="4.2" x="9.9" y="5" />
       <rect height="11" rx="1" width="4.2" x="15.8" y="5" />
+    </>
+  ),
+  // Activity pulse over timeline - workspace log
+  activity: (
+    <>
+      <path d="M5 6.5h5" />
+      <path d="M5 12h3.2l1.7-3.4 3.1 7 1.8-3.6H19" />
+      <path d="M5 17.5h8" />
     </>
   ),
   // Megaphone — campaign broadcast
