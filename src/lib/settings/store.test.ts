@@ -107,9 +107,9 @@ describe("settings store helpers", () => {
     expect(settings.assistantTone).toBe("direct");
     expect(settings.assistantResponseStyle).toBe("balanced");
     expect(settings.approvalStrictness).toBe("standard");
-    expect(settings.brandShortName).toBe("BS");
+    expect(settings.brandShortName).toBe("AR");
     expect(settings.brandLogoUrl).toBe("");
-    expect(settings.brandFaviconUrl).toBe("/icon.svg");
+    expect(settings.brandFaviconUrl).toBe("/icon.png");
   });
 
   it("uses the saved support email before env fallbacks", () => {

@@ -137,7 +137,7 @@ export async function sendTestEmailAction(
     payload = buildResendEmailPayload({
       from,
       to,
-      subject: "Resend connection test — Big Shoulders Growth Engine",
+      subject: "Resend connection test — Arc",
       html: "<p>This is a test send from the Connections panel. If you received it, Resend is wired correctly.</p>",
     });
   } catch (error) {
