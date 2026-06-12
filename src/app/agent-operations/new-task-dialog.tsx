@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
 import { priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import { formatScheduleLabel, resolveScheduledFor, type SchedulePreset } from "@/domain";
 
 import { createTaskAction } from "./actions";
+import { badgeStyle, priorityAppearance, statusAppearance } from "./task-visuals";
 import { buttonClasses } from "../_components/page-header";
 
 const PRIORITY_OPTIONS = [
@@ -88,6 +89,8 @@ export function NewTaskDialog() {
 
   const statusOption = STATUS_OPTIONS.find((option) => option.value === status)!;
   const priorityOption = PRIORITY_OPTIONS.find((option) => option.value === priority)!;
+  const statusVisual = statusAppearance(statusOption.value);
+  const priorityVisual = priorityAppearance(priorityOption.value);
   const scheduledForValue =
     whenPreset === "now" ? "" : resolveScheduledFor(whenPreset, new Date(), customIso || null) ?? "";
   const whenLabel =
@@ -157,14 +160,14 @@ export function NewTaskDialog() {
               </label>
 
               <div className="relative mt-3 flex flex-wrap items-center gap-2">
-                <PillButton active={menu === "status"} onClick={() => setMenu(menu === "status" ? null : "status")}>
+                <PillButton active={menu === "status"} onClick={() => setMenu(menu === "status" ? null : "status")} style={badgeStyle(statusVisual)}>
                   <IconSlot>{statusIcon(statusOption.value)}</IconSlot>
-                  {statusOption.label}
+                  {statusVisual.label}
                   <Chevron />
                 </PillButton>
-                <PillButton active={menu === "priority"} onClick={() => setMenu(menu === "priority" ? null : "priority")}>
+                <PillButton active={menu === "priority"} onClick={() => setMenu(menu === "priority" ? null : "priority")} style={badgeStyle(priorityVisual)}>
                   <IconSlot>{priorityIcon(priorityOption.value)}</IconSlot>
-                  {priorityOption.label}
+                  {priorityVisual.label}
                   <Chevron />
                 </PillButton>
                 <PillButton active={menu === "when"} onClick={() => setMenu(menu === "when" ? null : "when")}>
@@ -181,13 +184,14 @@ export function NewTaskDialog() {
                       <MenuItem
                         key={option.value}
                         selected={option.value === status}
+                        style={option.value === status ? badgeStyle(statusAppearance(option.value)) : undefined}
                         onClick={() => {
                           setStatus(option.value);
                           setMenu(null);
                         }}
                       >
                         <IconSlot>{statusIcon(option.value)}</IconSlot>
-                        {option.label}
+                        {statusAppearance(option.value).label}
                       </MenuItem>
                     ))}
                   </Menu>
@@ -199,6 +203,7 @@ export function NewTaskDialog() {
                       <MenuItem
                         key={option.value}
                         selected={option.value === priority}
+                        style={option.value === priority ? badgeStyle(priorityAppearance(option.value)) : undefined}
                         onClick={() => {
                           setPriority(option.value);
                           setMenu(null);
@@ -266,11 +271,22 @@ export function NewTaskDialog() {
   );
 }
 
-function PillButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function PillButton({
+  active,
+  onClick,
+  children,
+  style,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      style={style}
       className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold ${
         active
           ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
@@ -294,11 +310,22 @@ function Menu({ children }: { children: ReactNode }) {
   );
 }
 
-function MenuItem({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: ReactNode }) {
+function MenuItem({
+  selected,
+  onClick,
+  children,
+  style,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      style={style}
       className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm font-medium ${
         selected ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]"
       }`}

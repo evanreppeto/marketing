@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 import { EntityAvatar } from "../_components/entity-avatar";
@@ -10,14 +10,15 @@ import { priorityIcon, statusIcon } from "../_components/ticket-icons";
 import { formatScheduleLabel } from "@/domain";
 
 import { moveTaskAction } from "./actions";
+import { badgeStyle, laneStyle, priorityAppearance, statusAppearance, type TaskVisualAppearance } from "./task-visuals";
 import { type AgentOperationsTask } from "@/lib/agent-operations/read-model";
 
-const COLUMNS: Array<{ key: string; label: string }> = [
-  { key: "queued", label: "Queued" },
-  { key: "running", label: "Running" },
-  { key: "blocked", label: "Blocked" },
-  { key: "needs_approval", label: "Needs approval" },
-  { key: "completed", label: "Completed" },
+const COLUMNS: Array<{ key: string; label: string; description: string }> = [
+  { key: "queued", label: "Waiting", description: "Ready for Mark" },
+  { key: "running", label: "Working", description: "Mark is active" },
+  { key: "blocked", label: "Blocked", description: "Needs a fix" },
+  { key: "needs_approval", label: "Review", description: "Human decision" },
+  { key: "completed", label: "Done", description: "Finished work" },
 ];
 
 const CLOSED_STATUSES = new Set(["failed", "canceled"]);
@@ -144,8 +145,27 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
     <section className={`overflow-hidden ${dragging ? "select-none" : ""}`}>
       <style>{KANBAN_CSS}</style>
 
-      <div className="flex items-center justify-end border-b border-[var(--border-hairline)] px-4 py-2">
-        <span className="text-[11px] font-medium text-[var(--text-muted)]">{open.length} open / approval gated</span>
+      <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Color key</span>
+          {COLUMNS.map((column) => {
+            const appearance = statusAppearance(column.key);
+            return (
+              <span
+                className="inline-flex min-h-7 items-center gap-1.5 rounded-md border px-2 text-[11px] font-semibold"
+                key={column.key}
+                style={badgeStyle(appearance)}
+                title={column.description}
+              >
+                <CardIconSlot>{statusIcon(column.key)}</CardIconSlot>
+                {column.label}
+              </span>
+            );
+          })}
+        </div>
+        <span className="text-[11px] font-medium text-[var(--text-muted)]">
+          {open.length} visible tasks. Higher priority stays at the top.
+        </span>
       </div>
 
       {error ? (
@@ -159,6 +179,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
           {COLUMNS.map((col) => {
             const cards = open.filter((task) => task.status === col.key).sort(compareTaskPriority);
             const isValidTarget = dragging && drag?.overStatus === col.key && drag?.fromStatus !== col.key;
+            const appearance = statusAppearance(col.key);
             return (
               <div
                 className={`kanban-col flex min-h-[140px] flex-col rounded-xl border border-[var(--border-hairline)] ${
@@ -166,17 +187,17 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
                 }`}
                 data-drop-status={col.key}
                 key={col.key}
+                style={laneStyle(appearance)}
               >
-                <div className="sticky top-0 z-[1] flex items-center justify-between rounded-t-xl border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-                  <span
-                    className={`inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider ${
-                      col.key === "needs_approval" ? "text-[var(--accent-strong)]" : "text-[var(--text-secondary)]"
-                    }`}
-                  >
-                    <CardIconSlot>{statusIcon(col.key)}</CardIconSlot>
-                    {col.label}
-                  </span>
-                  <span className="rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-bold text-[var(--text-muted)]">
+                <div className="kanban-col-header sticky top-0 z-[1] flex items-center justify-between rounded-t-xl border-b px-3 py-2">
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--lane-text)]">
+                      <CardIconSlot>{statusIcon(col.key)}</CardIconSlot>
+                      {col.label}
+                    </span>
+                    <p className="mt-0.5 truncate text-[10.5px] font-medium text-[var(--text-muted)]">{col.description}</p>
+                  </div>
+                  <span className="rounded-full border border-[var(--lane-border)] bg-[var(--surface-panel)] px-2 text-[10px] font-bold text-[var(--lane-text)]">
                     {cards.length} {cards.length === 1 ? "card" : "cards"}
                   </span>
                 </div>
@@ -196,7 +217,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
                   ))}
 
                   {cards.length === 0 && !isValidTarget ? (
-                    <div className="rounded-lg border border-dashed border-[var(--border-hairline)] px-2 py-5 text-center text-[10.5px] font-medium text-[var(--text-muted)]">
+                    <div className="rounded-lg border border-dashed border-[var(--lane-border)] bg-[var(--lane-soft)] px-2 py-5 text-center text-[10.5px] font-medium text-[var(--text-muted)]">
                       Nothing {col.label.toLowerCase()}
                     </div>
                   ) : null}
@@ -208,7 +229,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
 
         {closedCount > 0 ? (
           <div className="mt-2 px-1 text-[11px] font-medium text-[var(--text-muted)]">
-            Closed failed / canceled: {closedCount}
+            Hidden failed or canceled tasks: {closedCount}
           </div>
         ) : null}
       </div>
@@ -242,6 +263,9 @@ function Card({
   const accent = priorityAccent(task.priority);
   const needsApproval = Boolean(task.approvalHref) || /approval/i.test(`${task.status} ${task.approval}`);
   const working = task.status === "running";
+  const visibleStatus = needsApproval ? "needs_approval" : task.status;
+  const status = statusAppearance(visibleStatus);
+  const priority = priorityAccent(task.priority);
   const pct =
     task.progress && task.progress.total > 0
       ? Math.min(100, Math.round((task.progress.done / task.progress.total) * 100))
@@ -255,6 +279,7 @@ function Card({
   const driverLabel = task.driver?.label ?? task.agentName;
   const driverIsMark = task.driver?.kind === "agent";
   const nextAction = nextActionLabel(task.status, needsApproval, working, scheduledLabel, driverLabel);
+  const statusLabel = status.label;
 
   return (
     <article
@@ -262,7 +287,7 @@ function Card({
         ghost ? "kanban-card--ghost" : ""
       } ${overlay ? "kanban-card--overlay" : ""}`}
       onPointerDown={onPointerDown}
-      style={{ boxShadow: `inset 2px 0 0 ${accent.bar}` }}
+      style={cardStyle(status, accent)}
     >
       <div className="flex items-start gap-2.5">
         <EntityAvatar
@@ -274,14 +299,18 @@ function Card({
           <p className="line-clamp-3 text-[13px] font-semibold leading-snug text-[var(--text-primary)]">
             {task.objective}
           </p>
-          <p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">{ownerLabel} / {driverLabel}</p>
+          <p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">
+            Owner: {ownerLabel} / Doing: {driverLabel}
+          </p>
         </div>
       </div>
 
       <div className="mt-3 border-t border-[var(--border-hairline)] pt-2">
         <div className="flex items-center gap-2 text-[12px] font-semibold text-[var(--text-primary)]">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Next</span>
-          <CardIconSlot>{statusIcon(needsApproval ? "needs_approval" : task.status)}</CardIconSlot>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-[10.5px] font-bold" style={badgeStyle(status)}>
+            <CardIconSlot>{statusIcon(visibleStatus)}</CardIconSlot>
+            {statusLabel}
+          </span>
           <span className="min-w-0 truncate">{nextAction}</span>
         </div>
       </div>
@@ -302,14 +331,14 @@ function Card({
       <div className="mt-3 flex items-center justify-between gap-2 text-[10.5px] text-[var(--text-muted)]">
         <span className="min-w-0 truncate">{scheduledLabel ? `Scheduled / ${scheduledLabel}` : formatDue(task.dueAt)}</span>
         {working ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 font-bold text-[var(--accent-strong)]">
+          <span className="inline-flex shrink-0 items-center gap-1.5 font-bold text-[var(--lane-text)]">
             <span className="kanban-presence" />
             Live
           </span>
         ) : (
-          <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 font-semibold" style={badgeStyle(priority)}>
             <CardIconSlot>{priorityIcon(task.priority)}</CardIconSlot>
-            {task.priority}
+            {titleize(task.priority)}
           </span>
         )}
       </div>
@@ -321,11 +350,18 @@ function CardIconSlot({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center [&>svg]:h-3.5 [&>svg]:w-3.5">{children}</span>;
 }
 
-function priorityAccent(priority: string): { bar: string; text: string } {
-  if (/urgent/i.test(priority)) return { bar: "var(--priority)", text: "var(--priority-text)" };
-  if (/high/i.test(priority)) return { bar: "var(--warn)", text: "var(--warn-text)" };
-  if (/medium/i.test(priority)) return { bar: "var(--accent)", text: "var(--accent-strong)" };
-  return { bar: "var(--ok)", text: "var(--ok-text)" };
+function priorityAccent(priority: string): TaskVisualAppearance {
+  return priorityAppearance(priority);
+}
+
+function cardStyle(status: TaskVisualAppearance, priority: TaskVisualAppearance): CSSProperties {
+  return {
+    "--lane-accent": status.accent,
+    "--lane-soft": status.soft,
+    "--lane-border": status.border,
+    "--lane-text": status.text,
+    boxShadow: `inset 2px 0 0 ${priority.accent}, inset 0 1px 0 ${status.border}`,
+  } as CSSProperties;
 }
 
 function compareTaskPriority(left: AgentOperationsTask, right: AgentOperationsTask) {
@@ -377,12 +413,12 @@ function nextActionLabel(
   scheduledLabel: string | null,
   driverLabel: string,
 ) {
-  if (needsApproval) return "Human review";
-  if (working) return `${driverLabel} working`;
+  if (needsApproval) return "Needs human review";
+  if (working) return `${driverLabel} is working`;
   if (status === "queued" && scheduledLabel) return "Scheduled";
   if (status === "queued") return `Waiting for ${driverLabel}`;
-  if (status === "blocked") return "Needs unblock";
-  if (status === "completed") return "Done";
+  if (status === "blocked") return "Needs a human fix";
+  if (status === "completed") return "Finished";
   return titleize(status);
 }
 
@@ -395,11 +431,25 @@ function titleize(value: string) {
 }
 
 const KANBAN_CSS = `
-.kanban-col { background: var(--canvas); transition: box-shadow 160ms cubic-bezier(0.16,1,0.3,1); }
-.kanban-col--over { box-shadow: 0 0 0 1.5px var(--accent-border), 0 0 0 4px var(--accent-soft); }
+.kanban-col {
+  background: linear-gradient(180deg, var(--lane-soft), transparent 88px), var(--canvas);
+  border-color: color-mix(in oklab, var(--lane-border) 70%, var(--border-hairline));
+  box-shadow: inset 0 2px 0 var(--lane-accent);
+  transition: box-shadow 160ms cubic-bezier(0.16,1,0.3,1), border-color 160ms cubic-bezier(0.16,1,0.3,1);
+}
+.kanban-col-header {
+  background: color-mix(in oklab, var(--lane-soft) 62%, var(--surface-inset));
+  border-color: color-mix(in oklab, var(--lane-border) 70%, var(--border-hairline));
+}
+.kanban-col--over { box-shadow: inset 0 2px 0 var(--lane-accent), 0 0 0 1.5px var(--lane-border), 0 0 0 4px var(--lane-soft); }
 .kanban-col-body { max-height: min(64vh, 680px); }
-.kanban-card { cursor: grab; touch-action: none; transition: border-color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); }
-.kanban-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.kanban-card {
+  cursor: grab;
+  touch-action: none;
+  background: linear-gradient(180deg, var(--lane-soft), transparent 72px), var(--surface-panel);
+  transition: border-color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1);
+}
+.kanban-card:hover { border-color: var(--lane-border); transform: translateY(-1px); }
 .kanban-card:active { cursor: grabbing; }
 .kanban-card--ghost { opacity: 0.3; border-style: dashed; }
 .kanban-card--ghost > * { visibility: hidden; }
