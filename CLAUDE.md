@@ -44,6 +44,7 @@ Two features are now fully wired and serve as reference implementations of the s
 
 - **Vault notebook** (`src/app/vault/`, `src/lib/vault/`, `src/domain/notebook.ts`) — actions in `vault/actions.ts`, persistence in `src/lib/vault/persistence.ts`. Models the Obsidian-style vault (frontmatter parsing, backlinks, collections, live Mark/record signals).
 - **Campaigns** (`src/app/campaigns/`, `src/lib/campaigns/`, `src/domain/campaign-revisions.ts`) — actions in `campaigns/actions.ts`; persistence split across `src/lib/campaigns/{read-model,decisions,revisions}.ts`. This is the ContentEngine-style approval flow in practice: Mark drafts assets, the operator approves / declines / archives or requests a revision, and outbound stays locked until approved.
+- **CRM interactions** (`src/app/crm/_components/record-interactions/`, `src/lib/interactions/`, `src/domain/interactions.ts`) — record-attached notes, follow-up tasks, and activity timeline. Org-scoped via `getCurrentOrgId()` (`src/lib/auth/org.ts`); the same persistence path serves humans (server actions) and Hermes (`POST /api/v1/hermes/crm/interactions`).
 
 Follow this shape when wiring other features. The remaining `src/lib/<feature>/` dirs (e.g. `activity`, `approvals`, `partners`, `performance`, `persona-intelligence`, `loss-routing`, `agent-operations`) are mostly read-models feeding still-scaffold pages.
 
