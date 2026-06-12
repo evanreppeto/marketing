@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export type CrmTone = "amber" | "green" | "red" | "blue";
@@ -243,7 +244,8 @@ export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOv
   }
 
   try {
-    const data = await getCrmTableBundle(client);
+    const orgId = client ? null : await getCurrentOrgId();
+    const data = await getCrmTableBundle(client, orgId);
     const rows = buildPipelineRows(data);
 
     return {
@@ -287,7 +289,8 @@ export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClien
   }
 
   try {
-    const data = await getCrmTableBundle(client);
+    const orgId = client ? null : await getCurrentOrgId();
+    const data = await getCrmTableBundle(client, orgId);
     const rows = mapObjectRows(key, data);
     const objectMeta = objectMetaByKey[key];
 
@@ -316,13 +319,14 @@ export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCo
 
   try {
     const supabase = client ?? getSupabaseAdminClient();
+    const orgId = client ? null : await getCurrentOrgId();
     const [companies, contacts, properties, leads, jobs, outcomes] = await Promise.all([
-      countRows(supabase, "companies"),
-      countRows(supabase, "contacts"),
-      countRows(supabase, "properties"),
-      countRows(supabase, "leads"),
-      countRows(supabase, "jobs"),
-      countRows(supabase, "outcomes"),
+      countRows(supabase, "companies", orgId),
+      countRows(supabase, "contacts", orgId),
+      countRows(supabase, "properties", orgId),
+      countRows(supabase, "leads", orgId),
+      countRows(supabase, "jobs", orgId),
+      countRows(supabase, "outcomes", orgId),
     ]);
 
     return {
@@ -340,7 +344,8 @@ export async function getCrmRecordData(key: CrmObjectKey, recordId: string, clie
   }
 
   try {
-    const data = await getCrmTableBundle(client);
+    const orgId = client ? null : await getCurrentOrgId();
+    const data = await getCrmTableBundle(client, orgId);
     const objectMeta = objectMetaByKey[key];
     const record = findRecord(key, recordId, data);
 
@@ -390,39 +395,58 @@ export async function getCrmRecordData(key: CrmObjectKey, recordId: string, clie
   }
 }
 
-async function getCrmTableBundle(client?: SupabaseClient) {
+async function getCrmTableBundle(client?: SupabaseClient, orgId?: string | null) {
   const supabase = client ?? getSupabaseAdminClient();
+
+  let companiesQ = supabase
+    .from("companies")
+    .select("id,name,persona,status,website_url,phone,email,partner_tier,metadata,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(CRM_TABLE_BUNDLE_LIMIT);
+  if (orgId) companiesQ = companiesQ.eq("org_id", orgId);
+
+  let contactsQ = supabase
+    .from("contacts")
+    .select("id,company_id,persona,status,first_name,last_name,full_name,email,phone,title,metadata,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(CRM_TABLE_BUNDLE_LIMIT);
+  if (orgId) contactsQ = contactsQ.eq("org_id", orgId);
+
+  let propertiesQ = supabase
+    .from("properties")
+    .select("id,company_id,contact_id,persona,street_line_1,street_line_2,city,state,postal_code,property_type,metadata,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(CRM_TABLE_BUNDLE_LIMIT);
+  if (orgId) propertiesQ = propertiesQ.eq("org_id", orgId);
+
+  let leadsQ = supabase
+    .from("leads")
+    .select("id,company_id,contact_id,property_id,persona,status,routing_recommendation,source,loss_summary,loss_signals,lead_score,received_at,metadata,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(CRM_TABLE_BUNDLE_LIMIT);
+  if (orgId) leadsQ = leadsQ.eq("org_id", orgId);
+
+  let jobsQ = supabase
+    .from("jobs")
+    .select("id,lead_id,company_id,contact_id,property_id,persona,status,job_number,scheduled_at,completed_at,estimated_revenue_cents,metadata,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(CRM_TABLE_BUNDLE_LIMIT);
+  if (orgId) jobsQ = jobsQ.eq("org_id", orgId);
+
+  let outcomesQ = supabase
+    .from("outcomes")
+    .select("id,job_id,lead_id,company_id,contact_id,property_id,persona,status,gross_revenue_cents,gross_margin_cents,closed_at,metadata,created_at,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(CRM_TABLE_BUNDLE_LIMIT);
+  if (orgId) outcomesQ = outcomesQ.eq("org_id", orgId);
+
   const [companies, contacts, properties, leads, jobs, outcomes] = await Promise.all([
-    supabase
-      .from("companies")
-      .select("id,name,persona,status,website_url,phone,email,partner_tier,metadata,created_at,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(CRM_TABLE_BUNDLE_LIMIT),
-    supabase
-      .from("contacts")
-      .select("id,company_id,persona,status,first_name,last_name,full_name,email,phone,title,metadata,created_at,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(CRM_TABLE_BUNDLE_LIMIT),
-    supabase
-      .from("properties")
-      .select("id,company_id,contact_id,persona,street_line_1,street_line_2,city,state,postal_code,property_type,metadata,created_at,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(CRM_TABLE_BUNDLE_LIMIT),
-    supabase
-      .from("leads")
-      .select("id,company_id,contact_id,property_id,persona,status,routing_recommendation,source,loss_summary,loss_signals,lead_score,received_at,metadata,created_at,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(CRM_TABLE_BUNDLE_LIMIT),
-    supabase
-      .from("jobs")
-      .select("id,lead_id,company_id,contact_id,property_id,persona,status,job_number,scheduled_at,completed_at,estimated_revenue_cents,metadata,created_at,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(CRM_TABLE_BUNDLE_LIMIT),
-    supabase
-      .from("outcomes")
-      .select("id,job_id,lead_id,company_id,contact_id,property_id,persona,status,gross_revenue_cents,gross_margin_cents,closed_at,metadata,created_at,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(CRM_TABLE_BUNDLE_LIMIT),
+    companiesQ,
+    contactsQ,
+    propertiesQ,
+    leadsQ,
+    jobsQ,
+    outcomesQ,
   ]);
 
   assertResult("companies", companies.error);
@@ -448,8 +472,10 @@ function assertResult(table: string, error: { message?: string } | null) {
   }
 }
 
-async function countRows(client: SupabaseClient, table: CrmObjectKey) {
-  const { count, error } = await client.from(table).select("id", { count: "exact", head: true });
+async function countRows(client: SupabaseClient, table: CrmObjectKey, orgId?: string | null) {
+  let query = client.from(table).select("id", { count: "exact", head: true });
+  if (orgId) query = query.eq("org_id", orgId);
+  const { count, error } = await query;
   assertResult(table, error);
   return count ?? 0;
 }
