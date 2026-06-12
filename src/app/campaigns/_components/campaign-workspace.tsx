@@ -3,19 +3,23 @@ import type { CampaignDecisionEvent, LiveCampaignWorkspace } from "@/lib/campaig
 import { type DispatchView } from "@/lib/dispatch/status";
 
 import { AuditLog } from "./audit-log";
+import { CampaignActionHub } from "./campaign-action-hub";
 import { CampaignChecklist } from "./campaign-checklist";
 import { CampaignContentTable } from "./campaign-content-table";
-import { buildCampaignChecklist } from "./campaign-detail-model";
+import { buildCampaignActionHub, buildCampaignChecklist } from "./campaign-detail-model";
 import { CampaignHeader } from "./campaign-header";
 import { CampaignRightRail } from "./campaign-right-rail";
 import { MarkConversation } from "./mark-conversation";
 
 export function CampaignWorkspace({ detail, dispatches = [] }: { detail: LiveCampaignWorkspace; dispatches?: DispatchView[] }) {
   const steps = buildCampaignChecklist(detail);
+  const actionHub = buildCampaignActionHub(detail, dispatches.length);
 
   return (
     <div className="space-y-5">
       <CampaignHeader campaign={detail.campaign} launchState={detail.launchState} />
+
+      <CampaignActionHub hub={actionHub} />
 
       <CampaignChecklist steps={steps} />
 
@@ -54,16 +58,16 @@ function DecisionHistoryPanel({ history }: { history: CampaignDecisionEvent[] })
   return (
     <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-        <span className="signal-eyebrow">Decision history</span>
+        <span className="signal-eyebrow">Past decisions</span>
         <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-[var(--text-primary)]">Approvals recorded for this campaign</h2>
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">What your team decided</h2>
           <span className="font-mono text-xs font-bold text-[var(--text-muted)]">{history.length}</span>
         </div>
       </div>
 
       {history.length === 0 ? (
         <p className="px-4 py-3 text-sm leading-6 text-[var(--text-secondary)]">
-          No decisions recorded yet. Approve a piece or send one back to Mark and the record appears here.
+          No decisions yet. Approve a piece or ask Mark for changes and it will appear here.
         </p>
       ) : (
         <ol className="divide-y divide-[var(--border-hairline)]">

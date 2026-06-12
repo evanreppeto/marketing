@@ -15,12 +15,12 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
   const facts = buildSendExportFacts(detail);
   const { campaign, launchState, reasoning } = detail;
   const resultText = launchState.live
-    ? "This campaign is live. Results will become useful as dispatch, response, and outcome records arrive."
-    : "Results appear after approved content is sent or exported and real responses are linked.";
+    ? "This campaign is live. Replies, sends, and outcomes will appear here as they are connected."
+    : "Results appear after approved content is sent or exported.";
 
   return (
     <aside className="space-y-3 xl:sticky xl:top-4">
-      <RailPanel id="summary" title="Campaign summary">
+      <RailPanel id="summary" title="The basics">
         <dl className="space-y-3">
           <Fact label="Objective" value={campaign.objective} />
           <Fact label="Audience" value={campaign.audienceSummary} />
@@ -29,7 +29,7 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
         </dl>
       </RailPanel>
 
-      <RailPanel id="send-export" title="Send / export">
+      <RailPanel id="send-export" title="Send or export">
         {facts.length > 0 ? (
           <ul className="space-y-2">
             {facts.map((fact) => (
@@ -43,17 +43,17 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
           <p className="text-sm leading-6 text-[var(--text-secondary)]">Nothing is ready to send or export yet.</p>
         )}
         <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
-          The app shows readiness here. It only sends after approved dispatch records exist.
+          Approve every piece first. Then use this area to move the campaign into the right send or export flow.
         </p>
         {launchState.ready && !launchState.live ? <LaunchCampaignForm campaignId={campaign.id} /> : null}
         {launchState.live ? (
           <p className="mt-3 rounded-lg border border-[var(--ok-border-soft)] bg-[var(--ok-soft)] px-3 py-2 text-xs font-semibold text-[var(--ok-text)]">
-            Campaign handoff is active.
+            This campaign is active.
           </p>
         ) : null}
       </RailPanel>
 
-      <RailPanel id="mark" title="Mark">
+      <RailPanel id="mark" title="Ask Mark">
         <p className="text-sm leading-6 text-[var(--text-secondary)]">{reasoning.recommendedAction || reasoning.whyBuilt}</p>
         {reasoning.guardrailFlags.length > 0 ? (
           <div className="mt-3 rounded-lg border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-3 py-2">
@@ -79,11 +79,11 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
           </ul>
         ) : (
           <p className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-xs leading-5 text-[var(--text-muted)]">
-            No dispatch records are attached yet.
+            Nothing has been sent or exported yet.
           </p>
         )}
         <Link href="/outbox" className="mt-3 inline-flex text-xs font-semibold text-[var(--accent)] hover:underline">
-          Open outbox
+          Open sending outbox
         </Link>
       </RailPanel>
     </aside>
@@ -117,11 +117,11 @@ function LaunchCampaignForm({ campaignId }: { campaignId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-[var(--ok-text)]">All pieces are approved.</span>
         <Button type="submit" variant="approve" size="sm" disabled={isPending}>
-          {isPending ? "Recording..." : "Launch handoff"}
+          {isPending ? "Saving..." : "Send / export"}
         </Button>
       </div>
       <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-        Records the campaign handoff and queues approved pieces. This does not directly send to customers.
+        Starts the approved send/export step. Nothing goes out unless the connected channel is ready.
       </p>
       {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
     </form>
@@ -144,7 +144,7 @@ function MarkMessageForm({ campaignId }: { campaignId: string }) {
         />
       </label>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs leading-5 text-[var(--text-muted)]">Queues a campaign-specific message.</span>
+        <span className="text-xs leading-5 text-[var(--text-muted)]">Adds this note to the campaign.</span>
         <Button type="submit" variant="ghost" size="sm" disabled={isPending}>
           {isPending ? "Sending..." : "Send to Mark"}
         </Button>

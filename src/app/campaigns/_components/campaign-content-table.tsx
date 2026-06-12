@@ -18,10 +18,10 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
   if (rows.length === 0) {
     return (
       <section id="content" className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6">
-        <span className="signal-eyebrow">Content</span>
-        <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">Mark is still building content</h2>
+        <span className="signal-eyebrow">Pieces</span>
+        <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">Mark is still building</h2>
         <p className="mt-2 max-w-[64ch] text-sm leading-6 text-[var(--text-secondary)]">
-          Campaign pieces will appear here when Mark has drafts ready for review.
+          Emails, exports, CRM notes, ads, and other campaign pieces will appear here when they are ready for you.
         </p>
       </section>
     );
@@ -30,12 +30,12 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
   return (
     <section id="content" className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-4">
-        <span className="signal-eyebrow">Content</span>
+        <span className="signal-eyebrow">Pieces</span>
         <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-base font-bold text-[var(--text-primary)]">Review every piece</h2>
+            <h2 className="text-base font-bold text-[var(--text-primary)]">Things Mark made</h2>
             <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-              Pick a row to read the draft, then approve it or ask Mark for changes.
+              Pick one, read it, then approve it or ask Mark to change it.
             </p>
           </div>
           <span className="font-mono text-xs font-bold text-[var(--text-muted)]">
@@ -48,9 +48,9 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
         <div className="min-w-0 bg-[var(--surface-panel)]">
           <div className="hidden grid-cols-[minmax(11rem,1.4fr)_8rem_7rem_minmax(9rem,1fr)] gap-3 border-b border-[var(--border-hairline)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] md:grid">
             <span>Piece</span>
-            <span>Where</span>
-            <span>Status</span>
-            <span>Next</span>
+            <span>Use it for</span>
+            <span>Needs</span>
+            <span>Next step</span>
           </div>
           <div className="divide-y divide-[var(--border-hairline)]">
             {rows.map((row) => (
@@ -99,15 +99,15 @@ function ContentRowButton({
         <span className="mt-0.5 block text-xs leading-5 text-[var(--text-muted)] md:hidden">{row.description}</span>
       </span>
       <span className="flex items-center justify-between gap-3 md:block">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">Where</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">Use it for</span>
         <span className="text-sm font-semibold text-[var(--text-secondary)]">{row.where}</span>
       </span>
       <span className="flex items-center justify-between gap-3 md:block">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">Status</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">Needs</span>
         <StatusPill tone={row.status.tone}>{row.status.label}</StatusPill>
       </span>
       <span className="flex items-start justify-between gap-3 md:block">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">Next</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">Next step</span>
         <span className="text-sm leading-5 text-[var(--text-secondary)]">{row.nextAction}</span>
       </span>
     </button>
@@ -142,7 +142,7 @@ function ContentPreview({
     <aside id={id} className="sticky top-4 min-w-0 p-4" aria-label={`Preview for ${row.title}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Preview</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Read this</span>
           <h3 className="mt-1 text-base font-bold text-[var(--text-primary)]">{row.title}</h3>
           <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{row.description}</p>
         </div>
@@ -179,13 +179,13 @@ function DeployPiece({ assetId, campaignId }: { assetId: string; campaignId: str
       <input type="hidden" name="assetId" value={assetId} />
       <input type="hidden" name="campaignId" value={campaignId} />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-[var(--accent-contrast)]">Ready to hand this piece off?</span>
+        <span className="text-sm font-semibold text-[var(--accent-contrast)]">Ready to send or export this?</span>
         <Button type="submit" variant="primary" size="sm" disabled={isPending}>
-          {isPending ? "Recording..." : "Hand off piece"}
+          {isPending ? "Saving..." : "Send / export"}
         </Button>
       </div>
       <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-        Records a dispatch handoff for Mark. This does not directly send to customers.
+        This prepares the piece for the connected send or export flow. Nothing goes out without a saved action.
       </p>
       {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
     </form>
@@ -200,12 +200,12 @@ function ReopenPiece({ assetId, campaignId }: { assetId: string; campaignId: str
       <input type="hidden" name="assetId" value={assetId} />
       <input type="hidden" name="campaignId" value={campaignId} />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-[var(--text-primary)]">Need to change this live piece?</span>
+        <span className="text-sm font-semibold text-[var(--text-primary)]">Need to change this piece?</span>
         <Button type="submit" variant="ghost" size="sm" disabled={isPending}>
-          {isPending ? "Re-opening..." : "Send back to review"}
+          {isPending ? "Saving..." : "Ask Mark to revise"}
         </Button>
       </div>
-      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">Re-locks this piece so Mark can revise it before it is used again.</p>
+      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">Moves this piece back into review so Mark can make changes before it is used again.</p>
       {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
     </form>
   );

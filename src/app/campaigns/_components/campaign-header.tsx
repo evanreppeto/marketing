@@ -17,11 +17,11 @@ export function CampaignHeader({ campaign, launchState }: { campaign: CampaignWo
       title={campaign.name}
       description={campaign.objective}
       backHref="/campaigns"
-      backLabel="campaigns"
+      backLabel="all campaigns"
       aside={
         <div className="flex flex-col items-start gap-3 xl:items-end">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusPill tone={LIFECYCLE_TONE[launchState.lifecycle]}>{launchState.lifecycle}</StatusPill>
+            <StatusPill tone={LIFECYCLE_TONE[launchState.lifecycle]}>{plainLifecycleLabel(launchState.lifecycle)}</StatusPill>
             {launchState.live ? (
               <StatusPill tone="green">Outbound active</StatusPill>
             ) : launchState.ready ? (
@@ -32,17 +32,17 @@ export function CampaignHeader({ campaign, launchState }: { campaign: CampaignWo
           </div>
           <div className="flex flex-wrap gap-2 xl:justify-end">
             <Link href="#content" className={buttonClasses({ variant: "primary", size: "sm" })}>
-              Review content
+              Review pieces
             </Link>
             <Link href="#send-export" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Send / Export
+              Send or export
             </Link>
             <Link href="#mark" className={buttonClasses({ variant: "ghost", size: "sm" })}>
               Ask Mark
             </Link>
           </div>
           <p className="max-w-sm text-xs leading-5 text-[var(--text-muted)] xl:text-right">
-            {cleanPersonaLabel(campaign.persona)} | Updated {campaign.updatedAt}
+            For {cleanPersonaLabel(campaign.persona)} | Updated {campaign.updatedAt}
           </p>
         </div>
       }
@@ -52,4 +52,11 @@ export function CampaignHeader({ campaign, launchState }: { campaign: CampaignWo
 
 function cleanPersonaLabel(persona: string) {
   return persona.replace(/^Persona\s+/i, "").trim() || persona;
+}
+
+function plainLifecycleLabel(lifecycle: CampaignLaunchState["lifecycle"]) {
+  if (lifecycle === "Drafting") return "Mark building";
+  if (lifecycle === "In review") return "Needs review";
+  if (lifecycle === "Ready") return "Ready to send";
+  return "Live";
 }

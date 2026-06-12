@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import {
+  buildCampaignActionHub,
   buildCampaignChecklist,
   buildCampaignContentRows,
   buildSendExportFacts,
@@ -235,5 +236,45 @@ describe("campaign detail model", () => {
       { label: "Email", value: "Blocked" },
       { label: "Export", value: "Live" },
     ]);
+  });
+
+  it("builds a simple action hub for campaigns that need review", () => {
+    const hub = buildCampaignActionHub(detail(), 0);
+
+    expect(hub.title).toBe("1 piece needs your review");
+    expect(hub.primaryLabel).toBe("Start reviewing");
+    expect(hub.primaryHref).toBe("#content");
+    expect(hub.cards.map((card) => ({ key: card.key, value: card.value, href: card.href }))).toEqual([
+      { key: "review", value: "1 waiting", href: "#content" },
+      { key: "ready", value: "1/2 ready", href: "#send-export" },
+      { key: "mark", value: "Available", href: "#mark" },
+      { key: "results", value: "Not started", href: "#results" },
+    ]);
+  });
+
+  it("builds a simple action hub for ready campaigns", () => {
+    const hub = buildCampaignActionHub(
+      detail({
+        launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 0, ready: true, live: false, lifecycle: "Ready" },
+      }),
+      0,
+    );
+
+    expect(hub.title).toBe("Everything is approved");
+    expect(hub.primaryLabel).toBe("Send or export");
+    expect(hub.primaryHref).toBe("#send-export");
+  });
+
+  it("builds a simple action hub for live campaigns", () => {
+    const hub = buildCampaignActionHub(
+      detail({
+        launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 2, ready: true, live: true, lifecycle: "Live" },
+      }),
+      3,
+    );
+
+    expect(hub.title).toBe("This campaign is live");
+    expect(hub.primaryLabel).toBe("See results");
+    expect(hub.cards.find((card) => card.key === "results")?.value).toBe("3 updates");
   });
 });

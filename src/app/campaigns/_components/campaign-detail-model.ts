@@ -28,6 +28,25 @@ export type SendExportFact = {
   value: "Ready" | "Blocked" | "Not connected" | "Sent" | "Live";
 };
 
+export type CampaignActionHub = {
+  title: string;
+  detail: string;
+  primaryLabel: string;
+  primaryHref: string;
+  secondaryLabel: string;
+  secondaryHref: string;
+  cards: CampaignActionCard[];
+};
+
+export type CampaignActionCard = {
+  key: "review" | "ready" | "mark" | "results";
+  title: string;
+  value: string;
+  detail: string;
+  href: string;
+  tone: PlainTone;
+};
+
 const WHERE_LABELS: Record<string, string> = {
   email: "Email",
   sms: "SMS",
@@ -154,6 +173,59 @@ export function buildSendExportFacts(detail: LiveCampaignWorkspace): SendExportF
   return Array.from(byWhere, ([label, value]) => ({ label, value }));
 }
 
+export function buildCampaignActionHub(detail: LiveCampaignWorkspace, dispatchCount = 0): CampaignActionHub {
+  const { campaign, launchState, assets } = detail;
+  const destinationList = Array.from(new Set(assets.map(contentWhere))).slice(0, 4);
+  const destinations = destinationList.length > 0 ? destinationList.join(", ") : "Not chosen yet";
+  const approvedOrLive = assets.filter((asset) => ["Ready", "Live"].includes(contentStatusForLaunch(asset, launchState).label)).length;
+
+  if (launchState.live) {
+    return {
+      title: "This campaign is live",
+      detail: "Use this page to watch what happened, ask Mark for follow-up, or reopen anything that needs another pass.",
+      primaryLabel: "See results",
+      primaryHref: "#results",
+      secondaryLabel: "Ask Mark",
+      secondaryHref: "#mark",
+      cards: actionCards({ detail, destinations, approvedOrLive, dispatchCount }),
+    };
+  }
+
+  if (launchState.pendingCount > 0) {
+    return {
+      title: `${launchState.pendingCount} ${pieceWord(launchState.pendingCount)} ${launchState.pendingCount === 1 ? "needs" : "need"} your review`,
+      detail: `${campaign.name} is waiting on simple decisions. Read each piece, then approve it or ask Mark to change it.`,
+      primaryLabel: "Start reviewing",
+      primaryHref: "#content",
+      secondaryLabel: "Ask Mark",
+      secondaryHref: "#mark",
+      cards: actionCards({ detail, destinations, approvedOrLive, dispatchCount }),
+    };
+  }
+
+  if (launchState.ready) {
+    return {
+      title: "Everything is approved",
+      detail: "The campaign is ready to send, export, or hand to Mark for the next step.",
+      primaryLabel: "Send or export",
+      primaryHref: "#send-export",
+      secondaryLabel: "Review pieces",
+      secondaryHref: "#content",
+      cards: actionCards({ detail, destinations, approvedOrLive, dispatchCount }),
+    };
+  }
+
+  return {
+    title: "Mark is building this campaign",
+    detail: "This page will become the review and send workspace as soon as Mark adds campaign pieces.",
+    primaryLabel: "Ask Mark for an update",
+    primaryHref: "#mark",
+    secondaryLabel: "See campaign basics",
+    secondaryHref: "#summary",
+    cards: actionCards({ detail, destinations, approvedOrLive, dispatchCount }),
+  };
+}
+
 function describeAsset(asset: CampaignWorkspaceAsset): string {
   const where = contentWhere(asset).toLowerCase();
   if (where === "email") return "Email content for this campaign.";
@@ -161,6 +233,58 @@ function describeAsset(asset: CampaignWorkspaceAsset): string {
   if (where === "website") return "Website copy for this campaign.";
   if (where === "crm") return "Follow-up content for this campaign.";
   return "Exportable content for this campaign.";
+}
+
+function actionCards({
+  detail,
+  destinations,
+  approvedOrLive,
+  dispatchCount,
+}: {
+  detail: LiveCampaignWorkspace;
+  destinations: string;
+  approvedOrLive: number;
+  dispatchCount: number;
+}): CampaignActionCard[] {
+  const { launchState, assets, reasoning } = detail;
+  return [
+    {
+      key: "review",
+      title: "Review",
+      value: launchState.pendingCount > 0 ? `${launchState.pendingCount} waiting` : "No review needed",
+      detail: launchState.pendingCount > 0 ? "Approve what looks good, or send notes back to Mark." : "All current pieces have a decision.",
+      href: "#content",
+      tone: launchState.pendingCount > 0 ? "amber" : "green",
+    },
+    {
+      key: "ready",
+      title: "Send or export",
+      value: launchState.live ? "Live" : launchState.ready ? "Ready" : `${approvedOrLive}/${assets.length || 0} ready`,
+      detail: destinations,
+      href: "#send-export",
+      tone: launchState.live || launchState.ready ? "green" : "blue",
+    },
+    {
+      key: "mark",
+      title: "Mark",
+      value: reasoning.recommendedAction ? "Available" : "Ask for help",
+      detail: reasoning.recommendedAction || reasoning.whyBuilt || "Ask for edits, additions, or a quick explanation.",
+      href: "#mark",
+      tone: "blue",
+    },
+    {
+      key: "results",
+      title: "Results",
+      value: dispatchCount > 0 ? `${dispatchCount} update${dispatchCount === 1 ? "" : "s"}` : "Not started",
+      detail: launchState.live ? "Watch sends, replies, and outcomes here." : "Results appear after the campaign goes out.",
+      href: "#results",
+      tone: launchState.live ? "green" : "gray",
+    },
+  ];
+}
+
+function pieceWord(count: number) {
+  return count === 1 ? "piece" : "pieces";
 }
 
 function nextActionForStatus(status: PlainStatus): string {

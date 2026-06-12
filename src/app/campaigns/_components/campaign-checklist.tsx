@@ -23,8 +23,8 @@ export function CampaignChecklist({ steps }: { steps: ChecklistStep[] }) {
     <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <span className="signal-eyebrow">Checklist</span>
-          <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">What needs to happen</h2>
+          <span className="signal-eyebrow">Simple path</span>
+          <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">How this campaign goes out</h2>
         </div>
         <span className="font-mono text-xs font-bold text-[var(--text-muted)]">
           {steps.filter((step) => step.state === "done").length}/{steps.length}
