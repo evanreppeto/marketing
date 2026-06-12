@@ -82,6 +82,7 @@ describe("lead ingestion persistence", () => {
       result,
       // The persistence helper only relies on the from().insert().select().single() subset here.
       supabase: client as never,
+      orgId: "org-test",
     });
 
     expect(persisted).toEqual({
@@ -95,6 +96,7 @@ describe("lead ingestion persistence", () => {
       name: "West Loop Property Group",
       persona: "persona_homeowner_emergency",
       partner_tier: "B",
+      org_id: "org-test",
     });
     expect(calls[2].values).toMatchObject({
       company_id: "company-1",
@@ -134,6 +136,7 @@ describe("lead ingestion persistence", () => {
       input: result.normalizedInput,
       result,
       supabase: client as never,
+      orgId: "org-test",
     });
 
     expect(result.routing).toBe("needs_review");

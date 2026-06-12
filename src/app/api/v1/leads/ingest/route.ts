@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { checkBearerToken } from "@/lib/auth/api-token";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { parseLeadIngestionPayload } from "@/domain";
 import { persistLeadIngestion } from "@/lib/lead-ingestion/persistence";
 import { persistPersonaIntelligenceForLead } from "@/lib/persona-intelligence/persistence";
@@ -65,10 +66,12 @@ export async function POST(request: Request) {
 
   try {
     const supabase = getSupabaseAdminClient();
+    const orgId = await getCurrentOrgId();
     const persisted = await persistLeadIngestion({
       input: normalizedInput,
       result,
       supabase,
+      orgId,
     });
     const personaIntelligence = await persistOptionalPersonaIntelligence({
       input: normalizedInput,

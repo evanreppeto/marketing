@@ -8,6 +8,7 @@ type PersistLeadInput = {
   input: ParsedLeadIngestionInput;
   result: AcceptedLeadIngestionResult;
   supabase: SupabaseClient;
+  orgId: string;
 };
 
 type InsertResult = {
@@ -25,9 +26,10 @@ export async function persistLeadIngestion({
   input,
   result,
   supabase,
+  orgId,
 }: PersistLeadInput): Promise<PersistedLeadIngestion> {
   const companyId = input.company
-    ? await insertAndReturnId(supabase, "companies", {
+    ? await insertAndReturnId(supabase, "companies", orgId, {
         name: input.company.name,
         persona: result.persona,
         partner_tier: input.company.partnerTier ?? null,
@@ -39,7 +41,7 @@ export async function persistLeadIngestion({
     : null;
 
   const contactId = input.contact
-    ? await insertAndReturnId(supabase, "contacts", {
+    ? await insertAndReturnId(supabase, "contacts", orgId, {
         company_id: companyId,
         persona: result.persona,
         first_name: input.contact.firstName ?? null,
@@ -53,7 +55,7 @@ export async function persistLeadIngestion({
     : null;
 
   const propertyId = input.property
-    ? await insertAndReturnId(supabase, "properties", {
+    ? await insertAndReturnId(supabase, "properties", orgId, {
         company_id: companyId,
         contact_id: contactId,
         persona: result.persona,
@@ -68,7 +70,7 @@ export async function persistLeadIngestion({
       })
     : null;
 
-  const leadId = await insertAndReturnId(supabase, "leads", {
+  const leadId = await insertAndReturnId(supabase, "leads", orgId, {
     company_id: companyId,
     contact_id: contactId,
     property_id: propertyId,
@@ -114,9 +116,10 @@ function toDatabaseRoutingRecommendation(routing: AcceptedLeadIngestionResult["r
 async function insertAndReturnId(
   supabase: SupabaseClient,
   table: "companies" | "contacts" | "properties" | "leads",
+  orgId: string,
   values: Record<string, unknown>,
 ) {
-  const { data, error } = await supabase.from(table).insert(values).select("id").single<InsertResult>();
+  const { data, error } = await supabase.from(table).insert({ ...values, org_id: orgId }).select("id").single<InsertResult>();
 
   if (error) {
     throw new Error(`Failed to persist ${table}: ${error.message}`);
