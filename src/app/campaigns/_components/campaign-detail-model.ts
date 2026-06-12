@@ -68,9 +68,9 @@ export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
   return { label: "Draft", tone: "gray" };
 }
 
-export function contentStatusForLaunch(asset: CampaignWorkspaceAsset, launchState: CampaignLaunchState): PlainStatus {
+export function contentStatusForLaunch(asset: CampaignWorkspaceAsset, _launchState: CampaignLaunchState): PlainStatus {
   const status = contentStatus(asset);
-  if (launchState.live && status.label === "Ready" && !asset.dispatchLocked) return { label: "Live", tone: "green" };
+  if (status.label === "Ready" && !asset.dispatchLocked) return { label: "Live", tone: "green" };
   return status;
 }
 

@@ -134,7 +134,7 @@ describe("campaign detail model", () => {
   it("builds content rows with next actions", () => {
     expect(buildCampaignContentRows(detail()).map((row) => ({ title: row.title, status: row.status.label, where: row.where, nextAction: row.nextAction }))).toEqual([
       { title: "Email draft", status: "Review", where: "Email", nextAction: "Approve or ask Mark to revise" },
-      { title: "One-pager", status: "Ready", where: "Export", nextAction: "Can be sent or exported" },
+      { title: "One-pager", status: "Live", where: "Export", nextAction: "Check results" },
     ]);
   });
 
@@ -153,6 +153,23 @@ describe("campaign detail model", () => {
         }),
       ).map((row) => ({ status: row.status.label, nextAction: row.nextAction })),
     ).toEqual([{ status: "Live", nextAction: "Check results" }]);
+  });
+
+  it("marks individually deployed content live before campaign launch", () => {
+    expect(
+      buildCampaignContentRows(
+        detail({
+          assets: [
+            asset({
+              status: "approved",
+              dispatchLocked: false,
+              approval: { id: "approval-1", status: "approved" },
+            }),
+          ],
+          launchState: { requiredCount: 1, approvedCount: 1, pendingCount: 0, deployedCount: 1, ready: true, live: false, lifecycle: "Ready" },
+        }),
+      ).map((row) => ({ status: row.status, nextAction: row.nextAction })),
+    ).toEqual([{ status: { label: "Live", tone: "green" }, nextAction: "Check results" }]);
   });
 
   it("builds checklist steps from launch state", () => {
@@ -213,7 +230,7 @@ describe("campaign detail model", () => {
   it("builds send/export facts", () => {
     expect(buildSendExportFacts(detail())).toEqual([
       { label: "Email", value: "Blocked" },
-      { label: "Export", value: "Ready" },
+      { label: "Export", value: "Live" },
     ]);
   });
 });
