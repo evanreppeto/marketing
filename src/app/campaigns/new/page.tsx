@@ -13,9 +13,9 @@ export default async function NewCampaignPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Start marketing"
-        title="What should we make?"
-        description={`Tell ${assistantName} what ${workspaceName || "your business"} needs. It can become a campaign, email, ad, flyer, partner outreach, lead list, CRM follow-up, or whatever marketing work makes sense.`}
+        eyebrow="New campaign"
+        title="Create a campaign"
+        description={`Set up marketing for ${workspaceName || "your business"} manually, or ask ${assistantName} to help draft the campaign if you are not sure where to start.`}
         backHref="/campaigns"
         backLabel="all campaigns"
       />
