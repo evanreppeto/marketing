@@ -60,9 +60,15 @@ const WHERE_LABELS: Record<string, string> = {
   website: "Website",
   one_pager: "Export",
   pdf: "Export",
+  campaign_brief: "Export",
+  brief: "Export",
   call_script: "CRM",
   script: "CRM",
+  crm: "CRM",
   lead_list: "CRM",
+  crm_lead_list_review: "CRM",
+  crm_population_batch: "CRM",
+  partner_lead_list: "CRM",
 };
 
 export function campaignManagerStatus(campaign: CampaignWorkspaceListItem): CampaignManagerStatus {
@@ -88,7 +94,7 @@ export function campaignManagerSummary(campaign: CampaignWorkspaceListItem): Cam
 
 export function campaignManagerWhere(campaign: CampaignWorkspaceListItem): string[] {
   const labels = campaign.assetTypes
-    .map((type) => WHERE_LABELS[assetTypeKey(type)] ?? campaign.channels.find((channel) => channel.toLowerCase() === type.toLowerCase()) ?? "")
+    .map((type) => plainWhereLabel(type) ?? campaign.channels.find((channel) => channel.toLowerCase() === type.toLowerCase()) ?? "")
     .filter(Boolean);
   const distinct = Array.from(new Set(labels));
   return distinct.length > 0 ? distinct.slice(0, 4) : ["Not chosen"];
@@ -147,6 +153,21 @@ function assetTypeKey(type: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+
+function plainWhereLabel(type: string): string | undefined {
+  const key = assetTypeKey(type);
+  const direct = WHERE_LABELS[key];
+  if (direct) return direct;
+
+  const tokens = new Set(key.split("_").filter(Boolean));
+  if (tokens.has("email")) return "Email";
+  if (tokens.has("sms")) return "SMS";
+  if (tokens.has("social") || tokens.has("meta") || tokens.has("ad") || tokens.has("ads")) return "Social";
+  if (tokens.has("landing") || tokens.has("website") || tokens.has("web")) return "Website";
+  if (tokens.has("crm") || tokens.has("lead") || tokens.has("script")) return "CRM";
+  if (tokens.has("brief") || tokens.has("pager") || tokens.has("pdf") || tokens.has("export")) return "Export";
+  return undefined;
 }
 
 function campaignSearchText(campaign: CampaignWorkspaceListItem): string {

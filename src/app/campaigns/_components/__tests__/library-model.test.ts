@@ -161,6 +161,16 @@ describe("campaign manager helpers", () => {
     ]);
   });
 
+  it("maps internal campaign asset names to plain where labels", () => {
+    expect(
+      campaignManagerWhere(
+        campaign({
+          assetTypes: ["Campaign Brief", "CRM Lead List Review", "CRM Population Batch", "Partner Lead List"],
+        }),
+      ),
+    ).toEqual(["Export", "CRM"]);
+  });
+
   it("derives the next step in plain language", () => {
     expect(campaignNextStep(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe("Review 2 pieces");
     expect(campaignNextStep(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe("Send or export");

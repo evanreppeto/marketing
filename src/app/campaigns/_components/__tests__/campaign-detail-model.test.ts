@@ -128,6 +128,9 @@ describe("campaign detail model", () => {
     expect(contentWhere(asset({ assetType: "one_pager", channel: "pdf" }))).toBe("Export");
     expect(contentWhere(asset({ assetType: "call_script", channel: "crm" }))).toBe("CRM");
     expect(contentWhere(asset({ assetType: "lead_list", channel: "admin" }))).toBe("CRM");
+    expect(contentWhere(asset({ assetType: "campaign_brief", channel: "campaign_brief" }))).toBe("Export");
+    expect(contentWhere(asset({ assetType: "crm_lead_list_review", channel: "crm" }))).toBe("CRM");
+    expect(contentWhere(asset({ assetType: "partner_lead_list", channel: "crm" }))).toBe("CRM");
     expect(contentWhere(asset({ assetType: "roadshow", channel: "admin" }))).toBe("Export");
   });
 

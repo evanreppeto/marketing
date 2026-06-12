@@ -46,6 +46,8 @@ const WHERE_LABELS: Record<string, string> = {
   web: "Website",
   one_pager: "Export",
   pdf: "Export",
+  campaign_brief: "Export",
+  brief: "Export",
   print: "Export",
   packet: "Export",
   file: "Export",
@@ -54,6 +56,9 @@ const WHERE_LABELS: Record<string, string> = {
   crm: "CRM",
   lead: "CRM",
   lead_list: "CRM",
+  crm_lead_list_review: "CRM",
+  crm_population_batch: "CRM",
+  partner_lead_list: "CRM",
 };
 
 export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
