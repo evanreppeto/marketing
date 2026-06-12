@@ -33,6 +33,18 @@ function BrandMark({ brand }: { brand: ConsoleBrand }) {
   );
 }
 
+function BrandWordmark() {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- transparent generated wordmark served from /public.
+    <img
+      alt=""
+      className="h-12 w-auto max-w-[118px] select-none object-contain object-left"
+      draggable={false}
+      src="/brand/arc-marketing-wordmark.png"
+    />
+  );
+}
+
 /**
  * Persistent application chrome, rendered ONCE in the root layout so the sidebar
  * and SideNav pending state survive navigations. The rail is a compact icon strip
@@ -102,19 +114,11 @@ export function ConsoleFrame({
               <BrandMark brand={brand} />
               <span
                 className={cx(
-                  "flex min-w-0 max-w-[190px] flex-col overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                  "flex min-w-0 max-w-[130px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
                   collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
                 )}
               >
-                <span
-                  className="truncate text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
-                  style={{ fontFamily: "var(--font-serif)" }}
-                >
-                  {brand.workspaceName}
-                </span>
-                <span className="mt-1.5 truncate text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
-                  {brand.productLabel}
-                </span>
+                <BrandWordmark />
               </span>
             </Link>
 
