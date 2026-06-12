@@ -28,3 +28,4 @@ export * from "./board-demo";
 export * from "./task-schedule";
 export * from "./campaign-presentation";
 export * from "./interactions";
+export * from "./knowledge-graph";
