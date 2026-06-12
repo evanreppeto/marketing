@@ -80,7 +80,13 @@ export function SideNav({ active, items, collapsed = false }: SideNavProps) {
               }`}
               name={item.icon}
             />
-            <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+            <span
+              className={`min-w-0 max-w-[160px] overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+                collapsed ? "lg:max-w-0 lg:-translate-x-1 lg:opacity-0" : ""
+              }`}
+            >
+              {item.label}
+            </span>
           </Link>
         );
       })}

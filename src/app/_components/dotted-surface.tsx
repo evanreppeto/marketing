@@ -41,8 +41,11 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
       document.documentElement.dataset.motion === "reduced";
 
-    const width = container.clientWidth || window.innerWidth;
-    const height = container.clientHeight || window.innerHeight;
+    const getRenderSize = () => ({
+      width: window.innerWidth,
+      height: Math.max(container.clientHeight, window.innerHeight),
+    });
+    const { width, height } = getRenderSize();
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(FOG_COLOR, 1500, 7000);
@@ -54,6 +57,9 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     renderer.setClearColor(FOG_COLOR, 0); // transparent — page canvas shows through
+    renderer.domElement.style.position = "absolute";
+    renderer.domElement.style.inset = "0 auto auto 0";
+    renderer.domElement.style.maxWidth = "none";
     container.appendChild(renderer.domElement);
 
     const positions: number[] = [];
@@ -121,15 +127,14 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
       else if (!prefersReducedMotion) start();
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      const w = container.clientWidth || window.innerWidth;
-      const h = container.clientHeight || window.innerHeight;
+    const handleResize = () => {
+      const { width: w, height: h } = getRenderSize();
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
       if (prefersReducedMotion) renderFrame(); // keep the static frame crisp on resize
-    });
-    resizeObserver.observe(container);
+    };
+    window.addEventListener("resize", handleResize);
 
     if (prefersReducedMotion) {
       renderFrame(); // one calm, static frame
@@ -141,7 +146,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
     return () => {
       stop();
       document.removeEventListener("visibilitychange", handleVisibility);
-      resizeObserver.disconnect();
+      window.removeEventListener("resize", handleResize);
       geometry.dispose();
       material.dispose();
       renderer.dispose();
