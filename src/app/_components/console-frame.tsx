@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { DottedSurface } from "./dotted-surface";
 import { ShellContent } from "./shell-content";
+import { BackgroundGradientAnimation } from "./background-gradient-animation";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
@@ -88,6 +89,13 @@ export function ConsoleFrame({
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusWithin(false);
           }}
         >
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+            <BackgroundGradientAnimation />
+            {/* Readability scrim: fade the gradient toward the sidebar tone so nav
+                labels and the gold active-indicator stay legible. */}
+            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_30%_20%,transparent,var(--surface-sidebar)_88%)]" />
+            <div className="absolute inset-0 bg-[var(--surface-sidebar)] opacity-40" />
+          </div>
           <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto [&::-webkit-scrollbar]:hidden">
             <Link
               href="/mark"
