@@ -139,7 +139,7 @@ export function BrandingSettingsForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Workspace or company name</span>
-          <input className={inputClass} name="workspaceName" onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Big Shoulders" value={workspaceName} />
+          <input className={inputClass} name="workspaceName" onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Arc" value={workspaceName} />
         </label>
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Product label</span>
