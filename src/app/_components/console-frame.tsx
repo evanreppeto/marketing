@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { DottedSurface } from "./dotted-surface";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
@@ -121,15 +122,22 @@ export function ConsoleFrame({
           <OperatorProfile collapsed={collapsed} />
         </aside>
 
-        <section
-          className={
-            pathname.startsWith("/mark")
-              ? "min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden"
-              : theme.shell.content
-          }
-        >
-          <ShellContent>{children}</ShellContent>
-        </section>
+        {pathname.startsWith("/mark") ? (
+          <section className="min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
+            <ShellContent>{children}</ShellContent>
+          </section>
+        ) : (
+          // Ambient dotted backdrop sits behind the content column (not the Mark
+          // surface, which keeps its own visuals). `relative isolate` keeps the
+          // -z-10 field above the page canvas but below content; the inner div
+          // owns the scroll so the backdrop stays put as the page scrolls.
+          <section className="relative isolate min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
+            <DottedSurface />
+            <div className="px-4 py-4 sm:px-6 lg:h-full lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
+              <ShellContent>{children}</ShellContent>
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
