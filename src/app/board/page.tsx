@@ -25,8 +25,8 @@ export default async function BoardPage() {
       <WorkspacePanel
         className="p-0"
         eyebrow="Task queue"
-        title="Queued, running, blocked, and completed work"
-        description="You and Mark share this board. Create work, drag cards across the lifecycle. External action stays disabled — outbound waits behind approval."
+        title="Shared work for you and Mark"
+        description="Move work across the board. Mark can prepare drafts; humans approve anything outbound."
         aside={<StatusPill tone="amber">Outbound locked</StatusPill>}
       >
         <BoardViewSwitch tasks={dashboard.tasks} />
@@ -40,8 +40,8 @@ function Header() {
     <PageHeader
       eyebrow="Mark"
       title="Task Board"
-      description="A shared Kanban board for you and Mark. Drag a card to change its state; the approval gate keeps outbound locked."
-      aside={<StatusPill tone="amber">No outbound execution</StatusPill>}
+      description="A simple shared queue: what Mark is doing, what humans need to review, and what is done."
+      aside={<StatusPill tone="amber">Approval gated</StatusPill>}
     />
   );
 }

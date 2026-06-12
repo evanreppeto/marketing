@@ -76,37 +76,27 @@ export function TicketPropertyRail({
   }
 
   return (
-    <section className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] p-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <InlineMeta label="Status">
-          <StatusPill tone={statusTone(values.status)}>{humanize(values.status)}</StatusPill>
-        </InlineMeta>
-        <InlineMeta label="Owner">{values.owner_label}</InlineMeta>
-        <InlineMeta label="Driver">{values.driver_label}</InlineMeta>
-        <InlineMeta label="Priority">{humanize(values.priority)}</InlineMeta>
-        <InlineMeta label="Due">{values.due_at ? formatDate(fromDateTimeLocalValue(values.due_at)) : "No due date"}</InlineMeta>
-        {campaign ? (
-          <InlineMeta label="Campaign">
-            <Link className="text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]" href={`/campaigns/${campaign.id}`}>
-              {campaign.name}
-            </Link>
-          </InlineMeta>
-        ) : null}
-        {source ? (
-          <InlineMeta label="Source">
-            <Link className="text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]" href={source.href}>
-              {source.label}
-            </Link>
-          </InlineMeta>
-        ) : null}
-        <StatusPill tone="amber">Outbound locked</StatusPill>
-      </div>
+    <details className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)]">
+      <summary className="cursor-pointer list-none px-3 py-3 transition hover:bg-[var(--surface-inset)] [&::-webkit-details-marker]:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <span className="font-semibold text-[var(--text-primary)]">Properties</span>
+            <InlineMeta label="Status">
+              <StatusPill tone={statusTone(values.status)}>{humanize(values.status)}</StatusPill>
+            </InlineMeta>
+            <InlineMeta label="Owner">{values.owner_label}</InlineMeta>
+            <InlineMeta label="Driver">{values.driver_label}</InlineMeta>
+            <InlineMeta label="Due">{values.due_at ? compactDate(fromDateTimeLocalValue(values.due_at)) : "No due date"}</InlineMeta>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusPill tone="amber">Outbound locked</StatusPill>
+            <span className="text-xs font-semibold text-[var(--text-muted)]">Edit</span>
+          </div>
+        </div>
+      </summary>
 
-      <details className="mt-3 border-t border-[var(--border-hairline)] pt-3">
-        <summary className="cursor-pointer text-sm font-semibold text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
-          Edit properties
-        </summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="border-t border-[var(--border-hairline)] px-3 py-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <RailSelect
             label="Status"
             onChange={(value) => {
@@ -170,15 +160,26 @@ export function TicketPropertyRail({
         </div>
 
         {error ? <p className="mt-3 text-xs font-semibold text-[var(--warn)]">{error}</p> : null}
-      </details>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
-        {scheduledFor ? <span>Scheduled {formatDate(scheduledFor)}</span> : null}
-        <span>Created {formatDate(createdAt)}</span>
-        <span>Updated {formatDate(updatedAt)}</span>
-        <span>Approver {values.approver_label}</span>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--border-hairline)] pt-3 text-xs text-[var(--text-muted)]">
+          <span>Priority {humanize(values.priority)}</span>
+          {campaign ? (
+            <Link className="transition hover:text-[var(--text-primary)]" href={`/campaigns/${campaign.id}`}>
+              Campaign {campaign.name}
+            </Link>
+          ) : null}
+          {source ? (
+            <Link className="transition hover:text-[var(--text-primary)]" href={source.href}>
+              Source {source.label}
+            </Link>
+          ) : null}
+          {scheduledFor ? <span>Scheduled {formatDate(scheduledFor)}</span> : null}
+          <span>Created {formatDate(createdAt)}</span>
+          <span>Updated {formatDate(updatedAt)}</span>
+          <span>Approver {values.approver_label}</span>
+        </div>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -331,6 +332,13 @@ function formatDate(value: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+}
+
+function compactDate(value: string | null) {
+  if (!value) return "No due date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
 }
 
 function humanize(value: string) {

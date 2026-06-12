@@ -144,7 +144,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
       <style>{KANBAN_CSS}</style>
 
       <div className="flex items-center justify-end border-b border-[var(--border-hairline)] px-4 py-2">
-        <span className="text-[11px] font-medium text-[var(--text-muted)]">{open.length} open · outbound locked</span>
+        <span className="text-[11px] font-medium text-[var(--text-muted)]">{open.length} open / approval gated</span>
       </div>
 
       {error ? (
@@ -206,7 +206,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
 
         {closedCount > 0 ? (
           <div className="mt-2 px-1 text-[11px] font-medium text-[var(--text-muted)]">
-            ▾ Closed (failed · canceled): {closedCount}
+            Closed failed / canceled: {closedCount}
           </div>
         ) : null}
       </div>
@@ -238,10 +238,7 @@ function Card({
   onPointerDown?: (event: React.PointerEvent) => void;
 }) {
   const accent = riskAccent(task.risk);
-  const campaign = task.linkedObject.startsWith("Campaign:")
-    ? task.linkedObject.replace(/^Campaign:\s*/, "")
-    : null;
-  const needsApproval = /approval/i.test(task.approval);
+  const needsApproval = Boolean(task.approvalHref) || /approval/i.test(`${task.status} ${task.approval}`);
   const working = task.status === "running";
   const pct =
     task.progress && task.progress.total > 0
@@ -255,76 +252,61 @@ function Card({
   const ownerLabel = task.owner?.label ?? "Operator";
   const driverLabel = task.driver?.label ?? task.agentName;
   const driverIsMark = task.driver?.kind === "agent";
+  const nextAction = nextActionLabel(task.status, needsApproval, working, scheduledLabel, driverLabel);
 
   return (
     <article
-      className={`kanban-card group rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2.5 ${
+      className={`kanban-card group rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] p-3 ${
         ghost ? "kanban-card--ghost" : ""
       } ${overlay ? "kanban-card--overlay" : ""}`}
       onPointerDown={onPointerDown}
-      style={{ boxShadow: `inset 3px 0 0 ${accent.bar}` }}
+      style={{ boxShadow: `inset 2px 0 0 ${accent.bar}` }}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
         <EntityAvatar
           owner={driverIsMark ? { kind: "agent" } : { kind: "human", name: driverLabel }}
-          size={22}
+          size={24}
           pending={working}
         />
         <div className="min-w-0">
-          <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-[var(--text-primary)]">
+          <p className="line-clamp-3 text-[13px] font-semibold leading-snug text-[var(--text-primary)]">
             {task.objective}
           </p>
-          <p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">
-            Owner: {ownerLabel} / Driver: {driverLabel}
-          </p>
+          <p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">{ownerLabel} / {driverLabel}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 border-t border-[var(--border-hairline)] pt-2">
+        <div className="flex items-center gap-2 text-[12px] font-semibold text-[var(--text-primary)]">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Next</span>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: needsApproval ? "var(--accent)" : accent.bar }} />
+          <span className="min-w-0 truncate">{nextAction}</span>
         </div>
       </div>
 
       {pct !== null ? (
-        <div className="mt-2 pl-7">
+        <div className="mt-3">
           <div className="h-1 overflow-hidden rounded-full bg-[var(--surface-inset)]">
             <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
           </div>
-          <span className="mt-1 block text-[9.5px] font-medium text-[var(--text-muted)]">
+          <span className="mt-1 block text-[10px] font-medium text-[var(--text-muted)]">
             {task.progress!.done} of {task.progress!.total}
           </span>
         </div>
       ) : null}
 
-      {working && !overlay ? <div className="kanban-shimmer ml-7 mt-2" /> : null}
+      {working && !overlay ? <div className="kanban-shimmer mt-3" /> : null}
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-7">
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold" style={{ color: accent.text }}>
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent.bar }} />
-          {task.risk}
-        </span>
-        <span className="text-[10px] font-semibold text-[var(--text-muted)]">{task.priority}</span>
-        {campaign ? (
-          <span className="inline-flex max-w-[150px] items-center gap-1 truncate text-[10px] font-semibold text-[var(--text-secondary)]">
-            <span className="text-[var(--text-muted)]">◆</span>
-            <span className="truncate">{campaign}</span>
-          </span>
-        ) : null}
-        {needsApproval ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--accent-strong)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-            Outbound
-          </span>
-        ) : null}
-      </div>
-
-      <div className="mt-2 flex items-center justify-between pl-7">
-        {scheduledLabel ? (
-          <span className="text-[10px] font-semibold text-[var(--accent-strong)]">Scheduled · {scheduledLabel}</span>
-        ) : (
-          <span className="text-[10px] font-medium text-[var(--text-muted)]">{formatDue(task.dueAt)}</span>
-        )}
+      <div className="mt-3 flex items-center justify-between gap-2 text-[10.5px] text-[var(--text-muted)]">
+        <span className="min-w-0 truncate">{scheduledLabel ? `Scheduled / ${scheduledLabel}` : formatDue(task.dueAt)}</span>
         {working ? (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-strong)]">
+          <span className="inline-flex shrink-0 items-center gap-1.5 font-bold text-[var(--accent-strong)]">
             <span className="kanban-presence" />
-            {driverLabel} live
+            Live
           </span>
-        ) : null}
+        ) : (
+          <span className="shrink-0 font-semibold">{task.priority}</span>
+        )}
       </div>
     </article>
   );
@@ -345,6 +327,30 @@ function formatDue(dueAt: string | null): string {
   if (days === 0) return "Due today";
   if (days === 1) return "Due tomorrow";
   return `Due in ${days}d`;
+}
+
+function nextActionLabel(
+  status: string,
+  needsApproval: boolean,
+  working: boolean,
+  scheduledLabel: string | null,
+  driverLabel: string,
+) {
+  if (needsApproval) return "Human review";
+  if (working) return `${driverLabel} working`;
+  if (status === "queued" && scheduledLabel) return "Scheduled";
+  if (status === "queued") return `Waiting for ${driverLabel}`;
+  if (status === "blocked") return "Needs unblock";
+  if (status === "completed") return "Done";
+  return titleize(status);
+}
+
+function titleize(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 const KANBAN_CSS = `

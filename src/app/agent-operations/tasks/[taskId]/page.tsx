@@ -108,16 +108,14 @@ function NextDecision({ detail }: { detail: LiveDetail }) {
   const needsApproval = Boolean(output.approvalHref) && !["approved", "auto_approved"].includes(approvalStatus);
 
   return (
-    <section className="rounded-lg border border-[var(--accent-border)] bg-[var(--accent-soft)] px-4 py-3">
+    <section className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] px-4 py-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="text-xs font-semibold text-[var(--accent-strong)]">Next decision</div>
+          <div className="text-xs font-semibold text-[var(--text-muted)]">Next</div>
           <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
-            {needsApproval ? "Review this draft before anything outbound can happen." : "Mark has a draft ready for review."}
+            {needsApproval ? "Review Mark's draft." : "Mark has a draft ready."}
           </h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Check the latest output, then approve it or leave Mark an instruction.
-          </p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Approve it, or leave a short instruction.</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           {output.approvalHref ? (
