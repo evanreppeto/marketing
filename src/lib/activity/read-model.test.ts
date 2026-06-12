@@ -214,4 +214,38 @@ describe("mapEvent", () => {
     expect(mapped.actor).toBe("System");
     expect(mapped.href).toBe("/campaigns/campaign_1");
   });
+
+  it("classifies broader subjects, generic agent actors, and unknown insights", () => {
+    const assetEvent = mapEvent({
+      id: "evt_3",
+      actor: "research_agent",
+      subject_type: "marketing_asset_revision",
+      subject_id: "asset_1",
+      type: "record.touched",
+      payload: {},
+      occurred_at: "2026-06-12T14:00:00Z",
+    });
+    const draftEvent = mapEvent({
+      id: "evt_4",
+      actor: "agent.worker",
+      subject_type: "email_draft",
+      subject_id: "draft_1",
+      type: "record.touched",
+      payload: {},
+      occurred_at: "2026-06-12T14:00:00Z",
+    });
+
+    expect(assetEvent).toMatchObject({
+      actor: "Research Agent",
+      actorType: "sub_agent",
+      category: "asset",
+      insightLabel: "Data changed",
+    });
+    expect(draftEvent).toMatchObject({
+      actor: "Agent Worker",
+      actorType: "sub_agent",
+      category: "asset",
+      insightLabel: "Data changed",
+    });
+  });
 });

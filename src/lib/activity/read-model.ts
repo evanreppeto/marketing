@@ -385,7 +385,7 @@ function actorTypeFromActor(actor: string | null): ActivityActorType {
   const value = (actor ?? "").toLowerCase();
   if (!value || value === "system" || value.startsWith("system.")) return "system";
   if (value.includes("hermes") || value === "mark" || value.includes("marketing hermes")) return "hermes";
-  if (value.includes("sub-agent") || value.includes("sub_agent")) return "sub_agent";
+  if (value.includes("sub-agent") || value.includes("sub_agent") || value.includes("agent")) return "sub_agent";
   if (
     value.includes("integration") ||
     value.includes("quickbooks") ||
@@ -411,10 +411,11 @@ function categoryForEvent(subjectType: string, eventType: string): ActivityCateg
   const subject = subjectType.toLowerCase();
   const event = eventType.toLowerCase();
   if (event.includes("risk") || event.includes("block")) return "risk";
-  if (["company", "contact", "property", "lead", "job", "outcome"].includes(subject)) return "crm";
-  if (subject === "campaign") return "campaign";
-  if (subject === "approval") return "approval";
-  if (subject === "agent_task") return "agent";
+  if (subjectIncludes(subject, ["asset", "draft"])) return "asset";
+  if (subjectIncludes(subject, ["company", "contact", "property", "lead", "job", "outcome"])) return "crm";
+  if (subject.includes("campaign")) return "campaign";
+  if (subject.includes("approval")) return "approval";
+  if (subject.includes("agent")) return "agent";
   if (event.includes("integration") || event.includes("sync")) return "integration";
   return "system";
 }
@@ -424,17 +425,21 @@ function insightForEvent(subjectType: string, eventType: string): ActivityInsigh
   const event = eventType.toLowerCase();
   if (event.includes("risk") || event.includes("block")) return "Risk blocked";
   if (event.includes("review") || event.includes("approval") || event.includes("pending")) return "Needs review";
-  if (subject === "campaign") {
+  if (subject.includes("campaign")) {
     return event.includes("result") || event.includes("sent") || event.includes("launch")
       ? "Campaign result"
       : "Marketing progress";
   }
-  if (subject === "agent_task") return "Agent work";
-  if (["company", "contact", "property", "lead", "job", "outcome"].includes(subject)) return "Customer signal";
+  if (subject.includes("agent")) return "Agent work";
+  if (subjectIncludes(subject, ["company", "contact", "property", "lead", "job", "outcome"])) return "Customer signal";
   if (event.includes("sync") || event.includes("updated") || event.includes("changed") || event.includes("created")) {
     return "Data changed";
   }
-  return null;
+  return "Data changed";
+}
+
+function subjectIncludes(subject: string, needles: string[]): boolean {
+  return needles.some((needle) => subject.includes(needle));
 }
 
 function hrefForSubject(subjectType: string, subjectId: string | null): string | null {
