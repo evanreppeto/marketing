@@ -375,6 +375,8 @@ export function WorkCanvas({
     () => collectAssets([...messages, ...projectMessages]),
     [messages, projectMessages],
   );
+  // Current-chat assets only — drives the Now tab and Audience, which stay chat-scoped.
+  const currentAssets = useMemo(() => collectAssets(messages), [messages]);
   const audienceCount = useMemo(() => collectAudienceMentions(messages).length, [messages]);
   const [tab, setTab] = useState<StudioTab>(() => (assets.length > 1 ? "assets" : "now"));
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -389,7 +391,7 @@ export function WorkCanvas({
   }, [focus]);
 
   const selected = selectedId ? assets.find((a) => a.id === selectedId) ?? null : null;
-  const latestDraft = [...assets].reverse().find((a) => a.card.kind === "draft");
+  const latestDraft = [...currentAssets].reverse().find((a) => a.card.kind === "draft");
   const showTabs = !building && assets.length > 0;
 
   function chooseTab(t: StudioTab) {
@@ -427,7 +429,7 @@ export function WorkCanvas({
       </div>
     );
   } else if (tab === "audience") {
-    content = <AudiencePanel messages={messages} assets={assets} />;
+    content = <AudiencePanel messages={messages} assets={currentAssets} />;
   } else {
     content = latestDraft ? (
       <AssetDetail asset={latestDraft} onDecision={onDecision} />
