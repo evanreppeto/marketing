@@ -96,6 +96,11 @@ export function isValidSupportEmail(input: string): boolean {
 
 type SettingRow = { key: string; value: unknown };
 
+function logAppSettingsFallback(message: string): void {
+  if (process.env.DEBUG_APP_SETTINGS !== "1") return;
+  console.warn(`app_settings lookup failed, using defaults: ${message}`);
+}
+
 function appMarkMode(value: unknown): MarkMode {
   return value === "ask" || value === "act" || value === "draft" ? value : DEFAULT_APP_SETTINGS.markDefaultMode;
 }
@@ -188,13 +193,13 @@ export async function getAppSettings(client?: SupabaseClient): Promise<AppSettin
   try {
     const { data, error } = await supabase.from("app_settings").select("key,value");
     if (error) {
-      console.warn(`app_settings lookup failed, using defaults: ${error.message}`);
+      logAppSettingsFallback(error.message);
       return { ...DEFAULT_APP_SETTINGS };
     }
     return mergeAppSettingsRows((data ?? []) as SettingRow[]);
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
-    console.warn(`app_settings lookup failed, using defaults: ${message}`);
+    logAppSettingsFallback(message);
     return { ...DEFAULT_APP_SETTINGS };
   }
 }
