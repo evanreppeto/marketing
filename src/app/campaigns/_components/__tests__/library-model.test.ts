@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
-import { momentumCounts, partitionAwaiting } from "../library-model";
+import {
+  campaignManagerSummary,
+  campaignManagerStatus,
+  campaignManagerWhere,
+  campaignDecisionPrompt,
+  campaignNextStep,
+  campaignPreviewText,
+  buildCampaignStartActions,
+  campaignAssetKindLabel,
+  filterCampaignManagerItems,
+  managerViewCounts,
+  momentumCounts,
+  partitionAwaiting,
+  type CampaignManagerView,
+} from "../library-model";
 
 function item(overrides: Partial<CampaignWorkspaceListItem>): CampaignWorkspaceListItem {
   return {
@@ -64,5 +78,241 @@ describe("momentumCounts", () => {
       item({ lifecycle: "Ready" }),
     ];
     expect(momentumCounts(items)).toEqual({ live: 2, awaiting: 1, drafts: 1, ready: 1 });
+  });
+});
+
+function campaign(overrides: Partial<CampaignWorkspaceListItem> = {}): CampaignWorkspaceListItem {
+  return {
+    id: overrides.id ?? "campaign-1",
+    name: overrides.name ?? "Plumber referral campaign",
+    persona: overrides.persona ?? "Persona Plumbing Partner",
+    status: overrides.status ?? "Pending approval",
+    lifecycle: overrides.lifecycle ?? "In review",
+    pendingCount: overrides.pendingCount ?? 2,
+    pendingDeliverables: overrides.pendingDeliverables ?? [],
+    objective: overrides.objective ?? "Build partner-facing email and one-pager",
+    audienceSummary: overrides.audienceSummary ?? "Plumbing partners who find water damage.",
+    offerSummary: overrides.offerSummary ?? "Fast documentation and mitigation handoff.",
+    whyBuilt: overrides.whyBuilt ?? "Mark found strong referral-fit partners.",
+    assetCount: overrides.assetCount ?? 3,
+    approvalCount: overrides.approvalCount ?? 2,
+    mediaCount: overrides.mediaCount ?? 0,
+    sourceCount: overrides.sourceCount ?? 1,
+    thumbnailUrl: overrides.thumbnailUrl ?? null,
+    assetTypes: overrides.assetTypes ?? ["email", "one_pager", "call_script"],
+    driver: overrides.driver ?? "agent",
+    channels: overrides.channels ?? ["Email", "Export"],
+    previewText: overrides.previewText ?? "Subject: Fast help when plumbing jobs uncover water damage",
+    previewLabel: overrides.previewLabel ?? "Email",
+    updatedAt: overrides.updatedAt ?? "Jun 11, 2026, 3:00 PM",
+    updatedAtIso: overrides.updatedAtIso ?? "2026-06-11T19:00:00.000Z",
+    href: overrides.href ?? "/campaigns/campaign-1",
+  };
+}
+
+describe("campaign manager helpers", () => {
+  it.each<[
+    CampaignWorkspaceListItem["lifecycle"],
+    number,
+    ReturnType<typeof campaignManagerStatus>,
+  ]>([
+    ["In review", 2, { label: "Review needed", tone: "amber" }],
+    ["In review", 0, { label: "Ready", tone: "blue" }],
+    ["Ready", 0, { label: "Ready", tone: "blue" }],
+    ["Live", 1, { label: "Review needed", tone: "amber" }],
+    ["Live", 0, { label: "Live", tone: "green" }],
+    ["Drafting", 0, { label: "Mark drafting", tone: "gray" }],
+  ])("maps lifecycle %s and pending %s to plain status", (lifecycle, pendingCount, expected) => {
+    expect(campaignManagerStatus(campaign({ lifecycle, pendingCount }))).toEqual(expected);
+  });
+
+  it("shows archived display status regardless of lifecycle", () => {
+    expect(campaignManagerStatus(campaign({ status: "Archived", lifecycle: "Live", pendingCount: 0 }))).toEqual({
+      label: "Archived",
+      tone: "gray",
+    });
+  });
+
+  it("summarizes content with review count", () => {
+    expect(campaignManagerSummary(campaign({ assetCount: 3, pendingCount: 2 }))).toEqual({
+      primary: "3 pieces",
+      secondary: "2 need review",
+    });
+  });
+
+  it("uses all-approved copy when no pieces need review", () => {
+    expect(campaignManagerSummary(campaign({ assetCount: 3, pendingCount: 0 }))).toEqual({
+      primary: "3 pieces",
+      secondary: "all approved",
+    });
+  });
+
+  it("maps asset types to plain where labels", () => {
+    expect(campaignManagerWhere(campaign({ assetTypes: ["email", "social_ad", "landing_page", "one_pager"] }))).toEqual([
+      "Email",
+      "Social",
+      "Website",
+      "Export",
+    ]);
+  });
+
+  it("maps humanized asset types from the read model to plain where labels", () => {
+    expect(campaignManagerWhere(campaign({ assetTypes: ["Email", "Social Ad", "Landing Page", "One Pager"] }))).toEqual([
+      "Email",
+      "Social",
+      "Website",
+      "Export",
+    ]);
+  });
+
+  it("maps internal campaign asset names to plain where labels", () => {
+    expect(
+      campaignManagerWhere(
+        campaign({
+          assetTypes: ["Campaign Brief", "CRM Lead List Review", "CRM Population Batch", "Partner Lead List"],
+        }),
+      ),
+    ).toEqual(["Export", "CRM"]);
+  });
+
+  it("derives the next step in plain language", () => {
+    expect(campaignNextStep(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe("Review 2 pieces");
+    expect(campaignNextStep(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe("Send or export");
+    expect(campaignNextStep(campaign({ lifecycle: "Live", pendingCount: 0 }))).toBe("Check results");
+    expect(campaignNextStep(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe("Wait for Mark");
+  });
+
+  it("explains what the user needs to decide", () => {
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe(
+      "Decide whether to approve, revise, or hold these pieces.",
+    );
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe(
+      "Choose where this campaign should be handed off.",
+    );
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Live", pendingCount: 0 }))).toBe("Watch replies, dispatches, and outcomes.");
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe(
+      "Add guidance for Mark if the campaign needs a different direction.",
+    );
+  });
+
+  it("uses the real preview text when one exists", () => {
+    expect(campaignPreviewText(campaign({ previewLabel: "Email", previewText: "Subject: We can help" }))).toEqual({
+      label: "Email",
+      text: "Subject: We can help",
+    });
+  });
+
+  it("falls back to why Mark built it when no preview text exists", () => {
+    expect(campaignPreviewText(campaign({ previewText: "", previewLabel: "", whyBuilt: "Mark found a strong partner fit." }))).toEqual({
+      label: "Why this exists",
+      text: "Mark found a strong partner fit.",
+    });
+  });
+
+  it("builds start-here action cards", () => {
+    const actions = buildCampaignStartActions([
+      campaign({ id: "review", lifecycle: "In review", pendingCount: 2 }),
+      campaign({ id: "ready", lifecycle: "Ready", pendingCount: 0 }),
+      campaign({ id: "draft", lifecycle: "Drafting", pendingCount: 0 }),
+      campaign({ id: "live", lifecycle: "Live", pendingCount: 0 }),
+    ]);
+
+    expect(actions.map((action) => ({ key: action.key, count: action.count, cta: action.cta, tone: action.tone }))).toEqual([
+      { key: "needs-attention", count: 1, cta: "Start reviewing", tone: "amber" },
+      { key: "ready-to-send", count: 1, cta: "View ready", tone: "blue" },
+      { key: "mark-working", count: 1, cta: "Check drafts", tone: "blue" },
+      { key: "live", count: 1, cta: "View live", tone: "green" },
+    ]);
+    expect(actions[0].detail).toBe("2 pieces need a yes, a revision note, or a hold.");
+  });
+
+  it("uses plain labels for deliverable kinds", () => {
+    expect(campaignAssetKindLabel("campaign_brief")).toBe("Export");
+    expect(campaignAssetKindLabel("crm_gap_fill_review")).toBe("CRM");
+    expect(campaignAssetKindLabel("handoff-note")).toBe("Handoff Note");
+  });
+
+  it("filters saved views", () => {
+    const items = [
+      campaign({ id: "review", lifecycle: "In review", pendingCount: 1 }),
+      campaign({ id: "ready", lifecycle: "Ready", pendingCount: 0 }),
+      campaign({ id: "live", lifecycle: "Live", pendingCount: 0 }),
+      campaign({ id: "draft", lifecycle: "Drafting", pendingCount: 0 }),
+    ];
+
+    expect(filterCampaignManagerItems(items, "needs-attention").map((campaignItem) => campaignItem.id)).toEqual(["review"]);
+    expect(filterCampaignManagerItems(items, "ready-to-send").map((campaignItem) => campaignItem.id)).toEqual(["ready"]);
+    expect(filterCampaignManagerItems(items, "mark-working").map((campaignItem) => campaignItem.id)).toEqual(["draft"]);
+    expect(filterCampaignManagerItems(items, "live").map((campaignItem) => campaignItem.id)).toEqual(["live"]);
+    expect(filterCampaignManagerItems(items, "all").map((campaignItem) => campaignItem.id)).toEqual(["review", "ready", "live", "draft"]);
+  });
+
+  it("searches campaign text, audience, channels, and destinations", () => {
+    const items = [
+      campaign({ id: "plumber", name: "Plumber referral campaign", audienceSummary: "Plumbing partners", assetTypes: ["email"] }),
+      campaign({ id: "storm", name: "Storm response ads", persona: "Persona Homeowner", audienceSummary: "Homeowners", assetTypes: ["social_ad"] }),
+      campaign({
+        id: "mail",
+        name: "Homeowner follow-up",
+        persona: "Persona Homeowner",
+        audienceSummary: "Recent customers",
+        assetTypes: ["Email"],
+        channels: ["Direct Mail"],
+      }),
+    ];
+
+    expect(filterCampaignManagerItems(items, "all", "plumbing").map((campaignItem) => campaignItem.id)).toEqual(["plumber"]);
+    expect(filterCampaignManagerItems(items, "all", "social").map((campaignItem) => campaignItem.id)).toEqual(["storm"]);
+    expect(filterCampaignManagerItems(items, "all", "direct mail").map((campaignItem) => campaignItem.id)).toEqual(["mail"]);
+  });
+
+  it("counts manager views", () => {
+    const counts = managerViewCounts([
+      campaign({ id: "review", lifecycle: "In review", pendingCount: 1 }),
+      campaign({ id: "ready", lifecycle: "Ready", pendingCount: 0 }),
+      campaign({ id: "live", lifecycle: "Live", pendingCount: 0 }),
+      campaign({ id: "draft", lifecycle: "Drafting", pendingCount: 0 }),
+      campaign({ id: "archived", status: "Archived", lifecycle: "Live", pendingCount: 0 }),
+    ]);
+
+    expect(counts satisfies Record<CampaignManagerView, number>).toEqual({
+      "needs-attention": 1,
+      all: 5,
+      "ready-to-send": 1,
+      "mark-working": 1,
+      live: 1,
+      archived: 1,
+    });
+  });
+
+  it("filters archived campaigns", () => {
+    const items = [
+      campaign({ id: "active", status: "Pending approval", lifecycle: "Ready", pendingCount: 0 }),
+      campaign({ id: "archived", status: "Archived", lifecycle: "Live", pendingCount: 0 }),
+    ];
+
+    expect(filterCampaignManagerItems(items, "archived").map((campaignItem) => campaignItem.id)).toEqual(["archived"]);
+  });
+
+  it("keeps archived campaigns in all and archived, but excludes them from active views", () => {
+    const items = [
+      campaign({ id: "active-live", status: "Live", lifecycle: "Live", pendingCount: 0 }),
+      campaign({ id: "active-review", status: "Pending approval", lifecycle: "In review", pendingCount: 1 }),
+      campaign({ id: "archived-live", status: "Archived", lifecycle: "Live", pendingCount: 1 }),
+    ];
+
+    expect(filterCampaignManagerItems(items, "archived").map((campaignItem) => campaignItem.id)).toEqual(["archived-live"]);
+    expect(filterCampaignManagerItems(items, "all").map((campaignItem) => campaignItem.id)).toEqual([
+      "active-live",
+      "active-review",
+      "archived-live",
+    ]);
+    expect(filterCampaignManagerItems(items, "live").map((campaignItem) => campaignItem.id)).toEqual(["active-live"]);
+    expect(filterCampaignManagerItems(items, "needs-attention").map((campaignItem) => campaignItem.id)).toEqual(["active-review"]);
+
+    expect(managerViewCounts(items).archived).toBe(1);
+    expect(managerViewCounts(items).all).toBe(3);
+    expect(managerViewCounts(items).live).toBe(1);
+    expect(managerViewCounts(items)["needs-attention"]).toBe(1);
   });
 });

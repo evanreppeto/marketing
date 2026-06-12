@@ -1,21 +1,25 @@
 import { requireOperator } from "@/lib/auth/operator";
+import { getMarkDisplayName } from "@/lib/mark-chat/agent-config";
+import { getAppSettings } from "@/lib/settings/store";
 
 import { PageHeader } from "../../_components/page-header";
 import { CampaignCreateForm } from "../_components/campaign-create-form";
 
 export default async function NewCampaignPage() {
   await requireOperator();
+  const { workspaceName } = await getAppSettings();
+  const assistantName = getMarkDisplayName();
 
   return (
     <>
       <PageHeader
-        eyebrow="Campaign command"
-        title="New campaign"
-        description="Author a campaign by hand: a title, who it's for, the audience and offer, and any reference photos. Save it as a draft, deploy it yourself, or point Mark at it later."
+        eyebrow="New campaign"
+        title="Create a campaign"
+        description={`Set up marketing for ${workspaceName || "your business"} manually, or ask ${assistantName} to help draft the campaign if you are not sure where to start.`}
         backHref="/campaigns"
-        backLabel="campaigns"
+        backLabel="all campaigns"
       />
-      <CampaignCreateForm />
+      <CampaignCreateForm assistantName={assistantName} businessName={workspaceName || "your business"} />
     </>
   );
 }
