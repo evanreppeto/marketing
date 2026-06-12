@@ -5,6 +5,27 @@ import { type Database } from "./database.types";
 export type TypedSupabaseClient = SupabaseClient<Database>;
 
 let adminClient: TypedSupabaseClient | null = null;
+const SUPABASE_FETCH_TIMEOUT_MS = 4000;
+
+const supabaseFetch: typeof fetch = async (input, init) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
+  const upstreamSignal = init?.signal;
+  const abortFromUpstream = () => controller.abort(upstreamSignal?.reason);
+
+  if (upstreamSignal?.aborted) {
+    controller.abort(upstreamSignal.reason);
+  } else {
+    upstreamSignal?.addEventListener("abort", abortFromUpstream, { once: true });
+  }
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+    upstreamSignal?.removeEventListener("abort", abortFromUpstream);
+  }
+};
 
 export function isSupabaseAdminConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -22,6 +43,9 @@ export function getSupabaseAdminClient() {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+    },
+    global: {
+      fetch: supabaseFetch,
     },
   });
 

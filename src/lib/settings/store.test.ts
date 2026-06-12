@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_APP_SETTINGS,
   DEFAULT_SUPPORT_EMAIL,
+  getAppSettings,
   getSupportContactEmail,
   normalizeBrandShortName,
   normalizeBrandUrl,
@@ -117,5 +119,17 @@ describe("settings store helpers", () => {
     expect(getSupportContactEmail({ supportEmail: "" }, env)).toBe("env-support@example.com");
     expect(getSupportContactEmail({ supportEmail: "" }, { OPERATOR_EMAIL: "operator@example.com" })).toBe("operator@example.com");
     expect(getSupportContactEmail({ supportEmail: "" }, {})).toBe(DEFAULT_SUPPORT_EMAIL);
+  });
+
+  it("uses defaults when the app settings request throws", async () => {
+    const client = {
+      from: () => ({
+        select: async () => {
+          throw new Error("fetch failed");
+        },
+      }),
+    };
+
+    await expect(getAppSettings(client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
   });
 });

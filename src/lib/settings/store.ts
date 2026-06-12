@@ -185,12 +185,18 @@ export async function getAppSettings(client?: SupabaseClient): Promise<AppSettin
   const supabase: SupabaseClient | null = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
   if (!supabase) return { ...DEFAULT_APP_SETTINGS };
 
-  const { data, error } = await supabase.from("app_settings").select("key,value");
-  if (error) {
-    console.warn(`app_settings lookup failed, using defaults: ${error.message}`);
+  try {
+    const { data, error } = await supabase.from("app_settings").select("key,value");
+    if (error) {
+      console.warn(`app_settings lookup failed, using defaults: ${error.message}`);
+      return { ...DEFAULT_APP_SETTINGS };
+    }
+    return mergeAppSettingsRows((data ?? []) as SettingRow[]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    console.warn(`app_settings lookup failed, using defaults: ${message}`);
     return { ...DEFAULT_APP_SETTINGS };
   }
-  return mergeAppSettingsRows((data ?? []) as SettingRow[]);
 }
 
 /** Upsert one or more settings keys. Values are stored as jsonb. */
