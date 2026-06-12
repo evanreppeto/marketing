@@ -19,6 +19,7 @@ export type Database = {
       companies: {
         Row: {
           id: string;
+          org_id: string;
           name: string;
           persona: Database["public"]["Enums"]["persona_mapping"];
           status: Database["public"]["Enums"]["company_status"];
@@ -32,6 +33,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          org_id?: string;
           name: string;
           persona?: Database["public"]["Enums"]["persona_mapping"];
           status?: Database["public"]["Enums"]["company_status"];
@@ -45,6 +47,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          org_id?: string;
           name?: string;
           persona?: Database["public"]["Enums"]["persona_mapping"];
           status?: Database["public"]["Enums"]["company_status"];
@@ -61,6 +64,7 @@ export type Database = {
       contacts: {
         Row: {
           id: string;
+          org_id: string;
           company_id: string | null;
           persona: Database["public"]["Enums"]["persona_mapping"];
           status: Database["public"]["Enums"]["contact_status"];
@@ -76,6 +80,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          org_id?: string;
           company_id?: string | null;
           persona?: Database["public"]["Enums"]["persona_mapping"];
           status?: Database["public"]["Enums"]["contact_status"];
@@ -91,6 +96,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          org_id?: string;
           company_id?: string | null;
           persona?: Database["public"]["Enums"]["persona_mapping"];
           status?: Database["public"]["Enums"]["contact_status"];
@@ -109,6 +115,7 @@ export type Database = {
       properties: {
         Row: {
           id: string;
+          org_id: string;
           company_id: string | null;
           contact_id: string | null;
           persona: Database["public"]["Enums"]["persona_mapping"];
@@ -124,6 +131,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          org_id?: string;
           company_id?: string | null;
           contact_id?: string | null;
           persona?: Database["public"]["Enums"]["persona_mapping"];
@@ -139,6 +147,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          org_id?: string;
           company_id?: string | null;
           contact_id?: string | null;
           persona?: Database["public"]["Enums"]["persona_mapping"];
@@ -157,6 +166,7 @@ export type Database = {
       leads: {
         Row: {
           id: string;
+          org_id: string;
           company_id: string | null;
           contact_id: string | null;
           property_id: string | null;
@@ -182,6 +192,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          org_id?: string;
           company_id?: string | null;
           contact_id?: string | null;
           property_id?: string | null;
@@ -207,6 +218,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          org_id?: string;
           company_id?: string | null;
           contact_id?: string | null;
           property_id?: string | null;
@@ -235,6 +247,7 @@ export type Database = {
       jobs: {
         Row: {
           id: string;
+          org_id: string;
           lead_id: string | null;
           company_id: string | null;
           contact_id: string | null;
@@ -251,6 +264,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          org_id?: string;
           lead_id?: string | null;
           company_id?: string | null;
           contact_id?: string | null;
@@ -267,6 +281,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          org_id?: string;
           lead_id?: string | null;
           company_id?: string | null;
           contact_id?: string | null;
@@ -286,6 +301,7 @@ export type Database = {
       outcomes: {
         Row: {
           id: string;
+          org_id: string;
           job_id: string | null;
           lead_id: string | null;
           company_id: string | null;
@@ -302,6 +318,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          org_id?: string;
           job_id?: string | null;
           lead_id?: string | null;
           company_id?: string | null;
@@ -318,6 +335,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          org_id?: string;
           job_id?: string | null;
           lead_id?: string | null;
           company_id?: string | null;
@@ -1381,6 +1399,177 @@ export type Database = {
         };
         Relationships: [];
       };
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          status: Database["public"]["Enums"]["org_status"];
+          branding: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          status?: Database["public"]["Enums"]["org_status"];
+          branding?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          status?: Database["public"]["Enums"]["org_status"];
+          branding?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      crm_notes: {
+        Row: {
+          id: string;
+          org_id: string;
+          entity_type: Database["public"]["Enums"]["crm_entity_type"];
+          entity_id: string;
+          body: string;
+          is_pinned: boolean;
+          is_internal: boolean;
+          author_kind: Database["public"]["Enums"]["actor_kind"];
+          author_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          entity_type: Database["public"]["Enums"]["crm_entity_type"];
+          entity_id: string;
+          body: string;
+          is_pinned?: boolean;
+          is_internal?: boolean;
+          author_kind: Database["public"]["Enums"]["actor_kind"];
+          author_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          entity_type?: Database["public"]["Enums"]["crm_entity_type"];
+          entity_id?: string;
+          body?: string;
+          is_pinned?: boolean;
+          is_internal?: boolean;
+          author_kind?: Database["public"]["Enums"]["actor_kind"];
+          author_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      crm_tasks: {
+        Row: {
+          id: string;
+          org_id: string;
+          entity_type: Database["public"]["Enums"]["crm_entity_type"] | null;
+          entity_id: string | null;
+          title: string;
+          description: string | null;
+          due_at: string | null;
+          priority: Database["public"]["Enums"]["task_priority"];
+          status: Database["public"]["Enums"]["task_status"];
+          assignee_kind: Database["public"]["Enums"]["actor_kind"] | null;
+          assignee_name: string | null;
+          completed_at: string | null;
+          author_kind: Database["public"]["Enums"]["actor_kind"];
+          author_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          entity_type?: Database["public"]["Enums"]["crm_entity_type"] | null;
+          entity_id?: string | null;
+          title: string;
+          description?: string | null;
+          due_at?: string | null;
+          priority?: Database["public"]["Enums"]["task_priority"];
+          status?: Database["public"]["Enums"]["task_status"];
+          assignee_kind?: Database["public"]["Enums"]["actor_kind"] | null;
+          assignee_name?: string | null;
+          completed_at?: string | null;
+          author_kind: Database["public"]["Enums"]["actor_kind"];
+          author_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          entity_type?: Database["public"]["Enums"]["crm_entity_type"] | null;
+          entity_id?: string | null;
+          title?: string;
+          description?: string | null;
+          due_at?: string | null;
+          priority?: Database["public"]["Enums"]["task_priority"];
+          status?: Database["public"]["Enums"]["task_status"];
+          assignee_kind?: Database["public"]["Enums"]["actor_kind"] | null;
+          assignee_name?: string | null;
+          completed_at?: string | null;
+          author_kind?: Database["public"]["Enums"]["actor_kind"];
+          author_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      crm_activities: {
+        Row: {
+          id: string;
+          org_id: string;
+          entity_type: Database["public"]["Enums"]["crm_entity_type"];
+          entity_id: string;
+          activity_type: Database["public"]["Enums"]["crm_activity_type"];
+          summary: string;
+          detail: string | null;
+          actor_kind: Database["public"]["Enums"]["actor_kind"];
+          actor_name: string | null;
+          occurred_at: string;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          entity_type: Database["public"]["Enums"]["crm_entity_type"];
+          entity_id: string;
+          activity_type: Database["public"]["Enums"]["crm_activity_type"];
+          summary: string;
+          detail?: string | null;
+          actor_kind: Database["public"]["Enums"]["actor_kind"];
+          actor_name?: string | null;
+          occurred_at?: string;
+          metadata?: Json;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          entity_type?: Database["public"]["Enums"]["crm_entity_type"];
+          entity_id?: string;
+          activity_type?: Database["public"]["Enums"]["crm_activity_type"];
+          summary?: string;
+          detail?: string | null;
+          actor_kind?: Database["public"]["Enums"]["actor_kind"];
+          actor_name?: string | null;
+          occurred_at?: string;
+          metadata?: Json;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -1479,6 +1668,27 @@ export type Database = {
         | "dispatch_payload"
         | "loss_classification";
       guardrail_severity: "info" | "warning" | "blocker";
+      org_status: "active" | "suspended" | "archived";
+      crm_entity_type: "company" | "contact" | "property" | "lead" | "job" | "outcome" | "campaign";
+      actor_kind: "human" | "agent" | "system";
+      task_priority: "low" | "normal" | "high" | "urgent";
+      task_status: "open" | "in_progress" | "completed" | "canceled";
+      crm_activity_type:
+        | "note_added"
+        | "status_changed"
+        | "call_logged"
+        | "email_logged"
+        | "sms_logged"
+        | "meeting_logged"
+        | "task_created"
+        | "task_completed"
+        | "record_created"
+        | "record_updated"
+        | "ai_recommendation"
+        | "approval_requested"
+        | "approval_decided"
+        | "converted"
+        | "file_added";
     };
     CompositeTypes: Record<string, never>;
   };
