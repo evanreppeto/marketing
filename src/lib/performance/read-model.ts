@@ -32,6 +32,7 @@ export type PerformanceReadModel =
       leadVolumeByPersona: PerformanceBreakdown[];
       leadVolumeBySource: PerformanceBreakdown[];
       conversionSignals: PerformanceBreakdown[];
+      funnelStages: { label: string; count: number }[];
       campaignSignals: PerformanceBreakdown[];
       partnerSignals: PerformanceBreakdown[];
       revenueByPersona: PerformanceBreakdown[];
@@ -166,6 +167,11 @@ export async function getPerformanceReadModel(client?: SupabaseClient): Promise<
       leadVolumeByPersona: breakdownFromCounts(countBy(leadRows, (lead) => lead.persona ?? "unassigned_persona"), "lead"),
       leadVolumeBySource: breakdownFromCounts(countBy(leadRows, (lead) => lead.source ?? "unknown_source"), "lead"),
       conversionSignals: buildConversionSignals(leadRows, jobRows, outcomeRows),
+      funnelStages: [
+        { label: "Leads", count: leadRows.length },
+        { label: "Bookings", count: jobRows.length },
+        { label: "Won", count: wonOutcomes.length },
+      ],
       campaignSignals: buildCampaignSignals(campaignRows, assetRows, approvalRows),
       partnerSignals: buildPartnerSignals(companyRows, outcomeRows),
       revenueByPersona: buildRevenueByPersona(outcomeRows),
