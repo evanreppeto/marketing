@@ -29,7 +29,7 @@ export function CrmPipelineBoard({
   selectedRecordId: string | null;
 }) {
   const router = useRouter();
-  const clickTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const clickTimeoutRef = useRef<number | null>(null);
   const [query, setQuery] = useState("");
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("all");
   const [personaFilter, setPersonaFilter] = useState("all");
@@ -122,7 +122,7 @@ export function CrmPipelineBoard({
     openRecord(row);
   }
 
-  function handleRowKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, row: CrmPipelineRow) {
+  function handleRowKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, row: CrmPipelineRow) {
     if (event.key === "Enter") {
       openRecord(row);
       return;
