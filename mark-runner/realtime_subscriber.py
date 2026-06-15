@@ -105,12 +105,15 @@ async def main():
         )
     )
 
-    # Keep the process alive so the client services the socket + heartbeats.
-    # AsyncRealtimeClient exposes a listen()/_listen() loop in current versions;
-    # fall back to parking forever if this build doesn't.
-    listen = getattr(socket, "listen", None) or getattr(socket, "_listen", None)
-    if callable(listen):
-        await listen()
+    # connect() already started the receive loop and heartbeat as background tasks
+    # (see AsyncRealtimeClient._on_connect), so do NOT call listen()/_listen() here —
+    # the public listen() is a deprecated no-op in realtime-py 2.x, and calling
+    # _listen() again would open a second consumer of the same socket. Block on the
+    # existing listen task so a fatal socket error exits the process (launchd then
+    # restarts us); auto_reconnect=True handles transient drops inside the loop.
+    listen_task = getattr(socket, "_listen_task", None)
+    if listen_task is not None:
+        await listen_task
     else:
         await asyncio.Event().wait()
 
