@@ -78,7 +78,7 @@ describe("settings store helpers", () => {
     expect(settings).not.toHaveProperty("markWebhookEnabled");
   });
 
-  it("falls back to safe Agent defaults when persisted rows are invalid", () => {
+  it("falls back to safe Arc defaults when persisted rows are invalid", () => {
     const settings = mergeAppSettingsRows([
       { key: "mark_default_mode", value: "go-wild" },
       { key: "mark_default_route", value: "premium" },
@@ -103,7 +103,7 @@ describe("settings store helpers", () => {
     expect(settings.appearanceMotion).toBe("standard");
     expect(settings.workspaceProfile).toBe("company");
     expect(settings.productLabel).toBe("Marketing");
-    expect(settings.assistantName).toBe("Agent");
+    expect(settings.assistantName).toBe("Arc");
     expect(settings.assistantTone).toBe("direct");
     expect(settings.assistantResponseStyle).toBe("balanced");
     expect(settings.approvalStrictness).toBe("standard");

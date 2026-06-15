@@ -17,17 +17,17 @@ export async function getMarkDisplayName(): Promise<string> {
 
 export type AgentProfile = { name: string; shortName: string; monogram: string };
 
-/** Derive display identity from a resolved name. Pure; empty falls back to "Agent". */
+/** Derive display identity from a resolved name. Pure; empty falls back to "Arc". */
 export function agentProfile(rawName: string | null | undefined): AgentProfile {
-  const name = (rawName ?? "").trim() || "Agent";
+  const name = (rawName ?? "").trim() || "Arc";
   const shortName = name.split(/\s+/)[0];
   const firstAlnum = name.replace(/[^A-Za-z0-9]/g, "")[0] ?? name[0];
   return { name, shortName, monogram: firstAlnum.toUpperCase() };
 }
 
-/** Resolve the agent's display name: operator override (DB) → env → "Agent". */
+/** Resolve the agent's display name: operator override (DB) → env → "Arc". */
 export function getAgentDisplayName(override: string | null | undefined): string {
-  return override?.trim() || process.env.MARK_DISPLAY_NAME?.trim() || "Agent";
+  return override?.trim() || process.env.MARK_DISPLAY_NAME?.trim() || "Arc";
 }
 
 /** Whether any agent link is configured (runner endpoint or inbound API token). */
