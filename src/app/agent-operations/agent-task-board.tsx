@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { DataTable } from "../_components/data-table";
 import { EmptyState, StatusPill } from "../_components/page-header";
 import { PaginationControls } from "../_components/pagination-controls";
@@ -21,6 +22,7 @@ const FILTERS: Array<{ key: TaskFilter; label: string }> = [
 ];
 
 export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
+  const agentName = useAgentName();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [page, setPage] = useState(1);
@@ -61,7 +63,7 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
   if (tasks.length === 0) {
     return (
       <div className="p-4">
-        <EmptyState title="No Mark tasks yet" detail="Queue a task when you want Mark to prepare CRM enrichment, campaign drafts, or approval packets." />
+        <EmptyState title={`No ${agentName} tasks yet`} detail={`Queue a task when you want ${agentName} to prepare CRM enrichment, campaign drafts, or approval packets.`} />
       </div>
     );
   }
@@ -72,7 +74,7 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)] xl:items-start">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="signal-eyebrow">Mark task queue</span>
+              <span className="signal-eyebrow">{`${agentName} task queue`}</span>
               <StatusPill tone="amber">Outbound locked</StatusPill>
               <StatusPill tone="blue">{tasks.length} tasks</StatusPill>
             </div>
@@ -84,7 +86,7 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
 
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
             <label className="relative block">
-              <span className="sr-only">Search Mark tasks</span>
+              <span className="sr-only">{`Search ${agentName} tasks`}</span>
               <svg
                 aria-hidden
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
@@ -97,20 +99,20 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
                 <path d="m18 18-4.5-4.5" strokeLinecap="round" />
               </svg>
               <input
-                aria-label="Search Mark tasks"
+                aria-label={`Search ${agentName} tasks`}
                 className="h-11 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] py-2 pl-9 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 onChange={(event) => {
                   setQuery(event.target.value);
                   resetPage();
                 }}
-                placeholder="Search Mark tasks..."
+                placeholder={`Search ${agentName} tasks...`}
                 type="search"
                 value={query}
               />
             </label>
 
             <label className="block">
-              <span className="sr-only">Mark tasks per page</span>
+              <span className="sr-only">{`${agentName} tasks per page`}</span>
               <select
                 className="h-11 w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-sm font-bold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 onChange={(event) => {
@@ -183,7 +185,7 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
           },
           { key: "updated", header: "Updated", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.updated },
         ]}
-        emptyState={<EmptyState title="No matching Mark tasks" detail="Clear the search or choose a different task status filter." />}
+        emptyState={<EmptyState title={`No matching ${agentName} tasks`} detail="Clear the search or choose a different task status filter." />}
       />
 
       <PaginationControls

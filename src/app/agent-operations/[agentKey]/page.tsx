@@ -6,6 +6,7 @@ import { DataTable } from "@/app/_components/data-table";
 import { IntelligencePanel } from "@/app/_components/intelligence-panel";
 import { EmptyState, PageHeader, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { WorkspacePanel } from "@/app/_components/workspace";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { getAgentOperationsDashboard } from "@/lib/agent-operations/read-model";
 
 type PageProps = {
@@ -16,6 +17,7 @@ export default async function Page({ params }: PageProps) {
   await connection();
 
   const { agentKey } = await params;
+  const agentName = await getAgentName();
   const dashboard = await getAgentOperationsDashboard();
 
   if (dashboard.status === "unavailable") {
@@ -107,8 +109,8 @@ export default async function Page({ params }: PageProps) {
               journeyStage: agent.status,
               urgency: tasks.some((task) => /blocked|failed/i.test(task.status)) ? "Blocked work" : "Monitoring",
               attentionReason: agent.currentTask,
-              nextBestAction: tasks[0] ? "Open the current task and review logs, outputs, and approval links." : "Queue a scoped Mark task from the operations page.",
-              cta: "Mark prepares. Humans approve before contact, send, publish, launch, or spend.",
+              nextBestAction: tasks[0] ? "Open the current task and review logs, outputs, and approval links." : `Queue a scoped ${agentName} task from the operations page.`,
+              cta: `${agentName} prepares. Humans approve before contact, send, publish, launch, or spend.`,
               messageAngle: "Evidence-backed campaign and CRM preparation with an explicit human gate.",
               guardrailStatus: "Outbound locked by default.",
               scores: [
@@ -121,7 +123,7 @@ export default async function Page({ params }: PageProps) {
           />
 
           <Link className={buttonClasses({ variant: "primary", className: "w-full" })} href="/agent-operations">
-            Back to Mark operations
+            Back to {agentName} operations
           </Link>
         </aside>
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
 import { priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import { formatScheduleLabel, resolveScheduledFor, type SchedulePreset } from "@/domain";
@@ -35,6 +36,7 @@ const WHEN_OPTIONS: ReadonlyArray<{ value: SchedulePreset; label: string }> = [
 type MenuKey = "status" | "priority" | "when" | null;
 
 export function NewTaskDialog() {
+  const agentName = useAgentName();
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<MenuKey>(null);
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>("queued");
@@ -140,13 +142,13 @@ export function NewTaskDialog() {
               <MarkAvatar size={28} />
               <div>
                 <h2 className="text-sm font-bold text-[var(--text-primary)]">New ticket</h2>
-                <p className="text-xs text-[var(--text-muted)]">Assign status, priority, and timing before Mark picks it up.</p>
+                <p className="text-xs text-[var(--text-muted)]">{`Assign status, priority, and timing before ${agentName} picks it up.`}</p>
               </div>
             </div>
 
             <div className="px-5 py-4">
               <label className="block text-[13px] font-semibold text-[var(--text-secondary)]">
-                What should Mark work on?
+                {`What should ${agentName} work on?`}
                 <textarea
                   autoFocus
                   name="objective"

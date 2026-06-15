@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { PaginationControls } from "@/app/_components/pagination-controls";
 import { statusIcon } from "@/app/_components/ticket-icons";
@@ -55,6 +56,7 @@ const OUTPUT_PAGE_SIZES = [3, 6, 12];
 const LOG_PAGE_SIZES = [4, 8, 16];
 
 export function TaskInputsPanel({ inputs }: { inputs: TaskInputRecord[] }) {
+  const agentName = useAgentName();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(4);
@@ -103,8 +105,8 @@ export function TaskInputsPanel({ inputs }: { inputs: TaskInputRecord[] }) {
         query={query}
         resultCount={filtered.length}
         searchLabel="Filter inputs"
-        searchHelp="Search the context Mark received before doing the work."
-        title="Context Mark received"
+        searchHelp={`Search the context ${agentName} received before doing the work.`}
+        title={`Context ${agentName} received`}
       />
 
       <div className="divide-y divide-[var(--border-hairline)]">
@@ -140,6 +142,7 @@ export function TaskInputsPanel({ inputs }: { inputs: TaskInputRecord[] }) {
 }
 
 export function TaskOutputsPanel({ outputs }: { outputs: TaskOutputRecord[] }) {
+  const agentName = useAgentName();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(3);
@@ -189,12 +192,12 @@ export function TaskOutputsPanel({ outputs }: { outputs: TaskOutputRecord[] }) {
         }}
         pageSize={pageSize}
         pageSizes={OUTPUT_PAGE_SIZES}
-        placeholder="Search Mark outputs..."
+        placeholder={`Search ${agentName} outputs...`}
         query={query}
         resultCount={filtered.length}
         searchLabel="Filter outputs"
         searchHelp="Search drafts, risk notes, approval state, and evidence."
-        title="What Mark created"
+        title={`What ${agentName} created`}
       />
 
       <div className="divide-y divide-[var(--border-hairline)]">
@@ -269,7 +272,7 @@ export function TaskOutputsPanel({ outputs }: { outputs: TaskOutputRecord[] }) {
           ))
         ) : (
           <div className="p-5">
-            <EmptyState title="No matching outputs" detail={query ? "Clear the search or try another term." : "When Mark produces structured work, outputs appear here with guardrail and approval state."} />
+            <EmptyState title="No matching outputs" detail={query ? "Clear the search or try another term." : `When ${agentName} produces structured work, outputs appear here with guardrail and approval state.`} />
           </div>
         )}
       </div>
@@ -288,6 +291,7 @@ export function TaskOutputsPanel({ outputs }: { outputs: TaskOutputRecord[] }) {
 }
 
 export function TaskLogsPanel({ logs }: { logs: TaskLogRecord[] }) {
+  const agentName = useAgentName();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(4);
@@ -348,10 +352,10 @@ export function TaskLogsPanel({ logs }: { logs: TaskLogRecord[] }) {
 
       <div className="divide-y divide-[var(--border-hairline)]">
         {visibleLogs.length > 0 ? (
-          visibleLogs.map((log, index) => <LogEntryCard key={log.id} log={log} ordinal={pageState.startIndex + index + 1} />)
+          visibleLogs.map((log, index) => <LogEntryCard agentName={agentName} key={log.id} log={log} ordinal={pageState.startIndex + index + 1} />)
         ) : (
           <div className="p-5">
-            <EmptyState title="No matching run logs" detail={query ? "Clear the search or try another term." : "Mark should write run logs as he claims, processes, blocks, or completes tasks."} />
+            <EmptyState title="No matching run logs" detail={query ? "Clear the search or try another term." : `${agentName} writes run logs as it claims, processes, blocks, or completes tasks.`} />
           </div>
         )}
       </div>
@@ -494,7 +498,7 @@ function LogSummaryStrip({ logs }: { logs: TaskLogRecord[] }) {
   );
 }
 
-function LogEntryCard({ log, ordinal }: { log: TaskLogRecord; ordinal: number }) {
+function LogEntryCard({ agentName, log, ordinal }: { agentName: string; log: TaskLogRecord; ordinal: number }) {
   const appearance = statusAppearance(log.runStatus);
   const model = [log.modelProvider, log.modelName].filter(Boolean).join(" / ") || "Runner not recorded";
   const duration = formatDuration(log.startedAt, log.completedAt);
@@ -520,7 +524,7 @@ function LogEntryCard({ log, ordinal }: { log: TaskLogRecord; ordinal: number })
                 </StatusPill>
                 <span className="text-xs font-semibold text-[var(--text-muted)]">Log {ordinal}</span>
               </div>
-              <h3 className="mt-2 text-base font-semibold text-[var(--text-primary)]">{logTitle(log)}</h3>
+              <h3 className="mt-2 text-base font-semibold text-[var(--text-primary)]">{logTitle(log, agentName)}</h3>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">{model}</p>
             </div>
             <div className="shrink-0 text-xs font-semibold text-[var(--text-muted)]">
@@ -531,7 +535,7 @@ function LogEntryCard({ log, ordinal }: { log: TaskLogRecord; ordinal: number })
           <div className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">What this row means</div>
             <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-              This is one recorded step from Mark's runner: a claim, model run, retry, block, or completion event for this ticket.
+              {`This is one recorded step from ${agentName}'s runner: a claim, model run, retry, block, or completion event for this ticket.`}
             </p>
           </div>
 
@@ -620,12 +624,12 @@ function readablePayloadValues(payload: Record<string, unknown>) {
     .map(([key, value]) => `${key} ${String(value)}`);
 }
 
-function logTitle(log: TaskLogRecord) {
-  if (log.errorMessage) return "Mark hit an issue while working";
-  if (/completed|approved|passed/i.test(log.runStatus)) return "Mark finished this step";
-  if (/running|processing/i.test(log.runStatus)) return "Mark is working on this step";
+function logTitle(log: TaskLogRecord, agentName: string) {
+  if (log.errorMessage) return `${agentName} hit an issue while working`;
+  if (/completed|approved|passed/i.test(log.runStatus)) return `${agentName} finished this step`;
+  if (/running|processing/i.test(log.runStatus)) return `${agentName} is working on this step`;
   if (/blocked|failed|error/i.test(log.runStatus)) return "This step needs a human look";
-  return "Mark recorded a runner step";
+  return `${agentName} recorded a runner step`;
 }
 
 function formatDuration(startedAt: string | null, completedAt: string | null) {

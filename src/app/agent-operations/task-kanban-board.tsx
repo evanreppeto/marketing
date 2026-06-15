@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { EntityAvatar } from "../_components/entity-avatar";
 import { priorityIcon, statusIcon } from "../_components/ticket-icons";
 
@@ -13,13 +14,15 @@ import { moveTaskAction } from "./actions";
 import { badgeStyle, laneStyle, priorityAppearance, statusAppearance, type TaskVisualAppearance } from "./task-visuals";
 import { type AgentOperationsTask } from "@/lib/agent-operations/read-model";
 
-const COLUMNS: Array<{ key: string; label: string; description: string }> = [
-  { key: "queued", label: "Waiting", description: "Ready for Mark" },
-  { key: "running", label: "Working", description: "Mark is active" },
-  { key: "blocked", label: "Blocked", description: "Needs a fix" },
-  { key: "needs_approval", label: "Review", description: "Human decision" },
-  { key: "completed", label: "Done", description: "Finished work" },
-];
+function buildColumns(agentName: string): Array<{ key: string; label: string; description: string }> {
+  return [
+    { key: "queued", label: "Waiting", description: `Ready for ${agentName}` },
+    { key: "running", label: "Working", description: `${agentName} is active` },
+    { key: "blocked", label: "Blocked", description: "Needs a fix" },
+    { key: "needs_approval", label: "Review", description: "Human decision" },
+    { key: "completed", label: "Done", description: "Finished work" },
+  ];
+}
 
 const CLOSED_STATUSES = new Set(["failed", "canceled"]);
 const DRAG_THRESHOLD = 5;
@@ -43,6 +46,8 @@ type DragState = {
 type OptimisticMove = { taskId: string; toStatus: string };
 
 export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
+  const agentName = useAgentName();
+  const COLUMNS = useMemo(() => buildColumns(agentName), [agentName]);
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);

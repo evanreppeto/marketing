@@ -3,7 +3,7 @@ import type { AgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 type LiveDetail = Extract<AgentTaskDetail, { status: "live" }>;
 
-export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["timeline"] }) {
+export function TicketActivityTimeline({ agentName, timeline }: { agentName: string; timeline: LiveDetail["timeline"] }) {
   return (
     <div>
       {timeline.length > 0 ? (
@@ -28,7 +28,7 @@ export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["tim
         </ol>
       ) : (
         <div className="p-4">
-          <EmptyState title="No timeline entries yet" detail="Task events, Mark outputs, and approval movement will collect here as the shared ticket changes." />
+          <EmptyState title="No timeline entries yet" detail={`Task events, ${agentName} outputs, and approval movement will collect here as the shared ticket changes.`} />
         </div>
       )}
     </div>
