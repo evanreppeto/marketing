@@ -63,7 +63,8 @@ export type NodeAuthor = "mark" | "operator";
 export type ApprovalDecision = "approve" | "reject";
 
 export type KnowledgeNodeInput = {
-  kind: NodeKind;
+  // A built-in NodeKind or a custom, operator-defined kind (normalized slug).
+  kind: string;
   label: string;
   body?: string | null;
   summary?: string | null;
@@ -107,13 +108,36 @@ export function isEdgeRelation(value: unknown): value is EdgeRelation {
   return typeof value === "string" && RELATION_SET.has(value);
 }
 
+export const MAX_KIND_LENGTH = 40;
+
+/**
+ * Normalize a kind into a safe slug: lowercase, non-alphanumerics collapsed to
+ * underscores, trimmed, capped. Must start with a letter. Returns "" if it can't
+ * be made valid. Built-in kinds pass through unchanged; this is what lets an
+ * operator coin a custom kind ("Weather Signal" -> "weather_signal") inline.
+ */
+export function normalizeKind(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const slug = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, MAX_KIND_LENGTH)
+    .replace(/_+$/g, "");
+  return /^[a-z][a-z0-9_]*$/.test(slug) ? slug : "";
+}
+
 /**
  * Initial trust tier for a new node. Operator writes are trusted immediately;
  * Mark's gated kinds enter the approval queue (proposed); Mark's other kinds are
  * recorded as observed (usable internally, flagged as not operator-verified).
  */
-export function resolveInitialTrustTier(args: { kind: NodeKind; createdBy: NodeAuthor }): TrustTier {
+export function resolveInitialTrustTier(args: { kind: string; createdBy: NodeAuthor }): TrustTier {
   if (args.createdBy === "operator") return "trusted";
+  // Only the built-in gated kinds force the approval queue; a custom kind is
+  // never auto-gated, so Mark's custom-kind writes stay "observed" (internal,
+  // never auto-trusted). Custom kinds can't smuggle outbound copy past approval.
   return isGatedKind(args.kind) ? "proposed" : "observed";
 }
 
@@ -132,6 +156,32 @@ function trimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** Max number of tags kept on a node, and max length of a single tag. */
+export const MAX_TAGS = 20;
+export const MAX_TAG_LENGTH = 40;
+
+/**
+ * Clean a freeform tag list: trim, collapse inner whitespace, drop empties,
+ * cap each tag's length, dedupe case-insensitively (keeping first-seen casing),
+ * and cap the total count. Pure so the same rule applies on write and in the UI.
+ */
+export function normalizeTags(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue;
+    const tag = entry.trim().replace(/\s+/g, " ").slice(0, MAX_TAG_LENGTH).trim();
+    if (!tag) continue;
+    const lower = tag.toLowerCase();
+    if (seen.has(lower)) continue;
+    seen.add(lower);
+    out.push(tag);
+    if (out.length >= MAX_TAGS) break;
+  }
+  return out;
+}
+
 export function validateNodeInput(raw: {
   kind: unknown;
   label: unknown;
@@ -147,7 +197,8 @@ export function validateNodeInput(raw: {
   tags?: unknown;
   props?: unknown;
 }): KnowledgeParseResult<KnowledgeNodeInput> {
-  if (!isNodeKind(raw.kind)) return { ok: false, error: "Unknown node kind." };
+  const kind = normalizeKind(raw.kind);
+  if (!kind) return { ok: false, error: "A node needs a valid kind (a letter, then letters/numbers)." };
   const label = trimmed(raw.label);
   if (!label) return { ok: false, error: "A node needs a label." };
 
@@ -174,7 +225,7 @@ export function validateNodeInput(raw: {
     confidence = Math.round(n);
   }
 
-  const tags = Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === "string") : [];
+  const tags = normalizeTags(raw.tags);
   const props =
     raw.props && typeof raw.props === "object" && !Array.isArray(raw.props)
       ? (raw.props as Record<string, unknown>)
@@ -183,7 +234,7 @@ export function validateNodeInput(raw: {
   return {
     ok: true,
     value: {
-      kind: raw.kind,
+      kind,
       label,
       body: trimmed(raw.body) || null,
       summary: trimmed(raw.summary) || null,

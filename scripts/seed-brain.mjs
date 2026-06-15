@@ -41,26 +41,29 @@ function getSupabase() {
 
 const ORG_SLUG = process.env.DEFAULT_ORG_SLUG ?? "big-shoulders-restoration";
 
+// [key, label, tags] — tags are illustrative segment groupings so the tag
+// filter + per-node editor have something to show on first load.
 const PERSONAS = [
-  ["persona_homeowner_emergency", "Emergency Homeowner"],
-  ["persona_homeowner_preventative", "Inspection Homeowner"],
-  ["persona_homeowner_rebuild", "Rebuild Homeowner"],
-  ["persona_landlord", "Landlord"],
-  ["persona_hoa_board", "HOA Board Member"],
-  ["persona_property_manager", "Property Manager"],
-  ["persona_insurance_agent", "Insurance Agent"],
-  ["persona_listing_agent", "Listing Agent"],
-  ["persona_buyers_agent", "Buyer Agent"],
-  ["persona_plumbing_partner", "Plumbing Partner"],
-  ["persona_hvac_roof_electrical_partner", "HVAC / Roofing / Electrical Partner"],
-  ["persona_gc_remodeler_partner", "GC / Remodeler Partner"],
+  ["persona_homeowner_emergency", "Emergency Homeowner", ["homeowner", "emergency"]],
+  ["persona_homeowner_preventative", "Inspection Homeowner", ["homeowner"]],
+  ["persona_homeowner_rebuild", "Rebuild Homeowner", ["homeowner", "insurance"]],
+  ["persona_landlord", "Landlord", ["property"]],
+  ["persona_hoa_board", "HOA Board Member", ["property"]],
+  ["persona_property_manager", "Property Manager", ["property"]],
+  ["persona_insurance_agent", "Insurance Agent", ["real-estate", "insurance"]],
+  ["persona_listing_agent", "Listing Agent", ["real-estate"]],
+  ["persona_buyers_agent", "Buyer Agent", ["real-estate"]],
+  ["persona_plumbing_partner", "Plumbing Partner", ["partner"]],
+  ["persona_hvac_roof_electrical_partner", "HVAC / Roofing / Electrical Partner", ["partner"]],
+  ["persona_gc_remodeler_partner", "GC / Remodeler Partner", ["partner"]],
 ];
 
+// [key, label, body, tags]
 const BRAND_FACTS = [
-  ["bf_24_7", "We answer 24/7", "Big Shoulders Restoration answers emergency calls around the clock."],
-  ["bf_iicrc", "IICRC-certified technicians", "Crews are IICRC-certified for water, fire, and mold restoration."],
-  ["bf_local", "Chicago-area, locally operated", "Local crews who know Chicago building stock and weather."],
-  ["bf_insurance", "We work directly with insurance", "We document the loss and coordinate with carriers to ease claims."],
+  ["bf_24_7", "We answer 24/7", "Big Shoulders Restoration answers emergency calls around the clock.", ["emergency"]],
+  ["bf_iicrc", "IICRC-certified technicians", "Crews are IICRC-certified for water, fire, and mold restoration.", ["certification"]],
+  ["bf_local", "Chicago-area, locally operated", "Local crews who know Chicago building stock and weather.", ["local"]],
+  ["bf_insurance", "We work directly with insurance", "We document the loss and coordinate with carriers to ease claims.", ["insurance"]],
 ];
 
 // Illustrative starter relationships so the brain reads as a connected graph:
@@ -105,12 +108,13 @@ async function main() {
   }
   const orgId = org.id;
 
-  const personaRows = PERSONAS.map(([persona, label]) => ({
+  const personaRows = PERSONAS.map(([persona, label, tags]) => ({
     org_id: orgId,
     kind: "persona",
     key: persona,
     label,
     persona,
+    tags: tags ?? [],
     trust_tier: "trusted",
     source: "seed",
     created_by: "operator",
@@ -118,12 +122,13 @@ async function main() {
     approved_at: new Date().toISOString(),
   }));
 
-  const brandRows = BRAND_FACTS.map(([key, label, body]) => ({
+  const brandRows = BRAND_FACTS.map(([key, label, body, tags]) => ({
     org_id: orgId,
     kind: "brand_fact",
     key,
     label,
     body,
+    tags: tags ?? [],
     trust_tier: "trusted",
     source: "seed",
     created_by: "operator",
