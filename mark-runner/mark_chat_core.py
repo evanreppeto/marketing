@@ -71,9 +71,16 @@ def claim_won(response_json):
 
 def claim_task(task_id, supabase_url=None, service_key=None):
     """Atomically claim queued→running. Returns True iff this caller won the claim.
-    Thin network wrapper around build_claim_request/claim_won."""
-    supabase_url = supabase_url or os.environ["SUPABASE_URL"]
-    service_key = service_key or os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+
+    Thin network wrapper around build_claim_request/claim_won. Network errors
+    (urllib URLError/HTTPError, timeouts) propagate to the caller — the realtime
+    subscriber treats any claim exception as "skip this one", and the poller
+    safety net re-surfaces the task, so there is deliberately no retry here.
+    """
+    supabase_url = supabase_url or os.environ.get("SUPABASE_URL")
+    service_key = service_key or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not supabase_url or not service_key:
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set to claim a task.")
     now_iso = datetime.now(timezone.utc).isoformat()
     url, body, headers = build_claim_request(task_id, supabase_url, service_key, now_iso)
     req = urllib.request.Request(url, data=body, method="PATCH", headers=headers)
