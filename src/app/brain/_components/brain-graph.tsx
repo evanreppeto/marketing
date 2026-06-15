@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { Panel, StatusPill } from "@/app/_components/page-header";
 import { type ThemeTone, theme } from "@/app/_components/theme";
 import { approveNodeAction, rejectNodeAction } from "@/app/brain/actions";
@@ -95,6 +96,7 @@ function downloadGraphJson(nodes: BrainNode[], edges: BrainEdge[]) {
 // Component
 // ---------------------------------------------------------------------------
 export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainEdge[] }) {
+  const agentName = useAgentName();
   const [selected, setSelected] = useState<BrainNode | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   // Optimistic approve/reject decisions. key = node id, value = "trusted" | "rejected"
@@ -403,7 +405,7 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
           <code className="rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-xs text-[var(--text-primary)]">
             pnpm seed:brain
           </code>{" "}
-          or let Mark populate it.
+          or let {agentName} populate it.
         </p>
       </Panel>
     );

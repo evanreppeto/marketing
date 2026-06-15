@@ -4,6 +4,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
+import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
 export const metadata = {
@@ -14,6 +15,7 @@ export default async function AnalyticsPage() {
   await connection();
 
   const [list, settings] = await Promise.all([getCampaignWorkspaceList(), getAppSettings()]);
+  const agentName = getAgentDisplayName(settings.assistantName);
   const brand = { workspaceName: settings.workspaceName, logoUrl: settings.brandLogoUrl };
 
   if (list.status === "unavailable") {
@@ -81,7 +83,7 @@ export default async function AnalyticsPage() {
         ) : (
           <EmptyState
             title="No campaigns yet"
-            detail="When Mark drafts a campaign or you create one, it will appear here with its progress."
+            detail={`When ${agentName} drafts a campaign or you create one, it will appear here with its progress.`}
           />
         )}
       </WorkspacePanel>
