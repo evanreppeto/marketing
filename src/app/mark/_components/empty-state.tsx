@@ -66,8 +66,8 @@ export function ChatEmptyHero({
   const [hour] = useState(() => new Date().getHours());
 
   return (
-    <div className="msg-rise flex flex-col items-center gap-2.5 text-center" style={{ animationDelay: "0ms" }}>
-      <MarkPersona state="idle" size={96} className="mb-1" />
+    <div className="msg-rise flex flex-col items-center gap-3 text-center" style={{ animationDelay: "0ms" }}>
+      <MarkPersona state="idle" size={112} className="mark-persona--hero mb-2" />
       {project ? (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-inset)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
           <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -81,7 +81,7 @@ export function ChatEmptyHero({
           {operatorName ? `, ${operatorName}` : ""}.
         </p>
       )}
-      <h2 className="font-display text-[clamp(1.5rem,3vw,1.9rem)] font-bold leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)]">
+      <h2 className="font-display text-[clamp(1.7rem,3.2vw,2.15rem)] font-bold leading-[1.04] tracking-[-0.035em] text-[var(--text-primary)]">
         {project ? `New chat in ${project.name}` : `What should ${assistantName} work on?`}
       </h2>
       {project ? (
@@ -107,7 +107,7 @@ export function ChatEmptyHero({
         </>
       ) : (
         <p className="max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">
-          Ask about a campaign, lead, or persona. {assistantName} drafts and recommends - outbound stays locked until you approve.
+          Ask about a campaign, lead, or persona. {assistantName} drafts and recommends — you approve what goes out.
         </p>
       )}
     </div>
