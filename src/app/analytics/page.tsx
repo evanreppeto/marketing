@@ -3,7 +3,10 @@ import Link from "next/link";
 
 import { EmptyState, PageHeader } from "../_components/page-header";
 import { TabNav } from "../_components/tab-nav";
-import { MetricStrip, WorkspacePanel } from "../_components/workspace";
+import { WorkspacePanel } from "../_components/workspace";
+import { buildPortfolioSplit } from "./_components/campaign-analytics-model";
+import { DonutSplit, type DonutSegment } from "./_components/charts/donut-split";
+import { SegmentedBar } from "./_components/charts/segmented-bar";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getPerformanceReadModel } from "@/lib/performance/read-model";
 import { getAppSettings } from "@/lib/settings/store";
@@ -24,6 +27,13 @@ const analyticsTabs: Array<{ key: AnalyticsTabKey; label: string; detail: string
   { key: "partners", label: "Partners", detail: "Referral and partner attribution." },
   { key: "contract", label: "Data contract", detail: "Backend fields still needed." },
 ];
+
+/** Tone-dot color for a hero stat tile, keyed by tone so adding a tone has one obvious home. */
+const STAT_DOT_CLASS: Record<"ok" | "warn" | "accent", string> = {
+  ok: "bg-[var(--ok)]",
+  warn: "bg-[var(--warn)]",
+  accent: "bg-[var(--accent)]",
+};
 
 function normalizeTab(value: string | string[] | undefined): AnalyticsTabKey {
   const tab = Array.isArray(value) ? value[0] : value;
@@ -60,39 +70,56 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
   const readyCount = rows.filter((row) => row.state === "ready").length;
   const waitingOnYou = rows.reduce((total, row) => total + row.pending, 0);
 
+  const split = buildPortfolioSplit(campaigns);
+  const heroSegments: DonutSegment[] = [
+    { key: "approved", label: "Approved", value: split.approved, toneVar: "ok" },
+    { key: "pending", label: "Waiting on you", value: split.pending, toneVar: "warn" },
+    { key: "changes", label: "Needs changes", value: split.changes, toneVar: "priority" },
+    { key: "draft", label: "In draft", value: split.draft, toneVar: "muted" },
+  ];
+  const heroStats = [
+    { label: "Waiting on you", value: waitingOnYou, href: waitingOnYou > 0 ? "/campaigns" : undefined, toneVar: "warn" as const },
+    { label: "Approved & ready", value: readyCount, toneVar: "ok" as const },
+    { label: "Campaigns", value: list.totals.campaigns, toneVar: "accent" as const },
+    { label: "Creative made", value: list.totals.assets, toneVar: "accent" as const },
+  ];
+
   return (
     <>
       <AnalyticsHeader brand={brand} />
 
-      <MetricStrip
-        metrics={[
-          {
-            label: "Waiting on you",
-            value: waitingOnYou,
-            detail: waitingOnYou > 0 ? "Pieces that need your approval." : "You're all caught up.",
-            tone: waitingOnYou > 0 ? "amber" : "green",
-            href: waitingOnYou > 0 ? "/campaigns" : undefined,
-          },
-          {
-            label: "Approved & ready",
-            value: readyCount,
-            detail: "Every piece signed off.",
-            tone: readyCount > 0 ? "green" : "gray",
-          },
-          {
-            label: "Campaigns",
-            value: list.totals.campaigns,
-            detail: "All campaigns in your workspace.",
-            tone: list.totals.campaigns > 0 ? "blue" : "gray",
-          },
-          {
-            label: "Creative made",
-            value: list.totals.assets,
-            detail: "Assets drafted across campaigns.",
-            tone: list.totals.assets > 0 ? "blue" : "gray",
-          },
-        ]}
-      />
+      <WorkspacePanel className="mb-5">
+        <div className="grid gap-6 p-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+          <DonutSplit
+            segments={heroSegments}
+            centerValue={`${split.readiness}%`}
+            centerLabel={split.total > 0 ? "of your work is approved" : "nothing drafted yet"}
+          />
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--border-hairline)]">
+            {heroStats.map((stat) => {
+              const dot = STAT_DOT_CLASS[stat.toneVar];
+              const body = (
+                <>
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
+                    {stat.label}
+                  </div>
+                  <div className="mt-2 font-display text-3xl font-bold tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">{stat.value}</div>
+                </>
+              );
+              return stat.href ? (
+                <Link key={stat.label} href={stat.href} className="bg-[var(--surface-panel)] p-4 transition hover:bg-[var(--surface-inset)]">
+                  {body}
+                </Link>
+              ) : (
+                <div key={stat.label} className="bg-[var(--surface-panel)] p-4">
+                  {body}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </WorkspacePanel>
 
       <TabNav
         ariaLabel="Analytics sections"
@@ -204,7 +231,14 @@ function ComparisonRow({ row }: { row: ComparisonRowData }) {
         </div>
 
         <div className="min-w-0">
-          <ProgressBar readiness={row.readiness} />
+          <SegmentedBar
+            segments={[
+              { key: "approved", value: row.approved, toneVar: "ok" },
+              { key: "pending", value: row.pending, toneVar: "warn" },
+              { key: "changes", value: row.changes, toneVar: "priority" },
+              { key: "draft", value: Math.max(row.total - row.approved - row.pending - row.changes, 0), toneVar: "idle" },
+            ]}
+          />
           <div className="mt-1.5 text-xs font-medium text-[var(--text-muted)]">
             {row.total > 0 ? `${row.approved} of ${row.total} pieces approved` : "No pieces drafted yet"}
           </div>
@@ -215,17 +249,6 @@ function ComparisonRow({ row }: { row: ComparisonRowData }) {
         </div>
       </Link>
     </li>
-  );
-}
-
-function ProgressBar({ readiness }: { readiness: number }) {
-  return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-inset)]" aria-hidden="true">
-      <div
-        className="h-full rounded-full bg-[var(--accent)] transition-[width]"
-        style={{ width: `${Math.max(readiness, readiness > 0 ? 4 : 0)}%` }}
-      />
-    </div>
   );
 }
 
