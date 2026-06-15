@@ -419,7 +419,7 @@ function Message({
   const galleryMedia = cardImage ? message.media.filter((m) => m !== cardImage) : message.media;
   return (
     <div className="group flex gap-3">
-      {compact && !pending ? <span aria-hidden className="w-7 shrink-0" /> : <MarkAvatar pending={pending} />}
+      {compact && !pending ? <span aria-hidden className="w-10 shrink-0" /> : <MarkAvatar size={42} pending={pending} />}
       <div className="min-w-0 flex-1 pt-0.5">
         {compact && !pending ? null : (
           <div className="mb-1 flex items-baseline gap-2">

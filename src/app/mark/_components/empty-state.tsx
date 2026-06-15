@@ -2,6 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 
+import { MarkPersona } from "./mark-avatar";
+
 type Shortcut = {
   label: string;
   hint: string;
@@ -49,6 +51,7 @@ export function ChatEmptyHero({ assistantName, operatorName }: { assistantName: 
 
   return (
     <div className="msg-rise flex flex-col items-center gap-2.5 text-center" style={{ animationDelay: "0ms" }}>
+      <MarkPersona state="idle" size={96} className="mb-1" />
       <p className="text-sm text-[var(--text-muted)]" suppressHydrationWarning>
         {greeting(hour)}
         {operatorName ? `, ${operatorName}` : ""}.
