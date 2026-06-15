@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
-import { ShellContent } from "./shell-content";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
+import { DottedSurface } from "./dotted-surface";
+import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
@@ -99,7 +100,7 @@ export function ConsoleFrame({
         <aside
           className={cx(
             theme.shell.sidebar,
-            "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 overflow-hidden px-2 py-2 lg:static lg:h-screen lg:items-stretch lg:gap-0 lg:overflow-hidden lg:px-4 lg:py-5",
+            "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 overflow-hidden px-2 py-2 lg:relative lg:h-screen lg:items-stretch lg:gap-0 lg:overflow-hidden lg:px-4 lg:py-5",
           )}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
@@ -108,6 +109,13 @@ export function ConsoleFrame({
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusWithin(false);
           }}
         >
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+            <BackgroundGradientAnimation />
+            {/* Readability scrim: fade the gradient toward the sidebar tone so nav
+                labels and the gold active-indicator stay legible. */}
+            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_30%_20%,transparent,var(--surface-sidebar)_88%)]" />
+            <div className="absolute inset-0 bg-[var(--surface-sidebar)] opacity-40" />
+          </div>
           <div className="flex min-w-0 flex-1 items-center gap-1 lg:min-h-0 lg:flex-col lg:items-stretch lg:gap-3 lg:overflow-y-auto">
             <Link
               href="/mark"
@@ -139,15 +147,22 @@ export function ConsoleFrame({
           <OperatorProfile collapsed={collapsed} />
         </aside>
 
-        <section
-          className={
-            pathname.startsWith("/mark")
-              ? "min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden"
-              : theme.shell.content
-          }
-        >
-          <ShellContent>{children}</ShellContent>
-        </section>
+        {pathname.startsWith("/mark") ? (
+          <section className="min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
+            <ShellContent>{children}</ShellContent>
+          </section>
+        ) : (
+          // Ambient dotted backdrop sits behind the content column (not the Mark
+          // surface, which keeps its own visuals). `relative isolate` keeps the
+          // -z-10 field above the page canvas but below content; the inner div
+          // owns the scroll so the backdrop stays put as the page scrolls.
+          <section className="relative isolate min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
+            <DottedSurface />
+            <div className="px-4 py-4 sm:px-6 lg:h-full lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
+              <ShellContent>{children}</ShellContent>
+            </div>
+          </section>
+        )}
         </div>
       </main>
     </AgentNameProvider>
