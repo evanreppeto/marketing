@@ -12,6 +12,7 @@
     "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
     "seed:campaign-results": "node scripts/seed-campaign-results.mjs",
     "seed:brain": "node scripts/seed-brain.mjs",
+    "diagnose:hermes": "node scripts/diagnose-hermes-connection.mjs",
     "test": "vitest run"
   },
   "dependencies": {
