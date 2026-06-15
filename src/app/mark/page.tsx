@@ -86,14 +86,17 @@ async function loadLiveMarkChatProps(params: Awaited<MarkPageProps["searchParams
       : null;
   const initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
 
-  // Project-wide assets for the Studio: asset-bearing messages from sibling chats
-  // in the same project. Non-fatal — the chat still works if this read fails.
+  // Project assets feed the Studio for an active thread, and the empty-state hero
+  // for a fresh chat opened via the ?project=<id> deep link. Non-fatal read.
   let projectMessages: MarkMessage[] = [];
-  if (activeConversation?.projectId) {
+  const assetProjectId = activeConversation?.projectId ?? newChatProjectId;
+  if (assetProjectId) {
     try {
-      projectMessages = await listProjectAssetMessages(activeConversation.projectId, operator, {
-        excludeConversationId: activeConversation.id,
-      });
+      projectMessages = await listProjectAssetMessages(
+        assetProjectId,
+        operator,
+        activeConversation ? { excludeConversationId: activeConversation.id } : {},
+      );
     } catch {
       projectMessages = [];
     }

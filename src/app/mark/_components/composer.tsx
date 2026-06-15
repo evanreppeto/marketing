@@ -48,6 +48,94 @@ function Spinner() {
   );
 }
 
+type PillOption<T extends string> = { id: T; label: string; hint: string };
+
+const MODE_OPTIONS: PillOption<MarkMode>[] = [
+  { id: "act", label: "Act", hint: "Do the work — create approval-ready records" },
+  { id: "ask", label: "Ask", hint: "Answer only — produce no work" },
+  { id: "draft", label: "Draft", hint: "Draft content for your review" },
+];
+const ROUTE_OPTIONS: PillOption<MarkRoute>[] = [
+  { id: "fast", label: "Fast", hint: "Quick, lower-cost model route" },
+  { id: "standard", label: "Standard", hint: "Slower, more thorough route" },
+];
+
+/** Footer pill with a labelled dropdown — used for the per-message mode + route
+ *  selectors. Manages its own open state and outside-click/Escape dismissal. */
+function PillSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  glyph,
+  ariaLabel,
+}: {
+  value: T;
+  options: PillOption<T>[];
+  onChange: (value: T) => void;
+  glyph: React.ReactNode;
+  ariaLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const current = options.find((o) => o.id === value) ?? options[0];
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${ariaLabel}: ${current.label}`}
+        title={current.hint}
+        className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)]"
+      >
+        {glyph}
+        {current.label}
+        <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 8 4 4 4-4" />
+        </svg>
+      </button>
+      {open ? (
+        <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 w-56 overflow-y-auto rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onChange(o.id);
+                setOpen(false);
+              }}
+              className={cx(
+                "flex w-full flex-col gap-0.5 rounded-md px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-inset)]",
+                o.id === value ? "text-[var(--accent-contrast)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+              )}
+            >
+              <span className="text-xs font-semibold">{o.label}</span>
+              <span className="text-[10px] leading-tight text-[var(--text-muted)]">{o.hint}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type VoiceInputState = "checking" | "unsupported" | "idle" | "listening";
 
 type BrowserSpeechRecognition = {
@@ -110,9 +198,11 @@ export function Composer({
   projects,
   activeProjectId,
   initialNewChatProjectId = null,
-  defaultMode = "act",
-  defaultRoute = "fast",
-  assistantName = "Arc",
+  mode,
+  route,
+  onModeChange,
+  onRouteChange,
+  assistantName = "Agent",
   demo = false,
   onDemoSend,
 }: {
@@ -122,8 +212,11 @@ export function Composer({
   activeProjectId: string | null;
   /** Pre-selected project for a fresh chat (from the ?project=<id> deep link). */
   initialNewChatProjectId?: string | null;
-  defaultMode?: MarkMode;
-  defaultRoute?: MarkRoute;
+  /** Mode/route are lifted to MarkChat so Regenerate reuses the live selection. */
+  mode: MarkMode;
+  route: MarkRoute;
+  onModeChange: (mode: MarkMode) => void;
+  onRouteChange: (route: MarkRoute) => void;
   assistantName?: string;
   draft: string;
   onDraftChange: (value: string) => void;
@@ -194,6 +287,7 @@ export function Composer({
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
   const [attachments, setAttachments] = useState<MarkAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceInputState>("checking");
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const voiceBaseDraftRef = useRef("");
@@ -429,9 +523,9 @@ export function Composer({
         <input type="hidden" name="conversationId" value={conversationId} />
         <input type="hidden" name="body" value={draft} />
         <input type="hidden" name="mentions" value={serializeMentions(picked)} />
-        {/* Defaults come from Settings; approval + policy gates still enforce limits. */}
-        <input type="hidden" name="mode" value={defaultMode} />
-        <input type="hidden" name="route" value={defaultRoute} />
+        {/* Per-message mode/route from the footer selectors; gates still enforce limits. */}
+        <input type="hidden" name="mode" value={mode} />
+        <input type="hidden" name="route" value={route} />
         <input type="hidden" name="command" value={command ?? ""} />
         <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
         {/* Project chosen in the footer selector — assigned when this send creates a new thread. */}
@@ -472,7 +566,35 @@ export function Composer({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 rounded-[1.75rem] border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]">
+        <div
+          onDragOver={(e) => {
+            if (Array.from(e.dataTransfer.types).includes("Files")) {
+              e.preventDefault();
+              setDragActive(true);
+            }
+          }}
+          onDragLeave={(e) => {
+            // Only clear when the cursor actually leaves the box, not on child enter.
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragActive(false);
+          }}
+          onDrop={(e) => {
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+              e.preventDefault();
+              void handleFiles(files);
+            }
+            setDragActive(false);
+          }}
+          className={cx(
+            "relative flex flex-col gap-2 rounded-[1.75rem] border bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]",
+            dragActive ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent-soft)]" : "border-[var(--border-hairline)]",
+          )}
+        >
+          {dragActive ? (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[1.75rem] bg-[var(--surface-panel)]/85 text-xs font-semibold text-[var(--accent-contrast)] backdrop-blur-sm">
+              Drop image to attach
+            </div>
+          ) : null}
           {attachments.length > 0 || uploading ? (
             <div className="flex flex-wrap items-center gap-2">
               {attachments.map((a) => (
@@ -589,6 +711,15 @@ export function Composer({
               name="body-display"
               value={draft}
               onChange={(e) => onTextChange(e.target.value)}
+              onPaste={(e) => {
+                // Pasted screenshots/images upload like the file picker; text paste
+                // falls through to the default textarea behaviour.
+                const files = e.clipboardData?.files;
+                if (files && files.length > 0 && Array.from(files).some((f) => f.type.startsWith("image/"))) {
+                  e.preventDefault();
+                  void handleFiles(files);
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
                   e.preventDefault();
@@ -672,6 +803,29 @@ export function Composer({
               </div>
             ) : null}
           </div>
+
+          <PillSelect
+            ariaLabel="Mode"
+            value={mode}
+            options={MODE_OPTIONS}
+            onChange={onModeChange}
+            glyph={
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 10.5l3.5 3.5L16 5.5" />
+              </svg>
+            }
+          />
+          <PillSelect
+            ariaLabel="Route"
+            value={route}
+            options={ROUTE_OPTIONS}
+            onChange={onRouteChange}
+            glyph={
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 10h14M10 3l7 7-7 7" />
+              </svg>
+            }
+          />
 
           <p className="hidden flex-wrap items-center gap-x-3 gap-y-1 sm:flex">
             <span className="inline-flex items-center gap-1.5">

@@ -8,7 +8,7 @@ import type { MarkConversation, MarkProject } from "@/lib/mark-chat/persistence"
 
 import { createProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
-import { ThreadMenu } from "./thread-menu";
+import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
 
 function SectionLabel({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -97,7 +97,15 @@ function ChatRow({
 }) {
   const active = c.id === activeId;
   return (
-    <div className="group relative flex items-center gap-1">
+    <ThreadContextMenu
+      className="group relative flex items-center gap-1"
+      conversationId={c.id}
+      projectId={c.projectId}
+      pinned={Boolean(c.pinnedAt)}
+      projects={projects}
+      title={c.title}
+      isActive={active}
+    >
       <Link
         href={`/mark?c=${c.id}`}
         aria-current={active ? "page" : undefined}
@@ -121,10 +129,11 @@ function ChatRow({
           projectId={c.projectId}
           pinned={Boolean(c.pinnedAt)}
           projects={projects}
+          title={c.title}
           isActive={active}
         />
       </div>
-    </div>
+    </ThreadContextMenu>
   );
 }
 

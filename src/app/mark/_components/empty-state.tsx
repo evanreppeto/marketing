@@ -44,7 +44,23 @@ const ICON = {
 /** Centered greeting for a fresh thread. Rendered as a sibling of the composer
  *  (not a wrapper around it) so the composer keeps its tree position when the
  *  first message lands — see the slot layout in MarkChat. */
-export function ChatEmptyHero({ assistantName, operatorName }: { assistantName: string; operatorName: string | null }) {
+/** Project context for a fresh chat scoped to a project (the ?project=<id> deep link). */
+export type EmptyHeroProject = {
+  name: string;
+  chatCount: number;
+  assetCount: number;
+  thumbnails: string[];
+};
+
+export function ChatEmptyHero({
+  assistantName,
+  operatorName,
+  project = null,
+}: {
+  assistantName: string;
+  operatorName: string | null;
+  project?: EmptyHeroProject | null;
+}) {
   // Stable per-mount hour; suppressHydrationWarning guards the tiny window where
   // server and client render across an hour boundary.
   const [hour] = useState(() => new Date().getHours());
@@ -52,16 +68,48 @@ export function ChatEmptyHero({ assistantName, operatorName }: { assistantName: 
   return (
     <div className="msg-rise flex flex-col items-center gap-2.5 text-center" style={{ animationDelay: "0ms" }}>
       <MarkPersona state="idle" size={96} className="mb-1" />
-      <p className="text-sm text-[var(--text-muted)]" suppressHydrationWarning>
-        {greeting(hour)}
-        {operatorName ? `, ${operatorName}` : ""}.
-      </p>
+      {project ? (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-inset)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
+          {project.name}
+        </span>
+      ) : (
+        <p className="text-sm text-[var(--text-muted)]" suppressHydrationWarning>
+          {greeting(hour)}
+          {operatorName ? `, ${operatorName}` : ""}.
+        </p>
+      )}
       <h2 className="font-display text-[clamp(1.5rem,3vw,1.9rem)] font-bold leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)]">
-        What should {assistantName} work on?
+        {project ? `New chat in ${project.name}` : `What should ${assistantName} work on?`}
       </h2>
-      <p className="max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">
-        Ask about a campaign, lead, or persona. {assistantName} drafts and recommends - outbound stays locked until you approve.
-      </p>
+      {project ? (
+        <>
+          <p className="max-w-[48ch] text-sm leading-6 text-[var(--text-secondary)]">
+            {assistantName} can build on this project&rsquo;s work
+            {project.chatCount > 0 ? ` — ${project.chatCount} chat${project.chatCount === 1 ? "" : "s"}` : ""}
+            {project.assetCount > 0
+              ? `${project.chatCount > 0 ? " and " : " — "}${project.assetCount} asset${project.assetCount === 1 ? "" : "s"}`
+              : ""}
+            {project.chatCount > 0 || project.assetCount > 0 ? " already here." : "."} Outbound stays locked until you approve.
+          </p>
+          {project.thumbnails.length > 0 ? (
+            <div className="mt-1 flex items-center gap-1.5" aria-label="Recent assets in this project">
+              {project.thumbnails.map((src, i) => (
+                <span key={`${i}-${src}`} className="h-12 w-12 overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- signed URL, no optimizer config */}
+                  <img src={src} alt="" className="h-full w-full object-cover" />
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <p className="max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">
+          Ask about a campaign, lead, or persona. {assistantName} drafts and recommends - outbound stays locked until you approve.
+        </p>
+      )}
     </div>
   );
 }
