@@ -34,7 +34,11 @@ function read(varName: string, fallback: string): string {
 export function useChartTheme(): ChartTheme {
   const [theme, setTheme] = useState<ChartTheme>(FALLBACK);
 
+  // Resolve tokens only after mount: SSR and first client render both use FALLBACK (so no
+  // hydration mismatch), then we read the live computed values. This post-mount setState is
+  // intentional — getComputedStyle is browser-only, so it can't run during render/SSR.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing with browser-only computed styles after mount
     setTheme({
       accent: read("--accent", FALLBACK.accent),
       ok: read("--ok", FALLBACK.ok),
