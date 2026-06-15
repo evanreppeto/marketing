@@ -33,7 +33,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
   if (!rule) {
     return (
       <>
-        <Header title="Persona not found" subtitle="This persona is not part of the official Growth Engine routing taxonomy." />
+        <Header title="Persona not found" subtitle="This persona is not part of the official Arc routing taxonomy." />
         <EmptyState title="Unknown persona" detail="Use one of the official persona routes from Persona Intelligence." />
       </>
     );

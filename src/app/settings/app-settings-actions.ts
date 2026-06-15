@@ -7,6 +7,7 @@ import { requireOperator } from "@/lib/auth/operator";
 import {
   appAppearanceAccent,
   appAppearanceDensity,
+  DEFAULT_APP_SETTINGS,
   appAppearanceMotion,
   appApprovalStrictness,
   appAssistantResponseStyle,
@@ -68,10 +69,10 @@ export async function saveBrandingSettingsAction(
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
 
-  const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), "Big Shoulders", 80);
+  const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), DEFAULT_APP_SETTINGS.workspaceName, 80);
   const workspaceProfile = appWorkspaceProfile(formData.get("workspaceProfile"));
-  const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), "Marketing", 42);
-  const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), "Mark", 32);
+  const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), DEFAULT_APP_SETTINGS.productLabel, 42);
+  const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), DEFAULT_APP_SETTINGS.assistantName, 32);
   const brandShortName = normalizeBrandShortName(String(formData.get("brandShortName") ?? ""));
   const clearBrandLogo = String(formData.get("clearBrandLogo") ?? "") === "1";
   const uploadedLogo = normalizeBrandUrl(String(formData.get("brandLogoUpload") ?? ""));

@@ -169,7 +169,7 @@ function SendTestEmail() {
 
 export function ConnectionSetupCard({ connection }: { connection: ConnectionRowView }) {
   const copy = PROVIDER_COPY[connection.provider] ?? {
-    enables: "Connects this provider to the Growth Engine.",
+    enables: "Connects this provider to Arc.",
     setup: "Add credentials, then test the connection.",
   };
   const required = connection.requiredEnvVars.length > 0 ? connection.requiredEnvVars : connection.envVar ? [connection.envVar] : [];

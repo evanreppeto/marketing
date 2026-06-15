@@ -7,6 +7,7 @@ import { useState } from "react";
 import { AgentNameProvider } from "./agent-name-context";
 import { DottedSurface } from "./dotted-surface";
 import { ShellContent } from "./shell-content";
+import { BackgroundGradientAnimation } from "./background-gradient-animation";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
