@@ -49,7 +49,17 @@ function AssetTile({ asset, onSelect, sourceTitle }: { asset: StudioAsset; onSel
   );
 }
 
-export function AssetLibrary({ assets, onSelect }: { assets: StudioAsset[]; onSelect: (id: string) => void }) {
+export function AssetLibrary({
+  assets,
+  onSelect,
+  currentConversationId,
+  conversationTitles,
+}: {
+  assets: StudioAsset[];
+  onSelect: (id: string) => void;
+  currentConversationId?: string;
+  conversationTitles?: Record<string, string>;
+}) {
   const agentName = useAgentName();
   const categories = useMemo(() => {
     const set = new Set<string>();

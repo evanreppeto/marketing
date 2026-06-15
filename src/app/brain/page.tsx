@@ -9,7 +9,13 @@ import { getAgentName } from "@/lib/settings/agent-name";
 export const dynamic = "force-dynamic";
 
 export default async function BrainPage() {
-  const [proposed, all, summary, agentName] = await Promise.all([listProposed(), listNodes({}), brainSummary(), getAgentName()]);
+  const [graph, proposed, all, summary, agentName] = await Promise.all([
+    getBrainGraph(),
+    listProposed(),
+    listNodes({}),
+    brainSummary(),
+    getAgentName(),
+  ]);
 
   const graphNodes = graph.status === "live" ? graph.nodes : [];
   const graphEdges = graph.status === "live" ? graph.edges : [];
