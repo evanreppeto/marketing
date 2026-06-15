@@ -7,13 +7,10 @@ import { cx } from "./theme";
 
 type DottedSurfaceProps = Omit<React.ComponentProps<"div">, "ref">;
 
-// Tuned for the Command Charcoal canvas (--canvas #16161a): a dim, slow,
-// low-opacity grey field that reads as ambient depth, not a focal animation —
-// deliberately calm per DESIGN.md. The Mark surface keeps its own richer visuals.
-const DOT_COLOR = 0xaeb5c2; // === --accent (steel); on-brand neutral, not neon
+const DOT_COLOR = 0xaeb5c2;
 const DOT_SIZE = 4;
 const DOT_OPACITY = 0.55;
-const FOG_COLOR = 0x16161a; // === --canvas, so distant dots fade into the page
+const FOG_COLOR = 0x16161a;
 const WAVE_AMPLITUDE = 40;
 const WAVE_SPEED = 0.06;
 
@@ -22,13 +19,8 @@ const AMOUNTX = 40;
 const AMOUNTY = 60;
 
 /**
- * Ambient animated dot field rendered behind page content. Sizes itself to its
- * container (so it sits within the content column, not the whole window), pauses
- * when the tab is hidden, and renders a single static frame when the user prefers
- * reduced motion (OS setting or the in-app Appearance → Motion preference).
- *
- * Adapted from a 21st.dev component: dropped next-themes (this app is single-theme
- * dark) and swapped `cn`→`cx`. Decorative only — no props/data required.
+ * Ambient animated dot field behind page content. It sizes to its container,
+ * pauses when hidden, and renders one static frame for reduced motion.
  */
 export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,7 +48,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
-    renderer.setClearColor(FOG_COLOR, 0); // transparent — page canvas shows through
+    renderer.setClearColor(FOG_COLOR, 0);
     renderer.domElement.style.position = "absolute";
     renderer.domElement.style.inset = "0 auto auto 0";
     renderer.domElement.style.maxWidth = "none";
@@ -121,7 +113,6 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
       }
     };
 
-    // Pause when the tab/page isn't visible — no point burning frames offscreen.
     const handleVisibility = () => {
       if (document.hidden) stop();
       else if (!prefersReducedMotion) start();
@@ -132,12 +123,12 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
-      if (prefersReducedMotion) renderFrame(); // keep the static frame crisp on resize
+      if (prefersReducedMotion) renderFrame();
     };
     window.addEventListener("resize", handleResize);
 
     if (prefersReducedMotion) {
-      renderFrame(); // one calm, static frame
+      renderFrame();
     } else {
       document.addEventListener("visibilitychange", handleVisibility);
       start();

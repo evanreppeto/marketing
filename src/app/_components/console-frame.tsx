@@ -100,7 +100,7 @@ export function ConsoleFrame({
         <aside
           className={cx(
             theme.shell.sidebar,
-            "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] lg:static lg:h-screen lg:items-stretch lg:gap-0 lg:overflow-hidden [&::-webkit-scrollbar]:hidden",
+            "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 overflow-hidden px-2 py-2 lg:static lg:h-screen lg:items-stretch lg:gap-0 lg:overflow-hidden lg:px-4 lg:py-5",
           )}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
@@ -109,11 +109,11 @@ export function ConsoleFrame({
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusWithin(false);
           }}
         >
-          <div className="flex shrink-0 gap-2 lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-3 lg:overflow-y-auto">
+          <div className="flex min-w-0 flex-1 items-center gap-1 lg:min-h-0 lg:flex-col lg:items-stretch lg:gap-3 lg:overflow-y-auto">
             <Link
               href="/mark"
               className={cx(
-                "group flex items-center gap-3 px-1 leading-none transition hover:opacity-90 lg:mb-2 lg:px-1.5",
+                "group flex shrink-0 items-center gap-3 px-0.5 leading-none transition hover:opacity-90 lg:mb-2 lg:px-1.5",
                 collapsed && "lg:justify-center lg:gap-0 lg:px-0",
               )}
               aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
@@ -122,7 +122,7 @@ export function ConsoleFrame({
               <BrandMark brand={brand} />
               <span
                 className={cx(
-                  "hidden min-w-0 max-w-[130px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:flex",
+                  "hidden min-w-0 max-w-[130px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none lg:flex",
                   collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
                 )}
               >
@@ -130,11 +130,11 @@ export function ConsoleFrame({
               </span>
             </Link>
 
-            <SideNav active={pathname} items={navItems} collapsed={collapsed} />
+            <SideNav active={pathname} items={navItems} collapsed={collapsed} mobileDock />
           </div>
 
-          <div className={cx("shrink-0 border-l pl-2 lg:mt-2 lg:border-l-0", theme.surface.divider, "lg:border-t lg:pl-0 lg:pt-3")}>
-            <SideNav active={pathname} items={settingsNavItems} collapsed={collapsed} />
+          <div className={cx("shrink-0 border-l pl-1 lg:mt-2 lg:border-l-0", theme.surface.divider, "lg:border-t lg:pl-0 lg:pt-3")}>
+            <SideNav active={pathname} items={settingsNavItems} collapsed={collapsed} mobileDock />
           </div>
 
           <OperatorProfile collapsed={collapsed} />
