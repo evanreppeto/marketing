@@ -74,17 +74,6 @@ type GraphLink = {
 type RFGNode = NodeObject<Record<string, unknown>>;
 type RFGLink = LinkObject<Record<string, unknown>, Record<string, unknown>>;
 
-// rounded-rect path (ctx.roundRect isn't reliably typed across lib targets)
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 // ---------------------------------------------------------------------------
 // Download helper
 // ---------------------------------------------------------------------------
@@ -142,6 +131,8 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
 
   const graphRef = useRef<ForceGraphMethods | undefined>(undefined);
   const fittedRef = useRef(false);
+  // Per-frame label boxes, for Obsidian-style overlap avoidance.
+  const labelRectsRef = useRef<Array<{ x: number; y: number; w: number; h: number }>>([]);
 
   // ---- lookup maps ---------------------------------------------------------
   const nodeMap = useMemo<Map<string, BrainNode>>(() => {
@@ -176,6 +167,8 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
   const graphData = useMemo(() => {
     const filteredNodes = localNodes
       .filter((n) => filteredNodeIds.has(n.id))
+      // draw (and thus label) the most-connected nodes first so hubs win label priority
+      .sort((a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0))
       .map((n) => ({ ...n } as Record<string, unknown>));
     const filteredLinks = edges
       .filter((e) => filteredNodeIds.has(e.fromNodeId) && filteredNodeIds.has(e.toNodeId))
@@ -189,7 +182,7 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       }))
       .map((l) => ({ ...l } as Record<string, unknown>));
     return { nodes: filteredNodes, links: filteredLinks };
-  }, [localNodes, edges, filteredNodeIds]);
+  }, [localNodes, edges, filteredNodeIds, degree]);
 
   // ---- focus / highlight ---------------------------------------------------
   const focusId = hovered ?? selected?.id ?? null;
@@ -222,36 +215,32 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       const isFocus = node.id === focusId;
       const isSelected = selected?.id === node.id;
 
-      ctx.globalAlpha = lit ? 1 : 0.16;
+      ctx.globalAlpha = lit ? 1 : 0.12;
 
-      // fill
+      // filled circle with a subtle dark edge for separation from the background
       ctx.beginPath();
       ctx.arc(x, y, r, 0, 2 * Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
+      ctx.lineWidth = 0.6;
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "rgba(0,0,0,0.45)";
+      ctx.stroke();
 
-      // trust-tier ring
-      if (node.trustTier === "trusted") {
+      // trust ring — only for states that need attention; "trusted" stays clean
+      if (node.trustTier === "proposed") {
         ctx.beginPath();
-        ctx.arc(x, y, r + 1.4, 0, 2 * Math.PI);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.1;
-        ctx.setLineDash([]);
-        ctx.stroke();
-      } else if (node.trustTier === "proposed") {
-        ctx.beginPath();
-        ctx.arc(x, y, r + 1.6, 0, 2 * Math.PI);
+        ctx.arc(x, y, r + 2, 0, 2 * Math.PI);
         ctx.strokeStyle = "#f0a52a";
         ctx.lineWidth = 1.3;
         ctx.setLineDash([3, 2]);
         ctx.stroke();
         ctx.setLineDash([]);
-      } else {
+      } else if (node.trustTier === "observed") {
         ctx.beginPath();
-        ctx.arc(x, y, r + 1, 0, 2 * Math.PI);
-        ctx.strokeStyle = "rgba(190,190,200,0.22)";
+        ctx.arc(x, y, r + 1.6, 0, 2 * Math.PI);
+        ctx.strokeStyle = "rgba(200,200,210,0.3)";
         ctx.lineWidth = 0.8;
-        ctx.setLineDash([]);
         ctx.stroke();
       }
 
@@ -259,36 +248,52 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       if (isSelected || isFocus) {
         ctx.beginPath();
         ctx.arc(x, y, r + 3.2, 0, 2 * Math.PI);
-        ctx.strokeStyle = isSelected ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.55)";
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = isSelected ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)";
+        ctx.lineWidth = 1.4;
         ctx.setLineDash([]);
         ctx.stroke();
       }
 
       ctx.globalAlpha = 1;
 
-      // label — centered below the node, on a dark pill for contrast
-      const showLabel = isSelected || isFocus || (focused && hlNodes.has(node.id)) || globalScale > 1.7;
-      if (showLabel && lit) {
-        const fontSize = 12 / globalScale;
-        ctx.font = `${fontSize}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
-        const text = node.label ?? "";
-        const tw = ctx.measureText(text).width;
-        const padX = 4 / globalScale;
-        const padY = 2.5 / globalScale;
-        const boxW = tw + padX * 2;
-        const boxH = fontSize + padY * 2;
-        const top = y + r + 3 / globalScale;
-        ctx.fillStyle = "rgba(12,12,15,0.82)";
-        roundRectPath(ctx, x - boxW / 2, top, boxW, boxH, 3 / globalScale);
-        ctx.fill();
-        ctx.fillStyle = "rgba(245,245,247,0.96)";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillText(text, x, top + padY);
-        ctx.textAlign = "start";
-        ctx.textBaseline = "alphabetic";
+      // ---- label: Obsidian-style — no box, dark halo for legibility, and
+      // overlapping labels are dropped (hubs drawn first win priority).
+      if (!lit) return;
+      const inFocusSet = focused && hlNodes.has(node.id);
+      const mustShow = isSelected || isFocus || inFocusSet;
+      if (!mustShow && globalScale < 1.1) return;
+
+      const text = node.label ?? "";
+      if (!text) return;
+      const fs = 12 / globalScale;
+      ctx.font = `${fs}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+      const tw = ctx.measureText(text).width;
+      const top = y + r + 3 / globalScale;
+      const rect = { x: x - tw / 2, y: top, w: tw, h: fs };
+
+      if (!mustShow) {
+        const pad = 1.5 / globalScale;
+        const overlaps = labelRectsRef.current.some(
+          (o) =>
+            rect.x < o.x + o.w + pad &&
+            rect.x + rect.w + pad > o.x &&
+            rect.y < o.y + o.h + pad &&
+            rect.y + rect.h + pad > o.y,
+        );
+        if (overlaps) return;
       }
+      labelRectsRef.current.push(rect);
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 3 / globalScale;
+      ctx.strokeStyle = "rgba(15,15,18,0.92)";
+      ctx.strokeText(text, x, top);
+      ctx.fillStyle = mustShow ? "rgba(248,248,250,0.98)" : "rgba(212,214,220,0.9)";
+      ctx.fillText(text, x, top);
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
     },
     [nodeRadius, focusId, hlNodes, selected],
   );
@@ -568,6 +573,9 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
               onNodeClick={handleNodeClick}
               onNodeHover={handleNodeHover}
               onBackgroundClick={() => setSelected(null)}
+              onRenderFramePre={() => {
+                labelRectsRef.current = [];
+              }}
               onEngineStop={() => {
                 if (fittedRef.current) return;
                 fittedRef.current = true;
