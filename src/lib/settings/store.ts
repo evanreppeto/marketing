@@ -39,7 +39,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   workspaceName: "Big Shoulders",
   workspaceProfile: "company",
   productLabel: "Marketing",
-  assistantName: "Mark",
+  assistantName: "Agent",
   assistantTone: "direct",
   assistantResponseStyle: "balanced",
   approvalStrictness: "standard",

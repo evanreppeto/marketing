@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { AgentNameProvider } from "./agent-name-context";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
@@ -64,7 +65,7 @@ export function ConsoleFrame({
   ];
 
   if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
-    return <>{children}</>;
+    return <AgentNameProvider value={agentName}>{children}</AgentNameProvider>;
   }
 
   const expanded = isSidebarExpanded({ pinned: false, hovered, focusWithin });
@@ -77,8 +78,9 @@ export function ConsoleFrame({
   );
 
   return (
-    <main className={theme.shell.canvas}>
-      <div className={layout}>
+    <AgentNameProvider value={agentName}>
+      <main className={theme.shell.canvas}>
+        <div className={layout}>
         <aside
           className={theme.shell.sidebar}
           onMouseEnter={() => setHovered(true)}
@@ -131,8 +133,9 @@ export function ConsoleFrame({
         >
           <ShellContent>{children}</ShellContent>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </AgentNameProvider>
   );
 }
 
