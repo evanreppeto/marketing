@@ -11,7 +11,7 @@ export function TicketActivityTimeline({ agentName, timeline }: { agentName: str
           {timeline.map((item) => (
             <li className="grid gap-3 px-4 py-4 sm:grid-cols-[96px_minmax(0,1fr)]" key={`${item.source}-${item.id}-${item.eventType}`}>
               <div className="flex flex-wrap items-start gap-2 sm:block">
-                <StatusPill tone={sourceTone(item.source)}>{item.source}</StatusPill>
+                <StatusPill tone={sourceTone(item.source)}>{item.source === "Mark" ? agentName : item.source}</StatusPill>
                 <div className="mt-0 text-xs font-medium text-[var(--text-muted)] sm:mt-2">
                   {humanize(item.eventType)}
                 </div>

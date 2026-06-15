@@ -18,7 +18,7 @@ export default async function Page({ params }: PageProps) {
 
   const { agentKey } = await params;
   const agentName = await getAgentName();
-  const dashboard = await getAgentOperationsDashboard();
+  const dashboard = await getAgentOperationsDashboard(undefined, agentName);
 
   if (dashboard.status === "unavailable") {
     return (

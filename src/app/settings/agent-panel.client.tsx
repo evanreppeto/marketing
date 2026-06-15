@@ -263,7 +263,7 @@ export function AgentSetupBundle({
             <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
               <div className="font-bold text-[var(--text-primary)]">Finish setup</div>
               <div className="grid gap-2 sm:grid-cols-3">
-                {["Paste prompt into Hermes", "Copy verification message", "Send a test message in Mark"].map((item, index) => (
+                {["Paste prompt into Hermes", "Copy verification message", `Send a test message in ${agentName}`].map((item, index) => (
                   <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-2" key={item}>
                     <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Step {index + 1}</div>
                     <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{item}</div>
@@ -300,14 +300,14 @@ export function AgentSetupBundle({
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--accent-soft)] bg-[var(--surface-canvas)] p-3">
               <div>
-                <div className="font-bold text-[var(--text-primary)]">3. Send a test message in Mark</div>
-                <p className="mt-1">After Hermes says verification passed, send one short Mark message.</p>
+                <div className="font-bold text-[var(--text-primary)]">3. Send a test message in {agentName}</div>
+                <p className="mt-1">After Hermes says verification passed, send one short {agentName} message.</p>
               </div>
               <Link
                 className="inline-flex min-h-9 items-center rounded-md border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent-contrast)] transition hover:opacity-90"
                 href="/mark"
               >
-                Open Mark
+                Open {agentName}
               </Link>
             </div>
 

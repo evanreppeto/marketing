@@ -38,7 +38,7 @@ export type EffectiveAgentConnection = {
 };
 
 export const DEFAULT_WORKSPACE_ID = "default";
-export const DEFAULT_CONNECTION = { displayName: "Mark", agentKey: "mark" };
+export const DEFAULT_CONNECTION = { displayName: "Agent", agentKey: "mark" };
 
 type EnvLike = Record<string, string | undefined>;
 

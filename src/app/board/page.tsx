@@ -9,7 +9,8 @@ import { getAgentName } from "@/lib/settings/agent-name";
 export default async function BoardPage() {
   await connection();
 
-  const [dashboard, agentName] = await Promise.all([getAgentOperationsDashboard(), getAgentName()]);
+  const agentName = await getAgentName();
+  const dashboard = await getAgentOperationsDashboard(undefined, agentName);
 
   if (dashboard.status === "unavailable") {
     return (

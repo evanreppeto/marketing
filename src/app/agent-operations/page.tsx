@@ -13,7 +13,7 @@ export default async function AgentOperationsPage() {
   await connection();
 
   const agentName = await getAgentName();
-  const dashboard = await getAgentOperationsDashboard();
+  const dashboard = await getAgentOperationsDashboard(undefined, agentName);
 
   if (dashboard.status === "unavailable") {
     return (

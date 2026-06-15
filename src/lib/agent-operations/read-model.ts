@@ -368,7 +368,10 @@ type AgentTaskEventRow = {
   created_at: string | null;
 };
 
-export async function getAgentOperationsDashboard(client?: SupabaseClient): Promise<AgentOperationsDashboard> {
+export async function getAgentOperationsDashboard(
+  client?: SupabaseClient,
+  agentName: string = "Agent",
+): Promise<AgentOperationsDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
     return {
       status: "unavailable",
@@ -433,7 +436,7 @@ export async function getAgentOperationsDashboard(client?: SupabaseClient): Prom
       tasks: tasks.map((task) => mapTask(task, agentById, campaignById, approvalById)),
       approvals: activeApprovals.slice(0, 5).map((item) => mapApproval(item, campaignById)),
       recentOutputs: outputs.slice(0, 6).map((output) => mapOutput(output, taskById, agentById)),
-      markRunner: mapMarkRunner(agents, tasks),
+      markRunner: mapMarkRunner(agents, tasks, agentName),
     };
   } catch (error) {
     return {
@@ -834,7 +837,11 @@ function mapTask(
   };
 }
 
-function mapMarkRunner(agents: ReturnType<typeof normalizeAgentRow>[], tasks: ReturnType<typeof normalizeTaskRow>[]): MarkRunnerStatus {
+function mapMarkRunner(
+  agents: ReturnType<typeof normalizeAgentRow>[],
+  tasks: ReturnType<typeof normalizeTaskRow>[],
+  agentName: string = "Agent",
+): MarkRunnerStatus {
   const mark = agents.find((agent) => agent.key === "mark") ?? agents.find((agent) => agent.key === "hermes");
   const markTasks = mark ? tasks.filter((task) => task.agent_id === mark.id) : [];
   const metadata = asRecord(mark?.metadata);
@@ -846,7 +853,7 @@ function mapMarkRunner(agents: ReturnType<typeof normalizeAgentRow>[], tasks: Re
   return {
     configured: Boolean(mark),
     agentId: mark?.id ?? null,
-    name: mark?.name ?? "Mark",
+    name: mark?.name ?? agentName,
     status: mark ? titleize(mark.status) : "Pending setup",
     runner,
     mode,
@@ -857,8 +864,8 @@ function mapMarkRunner(agents: ReturnType<typeof normalizeAgentRow>[], tasks: Re
     approvalTasks: markTasks.filter((task) => task.status === "needs_approval").length,
     killSwitch,
     nextStep: mark
-      ? "Start Mark on the Mac mini and have him poll queued tasks."
-      : "Create Mark in Supabase from this page, then start the Mac mini runner.",
+      ? `Start ${agentName} on the Mac mini and have it poll queued tasks.`
+      : `Create ${agentName} in Supabase from this page, then start the Mac mini runner.`,
   };
 }
 

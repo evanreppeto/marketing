@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 
+import { useAgentName } from "../_components/agent-name-context";
 import { Button } from "../_components/page-header";
 import {
   saveAgentBehaviorSettingsAction,
@@ -147,7 +148,7 @@ export function BrandingSettingsForm({
         </label>
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Chat assistant name</span>
-          <input className={inputClass} name="assistantName" onChange={(event) => setAssistantName(event.target.value)} placeholder="Mark" value={assistantName} />
+          <input className={inputClass} name="assistantName" onChange={(event) => setAssistantName(event.target.value)} placeholder="Agent" value={assistantName} />
           <span className="text-xs text-[var(--text-muted)]">Changes the visible chat name, prompts, and send box wording.</span>
         </label>
         <label className="grid gap-1.5">
@@ -205,9 +206,9 @@ export function BrandingSettingsForm({
             </div>
           </div>
           <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
-            <div className="text-sm font-bold text-[var(--text-primary)]">What should {assistantName || "Mark"} work on?</div>
+            <div className="text-sm font-bold text-[var(--text-primary)]">What should {assistantName || "Agent"} work on?</div>
             <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-              Message {assistantName || "Mark"}... Workspace mode: {workspaceProfile}.
+              Message {assistantName || "Agent"}... Workspace mode: {workspaceProfile}.
             </p>
           </div>
         </div>
@@ -291,20 +292,21 @@ export function MarkDefaultsForm({
   initialMode: "ask" | "act" | "draft";
   initialRoute: "fast" | "standard";
 }) {
+  const agentName = useAgentName();
   const [state, action, pending] = useActionState(saveMarkDefaultsAction, null);
 
   return (
     <form action={action} className="grid gap-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Default Mark stance</span>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Default {agentName} stance</span>
           <select className={inputClass} defaultValue={initialMode} name="markDefaultMode">
             <option value="ask">Ask - answer only</option>
             <option value="act">Act - work inside the app</option>
             <option value="draft">Draft - bias toward campaign assets</option>
           </select>
           <span className="text-xs text-[var(--text-muted)]">
-            Applied to new Mark messages unless a slash command supplies a stronger instruction.
+            Applied to new {agentName} messages unless a slash command supplies a stronger instruction.
           </span>
         </label>
 
@@ -322,7 +324,7 @@ export function MarkDefaultsForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={pending} size="sm" type="submit" variant="primary">
-          Save Mark defaults
+          Save {agentName} defaults
         </Button>
         <Feedback state={state} />
       </div>

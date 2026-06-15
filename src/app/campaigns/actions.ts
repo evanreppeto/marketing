@@ -447,6 +447,7 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
     // "general" is not in the restoration_focus enum. Seed with "flood" (first
     // valid value); Mark updates this when drafting the campaign.
     restorationFocus: "flood",
+    agentName,
     client,
   });
 

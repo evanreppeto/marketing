@@ -18,6 +18,7 @@ import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
 import { getAppSettings } from "@/lib/settings/store";
+import { getAgentName } from "@/lib/settings/agent-name";
 import {
   archiveConversation,
   assignConversationToCampaign,
@@ -57,7 +58,8 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   await requireOperator();
 
   if (!isSupabaseAdminConfigured()) {
-    return { ok: false, message: "Supabase isn't configured yet, so Mark can't receive the message." };
+    const agentName = await getAgentName();
+    return { ok: false, message: `Supabase isn't configured yet, so ${agentName} can't receive the message.` };
   }
 
   const rawBody = String(formData.get("body") ?? "");
@@ -107,6 +109,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
   // sleeps. Routine chat rides the cheap/fast model route. Outbound stays locked.
   // If Mark isn't connected, record a failed reply so the thread shows what
   // happened instead of hanging on "thinking".
+  const agentName = await getAgentName();
   try {
     const agentTaskId = await enqueueMarkChatTask(
       {
@@ -122,6 +125,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
         attachments,
+        agentName,
       },
       client,
     );
@@ -152,7 +156,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
     }
   } catch (error) {
     await insertFailedMarkMessage(
-      { conversationId, body: error instanceof Error ? error.message : "Mark couldn't be reached." },
+      { conversationId, body: error instanceof Error ? error.message : `${agentName} couldn't be reached.` },
       client,
     ).catch(() => undefined);
   }
@@ -485,6 +489,7 @@ export async function regenerateMarkReplyAction(
 
   const operator = getOperatorActor();
   const settings = await getAppSettings();
+  const agentName = await getAgentName();
   try {
     const agentTaskId = await enqueueMarkChatTask(
       {
@@ -498,6 +503,7 @@ export async function regenerateMarkReplyAction(
         assistantTone: settings.assistantTone,
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
+        agentName,
       },
       client,
     );
@@ -643,22 +649,24 @@ export async function promoteSavedItemAction(
   if (!valid.ok) return { ok: false, message: valid.message };
 
   const operator = getOperatorActor();
+  const agentName = await getAgentName();
   const item = await getSavedItem(savedItemId, operator);
   if (!item) return { ok: false, message: "Saved item not found." };
 
   const campaignId =
     target.mode === "existing"
       ? target.campaignId
-      : (await createCampaignShell({ operator, name: target.name, persona: target.persona, restorationFocus: target.restorationFocus })).campaignId;
+      : (await createCampaignShell({ operator, name: target.name, persona: target.persona, restorationFocus: target.restorationFocus, agentName })).campaignId;
 
   const assetType = item.kind === "media" ? "image_prompt" : "social_ad";
   const { assetId } = await promoteAssetToCampaign({
     operator,
     campaignId,
     assetType,
-    title: item.title ?? "Promoted from Mark",
+    title: item.title ?? `Promoted from ${agentName}`,
     body: item.body,
     mediaUrl: item.mediaUrl,
+    agentName,
   });
 
   await markPromoted(savedItemId, { campaignId, assetId });

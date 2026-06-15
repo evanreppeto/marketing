@@ -44,7 +44,7 @@ describe("toMarkActivity", () => {
 });
 
 describe("getVaultLiveSignals (no Supabase configured)", () => {
-  it("returns fallback with an Offline Mark when env vars are unset", async () => {
+  it("returns fallback with an Offline Agent when env vars are unset", async () => {
     const prevUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -52,7 +52,7 @@ describe("getVaultLiveSignals (no Supabase configured)", () => {
     try {
       const model = await getVaultLiveSignals();
       expect(model.status).toBe("fallback");
-      expect(model.activity.name).toBe("Mark");
+      expect(model.activity.name).toBe("Agent");
       expect(model.activity.status).toBe("Offline");
       expect(model.activity.drafting).toEqual([]);
     } finally {
