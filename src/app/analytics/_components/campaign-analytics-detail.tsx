@@ -3,11 +3,12 @@ import Link from "next/link";
 import { EmptyState, PageHeader, StatusPill } from "@/app/_components/page-header";
 import { MetricStrip, WorkspacePanel } from "@/app/_components/workspace";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
+import { type CampaignPerformance } from "@/lib/performance/campaign-performance";
 import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-copy";
 
 import { buildChannelBreakdown, buildComposition, buildFunnel } from "./campaign-analytics-model";
 
-export function CampaignAnalyticsDetail({ detail }: { detail: LiveCampaignWorkspace }) {
+export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveCampaignWorkspace; performance: CampaignPerformance }) {
   const { campaign, launchState, assets, metrics } = detail;
   const funnel = buildFunnel(campaign.rollup);
   const channels = buildChannelBreakdown(assets);
@@ -37,6 +38,56 @@ export function CampaignAnalyticsDetail({ detail }: { detail: LiveCampaignWorksp
           { label: "Ready", value: `${funnel.readiness}%`, detail: `${funnel.approved} of ${funnel.total} pieces approved.`, tone: funnel.readiness === 100 && funnel.total > 0 ? "green" : "blue" },
         ]}
       />
+
+      <WorkspacePanel
+        eyebrow="Money"
+        title="Linked revenue"
+        description="Revenue and margin from outcomes linked to this campaign's lead and company, plus estimated pipeline from its jobs. Attribution is approximate — it follows the campaign's linked lead, not a full multi-touch model."
+      >
+        {performance.status === "live" && performance.money.hasData ? (
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Realized revenue" value={formatUsd(performance.money.realizedRevenueCents)} />
+            <StatCard label="Margin" value={formatUsd(performance.money.marginCents)} />
+            <StatCard label="Won outcomes" value={`${performance.money.wonCount} of ${performance.money.outcomeCount}`} />
+            <StatCard label="Estimated pipeline" value={formatUsd(performance.money.estimatedPipelineCents)} />
+          </div>
+        ) : (
+          <EmptyState
+            title="No revenue linked yet"
+            detail="Once this campaign's lead or company has booked jobs or won outcomes, the linked revenue and margin show here."
+          />
+        )}
+      </WorkspacePanel>
+
+      <WorkspacePanel
+        eyebrow="Traffic"
+        title="Engagement events"
+        description="First-party clicks, form submits, and photo uploads attributed to this campaign — not ad impressions or page views."
+      >
+        {performance.status === "live" && performance.trafficTracked && performance.traffic.hasData ? (
+          <div className="grid gap-5 p-4 xl:grid-cols-2">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Total events</div>
+              <div className="mt-2 font-display text-3xl font-bold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">
+                {performance.traffic.totalEvents}
+              </div>
+              <div className="mt-4">
+                <TrafficList title="By type" rows={performance.traffic.byType} />
+              </div>
+            </div>
+            <TrafficList title="By channel" rows={performance.traffic.byChannel} />
+          </div>
+        ) : (
+          <EmptyState
+            title={performance.status === "live" && !performance.trafficTracked ? "Engagement isn't tracked yet" : "No engagement events for this campaign yet"}
+            detail={
+              performance.status === "live" && !performance.trafficTracked
+                ? "The engagement events source isn't available, so clicks, form submits, and photo uploads can't be counted yet."
+                : "When someone clicks, submits a form, or uploads photos tied to this campaign, those events appear here."
+            }
+          />
+        )}
+      </WorkspacePanel>
 
       <WorkspacePanel
         eyebrow="Package composition"
@@ -116,4 +167,35 @@ export function CampaignAnalyticsDetail({ detail }: { detail: LiveCampaignWorksp
       </p>
     </div>
   );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-2 font-display text-2xl font-bold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">{value}</div>
+    </div>
+  );
+}
+
+function TrafficList({ title, rows }: { title: string; rows: Array<{ label: string; count: number }> }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{title}</div>
+      <div className="mt-2 divide-y divide-[var(--border-hairline)] overflow-hidden rounded-xl border border-[var(--border-hairline)]">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <span className="font-semibold text-[var(--text-primary)]">{row.label}</span>
+            <span className="font-mono text-sm font-bold text-[var(--accent)]">{row.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Local USD formatter (mirrors formatMoney in the performance read-model; kept
+ *  local so that module needn't export it). */
+function formatUsd(cents: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
 }
