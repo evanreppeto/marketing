@@ -249,6 +249,43 @@ export async function listMessages(
   return ((data ?? []) as MessageRow[]).map(toMessage);
 }
 
+/**
+ * Every asset-bearing Mark message from the OTHER active conversations in a
+ * project — the source for the Studio's project-wide Assets library. The active
+ * conversation is excluded (its messages already arrive live), and messages
+ * without action cards are dropped so the payload stays small.
+ */
+export async function listProjectAssetMessages(
+  projectId: string,
+  operator: string,
+  options: { excludeConversationId?: string; limit?: number } = {},
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<MarkMessage[]> {
+  const { data: convRows, error: convErr } = await client
+    .from("mark_conversations")
+    .select("id")
+    .eq("operator", operator)
+    .eq("project_id", projectId)
+    .eq("status", "active");
+  assertOk("mark_conversations project list", convErr);
+
+  const ids = ((convRows ?? []) as { id: string }[])
+    .map((r) => r.id)
+    .filter((id) => id !== options.excludeConversationId);
+  if (ids.length === 0) return [];
+
+  const { data, error } = await client
+    .from("mark_messages")
+    .select(MESSAGE_COLUMNS)
+    .in("conversation_id", ids)
+    .eq("role", "mark")
+    .order("created_at", { ascending: false })
+    .limit(options.limit ?? 100);
+  assertOk("mark_messages project assets list", error);
+
+  return ((data ?? []) as MessageRow[]).map(toMessage).filter((m) => m.actions.length > 0);
+}
+
 export async function insertOperatorMessage(
   input: { conversationId: string; body: string; mentions: MarkMention[]; attachments?: MarkAttachment[] },
   client: SupabaseClient = getSupabaseAdminClient(),

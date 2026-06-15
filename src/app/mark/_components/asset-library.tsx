@@ -3,37 +3,14 @@
 import { useMemo, useState } from "react";
 
 import { cx } from "@/app/_components/theme";
-import type { MarkActionCard, MarkMedia } from "@/domain";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkActionCard } from "@/domain";
 
+import type { StudioAsset } from "./asset-collect";
 import { SourceBadge, StatusPill } from "./asset-meta";
 import { AssetThumb } from "./asset-thumb";
 
-export type StudioAsset = {
-  id: string;
-  card: MarkActionCard;
-  /** Resolved visual: the card's own media, else the reply's first image. */
-  media?: MarkMedia;
-  conversationId: string;
-  messageId: string;
-};
-
-/** Gather every asset Mark generated in the thread — the Studio's library source. */
-export function collectAssets(messages: MarkMessage[]): StudioAsset[] {
-  const out: StudioAsset[] = [];
-  const seen = new Set<string>();
-  for (const m of messages) {
-    m.actions.forEach((card, i) => {
-      if (card.kind !== "draft" && !card.media) return;
-      const id = card.approval?.assetId ?? `${m.id}-${i}`;
-      if (seen.has(id)) return;
-      seen.add(id);
-      const media = card.media ?? m.media.find((x) => x.kind === "image");
-      out.push({ id, card, media, conversationId: m.conversationId, messageId: m.id });
-    });
-  }
-  return out;
-}
+export type { StudioAsset } from "./asset-collect";
+export { collectAssets } from "./asset-collect";
 
 function category(card: MarkActionCard): string {
   const c = `${card.channel ?? ""} ${card.format ?? ""}`.toLowerCase();
@@ -45,7 +22,7 @@ function category(card: MarkActionCard): string {
   return "Other";
 }
 
-function AssetTile({ asset, onSelect }: { asset: StudioAsset; onSelect: (id: string) => void }) {
+function AssetTile({ asset, onSelect, sourceTitle }: { asset: StudioAsset; onSelect: (id: string) => void; sourceTitle?: string }) {
   const { card, media } = asset;
   return (
     <button
@@ -61,12 +38,27 @@ function AssetTile({ asset, onSelect }: { asset: StudioAsset; onSelect: (id: str
       <span className="flex flex-col gap-0.5 px-2 py-1.5">
         <span className="truncate text-[12px] font-semibold text-[var(--text-primary)]" title={card.title}>{card.title}</span>
         {card.channel ? <span className="truncate text-[10px] text-[var(--text-muted)]">{card.channel}</span> : null}
+        {sourceTitle ? (
+          <span className="truncate text-[10px] text-[var(--text-muted)]" title={`From ${sourceTitle}`}>
+            from {sourceTitle}
+          </span>
+        ) : null}
       </span>
     </button>
   );
 }
 
-export function AssetLibrary({ assets, onSelect }: { assets: StudioAsset[]; onSelect: (id: string) => void }) {
+export function AssetLibrary({
+  assets,
+  onSelect,
+  currentConversationId,
+  conversationTitles,
+}: {
+  assets: StudioAsset[];
+  onSelect: (id: string) => void;
+  currentConversationId?: string;
+  conversationTitles?: Record<string, string>;
+}) {
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const a of assets) set.add(category(a.card));
@@ -106,9 +98,11 @@ export function AssetLibrary({ assets, onSelect }: { assets: StudioAsset[]; onSe
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="grid grid-cols-2 gap-2">
-          {shown.map((a) => (
-            <AssetTile key={a.id} asset={a} onSelect={onSelect} />
-          ))}
+          {shown.map((a) => {
+            const fromOther = Boolean(currentConversationId) && a.conversationId !== currentConversationId;
+            const sourceTitle = fromOther ? conversationTitles?.[a.conversationId] ?? "another chat" : undefined;
+            return <AssetTile key={a.id} asset={a} onSelect={onSelect} sourceTitle={sourceTitle} />;
+          })}
         </div>
       </div>
     </div>

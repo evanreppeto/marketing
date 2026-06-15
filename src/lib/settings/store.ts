@@ -36,16 +36,16 @@ export type AssistantResponseStyle = "brief" | "balanced" | "detailed";
 export type ApprovalStrictness = "light" | "standard" | "strict";
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  workspaceName: "Big Shoulders",
+  workspaceName: "Arc",
   workspaceProfile: "company",
   productLabel: "Marketing",
-  assistantName: "Mark",
+  assistantName: "Agent",
   assistantTone: "direct",
   assistantResponseStyle: "balanced",
   approvalStrictness: "standard",
-  brandShortName: "BS",
-  brandLogoUrl: "",
-  brandFaviconUrl: "/icon.svg",
+  brandShortName: "AR",
+  brandLogoUrl: "/brand/arc-logo.png",
+  brandFaviconUrl: "/icon.png",
   supportEmail: "",
   markDefaultMode: "act",
   markDefaultRoute: "fast",

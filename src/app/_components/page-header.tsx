@@ -60,15 +60,8 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 max-w-[76ch]">
           {backHref ? <BackLink href={backHref} label={backLabel ?? "back"} /> : null}
-          {eyebrow ? (
-            <div className="flex items-center gap-2.5">
-              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_var(--accent-soft)]" />
-              <p className={theme.text.eyebrow}>
-                {eyebrow}
-              </p>
-            </div>
-          ) : null}
-          <h1 className={cx(eyebrow ? "mt-1.5" : "", "font-serif text-[clamp(1.75rem,2.6vw,2.45rem)] font-semibold leading-[1.02] tracking-[-0.018em] text-[var(--text-primary)]")}>
+          {eyebrow ? <div className={cx("mb-2", theme.text.eyebrow)}>{eyebrow}</div> : null}
+          <h1 className="font-serif text-[clamp(1.75rem,2.6vw,2.45rem)] font-semibold leading-[1.02] tracking-[-0.018em] text-[var(--text-primary)]">
             {title}
           </h1>
           {description ? (
