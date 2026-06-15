@@ -4,6 +4,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
+import { getAppSettings } from "@/lib/settings/store";
 
 export const metadata = {
   title: "Analytics",
@@ -12,12 +13,13 @@ export const metadata = {
 export default async function AnalyticsPage() {
   await connection();
 
-  const list = await getCampaignWorkspaceList();
+  const [list, settings] = await Promise.all([getCampaignWorkspaceList(), getAppSettings()]);
+  const brand = { workspaceName: settings.workspaceName, logoUrl: settings.brandLogoUrl };
 
   if (list.status === "unavailable") {
     return (
       <>
-        <AnalyticsHeader />
+        <AnalyticsHeader brand={brand} />
         <EmptyState
           title="No campaign data to show yet"
           detail="Once campaigns are connected, this page will show how each one is doing and what is waiting on you."
@@ -34,7 +36,7 @@ export default async function AnalyticsPage() {
 
   return (
     <>
-      <AnalyticsHeader />
+      <AnalyticsHeader brand={brand} />
 
       <MetricStrip
         metrics={[
@@ -214,10 +216,22 @@ function StateBadge({ row }: { row: ComparisonRowData }) {
   );
 }
 
-function AnalyticsHeader() {
+function AnalyticsHeader({ brand }: { brand: { workspaceName: string; logoUrl: string } }) {
   return (
     <div className="mb-5">
-      <PageHeader title="Analytics" description="A simple read on your campaigns and what is waiting on you." />
+      <PageHeader
+        title="Analytics"
+        description="A simple read on your campaigns and what is waiting on you."
+        aside={
+          <div className="flex items-center gap-2 px-1.5 py-0.5">
+            {brand.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or a data URL.
+              <img alt="" className="h-5 w-5 shrink-0 rounded object-contain" src={brand.logoUrl} />
+            ) : null}
+            <span className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{brand.workspaceName}</span>
+          </div>
+        }
+      />
     </div>
   );
 }
