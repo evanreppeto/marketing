@@ -1,7 +1,13 @@
 import json
 import unittest
 
-from mark_chat_core import row_to_message, is_chat_task, extract_record
+from mark_chat_core import (
+    build_claim_request,
+    claim_won,
+    extract_record,
+    is_chat_task,
+    row_to_message,
+)
 
 
 class RowToMessage(unittest.TestCase):
@@ -57,6 +63,10 @@ class IsChatTask(unittest.TestCase):
         self.assertFalse(is_chat_task({"task_type": "campaign_strategy"}))
         self.assertFalse(is_chat_task({}))
 
+    def test_false_for_non_dict(self):
+        self.assertFalse(is_chat_task(None))
+        self.assertFalse(is_chat_task("mark_chat_message"))
+
 
 class ExtractRecord(unittest.TestCase):
     def test_record_key(self):
@@ -71,9 +81,6 @@ class ExtractRecord(unittest.TestCase):
     def test_empty_when_unrecognized(self):
         self.assertEqual(extract_record({"nope": 1}), {})
         self.assertEqual(extract_record("not-a-dict"), {})
-
-
-from mark_chat_core import build_claim_request, claim_won
 
 
 class BuildClaimRequest(unittest.TestCase):
