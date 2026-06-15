@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { EmptyState, PageHeader } from "../../_components/page-header";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { getCampaignPerformance } from "@/lib/performance/campaign-performance";
 import { getAppSettings } from "@/lib/settings/store";
 
 import { CampaignAnalyticsDetail } from "../_components/campaign-analytics-detail";
@@ -21,7 +22,10 @@ export default async function CampaignAnalyticsPage({ params }: CampaignAnalytic
   const { campaignId } = await params;
   const { assistantName } = await getAppSettings();
   const agentName = getAgentDisplayName(assistantName);
-  const detail = await getCampaignWorkspaceDetail(campaignId, undefined, agentName);
+  const [detail, performance] = await Promise.all([
+    getCampaignWorkspaceDetail(campaignId, undefined, agentName),
+    getCampaignPerformance(campaignId),
+  ]);
 
   if (detail.status !== "live") {
     const notFound = detail.status === "not_found";
@@ -44,5 +48,5 @@ export default async function CampaignAnalyticsPage({ params }: CampaignAnalytic
     );
   }
 
-  return <CampaignAnalyticsDetail detail={detail} />;
+  return <CampaignAnalyticsDetail detail={detail} performance={performance} />;
 }
