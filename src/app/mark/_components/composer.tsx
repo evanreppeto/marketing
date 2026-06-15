@@ -109,6 +109,7 @@ export function Composer({
   onStopReply,
   projects,
   activeProjectId,
+  initialNewChatProjectId = null,
   defaultMode = "act",
   defaultRoute = "fast",
   assistantName = "Arc",
@@ -119,6 +120,8 @@ export function Composer({
   mentionGroups: MentionGroup[];
   projects: MarkProject[];
   activeProjectId: string | null;
+  /** Pre-selected project for a fresh chat (from the ?project=<id> deep link). */
+  initialNewChatProjectId?: string | null;
   defaultMode?: MarkMode;
   defaultRoute?: MarkRoute;
   assistantName?: string;
@@ -138,10 +141,18 @@ export function Composer({
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   // For a new chat the picked project rides along as a hidden input (assigned on
   // create); for an existing chat changing it moves the thread immediately.
-  const [newChatProjectId, setNewChatProjectId] = useState<string | null>(null);
+  const [newChatProjectId, setNewChatProjectId] = useState<string | null>(initialNewChatProjectId);
   const projectWrapRef = useRef<HTMLDivElement>(null);
   const selectedProjectId = conversationId ? activeProjectId : newChatProjectId;
   const selectedProjectName = projects.find((p) => p.id === selectedProjectId)?.name ?? null;
+
+  // The composer keeps a stable tree slot across thread navigation (it never
+  // remounts), so the initial-state seed alone won't react to a later
+  // ?project=<id> deep link. Sync when that prop changes; the dependency guard
+  // means a manual project change in the same fresh chat is preserved.
+  useEffect(() => {
+    void Promise.resolve().then(() => setNewChatProjectId(initialNewChatProjectId));
+  }, [initialNewChatProjectId]);
 
   useEffect(() => {
     if (!projectMenuOpen) return;

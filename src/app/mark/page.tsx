@@ -21,7 +21,7 @@ import { MarkChat } from "./_components/mark-chat";
 import { getDemoChat } from "./_data/demo";
 
 type MarkPageProps = {
-  searchParams?: Promise<{ c?: string | string[]; archived?: string | string[] }>;
+  searchParams?: Promise<{ c?: string | string[]; archived?: string | string[]; project?: string | string[] }>;
 };
 type MarkChatProps = ComponentProps<typeof MarkChat>;
 const MARK_PAGE_DATA_TIMEOUT_MS = 3000;
@@ -77,6 +77,13 @@ async function loadLiveMarkChatProps(params: Awaited<MarkPageProps["searchParams
   const archived = showArchived ? await listArchivedConversations(operator) : [];
   const requestedId = valueOf(params?.c);
   const activeConversation = requestedId ? await getConversation(requestedId) : null;
+  // "New chat in this project" deep link (?project=<id>) — only meaningful for a
+  // fresh chat; ignored once a thread is active and validated against real projects.
+  const requestedProject = valueOf(params?.project);
+  const newChatProjectId =
+    !activeConversation && requestedProject && projects.some((p) => p.id === requestedProject)
+      ? requestedProject
+      : null;
   const initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
 
   // Project-wide assets for the Studio: asset-bearing messages from sibling chats
@@ -100,6 +107,7 @@ async function loadLiveMarkChatProps(params: Awaited<MarkPageProps["searchParams
     activeId: activeConversation?.id ?? "",
     activeTitle: activeConversation?.title ?? "",
     activeProjectId: activeConversation?.projectId ?? null,
+    newChatProjectId,
     activeCampaignId: activeConversation?.campaignId ?? null,
     campaigns,
     activePinned: Boolean(activeConversation?.pinnedAt),
