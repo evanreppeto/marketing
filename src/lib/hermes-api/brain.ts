@@ -2,6 +2,7 @@ import { type NodeKind, type EdgeRelation } from "@/domain";
 import { type TypedSupabaseClient } from "@/lib/supabase/server";
 import { createEdge, createNode, type WriteResult } from "@/lib/knowledge-graph/persistence";
 import { listNodes, type NodeFilters } from "@/lib/knowledge-graph/read-model";
+import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 
 type ApiDeps = { client?: TypedSupabaseClient; orgId?: string };
 
@@ -58,4 +59,38 @@ export async function markQueryBrain(payload: Record<string, unknown>, deps: Api
     search: typeof payload.search === "string" ? payload.search : undefined,
   };
   return listNodes(filters, deps.client, deps.orgId);
+}
+
+export type GraphExportNode = {
+  id: string;
+  kind: string;
+  label: string;
+  trustTier: string;
+  persona: string | null;
+  refTable: string | null;
+  refId: string | null;
+};
+export type GraphExportLink = { source: string; target: string; relation: string; weight: number | null };
+export type GraphExport =
+  | { status: "live"; nodes: GraphExportNode[]; links: GraphExportLink[]; truncated: boolean }
+  | { status: "unavailable"; message: string };
+
+/** Whole-brain graph.json artifact (force-graph shape) for Mark / portable tools. */
+export async function markGraphExport(deps: ApiDeps = {}): Promise<GraphExport> {
+  const graph = await getBrainGraph({}, deps.client, deps.orgId);
+  if (graph.status !== "live") return graph;
+  return {
+    status: "live",
+    nodes: graph.nodes.map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      label: n.label,
+      trustTier: n.trustTier,
+      persona: n.persona,
+      refTable: n.refTable,
+      refId: n.refId,
+    })),
+    links: graph.edges.map((e) => ({ source: e.fromNodeId, target: e.toNodeId, relation: e.relation, weight: e.weight })),
+    truncated: graph.truncated,
+  };
 }
