@@ -237,7 +237,7 @@ export function ThreadSidebar({
   showArchived,
   activeId,
   variant = "rail",
-  assistantName = "Agent",
+  assistantName = "Arc",
 }: {
   conversations: MarkConversation[];
   projects: MarkProject[];
