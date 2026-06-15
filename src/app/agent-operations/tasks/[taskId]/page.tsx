@@ -34,7 +34,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   const query = searchParams ? await searchParams : {};
   const activeSection = normalizeTaskSection(getValue(query.section));
   const agentName = await getAgentName();
-  const detail = await getAgentTaskDetail(taskId);
+  const detail = await getAgentTaskDetail(taskId, undefined, agentName);
 
   if (detail.status === "not_found") {
     notFound();
