@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { Panel, StatusPill } from "@/app/_components/page-header";
-import { theme } from "@/app/_components/theme";
+import { type ThemeTone, theme } from "@/app/_components/theme";
 import { approveNodeAction, rejectNodeAction } from "@/app/brain/actions";
 import { type BrainEdge, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import type { ForceGraphMethods, ForceGraphProps, NodeObject, LinkObject } from "react-force-graph-2d";
@@ -26,26 +26,38 @@ const ForceGraph2D = dynamic(
 // Node-kind colors — concrete hex values required by canvas API
 // ---------------------------------------------------------------------------
 const KIND_COLOR: Record<string, string> = {
-  brand_fact:       "#c1452a", // restoration red
-  persona:          "#8b6f47", // warm brown
-  segment:          "#4a6741", // muted green
-  service:          "#2c5282", // deep blue
-  proof_point:      "#6b5b95", // slate-purple
-  messaging_angle:  "#b45309", // amber-brown
-  cta:              "#c2410c", // burnt orange
-  asset_ref:        "#1e6b8c", // teal-blue
-  learning:         "#3d6b61", // sage
-  signal:           "#7c3d2f", // deep rust
-  crm_ref:          "#4c5d6e", // steel-gray
-  campaign_ref:     "#2d4a6b", // navy
-  other:            "#555f6d", // neutral
+  brand_fact:       "#d05038", // restoration red
+  persona:          "#b08755", // warm sand
+  segment:          "#5d8a4f", // muted green
+  service:          "#3a72b0", // blue
+  proof_point:      "#8a78c0", // slate-purple
+  messaging_angle:  "#d08a2c", // amber
+  cta:              "#dc6a3a", // burnt orange
+  asset_ref:        "#2f93b8", // teal
+  learning:         "#4f9a8a", // sage
+  signal:           "#b3604a", // rust
+  crm_ref:          "#6b7d8f", // steel
+  campaign_ref:     "#5878a8", // dusty blue
+  other:            "#7a828f", // neutral
 };
+const KIND_COLOR_DEFAULT = "#8b929c";
+const kindColor = (kind: string): string => KIND_COLOR[kind] ?? KIND_COLOR_DEFAULT;
 
-const KIND_COLOR_DEFAULT = "#6b7280"; // gray-500
-
-function kindColor(kind: string): string {
-  return KIND_COLOR[kind] ?? KIND_COLOR_DEFAULT;
-}
+const TIER_DOT: Record<string, string> = {
+  trusted: "#4a9d6a",
+  proposed: "#d99524",
+  observed: "#4276ad",
+  rejected: "#b85745",
+  archived: "#6b7280",
+};
+const TIER_TONE: Record<string, ThemeTone> = {
+  trusted: "green",
+  proposed: "amber",
+  observed: "blue",
+  rejected: "red",
+  archived: "gray",
+};
+const CANVAS_BG = "#16161a";
 
 // ---------------------------------------------------------------------------
 // Internal graph link shape (after transform)
@@ -59,9 +71,19 @@ type GraphLink = {
   trustTier: string;
 };
 
-// Alias for what react-force-graph gives us in callbacks (source/target may be resolved to objects)
 type RFGNode = NodeObject<Record<string, unknown>>;
 type RFGLink = LinkObject<Record<string, unknown>, Record<string, unknown>>;
+
+// rounded-rect path (ctx.roundRect isn't reliably typed across lib targets)
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 
 // ---------------------------------------------------------------------------
 // Download helper
@@ -84,17 +106,15 @@ function downloadGraphJson(nodes: BrainNode[], edges: BrainEdge[]) {
 // Component
 // ---------------------------------------------------------------------------
 export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainEdge[] }) {
-  // ---- state ---------------------------------------------------------------
   const [selected, setSelected] = useState<BrainNode | null>(null);
-  // Local overrides: approved/rejected decisions applied optimistically.
-  // key = node id, value = "trusted" | "rejected" (to filter out)
+  const [hovered, setHovered] = useState<string | null>(null);
+  // Optimistic approve/reject decisions. key = node id, value = "trusted" | "rejected"
   const [tierOverrides, setTierOverrides] = useState<Map<string, string>>(new Map());
   const [search, setSearch] = useState("");
   const [activeKinds, setActiveKinds] = useState<Set<string>>(new Set());
   const [activeTiers, setActiveTiers] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
-  // Derive localNodes from props + overrides (no effect needed)
   const localNodes = useMemo<BrainNode[]>(() => {
     return nodes
       .filter((n) => tierOverrides.get(n.id) !== "rejected")
@@ -113,19 +133,14 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) {
-        setCanvasSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-      }
+      if (entry) setCanvasSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     ro.observe(el);
-    // seed on mount
     setCanvasSize({ width: el.clientWidth, height: el.clientHeight });
     return () => ro.disconnect();
   }, []);
 
-  // ---- graph ref for imperative API ----------------------------------------
   const graphRef = useRef<ForceGraphMethods | undefined>(undefined);
-  // Fit the whole graph into view once the initial force layout settles.
   const fittedRef = useRef(false);
 
   // ---- lookup maps ---------------------------------------------------------
@@ -135,11 +150,19 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     return m;
   }, [localNodes]);
 
-  // ---- kinds/tiers present in data ----------------------------------------
+  const degree = useMemo<Map<string, number>>(() => {
+    const d = new Map<string, number>();
+    for (const e of edges) {
+      d.set(e.fromNodeId, (d.get(e.fromNodeId) ?? 0) + 1);
+      d.set(e.toNodeId, (d.get(e.toNodeId) ?? 0) + 1);
+    }
+    return d;
+  }, [edges]);
+  const nodeRadius = useCallback((id: string) => 4 + Math.min(degree.get(id) ?? 0, 8) * 0.55, [degree]);
+
   const presentKinds = useMemo(() => [...new Set(nodes.map((n) => n.kind))].sort(), [nodes]);
   const presentTiers = useMemo(() => [...new Set(nodes.map((n) => n.trustTier))].sort(), [nodes]);
 
-  // ---- filtered node ids ---------------------------------------------------
   const filteredNodeIds = useMemo(() => {
     const ids = new Set<string>();
     for (const n of localNodes) {
@@ -150,12 +173,10 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     return ids;
   }, [localNodes, activeKinds, activeTiers]);
 
-  // ---- graphData (memoized, fresh copy each time to avoid mutation issues) --
   const graphData = useMemo(() => {
     const filteredNodes = localNodes
       .filter((n) => filteredNodeIds.has(n.id))
       .map((n) => ({ ...n } as Record<string, unknown>));
-
     const filteredLinks = edges
       .filter((e) => filteredNodeIds.has(e.fromNodeId) && filteredNodeIds.has(e.toNodeId))
       .map((e): GraphLink => ({
@@ -167,9 +188,26 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
         trustTier: e.trustTier,
       }))
       .map((l) => ({ ...l } as Record<string, unknown>));
-
     return { nodes: filteredNodes, links: filteredLinks };
   }, [localNodes, edges, filteredNodeIds]);
+
+  // ---- focus / highlight ---------------------------------------------------
+  const focusId = hovered ?? selected?.id ?? null;
+  const { hlNodes, hlLinks } = useMemo(() => {
+    const nset = new Set<string>();
+    const lset = new Set<string>();
+    if (focusId) {
+      nset.add(focusId);
+      for (const e of edges) {
+        if (e.fromNodeId === focusId || e.toNodeId === focusId) {
+          lset.add(e.id);
+          nset.add(e.fromNodeId);
+          nset.add(e.toNodeId);
+        }
+      }
+    }
+    return { hlNodes: nset, hlLinks: lset };
+  }, [focusId, edges]);
 
   // ---- node canvas draw ----------------------------------------------------
   const nodeCanvasObject = useCallback(
@@ -177,77 +215,96 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       const node = rawNode as unknown as BrainNode & { x?: number; y?: number };
       const x = node.x ?? 0;
       const y = node.y ?? 0;
-      const r = 5;
+      const r = nodeRadius(node.id);
+      const color = kindColor(node.kind);
+      const focused = focusId !== null;
+      const lit = !focused || hlNodes.has(node.id);
+      const isFocus = node.id === focusId;
+      const isSelected = selected?.id === node.id;
 
-      // fill circle
+      ctx.globalAlpha = lit ? 1 : 0.16;
+
+      // fill
       ctx.beginPath();
       ctx.arc(x, y, r, 0, 2 * Math.PI);
-      ctx.fillStyle = kindColor(node.kind);
+      ctx.fillStyle = color;
       ctx.fill();
 
       // trust-tier ring
       if (node.trustTier === "trusted") {
         ctx.beginPath();
-        ctx.arc(x, y, r + 1.5, 0, 2 * Math.PI);
-        ctx.strokeStyle = kindColor(node.kind);
-        ctx.lineWidth = 1.2;
+        ctx.arc(x, y, r + 1.4, 0, 2 * Math.PI);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.1;
         ctx.setLineDash([]);
         ctx.stroke();
       } else if (node.trustTier === "proposed") {
         ctx.beginPath();
-        ctx.arc(x, y, r + 1.5, 0, 2 * Math.PI);
-        ctx.strokeStyle = "#f59e0b"; // amber
-        ctx.lineWidth = 1.2;
+        ctx.arc(x, y, r + 1.6, 0, 2 * Math.PI);
+        ctx.strokeStyle = "#f0a52a";
+        ctx.lineWidth = 1.3;
         ctx.setLineDash([3, 2]);
         ctx.stroke();
         ctx.setLineDash([]);
       } else {
-        // observed — faint ring
         ctx.beginPath();
         ctx.arc(x, y, r + 1, 0, 2 * Math.PI);
-        ctx.strokeStyle = "rgba(180,180,180,0.25)";
+        ctx.strokeStyle = "rgba(190,190,200,0.22)";
         ctx.lineWidth = 0.8;
         ctx.setLineDash([]);
         ctx.stroke();
       }
 
-      // selected highlight
-      const isSelected = selected?.id === node.id;
-      if (isSelected) {
+      // selection / focus halo
+      if (isSelected || isFocus) {
         ctx.beginPath();
-        ctx.arc(x, y, r + 3, 0, 2 * Math.PI);
-        ctx.strokeStyle = "#ffffff";
+        ctx.arc(x, y, r + 3.2, 0, 2 * Math.PI);
+        ctx.strokeStyle = isSelected ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.55)";
         ctx.lineWidth = 1.5;
         ctx.setLineDash([]);
         ctx.stroke();
       }
 
-      // label (show when zoomed in or selected)
-      if (globalScale > 3 || isSelected) {
-        const label = node.label ?? "";
-        const fontSize = Math.max(8 / globalScale, 3);
-        ctx.font = `${fontSize}px sans-serif`;
-        ctx.fillStyle = "rgba(240,240,240,0.92)";
-        ctx.fillText(label, x + r + 2, y + fontSize / 3);
+      ctx.globalAlpha = 1;
+
+      // label — centered below the node, on a dark pill for contrast
+      const showLabel = isSelected || isFocus || (focused && hlNodes.has(node.id)) || globalScale > 1.7;
+      if (showLabel && lit) {
+        const fontSize = 12 / globalScale;
+        ctx.font = `${fontSize}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+        const text = node.label ?? "";
+        const tw = ctx.measureText(text).width;
+        const padX = 4 / globalScale;
+        const padY = 2.5 / globalScale;
+        const boxW = tw + padX * 2;
+        const boxH = fontSize + padY * 2;
+        const top = y + r + 3 / globalScale;
+        ctx.fillStyle = "rgba(12,12,15,0.82)";
+        roundRectPath(ctx, x - boxW / 2, top, boxW, boxH, 3 / globalScale);
+        ctx.fill();
+        ctx.fillStyle = "rgba(245,245,247,0.96)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(text, x, top + padY);
+        ctx.textAlign = "start";
+        ctx.textBaseline = "alphabetic";
       }
     },
-    [selected],
+    [nodeRadius, focusId, hlNodes, selected],
   );
 
   const nodePointerAreaPaint = useCallback(
     (rawNode: RFGNode, paintColor: string, ctx: CanvasRenderingContext2D) => {
-      const node = rawNode as unknown as { x?: number; y?: number };
-      const x = node.x ?? 0;
-      const y = node.y ?? 0;
+      const node = rawNode as unknown as { id: string; x?: number; y?: number };
       ctx.beginPath();
-      ctx.arc(x, y, 7, 0, 2 * Math.PI);
+      ctx.arc(node.x ?? 0, node.y ?? 0, nodeRadius(node.id) + 3, 0, 2 * Math.PI);
       ctx.fillStyle = paintColor;
       ctx.fill();
     },
-    [],
+    [nodeRadius],
   );
 
-  // ---- click handler -------------------------------------------------------
+  // ---- handlers ------------------------------------------------------------
   const handleNodeClick = useCallback(
     (rawNode: RFGNode) => {
       const node = rawNode as unknown as BrainNode;
@@ -256,14 +313,19 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     [selected, nodeMap],
   );
 
-  // ---- search submit -------------------------------------------------------
+  const handleNodeHover = useCallback((rawNode: RFGNode | null) => {
+    setHovered(rawNode ? (rawNode as unknown as { id: string }).id : null);
+  }, []);
+
+  function fitView() {
+    graphRef.current?.zoomToFit(400, 60);
+  }
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!search.trim()) return;
     const query = search.toLowerCase();
-    const match = localNodes.find(
-      (n) => filteredNodeIds.has(n.id) && n.label.toLowerCase().includes(query),
-    );
+    const match = localNodes.find((n) => filteredNodeIds.has(n.id) && n.label.toLowerCase().includes(query));
     if (match) {
       setSelected(match);
       const rfgNode = graphData.nodes.find((n) => (n as unknown as { id: string }).id === match.id) as
@@ -271,12 +333,11 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
         | undefined;
       if (rfgNode && graphRef.current) {
         graphRef.current.centerAt(rfgNode.x ?? 0, rfgNode.y ?? 0, 600);
-        graphRef.current.zoom(4, 600);
+        graphRef.current.zoom(5, 600);
       }
     }
   }
 
-  // ---- toggle filter helpers -----------------------------------------------
   function toggleKind(kind: string) {
     setActiveKinds((prev) => {
       const next = new Set(prev);
@@ -285,7 +346,6 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       return next;
     });
   }
-
   function toggleTier(tier: string) {
     setActiveTiers((prev) => {
       const next = new Set(prev);
@@ -294,8 +354,12 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       return next;
     });
   }
+  function clearFilters() {
+    setActiveKinds(new Set());
+    setActiveTiers(new Set());
+  }
+  const filtersActive = activeKinds.size > 0 || activeTiers.size > 0;
 
-  // ---- approval actions ----------------------------------------------------
   function handleApprove(nodeId: string) {
     startTransition(async () => {
       const result = await approveNodeAction(nodeId);
@@ -305,7 +369,6 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       }
     });
   }
-
   function handleReject(nodeId: string) {
     startTransition(async () => {
       const result = await rejectNodeAction(nodeId);
@@ -316,7 +379,6 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     });
   }
 
-  // ---- neighbor list -------------------------------------------------------
   const neighbors = useMemo<BrainNode[]>(() => {
     if (!selected) return [];
     const neighborIds = edges
@@ -342,34 +404,44 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     );
   }
 
-  // ---- link accessors (stable refs not needed — simple values) -------------
-  const linkWidth = (l: RFGLink) => Math.max(1, ((l as unknown as GraphLink).weight ?? 1));
-  const linkLabel = (l: RFGLink) => (l as unknown as GraphLink).relation ?? "";
-  const linkColor = () => "rgba(160,160,160,0.25)";
+  // ---- link accessors ------------------------------------------------------
+  const linkLit = (l: RFGLink) => !focusId || hlLinks.has((l as unknown as GraphLink).id);
+  const linkLabel = (l: RFGLink) => (l as unknown as GraphLink).relation?.replace(/_/g, " ") ?? "";
+  const linkColor = (l: RFGLink) =>
+    linkLit(l) ? "rgba(190,192,200,0.42)" : "rgba(120,122,130,0.07)";
+  const linkWidth = (l: RFGLink) => (focusId && hlLinks.has((l as unknown as GraphLink).id) ? 2 : 0.8);
+  const linkArrowColor = (l: RFGLink) =>
+    linkLit(l) ? "rgba(190,192,200,0.5)" : "rgba(120,122,130,0.07)";
+  const linkParticles = (l: RFGLink) =>
+    focusId && hlLinks.has((l as unknown as GraphLink).id) ? 3 : 0;
+
+  const visibleCount = filteredNodeIds.size;
 
   // ---- render --------------------------------------------------------------
   return (
     <div className="flex min-h-0 flex-col gap-4">
-      {/* Controls */}
-      <div className="flex flex-wrap items-start gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-2.5">
         {/* Search */}
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search nodes..."
-            className={theme.control.input + " h-9 min-h-0 w-44 text-xs"}
+            placeholder="Search the brain…"
+            className={theme.control.input + " h-9 min-h-0 w-48 text-xs"}
           />
           <button
             type="submit"
-            className="inline-flex h-9 items-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-3 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--accent-border-strong)] hover:text-[var(--accent)] disabled:opacity-50"
+            className="inline-flex h-9 items-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] px-3 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--accent-border-strong)] hover:text-[var(--accent)]"
           >
             Find
           </button>
         </form>
 
-        {/* Kind filter chips */}
+        <span className="hidden h-6 w-px bg-[var(--border-hairline)] sm:block" />
+
+        {/* Kind filter / legend */}
         {presentKinds.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Kind</span>
@@ -380,16 +452,17 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
                   key={kind}
                   type="button"
                   onClick={() => toggleKind(kind)}
+                  aria-pressed={active}
                   className={
-                    "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition " +
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition " +
                     (active
-                      ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
-                      : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]")
+                      ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                      : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]")
                   }
                 >
                   <span
                     aria-hidden="true"
-                    className="h-2 w-2 rounded-full shrink-0"
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: kindColor(kind) }}
                   />
                   {kind.replace(/_/g, " ")}
@@ -399,56 +472,77 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
           </div>
         )}
 
-        {/* Trust-tier filter chips */}
-        {presentTiers.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Trust</span>
-            {presentTiers.map((tier) => {
-              const active = activeTiers.has(tier);
-              const toneMap: Record<string, string> = {
-                trusted: "green",
-                proposed: "amber",
-                observed: "blue",
-                rejected: "red",
-                archived: "gray",
-              };
-              const tone = toneMap[tier] ?? "gray";
-              return (
-                <button
-                  key={tier}
-                  type="button"
-                  onClick={() => toggleTier(tier)}
-                  className={
-                    "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold transition " +
-                    (active
-                      ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
-                      : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]")
-                  }
-                >
-                  <StatusPill tone={tone as import("@/app/_components/theme").ThemeTone}>{tier}</StatusPill>
-                </button>
-              );
-            })}
-          </div>
+        {/* Trust filter */}
+        {presentTiers.length > 1 && (
+          <>
+            <span className="hidden h-6 w-px bg-[var(--border-hairline)] sm:block" />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Trust</span>
+              {presentTiers.map((tier) => {
+                const active = activeTiers.has(tier);
+                return (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => toggleTier(tier)}
+                    aria-pressed={active}
+                    className={
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize transition " +
+                      (active
+                        ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                        : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]")
+                    }
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: TIER_DOT[tier] ?? "#6b7280" }}
+                    />
+                    {tier}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
 
-        {/* Download */}
-        <button
-          type="button"
-          onClick={() => downloadGraphJson(nodes, edges)}
-          className="ml-auto inline-flex h-9 items-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]"
-        >
-          Download graph.json
-        </button>
+        {/* Right group */}
+        <div className="ml-auto flex items-center gap-2">
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-[11px] font-medium text-[var(--text-muted)] underline-offset-2 transition hover:text-[var(--text-primary)] hover:underline"
+            >
+              Clear
+            </button>
+          )}
+          <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
+            {filtersActive ? `${visibleCount} of ${nodes.length}` : `${nodes.length}`} nodes · {edges.length} links
+          </span>
+          <button
+            type="button"
+            onClick={fitView}
+            className="inline-flex h-9 items-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]"
+          >
+            Fit
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadGraphJson(nodes, edges)}
+            className="inline-flex h-9 items-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]"
+          >
+            Download graph.json
+          </button>
+        </div>
       </div>
 
       {/* Canvas + detail side-by-side */}
       <div className="flex min-h-0 gap-4">
-        {/* Canvas */}
         <div
           ref={containerRef}
-          className="h-[70vh] flex-1 overflow-hidden rounded-xl border border-[var(--border-hairline)]"
-          style={{ minWidth: 0 }}
+          className="h-[72vh] flex-1 overflow-hidden rounded-xl border border-[var(--border-hairline)]"
+          style={{ minWidth: 0, cursor: hovered ? "pointer" : "default" }}
         >
           {canvasSize.width > 0 && (
             <ForceGraph2D
@@ -456,16 +550,24 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
               graphData={graphData}
               width={canvasSize.width}
               height={canvasSize.height}
-              backgroundColor="#18181b"
+              backgroundColor={CANVAS_BG}
               nodeId="id"
-              nodeLabel="label"
+              nodeRelSize={5}
               nodeCanvasObject={nodeCanvasObject}
               nodeCanvasObjectMode={() => "replace"}
               nodePointerAreaPaint={nodePointerAreaPaint}
               linkLabel={linkLabel}
-              linkWidth={linkWidth}
               linkColor={linkColor}
+              linkWidth={linkWidth}
+              linkDirectionalArrowLength={2.6}
+              linkDirectionalArrowRelPos={1}
+              linkDirectionalArrowColor={linkArrowColor}
+              linkDirectionalParticles={linkParticles}
+              linkDirectionalParticleWidth={2}
+              linkDirectionalParticleColor={() => "#d05038"}
               onNodeClick={handleNodeClick}
+              onNodeHover={handleNodeHover}
+              onBackgroundClick={() => setSelected(null)}
               onEngineStop={() => {
                 if (fittedRef.current) return;
                 fittedRef.current = true;
@@ -480,16 +582,15 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
           <aside className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto">
             <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-4">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                  <span
+                    aria-hidden="true"
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: kindColor(selected.kind) }}
+                  />
                   {selected.kind.replace(/_/g, " ")}
                 </span>
-                <StatusPill
-                  tone={
-                    ({ trusted: "green", proposed: "amber", observed: "blue", rejected: "red", archived: "gray" } as Record<string, import("@/app/_components/theme").ThemeTone>)[selected.trustTier] ?? "gray"
-                  }
-                >
-                  {selected.trustTier}
-                </StatusPill>
+                <StatusPill tone={TIER_TONE[selected.trustTier] ?? "gray"}>{selected.trustTier}</StatusPill>
               </div>
 
               <h2 className="mt-2 font-semibold text-[var(--text-primary)]">{selected.label}</h2>
@@ -513,7 +614,6 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
                 </Link>
               ) : null}
 
-              {/* Approve / Reject for proposed */}
               {selected.trustTier === "proposed" && (
                 <div className="mt-3 flex gap-2">
                   <button
@@ -536,25 +636,28 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
               )}
             </div>
 
-            {/* Neighbors */}
             {neighbors.length > 0 && (
               <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-4">
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                  Neighbors ({neighbors.length})
+                  Connected ({neighbors.length})
                 </h3>
                 <ul className="flex flex-col divide-y divide-[var(--border-hairline)]">
                   {neighbors.map((n) => (
-                    <li
-                      key={n.id}
-                      className="flex cursor-pointer items-center gap-2 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                      onClick={() => setSelected(n)}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: kindColor(n.kind) }}
-                      />
-                      <span className="min-w-0 truncate">{n.label}</span>
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelected(n)}
+                        onMouseEnter={() => setHovered(n.id)}
+                        onMouseLeave={() => setHovered(null)}
+                        className="flex w-full items-center gap-2 py-2 text-left text-sm text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: kindColor(n.kind) }}
+                        />
+                        <span className="min-w-0 truncate">{n.label}</span>
+                      </button>
                     </li>
                   ))}
                 </ul>
