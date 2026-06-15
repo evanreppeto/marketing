@@ -34,16 +34,18 @@ export function ChartTooltip({
   formatter,
 }: {
   active?: boolean;
-  payload?: Array<{ value: number; payload?: { displayValue?: string } }>;
+  payload?: Array<{ value: number; name?: string; payload?: { displayValue?: string } }>;
   label?: string;
   formatter?: (value: number) => string;
 }) {
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0];
+  // Bar charts pass an axis `label`; pie/donut slices have no axis, so fall back to the slice name.
+  const heading = label ?? point.name;
   const text = point.payload?.displayValue ?? (formatter ? formatter(point.value) : String(point.value));
   return (
     <div className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-raised)] px-3 py-2 shadow-[var(--elev-panel)]">
-      <div className="text-xs font-semibold text-[var(--text-primary)]">{label}</div>
+      {heading ? <div className="text-xs font-semibold text-[var(--text-primary)]">{heading}</div> : null}
       <div className="mt-0.5 font-mono text-sm font-bold text-[var(--accent)]">{text}</div>
     </div>
   );
