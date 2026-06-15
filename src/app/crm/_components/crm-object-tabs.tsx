@@ -11,13 +11,16 @@ const objectTabOrder = [
     label: object.label,
     href: object.href,
   })),
+  { key: "builder", label: "Customize", href: "/crm/customize" },
 ];
 
 export function CrmObjectTabs({
   activeObject,
+  activeBuilder = false,
   counts,
 }: {
   activeObject?: CrmObjectKey;
+  activeBuilder?: boolean;
   counts?: Partial<Record<CrmObjectKey, number>>;
 }) {
   return (
@@ -25,8 +28,9 @@ export function CrmObjectTabs({
       <nav aria-label="CRM object tabs" className="flex overflow-x-auto">
         {objectTabOrder.map((tab) => {
           const isHome = tab.key === "home";
-          const isActive = isHome ? !activeObject : tab.key === activeObject;
-          const count = !isHome ? counts?.[tab.key as CrmObjectKey] : undefined;
+          const isBuilder = tab.key === "builder";
+          const isActive = isBuilder ? activeBuilder : isHome ? !activeObject && !activeBuilder : tab.key === activeObject;
+          const count = !isHome && !isBuilder ? counts?.[tab.key as CrmObjectKey] : undefined;
 
           return (
             <Link

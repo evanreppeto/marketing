@@ -8,7 +8,7 @@ export function ActorBadge({ kind, label }: { kind: ActorKind; label: string }) 
   return (
     <StatusPill tone={tone}>
       {who}
-      {label && label !== who ? ` · ${label}` : ""}
+      {label && label !== who ? ` - ${label}` : ""}
     </StatusPill>
   );
 }
