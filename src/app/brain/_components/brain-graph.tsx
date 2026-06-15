@@ -6,7 +6,14 @@ import Link from "next/link";
 
 import { Panel, StatusPill } from "@/app/_components/page-header";
 import { type ThemeTone, theme } from "@/app/_components/theme";
-import { approveNodeAction, rejectNodeAction, setNodeKindAction, setNodeTagsAction } from "@/app/brain/actions";
+import {
+  approveNodeAction,
+  createNodeAction,
+  rejectNodeAction,
+  setNodeKindAction,
+  setNodeTagsAction,
+  updateNodeAction,
+} from "@/app/brain/actions";
 import { NODE_KINDS, normalizeKind, normalizeTags } from "@/domain";
 import { type BrainEdge, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import type { ForceGraphMethods, ForceGraphProps, NodeObject, LinkObject } from "react-force-graph-2d";
@@ -158,6 +165,11 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
   const [tagOverrides, setTagOverrides] = useState<Map<string, string[]>>(new Map());
   // Optimistic kind edits. key = node id, value = the node's kind.
   const [kindOverrides, setKindOverrides] = useState<Map<string, string>>(new Map());
+  // Optimistic label/body edits. key = node id, value = the changed fields.
+  const [editOverrides, setEditOverrides] = useState<Map<string, { label?: string; body?: string | null }>>(new Map());
+  // "New node" form state.
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeKinds, setActiveKinds] = useState<Set<string>>(new Set());
   const [activeTiers, setActiveTiers] = useState<Set<string>>(new Set());
@@ -176,9 +188,11 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
         if (tags) node = { ...node, tags };
         const kind = kindOverrides.get(n.id);
         if (kind) node = { ...node, kind };
+        const edit = editOverrides.get(n.id);
+        if (edit) node = { ...node, ...edit };
         return node;
       });
-  }, [nodes, tierOverrides, tagOverrides, kindOverrides]);
+  }, [nodes, tierOverrides, tagOverrides, kindOverrides, editOverrides]);
 
   // ---- canvas sizing -------------------------------------------------------
   const containerRef = useRef<HTMLDivElement>(null);
@@ -196,8 +210,10 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     return () => ro.disconnect();
   }, []);
 
-  // Uncontrolled kind combobox; remounted per node via `key`, read on submit.
+  // Uncontrolled editors; remounted per node via `key`, read on submit/blur.
   const kindInputRef = useRef<HTMLInputElement>(null);
+  const labelInputRef = useRef<HTMLInputElement>(null);
+  const bodyInputRef = useRef<HTMLTextAreaElement>(null);
 
   const graphRef = useRef<ForceGraphMethods | undefined>(undefined);
   const fittedRef = useRef(false);
@@ -423,6 +439,7 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
   const handleNodeClick = useCallback(
     (rawNode: RFGNode) => {
       const node = rawNode as unknown as BrainNode;
+      setCreating(false);
       setSelected(node.id === selected?.id ? null : (nodeMap.get(node.id) ?? null));
     },
     [selected, nodeMap],
@@ -551,6 +568,56 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
     if (next && next !== selected.kind) commitKind(selected.id, next);
   }
 
+  function commitEdit(nodeId: string, fields: { label?: string; body?: string | null }) {
+    startTransition(async () => {
+      const result = await updateNodeAction(nodeId, fields);
+      if (result.ok) {
+        setEditOverrides((prev) => new Map(prev).set(nodeId, { ...prev.get(nodeId), ...fields }));
+        setSelected((prev) => (prev?.id === nodeId ? { ...prev, ...fields } : prev));
+      }
+    });
+  }
+  function submitLabel() {
+    if (!selected) return;
+    const label = (labelInputRef.current?.value ?? "").trim();
+    if (!label) {
+      if (labelInputRef.current) labelInputRef.current.value = selected.label; // revert empty
+      return;
+    }
+    if (label !== selected.label) commitEdit(selected.id, { label });
+  }
+  function submitBody() {
+    if (!selected) return;
+    const body = (bodyInputRef.current?.value ?? "").trim() || null;
+    if (body !== (selected.body ?? null)) commitEdit(selected.id, { body });
+  }
+  function submitCreate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const tags = String(fd.get("tags") ?? "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const input = {
+      kind: String(fd.get("kind") ?? ""),
+      label: String(fd.get("label") ?? ""),
+      body: String(fd.get("body") ?? "") || undefined,
+      persona: String(fd.get("persona") ?? "") || undefined,
+      tags,
+    };
+    setCreateError(null);
+    startTransition(async () => {
+      const result = await createNodeAction(input);
+      if (result.ok) {
+        form.reset();
+        setCreating(false);
+      } else {
+        setCreateError(result.error);
+      }
+    });
+  }
+
   const neighbors = useMemo<Array<{ node: BrainNode; relation: string; outgoing: boolean }>>(() => {
     if (!selected) return [];
     const out: Array<{ node: BrainNode; relation: string; outgoing: boolean }> = [];
@@ -614,6 +681,13 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
   // ---- render --------------------------------------------------------------
   return (
     <div className="flex min-h-0 flex-col gap-4">
+      {/* Shared kind options for the detail editor and the new-node form. */}
+      <datalist id="brain-kind-options">
+        {kindOptions.map((k) => (
+          <option key={k} value={k} />
+        ))}
+      </datalist>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-2.5">
         {/* Search */}
@@ -735,6 +809,17 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
 
         {/* Right group */}
         <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelected(null);
+              setCreateError(null);
+              setCreating(true);
+            }}
+            className="inline-flex h-9 items-center rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-3 text-xs font-semibold text-[var(--accent)] transition hover:bg-[var(--surface-raised)]"
+          >
+            + New node
+          </button>
           {filtersActive && (
             <button
               type="button"
@@ -820,8 +905,88 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
           ) : null}
         </div>
 
+        {/* New-node form */}
+        {creating && (
+          <aside className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto">
+            <form
+              onSubmit={submitCreate}
+              className="flex flex-col gap-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-4"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-[var(--text-primary)]">New node</h2>
+                <button
+                  type="button"
+                  onClick={() => setCreating(false)}
+                  className="text-xs text-[var(--text-muted)] underline-offset-2 transition hover:text-[var(--text-primary)] hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Kind
+                <input
+                  name="kind"
+                  list="brain-kind-options"
+                  required
+                  placeholder="persona, brand_fact, or your own…"
+                  className={theme.control.input + " h-8 min-h-0 w-full text-xs normal-case"}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Label
+                <input
+                  name="label"
+                  required
+                  placeholder="Short title"
+                  className={theme.control.input + " h-8 min-h-0 w-full text-xs normal-case"}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Description
+                <textarea
+                  name="body"
+                  rows={3}
+                  placeholder="What is this?"
+                  className={theme.control.input + " min-h-0 w-full resize-y py-1 text-xs normal-case"}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Persona (optional)
+                <input
+                  name="persona"
+                  placeholder="persona_…"
+                  className={theme.control.input + " h-8 min-h-0 w-full text-xs normal-case"}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Tags (comma-separated)
+                <input
+                  name="tags"
+                  placeholder="emergency, homeowner"
+                  className={theme.control.input + " h-8 min-h-0 w-full text-xs normal-case"}
+                />
+              </label>
+
+              {createError ? <p className="text-xs text-[var(--accent)]">{createError}</p> : null}
+
+              <button
+                type="submit"
+                disabled={isPending}
+                className="rounded-md border border-[var(--ok-border)] bg-[var(--ok-solid)] px-3 py-1.5 text-xs font-semibold text-[var(--on-ok)] transition hover:bg-[var(--ok-hover)] disabled:pointer-events-none disabled:opacity-50"
+              >
+                Create node
+              </button>
+            </form>
+          </aside>
+        )}
+
         {/* Detail panel */}
-        {selected && (
+        {!creating && selected && (
           <aside className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto">
             <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-4">
               <div className="flex items-center justify-between gap-2">
@@ -836,19 +1001,41 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
                 <StatusPill tone={TIER_TONE[selected.trustTier] ?? "gray"}>{selected.trustTier}</StatusPill>
               </div>
 
-              <h2 className="mt-2 font-semibold text-[var(--text-primary)]">{selected.label}</h2>
+              {/* Editable label — reads as a heading, edits on focus. */}
+              <input
+                ref={labelInputRef}
+                key={`label-${selected.id}`}
+                defaultValue={selected.label}
+                onBlur={submitLabel}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+                disabled={isPending}
+                aria-label="Node label"
+                className="mt-2 w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 font-semibold text-[var(--text-primary)] outline-none transition hover:border-[var(--border-hairline)] focus:border-[var(--accent-border-strong)] focus:bg-[var(--surface-inset)]"
+              />
 
               {/* What this kind of node is — always shown, so even body-less
                   nodes (e.g. personas) explain themselves. */}
-              <p className="mt-1.5 text-xs leading-5 text-[var(--text-muted)]">{kindDescription(selected.kind)}</p>
+              <p className="mt-1.5 px-1 text-xs leading-5 text-[var(--text-muted)]">{kindDescription(selected.kind)}</p>
 
               {selected.summary && selected.summary !== selected.body ? (
-                <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-secondary)]">{selected.summary}</p>
+                <p className="mt-2 px-1 text-sm font-medium leading-6 text-[var(--text-secondary)]">{selected.summary}</p>
               ) : null}
 
-              {selected.body ? (
-                <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{selected.body}</p>
-              ) : null}
+              {/* Editable description (body). Always present so a body-less node
+                  can have one added. */}
+              <textarea
+                ref={bodyInputRef}
+                key={`body-${selected.id}`}
+                defaultValue={selected.body ?? ""}
+                onBlur={submitBody}
+                disabled={isPending}
+                rows={3}
+                placeholder="Add a description…"
+                aria-label="Node description"
+                className="mt-2 w-full resize-y rounded-md border border-transparent bg-transparent px-1 py-1 text-sm leading-6 text-[var(--text-secondary)] outline-none transition hover:border-[var(--border-hairline)] focus:border-[var(--accent-border-strong)] focus:bg-[var(--surface-inset)]"
+              />
 
               {selected.persona ? (
                 <p className="mt-2 text-xs text-[var(--text-muted)]">
@@ -916,11 +1103,6 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
                     aria-label="Node kind"
                     className={theme.control.input + " h-8 min-h-0 w-full text-xs"}
                   />
-                  <datalist id="brain-kind-options">
-                    {kindOptions.map((k) => (
-                      <option key={k} value={k} />
-                    ))}
-                  </datalist>
                 </form>
               </div>
 
