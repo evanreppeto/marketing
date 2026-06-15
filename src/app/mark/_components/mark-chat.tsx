@@ -114,6 +114,7 @@ export function MarkChat({
   activeId,
   activeTitle,
   activeProjectId,
+  newChatProjectId = null,
   activeCampaignId,
   campaigns,
   activePinned,
@@ -134,6 +135,8 @@ export function MarkChat({
   activeId: string;
   activeTitle: string;
   activeProjectId: string | null;
+  /** Pre-selected project for a fresh chat, from the ?project=<id> deep link. */
+  newChatProjectId?: string | null;
   activeCampaignId: string | null;
   campaigns: { id: string; name: string }[];
   activePinned: boolean;
@@ -507,6 +510,7 @@ export function MarkChat({
                 onStopReply={handleStop}
                 projects={projects}
                 activeProjectId={activeProjectId}
+                initialNewChatProjectId={newChatProjectId}
                 defaultMode={defaultMode}
                 defaultRoute={defaultRoute}
                 assistantName={assistantName}
