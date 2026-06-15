@@ -146,7 +146,6 @@ type ComparisonRowData = {
   id: string;
   name: string;
   persona: string;
-  href: string;
   updatedAt: string;
   assetCount: number;
   approved: number;
@@ -168,7 +167,6 @@ function toComparisonRow(campaign: CampaignWorkspaceListItem): ComparisonRowData
     id: campaign.id,
     name: campaign.name,
     persona: campaign.persona,
-    href: campaign.href,
     updatedAt: campaign.updatedAt,
     assetCount: campaign.assetCount,
     approved,
