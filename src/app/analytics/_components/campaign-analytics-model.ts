@@ -1,11 +1,14 @@
 import type { CampaignRollup } from "@/domain";
 
-export type AnalyticsFunnel = CampaignRollup & { readiness: number };
+/** The funnel only needs the four count fields; the full CampaignRollup (which
+ *  also carries state/label/draft) satisfies this structurally. */
+export type RollupCounts = Pick<CampaignRollup, "approved" | "pending" | "changes" | "total">;
+export type AnalyticsFunnel = RollupCounts & { readiness: number };
 export type ChannelCount = { channel: string; count: number };
 export type CompositionRow = { label: string; value: number };
 
 /** Approval funnel for one campaign: raw counts plus approved/total readiness. */
-export function buildFunnel(rollup: CampaignRollup): AnalyticsFunnel {
+export function buildFunnel(rollup: RollupCounts): AnalyticsFunnel {
   const readiness = rollup.total > 0 ? Math.round((rollup.approved / rollup.total) * 100) : 0;
   return { ...rollup, readiness };
 }
