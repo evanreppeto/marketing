@@ -125,7 +125,7 @@ export function MarkChat({
   pendingApprovals,
   defaultMode = "act",
   defaultRoute = "fast",
-  assistantName = "Agent",
+  assistantName = "Arc",
   demo = false,
 }: {
   conversations: MarkConversation[];

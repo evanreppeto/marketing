@@ -11,7 +11,7 @@ export function NotesPanel({
   entityType,
   entityId,
   notes,
-  agentName = "Agent",
+  agentName = "Arc",
 }: {
   entityType: CrmEntityType;
   entityId: string;

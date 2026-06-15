@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { type NodeKind, type EdgeRelation } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
-import { archiveNode, createEdge, createNode, decideNode } from "@/lib/knowledge-graph/persistence";
+import { archiveNode, createEdge, createNode, decideNode, setNodeKind, setNodeTags } from "@/lib/knowledge-graph/persistence";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -54,6 +54,24 @@ export async function createEdgeAction(input: {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
   const result = await createEdge(input, { createdBy: "operator", actor: getOperatorActor() });
+  if (!result.ok) return result;
+  revalidatePath("/brain");
+  return { ok: true };
+}
+
+export async function setNodeKindAction(nodeId: string, kind: string): Promise<ActionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
+  const result = await setNodeKind(nodeId, kind, { actor: getOperatorActor() });
+  if (!result.ok) return result;
+  revalidatePath("/brain");
+  return { ok: true };
+}
+
+export async function setNodeTagsAction(nodeId: string, tags: string[]): Promise<ActionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
+  const result = await setNodeTags(nodeId, tags, { actor: getOperatorActor() });
   if (!result.ok) return result;
   revalidatePath("/brain");
   return { ok: true };

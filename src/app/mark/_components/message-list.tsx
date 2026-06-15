@@ -358,6 +358,13 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: string[]; onPic
   );
 }
 
+function markAvatarStateForMessageStatus(status: MarkMessage["status"]) {
+  if (status === "pending") return "thinking";
+  if (status === "failed") return "asleep";
+  if (status === "complete") return "speaking";
+  return "idle";
+}
+
 function Message({
   message,
   compact,
@@ -412,6 +419,7 @@ function Message({
   // the work canvas) rather than shown as a loose attachment below it — one
   // deliverable, not three scattered blocks. Any extra media still gets a gallery.
   const draftCards = message.actions.filter((a) => a.kind === "draft");
+  const avatarState = markAvatarStateForMessageStatus(message.status);
   const isPackage = draftCards.length >= 2;
   const nonDraftCards = message.actions.filter((a) => a.kind !== "draft");
   const draftAction = draftCards[0];
@@ -419,7 +427,7 @@ function Message({
   const galleryMedia = cardImage ? message.media.filter((m) => m !== cardImage) : message.media;
   return (
     <div className="group flex gap-3">
-      {compact && !pending ? <span aria-hidden className="w-10 shrink-0" /> : <MarkAvatar size={42} pending={pending} />}
+      {compact && !pending ? <span aria-hidden className="w-10 shrink-0" /> : <MarkAvatar size={42} state={avatarState} />}
       <div className="min-w-0 flex-1 pt-0.5">
         {compact && !pending ? null : (
           <div className="mb-1 flex items-baseline gap-2">
@@ -511,7 +519,7 @@ function Message({
 
 export function MessageList({
   messages,
-  assistantName = "Agent",
+  assistantName = "Arc",
   onRetry,
   onStop,
   onRegenerate,

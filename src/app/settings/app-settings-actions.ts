@@ -73,7 +73,7 @@ export async function saveBrandingSettingsAction(
   const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), DEFAULT_APP_SETTINGS.workspaceName, 80);
   const workspaceProfile = appWorkspaceProfile(formData.get("workspaceProfile"));
   const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), "Marketing", 42);
-  const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), "Agent", 32);
+  const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), "Arc", 32);
   const brandShortName = normalizeBrandShortName(String(formData.get("brandShortName") ?? ""));
   const clearBrandLogo = String(formData.get("clearBrandLogo") ?? "") === "1";
   const uploadedLogo = normalizeBrandUrl(String(formData.get("brandLogoUpload") ?? ""));
