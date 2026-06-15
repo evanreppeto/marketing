@@ -30,6 +30,34 @@ Wire it to a **Hermes cron** firing every ~10s so each run does one drain and
 exits — idle is free (an empty inbox invokes no model). The inbox GET claims each
 task and retries stale ones, so a plain GET→reply loop is safe with no locking.
 
+## Run the realtime subscriber (lowest latency)
+
+```bash
+cp .env.example .env        # fill SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (+ APP_BASE_URL, HERMES_AGENT_API_TOKEN)
+pip install -r requirements.txt
+set -a; . ./.env; set +a
+python3 realtime_subscriber.py
+```
+
+The subscriber holds an outbound WebSocket to Supabase and answers each operator
+message the instant it's queued — no public URL, no tunnel, no signatures. It
+imports Mark's turn (`generate_reply`) and reply delivery (`deliver`) from
+`MARK_WORKER_MODULE` (default `poller`); set that env var if Mark's worker lives
+in another module. Keep the poller running too (cron) as the safety net — the CAS
+claim and idempotent replies guarantee the two paths never double-answer.
+
+### Auto-start on the Mac mini (launchd)
+
+```bash
+# From the mark-runner dir, substitute the real paths into the plist:
+PYBIN="$(command -v python3)"
+sed -e "s#__MARK_RUNNER_DIR__#$(pwd)#g" -e "s#__PYTHON__#${PYBIN}#g" \
+  com.bsr.mark-realtime.plist > ~/Library/LaunchAgents/com.bsr.mark-realtime.plist
+launchctl load ~/Library/LaunchAgents/com.bsr.mark-realtime.plist
+launchctl start com.bsr.mark-realtime
+# logs: tail -f mark-realtime.log mark-realtime.err.log
+```
+
 ## Run the MCP server
 
 ```bash
@@ -48,6 +76,9 @@ guarantee at the MCP layer.
 
 ## Phasing
 
+- **Now (lowest latency):** run `realtime_subscriber.py` — outbound socket to
+  Supabase, sub-second replies, nothing inbound to expose. Keep the poller as the
+  safety net. (Supersedes the webhook-push phase, which needed a public tunnel.)
 - **Now (polling):** leave the app's `MARK_RUNNER_URL` unset; the poller drains the
   queue. No public URL, no tunnel, no signature setup.
 - **Later (webhook push):** expose a Hermes webhook subscription behind a tunnel,
