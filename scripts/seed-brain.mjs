@@ -103,9 +103,21 @@ async function main() {
     approved_at: new Date().toISOString(),
   }));
 
-  const { error } = await supabase
+  // Idempotent without ON CONFLICT: the (org_id, kind, key) unique index is
+  // PARTIAL (`where key is not null`), which PostgREST's on_conflict cannot
+  // target. Instead clear prior seed rows (tagged source = "seed") for this org,
+  // then insert fresh. Seed rows create no edges, so the cascade is a no-op.
+  const { error: clearError } = await supabase
     .from("knowledge_nodes")
-    .upsert([...personaRows, ...brandRows], { onConflict: "org_id,kind,key" });
+    .delete()
+    .eq("org_id", orgId)
+    .eq("source", "seed");
+  if (clearError) {
+    console.error("Seed failed (clearing prior seed rows):", clearError.message);
+    process.exit(1);
+  }
+
+  const { error } = await supabase.from("knowledge_nodes").insert([...personaRows, ...brandRows]);
   if (error) {
     console.error("Seed failed:", error.message);
     process.exit(1);
