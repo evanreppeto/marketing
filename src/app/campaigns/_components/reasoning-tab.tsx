@@ -1,3 +1,4 @@
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { EmptyState, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceActivity, CampaignWorkspaceEvent, CampaignWorkspaceReasoning } from "@/lib/campaigns/read-model";
 
@@ -10,6 +11,7 @@ export function ReasoningTab({
   activity: CampaignWorkspaceActivity[];
   events: CampaignWorkspaceEvent[];
 }) {
+  const agentName = useAgentName();
   const guardrailCount = reasoning.guardrailFlags.length;
   const inputCount = reasoning.promptInputs.length;
   const outputCount = activity.length;
@@ -20,16 +22,16 @@ export function ReasoningTab({
       <section className="overflow-hidden rounded-2xl border border-[oklch(0.76_0.14_232/0.4)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
         <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="signal-eyebrow">Mark rationale</span>
+            <span className="signal-eyebrow">{agentName} rationale</span>
             <StatusPill tone={guardrailCount > 0 ? "amber" : "green"}>
               {guardrailCount > 0 ? `${guardrailCount} guardrail${guardrailCount === 1 ? "" : "s"}` : "No flags"}
             </StatusPill>
           </div>
           <h2 className="mt-3 text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
-            What Mark decided, why it matters, and what to do next
+            What {agentName} decided, why it matters, and what to do next
           </h2>
           <p className="mt-2 max-w-[78ch] text-sm leading-6 text-[var(--text-secondary)]">
-            This view turns the raw agent notes into a quick operator read: the decision logic, evidence Mark used,
+            This view turns the raw agent notes into a quick operator read: the decision logic, evidence {agentName} used,
             guardrails that changed the work, and the activity trail behind the package.
           </p>
         </div>
@@ -46,7 +48,7 @@ export function ReasoningTab({
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <SignalTile label="Inputs reviewed" value={inputCount} detail="Prompt fields and source context Mark considered." tone="blue" />
+        <SignalTile label="Inputs reviewed" value={inputCount} detail={`Prompt fields and source context ${agentName} considered.`} tone="blue" />
         <SignalTile label="Tools used" value={reasoning.toolsUsed.length} detail="Automation and generation steps behind the package." tone="gray" />
         <SignalTile label="Outputs created" value={outputCount} detail="Agent outputs available for audit." tone="green" />
         <SignalTile label="Timeline events" value={eventCount} detail="Recorded campaign activity and handoffs." tone="amber" />
@@ -55,7 +57,7 @@ export function ReasoningTab({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
           <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-            <div className="text-base font-semibold uppercase tracking-[0.1em] text-[var(--text-primary)]">Evidence Mark used</div>
+            <div className="text-base font-semibold uppercase tracking-[0.1em] text-[var(--text-primary)]">Evidence {agentName} used</div>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">The inputs and tools that shaped the recommendation.</p>
           </div>
 
@@ -74,7 +76,7 @@ export function ReasoningTab({
               </div>
             ) : (
               <div className="p-5">
-                <EmptyState title="No prompt inputs recorded" detail="Mark can still explain the package, but this campaign does not expose the prompt fields used to generate it." />
+                <EmptyState title="No prompt inputs recorded" detail={`${agentName} can still explain the package, but this campaign does not expose the prompt fields used to generate it.`} />
               </div>
             )}
 
@@ -84,7 +86,7 @@ export function ReasoningTab({
                 <TagGroup
                   empty="No tools logged"
                   items={reasoning.toolsUsed}
-                  title="Tools Mark touched"
+                  title={`Tools ${agentName} touched`}
                   tone="gray"
                 />
                 <TagGroup
@@ -101,7 +103,7 @@ export function ReasoningTab({
         <aside className="space-y-5">
           <section className="overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
             <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-              <div className="text-base font-semibold uppercase tracking-[0.1em] text-[var(--text-primary)]">Mark outputs</div>
+              <div className="text-base font-semibold uppercase tracking-[0.1em] text-[var(--text-primary)]">{agentName} outputs</div>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">Generated work that can be inspected or traced.</p>
             </div>
             {activity.length > 0 ? (
@@ -123,7 +125,7 @@ export function ReasoningTab({
               </ul>
             ) : (
               <div className="p-5">
-                <EmptyState title="No Mark outputs yet" detail="No generated output records are attached to this campaign package." />
+                <EmptyState title={`No ${agentName} outputs yet`} detail="No generated output records are attached to this campaign package." />
               </div>
             )}
           </section>

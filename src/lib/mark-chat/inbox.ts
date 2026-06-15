@@ -102,12 +102,13 @@ export async function claimChatTask(
  * hanging on "thinking". Returns the tasks handed back out for processing.
  */
 export async function reclaimStaleChatTasks(
-  opts: { staleMs?: number; maxRetries?: number; limit?: number } = {},
+  opts: { staleMs?: number; maxRetries?: number; limit?: number; agentName?: string } = {},
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ChatInboxItem[]> {
   const staleMs = opts.staleMs ?? STALE_RUNNING_MS;
   const maxRetries = opts.maxRetries ?? MAX_CHAT_RETRIES;
   const limit = opts.limit ?? 20;
+  const agentName = opts.agentName?.trim() || "Agent";
   const cutoff = new Date(Date.now() - staleMs).toISOString();
 
   const { data, error } = await client
@@ -130,7 +131,7 @@ export async function reclaimStaleChatTasks(
       const pending = await findPendingMessageByTask(row.id, client).catch(() => null);
       if (pending) {
         await failMarkMessage(
-          { messageId: pending.id, body: "Mark didn't finish this reply in time. Please resend." },
+          { messageId: pending.id, body: `${agentName} didn't finish this reply in time. Please resend.` },
           client,
         ).catch(() => undefined);
       }

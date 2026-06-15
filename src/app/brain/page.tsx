@@ -4,16 +4,12 @@ import { BrainBrowser } from "@/app/brain/_components/brain-browser";
 import { BrainGraph } from "@/app/brain/_components/brain-graph";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 
 export const dynamic = "force-dynamic";
 
 export default async function BrainPage() {
-  const [graph, proposed, all, summary] = await Promise.all([
-    getBrainGraph(),
-    listProposed(),
-    listNodes({}),
-    brainSummary(),
-  ]);
+  const [proposed, all, summary, agentName] = await Promise.all([listProposed(), listNodes({}), brainSummary(), getAgentName()]);
 
   const graphNodes = graph.status === "live" ? graph.nodes : [];
   const graphEdges = graph.status === "live" ? graph.edges : [];
@@ -28,11 +24,11 @@ export default async function BrainPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Marketing Brain"
-        description={`Mark's durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
+        description={`${agentName}'s durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
       />
       <BrainGraph nodes={graphNodes} edges={graphEdges} />
       <ApprovalQueue nodes={proposedNodes} />
-      <BrainBrowser nodes={allNodes} />
+      <BrainBrowser nodes={allNodes} agentName={agentName} />
     </div>
   );
 }

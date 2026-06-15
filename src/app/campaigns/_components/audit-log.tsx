@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import type { AuditEntry } from "@/lib/campaigns/read-model";
 
 import { SectionHeader } from "./section-header";
@@ -21,6 +22,9 @@ const ACTOR_META: Record<AuditEntry["actorKind"], { label: string; dot: string; 
 const AUDIT_PAGE = 40;
 
 export function AuditLog({ entries }: { entries: AuditEntry[] }) {
+  const agentName = useAgentName();
+  // The "mark" actorKind is a data key; only its displayed label is dynamic.
+  const actorLabel = (kind: AuditEntry["actorKind"]) => (kind === "mark" ? agentName : ACTOR_META[kind].label);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [showAll, setShowAll] = useState(false);
   const userCount = entries.filter((entry) => entry.actorKind === "user").length;
@@ -31,7 +35,7 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
   return (
     <div className="space-y-4">
       <p className="max-w-[76ch] text-sm leading-5 text-[var(--text-secondary)]">
-        Everything that happened on this campaign — operator actions and Mark&rsquo;s activity — newest first. Read-only audit trail.
+        Everything that happened on this campaign — operator actions and {agentName}&rsquo;s activity — newest first. Read-only audit trail.
       </p>
 
       <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Audit actor filter">
@@ -42,7 +46,7 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
           Operator
         </FilterChip>
         <FilterChip active={filter === "mark"} count={markCount} dot="bg-[var(--ok)]" onClick={() => setFilter("mark")}>
-          Mark
+          {agentName}
         </FilterChip>
       </div>
 
@@ -60,7 +64,7 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
                   className={`mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${ACTOR_META[entry.actorKind].chip}`}
                 >
                   <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${ACTOR_META[entry.actorKind].dot}`} />
-                  {ACTOR_META[entry.actorKind].label}
+                  {actorLabel(entry.actorKind)}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-bold text-[var(--text-primary)]">{entry.action}</div>

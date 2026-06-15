@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
@@ -24,12 +25,13 @@ const TONE: Record<CampaignManagerTone, "amber" | "blue" | "green" | "gray" | "r
 };
 
 export function CampaignManagerRow({ campaign }: { campaign: CampaignWorkspaceListItem }) {
+  const agentName = useAgentName();
   const [expanded, setExpanded] = useState(false);
   const panelId = useId();
-  const status = campaignManagerStatus(campaign);
-  const summary = campaignManagerSummary(campaign);
+  const status = campaignManagerStatus(campaign, agentName);
+  const summary = campaignManagerSummary(campaign, agentName);
   const where = campaignManagerWhere(campaign);
-  const nextStep = campaignNextStep(campaign);
+  const nextStep = campaignNextStep(campaign, agentName);
 
   return (
     <article className="overflow-hidden border-b border-[var(--border-hairline)] last:border-b-0">
@@ -76,7 +78,7 @@ export function CampaignManagerRow({ campaign }: { campaign: CampaignWorkspaceLi
         </div>
 
         <Link href={campaign.href} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-          {openLabel(campaign)}
+          {openLabel(campaign, agentName)}
         </Link>
       </div>
 
@@ -89,10 +91,10 @@ function MobileLabel({ children }: { children: React.ReactNode }) {
   return <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)] md:hidden">{children}</div>;
 }
 
-function openLabel(campaign: CampaignWorkspaceListItem) {
+function openLabel(campaign: CampaignWorkspaceListItem, agentName: string) {
   if (campaign.pendingCount > 0) return "Review";
   if (campaign.lifecycle === "Ready") return "Send";
   if (campaign.lifecycle === "Live") return "Results";
-  if (campaign.lifecycle === "Drafting") return "Guide Mark";
+  if (campaign.lifecycle === "Drafting") return `Guide ${agentName}`;
   return "Open";
 }

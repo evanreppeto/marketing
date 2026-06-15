@@ -1,6 +1,7 @@
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { hasActiveAgentTokens } from "@/lib/agent/tokens";
 import { getConnections } from "@/lib/connections/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { type ThemeTone } from "../_components/theme";
@@ -21,6 +22,7 @@ function pill(ok: boolean, onText = "Connected", offText = "Not configured"): { 
 export async function SystemStatus() {
   const connections = await getConnections();
   const agentConnection = await resolveAgentConnection();
+  const agentName = await getAgentName();
   const resend = connections.find((connection) => connection.provider === "resend");
   const social = connections.filter((connection) => connection.kind === "social");
   const socialConnected = social.filter((connection) => connection.status === "connected").length;
@@ -41,13 +43,13 @@ export async function SystemStatus() {
           pill={pill(isSupabaseAdminConfigured(), "Configured")}
         />
         <SettingRow
-          detail="Bearer token Mark uses to reach the /api/v1/hermes/* control-plane API."
-          label="Mark agent API"
+          detail={`Bearer token ${agentName} uses to reach the /api/v1/hermes/* control-plane API.`}
+          label={`${agentName} agent API`}
           pill={pill(agentApiConfigured, "Configured")}
         />
         <SettingRow
-          detail="Event-driven wake for Mark chat — URL configured and the operator switch on."
-          label="Mark webhook"
+          detail={`Event-driven wake for ${agentName} chat — URL configured and the operator switch on.`}
+          label={`${agentName} webhook`}
           pill={pill(webhookLive, "Active", "Off")}
         />
         <SettingRow

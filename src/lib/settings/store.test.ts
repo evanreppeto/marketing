@@ -78,7 +78,7 @@ describe("settings store helpers", () => {
     expect(settings).not.toHaveProperty("markWebhookEnabled");
   });
 
-  it("falls back to safe Mark defaults when persisted rows are invalid", () => {
+  it("falls back to safe Agent defaults when persisted rows are invalid", () => {
     const settings = mergeAppSettingsRows([
       { key: "mark_default_mode", value: "go-wild" },
       { key: "mark_default_route", value: "premium" },

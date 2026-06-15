@@ -12,6 +12,7 @@ import { getCampaignsForRecord, type LinkedCampaignRecordKind } from "@/lib/camp
 import { LinkedCampaignsPanel } from "./linked-campaigns-panel";
 import { entityTypeFromCrmObjectKey } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { getRecordNotes, getRecordTasks, getRecordTimeline } from "@/lib/interactions/read-model";
 import { RecordTimeline } from "./record-interactions/timeline";
 import { NotesPanel } from "./record-interactions/notes-panel";
@@ -44,7 +45,8 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
     notFound();
   }
 
-  const recordResult = await getCrmRecordData(objectKey, recordId);
+  const agentName = await getAgentName();
+  const recordResult = await getCrmRecordData(objectKey, recordId, undefined, agentName);
 
   if (recordResult.status === "not_found") {
     notFound();
@@ -125,14 +127,14 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
         <div className="min-w-0 space-y-5">
           <RecordSummary record={record} />
           <RecordFields record={record} />
-          <RelatedRecords record={record} />
+          <RelatedRecords record={record} agentName={agentName} />
           {entityType ? (
             <>
               {tasks?.status === "live" ? (
                 <TasksPanel entityType={entityType} entityId={recordId} tasks={tasks.tasks} />
               ) : null}
               {notes?.status === "live" ? (
-                <NotesPanel entityType={entityType} entityId={recordId} notes={notes.notes} />
+                <NotesPanel entityType={entityType} entityId={recordId} notes={notes.notes} agentName={agentName} />
               ) : null}
               {timeline?.status === "live" ? <RecordTimeline entries={timeline.entries} /> : null}
             </>
@@ -142,6 +144,7 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
           <IntelligencePanel
+            agentName={agentName}
             model={{
               title: `${record.label} intelligence`,
               persona: record.persona,
@@ -228,7 +231,7 @@ function RecordFields({ record }: { record: CrmRecordData }) {
   );
 }
 
-function RelatedRecords({ record }: { record: CrmRecordData }) {
+function RelatedRecords({ record, agentName }: { record: CrmRecordData; agentName: string }) {
   return (
     <Panel className="module-rise">
       <div className="flex items-start justify-between gap-3">
@@ -251,7 +254,7 @@ function RelatedRecords({ record }: { record: CrmRecordData }) {
             </Link>
           ))
         ) : (
-          <EmptyState title="No relationships linked" detail="This record needs relationship mapping before Mark can use it confidently." />
+          <EmptyState title="No relationships linked" detail={`This record needs relationship mapping before ${agentName} can use it confidently.`} />
         )}
       </div>
     </Panel>

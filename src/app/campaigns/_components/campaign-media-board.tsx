@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { cx, theme, toneTextClass, type ThemeTone } from "@/app/_components/theme";
 import type { CampaignMediaAsset } from "@/lib/campaigns/read-model";
 
@@ -12,7 +13,7 @@ const GROUP_META: Record<GroupKey, { title: string; detail: string; tone: ThemeT
   image: { title: "Images", detail: "Generated visuals, postcards, and mockups.", tone: "blue" },
   motion: { title: "Video", detail: "Rendered video and embedded players.", tone: "red" },
   file: { title: "Files", detail: "Documents and downloadable assets.", tone: "amber" },
-  link: { title: "Creative links", detail: "External references captured by Mark.", tone: "green" },
+  link: { title: "Creative links", detail: "External references captured by the agent.", tone: "green" },
 };
 
 const GROUP_ORDER: GroupKey[] = ["image", "motion", "file", "link"];
@@ -87,14 +88,16 @@ function MediaSection({
   items: CampaignMediaAsset[];
   onZoom: (media: CampaignMediaAsset) => void;
 }) {
+  const agentName = useAgentName();
   const meta = GROUP_META[key];
+  const detail = key === "link" ? `External references captured by ${agentName}.` : meta.detail;
 
   return (
     <section>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <div className={`text-base font-semibold uppercase tracking-[0.1em] ${toneText(meta.tone)}`}>{meta.title}</div>
-          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{meta.detail}</p>
+          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{detail}</p>
         </div>
         <span className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
           {items.length} item{items.length === 1 ? "" : "s"}

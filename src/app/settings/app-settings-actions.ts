@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { parseMarkMode, parseMarkRoute } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
+import { getAgentName } from "@/lib/settings/agent-name";
 import {
   appAppearanceAccent,
   appAppearanceDensity,
@@ -71,8 +72,8 @@ export async function saveBrandingSettingsAction(
 
   const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), DEFAULT_APP_SETTINGS.workspaceName, 80);
   const workspaceProfile = appWorkspaceProfile(formData.get("workspaceProfile"));
-  const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), DEFAULT_APP_SETTINGS.productLabel, 42);
-  const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), DEFAULT_APP_SETTINGS.assistantName, 32);
+  const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), "Marketing", 42);
+  const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), "Agent", 32);
   const brandShortName = normalizeBrandShortName(String(formData.get("brandShortName") ?? ""));
   const clearBrandLogo = String(formData.get("clearBrandLogo") ?? "") === "1";
   const uploadedLogo = normalizeBrandUrl(String(formData.get("brandLogoUpload") ?? ""));
@@ -141,6 +142,7 @@ export async function saveMarkDefaultsAction(
 
   const markDefaultMode = parseMarkMode(formData.get("markDefaultMode"));
   const markDefaultRoute = parseMarkRoute(formData.get("markDefaultRoute"));
+  const agentName = await getAgentName();
 
   try {
     await saveAppSettings(getSupabaseAdminClient(), {
@@ -148,12 +150,12 @@ export async function saveMarkDefaultsAction(
       mark_default_route: markDefaultRoute,
     });
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save Mark defaults." };
+    return { ok: false, message: error instanceof Error ? error.message : `Couldn't save ${agentName} defaults.` };
   }
 
   revalidatePath("/settings");
   revalidatePath("/mark");
-  return { ok: true, message: "Mark defaults saved." };
+  return { ok: true, message: `${agentName} defaults saved.` };
 }
 
 /** Save global UI appearance preferences consumed by RootLayout + globals.css. */

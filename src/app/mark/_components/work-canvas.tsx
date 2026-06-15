@@ -345,7 +345,7 @@ export function WorkCanvas({
   open = true,
   focus,
   campaign,
-  assistantName = "Mark",
+  assistantName = "Agent",
   onDecision,
 }: {
   messages: MarkMessage[];

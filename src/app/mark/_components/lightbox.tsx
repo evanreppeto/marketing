@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Image from "next/image";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import type { MarkMedia } from "@/domain";
 
 import { MediaProvenance } from "./asset-meta";
@@ -13,6 +14,7 @@ import { MediaProvenance } from "./asset-meta";
  * (z-60 > z-50). Carries the caption + provenance so context isn't lost at size.
  */
 export function Lightbox({ media, onClose }: { media: MarkMedia; onClose: () => void }) {
+  const agentName = useAgentName();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -32,7 +34,7 @@ export function Lightbox({ media, onClose }: { media: MarkMedia; onClose: () => 
       <figure className="lightbox-panel relative m-0 flex max-h-full max-w-5xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
         <Image
           src={media.url}
-          alt={media.alt ?? media.caption ?? "Media from Mark"}
+          alt={media.alt ?? media.caption ?? `Media from ${agentName}`}
           width={1600}
           height={1200}
           unoptimized

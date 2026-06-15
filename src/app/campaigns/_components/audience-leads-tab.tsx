@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { cx, theme, type ThemeTone } from "@/app/_components/theme";
 import type { CampaignWorkspaceMeta, CampaignWorkspaceSource } from "@/lib/campaigns/read-model";
 
@@ -15,12 +16,15 @@ const KIND_LABELS: Record<CampaignWorkspaceSource["kind"], string> = {
   evidence: "Evidence",
 };
 
-const GROUPS: Array<{ key: SourceGroupKey; eyebrow: string; detail: string; tone: ThemeTone }> = [
-  { key: "company", eyebrow: "Companies", detail: "Organizations tied to the campaign target.", tone: "blue" },
-  { key: "contact", eyebrow: "Contacts", detail: "People Mark can reference when reviewing the package.", tone: "green" },
-  { key: "lead", eyebrow: "Leads", detail: "Qualified demand signals behind the outreach.", tone: "amber" },
-  { key: "evidence", eyebrow: "Evidence links", detail: "URLs and references captured from prompts, outputs, or source data.", tone: "gray" },
-];
+// `key` values are stable data; only `detail` copy referencing the agent is dynamic.
+function buildGroups(agentName: string): Array<{ key: SourceGroupKey; eyebrow: string; detail: string; tone: ThemeTone }> {
+  return [
+    { key: "company", eyebrow: "Companies", detail: "Organizations tied to the campaign target.", tone: "blue" },
+    { key: "contact", eyebrow: "Contacts", detail: `People ${agentName} can reference when reviewing the package.`, tone: "green" },
+    { key: "lead", eyebrow: "Leads", detail: "Qualified demand signals behind the outreach.", tone: "amber" },
+    { key: "evidence", eyebrow: "Evidence links", detail: "URLs and references captured from prompts, outputs, or source data.", tone: "gray" },
+  ];
+}
 
 function groupOf(source: CampaignWorkspaceSource): SourceGroupKey {
   if (source.kind === "company") return "company";
@@ -30,11 +34,12 @@ function groupOf(source: CampaignWorkspaceSource): SourceGroupKey {
 }
 
 export function AudienceLeadsTab({ campaign, sources }: { campaign: CampaignWorkspaceMeta; sources: CampaignWorkspaceSource[] }) {
+  const agentName = useAgentName();
   if (sources.length === 0) {
     return <EmptyAudience campaign={campaign} />;
   }
 
-  const grouped = GROUPS.map((group) => ({
+  const grouped = buildGroups(agentName).map((group) => ({
     ...group,
     items: sources.filter((source) => groupOf(source) === group.key),
   })).filter((group) => group.items.length > 0);

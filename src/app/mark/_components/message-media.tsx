@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { cx } from "@/app/_components/theme";
 import type { MarkMedia } from "@/domain";
 
@@ -12,6 +13,7 @@ import { SaveStar } from "./save-star";
 /** Showcases the images/videos Mark attaches to a reply: a responsive gallery
  *  with a smooth fullscreen lightbox for images and inline players for video. */
 export function MessageMedia({ media, conversationId, messageId }: { media: MarkMedia[]; conversationId: string; messageId: string }) {
+  const agentName = useAgentName();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const lightboxItem = activeIndex !== null ? media[activeIndex] : null;
   const lightboxOpen = lightboxItem?.kind === "image";
@@ -61,7 +63,7 @@ export function MessageMedia({ media, conversationId, messageId }: { media: Mark
                 >
                   <Image
                     src={item.url}
-                    alt={item.alt ?? item.caption ?? "Media from Mark"}
+                    alt={item.alt ?? item.caption ?? `Media from ${agentName}`}
                     fill
                     unoptimized
                     sizes={single ? "(min-width:1024px) 28rem, 90vw" : "(min-width:1024px) 16rem, 45vw"}
@@ -117,7 +119,7 @@ export function MessageMedia({ media, conversationId, messageId }: { media: Mark
           >
             <Image
               src={lightboxItem.url}
-              alt={lightboxItem.alt ?? lightboxItem.caption ?? "Media from Mark"}
+              alt={lightboxItem.alt ?? lightboxItem.caption ?? `Media from ${agentName}`}
               width={1600}
               height={1200}
               unoptimized

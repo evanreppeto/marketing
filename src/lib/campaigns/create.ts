@@ -154,6 +154,8 @@ export type CreateCampaignShellInput = {
   name: string;
   persona: string;
   restorationFocus: string;
+  /** Configured agent display name, threaded from the caller for the audit-log detail. */
+  agentName?: string;
   client?: SupabaseClient;
 };
 
@@ -161,6 +163,7 @@ export type CreateCampaignShellInput = {
  *  brand-new campaign. Mirrors the campaign insert in createOperatorCampaign. */
 export async function createCampaignShell(input: CreateCampaignShellInput): Promise<{ campaignId: string }> {
   const client = input.client ?? getSupabaseAdminClient();
+  const agentName = input.agentName?.trim() || "Agent";
   const campaignId = await insertOne(client, "campaigns", {
     name: input.name,
     persona: input.persona,
@@ -174,7 +177,7 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
     campaign_id: campaignId,
     event_type: "created",
     actor: input.operator,
-    detail: "created from Mark saved item",
+    detail: `created from ${agentName} saved item`,
   });
   return { campaignId };
 }
@@ -186,6 +189,8 @@ export type PromoteAssetInput = {
   title: string;
   body: string | null;
   mediaUrl: string | null;
+  /** Configured agent display name, threaded from the caller for the audit-log detail. */
+  agentName?: string;
   client?: SupabaseClient;
 };
 
@@ -194,6 +199,7 @@ export type PromoteAssetInput = {
  *  insertPhotoAsset but stays pending_approval instead of pre-approved. */
 export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<{ assetId: string }> {
   const client = input.client ?? getSupabaseAdminClient();
+  const agentName = input.agentName?.trim() || "Agent";
   const assetId = await insertOne(client, "campaign_assets", {
     campaign_id: input.campaignId,
     asset_type: input.assetType,
@@ -221,7 +227,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     campaign_asset_id: assetId,
     event_type: "asset_generated",
     actor: input.operator,
-    detail: "promoted from Mark saved",
+    detail: `promoted from ${agentName} saved`,
   });
   return { assetId };
 }

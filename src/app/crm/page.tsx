@@ -7,6 +7,7 @@ import type { IntelligencePanelModel } from "../_components/intelligence-panel";
 import { EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "../_components/page-header";
 import { TabNav } from "../_components/tab-nav";
 import { getCrmNavCounts, getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 
 import { CrmCommandHeader } from "./_components/crm-command-header";
 import { CrmPipelineBoard } from "./_components/crm-pipeline-board";
@@ -38,7 +39,7 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
   await connection();
 
   const query = searchParams ? await searchParams : {};
-  const [liveCrm, navCounts] = await Promise.all([getCrmOverviewData(), getCrmNavCounts()]);
+  const [liveCrm, navCounts, agentName] = await Promise.all([getCrmOverviewData(), getCrmNavCounts(), getAgentName()]);
   const isLive = liveCrm.status === "live";
   const workspaceStats = isLive ? liveCrm.stats : [];
   const pipelineRows = isLive ? liveCrm.rows : [];
@@ -93,8 +94,8 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
           selectedRecord={selectedRecord}
         />
       ) : null}
-      {activeTab === "record" ? <CrmRecordPreview selectedRecord={selectedRecord} /> : null}
-      {activeTab === "activity" ? <CrmActivity /> : null}
+      {activeTab === "record" ? <CrmRecordPreview selectedRecord={selectedRecord} agentName={agentName} /> : null}
+      {activeTab === "activity" ? <CrmActivity agentName={agentName} /> : null}
     </AppShell>
   );
 }
@@ -203,7 +204,7 @@ function CrmPipeline({
   );
 }
 
-function CrmRecordPreview({ selectedRecord }: { selectedRecord: CrmPipelineRow | null }) {
+function CrmRecordPreview({ selectedRecord, agentName }: { selectedRecord: CrmPipelineRow | null; agentName: string }) {
   return (
     <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className="module-rise overflow-hidden">
@@ -252,6 +253,7 @@ function CrmRecordPreview({ selectedRecord }: { selectedRecord: CrmPipelineRow |
       </Panel>
 
       <IntelligencePanel
+        agentName={agentName}
         model={selectedRecord ? buildCrmPipelineIntelligence(selectedRecord) : { title: "CRM intelligence", outboundLocked: true, emptyDetail: "Select a pipeline row to inspect persona, score, tags, next action, and missing evidence." }}
       />
     </div>
@@ -294,7 +296,7 @@ function buildCrmPipelineIntelligence(row: CrmPipelineRow): IntelligencePanelMod
   };
 }
 
-function CrmActivity() {
+function CrmActivity({ agentName }: { agentName: string }) {
   return (
     <div className="mt-4 grid gap-4 xl:grid-cols-2">
       <Panel className="module-rise">
@@ -307,7 +309,7 @@ function CrmActivity() {
       <Panel className="module-rise">
         <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Tasks due</h2>
         <div className="mt-5">
-          <EmptyState title="No CRM tasks due" detail="Mark-created follow-up tasks will appear here once the enrichment workflow creates them." />
+          <EmptyState title="No CRM tasks due" detail={`${agentName}-created follow-up tasks will appear here once the enrichment workflow creates them.`} />
         </div>
       </Panel>
     </div>

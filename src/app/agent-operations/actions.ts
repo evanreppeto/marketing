@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { type OperatorDropTarget, OPERATOR_DROP_TARGETS } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { moveAgentTask } from "@/lib/hermes-api";
 import { runHermesDemoWorkflow } from "@/lib/hermes/demo-workflow";
 import { runHermesPartnerCampaign } from "@/lib/hermes/orchestrator";
@@ -85,6 +86,7 @@ export async function createMarkTaskAction(formData: FormData) {
   const supabase = getSupabaseAdminClient();
   const agentId = await ensureMarkAgent();
   const template = markTaskTemplates[taskKey];
+  const agentName = await getAgentName();
   const now = new Date().toISOString();
 
   const { data, error } = await supabase
@@ -134,7 +136,7 @@ export async function createMarkTaskAction(formData: FormData) {
     run_status: "queued",
     model_provider: "external_cli",
     model_name: "mark-mac-mini",
-    reasoning_summary: "Task queued for Mark. External CLI runner has not picked it up yet.",
+    reasoning_summary: `Task queued for ${agentName}. External CLI runner has not picked it up yet.`,
     started_at: null,
     completed_at: null,
     metadata: {

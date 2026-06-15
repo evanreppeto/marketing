@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { IntelligencePanel } from "../_components/intelligence-panel";
 import { EmptyState, PageHeader, StatusPill, buttonClasses } from "../_components/page-header";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { getAgentOperationsDashboard } from "@/lib/agent-operations/read-model";
 
 import { BoardViewSwitch } from "./board-view-switch";
@@ -11,13 +12,14 @@ import { BoardViewSwitch } from "./board-view-switch";
 export default async function AgentOperationsPage() {
   await connection();
 
-  const dashboard = await getAgentOperationsDashboard();
+  const agentName = await getAgentName();
+  const dashboard = await getAgentOperationsDashboard(undefined, agentName);
 
   if (dashboard.status === "unavailable") {
     return (
       <>
-        <Header status="Unavailable" />
-        <EmptyState title="Mark operations unavailable" detail={dashboard.message} />
+        <Header agentName={agentName} status="Unavailable" />
+        <EmptyState title={`${agentName} operations unavailable`} detail={dashboard.message} />
       </>
     );
   }
@@ -28,7 +30,7 @@ export default async function AgentOperationsPage() {
 
   return (
     <>
-      <Header status={runner.status} />
+      <Header agentName={agentName} status={runner.status} />
 
       <MetricStrip
         metrics={dashboard.metrics.slice(0, 4).map((metric, index) => ({
@@ -45,7 +47,7 @@ export default async function AgentOperationsPage() {
             className="p-0"
             eyebrow="Task queue"
             title="Queued, running, blocked, and completed work"
-            description="Mark can prepare drafts, enrich records, classify, score, and create approval packets. External action remains disabled."
+            description={`${agentName} can prepare drafts, enrich records, classify, score, and create approval packets. External action remains disabled.`}
             aside={<StatusPill tone={dashboard.tasks.length > 0 ? "blue" : "gray"}>{dashboard.tasks.length} tasks</StatusPill>}
           >
             <BoardViewSwitch tasks={dashboard.tasks} />
@@ -53,7 +55,7 @@ export default async function AgentOperationsPage() {
 
           <WorkspacePanel
             eyebrow="Recent outputs"
-            title="What Mark wrote back"
+            title={`What ${agentName} wrote back`}
             description="Outputs are internal records. They need approval before any outbound-facing use."
           >
             {dashboard.recentOutputs.length > 0 ? (
@@ -69,7 +71,7 @@ export default async function AgentOperationsPage() {
                 ))}
               </div>
             ) : (
-              <EmptyState title="No outputs yet" detail="Completed Mark outputs will appear here with approval state and audit trace." />
+              <EmptyState title="No outputs yet" detail={`Completed ${agentName} outputs will appear here with approval state and audit trace.`} />
             )}
           </WorkspacePanel>
         </div>
@@ -77,14 +79,14 @@ export default async function AgentOperationsPage() {
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
           <IntelligencePanel
             model={{
-              title: activeTask?.task ?? "Mark runner",
+              title: activeTask?.task ?? `${agentName} runner`,
               persona: activeTask?.linkedObject ?? "Growth operations",
               confidence: runner.configured ? "Configured" : "Needs runner config",
               journeyStage: activeTask?.status ?? runner.status,
               urgency: blockedTasks.length > 0 ? "Blocked task needs human input" : runner.queuedTasks > 0 ? "Queued work" : "Monitoring",
               attentionReason: activeTask?.objective ?? runner.nextStep,
               nextBestAction: blockedTasks.length > 0 ? "Open the blocked task, inspect logs, and repair inputs before retrying." : runner.nextStep,
-              cta: "Mark prepares only. Humans approve campaign, contact, publish, and spend decisions.",
+              cta: `${agentName} prepares only. Humans approve campaign, contact, publish, and spend decisions.`,
               messageAngle: runner.mode,
               guardrailStatus: runner.killSwitch || "Outbound locked",
               scores: [
@@ -99,6 +101,7 @@ export default async function AgentOperationsPage() {
               ],
               outboundLocked: true,
             }}
+            agentName={agentName}
           />
 
           <WorkspacePanel eyebrow="Awaiting approval" title="Human gate">
@@ -113,7 +116,7 @@ export default async function AgentOperationsPage() {
               </div>
             ) : (
               <div className="p-4">
-                <EmptyState title="No approval blockers" detail="Mark has no active approval items attached to the current dashboard slice." />
+                <EmptyState title="No approval blockers" detail={`${agentName} has no active approval items attached to the current dashboard slice.`} />
               </div>
             )}
           </WorkspacePanel>
@@ -127,12 +130,12 @@ export default async function AgentOperationsPage() {
   );
 }
 
-function Header({ status }: { status: string }) {
+function Header({ agentName, status }: { agentName: string; status: string }) {
   return (
     <PageHeader
-      eyebrow="Mark operations"
+      eyebrow={`${agentName} operations`}
       title="Task queue, audit trail, and safe repair controls."
-      description="Use this page to see what Mark is doing, what data he touched, what outputs he created, and what needs approval or repair."
+      description={`Use this page to see what ${agentName} is doing, what data the agent touched, what outputs the agent created, and what needs approval or repair.`}
       aside={
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill tone={statusTone(status)}>{status}</StatusPill>

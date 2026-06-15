@@ -19,12 +19,14 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   await connection();
 
   const params = await searchParams;
-  const list = await getCampaignWorkspaceList();
+  const { assistantName } = await getAppSettings();
+  const displayName = getAgentDisplayName(assistantName);
+  const list = await getCampaignWorkspaceList(undefined, displayName);
 
   if (list.status === "unavailable") {
     return (
       <>
-        <CampaignsHeader pendingCount={0} />
+        <CampaignsHeader pendingCount={0} agentName={displayName} />
         <EmptyState title="Campaign workspace unavailable" detail={list.message} />
       </>
     );
@@ -33,19 +35,17 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   const { campaigns } = list;
   const pendingCount = campaigns.filter((campaign) => campaign.pendingCount > 0 || campaign.lifecycle === "In review").length;
   const configured = isAgentConfigured();
-  const { assistantName } = await getAppSettings();
-  const displayName = getAgentDisplayName(assistantName);
 
   return (
     <>
-      <CampaignsHeader pendingCount={pendingCount} />
+      <CampaignsHeader pendingCount={pendingCount} agentName={displayName} />
 
       {campaigns.length > 0 ? (
-        <CampaignLibrary campaigns={campaigns} activeView={getViewParam(params.view)} query={getParam(params.q)} />
+        <CampaignLibrary campaigns={campaigns} activeView={getViewParam(params.view)} query={getParam(params.q)} agentName={displayName} />
       ) : configured ? (
         <EmptyState
           title="No campaigns yet"
-          detail="Create one yourself or ask Mark to build a campaign package. Campaigns will show their content, review status, and send/export options here."
+          detail={`Create one yourself or ask ${displayName} to build a campaign package. Campaigns will show their content, review status, and send/export options here.`}
         />
       ) : (
         <ConnectAgentPanel agentName={displayName} />
@@ -64,7 +64,7 @@ function getViewParam(value: string | string[] | undefined): CampaignManagerView
   return "needs-attention";
 }
 
-function CampaignsHeader({ pendingCount }: { pendingCount: number }) {
+function CampaignsHeader({ pendingCount, agentName }: { pendingCount: number; agentName: string }) {
   return (
     <PageHeader
       eyebrow="Campaign manager"
@@ -77,7 +77,7 @@ function CampaignsHeader({ pendingCount }: { pendingCount: number }) {
             Create campaign
           </Link>
           <Link href="/campaigns/new?mode=mark" className={buttonClasses({ size: "sm" })}>
-            Ask Mark
+            Ask {agentName}
           </Link>
         </div>
       }

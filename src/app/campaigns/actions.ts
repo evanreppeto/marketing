@@ -11,6 +11,7 @@ import { deployAsset, launchCampaign } from "@/lib/campaigns/launch";
 import { sendMarkDirective } from "@/lib/campaigns/mark-conversation";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { assignConversationToCampaign, createConversation, insertOperatorMessage } from "@/lib/mark-chat/persistence";
 import { parseBuildPrompt, deriveCampaignName } from "./build-campaign";
 
@@ -30,16 +31,17 @@ export async function requestRevisionAction(
   formData: FormData,
 ): Promise<RevisionActionState> {
   await requireOperator();
+  const agentName = await getAgentName();
 
   if (!isSupabaseAdminConfigured()) {
-    return { ok: false, message: "Supabase isn't configured yet, so Mark can't record the revision." };
+    return { ok: false, message: `Supabase isn't configured yet, so ${agentName} can't record the revision.` };
   }
 
   const campaignId = String(formData.get("campaignId") ?? "").trim();
   const assetId = String(formData.get("assetId") ?? "").trim();
 
   if (!campaignId || !assetId) {
-    return { ok: false, message: "Choose an asset for Mark to revise." };
+    return { ok: false, message: `Choose an asset for ${agentName} to revise.` };
   }
 
   let instruction: string;
@@ -55,7 +57,7 @@ export async function requestRevisionAction(
   try {
     await requestAssetRevision({ campaignId, assetId, instruction, operator: getOperatorActor() }, getSupabaseAdminClient());
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Mark couldn't record the revision." };
+    return { ok: false, message: error instanceof Error ? error.message : `${agentName} couldn't record the revision.` };
   }
 
   revalidatePath(`/campaigns/${campaignId}`);
@@ -63,7 +65,7 @@ export async function requestRevisionAction(
 
   return {
     ok: true,
-    message: "Sent to Mark. The asset is now 'revision requested'; outbound stays locked.",
+    message: `Sent to ${agentName}. The asset is now 'revision requested'; outbound stays locked.`,
   };
 }
 
@@ -214,9 +216,10 @@ export async function sendMarkMessageAction(
   formData: FormData,
 ): Promise<MarkMessageActionState> {
   await requireOperator();
+  const agentName = await getAgentName();
 
   if (!isSupabaseAdminConfigured()) {
-    return { ok: false, message: "Supabase isn't configured yet, so Mark can't receive the message." };
+    return { ok: false, message: `Supabase isn't configured yet, so ${agentName} can't receive the message.` };
   }
 
   const campaignId = String(formData.get("campaignId") ?? "").trim();
@@ -226,21 +229,21 @@ export async function sendMarkMessageAction(
     return { ok: false, message: "Missing campaign." };
   }
   if (!message) {
-    return { ok: false, message: "Write a message for Mark first." };
+    return { ok: false, message: `Write a message for ${agentName} first.` };
   }
   if (message.length > MAX_MARK_MESSAGE) {
     return { ok: false, message: `Keep it under ${MAX_MARK_MESSAGE} characters.` };
   }
 
   try {
-    await sendMarkDirective({ campaignId, message, operator: getOperatorActor() }, getSupabaseAdminClient());
+    await sendMarkDirective({ campaignId, message, operator: getOperatorActor(), agentName }, getSupabaseAdminClient());
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Couldn't send the message to Mark." };
+    return { ok: false, message: error instanceof Error ? error.message : `Couldn't send the message to ${agentName}.` };
   }
 
   revalidatePath(`/campaigns/${campaignId}`);
 
-  return { ok: true, message: "Sent to Mark — queued. His reply lands here when he's done." };
+  return { ok: true, message: `Sent to ${agentName} — queued. Its reply lands here when it's done.` };
 }
 
 export type LaunchActionState = { ok: boolean; message: string } | null;
@@ -254,6 +257,7 @@ export async function deployAssetAction(
   formData: FormData,
 ): Promise<LaunchActionState> {
   await requireOperator();
+  const agentName = await getAgentName();
 
   if (!isSupabaseAdminConfigured()) {
     return { ok: false, message: "Supabase isn't configured yet, so the piece can't be deployed." };
@@ -266,7 +270,7 @@ export async function deployAssetAction(
   }
 
   try {
-    await deployAsset({ campaignId, assetId, operator: getOperatorActor() }, getSupabaseAdminClient());
+    await deployAsset({ campaignId, assetId, operator: getOperatorActor(), agentName }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't deploy the piece." };
   }
@@ -276,7 +280,7 @@ export async function deployAssetAction(
   }
   revalidatePath("/campaigns");
 
-  return { ok: true, message: "Deployed — handed off to Mark for dispatch." };
+  return { ok: true, message: `Deployed — handed off to ${agentName} for dispatch.` };
 }
 
 /**
@@ -290,6 +294,7 @@ export async function launchCampaignAction(
   formData: FormData,
 ): Promise<LaunchActionState> {
   await requireOperator();
+  const agentName = await getAgentName();
 
   if (!isSupabaseAdminConfigured()) {
     return { ok: false, message: "Supabase isn't configured yet, so the campaign can't be launched." };
@@ -302,7 +307,7 @@ export async function launchCampaignAction(
 
   let launchedAssets = 0;
   try {
-    ({ launchedAssets } = await launchCampaign({ campaignId, operator: getOperatorActor() }, getSupabaseAdminClient()));
+    ({ launchedAssets } = await launchCampaign({ campaignId, operator: getOperatorActor(), agentName }, getSupabaseAdminClient()));
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't launch the campaign." };
   }
@@ -312,7 +317,7 @@ export async function launchCampaignAction(
 
   return {
     ok: true,
-    message: `Campaign launched — ${launchedAssets} deliverable${launchedAssets === 1 ? "" : "s"} handed off to Mark for dispatch.`,
+    message: `Campaign launched — ${launchedAssets} deliverable${launchedAssets === 1 ? "" : "s"} handed off to ${agentName} for dispatch.`,
   };
 }
 
@@ -417,6 +422,7 @@ async function readPhotos(formData: FormData): Promise<CampaignPhoto[]> {
  */
 export async function askMarkToBuildCampaignAction(formData: FormData): Promise<void> {
   await requireOperator();
+  const agentName = await getAgentName();
   if (!isSupabaseAdminConfigured()) {
     redirect("/campaigns?action=not-configured");
   }
@@ -441,6 +447,7 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
     // "general" is not in the restoration_focus enum. Seed with "flood" (first
     // valid value); Mark updates this when drafting the campaign.
     restorationFocus: "flood",
+    agentName,
     client,
   });
 
@@ -455,7 +462,7 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
   );
 
   await client.from("agent_tasks").insert({
-    agent_id: await ensureMarkAgentId(client),
+    agent_id: await ensureMarkAgentId(agentName, client),
     status: "queued",
     priority: "high",
     objective: `Build campaign package: ${prompt.slice(0, 180)}`,
@@ -479,6 +486,7 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
  *  to the campaign. */
 export async function handToMarkAction(formData: FormData): Promise<void> {
   await requireOperator();
+  const agentName = await getAgentName();
   if (!isSupabaseAdminConfigured()) {
     redirect("/campaigns?action=not-configured");
   }
@@ -487,7 +495,7 @@ export async function handToMarkAction(formData: FormData): Promise<void> {
 
   const client = getSupabaseAdminClient();
   await client.from("agent_tasks").insert({
-    agent_id: await ensureMarkAgentId(client),
+    agent_id: await ensureMarkAgentId(agentName, client),
     status: "queued",
     priority: "medium",
     objective: "Continue building this campaign — draft the remaining assets.",
@@ -505,14 +513,15 @@ export async function handToMarkAction(formData: FormData): Promise<void> {
 
 /** Ensure the Mark agent row exists; return its id.
  *  Canonical full definition lives in ensureMarkAgent (agent-operations/actions.ts).
- *  This carries the safety-critical subset; a shared helper is a future cleanup. */
-async function ensureMarkAgentId(client = getSupabaseAdminClient()): Promise<string> {
+ *  This carries the safety-critical subset; a shared helper is a future cleanup.
+ *  `agentName` is the operator-configured display name stored on the row. */
+async function ensureMarkAgentId(agentName: string, client = getSupabaseAdminClient()): Promise<string> {
   const { data, error } = await client
     .from("agents")
     .upsert(
       {
         key: "mark",
-        name: "Mark",
+        name: agentName,
         status: "ready",
         blocked_actions: ["send_email", "send_sms", "publish_social_post", "launch_ads", "change_ad_spend"],
         default_approval_policy: "human_required_before_outbound",

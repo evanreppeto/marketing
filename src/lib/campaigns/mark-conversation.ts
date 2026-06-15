@@ -7,6 +7,8 @@ export type MarkDirectiveInput = {
   /** Pre-validated, non-empty operator message. */
   message: string;
   operator: string;
+  /** Operator-configured agent display name, for user-facing error copy. */
+  agentName?: string;
 };
 
 export type MarkDirectiveResult = {
@@ -23,7 +25,7 @@ export async function sendMarkDirective(
   input: MarkDirectiveInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<MarkDirectiveResult> {
-  const { campaignId, message, operator } = input;
+  const { campaignId, message, operator, agentName = "Agent" } = input;
 
   const { data: agent, error: agentError } = await client
     .from("agents")
@@ -36,7 +38,7 @@ export async function sendMarkDirective(
   // No Mark agent registered yet (campaign predates an orchestrator run). We
   // can't queue work, so surface that instead of silently dropping the message.
   if (!agent) {
-    throw new Error("Mark isn't connected to this workspace yet, so the message can't be queued.");
+    throw new Error(`${agentName} isn't connected to this workspace yet, so the message can't be queued.`);
   }
 
   const { data: task, error: taskError } = await client

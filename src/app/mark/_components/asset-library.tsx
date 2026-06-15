@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { cx } from "@/app/_components/theme";
 import type { MarkActionCard } from "@/domain";
 
@@ -48,17 +49,8 @@ function AssetTile({ asset, onSelect, sourceTitle }: { asset: StudioAsset; onSel
   );
 }
 
-export function AssetLibrary({
-  assets,
-  onSelect,
-  currentConversationId,
-  conversationTitles,
-}: {
-  assets: StudioAsset[];
-  onSelect: (id: string) => void;
-  currentConversationId?: string;
-  conversationTitles?: Record<string, string>;
-}) {
+export function AssetLibrary({ assets, onSelect }: { assets: StudioAsset[]; onSelect: (id: string) => void }) {
+  const agentName = useAgentName();
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const a of assets) set.add(category(a.card));
@@ -71,7 +63,7 @@ export function AssetLibrary({
   if (assets.length === 0) {
     return (
       <p className="text-xs leading-5 text-[var(--text-muted)]">
-        Assets Mark generates for this campaign collect here — review, filter, and approve them without leaving the chat.
+        Assets {agentName} generates for this campaign collect here — review, filter, and approve them without leaving the chat.
       </p>
     );
   }

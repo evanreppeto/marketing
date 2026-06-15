@@ -368,7 +368,10 @@ type AgentTaskEventRow = {
   created_at: string | null;
 };
 
-export async function getAgentOperationsDashboard(client?: SupabaseClient): Promise<AgentOperationsDashboard> {
+export async function getAgentOperationsDashboard(
+  client?: SupabaseClient,
+  agentName: string = "Agent",
+): Promise<AgentOperationsDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
     return {
       status: "unavailable",
@@ -430,10 +433,10 @@ export async function getAgentOperationsDashboard(client?: SupabaseClient): Prom
         { label: "Risk flags", value: countRiskFlags(approvals, outputs), delta: "Review signals" },
       ],
       agents: agents.map((agent) => mapAgent(agent, tasks)),
-      tasks: tasks.map((task) => mapTask(task, agentById, campaignById, approvalById)),
+      tasks: tasks.map((task) => mapTask(task, agentById, campaignById, approvalById, agentName)),
       approvals: activeApprovals.slice(0, 5).map((item) => mapApproval(item, campaignById)),
       recentOutputs: outputs.slice(0, 6).map((output) => mapOutput(output, taskById, agentById)),
-      markRunner: mapMarkRunner(agents, tasks),
+      markRunner: mapMarkRunner(agents, tasks, agentName),
     };
   } catch (error) {
     return {
@@ -443,7 +446,7 @@ export async function getAgentOperationsDashboard(client?: SupabaseClient): Prom
   }
 }
 
-export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient): Promise<AgentTaskDetail> {
+export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient, agentName: string = "Agent"): Promise<AgentTaskDetail> {
   if (!client && !isSupabaseAdminConfigured()) {
     return {
       status: "unavailable",
@@ -528,8 +531,8 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
         status: task.status ?? "queued",
         priority: task.priority ?? "medium",
         objective: task.objective ?? "Agent task awaiting details.",
-        owner: mapActor(task.owner_kind, task.owner_label),
-        driver: mapDriver(task),
+        owner: mapActor(task.owner_kind, task.owner_label, agentName),
+        driver: mapDriver(task, agentName),
         approverLabel: getString(task.approver_label) ?? "Owner",
         description: getString(task.description),
         taskType: task.task_type ?? "agent_task",
@@ -799,6 +802,7 @@ function mapTask(
   agentById: Map<string, ReturnType<typeof normalizeAgentRow>>,
   campaignById: Map<string, ReturnType<typeof normalizeCampaignRow>>,
   approvalById: Map<string, ReturnType<typeof normalizeApprovalRow>>,
+  agentName: string,
 ): AgentOperationsTask {
   const agent = task.agent_id ? agentById.get(task.agent_id) : undefined;
   const campaign = task.campaign_id ? campaignById.get(task.campaign_id) : undefined;
@@ -825,8 +829,8 @@ function mapTask(
     dueAt: task.due_at ?? null,
     scheduledFor: task.scheduled_for ?? null,
     progress: parseProgress(metadata.progress),
-    owner: mapActor(task.owner_kind, task.owner_label),
-    driver: mapDriver(task),
+    owner: mapActor(task.owner_kind, task.owner_label, agentName),
+    driver: mapDriver(task, agentName),
     approverLabel: getString(task.approver_label) ?? "Owner",
     description: getString(task.description),
     updated: task.updated_at ?? task.created_at ?? "Now",
@@ -834,7 +838,11 @@ function mapTask(
   };
 }
 
-function mapMarkRunner(agents: ReturnType<typeof normalizeAgentRow>[], tasks: ReturnType<typeof normalizeTaskRow>[]): MarkRunnerStatus {
+function mapMarkRunner(
+  agents: ReturnType<typeof normalizeAgentRow>[],
+  tasks: ReturnType<typeof normalizeTaskRow>[],
+  agentName: string = "Agent",
+): MarkRunnerStatus {
   const mark = agents.find((agent) => agent.key === "mark") ?? agents.find((agent) => agent.key === "hermes");
   const markTasks = mark ? tasks.filter((task) => task.agent_id === mark.id) : [];
   const metadata = asRecord(mark?.metadata);
@@ -846,7 +854,7 @@ function mapMarkRunner(agents: ReturnType<typeof normalizeAgentRow>[], tasks: Re
   return {
     configured: Boolean(mark),
     agentId: mark?.id ?? null,
-    name: mark?.name ?? "Mark",
+    name: mark?.name ?? agentName,
     status: mark ? titleize(mark.status) : "Pending setup",
     runner,
     mode,
@@ -857,8 +865,8 @@ function mapMarkRunner(agents: ReturnType<typeof normalizeAgentRow>[], tasks: Re
     approvalTasks: markTasks.filter((task) => task.status === "needs_approval").length,
     killSwitch,
     nextStep: mark
-      ? "Start Mark on the Mac mini and have him poll queued tasks."
-      : "Create Mark in Supabase from this page, then start the Mac mini runner.",
+      ? `Start ${agentName} on the Mac mini and have it poll queued tasks.`
+      : `Create ${agentName} in Supabase from this page, then start the Mac mini runner.`,
   };
 }
 
@@ -909,16 +917,18 @@ function countRiskFlags(approvals: ReturnType<typeof normalizeApprovalRow>[], ou
   return riskyApprovals + riskyOutputs;
 }
 
-function mapActor(kind: string | null | undefined, label: string | null | undefined): AgentTaskActor {
+function mapActor(kind: string | null | undefined, label: string | null | undefined, agentName: string): AgentTaskActor {
   const normalizedKind = normalizeActorKind(kind);
   return {
     kind: normalizedKind,
-    label: getString(label) ?? (normalizedKind === "agent" ? "Mark" : "Operator"),
+    // The agent's display name is operator-configurable, so it always wins over any
+    // stored label for agent actors; humans/system keep their recorded label.
+    label: normalizedKind === "agent" ? agentName : (getString(label) ?? "Operator"),
   };
 }
 
-function mapDriver(row: Pick<AgentTaskRow, "agent_id" | "driver_kind" | "driver_agent_id" | "driver_label">): AgentTaskDriver {
-  const actor = mapActor(row.driver_kind ?? (row.driver_agent_id || row.agent_id ? "agent" : null), row.driver_label);
+function mapDriver(row: Pick<AgentTaskRow, "agent_id" | "driver_kind" | "driver_agent_id" | "driver_label">, agentName: string): AgentTaskDriver {
+  const actor = mapActor(row.driver_kind ?? (row.driver_agent_id || row.agent_id ? "agent" : null), row.driver_label, agentName);
 
   return {
     ...actor,

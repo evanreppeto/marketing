@@ -8,9 +8,11 @@ import type { CampaignMediaAsset, CampaignWorkspaceApproval } from "@/lib/campai
  */
 export function ApprovalContext({
   approval,
+  agentName,
   compact = false,
 }: {
   approval: CampaignWorkspaceApproval;
+  agentName: string;
   compact?: boolean;
 }) {
   const hasInputs = approval.promptInputs.length > 0;
@@ -31,7 +33,7 @@ export function ApprovalContext({
         ) : null}
 
         <div>
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Draft Mark produced</div>
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Draft {agentName} produced</div>
           <div className={`overflow-auto rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-2.5 ${compact ? "max-h-28" : "max-h-40"}`}>
             <p className="whitespace-pre-wrap text-sm leading-5 text-[var(--text-secondary)]">{approval.preview}</p>
           </div>

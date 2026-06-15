@@ -17,8 +17,10 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
   await connection();
 
   const { campaignId } = await params;
+  const { assistantName } = await getAppSettings();
+  const agentName = getAgentDisplayName(assistantName);
   const [detail, dispatches, economics] = await Promise.all([
-    getCampaignWorkspaceDetail(campaignId),
+    getCampaignWorkspaceDetail(campaignId, undefined, agentName),
     getCampaignDispatches(campaignId),
     getCampaignEconomics(campaignId),
   ]);
@@ -45,14 +47,12 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
     );
   }
 
-  const { assistantName } = await getAppSettings();
-
   return (
     <CampaignCockpit
       detail={detail}
       dispatches={dispatches}
       economics={economics}
-      agentName={getAgentDisplayName(assistantName)}
+      agentName={agentName}
     />
   );
 }

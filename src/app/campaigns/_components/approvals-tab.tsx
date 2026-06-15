@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { StatusPill } from "@/app/_components/page-header";
 import type { CampaignDecisionEvent, CampaignWorkspaceApproval } from "@/lib/campaigns/read-model";
 
@@ -30,6 +31,7 @@ export function ApprovalsTab({
   history?: CampaignDecisionEvent[];
   focus?: FocusTarget;
 }) {
+  const agentName = useAgentName();
   if (approvals.length === 0 && history.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
@@ -46,7 +48,7 @@ export function ApprovalsTab({
       <DecisionHistory history={history} />
 
       <p className="max-w-[76ch] text-sm leading-5 text-[var(--text-secondary)]">
-        Below: the draft, prompt inputs, and compliance notes Mark captured for each item. Approve or send back for rework in the{" "}
+        Below: the draft, prompt inputs, and compliance notes {agentName} captured for each item. Approve or send back for rework in the{" "}
         <span className="font-semibold text-[var(--text-primary)]">Deliverables</span> tab; this log stays read-only.
       </p>
 
@@ -139,6 +141,7 @@ function ApprovalCard({
   defaultOpen?: boolean;
   focus?: FocusTarget;
 }) {
+  const agentName = useAgentName();
   const isFocused = focus?.id === approval.id;
   const [manualOpen, setManualOpen] = useState(defaultOpen);
   const ref = useRef<HTMLElement | null>(null);
@@ -193,7 +196,7 @@ function ApprovalCard({
       <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
           <div className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-            <ApprovalContext approval={approval} />
+            <ApprovalContext approval={approval} agentName={agentName} />
           </div>
         </div>
       </div>

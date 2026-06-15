@@ -9,6 +9,7 @@ import {
   touchConversation,
 } from "@/lib/mark-chat/persistence";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -58,7 +59,8 @@ export async function GET(request: Request) {
     // Then recover anything stuck in `running` (a wake that was claimed but never
     // answered — e.g. a crashed turn), so a dropped message isn't lost forever.
     if (messages.length < limit) {
-      messages.push(...(await reclaimStaleChatTasks({ limit: limit - messages.length })));
+      const agentName = await getAgentName();
+      messages.push(...(await reclaimStaleChatTasks({ limit: limit - messages.length, agentName })));
     }
     return NextResponse.json({ ok: true, status: "ok", messages }, { status: 200 });
   } catch (error) {

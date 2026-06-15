@@ -198,7 +198,7 @@ type NextBestActionRow = {
   updated_at: string | null;
 };
 
-export async function getPartnerDevelopmentDashboard(client?: SupabaseClient): Promise<PartnerDevelopmentDashboard> {
+export async function getPartnerDevelopmentDashboard(client?: SupabaseClient, agentName = "Agent"): Promise<PartnerDevelopmentDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
@@ -272,7 +272,7 @@ export async function getPartnerDevelopmentDashboard(client?: SupabaseClient): P
       health,
       actions,
     };
-    const partners = buildPartnerCards(bundle);
+    const partners = buildPartnerCards(bundle, agentName);
 
     return {
       status: "live",
@@ -291,7 +291,7 @@ export async function getPartnerDevelopmentDashboard(client?: SupabaseClient): P
         totalRevenue: formatMoney(partners.reduce((sum, partner) => sum + moneyToCents(partner.revenue), 0)),
       },
       strongestPartner: partners[0] ?? null,
-      dataContracts: buildDataContracts(partners, health.length, actions.length),
+      dataContracts: buildDataContracts(partners, health.length, actions.length, agentName),
     };
   } catch (error) {
     return { status: "unavailable", message: error instanceof Error ? error.message : "Partner development data is unavailable." };
@@ -308,7 +308,7 @@ function buildPartnerCards(input: {
   approvals: ApprovalRow[];
   health: PartnerHealthRow[];
   actions: NextBestActionRow[];
-}): PartnerCard[] {
+}, agentName = "Agent"): PartnerCard[] {
   const candidates = input.companies.filter((company) => {
     const metadata = asObject(company.metadata);
     return Boolean(
@@ -348,7 +348,7 @@ function buildPartnerCards(input: {
       const revenueCents =
         health?.trailing_90_day_won_revenue_cents ??
         outcomes.reduce((sum, outcome) => sum + (outcome.gross_revenue_cents ?? 0), 0);
-      const nextAction = buildNextAction({ action, health, score, contacts: contacts.length, evidence: evidence.length, approvals: openApprovals });
+      const nextAction = buildNextAction({ action, health, score, contacts: contacts.length, evidence: evidence.length, approvals: openApprovals }, agentName);
       const missingFields = buildMissingFields({ track, score, contacts: contacts.length, evidence: evidence.length, nextActionSource: nextAction.source, health });
       const riskFlags = uniqueStrings([...(health?.risk_flags ?? []), ...getStringArray(metadata.risk_flags)]);
       const lastSignal = mostRecentDate([
@@ -416,10 +416,10 @@ function buildNextAction(input: {
   contacts: number;
   evidence: number;
   approvals: number;
-}) {
+}, agentName = "Agent") {
   if (input.action) {
     return {
-      text: input.action.recommendation ?? input.action.title ?? "Review Mark's recommended partner action.",
+      text: input.action.recommendation ?? input.action.title ?? `Review ${agentName}'s recommended partner action.`,
       source: "next_best_actions",
       href: input.action.approval_required && input.action.approval_item_id ? `/approvals?item=${input.action.approval_item_id}` : "/agent-operations",
     };
@@ -428,16 +428,16 @@ function buildNextAction(input: {
     return { text: input.health.recommended_action, source: "partner_health_snapshots", href: "/agent-operations" };
   }
   if (input.approvals > 0) {
-    return { text: "Review the open approval packet before Mark prepares anything else.", source: "approval queue", href: "/approvals" };
+    return { text: `Review the open approval packet before ${agentName} prepares anything else.`, source: "approval queue", href: "/approvals" };
   }
   if (input.contacts === 0) {
-    return { text: "Ask Mark to enrich a decision-maker and evidence before outreach copy.", source: "missing contact", href: "/agent-operations" };
+    return { text: `Ask ${agentName} to enrich a decision-maker and evidence before outreach copy.`, source: "missing contact", href: "/agent-operations" };
   }
   if (input.evidence === 0) {
-    return { text: "Ask Mark to attach source evidence and classify the partner fit.", source: "missing evidence", href: "/agent-operations" };
+    return { text: `Ask ${agentName} to attach source evidence and classify the partner fit.`, source: "missing evidence", href: "/agent-operations" };
   }
   if (typeof input.score !== "number") {
-    return { text: "Ask Mark to score partner fit and create an approval-gated recommendation.", source: "missing score", href: "/agent-operations" };
+    return { text: `Ask ${agentName} to score partner fit and create an approval-gated recommendation.`, source: "missing score", href: "/agent-operations" };
   }
   return { text: "Prepare an approval-gated partner campaign brief. No outbound execution.", source: "safe default", href: "/campaigns" };
 }
@@ -528,11 +528,11 @@ function partnerSummary(input: {
   return parts.join(" ");
 }
 
-function buildDataContracts(partners: PartnerCard[], healthCount: number, actionCount: number) {
+function buildDataContracts(partners: PartnerCard[], healthCount: number, actionCount: number, agentName = "Agent") {
   return [
     { label: "Company partner records", status: partners.length > 0 ? "live" : "needed", detail: "companies plus partner_tier/persona classify candidate partners." },
     { label: "Relationship health", status: healthCount > 0 ? "live" : "needed", detail: "partner_health_snapshots stores health score, stage, referrals, revenue, and risk flags." },
-    { label: "Mark next actions", status: actionCount > 0 ? "live" : "needed", detail: "next_best_actions stores internal recommendations without outbound execution." },
+    { label: `${agentName} next actions`, status: actionCount > 0 ? "live" : "needed", detail: "next_best_actions stores internal recommendations without outbound execution." },
     { label: "Campaign and approval links", status: partners.some((partner) => partner.campaigns.length > 0 || partner.approvals.length > 0) ? "live" : "needed", detail: "campaigns and approval_items link work back to company_id or lead_id." },
   ] as Array<{ label: string; status: "live" | "needed"; detail: string }>;
 }

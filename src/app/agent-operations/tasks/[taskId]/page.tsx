@@ -4,6 +4,7 @@ import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "@/app/_components/page-header";
 import { labelIcon } from "@/app/_components/ticket-icons";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 import { TaskInputsPanel, TaskLogsPanel, TaskOutputsPanel } from "./task-record-panels";
@@ -32,7 +33,8 @@ export default async function Page({ params, searchParams }: PageProps) {
   const { taskId } = await params;
   const query = searchParams ? await searchParams : {};
   const activeSection = normalizeTaskSection(getValue(query.section));
-  const detail = await getAgentTaskDetail(taskId);
+  const agentName = await getAgentName();
+  const detail = await getAgentTaskDetail(taskId, undefined, agentName);
 
   if (detail.status === "not_found") {
     notFound();
@@ -41,7 +43,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   if (detail.status === "unavailable") {
     return (
       <>
-        <PageHeader eyebrow="Mark task" title="Task unavailable" description={detail.message} />
+        <PageHeader eyebrow={`${agentName} task`} title="Task unavailable" description={detail.message} />
         <EmptyState title="Could not load task" detail="The agent task table or related audit tables are unavailable." />
       </>
     );
@@ -92,8 +94,8 @@ export default async function Page({ params, searchParams }: PageProps) {
           updatedAt={task.updatedAt}
         />
 
-        {activeSection === "overview" ? <TaskOverview counts={counts} detail={detail} outputsHref={outputsHref} taskId={task.id} /> : null}
-        {activeSection !== "overview" ? <TaskRecordHeader activeSection={activeSection} counts={counts} taskId={task.id} /> : null}
+        {activeSection === "overview" ? <TaskOverview agentName={agentName} counts={counts} detail={detail} outputsHref={outputsHref} taskId={task.id} /> : null}
+        {activeSection !== "overview" ? <TaskRecordHeader activeSection={activeSection} agentName={agentName} counts={counts} taskId={task.id} /> : null}
         {activeSection === "inputs" ? <TaskInputsPanel inputs={detail.inputs} /> : null}
         {activeSection === "outputs" ? <TaskOutputsPanel outputs={detail.outputs} /> : null}
         {activeSection === "logs" ? <TaskLogsPanel logs={detail.logs} /> : null}
@@ -104,14 +106,16 @@ export default async function Page({ params, searchParams }: PageProps) {
 
 function TaskRecordHeader({
   activeSection,
+  agentName,
   counts,
   taskId,
 }: {
   activeSection: TaskSectionKey;
+  agentName: string;
   counts: { inputs: number; outputs: number; logs: number };
   taskId: string;
 }) {
-  const active = recordLinks(taskId, counts).find((link) => link.key === activeSection);
+  const active = recordLinks(taskId, counts, agentName).find((link) => link.key === activeSection);
 
   return (
     <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 py-3">
@@ -121,10 +125,10 @@ function TaskRecordHeader({
             Back to ticket
           </Link>
           <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">{active?.label ?? "Supporting records"}</h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{active?.description ?? "Records Mark used or created while working this ticket."}</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{active?.description ?? `Records ${agentName} used or created while working this ticket.`}</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          {recordLinks(taskId, counts).map((link) => (
+          {recordLinks(taskId, counts, agentName).map((link) => (
             <Link
               aria-current={activeSection === link.key ? "page" : undefined}
               className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition ${
@@ -146,11 +150,13 @@ function TaskRecordHeader({
 }
 
 function TaskOverview({
+  agentName,
   counts,
   detail,
   outputsHref,
   taskId,
 }: {
+  agentName: string;
   counts: { inputs: number; outputs: number; logs: number };
   detail: LiveDetail;
   outputsHref: string;
@@ -158,21 +164,21 @@ function TaskOverview({
 }) {
   return (
     <div className="space-y-4">
-      <TicketLatestOutput output={detail.latestOutput} outputsHref={outputsHref} />
+      <TicketLatestOutput agentName={agentName} output={detail.latestOutput} outputsHref={outputsHref} />
       {detail.acceptanceCriteria.length > 0 ? <TicketAcceptanceCriteria criteria={detail.acceptanceCriteria} taskId={detail.task.id} /> : null}
-      <SupportingRecords counts={counts} taskId={taskId} />
+      <SupportingRecords agentName={agentName} counts={counts} taskId={taskId} />
       <details className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
           Activity timeline
           <span className="ml-2 text-xs font-medium text-[var(--text-muted)]">{detail.timeline.length}</span>
         </summary>
-        <TicketActivityTimeline timeline={detail.timeline} />
+        <TicketActivityTimeline agentName={agentName} timeline={detail.timeline} />
       </details>
     </div>
   );
 }
 
-function SupportingRecords({ counts, taskId }: { counts: { inputs: number; outputs: number; logs: number }; taskId: string }) {
+function SupportingRecords({ agentName, counts, taskId }: { agentName: string; counts: { inputs: number; outputs: number; logs: number }; taskId: string }) {
   return (
     <details className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
       <summary className="cursor-pointer list-none px-4 py-3 transition hover:bg-[var(--surface-inset)] [&::-webkit-details-marker]:hidden">
@@ -192,7 +198,7 @@ function SupportingRecords({ counts, taskId }: { counts: { inputs: number; outpu
         </div>
       </summary>
       <div className="grid gap-2 border-t border-[var(--border-hairline)] p-3 sm:grid-cols-3">
-        {recordLinks(taskId, counts).map((link) => (
+        {recordLinks(taskId, counts, agentName).map((link) => (
           <Link
             className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
             href={link.href}
@@ -210,20 +216,20 @@ function SupportingRecords({ counts, taskId }: { counts: { inputs: number; outpu
   );
 }
 
-function recordLinks(taskId: string, counts: { inputs: number; outputs: number; logs: number }) {
+function recordLinks(taskId: string, counts: { inputs: number; outputs: number; logs: number }, agentName: string) {
   return [
     {
       key: "inputs" as const,
       label: "Inputs",
       count: counts.inputs,
-      description: "What Mark used to do the work.",
+      description: `What ${agentName} used to do the work.`,
       href: `/agent-operations/tasks/${taskId}?section=inputs`,
     },
     {
       key: "outputs" as const,
       label: "Outputs",
       count: counts.outputs,
-      description: "Drafts and packets Mark produced.",
+      description: `Drafts and packets ${agentName} produced.`,
       href: `/agent-operations/tasks/${taskId}?section=outputs`,
     },
     {

@@ -6,6 +6,7 @@ import { EmptyState, PageHeader, StatusPill, buttonClasses } from "@/app/_compon
 import { DetailStack, WorkspacePanel } from "@/app/_components/workspace";
 import { getPersonaCtaRule, personaSlug } from "@/lib/persona-intelligence/cta-rules";
 import { getPersonaIntelligenceData } from "@/lib/persona-intelligence/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 
 type PersonaDetailPageProps = {
   params: Promise<{ personaKey: string }>;
@@ -14,11 +15,15 @@ type PersonaDetailPageProps = {
 
 type PersonaDetailTab = "rule" | "memory" | "mark-use";
 
-const personaDetailTabs: Array<{ key: PersonaDetailTab; label: string; detail: string }> = [
-  { key: "rule", label: "CTA rule", detail: "Approved internal language" },
-  { key: "memory", label: "Live memory", detail: "Supabase snapshot if available" },
-  { key: "mark-use", label: "Mark use", detail: "How the agent applies it" },
-];
+const PERSONA_DETAIL_TAB_KEYS: PersonaDetailTab[] = ["rule", "memory", "mark-use"];
+
+function buildPersonaDetailTabs(agentName: string): Array<{ key: PersonaDetailTab; label: string; detail: string }> {
+  return [
+    { key: "rule", label: "CTA rule", detail: "Approved internal language" },
+    { key: "memory", label: "Live memory", detail: "Supabase snapshot if available" },
+    { key: "mark-use", label: `${agentName} use`, detail: "How the agent applies it" },
+  ];
+}
 
 export default async function PersonaDetailPage({ params, searchParams }: PersonaDetailPageProps) {
   await connection();
@@ -27,7 +32,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
   const query = searchParams ? await searchParams : {};
   const activeTab = normalizePersonaDetailTab(query.tab);
   const rule = getPersonaCtaRule(personaKey);
-  const data = await getPersonaIntelligenceData();
+  const [data, agentName] = await Promise.all([getPersonaIntelligenceData(), getAgentName()]);
   const livePersona = data.status === "live" && rule ? data.personas.find((persona) => persona.key === personaSlug(rule.persona)) ?? null : null;
 
   if (!rule) {
@@ -43,7 +48,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
     <>
       <Header title={rule.label} subtitle={rule.messageAngle} />
 
-      <PersonaDetailTabs activeTab={activeTab} personaKey={personaKey} />
+      <PersonaDetailTabs activeTab={activeTab} personaKey={personaKey} agentName={agentName} />
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
         <div className="min-w-0">
@@ -86,13 +91,13 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
                   ]}
                 />
               ) : (
-                <EmptyState title="No current snapshot" detail="Mark can create persona snapshots from real leads, companies, campaigns, and approval records once enough evidence exists." />
+                <EmptyState title="No current snapshot" detail={`${agentName} can create persona snapshots from real leads, companies, campaigns, and approval records once enough evidence exists.`} />
               )}
             </WorkspacePanel>
           ) : null}
 
           {activeTab === "mark-use" ? (
-            <WorkspacePanel eyebrow="Mark use" title="How Mark should use this">
+            <WorkspacePanel eyebrow={`${agentName} use`} title={`How ${agentName} should use this`}>
               <div className="grid gap-3 p-4 md:grid-cols-2">
                 {[
                   ["Campaign briefs", "Use the CTA and message angle when drafting reviewable campaign packages."],
@@ -131,6 +136,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
               proofPoints: [rule.landingRule, rule.guardrail],
               outboundLocked: true,
             }}
+            agentName={agentName}
           />
 
           <div className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4">
@@ -152,10 +158,10 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
   );
 }
 
-function PersonaDetailTabs({ activeTab, personaKey }: { activeTab: PersonaDetailTab; personaKey: string }) {
+function PersonaDetailTabs({ activeTab, personaKey, agentName }: { activeTab: PersonaDetailTab; personaKey: string; agentName: string }) {
   return (
     <nav aria-label="Persona detail sections" className="module-rise mb-5 grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)] md:grid-cols-3">
-      {personaDetailTabs.map((tab) => {
+      {buildPersonaDetailTabs(agentName).map((tab) => {
         const selected = activeTab === tab.key;
         const href = tab.key === "rule" ? `/persona-intelligence/${personaKey}` : `/persona-intelligence/${personaKey}?tab=${tab.key}`;
 
@@ -197,7 +203,7 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
 
 function normalizePersonaDetailTab(value: string | string[] | undefined): PersonaDetailTab {
   const tab = Array.isArray(value) ? value[0] : value;
-  return personaDetailTabs.some((item) => item.key === tab) ? (tab as PersonaDetailTab) : "rule";
+  return PERSONA_DETAIL_TAB_KEYS.some((key) => key === tab) ? (tab as PersonaDetailTab) : "rule";
 }
 
 function humanizePersonaValue(value: string) {

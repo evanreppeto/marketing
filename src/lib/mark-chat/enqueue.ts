@@ -25,6 +25,8 @@ export type EnqueueChatTaskInput = {
   approvalStrictness?: ApprovalStrictness;
   /** Operator-uploaded reference images (GCS, signed read URLs) for Mark to use. */
   attachments?: MarkAttachment[];
+  /** Configured agent display name, for operator-facing not-connected messaging. */
+  agentName?: string;
 };
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -49,7 +51,8 @@ export async function enqueueMarkChatTask(
   assertOk("agents lookup", agentError);
 
   if (!agent) {
-    throw new Error("Mark isn't connected to this workspace yet, so the message can't be queued.");
+    const agentName = input.agentName?.trim() || "Agent";
+    throw new Error(`${agentName} isn't connected to this workspace yet, so the message can't be queued.`);
   }
 
   const { data: task, error: taskError } = await client

@@ -5,6 +5,7 @@ import { EmptyState, StatusPill } from "../_components/page-header";
 import { TabNav } from "../_components/tab-nav";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getPerformanceReadModel, type PerformanceBreakdown, type PerformanceTone } from "@/lib/performance/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 
 type PerformanceTabKey = "overview" | "leads" | "conversion" | "campaigns" | "partners" | "revenue" | "contract";
 
@@ -27,12 +28,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
 
   const query = searchParams ? await searchParams : {};
   const activeTab = normalizeTab(query.tab);
-  const performance = await getPerformanceReadModel();
+  const [performance, agentName] = await Promise.all([getPerformanceReadModel(), getAgentName()]);
 
   if (performance.status === "unavailable") {
     return (
       <>
-        <ReportsHeader status="Unavailable" />
+        <ReportsHeader status="Unavailable" agentName={agentName} />
         <EmptyState title="Performance data unavailable" detail={performance.message} />
       </>
     );
@@ -43,7 +44,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
 
   return (
     <>
-      <ReportsHeader status="Measurement scaffold" />
+      <ReportsHeader status="Measurement scaffold" agentName={agentName} />
 
       <MetricStrip
         metrics={performance.metrics.map((metric) => ({
@@ -70,13 +71,13 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
         <div className="min-w-0">
-          {activeTab === "overview" ? <PerformanceOverview performance={performance} /> : null}
+          {activeTab === "overview" ? <PerformanceOverview performance={performance} agentName={agentName} /> : null}
           {activeTab === "leads" ? <LeadVolumeTab performance={performance} /> : null}
           {activeTab === "conversion" ? <ConversionTab rows={performance.conversionSignals} /> : null}
           {activeTab === "campaigns" ? <CampaignSignalsTab rows={performance.campaignSignals} /> : null}
           {activeTab === "partners" ? <PartnerSignalsTab rows={performance.partnerSignals} /> : null}
           {activeTab === "revenue" ? <RevenueTab performance={performance} /> : null}
-          {activeTab === "contract" ? <ContractTab contracts={performance.contracts} /> : null}
+          {activeTab === "contract" ? <ContractTab contracts={performance.contracts} agentName={agentName} /> : null}
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
@@ -100,6 +101,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
               proofPoints: performance.contracts.map((contract) => `${contract.area}: ${contract.nextBackendStep}`),
               outboundLocked: true,
             }}
+            agentName={agentName}
           />
         </aside>
       </div>
@@ -107,7 +109,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
   );
 }
 
-function PerformanceOverview({ performance }: { performance: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }> }) {
+function PerformanceOverview({ performance, agentName }: { performance: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }>; agentName: string }) {
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <WorkspacePanel
@@ -119,7 +121,7 @@ function PerformanceOverview({ performance }: { performance: Extract<Awaited<Ret
       </WorkspacePanel>
       <WorkspacePanel
         eyebrow="Revenue intelligence"
-        title="What Mark should not infer"
+        title={`What ${agentName} should not infer`}
         description="The dashboard should expose missing attribution instead of pretending the data is complete."
       >
         <SignalList
@@ -213,12 +215,12 @@ function RevenueTab({ performance }: { performance: Extract<Awaited<ReturnType<t
   );
 }
 
-function ContractTab({ contracts }: { contracts: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }>["contracts"] }) {
+function ContractTab({ contracts, agentName }: { contracts: Extract<Awaited<ReturnType<typeof getPerformanceReadModel>>, { status: "live" }>["contracts"]; agentName: string }) {
   return (
     <WorkspacePanel
       eyebrow="Backend contract"
       title="Fields needed for real revenue intelligence"
-      description="These are the database/API fields Mark needs before optimization recommendations become trustworthy."
+      description={`These are the database/API fields ${agentName} needs before optimization recommendations become trustworthy.`}
     >
       <div className="divide-y divide-[var(--border-hairline)]">
         {contracts.map((contract) => (
@@ -241,7 +243,7 @@ function ContractTab({ contracts }: { contracts: Extract<Awaited<ReturnType<type
   );
 }
 
-function ReportsHeader({ status }: { status: string }) {
+function ReportsHeader({ status, agentName }: { status: string; agentName: string }) {
   return (
     <header className="module-rise mb-5 rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-6 py-5 shadow-[var(--elev-panel)]">
       <div className="flex flex-wrap items-center gap-2">
@@ -259,7 +261,7 @@ function ReportsHeader({ status }: { status: string }) {
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         <HeaderRule label="Measures" value="Leads, campaigns, partners, outcomes" />
         <HeaderRule label="Missing" value="Spend, booked jobs, CTA events" />
-        <HeaderRule label="Mark rule" value="Recommend only; humans approve" />
+        <HeaderRule label={`${agentName} rule`} value="Recommend only; humans approve" />
       </div>
     </header>
   );

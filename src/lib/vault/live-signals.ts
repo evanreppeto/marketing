@@ -65,7 +65,7 @@ export function toMarkActivity(
   const killSwitch = typeof metadata.kill_switch === "string" ? metadata.kill_switch : "Outbound locked";
 
   return {
-    name: agent?.name ?? "Mark",
+    name: agent?.name ?? "Agent",
     status: agent?.status ? titleize(agent.status) : "Offline",
     killSwitch,
     lastHeartbeat: shortTime(heartbeatIso, now),
@@ -83,7 +83,7 @@ export function toMarkActivity(
   };
 }
 
-const NOT_CONFIGURED = "Supabase is not configured — Mark activity is offline. Showing static counts.";
+const NOT_CONFIGURED = "Supabase is not configured — agent activity is offline. Showing static counts.";
 
 export type VaultLiveSignals =
   | { status: "live"; activity: MarkActivity; generatedAt: string }
@@ -95,7 +95,7 @@ function seedReviewCount(): number {
 }
 
 function offlineActivity(now: number): MarkActivity {
-  return toMarkActivity({ name: "Mark", status: "offline", metadata: {} }, [], [], seedReviewCount(), now);
+  return toMarkActivity({ name: "Agent", status: "offline", metadata: {} }, [], [], seedReviewCount(), now);
 }
 
 export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
@@ -134,7 +134,7 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
     return {
       status: "error",
       activity: offlineActivity(now),
-      message: error instanceof Error ? error.message : "Mark activity is unavailable.",
+      message: error instanceof Error ? error.message : "Agent activity is unavailable.",
     };
   }
 }

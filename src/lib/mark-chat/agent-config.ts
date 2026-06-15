@@ -17,7 +17,7 @@ export async function getMarkDisplayName(): Promise<string> {
 
 export type AgentProfile = { name: string; shortName: string; monogram: string };
 
-/** Derive display identity from a resolved name. Pure; empty falls back to "Mark". */
+/** Derive display identity from a resolved name. Pure; empty falls back to "Agent". */
 export function agentProfile(rawName: string | null | undefined): AgentProfile {
   const name = (rawName ?? "").trim() || "Agent";
   const shortName = name.split(/\s+/)[0];
@@ -25,7 +25,7 @@ export function agentProfile(rawName: string | null | undefined): AgentProfile {
   return { name, shortName, monogram: firstAlnum.toUpperCase() };
 }
 
-/** Resolve the agent's display name: operator override (DB) → env → "Mark". */
+/** Resolve the agent's display name: operator override (DB) → env → "Agent". */
 export function getAgentDisplayName(override: string | null | undefined): string {
   return override?.trim() || process.env.MARK_DISPLAY_NAME?.trim() || "Agent";
 }

@@ -15,7 +15,7 @@ export function MarkActivityRail({
   return (
     <Panel>
       <div className="flex items-center justify-between gap-3">
-        <div className="signal-eyebrow">Mark — live</div>
+        <div className="signal-eyebrow">{activity.name} — live</div>
         <StatusPill tone={isLive ? "green" : "gray"}>{isLive ? activity.status : "Offline"}</StatusPill>
       </div>
 

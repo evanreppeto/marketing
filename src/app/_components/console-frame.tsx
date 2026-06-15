@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
-import { DottedSurface } from "./dotted-surface";
 import { ShellContent } from "./shell-content";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
 import { SideNav, type ShellNavItem } from "./side-nav";
@@ -95,8 +94,8 @@ export function ConsoleFrame({
 
   return (
     <AgentNameProvider value={agentName}>
-    <main className={theme.shell.canvas}>
-      <div className={layout}>
+      <main className={theme.shell.canvas}>
+        <div className={layout}>
         <aside
           className={cx(
             theme.shell.sidebar,
@@ -140,24 +139,17 @@ export function ConsoleFrame({
           <OperatorProfile collapsed={collapsed} />
         </aside>
 
-        {pathname.startsWith("/mark") ? (
-          <section className="h-[calc(100dvh-4rem)] min-h-0 min-w-0 lg:h-screen lg:overflow-hidden">
-            <ShellContent>{children}</ShellContent>
-          </section>
-        ) : (
-          // Ambient dotted backdrop sits behind the content column (not the Mark
-          // surface, which keeps its own visuals). `relative isolate` keeps the
-          // -z-10 field above the page canvas but below content; the inner div
-          // owns the scroll so the backdrop stays put as the page scrolls.
-          <section className="relative isolate min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
-            <DottedSurface />
-            <div className="px-4 py-4 sm:px-6 lg:h-full lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
-              <ShellContent>{children}</ShellContent>
-            </div>
-          </section>
-        )}
-      </div>
-    </main>
+        <section
+          className={
+            pathname.startsWith("/mark")
+              ? "min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden"
+              : theme.shell.content
+          }
+        >
+          <ShellContent>{children}</ShellContent>
+        </section>
+        </div>
+      </main>
     </AgentNameProvider>
   );
 }

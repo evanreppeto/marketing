@@ -6,13 +6,15 @@ import type { IntelligencePanelModel } from "../_components/intelligence-panel";
 import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
 import { MetricStrip, WorkspaceHeader, WorkspacePanel } from "../_components/workspace";
 import { getPartnerDevelopmentDashboard, type PartnerCard } from "@/lib/partners/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 
 import { PartnerBoard } from "./partner-board";
 
 export default async function PartnersPage() {
   await connection();
 
-  const dashboard = await getPartnerDevelopmentDashboard();
+  const agentName = await getAgentName();
+  const dashboard = await getPartnerDevelopmentDashboard(undefined, agentName);
 
   if (dashboard.status !== "live") {
     return (
@@ -37,8 +39,8 @@ export default async function PartnersPage() {
     <>
       <WorkspaceHeader
         eyebrow="Partner development"
-        title="Build the referral network without letting Mark go outbound."
-        description="Review plumbers, sewer and drain companies, insurance agents, property managers, and other partner lanes. Mark can enrich, score, and draft approval packets; humans still approve every external move."
+        title={`Build the referral network without letting ${agentName} go outbound.`}
+        description={`Review plumbers, sewer and drain companies, insurance agents, property managers, and other partner lanes. ${agentName} can enrich, score, and draft approval packets; humans still approve every external move.`}
         status="Outbound locked"
         statusTone="amber"
         primary={{ label: "Review approvals", href: "/approvals" }}
@@ -81,7 +83,7 @@ export default async function PartnersPage() {
           <WorkspacePanel
             eyebrow="Partner board"
             title="Referral-development queue"
-            description="Each card shows the partner lane, source strength, active campaign or approval work, missing fields, and Mark's safest next internal action."
+            description={`Each card shows the partner lane, source strength, active campaign or approval work, missing fields, and ${agentName}'s safest next internal action.`}
             aside={<StatusPill tone="amber">No dispatch</StatusPill>}
           >
             <PartnerBoard partners={dashboard.partners} />
@@ -90,7 +92,7 @@ export default async function PartnersPage() {
           <WorkspacePanel
             eyebrow="Partner lanes"
             title="Relationship tracks"
-            description="These are the lanes Mark should classify. Counts come from live partner inference, not placeholder cards."
+            description={`These are the lanes ${agentName} should classify. Counts come from live partner inference, not placeholder cards.`}
           >
             <div className="grid gap-2 p-4 sm:grid-cols-2 xl:grid-cols-3">
               {dashboard.tracks.map((track) => (
@@ -109,13 +111,13 @@ export default async function PartnersPage() {
         </div>
 
         <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
-          <IntelligencePanel model={strongest ? intelligenceModel(strongest) : { title: "Partner intelligence", outboundLocked: true, emptyDetail: "No partner candidate is available yet." }} />
+          <IntelligencePanel model={strongest ? intelligenceModel(strongest) : { title: "Partner intelligence", outboundLocked: true, emptyDetail: "No partner candidate is available yet." }} agentName={agentName} />
 
-          <WorkspacePanel eyebrow="Mark can help" title="Safe internal moves">
+          <WorkspacePanel eyebrow={`${agentName} can help`} title="Safe internal moves">
             <div className="grid gap-2 p-4">
               <Link className={buttonClasses({ variant: "primary", className: "justify-between" })} href="/agent-operations">
                 <span>Prepare enrichment task</span>
-                <span className="text-[var(--on-accent)]/75">Mark</span>
+                <span className="text-[var(--on-accent)]/75">{agentName}</span>
               </Link>
               <Link className={buttonClasses({ variant: "ghost", className: "justify-between" })} href="/campaigns">
                 <span>Draft campaign package</span>

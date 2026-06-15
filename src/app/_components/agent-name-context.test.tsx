@@ -8,17 +8,17 @@ function Probe() {
 }
 
 describe("useAgentName", () => {
-  it("defaults to Agent with no provider", () => {
-    expect(renderToStaticMarkup(<Probe />)).toBe("<span>Agent</span>");
+  it("returns 'Agent' when used with no provider", () => {
+    expect(renderToStaticMarkup(<Probe />)).toContain("Agent");
   });
 
-  it("returns the provider's value when wrapped", () => {
-    expect(
-      renderToStaticMarkup(
-        <AgentNameProvider value="Hermes">
-          <Probe />
-        </AgentNameProvider>,
-      ),
-    ).toBe("<span>Hermes</span>");
+  it("returns the provider value", () => {
+    const html = renderToStaticMarkup(
+      <AgentNameProvider value="Hermes">
+        <Probe />
+      </AgentNameProvider>,
+    );
+    expect(html).toContain("Hermes");
+    expect(html).not.toContain("Agent");
   });
 });

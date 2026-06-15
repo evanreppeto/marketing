@@ -3,7 +3,7 @@ import type { AgentTaskDetail } from "@/lib/agent-operations/read-model";
 
 type LiveDetail = Extract<AgentTaskDetail, { status: "live" }>;
 
-export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["timeline"] }) {
+export function TicketActivityTimeline({ agentName, timeline }: { agentName: string; timeline: LiveDetail["timeline"] }) {
   return (
     <div>
       {timeline.length > 0 ? (
@@ -11,7 +11,7 @@ export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["tim
           {timeline.map((item) => (
             <li className="grid gap-3 px-4 py-4 sm:grid-cols-[96px_minmax(0,1fr)]" key={`${item.source}-${item.id}-${item.eventType}`}>
               <div className="flex flex-wrap items-start gap-2 sm:block">
-                <StatusPill tone={sourceTone(item.source)}>{item.source}</StatusPill>
+                <StatusPill tone={sourceTone(item.source)}>{item.source === "Mark" ? agentName : item.source}</StatusPill>
                 <div className="mt-0 text-xs font-medium text-[var(--text-muted)] sm:mt-2">
                   {humanize(item.eventType)}
                 </div>
@@ -28,7 +28,7 @@ export function TicketActivityTimeline({ timeline }: { timeline: LiveDetail["tim
         </ol>
       ) : (
         <div className="p-4">
-          <EmptyState title="No timeline entries yet" detail="Task events, Mark outputs, and approval movement will collect here as the shared ticket changes." />
+          <EmptyState title="No timeline entries yet" detail={`Task events, ${agentName} outputs, and approval movement will collect here as the shared ticket changes.`} />
         </div>
       )}
     </div>

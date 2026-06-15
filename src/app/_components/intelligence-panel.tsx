@@ -32,9 +32,11 @@ export type IntelligencePanelModel = {
 export function IntelligencePanel({
   model,
   className = "",
+  agentName = "Agent",
 }: {
   model: IntelligencePanelModel;
   className?: string;
+  agentName?: string;
 }) {
   const hasSubstance = Boolean(
     model.persona ||
@@ -157,7 +159,7 @@ export function IntelligencePanel({
       ) : (
         <div className="px-4 py-5">
           <p className="text-sm leading-6 text-[var(--text-secondary)]">
-            {model.emptyDetail ?? "No intelligence fields are available yet. Mark can enrich the record, but outbound remains locked until a human approval exists."}
+            {model.emptyDetail ?? `No intelligence fields are available yet. ${agentName} can enrich the record, but outbound remains locked until a human approval exists.`}
           </p>
         </div>
       )}

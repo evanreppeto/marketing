@@ -8,9 +8,11 @@ import { badgeStyle, priorityAppearance, statusAppearance } from "../../task-vis
 type LiveDetail = Extract<AgentTaskDetail, { status: "live" }>;
 
 export function TicketLatestOutput({
+  agentName,
   output,
   outputsHref,
 }: {
+  agentName: string;
   output: LiveDetail["latestOutput"];
   outputsHref: string;
 }) {
@@ -19,7 +21,7 @@ export function TicketLatestOutput({
       <section className="rounded-lg border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4">
         <EmptyState
           title="No output yet"
-          detail="When Mark creates a draft, recommendation, or structured packet, the latest version will appear here before anything outbound can move."
+          detail={`When ${agentName} creates a draft, recommendation, or structured packet, the latest version will appear here before anything outbound can move.`}
         />
       </section>
     );

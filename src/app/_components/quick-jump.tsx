@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { navItems } from "../_data/growth-engine";
+import { useAgentName } from "./agent-name-context";
 import { cx, theme } from "./theme";
 
 type JumpItem = {
@@ -14,10 +15,10 @@ type JumpItem = {
   href: string;
 };
 
-function buildItems(): JumpItem[] {
+function buildItems(agentName: string): JumpItem[] {
   return navItems.map((item) => ({
     key: `nav:${item.href}`,
-    label: item.label,
+    label: item.href === "/mark" ? agentName : item.label,
     subtitle: "Section",
     href: item.href,
   }));
@@ -25,12 +26,13 @@ function buildItems(): JumpItem[] {
 
 export function QuickJump() {
   const router = useRouter();
+  const agentName = useAgentName();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const allItems = useMemo(() => buildItems(), []);
+  const allItems = useMemo(() => buildItems(agentName), [agentName]);
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();

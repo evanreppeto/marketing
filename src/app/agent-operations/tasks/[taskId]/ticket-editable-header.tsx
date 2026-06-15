@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState, useTransition } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { labelIcon, priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import { badgeStyle, priorityAppearance, statusAppearance } from "../../task-visuals";
@@ -37,6 +38,7 @@ export function TicketEditableHeader({
   dueAt,
   latestOutput,
 }: TicketEditableHeaderProps) {
+  const agentName = useAgentName();
   const [title, setTitle] = useState(objective);
   const [savedTitle, setSavedTitle] = useState(objective);
   const [brief, setBrief] = useState(description ?? "");
@@ -162,7 +164,7 @@ export function TicketEditableHeader({
                     className="min-h-[72px] w-full resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-secondary)] outline-none transition placeholder:text-[var(--text-muted)] focus:outline focus:outline-2 focus:outline-[var(--accent)]"
                     onBlur={() => saveTextField("description", brief)}
                     onChange={(event) => setBrief(event.target.value)}
-                    placeholder="Add what Mark should know."
+                    placeholder={`Add what ${agentName} should know.`}
                     value={brief}
                   />
                 </label>
@@ -185,7 +187,7 @@ export function TicketEditableHeader({
                   </StatusPill>
                 </div>
                 <p className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">
-                  {needsApproval ? "Review Mark's draft." : "Mark has a draft ready."}
+                  {needsApproval ? `Review ${agentName}'s draft.` : `${agentName} has a draft ready.`}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
@@ -212,7 +214,7 @@ export function TicketEditableHeader({
       >
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
           <label className="block">
-            <span className="sr-only">Instruction for Mark</span>
+            <span className="sr-only">{`Instruction for ${agentName}`}</span>
             <input
               className="min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
               id="mark-instruction"
@@ -223,7 +225,7 @@ export function TicketEditableHeader({
                   event.currentTarget.form?.requestSubmit();
                 }
               }}
-              placeholder="Add instruction for Mark"
+              placeholder={`Add instruction for ${agentName}`}
               value={instruction}
             />
           </label>
@@ -240,7 +242,7 @@ export function TicketEditableHeader({
                   eventType: "instruction",
                   body: "Please continue this task. Keep outbound locked and add the next useful update here.",
                 });
-                setContinueMessage(result.ok ? "Mark was asked for the next step." : result.message);
+                setContinueMessage(result.ok ? `${agentName} was asked for the next step.` : result.message);
               });
             }}
             type="button"

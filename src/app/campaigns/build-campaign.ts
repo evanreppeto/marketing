@@ -2,7 +2,7 @@ const MAX_PROMPT = 2000;
 
 export function parseBuildPrompt(raw: unknown): string {
   const prompt = String(raw ?? "").trim();
-  if (!prompt) throw new Error("Describe the campaign you want Mark to build.");
+  if (!prompt) throw new Error("Describe the campaign you want the agent to build.");
   if (prompt.length > MAX_PROMPT) throw new Error(`Keep it under ${MAX_PROMPT} characters.`);
   return prompt;
 }

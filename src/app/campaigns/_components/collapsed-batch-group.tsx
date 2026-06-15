@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { formatWaitTime } from "./format-wait-time";
 
 /** The collapsed fold for internal CRM-population batches. `items` are already
  *  sorted longest-waiting first by the caller. */
 export function CollapsedBatchGroup({ items, nowMs }: { items: CampaignWorkspaceListItem[]; nowMs: number }) {
+  const agentName = useAgentName();
   const [open, setOpen] = useState(false);
   const oldest = items[0]; // caller sorts longest-waiting first
   const oldestWait = oldest ? formatWaitTime(oldest.updatedAtIso, nowMs) : "";
@@ -24,7 +26,7 @@ export function CollapsedBatchGroup({ items, nowMs }: { items: CampaignWorkspace
         <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
         <span className="min-w-0 flex-1 text-sm text-[var(--text-secondary)]">
           <span className="font-medium text-[var(--text-primary)]">CRM Population — {items.length} batches</span>
-          <span className="text-[var(--text-muted)]"> · enrich {items.length} records from Mark&apos;s discovery crawl</span>
+          <span className="text-[var(--text-muted)]"> · enrich {items.length} records from {agentName}&apos;s discovery crawl</span>
           {oldestWait ? <span className="text-[var(--accent)]"> · oldest waiting {oldestWait}</span> : null}
         </span>
         <span className="shrink-0 text-xs font-semibold text-[var(--text-muted)]">{open ? "Collapse ▴" : "Expand ▾"}</span>

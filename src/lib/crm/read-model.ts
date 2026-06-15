@@ -338,7 +338,7 @@ export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCo
   }
 }
 
-export async function getCrmRecordData(key: CrmObjectKey, recordId: string, client?: SupabaseClient): Promise<CrmRecordReadResult> {
+export async function getCrmRecordData(key: CrmObjectKey, recordId: string, client?: SupabaseClient, agentName: string = "Agent"): Promise<CrmRecordReadResult> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
@@ -356,7 +356,7 @@ export async function getCrmRecordData(key: CrmObjectKey, recordId: string, clie
     const metadata = asRecord(record.metadata);
     const persona = getString(record.persona) ?? getString(metadata.persona) ?? "Unassigned persona";
     const lifecycleStatus = titleize(recordStatus(key, record));
-    const owner = getString(metadata.owner) ?? defaultOwnerForObject(key);
+    const owner = getString(metadata.owner) ?? defaultOwnerForObject(key, agentName);
     const updated = record.updated_at ?? record.created_at ?? "Now";
     const scoreSet = getScores(key, record, metadata);
     const evidence = buildRecordEvidence(metadata);
@@ -379,8 +379,8 @@ export async function getCrmRecordData(key: CrmObjectKey, recordId: string, clie
       leadScore: scoreSet.leadScore,
       partnerScore: scoreSet.partnerScore,
       revenueScore: scoreSet.revenueScore,
-      attentionReason: attentionReasonForRecord(key, record, metadata),
-      nextBestAction: nextBestActionForRecord(key, record, metadata),
+      attentionReason: attentionReasonForRecord(key, record, metadata, agentName),
+      nextBestAction: nextBestActionForRecord(key, record, metadata, agentName),
       cta: ctaForPersona(persona),
       messageAngle: messageAngleForPersona(persona),
       guardrailStatus: "Internal CRM review only. No outreach, publishing, spend, or dispatch is enabled from this record.",
@@ -764,21 +764,21 @@ function urgencyForRecord(key: CrmObjectKey, leadScore: number | null, metadata:
   return "Normal";
 }
 
-function attentionReasonForRecord(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>) {
+function attentionReasonForRecord(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>, agentName: string = "Agent") {
   const explicit = getString(metadata.attention_reason) ?? getString(metadata.why_mark_created_it);
   if (explicit) return explicit;
   if (key === "leads") return (record as LeadRow).loss_summary ?? "Lead needs validation, scoring, enrichment, and approval before outreach.";
   if (key === "companies") return "Company may support referral, partner, or campaign development workflows.";
   if (key === "contacts") return "Contact record can connect persona, company, lead, and approval history.";
   if (key === "outcomes") return "Outcome record can close the loop between marketing activity and revenue.";
-  return "Record is available for Mark review and human inspection.";
+  return `Record is available for ${agentName} review and human inspection.`;
 }
 
-function nextBestActionForRecord(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>) {
+function nextBestActionForRecord(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>, agentName: string = "Agent") {
   const explicit = getString(metadata.next_best_action) ?? getString(metadata.recommended_action);
   if (explicit) return explicit;
   if (key === "leads") return nextStepForLead((record as LeadRow).status);
-  if (key === "companies") return "Review partner fit, missing evidence, and next touch before asking Mark to draft outreach.";
+  if (key === "companies") return `Review partner fit, missing evidence, and next touch before asking ${agentName} to draft outreach.`;
   if (key === "contacts") return "Confirm role, persona, consent, and company relationship before campaign use.";
   if (key === "jobs") return "Connect job status and revenue context back to originating lead or campaign.";
   if (key === "outcomes") return "Review attribution and feed performance learning back into scoring.";
@@ -1153,8 +1153,8 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
-function defaultOwnerForObject(key: CrmObjectKey) {
-  if (key === "leads") return "Mark";
+function defaultOwnerForObject(key: CrmObjectKey, agentName: string = "Agent") {
+  if (key === "leads") return agentName;
   if (key === "jobs" || key === "properties") return "Ops";
   if (key === "outcomes") return "Revenue";
   return "Operator";
