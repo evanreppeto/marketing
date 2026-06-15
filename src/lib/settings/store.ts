@@ -39,7 +39,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   workspaceName: "Arc",
   workspaceProfile: "company",
   productLabel: "Marketing",
-  assistantName: "Mark",
+  assistantName: "Agent",
   assistantTone: "direct",
   assistantResponseStyle: "balanced",
   approvalStrictness: "standard",

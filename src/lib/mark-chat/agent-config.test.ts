@@ -7,10 +7,10 @@ afterEach(() => {
 });
 
 describe("agentProfile", () => {
-  it("defaults to Mark/M for empty input", () => {
-    expect(agentProfile("")).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
-    expect(agentProfile(undefined)).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
-    expect(agentProfile(null)).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
+  it("defaults to Agent/A for empty input", () => {
+    expect(agentProfile("")).toEqual({ name: "Agent", shortName: "Agent", monogram: "A" });
+    expect(agentProfile(undefined)).toEqual({ name: "Agent", shortName: "Agent", monogram: "A" });
+    expect(agentProfile(null)).toEqual({ name: "Agent", shortName: "Agent", monogram: "A" });
   });
 
   it("derives first-word shortName and uppercase monogram", () => {
@@ -21,13 +21,13 @@ describe("agentProfile", () => {
 });
 
 describe("getAgentDisplayName", () => {
-  it("prefers the operator override, then env, then Mark", () => {
+  it("prefers the operator override, then env, then Agent", () => {
     vi.stubEnv("MARK_DISPLAY_NAME", "Hermes");
     expect(getAgentDisplayName("Nova")).toBe("Nova");
     expect(getAgentDisplayName("")).toBe("Hermes");
     expect(getAgentDisplayName(null)).toBe("Hermes");
     vi.stubEnv("MARK_DISPLAY_NAME", "");
-    expect(getAgentDisplayName(undefined)).toBe("Mark");
+    expect(getAgentDisplayName(undefined)).toBe("Agent");
   });
 });
 

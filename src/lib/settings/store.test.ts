@@ -103,7 +103,7 @@ describe("settings store helpers", () => {
     expect(settings.appearanceMotion).toBe("standard");
     expect(settings.workspaceProfile).toBe("company");
     expect(settings.productLabel).toBe("Marketing");
-    expect(settings.assistantName).toBe("Mark");
+    expect(settings.assistantName).toBe("Agent");
     expect(settings.assistantTone).toBe("direct");
     expect(settings.assistantResponseStyle).toBe("balanced");
     expect(settings.approvalStrictness).toBe("standard");
