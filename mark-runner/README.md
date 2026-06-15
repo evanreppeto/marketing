@@ -14,8 +14,8 @@ plus a reference poller; Mark runs the turns.
   HTTP. Read-only/advisory/draft tools only — nothing that approves, launches, or
   sends. See `../docs/mark-operations-api.md` for the endpoints behind each tool.
 - **`.env.example`** — config for the poller and MCP server.
-- **`requirements.txt`** — the MCP server's one dependency (`mcp`). The poller and
-  webhook stay stdlib-only.
+- **`requirements.txt`** — pip dependencies: `mcp` (MCP server) and `realtime`
+  (realtime subscriber). The poller and webhook stay stdlib-only.
 
 ## Run the poller
 
