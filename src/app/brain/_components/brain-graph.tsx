@@ -56,6 +56,27 @@ function hashKindColor(kind: string): string {
 }
 const kindColor = (kind: string): string => KIND_COLOR[kind] ?? hashKindColor(kind);
 
+// Plain-English description of what each node *kind* represents, shown in the
+// detail panel so a node (especially one with no body, like a persona) always
+// explains what it is. Custom kinds fall back to a generic line.
+const KIND_DESCRIPTION: Record<string, string> = {
+  brand_fact: "A verified claim about Big Shoulders that governs how we speak in outbound.",
+  persona: "A target audience segment we map leads and campaigns to.",
+  segment: "A grouping of personas or accounts targeted together.",
+  service: "A restoration service Big Shoulders offers.",
+  proof_point: "Evidence — a stat, result, or credential — that backs up a claim.",
+  messaging_angle: "A way of framing the pitch for a persona or moment.",
+  cta: "A call to action used in outbound.",
+  asset_ref: "A creative asset (image, video, doc) we can reuse.",
+  learning: "Something learned from performance or operator feedback.",
+  signal: "An external trigger — weather, competitor, news — worth acting on.",
+  crm_ref: "A link to a CRM record (company, contact, lead, job).",
+  campaign_ref: "A link to a campaign package.",
+  other: "A general note in the brain.",
+};
+const kindDescription = (kind: string): string =>
+  KIND_DESCRIPTION[kind] ?? "A custom node type you defined.";
+
 const TIER_DOT: Record<string, string> = {
   trusted: "#4a9d6a",
   proposed: "#d99524",
@@ -819,6 +840,14 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
 
               <h2 className="mt-2 font-semibold text-[var(--text-primary)]">{selected.label}</h2>
 
+              {/* What this kind of node is — always shown, so even body-less
+                  nodes (e.g. personas) explain themselves. */}
+              <p className="mt-1.5 text-xs leading-5 text-[var(--text-muted)]">{kindDescription(selected.kind)}</p>
+
+              {selected.summary && selected.summary !== selected.body ? (
+                <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-secondary)]">{selected.summary}</p>
+              ) : null}
+
               {selected.body ? (
                 <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{selected.body}</p>
               ) : null}
@@ -826,6 +855,14 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
               {selected.persona ? (
                 <p className="mt-2 text-xs text-[var(--text-muted)]">
                   <span className="font-semibold">Persona:</span> {selected.persona}
+                </p>
+              ) : null}
+
+              {selected.confidence != null || selected.source ? (
+                <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+                  {selected.confidence != null ? `${selected.confidence}% confidence` : null}
+                  {selected.confidence != null && selected.source ? " · " : null}
+                  {selected.source ? `source: ${selected.source}` : null}
                 </p>
               ) : null}
 
