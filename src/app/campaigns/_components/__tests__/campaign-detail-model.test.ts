@@ -5,6 +5,7 @@ import {
   buildCampaignActionHub,
   buildCampaignChecklist,
   buildCampaignContentRows,
+  buildCampaignPackageSummary,
   buildSendExportFacts,
   contentStatus,
   contentWhere,
@@ -190,7 +191,7 @@ describe("campaign detail model", () => {
   it("builds checklist steps from launch state", () => {
     expect(buildCampaignChecklist(detail(), "Agent").map((step) => ({ label: step.label, state: step.state }))).toEqual([
       { label: "Review content", state: "active" },
-      { label: "Approve pieces", state: "active" },
+      { label: "Approve pieces", state: "locked" },
       { label: "Send or export", state: "locked" },
       { label: "Watch results", state: "locked" },
     ]);
@@ -250,6 +251,19 @@ describe("campaign detail model", () => {
       { label: "Email", value: "Blocked" },
       { label: "Export", value: "Live" },
     ]);
+  });
+
+  it("summarizes the package into readable counts", () => {
+    expect(buildCampaignPackageSummary(detail())).toEqual({
+      total: 2,
+      review: 1,
+      ready: 0,
+      live: 1,
+      draft: 0,
+      blocked: 0,
+      media: 0,
+      destinations: ["Email", "Export"],
+    });
   });
 
   it("builds a simple action hub for campaigns that need review", () => {

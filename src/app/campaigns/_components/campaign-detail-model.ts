@@ -28,6 +28,17 @@ export type SendExportFact = {
   value: "Ready" | "Blocked" | "Not connected" | "Sent" | "Live";
 };
 
+export type CampaignPackageSummary = {
+  total: number;
+  review: number;
+  ready: number;
+  live: number;
+  draft: number;
+  blocked: number;
+  media: number;
+  destinations: string[];
+};
+
 export type CampaignActionHub = {
   title: string;
   detail: string;
@@ -92,7 +103,8 @@ export function contentStatus(asset: CampaignWorkspaceAsset): PlainStatus {
   return { label: "Draft", tone: "gray" };
 }
 
-export function contentStatusForLaunch(asset: CampaignWorkspaceAsset, _launchState: CampaignLaunchState): PlainStatus {
+export function contentStatusForLaunch(asset: CampaignWorkspaceAsset, launchState: CampaignLaunchState): PlainStatus {
+  void launchState;
   const status = contentStatus(asset);
   if (status.label === "Ready" && !asset.dispatchLocked) return { label: "Live", tone: "green" };
   return status;
@@ -146,7 +158,7 @@ export function buildCampaignChecklist(detail: LiveCampaignWorkspace, agentName:
     {
       label: "Approve pieces",
       detail: hasContent ? `${approvedCount} approved.` : "Content must be created before approval.",
-      state: !hasContent ? "locked" : allApproved ? "done" : "active",
+      state: !hasContent || pendingCount > 0 ? "locked" : allApproved ? "done" : "active",
     },
     {
       label: "Send or export",
@@ -171,6 +183,33 @@ export function buildSendExportFacts(detail: LiveCampaignWorkspace): SendExportF
     if (!existing || existing === "Ready" || value === "Blocked") byWhere.set(where, value);
   }
   return Array.from(byWhere, ([label, value]) => ({ label, value }));
+}
+
+export function buildCampaignPackageSummary(detail: LiveCampaignWorkspace): CampaignPackageSummary {
+  const summary: CampaignPackageSummary = {
+    total: detail.assets.length,
+    review: 0,
+    ready: 0,
+    live: 0,
+    draft: 0,
+    blocked: 0,
+    media: detail.media.length,
+    destinations: [],
+  };
+  const destinations = new Set<string>();
+
+  for (const asset of detail.assets) {
+    const status = contentStatusForLaunch(asset, detail.launchState).label;
+    if (status === "Review") summary.review += 1;
+    if (status === "Ready") summary.ready += 1;
+    if (status === "Live") summary.live += 1;
+    if (status === "Draft") summary.draft += 1;
+    if (status === "Blocked") summary.blocked += 1;
+    destinations.add(contentWhere(asset));
+  }
+
+  summary.destinations = Array.from(destinations);
+  return summary;
 }
 
 export function buildCampaignActionHub(detail: LiveCampaignWorkspace, agentName: string, dispatchCount = 0): CampaignActionHub {

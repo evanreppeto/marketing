@@ -61,22 +61,23 @@ function getParam(value: string | string[] | undefined) {
 function getViewParam(value: string | string[] | undefined): CampaignManagerView {
   const raw = getParam(value);
   if (raw === "all" || raw === "ready-to-send" || raw === "mark-working" || raw === "live" || raw === "archived") return raw;
-  return "needs-attention";
+  if (raw === "needs-attention") return raw;
+  return "all";
 }
 
 function CampaignsHeader({ pendingCount, agentName }: { pendingCount: number; agentName: string }) {
   return (
     <PageHeader
-      eyebrow="Campaign manager"
+      eyebrow="Library"
       title="Campaigns"
-      description="Manage all campaigns, content, approvals, and send/export steps from one place."
+      description="See each campaign's audience, goal, drafts, messages, and media in one readable place."
       aside={
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {pendingCount > 0 ? <StatusPill tone="amber">{pendingCount} need attention</StatusPill> : <StatusPill tone="green">Nothing waiting</StatusPill>}
           <Link href="/campaigns/new" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            Create campaign
+            New campaign
           </Link>
-          <Link href="/campaigns/new?mode=mark" className={buttonClasses({ size: "sm" })}>
+          <Link href="/campaigns/new#ask-mark" className={buttonClasses({ size: "sm" })}>
             Ask {agentName}
           </Link>
         </div>

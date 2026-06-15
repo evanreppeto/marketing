@@ -323,4 +323,51 @@ describe("getCampaignWorkspaceList rollup", () => {
     expect(item?.rollup.total).toBe(3);
     expect(item?.rollup.state).toBe("needs_review");
   });
+
+  it("exposes the campaign package pieces needed by the library page", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: [ROLLUP_CAMPAIGN], error: null },
+      campaign_assets: {
+        data: [
+          {
+            ...rollupAsset("asset-email", "email"),
+            title: "Partner intro email",
+            channel: "email",
+            draft_body: "Subject: Fast help when a leak turns into a water-loss claim",
+          },
+          {
+            ...rollupAsset("asset-image", "social_ad"),
+            title: "Storm cleanup image",
+            channel: "social_ad",
+            draft_body: "",
+            audit_payload: { media_assets: [{ url: "https://cdn.example/storm.png", type: "image", title: "Storm cleanup" }] },
+          },
+        ],
+        error: null,
+      },
+      approval_items: { data: [], error: null },
+    });
+
+    const list = await getCampaignWorkspaceList(supabase);
+
+    expect(list.status).toBe("live");
+    if (list.status !== "live") return;
+
+    expect(list.campaigns[0].contentPieces).toEqual([
+      expect.objectContaining({
+        title: "Partner intro email",
+        kind: "Email",
+        channel: "Email",
+        status: "Pending approval",
+        preview: "Subject: Fast help when a leak turns into a water-loss claim",
+        media: [],
+      }),
+      expect.objectContaining({
+        title: "Storm cleanup image",
+        kind: "Social Ad",
+        channel: "Social Ad",
+        media: [expect.objectContaining({ url: "https://cdn.example/storm.png", type: "image" })],
+      }),
+    ]);
+  });
 });

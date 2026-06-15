@@ -1,5 +1,5 @@
 import { requireOperator } from "@/lib/auth/operator";
-import { getMarkDisplayName } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
 import { PageHeader } from "../../_components/page-header";
@@ -7,8 +7,8 @@ import { CampaignCreateForm } from "../_components/campaign-create-form";
 
 export default async function NewCampaignPage() {
   await requireOperator();
-  const { workspaceName } = await getAppSettings();
-  const assistantName = await getMarkDisplayName();
+  const { assistantName: assistantNameSetting, workspaceName } = await getAppSettings();
+  const assistantName = getAgentDisplayName(assistantNameSetting);
 
   return (
     <>
