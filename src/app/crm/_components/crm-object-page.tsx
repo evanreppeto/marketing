@@ -38,7 +38,7 @@ function buildObjectSections(agentName: string): Array<{ key: CrmObjectSectionKe
   ];
 }
 
-export function CrmObjectPage({ action, agentName = "Agent", liveMessage, liveObject, navCounts, objectKey, section, view }: CrmObjectPageProps) {
+export function CrmObjectPage({ action, agentName = "Arc", liveMessage, liveObject, navCounts, objectKey, section, view }: CrmObjectPageProps) {
   const fallbackObject = crmObjects.find((object) => object.key === objectKey);
   const crmObject = liveObject ?? (fallbackObject ? { ...fallbackObject, count: 0, relationships: "No linked records", lastActivity: "No activity", sampleRows: [] } : undefined);
   const isLive = Boolean(liveObject);

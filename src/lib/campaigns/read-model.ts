@@ -417,7 +417,7 @@ type LeadRow = {
 
 const EMPTY_READABLE_PREVIEW = "No readable draft content has been attached yet.";
 
-export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Agent"): Promise<CampaignWorkspaceList> {
+export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Arc"): Promise<CampaignWorkspaceList> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
@@ -507,7 +507,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
 export async function getCampaignWorkspaceDetail(
   campaignId: string,
   client?: SupabaseClient,
-  agentName = "Agent",
+  agentName = "Arc",
 ): Promise<CampaignWorkspaceDetail> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
@@ -658,7 +658,7 @@ function classifyActor(actor: string | null): AuditEntry["actorKind"] {
 /** Unified, newest-first campaign audit trail: every recorded event plus the
  *  concrete work Mark produced, tagged by actor so the UI can filter to user or
  *  Mark activity. */
-export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRow[], agentName = "Agent"): AuditEntry[] {
+export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRow[], agentName = "Arc"): AuditEntry[] {
   const items: Array<AuditEntry & { sortAt: string }> = [];
 
   for (const event of events) {
@@ -697,7 +697,7 @@ export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRo
     }));
 }
 
-export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[], agentName = "Agent"): MarkMessage[] {
+export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[], agentName = "Arc"): MarkMessage[] {
   // Raw `at` holds the ISO timestamp for sorting; formatted on the way out.
   const items: MarkMessage[] = [];
 
@@ -835,7 +835,7 @@ export async function getCampaignsForRecord(
   kind: LinkedCampaignRecordKind,
   recordId: string,
   client?: SupabaseClient,
-  agentName = "Agent",
+  agentName = "Arc",
 ): Promise<LinkedCampaign[]> {
   if (!client && !isSupabaseAdminConfigured()) return [];
 
@@ -1169,7 +1169,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
  * Pure: distill the "thinking behind it" for the Reasoning tab from Mark's
  * stored reasoning/audit payloads and the tools each asset was built with.
  */
-export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[], agentName = "Agent"): CampaignWorkspaceReasoning {
+export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[], agentName = "Arc"): CampaignWorkspaceReasoning {
   const reasoning = asObject(campaign.reasoning_payload);
   const audit = asObject(campaign.audit_payload);
 
@@ -1199,7 +1199,7 @@ export function buildExecutiveOverview(input: {
   reasoning: CampaignWorkspaceReasoning;
   agentName?: string;
 }): CampaignExecutiveOverview {
-  const { campaign, assets, approvals, reasoning, sources, agentName = "Agent" } = input;
+  const { campaign, assets, approvals, reasoning, sources, agentName = "Arc" } = input;
   const audience = sentenceFragment(campaign.audience_summary ?? `the ${humanize(campaign.persona)} segment`);
   const offer = sentenceFragment(campaign.offer_summary ?? "the proposed Big Shoulders restoration offer");
   const objective = sentenceFragment(campaign.objective ?? campaign.offer_summary ?? "No campaign objective has been captured yet");
@@ -1436,7 +1436,7 @@ export function buildSources(input: {
   contacts: ContactRow[];
   leads: LeadRow[];
   outputs: AgentOutputRow[];
-}, agentName = "Agent"): CampaignWorkspaceSource[] {
+}, agentName = "Arc"): CampaignWorkspaceSource[] {
   const sources: CampaignWorkspaceSource[] = [];
 
   for (const company of input.companies) {
@@ -1509,7 +1509,7 @@ export function buildSources(input: {
   return uniqueById(sources);
 }
 
-function buildMediaByCampaign(campaigns: CampaignRow[], assets: CampaignAssetRow[], approvals: ApprovalItemRow[], outputs: AgentOutputRow[], agentName = "Agent") {
+function buildMediaByCampaign(campaigns: CampaignRow[], assets: CampaignAssetRow[], approvals: ApprovalItemRow[], outputs: AgentOutputRow[], agentName = "Arc") {
   const mediaByCampaign = new Map<string, CampaignMediaAsset[]>();
 
   for (const campaign of campaigns) {
@@ -1581,7 +1581,7 @@ function collectMediaFromApproval(approval: ApprovalItemRow) {
   ]);
 }
 
-function collectMediaFromOutput(output: AgentOutputRow, agentName = "Agent") {
+function collectMediaFromOutput(output: AgentOutputRow, agentName = "Arc") {
   return buildMediaAssets([
     [`${agentName} output`, asObject(output.structured_payload)],
     [`${agentName} body`, output.edited_body ?? output.body ?? ""],

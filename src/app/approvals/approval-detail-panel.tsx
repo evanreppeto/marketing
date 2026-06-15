@@ -13,7 +13,7 @@ import { decideApprovalItemAction } from "./actions";
 export function ApprovalDetailPanel({
   item,
   requestedItemId,
-  agentName = "Agent",
+  agentName = "Arc",
 }: {
   item: ApprovalCard | null;
   requestedItemId?: string | null;

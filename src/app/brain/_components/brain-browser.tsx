@@ -12,7 +12,7 @@ const TIER_TONE: Record<string, ThemeTone> = {
   archived: "gray",
 };
 
-export function BrainBrowser({ nodes, agentName = "Agent" }: { nodes: BrainNode[]; agentName?: string }) {
+export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[]; agentName?: string }) {
   if (nodes.length === 0) {
     return (
       <Panel>

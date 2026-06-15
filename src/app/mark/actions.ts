@@ -6,14 +6,14 @@ import { revalidatePath } from "next/cache";
 
 import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
-import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
+import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, validateMarkMessageInput, MarkMessageError, type MarkMode, type MarkRoute } from "@/domain";
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
 import { hasActiveAgentTokens } from "@/lib/agent/tokens";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
-import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
+import { getMarkDisplayName, isAgentLive } from "@/lib/mark-chat/agent-config";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
@@ -97,7 +97,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       const conversation = await createConversation({ operator, title: deriveThreadTitle(body), projectId }, client);
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route }, client);
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
@@ -178,35 +178,25 @@ export type MarkAgentStatus = {
 };
 
 /**
- * Connection signal for the Mark header: is an agent actually attached to this
- * workspace (a runner endpoint is configured AND an agent is registered)? When
- * false, sends still queue for inbox pickup — the UI says so plainly rather than
- * leaving the operator guessing.
+ * Connection signal for the Mark header: is an agent actually attached and live?
+ * Judged by a recent ok heartbeat — recordAgentSeen() stamps last_seen_at on every
+ * authenticated /api/v1/hermes call (the poller's poll, a realtime reply, a webhook
+ * test), so this is true whether the agent is wired via realtime, polling, or a
+ * webhook, and does not depend on a configured runner URL or agent-key naming. When
+ * false, sends still queue for pickup — the UI says so plainly.
  */
 export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
   const connection = await resolveAgentConnection();
   const name = await getMarkDisplayName();
-  const base = {
+  const attached =
+    isSupabaseAdminConfigured() &&
+    isAgentLive(connection.health.lastStatus, connection.health.lastSeenAt, Date.now());
+  return {
+    attached,
     name,
     lastSeenAt: connection.health.lastSeenAt,
     lastStatus: connection.health.lastStatus,
   };
-
-  if (!isSupabaseAdminConfigured() || !(await isMarkRunnerConfigured())) {
-    return { attached: false, ...base };
-  }
-  try {
-    const client = getSupabaseAdminClient();
-    const { data } = await client
-      .from("agents")
-      .select("id")
-      .in("key", await markAgentKeys())
-      .limit(1)
-      .maybeSingle<{ id: string }>();
-    return { attached: Boolean(data), ...base };
-  } catch {
-    return { attached: false, ...base };
-  }
 }
 
 export type AgentConnectionInfo = MarkAgentStatus & {
@@ -469,6 +459,7 @@ export async function setMarkMessageFeedbackAction(
 export async function regenerateMarkReplyAction(
   conversationId: string,
   markMessageId: string,
+  opts?: { mode?: MarkMode; route?: MarkRoute },
 ): Promise<void> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return;
@@ -487,6 +478,11 @@ export async function regenerateMarkReplyAction(
   const lastOperator = [...slice].reverse().find((m) => m.role === "operator");
   if (!lastOperator) return;
 
+  // Prefer the settings the original turn was sent with; fall back to the caller's
+  // current selection, then validated defaults.
+  const mode = parseMarkMode(lastOperator.mode ?? opts?.mode);
+  const route = parseMarkRoute(lastOperator.route ?? opts?.route);
+
   const operator = getOperatorActor();
   const settings = await getAppSettings();
   const agentName = await getAgentName();
@@ -498,8 +494,8 @@ export async function regenerateMarkReplyAction(
         message: lastOperator.body,
         mentions: lastOperator.mentions,
         operator,
-        route: "fast",
-        mode: "ask",
+        route,
+        mode,
         assistantTone: settings.assistantTone,
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
@@ -515,8 +511,8 @@ export async function regenerateMarkReplyAction(
       message: lastOperator.body,
       mentions: lastOperator.mentions,
       operator,
-      route: "fast",
-      mode: "ask",
+      route,
+      mode,
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,

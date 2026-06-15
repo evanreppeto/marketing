@@ -231,7 +231,7 @@ export function BrandingSettingsForm({
         </label>
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Favicon URL</span>
-          <input className={inputClass} defaultValue={initialBrandFaviconUrl} name="brandFaviconUrl" placeholder="/icon.svg" />
+          <input className={inputClass} defaultValue={initialBrandFaviconUrl} name="brandFaviconUrl" placeholder="/icon.png" />
         </label>
       </div>
 

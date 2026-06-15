@@ -10,7 +10,7 @@ type GraphResult = ({ status: "live" } & BrainGraph) | { status: "unavailable"; 
 const NODE_CAP = 2000;
 const EDGE_CAP = 5000;
 const NODE_COLUMNS =
-  "id,kind,label,body,summary,persona,trust_tier,confidence,ref_table,ref_id,source,created_by,created_at";
+  "id,kind,label,body,summary,persona,trust_tier,confidence,ref_table,ref_id,source,tags,created_by,created_at";
 const EDGE_COLUMNS = "id,from_node_id,to_node_id,relation,weight,trust_tier";
 const VISIBLE_TIERS: TrustTier[] = ["observed", "proposed", "trusted"];
 
@@ -26,6 +26,7 @@ type NodeRow = {
   ref_table: string | null;
   ref_id: string | null;
   source: string | null;
+  tags: string[] | null;
   created_by: string | null;
   created_at: string | null;
 };

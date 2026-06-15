@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type MarkActionCard, type MarkMedia, type MarkMention, parseActions, parseMedia, parseMentions } from "@/domain";
+import { type MarkActionCard, type MarkMedia, type MarkMention, type MarkMode, type MarkRoute, parseActions, parseMedia, parseMentions } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 
@@ -41,6 +41,10 @@ export type MarkMessage = {
   suggestions: string[];
   /** Operator-uploaded reference images attached to this message. */
   attachments: MarkAttachment[];
+  /** The mode/route this turn was sent with (operator messages); lets Regenerate
+   *  reuse the original settings instead of a default. Absent on older rows. */
+  mode?: MarkMode;
+  route?: MarkRoute;
   createdAt: string;
 };
 
@@ -158,8 +162,19 @@ function toMessage(row: MessageRow): MarkMessage {
     actions: parseActions((row.metadata as { actions?: unknown } | null)?.actions),
     suggestions: parseSuggestions((row.metadata as { suggestions?: unknown } | null)?.suggestions),
     attachments: parseAttachments((row.metadata as { attachments?: unknown } | null)?.attachments),
+    mode: parseOptionalMode((row.metadata as { mode?: unknown } | null)?.mode),
+    route: parseOptionalRoute((row.metadata as { route?: unknown } | null)?.route),
     createdAt: row.created_at,
   };
+}
+
+/** Strict optional parsers — unlike domain's parseMarkMode/Route these return
+ *  undefined (not a default) when absent, so non-operator rows stay clean. */
+function parseOptionalMode(value: unknown): MarkMode | undefined {
+  return value === "ask" || value === "act" || value === "draft" ? value : undefined;
+}
+function parseOptionalRoute(value: unknown): MarkRoute | undefined {
+  return value === "fast" || value === "standard" ? value : undefined;
 }
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -287,9 +302,20 @@ export async function listProjectAssetMessages(
 }
 
 export async function insertOperatorMessage(
-  input: { conversationId: string; body: string; mentions: MarkMention[]; attachments?: MarkAttachment[] },
+  input: {
+    conversationId: string;
+    body: string;
+    mentions: MarkMention[];
+    attachments?: MarkAttachment[];
+    mode?: MarkMode;
+    route?: MarkRoute;
+  },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<MarkMessage> {
+  const metadata: Record<string, unknown> = {};
+  if (input.attachments && input.attachments.length > 0) metadata.attachments = input.attachments;
+  if (input.mode) metadata.mode = input.mode;
+  if (input.route) metadata.route = input.route;
   const { data, error } = await client
     .from("mark_messages")
     .insert({
@@ -298,7 +324,7 @@ export async function insertOperatorMessage(
       body: input.body,
       status: "sent",
       mentions: input.mentions,
-      metadata: input.attachments && input.attachments.length > 0 ? { attachments: input.attachments } : {},
+      metadata,
     })
     .select(MESSAGE_COLUMNS)
     .single<MessageRow>();

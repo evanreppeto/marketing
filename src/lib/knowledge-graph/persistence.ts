@@ -3,6 +3,8 @@ import {
   type KnowledgeEdgeInput,
   type KnowledgeNodeInput,
   type NodeAuthor,
+  normalizeKind,
+  normalizeTags,
   resolveDecisionTier,
   resolveInitialTrustTier,
   validateEdgeInput,
@@ -131,6 +133,51 @@ export async function decideNode(
       approved_by: decision === "approve" ? actor : null,
       approved_at: decision === "approve" ? new Date().toISOString() : null,
     })
+    .eq("id", nodeId)
+    .eq("org_id", orgId)
+    .select("id")
+    .single<{ id: string }>();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}
+
+/**
+ * Change a node's kind (operator-curated). Accepts built-in or custom kinds via
+ * normalizeKind. The trust tier is left untouched — this only re-labels the node.
+ */
+export async function setNodeKind(
+  nodeId: string,
+  kind: string,
+  deps: WriteDeps = {},
+): Promise<WriteResult> {
+  const normalized = normalizeKind(kind);
+  if (!normalized) return { ok: false, error: "That kind isn't valid (start with a letter; letters, numbers, underscores)." };
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+  const { data, error } = await client
+    .from("knowledge_nodes")
+    .update({ kind: normalized })
+    .eq("id", nodeId)
+    .eq("org_id", orgId)
+    .select("id")
+    .single<{ id: string }>();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}
+
+/** Replace a node's freeform tags (operator-curated metadata, not gated). */
+export async function setNodeTags(
+  nodeId: string,
+  tags: string[],
+  deps: WriteDeps = {},
+): Promise<WriteResult> {
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+  const { data, error } = await client
+    .from("knowledge_nodes")
+    .update({ tags: normalizeTags(tags) })
     .eq("id", nodeId)
     .eq("org_id", orgId)
     .select("id")

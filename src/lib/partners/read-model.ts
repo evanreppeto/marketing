@@ -198,7 +198,7 @@ type NextBestActionRow = {
   updated_at: string | null;
 };
 
-export async function getPartnerDevelopmentDashboard(client?: SupabaseClient, agentName = "Agent"): Promise<PartnerDevelopmentDashboard> {
+export async function getPartnerDevelopmentDashboard(client?: SupabaseClient, agentName = "Arc"): Promise<PartnerDevelopmentDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
@@ -308,7 +308,7 @@ function buildPartnerCards(input: {
   approvals: ApprovalRow[];
   health: PartnerHealthRow[];
   actions: NextBestActionRow[];
-}, agentName = "Agent"): PartnerCard[] {
+}, agentName = "Arc"): PartnerCard[] {
   const candidates = input.companies.filter((company) => {
     const metadata = asObject(company.metadata);
     return Boolean(
@@ -416,7 +416,7 @@ function buildNextAction(input: {
   contacts: number;
   evidence: number;
   approvals: number;
-}, agentName = "Agent") {
+}, agentName = "Arc") {
   if (input.action) {
     return {
       text: input.action.recommendation ?? input.action.title ?? `Review ${agentName}'s recommended partner action.`,
@@ -528,7 +528,7 @@ function partnerSummary(input: {
   return parts.join(" ");
 }
 
-function buildDataContracts(partners: PartnerCard[], healthCount: number, actionCount: number, agentName = "Agent") {
+function buildDataContracts(partners: PartnerCard[], healthCount: number, actionCount: number, agentName = "Arc") {
   return [
     { label: "Company partner records", status: partners.length > 0 ? "live" : "needed", detail: "companies plus partner_tier/persona classify candidate partners." },
     { label: "Relationship health", status: healthCount > 0 ? "live" : "needed", detail: "partner_health_snapshots stores health score, stage, referrals, revenue, and risk flags." },
