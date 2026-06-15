@@ -338,6 +338,9 @@ function StudioTabs({
  */
 export function WorkCanvas({
   messages,
+  projectMessages = [],
+  currentConversationId,
+  conversationTitles,
   variant = "docked",
   open = true,
   focus,
@@ -346,6 +349,12 @@ export function WorkCanvas({
   onDecision,
 }: {
   messages: MarkMessage[];
+  /** Asset-bearing messages from sibling chats in the project (Assets tab only). */
+  projectMessages?: MarkMessage[];
+  /** The active chat id — tiles from other chats get a source chip. */
+  currentConversationId?: string;
+  /** id -> chat title, for the cross-chat source chip. */
+  conversationTitles?: Record<string, string>;
   /** "docked" = the third grid column (xl+); "drawer" = inside the slide-over shell. */
   variant?: "docked" | "drawer";
   /** Docked-only: whether the column is expanded. Ignored for the drawer. */
@@ -361,7 +370,13 @@ export function WorkCanvas({
   const last = messages[messages.length - 1];
   const building = last?.role === "mark" && last.status === "pending";
 
-  const assets = useMemo(() => collectAssets(messages), [messages]);
+  // Assets tab is project-wide: current chat first (so it wins dedup), then siblings.
+  const assets = useMemo(
+    () => collectAssets([...messages, ...projectMessages]),
+    [messages, projectMessages],
+  );
+  // Current-chat assets only — drives the Now tab and Audience, which stay chat-scoped.
+  const currentAssets = useMemo(() => collectAssets(messages), [messages]);
   const audienceCount = useMemo(() => collectAudienceMentions(messages).length, [messages]);
   const [tab, setTab] = useState<StudioTab>(() => (assets.length > 1 ? "assets" : "now"));
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -376,7 +391,7 @@ export function WorkCanvas({
   }, [focus]);
 
   const selected = selectedId ? assets.find((a) => a.id === selectedId) ?? null : null;
-  const latestDraft = [...assets].reverse().find((a) => a.card.kind === "draft");
+  const latestDraft = [...currentAssets].reverse().find((a) => a.card.kind === "draft");
   const showTabs = !building && assets.length > 0;
 
   function chooseTab(t: StudioTab) {
@@ -405,11 +420,16 @@ export function WorkCanvas({
     ) : (
       <div className="flex min-h-0 flex-1 flex-col">
         <CampaignCover campaign={campaign} assets={assets} onDecision={onDecision} />
-        <AssetLibrary assets={assets} onSelect={setSelectedId} />
+        <AssetLibrary
+            assets={assets}
+            onSelect={setSelectedId}
+            currentConversationId={currentConversationId}
+            conversationTitles={conversationTitles}
+          />
       </div>
     );
   } else if (tab === "audience") {
-    content = <AudiencePanel messages={messages} assets={assets} />;
+    content = <AudiencePanel messages={messages} assets={currentAssets} />;
   } else {
     content = latestDraft ? (
       <AssetDetail asset={latestDraft} onDecision={onDecision} />

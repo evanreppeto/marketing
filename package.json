@@ -11,6 +11,7 @@
     "seed:test-campaign": "node scripts/seed-test-campaign.mjs",
     "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
     "seed:campaign-results": "node scripts/seed-campaign-results.mjs",
+    "seed:brain": "node scripts/seed-brain.mjs",
     "test": "vitest run"
   },
   "dependencies": {
