@@ -237,6 +237,25 @@ describe("moveAgentTask", () => {
     expect(result).toEqual({ ok: false, reason: "not_found" });
   });
 
+  it("disambiguates the agents embed (agent_tasks has two FKs to agents)", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: taskRow("queued", { started_at: null }), error: null },
+      agent_run_logs: { data: { id: "log-move-4" }, error: null },
+    });
+
+    await moveAgentTask(TASK_ID, "running", supabase);
+
+    // Every agent_tasks read/update must name the relationship, or PostgREST
+    // throws "more than one relationship was found for 'agent_tasks' and 'agents'".
+    const selects = supabase.calls.filter(([m]) => m === "select").map(([, arg]) => String(arg));
+    const agentEmbeds = selects.filter((s) => s.includes("agents"));
+    expect(agentEmbeds.length).toBeGreaterThan(0);
+    for (const s of agentEmbeds) {
+      expect(s).toContain("agents!");
+      expect(s).not.toMatch(/(^|[^!])agents\(/);
+    }
+  });
+
   it("treats a failed audit-log insert as best-effort (move still succeeds)", async () => {
     const supabase = createSupabaseQueryMock({
       agent_tasks: { data: taskRow("queued", { started_at: null }), error: null },

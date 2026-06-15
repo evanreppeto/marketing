@@ -20,7 +20,10 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled"]);
 
-const TASK_SELECT = "*, agents(key, name)";
+// `agent_tasks` has two FKs to `agents` (agent_id and driver_agent_id), so the
+// embed must name the relationship or PostgREST fails with "more than one
+// relationship was found". We embed the primary owning agent via agent_id.
+const TASK_SELECT = "*, agents!agent_tasks_agent_id_fkey(key, name)";
 
 type AgentJoin = { key: string | null; name: string | null } | null;
 
