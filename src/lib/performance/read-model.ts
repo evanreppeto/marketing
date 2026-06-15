@@ -270,7 +270,9 @@ function buildRevenueByPersona(outcomes: OutcomeRow[]): PerformanceBreakdown[] {
     .slice(0, 8)
     .map(([persona, cents]) => ({
       label: titleize(persona),
-      value: formatMoney(cents),
+      // Whole dollars (number) so the chart can plot it; the UI re-applies $ formatting.
+      // Sub-dollar precision is intentionally dropped — bars don't need cents.
+      value: Math.round(cents / 100),
       detail: "gross_revenue_cents grouped by outcome persona.",
       tone: cents > 0 ? "green" : "gray",
     }));

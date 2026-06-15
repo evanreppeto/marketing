@@ -1,71 +1,68 @@
-import { EmptyState } from "@/app/_components/page-header";
 import { WorkspacePanel } from "@/app/_components/workspace";
 import type { PerformanceBreakdown, PerformanceReadModel, PerformanceTone } from "@/lib/performance/read-model";
 
+import { toChartPoints } from "./campaign-analytics-model";
+import { BarBreakdown } from "./charts/bar-breakdown";
+import { FunnelFlow } from "./charts/funnel-flow";
+
 type LivePerformance = Extract<PerformanceReadModel, { status: "live" }>;
 
+/** Whole-dollar currency label for chart values that already carry dollars (not cents). */
+const formatDollars = (value: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+
 export function LeadVolumeTab({ performance }: { performance: LivePerformance }) {
+  const byPersona = toChartPoints(performance.leadVolumeByPersona);
+  const bySource = toChartPoints(performance.leadVolumeBySource);
   return (
     <div className="grid gap-5 xl:grid-cols-2">
-      <BreakdownPanel
-        eyebrow="Lead volume"
-        title="By persona"
-        description="Current lead records grouped by persona. Missing persona stays visible instead of being hidden."
-        rows={performance.leadVolumeByPersona}
-        empty="Lead records do not have persona/source data yet."
-      />
-      <BreakdownPanel
-        eyebrow="Lead volume"
-        title="By source"
-        description="Where current lead records came from. This becomes source ROI once outcomes are joined."
-        rows={performance.leadVolumeBySource}
-        empty="No lead source values are available yet."
-      />
+      <WorkspacePanel eyebrow="Lead volume" title="By persona" description="Current lead records grouped by persona.">
+        <BarBreakdown points={byPersona.points} missing={byPersona.missing} emptyTitle="No persona data yet" emptyDetail="Lead records do not have persona data yet." />
+      </WorkspacePanel>
+      <WorkspacePanel eyebrow="Lead volume" title="By source" description="Where current lead records came from.">
+        <BarBreakdown points={bySource.points} missing={bySource.missing} emptyTitle="No source data yet" emptyDetail="No lead source values are available yet." />
+      </WorkspacePanel>
     </div>
   );
 }
 
-export function ConversionTab({ rows }: { rows: PerformanceBreakdown[] }) {
+export function ConversionTab({ performance }: { performance: LivePerformance }) {
   return (
-    <WorkspacePanel
-      eyebrow="Conversion"
-      title="Booking, estimate, and close signals"
-      description="These use existing lead, job, and outcome rows. Anything labeled proxy is not a final business KPI yet."
-    >
-      <SignalGrid rows={rows} />
-    </WorkspacePanel>
+    <div className="space-y-5">
+      <WorkspacePanel eyebrow="Conversion" title="Lead to booked work" description="How many leads become bookings, and bookings become won work. Counts only — no faked rates.">
+        <FunnelFlow stages={performance.funnelStages} />
+      </WorkspacePanel>
+      <WorkspacePanel
+        eyebrow="Conversion"
+        title="Booking, estimate, and close signals"
+        description="These use existing lead, job, and outcome rows. Anything labeled proxy is not a final business KPI yet."
+      >
+        <SignalGrid rows={performance.conversionSignals} />
+      </WorkspacePanel>
+    </div>
   );
 }
 
 export function PartnerSignalsTab({ rows }: { rows: PerformanceBreakdown[] }) {
+  const { points, missing } = toChartPoints(rows);
   return (
-    <BreakdownPanel
-      eyebrow="Partners"
-      title="Referral attribution structure"
-      description="Partner-tiered companies are visible now; referral count and revenue need explicit attribution."
-      rows={rows}
-      empty="No partner records are available yet."
-    />
+    <WorkspacePanel eyebrow="Partners" title="Referral attribution structure" description="Partner-tiered companies are visible now; referral count and revenue need explicit attribution.">
+      <BarBreakdown points={points} missing={missing} emptyTitle="No partner records yet" emptyDetail="No partner records are available yet." />
+    </WorkspacePanel>
   );
 }
 
 export function RevenueTab({ performance }: { performance: LivePerformance }) {
+  const revenue = toChartPoints(performance.revenueByPersona);
+  const cta = toChartPoints(performance.ctaSignals);
   return (
     <div className="grid gap-5 xl:grid-cols-2">
-      <BreakdownPanel
-        eyebrow="Revenue intelligence"
-        title="Revenue by persona"
-        description="Uses outcome revenue grouped by persona when present. Missing persona means attribution is incomplete."
-        rows={performance.revenueByPersona}
-        empty="No outcome revenue by persona exists yet."
-      />
-      <BreakdownPanel
-        eyebrow="CTA events"
-        title="Form, photo-upload, and landing conversion"
-        description="Internal reporting only. This app does not publish landing pages or execute outbound campaigns."
-        rows={performance.ctaSignals}
-        empty="No CTA/form/photo-upload events are tracked yet."
-      />
+      <WorkspacePanel eyebrow="Revenue intelligence" title="Revenue by persona" description="Outcome revenue grouped by persona when present.">
+        <BarBreakdown points={revenue.points} missing={revenue.missing} formatter={formatDollars} emptyTitle="No revenue attributed yet" emptyDetail="No outcome revenue by persona exists yet." />
+      </WorkspacePanel>
+      <WorkspacePanel eyebrow="CTA events" title="Form, photo-upload, and landing conversion" description="Internal reporting only.">
+        <BarBreakdown points={cta.points} missing={cta.missing} emptyTitle="No CTA events yet" emptyDetail="No CTA/form/photo-upload events are tracked yet." />
+      </WorkspacePanel>
     </div>
   );
 }
@@ -98,50 +95,11 @@ export function ContractTab({ contracts }: { contracts: LivePerformance["contrac
   );
 }
 
-function BreakdownPanel({
-  eyebrow,
-  title,
-  description,
-  rows,
-  empty,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  rows: PerformanceBreakdown[];
-  empty: string;
-}) {
-  return (
-    <WorkspacePanel eyebrow={eyebrow} title={title} description={description}>
-      {rows.length > 0 ? <SignalList rows={rows} /> : <EmptyState title="No live signal yet" detail={empty} />}
-    </WorkspacePanel>
-  );
-}
-
 function SignalGrid({ rows }: { rows: PerformanceBreakdown[] }) {
   return (
     <div className="grid gap-3 p-4 md:grid-cols-3">
       {rows.map((row) => (
         <SignalCard key={row.label} row={row} />
-      ))}
-    </div>
-  );
-}
-
-function SignalList({ rows }: { rows: PerformanceBreakdown[] }) {
-  return (
-    <div className="divide-y divide-[var(--border-hairline)]">
-      {rows.map((row) => (
-        <div className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_110px]" key={row.label}>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="font-bold text-[var(--text-primary)]">{row.label}</div>
-              <ToneTag tone={row.tone} />
-            </div>
-            <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{row.detail}</p>
-          </div>
-          <div className="font-mono text-sm font-bold text-[var(--accent)] sm:text-right">{row.value}</div>
-        </div>
       ))}
     </div>
   );

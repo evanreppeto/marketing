@@ -157,7 +157,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
       ) : activeTab === "leads" ? (
         <LeadVolumeTab performance={performance} />
       ) : activeTab === "conversion" ? (
-        <ConversionTab rows={performance.conversionSignals} />
+        <ConversionTab performance={performance} />
       ) : activeTab === "revenue" ? (
         <RevenueTab performance={performance} />
       ) : activeTab === "partners" ? (
