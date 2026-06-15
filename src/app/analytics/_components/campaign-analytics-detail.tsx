@@ -6,7 +6,9 @@ import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import { type CampaignPerformance } from "@/lib/performance/campaign-performance";
 import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-copy";
 
-import { buildChannelBreakdown, buildComposition, buildFunnel } from "./campaign-analytics-model";
+import { buildChannelBreakdown, buildComposition, buildFunnel, type ChartPoint } from "./campaign-analytics-model";
+import { BarBreakdown } from "./charts/bar-breakdown";
+import { DonutSplit, type DonutSegment } from "./charts/donut-split";
 
 export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveCampaignWorkspace; performance: CampaignPerformance }) {
   const { campaign, launchState, assets, metrics } = detail;
@@ -38,6 +40,27 @@ export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveC
           { label: "Ready", value: `${funnel.readiness}%`, detail: `${funnel.approved} of ${funnel.total} pieces approved.`, tone: funnel.readiness === 100 && funnel.total > 0 ? "green" : "blue" },
         ]}
       />
+
+      <WorkspacePanel eyebrow="Readiness" title="Where this campaign stands" description="Every piece in this package by approval state.">
+        <div className="grid gap-6 p-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+          <DonutSplit
+            segments={[
+              { key: "approved", label: "Approved", value: funnel.approved, toneVar: "ok" },
+              { key: "pending", label: "Waiting", value: funnel.pending, toneVar: "warn" },
+              { key: "changes", label: "Needs changes", value: funnel.changes, toneVar: "priority" },
+              // Draft = pieces not yet in any reviewed state (the remainder). AnalyticsFunnel omits draft, so derive it.
+              { key: "draft", label: "In draft", value: Math.max(funnel.total - funnel.approved - funnel.pending - funnel.changes, 0), toneVar: "muted" },
+            ] satisfies DonutSegment[]}
+            centerValue={`${funnel.readiness}%`}
+            centerLabel={funnel.total > 0 ? "approved" : "nothing drafted yet"}
+          />
+          <BarBreakdown
+            points={composition.map((row): ChartPoint => ({ label: row.label, value: row.value, tone: "blue" }))}
+            emptyTitle="Nothing attached yet"
+            emptyDetail="Once Mark drafts pieces, the package composition appears here."
+          />
+        </div>
+      </WorkspacePanel>
 
       <WorkspacePanel
         eyebrow="Money"
@@ -90,37 +113,15 @@ export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveC
       </WorkspacePanel>
 
       <WorkspacePanel
-        eyebrow="Package composition"
-        title="What this campaign is made of"
-        description="The real records attached to this campaign right now."
-      >
-        <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-          {composition.map((row) => (
-            <div key={row.label} className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{row.label}</div>
-              <div className="mt-2 font-display text-2xl font-bold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">{row.value}</div>
-            </div>
-          ))}
-        </div>
-      </WorkspacePanel>
-
-      <WorkspacePanel
         eyebrow="Channels"
         title="Deliverables by channel"
         description="Where this campaign's pieces are headed once approved."
       >
-        {channels.length > 0 ? (
-          <div className="divide-y divide-[var(--border-hairline)]">
-            {channels.map((row) => (
-              <div key={row.channel} className="flex items-center justify-between gap-3 px-5 py-3">
-                <span className="font-bold text-[var(--text-primary)]">{row.channel}</span>
-                <span className="font-mono text-sm font-bold text-[var(--accent)]">{row.count} {row.count === 1 ? "piece" : "pieces"}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="No deliverables yet" detail="Once Mark drafts pieces for this campaign, their channels appear here." />
-        )}
+        <BarBreakdown
+          points={channels.map((row): ChartPoint => ({ label: row.channel, value: row.count, tone: "blue" }))}
+          emptyTitle="No deliverables yet"
+          emptyDetail="Once Mark drafts pieces for this campaign, their channels appear here."
+        />
       </WorkspacePanel>
 
       <WorkspacePanel
