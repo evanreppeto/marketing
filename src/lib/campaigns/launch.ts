@@ -28,7 +28,7 @@ export async function launchCampaign(
   input: LaunchCampaignInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { campaignId, operator, agentName = "Mark" } = input;
+  const { campaignId, operator, agentName = "Agent" } = input;
 
   const { data: campaign, error: campaignError } = await client
     .from("campaigns")
@@ -134,7 +134,7 @@ export async function deployAsset(
   input: DeployAssetInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { campaignId, assetId, operator, agentName = "Mark" } = input;
+  const { campaignId, assetId, operator, agentName = "Agent" } = input;
 
   const { data: asset, error: assetError } = await client
     .from("campaign_assets")

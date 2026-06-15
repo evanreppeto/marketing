@@ -25,7 +25,7 @@ export async function sendMarkDirective(
   input: MarkDirectiveInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<MarkDirectiveResult> {
-  const { campaignId, message, operator, agentName = "Mark" } = input;
+  const { campaignId, message, operator, agentName = "Agent" } = input;
 
   const { data: agent, error: agentError } = await client
     .from("agents")
