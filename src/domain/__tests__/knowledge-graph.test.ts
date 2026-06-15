@@ -3,11 +3,60 @@ import { describe, expect, it } from "vitest";
 import {
   GATED_NODE_KINDS,
   isGatedKind,
+  MAX_TAGS,
+  normalizeKind,
+  normalizeTags,
   resolveInitialTrustTier,
   resolveDecisionTier,
   validateNodeInput,
   validateEdgeInput,
 } from "../knowledge-graph";
+
+describe("normalizeKind", () => {
+  it("slugifies free text into a safe kind", () => {
+    expect(normalizeKind("Weather Signal")).toBe("weather_signal");
+    expect(normalizeKind("  Proof / Asset  ")).toBe("proof_asset");
+    expect(normalizeKind("brand_fact")).toBe("brand_fact");
+  });
+  it("rejects values that can't start with a letter", () => {
+    expect(normalizeKind("")).toBe("");
+    expect(normalizeKind("123")).toBe("");
+    expect(normalizeKind("!!!")).toBe("");
+    expect(normalizeKind(42)).toBe("");
+  });
+});
+
+describe("custom kinds and gating safety", () => {
+  it("never auto-gates a custom kind Mark creates", () => {
+    expect(resolveInitialTrustTier({ kind: "weather_signal", createdBy: "mark" })).toBe("observed");
+    expect(isGatedKind("weather_signal")).toBe(false);
+  });
+  it("still gates the built-in outbound-governing kinds", () => {
+    expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "mark" })).toBe("proposed");
+  });
+  it("accepts a custom kind through validateNodeInput", () => {
+    const result = validateNodeInput({ kind: "Weather Signal", label: "Hailstorm in Evanston" });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.kind).toBe("weather_signal");
+  });
+});
+
+describe("normalizeTags", () => {
+  it("trims, drops empties, and collapses inner whitespace", () => {
+    expect(normalizeTags(["  water  ", "", "  ", "fire   damage"])).toEqual(["water", "fire damage"]);
+  });
+  it("dedupes case-insensitively, keeping first-seen casing", () => {
+    expect(normalizeTags(["Water", "water", "WATER"])).toEqual(["Water"]);
+  });
+  it("caps the number of tags", () => {
+    const many = Array.from({ length: MAX_TAGS + 5 }, (_, i) => `tag-${i}`);
+    expect(normalizeTags(many)).toHaveLength(MAX_TAGS);
+  });
+  it("ignores non-arrays and non-strings", () => {
+    expect(normalizeTags("water")).toEqual([]);
+    expect(normalizeTags([1, null, "ok", {}])).toEqual(["ok"]);
+  });
+});
 
 describe("isGatedKind", () => {
   it("flags the outbound-governing kinds", () => {
@@ -55,8 +104,14 @@ describe("validateNodeInput", () => {
       value: expect.objectContaining({ kind: "brand_fact", label: "We answer 24/7" }),
     });
   });
-  it("rejects an unknown kind", () => {
-    expect(validateNodeInput({ kind: "nonsense", label: "x" }).ok).toBe(false);
+  it("accepts a custom kind, normalizing it to a slug", () => {
+    const result = validateNodeInput({ kind: "Field Note", label: "x" });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.kind).toBe("field_note");
+  });
+  it("rejects a kind that can't be made a valid slug", () => {
+    expect(validateNodeInput({ kind: "  ", label: "x" }).ok).toBe(false);
+    expect(validateNodeInput({ kind: "123", label: "x" }).ok).toBe(false);
   });
   it("rejects an empty label", () => {
     expect(validateNodeInput({ kind: "learning", label: "  " }).ok).toBe(false);
