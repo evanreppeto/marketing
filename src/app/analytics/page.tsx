@@ -2,18 +2,44 @@ import { connection } from "next/server";
 import Link from "next/link";
 
 import { EmptyState, PageHeader } from "../_components/page-header";
+import { TabNav } from "../_components/tab-nav";
 import { MetricStrip, WorkspacePanel } from "../_components/workspace";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
+import { getPerformanceReadModel } from "@/lib/performance/read-model";
 import { getAppSettings } from "@/lib/settings/store";
+
+import { ConversionTab, ContractTab, LeadVolumeTab, PartnerSignalsTab, RevenueTab } from "./_components/performance-breakdowns";
 
 export const metadata = {
   title: "Analytics",
 };
 
-export default async function AnalyticsPage() {
+type AnalyticsTabKey = "campaigns" | "leads" | "conversion" | "revenue" | "partners" | "contract";
+
+const analyticsTabs: Array<{ key: AnalyticsTabKey; label: string; detail: string }> = [
+  { key: "campaigns", label: "Campaigns", detail: "Per-campaign progress and insight." },
+  { key: "leads", label: "Leads", detail: "Persona and source volume." },
+  { key: "conversion", label: "Conversion", detail: "Booking, estimate, and close signals." },
+  { key: "revenue", label: "Revenue", detail: "Persona revenue and CTA events." },
+  { key: "partners", label: "Partners", detail: "Referral and partner attribution." },
+  { key: "contract", label: "Data contract", detail: "Backend fields still needed." },
+];
+
+function normalizeTab(value: string | string[] | undefined): AnalyticsTabKey {
+  const tab = Array.isArray(value) ? value[0] : value;
+  return analyticsTabs.some((item) => item.key === tab) ? (tab as AnalyticsTabKey) : "campaigns";
+}
+
+export default async function AnalyticsPage({ searchParams }: { searchParams?: Promise<{ tab?: string | string[] }> }) {
   await connection();
 
-  const [list, settings] = await Promise.all([getCampaignWorkspaceList(), getAppSettings()]);
+  const query = searchParams ? await searchParams : {};
+  const activeTab = normalizeTab(query.tab);
+  const [list, performance, settings] = await Promise.all([
+    getCampaignWorkspaceList(),
+    getPerformanceReadModel(),
+    getAppSettings(),
+  ]);
   const brand = { workspaceName: settings.workspaceName, logoUrl: settings.brandLogoUrl };
 
   if (list.status === "unavailable") {
@@ -68,32 +94,50 @@ export default async function AnalyticsPage() {
         ]}
       />
 
-      <WorkspacePanel
-        title="Compare your campaigns"
-        description="Each campaign and how far it has moved from draft to approved. Anything waiting on you is flagged so it is easy to spot what to do next."
-      >
-        {rows.length > 0 ? (
-          <ul className="divide-y divide-[var(--border-hairline)]">
-            {rows.map((row) => (
-              <ComparisonRow key={row.id} row={row} />
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            title="No campaigns yet"
-            detail="When Mark drafts a campaign or you create one, it will appear here with its progress."
-          />
-        )}
-      </WorkspacePanel>
+      <TabNav
+        ariaLabel="Analytics sections"
+        activeKey={activeTab}
+        columns="sm:grid-cols-2 xl:grid-cols-6"
+        className="mb-5"
+        tabs={analyticsTabs.map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          detail: tab.detail,
+          href: `/analytics?tab=${tab.key}`,
+        }))}
+      />
 
-      <p className="mt-5 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">
-        Want deeper numbers like views, clicks, and booked jobs? Those need a one-time backend setup before they are
-        trustworthy &mdash; see the{" "}
-        <Link className="font-semibold text-[var(--accent)] underline-offset-2 hover:underline" href="/reports">
-          detailed performance view
-        </Link>{" "}
-        for exactly which fields are still needed.
-      </p>
+      {activeTab === "campaigns" ? (
+        <WorkspacePanel
+          title="Compare your campaigns"
+          description="Each campaign and how far it has moved from draft to approved. Select one to see its full analytics."
+        >
+          {rows.length > 0 ? (
+            <ul className="divide-y divide-[var(--border-hairline)]">
+              {rows.map((row) => (
+                <ComparisonRow key={row.id} row={row} />
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              title="No campaigns yet"
+              detail="When Mark drafts a campaign or you create one, it will appear here with its progress."
+            />
+          )}
+        </WorkspacePanel>
+      ) : performance.status === "unavailable" ? (
+        <EmptyState title="Performance data unavailable" detail={performance.message} />
+      ) : activeTab === "leads" ? (
+        <LeadVolumeTab performance={performance} />
+      ) : activeTab === "conversion" ? (
+        <ConversionTab rows={performance.conversionSignals} />
+      ) : activeTab === "revenue" ? (
+        <RevenueTab performance={performance} />
+      ) : activeTab === "partners" ? (
+        <PartnerSignalsTab rows={performance.partnerSignals} />
+      ) : (
+        <ContractTab contracts={performance.contracts} />
+      )}
     </>
   );
 }
@@ -149,7 +193,7 @@ function ComparisonRow({ row }: { row: ComparisonRowData }) {
     <li>
       <Link
         className="grid gap-4 px-5 py-4 transition hover:bg-[var(--surface-inset)] sm:grid-cols-[minmax(0,1fr)_200px_150px] sm:items-center"
-        href={row.href}
+        href={`/analytics/${row.id}`}
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
