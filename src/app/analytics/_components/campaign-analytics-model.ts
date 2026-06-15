@@ -1,4 +1,5 @@
 import type { CampaignRollup } from "@/domain";
+import type { PerformanceBreakdown, PerformanceTone } from "@/lib/performance/read-model";
 
 /** The funnel only needs the four count fields; the full CampaignRollup (which
  *  also carries state/label/draft) satisfies this structurally. */
@@ -33,4 +34,51 @@ export function buildComposition(metrics: { assets: number; approvals: number; m
     { label: "Media signals", value: metrics.media },
     { label: "Source records", value: metrics.sources },
   ];
+}
+
+export type PortfolioSplit = {
+  approved: number;
+  pending: number;
+  changes: number;
+  draft: number;
+  total: number;
+  readiness: number;
+};
+
+export type ChartPoint = { label: string; value: number; tone: PerformanceTone };
+export type ChartPoints = { points: ChartPoint[]; missing: string[] };
+
+/** A campaign list item carries its approval counts under `rollup`. `draft` is not in
+ *  RollupCounts (the funnel denominator) but the portfolio donut shows it, so add it here. */
+type RollupLike = { rollup: RollupCounts & { draft: number } };
+
+/** Aggregate every campaign's approval rollup into one portfolio-wide split for the hero donut. */
+export function buildPortfolioSplit(items: RollupLike[]): PortfolioSplit {
+  const sum = items.reduce(
+    (acc, item) => ({
+      approved: acc.approved + item.rollup.approved,
+      pending: acc.pending + item.rollup.pending,
+      changes: acc.changes + item.rollup.changes,
+      draft: acc.draft + item.rollup.draft,
+      total: acc.total + item.rollup.total,
+    }),
+    { approved: 0, pending: 0, changes: 0, draft: 0, total: 0 },
+  );
+  const readiness = sum.total > 0 ? Math.round((sum.approved / sum.total) * 100) : 0;
+  return { ...sum, readiness };
+}
+
+/** Split breakdown rows: numeric values become chart points; non-numeric values (the
+ *  "Missing" sentinel, or any preformatted string) become honest placeholder labels. */
+export function toChartPoints(rows: PerformanceBreakdown[]): ChartPoints {
+  const points: ChartPoint[] = [];
+  const missing: string[] = [];
+  for (const row of rows) {
+    if (typeof row.value === "number") {
+      points.push({ label: row.label, value: row.value, tone: row.tone });
+    } else {
+      missing.push(row.label);
+    }
+  }
+  return { points, missing };
 }
