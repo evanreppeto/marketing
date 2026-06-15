@@ -8,7 +8,7 @@ import type { MarkConversation, MarkProject } from "@/lib/mark-chat/persistence"
 
 import { createProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
-import { ThreadMenu } from "./thread-menu";
+import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
 
 function SectionLabel({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -97,7 +97,15 @@ function ChatRow({
 }) {
   const active = c.id === activeId;
   return (
-    <div className="group relative flex items-center gap-1">
+    <ThreadContextMenu
+      className="group relative flex items-center gap-1"
+      conversationId={c.id}
+      projectId={c.projectId}
+      pinned={Boolean(c.pinnedAt)}
+      projects={projects}
+      title={c.title}
+      isActive={active}
+    >
       <Link
         href={`/mark?c=${c.id}`}
         aria-current={active ? "page" : undefined}
@@ -121,10 +129,11 @@ function ChatRow({
           projectId={c.projectId}
           pinned={Boolean(c.pinnedAt)}
           projects={projects}
+          title={c.title}
           isActive={active}
         />
       </div>
-    </div>
+    </ThreadContextMenu>
   );
 }
 
@@ -148,46 +157,61 @@ function ProjectGroup({
 
   return (
     <div className="flex flex-col">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition hover:bg-[var(--surface-inset)]"
-      >
-        <svg
-          viewBox="0 0 20 20"
-          aria-hidden
-          className={cx("h-3 w-3 shrink-0 text-[var(--text-muted)] transition-transform", open ? "rotate-90" : "")}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <div className="group/proj flex items-center rounded-md pr-1 transition hover:bg-[var(--surface-inset)]">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left"
         >
-          <path d="m8 5 5 5-5 5" />
-        </svg>
-        <svg
-          viewBox="0 0 20 20"
-          aria-hidden
-          className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          <svg
+            viewBox="0 0 20 20"
+            aria-hidden
+            className={cx("h-3 w-3 shrink-0 text-[var(--text-muted)] transition-transform", open ? "rotate-90" : "")}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m8 5 5 5-5 5" />
+          </svg>
+          <svg
+            viewBox="0 0 20 20"
+            aria-hidden
+            className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h4l2 2.5h6a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
+          </svg>
+          <span
+            className={cx(
+              "min-w-0 flex-1 truncate text-xs font-medium",
+              containsActive && !open ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
+            )}
+          >
+            {project.name}
+          </span>
+        </button>
+        {/* New chat in this project — hover-revealed, swaps with the count like ChatRow. */}
+        <Link
+          href={`/mark?project=${project.id}`}
+          title={`New chat in ${project.name}`}
+          aria-label={`New chat in ${project.name}`}
+          className="hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] group-hover/proj:flex focus-visible:flex"
         >
-          <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h4l2 2.5h6a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
-        </svg>
-        <span
-          className={cx(
-            "min-w-0 flex-1 truncate text-xs font-medium",
-            containsActive && !open ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
-          )}
-        >
-          {project.name}
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M10 4v12M4 10h12" />
+          </svg>
+        </Link>
+        <span className="shrink-0 px-1 text-[10px] tabular-nums text-[var(--text-muted)] group-hover/proj:hidden">
+          {rows.length}
         </span>
-        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)]">{rows.length}</span>
-      </button>
+      </div>
       {open ? (
         <div className="ml-[13px] flex flex-col gap-0.5 border-l border-[var(--border-hairline)] pl-1.5">
           {rows.length === 0 ? (

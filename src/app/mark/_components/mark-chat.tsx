@@ -114,6 +114,7 @@ export function MarkChat({
   activeId,
   activeTitle,
   activeProjectId,
+  newChatProjectId = null,
   activeCampaignId,
   campaigns,
   activePinned,
@@ -134,6 +135,8 @@ export function MarkChat({
   activeId: string;
   activeTitle: string;
   activeProjectId: string | null;
+  /** Pre-selected project for a fresh chat, from the ?project=<id> deep link. */
+  newChatProjectId?: string | null;
   activeCampaignId: string | null;
   campaigns: { id: string; name: string }[];
   activePinned: boolean;
@@ -161,6 +164,10 @@ export function MarkChat({
   const applyCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [agentSettingsOpen, setAgentSettingsOpen] = useState(false);
+  // Per-message mode/route, seeded from Settings defaults. Lifted here (not in the
+  // composer) so Regenerate reuses the same live selection instead of a hard-coded one.
+  const [mode, setMode] = useState<MarkMode>(defaultMode);
+  const [route, setRoute] = useState<MarkRoute>(defaultRoute);
 
   // Work canvas visibility. Docked as a third column at xl+, a slide-over drawer
   // below that. One flag drives both: at xl it expands/collapses the column; below
@@ -300,7 +307,7 @@ export function MarkChat({
         createdAt: new Date().toISOString(),
       },
     ]);
-    await regenerateMarkReplyAction(activeId, markMessageId);
+    await regenerateMarkReplyAction(activeId, markMessageId, { mode, route });
   }
 
   const hasMessages = messages.length > 0;
@@ -340,6 +347,22 @@ export function MarkChat({
     () => Object.fromEntries(conversations.map((c) => [c.id, c.title] as const)),
     [conversations],
   );
+
+  // Context for a fresh chat opened via the "new chat in project" deep link: name
+  // the project and surface what Mark can build on (sibling chats + project assets).
+  const emptyHeroProject = useMemo(() => {
+    if (activeId || !newChatProjectId) return null;
+    const project = projects.find((p) => p.id === newChatProjectId);
+    if (!project) return null;
+    const chatCount = conversations.filter((c) => c.projectId === newChatProjectId).length;
+    const images = projectMessages.flatMap((m) => m.media).filter((md) => md.kind === "image");
+    return {
+      name: project.name,
+      chatCount,
+      assetCount: images.length,
+      thumbnails: images.map((md) => md.thumbnailUrl ?? md.url).slice(0, 5),
+    };
+  }, [activeId, newChatProjectId, projects, conversations, projectMessages]);
 
   // Apply preview-mode optimistic approvals onto the rendered messages so the deck,
   // library tiles, and cover progress all reflect a click without a backend.
@@ -453,6 +476,7 @@ export function MarkChat({
                     projectId={activeProjectId}
                     pinned={activePinned}
                     projects={projects}
+                    title={activeTitle}
                     isActive
                   />
                 </>
@@ -483,7 +507,7 @@ export function MarkChat({
                 onDecision={demo ? demoDecide : undefined}
               />
             ) : (
-              <ChatEmptyHero assistantName={assistantName} operatorName={operatorName} />
+              <ChatEmptyHero assistantName={assistantName} operatorName={operatorName} project={emptyHeroProject} />
             )}
             <div
               className={hasMessages ? "w-full" : "msg-rise w-full max-w-2xl"}
@@ -507,8 +531,11 @@ export function MarkChat({
                 onStopReply={handleStop}
                 projects={projects}
                 activeProjectId={activeProjectId}
-                defaultMode={defaultMode}
-                defaultRoute={defaultRoute}
+                initialNewChatProjectId={newChatProjectId}
+                mode={mode}
+                route={route}
+                onModeChange={setMode}
+                onRouteChange={setRoute}
                 assistantName={assistantName}
                 onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
                 onSent={(newConversationId) => {

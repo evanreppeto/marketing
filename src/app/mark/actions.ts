@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
-import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
+import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, validateMarkMessageInput, MarkMessageError, type MarkMode, type MarkRoute } from "@/domain";
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
@@ -97,7 +97,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       const conversation = await createConversation({ operator, title: deriveThreadTitle(body), projectId }, client);
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route }, client);
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
@@ -469,6 +469,7 @@ export async function setMarkMessageFeedbackAction(
 export async function regenerateMarkReplyAction(
   conversationId: string,
   markMessageId: string,
+  opts?: { mode?: MarkMode; route?: MarkRoute },
 ): Promise<void> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return;
@@ -487,6 +488,11 @@ export async function regenerateMarkReplyAction(
   const lastOperator = [...slice].reverse().find((m) => m.role === "operator");
   if (!lastOperator) return;
 
+  // Prefer the settings the original turn was sent with; fall back to the caller's
+  // current selection, then validated defaults.
+  const mode = parseMarkMode(lastOperator.mode ?? opts?.mode);
+  const route = parseMarkRoute(lastOperator.route ?? opts?.route);
+
   const operator = getOperatorActor();
   const settings = await getAppSettings();
   const agentName = await getAgentName();
@@ -498,8 +504,8 @@ export async function regenerateMarkReplyAction(
         message: lastOperator.body,
         mentions: lastOperator.mentions,
         operator,
-        route: "fast",
-        mode: "ask",
+        route,
+        mode,
         assistantTone: settings.assistantTone,
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
@@ -515,8 +521,8 @@ export async function regenerateMarkReplyAction(
       message: lastOperator.body,
       mentions: lastOperator.mentions,
       operator,
-      route: "fast",
-      mode: "ask",
+      route,
+      mode,
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,
