@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import type { MarkMention } from "@/domain";
 import type { MarkMessage } from "@/lib/mark-chat/persistence";
 
@@ -50,6 +51,7 @@ function personasFromAssets(assets: StudioAsset[]): string[] {
  * the leads read-model — documented as a follow-up, not faked here.
  */
 export function AudiencePanel({ messages, assets }: { messages: MarkMessage[]; assets: StudioAsset[] }) {
+  const agentName = useAgentName();
   const mentions = collectAudienceMentions(messages);
   const personas = personasFromAssets(assets);
 
@@ -59,7 +61,7 @@ export function AudiencePanel({ messages, assets }: { messages: MarkMessage[]; a
   if (personas.length === 0 && mentions.length === 0) {
     return (
       <p className="text-xs leading-5 text-[var(--text-muted)]">
-        Who this campaign targets shows up here — the persona it&apos;s built for, plus the leads, companies, and contacts Mark pulls in.
+        Who this campaign targets shows up here — the persona it&apos;s built for, plus the leads, companies, and contacts {agentName} pulls in.
       </p>
     );
   }

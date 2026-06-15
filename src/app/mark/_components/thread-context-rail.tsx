@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import type { MarkActionCard, MarkMention } from "@/domain";
 import type { MarkMessage } from "@/lib/mark-chat/persistence";
 
@@ -48,6 +49,7 @@ export function ThreadContextRail({
   messages: MarkMessage[];
   pendingApprovals: number;
 }) {
+  const agentName = useAgentName();
   const cards: MarkActionCard[] = messages.flatMap((m) => m.actions);
   const seen = new Set<string>();
   const mentions: MarkMention[] = [];
@@ -75,7 +77,7 @@ export function ThreadContextRail({
     >
       {empty ? (
         <p className="text-xs leading-5 text-[var(--text-muted)]">
-          Drafts and records Mark touches in this thread will collect here.
+          Drafts and records {agentName} touches in this thread will collect here.
         </p>
       ) : (
         <>

@@ -511,7 +511,7 @@ function Message({
 
 export function MessageList({
   messages,
-  assistantName = "Mark",
+  assistantName = "Agent",
   onRetry,
   onStop,
   onRegenerate,

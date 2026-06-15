@@ -64,7 +64,7 @@ export function Composer({
   activeProjectId,
   defaultMode = "act",
   defaultRoute = "fast",
-  assistantName = "Mark",
+  assistantName = "Agent",
   demo = false,
   onDemoSend,
 }: {
