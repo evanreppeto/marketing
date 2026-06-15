@@ -124,7 +124,10 @@ export async function listNodes(
       .order("updated_at", { ascending: false })
       .limit(200);
     if (filters.kind) query = query.eq("kind", filters.kind);
+    // Archived nodes are soft-deleted: hidden from normal reads (browser, summary)
+    // unless a caller explicitly asks for the archived tier.
     if (filters.trustTier) query = query.eq("trust_tier", filters.trustTier);
+    else query = query.neq("trust_tier", "archived");
     if (filters.persona) query = query.eq("persona", filters.persona as never);
     if (filters.refTable) query = query.eq("ref_table", filters.refTable);
     if (filters.refId) query = query.eq("ref_id", filters.refId);

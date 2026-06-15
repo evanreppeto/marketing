@@ -8,6 +8,7 @@ import { Panel, StatusPill } from "@/app/_components/page-header";
 import { type ThemeTone, theme } from "@/app/_components/theme";
 import {
   approveNodeAction,
+  archiveNodeAction,
   createNodeAction,
   rejectNodeAction,
   setNodeKindAction,
@@ -179,7 +180,10 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
 
   const localNodes = useMemo<BrainNode[]>(() => {
     return nodes
-      .filter((n) => tierOverrides.get(n.id) !== "rejected")
+      .filter((n) => {
+        const o = tierOverrides.get(n.id);
+        return o !== "rejected" && o !== "archived";
+      })
       .map((n) => {
         let node = n;
         const tier = tierOverrides.get(n.id);
@@ -519,6 +523,15 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
       const result = await rejectNodeAction(nodeId);
       if (result.ok) {
         setTierOverrides((prev) => new Map(prev).set(nodeId, "rejected"));
+        setSelected((prev) => (prev?.id === nodeId ? null : prev));
+      }
+    });
+  }
+  function handleArchive(nodeId: string) {
+    startTransition(async () => {
+      const result = await archiveNodeAction(nodeId);
+      if (result.ok) {
+        setTierOverrides((prev) => new Map(prev).set(nodeId, "archived"));
         setSelected((prev) => (prev?.id === nodeId ? null : prev));
       }
     });
@@ -1144,6 +1157,19 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
                     className={theme.control.input + " h-8 min-h-0 w-full text-xs"}
                   />
                 </form>
+              </div>
+
+              {/* Archive — soft delete; drops the node from the brain view
+                  (recoverable via the API). */}
+              <div className="mt-4 flex justify-end border-t border-[var(--border-hairline)] pt-3">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleArchive(selected.id)}
+                  className="text-[11px] font-medium text-[var(--text-muted)] underline-offset-2 transition hover:text-[var(--accent)] hover:underline disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Archive node
+                </button>
               </div>
             </div>
 
