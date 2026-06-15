@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type { CampaignMediaAsset, CampaignWorkspaceAsset, CampaignWorkspaceAssetCategory } from "@/lib/campaigns/read-model";
 
@@ -59,12 +60,13 @@ export function CreativeTab({
   filter: string | null;
   onFilterChange: (value: string | null) => void;
 }) {
+  const agentName = useAgentName();
   const populated = SECTIONS.filter((section) => groups[section.key]?.length > 0);
   const allAssets = populated.flatMap((section) => groups[section.key]);
   const total = allAssets.length;
-  const needsApproval = allAssets.filter((asset) => assetWorkflow(asset).key === "review").length;
-  const approved = allAssets.filter((asset) => ["approved", "deployed"].includes(assetWorkflow(asset).key)).length;
-  const deployed = allAssets.filter((asset) => assetWorkflow(asset).key === "deployed").length;
+  const needsApproval = allAssets.filter((asset) => assetWorkflow(asset, agentName).key === "review").length;
+  const approved = allAssets.filter((asset) => ["approved", "deployed"].includes(assetWorkflow(asset, agentName).key)).length;
+  const deployed = allAssets.filter((asset) => assetWorkflow(asset, agentName).key === "deployed").length;
   const decided = total - needsApproval;
   const [selected, setSelected] = useState<{ id: string; revise: boolean } | null>(null);
   // Controlled by the URL ?filter=…; fall back to "all" for missing/unknown values.
@@ -75,7 +77,7 @@ export function CreativeTab({
   if (populated.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
-        Mark has not attached any campaign deliverables yet. New pieces appear here for approval as Mark builds them.
+        {agentName} has not attached any campaign deliverables yet. New pieces appear here for approval as {agentName} builds them.
       </p>
     );
   }
@@ -120,7 +122,7 @@ export function CreativeTab({
         </FilterChip>
         {populated.map((section) => {
           const sectionAssets = groups[section.key];
-          const sectionDecided = sectionAssets.filter((asset) => assetWorkflow(asset).key !== "review").length;
+          const sectionDecided = sectionAssets.filter((asset) => assetWorkflow(asset, agentName).key !== "review").length;
           return (
             <FilterChip
               key={section.key}
@@ -138,7 +140,7 @@ export function CreativeTab({
       <div className="space-y-4">
         {visible.map((section) => {
           const sectionAssets = groups[section.key];
-          const sectionDecided = sectionAssets.filter((asset) => assetWorkflow(asset).key !== "review").length;
+          const sectionDecided = sectionAssets.filter((asset) => assetWorkflow(asset, agentName).key !== "review").length;
           return (
             <section
               key={section.key}
@@ -244,7 +246,8 @@ function DeliverableCard({
   onReview: () => void;
   onRevise: () => void;
 }) {
-  const workflow = assetWorkflow(asset);
+  const agentName = useAgentName();
+  const workflow = assetWorkflow(asset, agentName);
   const kind = assetKind(asset);
 
   return (
@@ -282,7 +285,7 @@ function DeliverableCard({
           {workflow.key === "approved" ? <DeployButton assetId={asset.id} campaignId={campaignId} /> : null}
           {workflow.key === "declined" || workflow.key === "deployed" ? (
             <button type="button" onClick={onRevise} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Revise with Mark
+              Revise with {agentName}
             </button>
           ) : null}
           {workflow.key === "archived" ? <ReopenButton assetId={asset.id} campaignId={campaignId} label="Restore" /> : null}
@@ -441,9 +444,10 @@ function ReviewDrawer({
   initialRevising?: boolean;
   onClose: () => void;
 }) {
+  const agentName = useAgentName();
   const [revising, setRevising] = useState(initialRevising);
   const closeRef = useRef<HTMLButtonElement | null>(null);
-  const workflow = assetWorkflow(asset);
+  const workflow = assetWorkflow(asset, agentName);
   const kind = assetKind(asset);
   const target = buildAssetDecisionTarget(asset);
 
@@ -678,7 +682,7 @@ function assetKind(asset: CampaignWorkspaceAsset) {
  * without a gate still reads as "Needs approval", never a dead-end draft.
  * Approved pieces split into Approved (still dispatch-locked) vs Deployed.
  */
-function assetWorkflow(asset: CampaignWorkspaceAsset): WorkflowStage {
+function assetWorkflow(asset: CampaignWorkspaceAsset, agentName: string): WorkflowStage {
   const status = asset.approval?.status ?? asset.status;
 
   if (/approved/i.test(status)) {
@@ -686,7 +690,7 @@ function assetWorkflow(asset: CampaignWorkspaceAsset): WorkflowStage {
       return {
         key: "deployed",
         label: "Deployed",
-        detail: "Live — handed off to Mark for dispatch.",
+        detail: `Live — handed off to ${agentName} for dispatch.`,
         tone: "blue",
         dot: "bg-[var(--accent)]",
         noteClass: "border-[oklch(0.74_0.115_232/0.4)] bg-[var(--accent-soft)] text-[var(--chicago-blue-soft)]",
@@ -708,7 +712,7 @@ function assetWorkflow(asset: CampaignWorkspaceAsset): WorkflowStage {
     return {
       key: "declined",
       label: "Rework requested",
-      detail: "Sent back to Mark — out of the launch until re-approved.",
+      detail: `Sent back to ${agentName} — out of the launch until re-approved.`,
       tone: "red",
       dot: "bg-[var(--priority)]",
       noteClass: "border-[oklch(0.68_0.2_26/0.45)] bg-[oklch(0.68_0.2_26/0.12)] text-[oklch(0.86_0.09_26)]",
@@ -814,6 +818,7 @@ function RevisionForm({
   assetId: string;
   onDone: () => void;
 }) {
+  const agentName = useAgentName();
   const [state, formAction, isPending] = useActionState(requestRevisionAction, null);
 
   return (
@@ -822,7 +827,7 @@ function RevisionForm({
       <input type="hidden" name="assetId" value={assetId} />
 
       <label className="block">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">Tell Mark what to change</span>
+        <span className="mb-1 block text-xs font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">Tell {agentName} what to change</span>
         <textarea
           name="instruction"
           rows={3}

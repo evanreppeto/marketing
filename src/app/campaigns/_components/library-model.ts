@@ -87,18 +87,18 @@ const WHERE_LABELS: Record<string, string> = {
   partner_lead_list: "CRM",
 };
 
-export function campaignManagerStatus(campaign: CampaignWorkspaceListItem): CampaignManagerStatus {
+export function campaignManagerStatus(campaign: CampaignWorkspaceListItem, agentName: string): CampaignManagerStatus {
   if (/archived/i.test(campaign.status)) return { label: "Archived", tone: "gray" };
   if (campaign.pendingCount > 0) return { label: "Review needed", tone: "amber" };
   if (campaign.lifecycle === "Live") return { label: "Live", tone: "green" };
-  if (campaign.lifecycle === "Drafting") return { label: "Mark drafting", tone: "gray" };
+  if (campaign.lifecycle === "Drafting") return { label: `${agentName} drafting`, tone: "gray" };
   if (campaign.lifecycle === "Ready") return { label: "Ready", tone: "blue" };
   return { label: "Ready", tone: "blue" };
 }
 
-export function campaignManagerSummary(campaign: CampaignWorkspaceListItem): CampaignManagerSummary {
+export function campaignManagerSummary(campaign: CampaignWorkspaceListItem, agentName: string): CampaignManagerSummary {
   const primary = `${campaign.assetCount} piece${campaign.assetCount === 1 ? "" : "s"}`;
-  if (campaign.assetCount === 0) return { primary: "No content yet", secondary: "Mark is building" };
+  if (campaign.assetCount === 0) return { primary: "No content yet", secondary: `${agentName} is building` };
   if (campaign.pendingCount > 0) {
     return {
       primary,
@@ -120,29 +120,29 @@ export function campaignAssetKindLabel(kind: string): string {
   return plainWhereLabel(kind) ?? humanize(kind);
 }
 
-export function campaignNextStep(campaign: CampaignWorkspaceListItem): string {
+export function campaignNextStep(campaign: CampaignWorkspaceListItem, agentName: string): string {
   if (campaign.pendingCount > 0) {
     return `Review ${campaign.pendingCount} piece${campaign.pendingCount === 1 ? "" : "s"}`;
   }
   if (campaign.lifecycle === "Ready") return "Send or export";
   if (campaign.lifecycle === "Live") return "Check results";
-  if (campaign.lifecycle === "Drafting") return "Wait for Mark";
+  if (campaign.lifecycle === "Drafting") return `Wait for ${agentName}`;
   if (campaign.assetCount === 0) return "Add content";
   return "Open campaign";
 }
 
-export function campaignDecisionPrompt(campaign: CampaignWorkspaceListItem): string {
+export function campaignDecisionPrompt(campaign: CampaignWorkspaceListItem, agentName: string): string {
   if (campaign.pendingCount > 0) {
     return `Decide whether to approve, revise, or hold ${campaign.pendingCount === 1 ? "this piece" : "these pieces"}.`;
   }
   if (campaign.lifecycle === "Ready") return "Choose where this campaign should be handed off.";
   if (campaign.lifecycle === "Live") return "Watch replies, dispatches, and outcomes.";
-  if (campaign.lifecycle === "Drafting") return "Add guidance for Mark if the campaign needs a different direction.";
-  if (campaign.assetCount === 0) return "Add content or ask Mark to keep building.";
+  if (campaign.lifecycle === "Drafting") return `Add guidance for ${agentName} if the campaign needs a different direction.`;
+  if (campaign.assetCount === 0) return `Add content or ask ${agentName} to keep building.`;
   return "Open the campaign to choose the next action.";
 }
 
-export function campaignPreviewText(campaign: CampaignWorkspaceListItem): CampaignPreviewText {
+export function campaignPreviewText(campaign: CampaignWorkspaceListItem, agentName: string): CampaignPreviewText {
   if (campaign.previewText) {
     return {
       label: campaign.previewLabel || "Preview",
@@ -151,11 +151,11 @@ export function campaignPreviewText(campaign: CampaignWorkspaceListItem): Campai
   }
   return {
     label: "Why this exists",
-    text: campaign.whyBuilt || campaign.objective || "Open the campaign to see what Mark is building.",
+    text: campaign.whyBuilt || campaign.objective || `Open the campaign to see what ${agentName} is building.`,
   };
 }
 
-export function buildCampaignStartActions(campaigns: CampaignWorkspaceListItem[]): CampaignStartAction[] {
+export function buildCampaignStartActions(campaigns: CampaignWorkspaceListItem[], agentName: string): CampaignStartAction[] {
   const counts = managerViewCounts(campaigns);
   const reviewPieces = campaigns.reduce((total, campaign) => total + (matchesManagerView(campaign, "needs-attention") ? campaign.pendingCount : 0), 0);
 
@@ -185,10 +185,10 @@ export function buildCampaignStartActions(campaigns: CampaignWorkspaceListItem[]
     },
     {
       key: "mark-working",
-      title: "Mark is drafting",
+      title: `${agentName} is drafting`,
       count: counts["mark-working"],
       countLabel: `${counts["mark-working"]} campaign${counts["mark-working"] === 1 ? "" : "s"}`,
-      detail: counts["mark-working"] > 0 ? "Drafts are still being prepared." : "Mark is not drafting campaigns right now.",
+      detail: counts["mark-working"] > 0 ? "Drafts are still being prepared." : `${agentName} is not drafting campaigns right now.`,
       cta: "Check drafts",
       href: "/campaigns?view=mark-working",
       tone: counts["mark-working"] > 0 ? "blue" : "gray",

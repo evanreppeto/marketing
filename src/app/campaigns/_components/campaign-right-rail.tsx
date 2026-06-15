@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import type { ReactNode } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { Button, StatusPill } from "@/app/_components/page-header";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import { statusLabel, STATUS_TONE, type DispatchView } from "@/lib/dispatch/status";
@@ -12,6 +13,7 @@ import { launchCampaignAction, sendMarkMessageAction } from "../actions";
 import { buildSendExportFacts } from "./campaign-detail-model";
 
 export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCampaignWorkspace; dispatches?: DispatchView[] }) {
+  const agentName = useAgentName();
   const facts = buildSendExportFacts(detail);
   const { campaign, launchState, reasoning } = detail;
   const resultText = launchState.live
@@ -53,12 +55,12 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
         ) : null}
       </RailPanel>
 
-      <RailPanel id="mark" title="Ask Mark">
+      <RailPanel id="mark" title={`Ask ${agentName}`}>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">{reasoning.recommendedAction || reasoning.whyBuilt}</p>
         {reasoning.guardrailFlags.length > 0 ? (
           <div className="mt-3 rounded-lg border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-3 py-2">
             <div className="text-xs font-bold text-[var(--warn-text)]">
-              {reasoning.guardrailFlags.length} item{reasoning.guardrailFlags.length === 1 ? "" : "s"} for Mark to watch
+              {reasoning.guardrailFlags.length} item{reasoning.guardrailFlags.length === 1 ? "" : "s"} for {agentName} to watch
             </div>
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{reasoning.guardrailFlags.join(" / ")}</p>
           </div>
@@ -129,24 +131,25 @@ function LaunchCampaignForm({ campaignId }: { campaignId: string }) {
 }
 
 function MarkMessageForm({ campaignId }: { campaignId: string }) {
+  const agentName = useAgentName();
   const [state, formAction, isPending] = useActionState(sendMarkMessageAction, null);
 
   return (
     <form action={formAction} className="mt-3 space-y-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
       <input type="hidden" name="campaignId" value={campaignId} />
       <label className="block">
-        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Ask Mark</span>
+        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Ask {agentName}</span>
         <textarea
           name="message"
           rows={3}
-          placeholder="Tell Mark what to revise, add, or explain."
+          placeholder={`Tell ${agentName} what to revise, add, or explain.`}
           className="mt-2 w-full resize-y rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         />
       </label>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs leading-5 text-[var(--text-muted)]">Adds this note to the campaign.</span>
         <Button type="submit" variant="ghost" size="sm" disabled={isPending}>
-          {isPending ? "Sending..." : "Send to Mark"}
+          {isPending ? "Sending..." : `Send to ${agentName}`}
         </Button>
       </div>
       {state ? <p className={`text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}

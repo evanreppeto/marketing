@@ -404,7 +404,7 @@ type LeadRow = {
 
 const EMPTY_READABLE_PREVIEW = "No readable draft content has been attached yet.";
 
-export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise<CampaignWorkspaceList> {
+export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Mark"): Promise<CampaignWorkspaceList> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
@@ -426,7 +426,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
       approvals.map((approval) => approval.id),
       "created_at",
     );
-    const mediaByCampaign = buildMediaByCampaign(campaigns, assets, approvals, approvalOutputs);
+    const mediaByCampaign = buildMediaByCampaign(campaigns, assets, approvals, approvalOutputs, agentName);
     const sourceCountByCampaign = buildSourceCountByCampaign(campaigns, approvals, approvalOutputs);
 
     const items = campaigns.map((campaign) => {
@@ -436,9 +436,10 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
         campaignAssetRows,
         campaignApprovals,
         approvalOutputs.filter((output) => output.approval_item_id && campaignApprovals.some((approval) => approval.id === output.approval_item_id)),
+        agentName,
       );
       const preview = pickWorkspacePreview(campaignAssets);
-      const reasoning = buildReasoning(campaign, campaignAssetRows);
+      const reasoning = buildReasoning(campaign, campaignAssetRows, agentName);
       const launch = buildLaunchState(campaignAssets, campaign.launch_locked);
       const rollup = deriveCampaignRollup(collectPieceStatuses(campaignAssetRows, campaignApprovals));
       const assetTypes = uniqueStrings(campaignAssets.map((asset) => asset.assetType)).slice(0, 4);
@@ -489,7 +490,11 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient): Promise
   }
 }
 
-export async function getCampaignWorkspaceDetail(campaignId: string, client?: SupabaseClient): Promise<CampaignWorkspaceDetail> {
+export async function getCampaignWorkspaceDetail(
+  campaignId: string,
+  client?: SupabaseClient,
+  agentName = "Mark",
+): Promise<CampaignWorkspaceDetail> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
@@ -527,15 +532,15 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       selectIn<LeadRow>(supabase, "leads", "id,source,status,loss_summary,lead_score,metadata", "id", relatedIds.leadIds),
     ]);
 
-    const assetsView = buildWorkspaceAssets(assets, approvals, outputs);
+    const assetsView = buildWorkspaceAssets(assets, approvals, outputs, agentName);
     const media = uniqueMedia([
       ...collectMediaFromCampaign(campaign),
       ...assetsView.flatMap((asset) => asset.media),
       ...approvals.flatMap((approval) => collectMediaFromApproval(approval)),
-      ...outputs.flatMap((output) => collectMediaFromOutput(output)),
+      ...outputs.flatMap((output) => collectMediaFromOutput(output, agentName)),
     ]);
-    const sources = buildSources({ campaign, assets, approvals, companies, contacts, leads, outputs });
-    const reasoning = buildReasoning(campaign, assets);
+    const sources = buildSources({ campaign, assets, approvals, companies, contacts, leads, outputs }, agentName);
+    const reasoning = buildReasoning(campaign, assets, agentName);
     const rollup = deriveCampaignRollup(collectPieceStatuses(assets, approvals));
 
     return {
@@ -558,11 +563,11 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
       },
       assets: assetsView,
       groupedAssets: groupAssets(assetsView),
-      approvals: approvals.map(mapApproval),
+      approvals: approvals.map((approval) => mapApproval(approval, agentName)),
       media,
       sources,
       reasoning,
-      executiveOverview: buildExecutiveOverview({ campaign, assets, approvals, sources, reasoning }),
+      executiveOverview: buildExecutiveOverview({ campaign, assets, approvals, sources, reasoning, agentName }),
       activity: outputs.map(mapOutput),
       events: events.map((event) => ({
         id: event.id,
@@ -578,9 +583,9 @@ export async function getCampaignWorkspaceDetail(campaignId: string, client?: Su
         sources: sources.length,
       },
       launchState: buildLaunchState(assetsView, campaign.launch_locked),
-      markConversation: buildMarkConversation(agentTasks, outputs),
+      markConversation: buildMarkConversation(agentTasks, outputs, agentName),
       approvalHistory: buildApprovalHistory(decisions, approvals),
-      auditLog: buildAuditLog(events, outputs),
+      auditLog: buildAuditLog(events, outputs, agentName),
     };
   } catch (error) {
     return {
@@ -639,7 +644,7 @@ function classifyActor(actor: string | null): AuditEntry["actorKind"] {
 /** Unified, newest-first campaign audit trail: every recorded event plus the
  *  concrete work Mark produced, tagged by actor so the UI can filter to user or
  *  Mark activity. */
-export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRow[]): AuditEntry[] {
+export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRow[], agentName = "Mark"): AuditEntry[] {
   const items: Array<AuditEntry & { sortAt: string }> = [];
 
   for (const event of events) {
@@ -657,7 +662,7 @@ export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRo
   for (const output of outputs) {
     items.push({
       id: `out-${output.id}`,
-      actor: "Mark",
+      actor: agentName,
       actorKind: "mark",
       action: `Produced ${humanize(output.output_type)}`,
       detail: output.title,
@@ -678,7 +683,7 @@ export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRo
     }));
 }
 
-export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[]): MarkMessage[] {
+export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[], agentName = "Mark"): MarkMessage[] {
   // Raw `at` holds the ISO timestamp for sorting; formatted on the way out.
   const items: MarkMessage[] = [];
 
@@ -705,7 +710,7 @@ export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutpu
     items.push({
       id: `output-${output.id}`,
       role: "mark",
-      author: "Mark",
+      author: agentName,
       kind: humanize(output.output_type),
       title: output.title,
       body: buildReadablePreview(output.edited_body ?? output.body ?? "", output.structured_payload),
@@ -816,6 +821,7 @@ export async function getCampaignsForRecord(
   kind: LinkedCampaignRecordKind,
   recordId: string,
   client?: SupabaseClient,
+  agentName = "Mark",
 ): Promise<LinkedCampaign[]> {
   if (!client && !isSupabaseAdminConfigured()) return [];
 
@@ -857,6 +863,7 @@ export async function getCampaignsForRecord(
         campaignAssetRows,
         campaignApprovals,
         approvalOutputs.filter((output) => output.approval_item_id && campaignApprovals.some((approval) => approval.id === output.approval_item_id)),
+        agentName,
       );
       const launch = buildLaunchState(campaignAssets, campaign.launch_locked);
       return {
@@ -915,6 +922,7 @@ function buildWorkspaceAssets(
   assets: CampaignAssetRow[],
   approvals: ApprovalItemRow[],
   outputs: AgentOutputRow[],
+  agentName: string,
 ): CampaignWorkspaceAsset[] {
   const assetIds = new Set(assets.map((asset) => asset.id));
   const outputApprovalIds = new Set(outputs.map((output) => output.approval_item_id).filter((id): id is string => Boolean(id)));
@@ -941,10 +949,10 @@ function buildWorkspaceAssets(
         (!output.campaign_asset_id || !assetIds.has(output.campaign_asset_id)) &&
         (!output.approval_item_id || !assetApprovalIds.has(output.approval_item_id)),
     )
-    .map((output) => attachApproval(mapOutputAsAsset(output), output.approval_item_id ? approvalById.get(output.approval_item_id) : undefined));
+    .map((output) => attachApproval(mapOutputAsAsset(output, agentName), output.approval_item_id ? approvalById.get(output.approval_item_id) : undefined));
   const approvalAssets = approvals
     .filter((approval) => !approval.campaign_asset_id && !outputApprovalIds.has(approval.id))
-    .map(mapApprovalAsAsset);
+    .map((approval) => mapApprovalAsAsset(approval, agentName));
 
   // Real campaign_assets come first, so when an output/approval describes the
   // same deliverable, the real asset (correct id + gating approval) wins and the
@@ -979,10 +987,10 @@ function isDecidedApproval(approval: ApprovalItemRow): boolean {
   return /approved|declined|archived|rejected/i.test(approval.status);
 }
 
-function mapOutputAsAsset(output: AgentOutputRow): CampaignWorkspaceAsset {
+function mapOutputAsAsset(output: AgentOutputRow, agentName: string): CampaignWorkspaceAsset {
   const rawBody = output.edited_body ?? output.body ?? "";
   const readableBody = buildReadablePreview(rawBody, output.structured_payload);
-  const media = collectMediaFromOutput(output);
+  const media = collectMediaFromOutput(output, agentName);
   const type = output.output_type || "mark_output";
 
   return {
@@ -996,7 +1004,7 @@ function mapOutputAsAsset(output: AgentOutputRow): CampaignWorkspaceAsset {
     preview: readableBody,
     complianceNotes: output.compliance_status ? `Compliance: ${humanize(output.compliance_status)}` : "No output-level compliance notes captured.",
     dispatchLocked: true,
-    toolSource: "Mark output",
+    toolSource: `${agentName} output`,
     updatedAt: formatDate(output.updated_at),
     media,
     revision: null,
@@ -1004,7 +1012,7 @@ function mapOutputAsAsset(output: AgentOutputRow): CampaignWorkspaceAsset {
   };
 }
 
-function mapApprovalAsAsset(approval: ApprovalItemRow): CampaignWorkspaceAsset {
+function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): CampaignWorkspaceAsset {
   const rawBody = approval.edited_output ?? approval.draft_output ?? "";
   const readableBody = buildReadablePreview(rawBody, approval.prompt_inputs, approval.reasoning_payload);
   const type = approval.item_type || "approval_item";
@@ -1022,7 +1030,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow): CampaignWorkspaceAsset {
     preview: readableBody,
     complianceNotes: approval.compliance_notes ?? "No approval-level compliance notes captured.",
     dispatchLocked: approval.locked_until_approved,
-    toolSource: approval.requested_by ?? "Mark",
+    toolSource: approval.requested_by ?? agentName,
     updatedAt: formatDate(approval.updated_at),
     media,
     revision: null,
@@ -1034,7 +1042,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow): CampaignWorkspaceAsset {
  * Pure: distill the "thinking behind it" for the Reasoning tab from Mark's
  * stored reasoning/audit payloads and the tools each asset was built with.
  */
-export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[]): CampaignWorkspaceReasoning {
+export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[], agentName = "Mark"): CampaignWorkspaceReasoning {
   const reasoning = asObject(campaign.reasoning_payload);
   const audit = asObject(campaign.audit_payload);
 
@@ -1048,7 +1056,7 @@ export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[]
       getString(reasoning.why_hermes_created_it) ??
       campaign.objective ??
       campaign.offer_summary ??
-      "Mark has not recorded reasoning for this campaign yet.",
+      `${agentName} has not recorded reasoning for this campaign yet.`,
     recommendedAction: getString(reasoning.recommended_action) ?? "No recommended action recorded.",
     guardrailFlags: asStringArray(reasoning.guardrail_flags),
     toolsUsed,
@@ -1062,8 +1070,9 @@ export function buildExecutiveOverview(input: {
   approvals: ApprovalItemRow[];
   sources: CampaignWorkspaceSource[];
   reasoning: CampaignWorkspaceReasoning;
+  agentName?: string;
 }): CampaignExecutiveOverview {
-  const { campaign, assets, approvals, reasoning, sources } = input;
+  const { campaign, assets, approvals, reasoning, sources, agentName = "Mark" } = input;
   const audience = sentenceFragment(campaign.audience_summary ?? `the ${humanize(campaign.persona)} segment`);
   const offer = sentenceFragment(campaign.offer_summary ?? "the proposed Big Shoulders restoration offer");
   const objective = sentenceFragment(campaign.objective ?? campaign.offer_summary ?? "No campaign objective has been captured yet");
@@ -1084,7 +1093,7 @@ export function buildExecutiveOverview(input: {
     why: `${whySignal}. Goal: reduce decision friction and make the next step clear.`,
     timeframe:
       findPayloadAnswer(payloads, TIMEFRAME_KEYS) ??
-      buildJourneyTimeframe(campaign),
+      buildJourneyTimeframe(campaign, agentName),
     where:
       findPayloadAnswer(payloads, LOCATION_KEYS) ??
       `Client context: ${audience}.`,
@@ -1122,13 +1131,13 @@ const LOCATION_KEYS =
 const SUCCESS_KEYS =
   /^(success|success_metrics|success_criteria|kpis|key_metrics|measurement_plan|tracking_plan|attribution_plan|target_outcomes|conversion_goal|goal_metric)$/i;
 
-function buildJourneyTimeframe(campaign: CampaignRow) {
+function buildJourneyTimeframe(campaign: CampaignRow, agentName: string) {
   const objectiveWindow = extractDecisionWindow(campaign.objective ?? "");
   if (objectiveWindow) {
     return `Decision window: ${objectiveWindow}. Updated ${formatDate(campaign.updated_at)}.`;
   }
 
-  return `Customer-journey window is not captured yet. Mark should add launch dates or the client decision window before judging timing. Updated ${formatDate(campaign.updated_at)}.`;
+  return `Customer-journey window is not captured yet. ${agentName} should add launch dates or the client decision window before judging timing. Updated ${formatDate(campaign.updated_at)}.`;
 }
 
 function extractDecisionWindow(value: string) {
@@ -1210,7 +1219,7 @@ function formatPayloadAnswer(value: unknown): string | null {
   return scalarValues.length > 0 ? scalarValues.join(" / ") : null;
 }
 
-function mapApproval(approval: ApprovalItemRow): CampaignWorkspaceApproval {
+function mapApproval(approval: ApprovalItemRow, agentName: string): CampaignWorkspaceApproval {
   const rawBody = approval.edited_output ?? approval.draft_output ?? "";
   return {
     id: approval.id,
@@ -1218,7 +1227,7 @@ function mapApproval(approval: ApprovalItemRow): CampaignWorkspaceApproval {
     type: humanize(approval.item_type),
     status: statusLabel(approval.status),
     riskLevel: humanize(approval.risk_level),
-    requestedBy: approval.requested_by ?? "Mark",
+    requestedBy: approval.requested_by ?? agentName,
     submittedAt: formatDate(approval.submitted_at),
     href: `/approvals?item=${approval.id}`,
     preview: buildReadablePreview(rawBody, approval.prompt_inputs, approval.reasoning_payload),
@@ -1300,7 +1309,7 @@ export function buildSources(input: {
   contacts: ContactRow[];
   leads: LeadRow[];
   outputs: AgentOutputRow[];
-}): CampaignWorkspaceSource[] {
+}, agentName = "Mark"): CampaignWorkspaceSource[] {
   const sources: CampaignWorkspaceSource[] = [];
 
   for (const company of input.companies) {
@@ -1354,7 +1363,7 @@ export function buildSources(input: {
       ...collectMediaFromCampaign(input.campaign),
       ...input.assets.flatMap(collectMediaFromAsset),
       ...input.approvals.flatMap(collectMediaFromApproval),
-      ...input.outputs.flatMap(collectMediaFromOutput),
+      ...input.outputs.flatMap((output) => collectMediaFromOutput(output, agentName)),
     ].map((media) => media.url),
   );
 
@@ -1363,7 +1372,7 @@ export function buildSources(input: {
     sources.push({
       id: `url-${stableId(url)}`,
       label: getHostLabel(url),
-      detail: "Evidence or source URL captured by Mark.",
+      detail: `Evidence or source URL captured by ${agentName}.`,
       url,
       recordHref: null,
       kind: "web",
@@ -1373,7 +1382,7 @@ export function buildSources(input: {
   return uniqueById(sources);
 }
 
-function buildMediaByCampaign(campaigns: CampaignRow[], assets: CampaignAssetRow[], approvals: ApprovalItemRow[], outputs: AgentOutputRow[]) {
+function buildMediaByCampaign(campaigns: CampaignRow[], assets: CampaignAssetRow[], approvals: ApprovalItemRow[], outputs: AgentOutputRow[], agentName = "Mark") {
   const mediaByCampaign = new Map<string, CampaignMediaAsset[]>();
 
   for (const campaign of campaigns) {
@@ -1390,7 +1399,7 @@ function buildMediaByCampaign(campaigns: CampaignRow[], assets: CampaignAssetRow
         ...collectMediaFromCampaign(campaign),
         ...campaignAssets.flatMap(collectMediaFromAsset),
         ...campaignApprovals.flatMap(collectMediaFromApproval),
-        ...campaignOutputs.flatMap(collectMediaFromOutput),
+        ...campaignOutputs.flatMap((output) => collectMediaFromOutput(output, agentName)),
       ]),
     );
   }
@@ -1445,10 +1454,10 @@ function collectMediaFromApproval(approval: ApprovalItemRow) {
   ]);
 }
 
-function collectMediaFromOutput(output: AgentOutputRow) {
+function collectMediaFromOutput(output: AgentOutputRow, agentName = "Mark") {
   return buildMediaAssets([
-    ["Mark output", asObject(output.structured_payload)],
-    ["Mark body", output.edited_body ?? output.body ?? ""],
+    [`${agentName} output`, asObject(output.structured_payload)],
+    [`${agentName} body`, output.edited_body ?? output.body ?? ""],
   ]);
 }
 

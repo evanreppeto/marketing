@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
@@ -9,7 +10,8 @@ import { decideAssetAction, deployAssetAction, reopenAssetAction, requestRevisio
 import { buildCampaignContentRows, type CampaignContentRow } from "./campaign-detail-model";
 
 export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace }) {
-  const rows = useMemo(() => buildCampaignContentRows(detail), [detail]);
+  const agentName = useAgentName();
+  const rows = useMemo(() => buildCampaignContentRows(detail, agentName), [detail, agentName]);
   const [selectedId, setSelectedId] = useState<string | null>(rows[0]?.id ?? null);
   const selected = rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
   const selectedAsset = selected ? detail.assets.find((asset) => asset.id === selected.id) ?? null : null;
@@ -19,7 +21,7 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
     return (
       <section id="content" className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6">
         <span className="signal-eyebrow">Pieces</span>
-        <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">Mark is still building</h2>
+        <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">{agentName} is still building</h2>
         <p className="mt-2 max-w-[64ch] text-sm leading-6 text-[var(--text-secondary)]">
           Emails, exports, CRM notes, ads, and other campaign pieces will appear here when they are ready for you.
         </p>
@@ -33,9 +35,9 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
         <span className="signal-eyebrow">Pieces</span>
         <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-base font-bold text-[var(--text-primary)]">Things Mark made</h2>
+            <h2 className="text-base font-bold text-[var(--text-primary)]">Things {agentName} made</h2>
             <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-              Pick one, read it, then approve it or ask Mark to change it.
+              Pick one, read it, then approve it or ask {agentName} to change it.
             </p>
           </div>
           <span className="font-mono text-xs font-bold text-[var(--text-muted)]">
@@ -193,6 +195,7 @@ function DeployPiece({ assetId, campaignId }: { assetId: string; campaignId: str
 }
 
 function ReopenPiece({ assetId, campaignId }: { assetId: string; campaignId: string }) {
+  const agentName = useAgentName();
   const [state, formAction, isPending] = useActionState(reopenAssetAction, null);
 
   return (
@@ -202,10 +205,10 @@ function ReopenPiece({ assetId, campaignId }: { assetId: string; campaignId: str
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-[var(--text-primary)]">Need to change this piece?</span>
         <Button type="submit" variant="ghost" size="sm" disabled={isPending}>
-          {isPending ? "Saving..." : "Ask Mark to revise"}
+          {isPending ? "Saving..." : `Ask ${agentName} to revise`}
         </Button>
       </div>
-      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">Moves this piece back into review so Mark can make changes before it is used again.</p>
+      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">Moves this piece back into review so {agentName} can make changes before it is used again.</p>
       {state ? <p className={`mt-2 text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>{state.message}</p> : null}
     </form>
   );
@@ -231,6 +234,7 @@ function ApprovePiece({ assetId, campaignId }: { assetId: string; campaignId: st
 }
 
 function RevisePiece({ assetId, campaignId }: { assetId: string; campaignId: string }) {
+  const agentName = useAgentName();
   const [state, formAction, isPending] = useActionState(requestRevisionAction, null);
 
   return (
@@ -238,17 +242,17 @@ function RevisePiece({ assetId, campaignId }: { assetId: string; campaignId: str
       <input type="hidden" name="assetId" value={assetId} />
       <input type="hidden" name="campaignId" value={campaignId} />
       <label className="block">
-        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Ask Mark for changes</span>
+        <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Ask {agentName} for changes</span>
         <textarea
           name="instruction"
           rows={3}
-          placeholder="Tell Mark what should change."
+          placeholder={`Tell ${agentName} what should change.`}
           className="mt-2 w-full resize-y rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         />
       </label>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button type="submit" variant="ghost" size="sm" disabled={isPending}>
-          {isPending ? "Sending..." : "Send to Mark"}
+          {isPending ? "Sending..." : `Send to ${agentName}`}
         </Button>
         <span className="text-xs text-[var(--text-muted)]">Queues a revision. Nothing is sent to customers.</span>
       </div>

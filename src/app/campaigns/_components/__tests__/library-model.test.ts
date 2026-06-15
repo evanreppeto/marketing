@@ -133,27 +133,27 @@ describe("campaign manager helpers", () => {
     ["Ready", 0, { label: "Ready", tone: "blue" }],
     ["Live", 1, { label: "Review needed", tone: "amber" }],
     ["Live", 0, { label: "Live", tone: "green" }],
-    ["Drafting", 0, { label: "Mark drafting", tone: "gray" }],
+    ["Drafting", 0, { label: "Agent drafting", tone: "gray" }],
   ])("maps lifecycle %s and pending %s to plain status", (lifecycle, pendingCount, expected) => {
-    expect(campaignManagerStatus(campaign({ lifecycle, pendingCount }))).toEqual(expected);
+    expect(campaignManagerStatus(campaign({ lifecycle, pendingCount }), "Agent")).toEqual(expected);
   });
 
   it("shows archived display status regardless of lifecycle", () => {
-    expect(campaignManagerStatus(campaign({ status: "Archived", lifecycle: "Live", pendingCount: 0 }))).toEqual({
+    expect(campaignManagerStatus(campaign({ status: "Archived", lifecycle: "Live", pendingCount: 0 }), "Agent")).toEqual({
       label: "Archived",
       tone: "gray",
     });
   });
 
   it("summarizes content with review count", () => {
-    expect(campaignManagerSummary(campaign({ assetCount: 3, pendingCount: 2 }))).toEqual({
+    expect(campaignManagerSummary(campaign({ assetCount: 3, pendingCount: 2 }), "Agent")).toEqual({
       primary: "3 pieces",
       secondary: "2 need review",
     });
   });
 
   it("uses all-approved copy when no pieces need review", () => {
-    expect(campaignManagerSummary(campaign({ assetCount: 3, pendingCount: 0 }))).toEqual({
+    expect(campaignManagerSummary(campaign({ assetCount: 3, pendingCount: 0 }), "Agent")).toEqual({
       primary: "3 pieces",
       secondary: "all approved",
     });
@@ -188,34 +188,34 @@ describe("campaign manager helpers", () => {
   });
 
   it("derives the next step in plain language", () => {
-    expect(campaignNextStep(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe("Review 2 pieces");
-    expect(campaignNextStep(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe("Send or export");
-    expect(campaignNextStep(campaign({ lifecycle: "Live", pendingCount: 0 }))).toBe("Check results");
-    expect(campaignNextStep(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe("Wait for Mark");
+    expect(campaignNextStep(campaign({ lifecycle: "In review", pendingCount: 2 }), "Agent")).toBe("Review 2 pieces");
+    expect(campaignNextStep(campaign({ lifecycle: "Ready", pendingCount: 0 }), "Agent")).toBe("Send or export");
+    expect(campaignNextStep(campaign({ lifecycle: "Live", pendingCount: 0 }), "Agent")).toBe("Check results");
+    expect(campaignNextStep(campaign({ lifecycle: "Drafting", pendingCount: 0 }), "Agent")).toBe("Wait for Agent");
   });
 
   it("explains what the user needs to decide", () => {
-    expect(campaignDecisionPrompt(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe(
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "In review", pendingCount: 2 }), "Agent")).toBe(
       "Decide whether to approve, revise, or hold these pieces.",
     );
-    expect(campaignDecisionPrompt(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe(
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Ready", pendingCount: 0 }), "Agent")).toBe(
       "Choose where this campaign should be handed off.",
     );
-    expect(campaignDecisionPrompt(campaign({ lifecycle: "Live", pendingCount: 0 }))).toBe("Watch replies, dispatches, and outcomes.");
-    expect(campaignDecisionPrompt(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe(
-      "Add guidance for Mark if the campaign needs a different direction.",
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Live", pendingCount: 0 }), "Agent")).toBe("Watch replies, dispatches, and outcomes.");
+    expect(campaignDecisionPrompt(campaign({ lifecycle: "Drafting", pendingCount: 0 }), "Agent")).toBe(
+      "Add guidance for Agent if the campaign needs a different direction.",
     );
   });
 
   it("uses the real preview text when one exists", () => {
-    expect(campaignPreviewText(campaign({ previewLabel: "Email", previewText: "Subject: We can help" }))).toEqual({
+    expect(campaignPreviewText(campaign({ previewLabel: "Email", previewText: "Subject: We can help" }), "Agent")).toEqual({
       label: "Email",
       text: "Subject: We can help",
     });
   });
 
   it("falls back to why Mark built it when no preview text exists", () => {
-    expect(campaignPreviewText(campaign({ previewText: "", previewLabel: "", whyBuilt: "Mark found a strong partner fit." }))).toEqual({
+    expect(campaignPreviewText(campaign({ previewText: "", previewLabel: "", whyBuilt: "Mark found a strong partner fit." }), "Agent")).toEqual({
       label: "Why this exists",
       text: "Mark found a strong partner fit.",
     });
@@ -227,7 +227,7 @@ describe("campaign manager helpers", () => {
       campaign({ id: "ready", lifecycle: "Ready", pendingCount: 0 }),
       campaign({ id: "draft", lifecycle: "Drafting", pendingCount: 0 }),
       campaign({ id: "live", lifecycle: "Live", pendingCount: 0 }),
-    ]);
+    ], "Agent");
 
     expect(actions.map((action) => ({ key: action.key, count: action.count, cta: action.cta, tone: action.tone }))).toEqual([
       { key: "needs-attention", count: 1, cta: "Start reviewing", tone: "amber" },

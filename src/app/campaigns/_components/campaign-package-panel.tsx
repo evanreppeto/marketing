@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { Button, buttonClasses, StatusPill } from "@/app/_components/page-header";
 import type { CampaignLaunchState, CampaignWorkspaceMeta } from "@/lib/campaigns/read-model";
 
@@ -30,6 +31,7 @@ export function LaunchTracker({
   launchState: CampaignLaunchState;
   onReviewPieces: () => void;
 }) {
+  const agentName = useAgentName();
   const [state, formAction, isPending] = useActionState(launchCampaignAction, null);
   const [armed, setArmed] = useState(false);
   const { requiredCount, approvedCount, pendingCount, deployedCount, ready, live, lifecycle } = launchState;
@@ -43,7 +45,7 @@ export function LaunchTracker({
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Live</div>
             <p className="mt-0.5 text-sm font-semibold text-[var(--text-secondary)]">
-              Launched and handed off to Mark for dispatch. {approvedCount} approved deliverable{approvedCount === 1 ? "" : "s"} are unlocked.
+              Launched and handed off to {agentName} for dispatch. {approvedCount} approved deliverable{approvedCount === 1 ? "" : "s"} are unlocked.
             </p>
           </div>
         </div>
@@ -61,9 +63,9 @@ export function LaunchTracker({
     requiredCount === 0 ? "No pieces in review yet" : ready ? "Ready to launch" : "Pieces awaiting your approval";
   const subtext =
     requiredCount === 0
-      ? "Mark is still building this campaign. Deliverables will appear here for approval."
+      ? `${agentName} is still building this campaign. Deliverables will appear here for approval.`
       : ready
-        ? "Every piece is approved. Launch to hand the campaign off to Mark for dispatch — outbound stays locked until you do."
+        ? `Every piece is approved. Launch to hand the campaign off to ${agentName} for dispatch — outbound stays locked until you do.`
         : `${pendingCount} of ${requiredCount} ${pendingCount === 1 ? "piece" : "pieces"} still need a decision before this campaign can launch.`;
 
   return (

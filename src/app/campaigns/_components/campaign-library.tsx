@@ -5,26 +5,32 @@ import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { CampaignManagerRow } from "./campaign-manager-row";
 import { buildCampaignStartActions, filterCampaignManagerItems, managerViewCounts, type CampaignManagerTone, type CampaignManagerView } from "./library-model";
 
-const VIEWS: Array<{ key: CampaignManagerView; label: string }> = [
-  { key: "needs-attention", label: "Needs attention" },
-  { key: "all", label: "All campaigns" },
-  { key: "ready-to-send", label: "Ready to send" },
-  { key: "mark-working", label: "Mark is working" },
-  { key: "live", label: "Live" },
-  { key: "archived", label: "Archived" },
-];
+// `key` values are stable data (URL params); only labels are display copy.
+function buildViews(agentName: string): Array<{ key: CampaignManagerView; label: string }> {
+  return [
+    { key: "needs-attention", label: "Needs attention" },
+    { key: "all", label: "All campaigns" },
+    { key: "ready-to-send", label: "Ready to send" },
+    { key: "mark-working", label: `${agentName} is working` },
+    { key: "live", label: "Live" },
+    { key: "archived", label: "Archived" },
+  ];
+}
 
 export function CampaignLibrary({
   campaigns,
   activeView,
   query,
+  agentName,
 }: {
   campaigns: CampaignWorkspaceListItem[];
   activeView: CampaignManagerView;
   query: string;
+  agentName: string;
 }) {
+  const VIEWS = buildViews(agentName);
   const counts = managerViewCounts(campaigns);
-  const startActions = buildCampaignStartActions(campaigns);
+  const startActions = buildCampaignStartActions(campaigns, agentName);
   const filteredCampaigns = filterCampaignManagerItems(campaigns, activeView, query);
   const trimmedQuery = query.trim();
 

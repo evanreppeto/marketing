@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { Button, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceReasoning, MarkMessage } from "@/lib/campaigns/read-model";
 
@@ -29,6 +30,7 @@ export function MarkConversation({
   conversation: MarkMessage[];
   reasoning: CampaignWorkspaceReasoning;
 }) {
+  const agentName = useAgentName();
   return (
     <div className="module-rise grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
       <section className="flex min-h-[28rem] flex-col overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
@@ -36,11 +38,11 @@ export function MarkConversation({
           <MarkAvatar />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">Mark</h2>
+              <h2 className="text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">{agentName}</h2>
               <StatusPill tone="blue">Drafts only</StatusPill>
             </div>
             <p className="mt-0.5 text-xs font-semibold text-[var(--text-muted)]">
-              Ask Mark to build, revise, or explain. Messages are queued — outbound stays locked.
+              Ask {agentName} to build, revise, or explain. Messages are queued — outbound stays locked.
             </p>
           </div>
         </header>
@@ -48,7 +50,7 @@ export function MarkConversation({
         <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
           {conversation.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm leading-6 text-[var(--text-muted)]">
-              No messages yet. Ask Mark to draft more pieces, revise an existing one, or explain his choices — your message is queued for him and his reply lands here.
+              No messages yet. Ask {agentName} to draft more pieces, revise an existing one, or explain its choices — your message is queued for it and its reply lands here.
             </div>
           ) : (
             conversation.map((message) => <MessageBubble key={message.id} message={message} />)
@@ -101,6 +103,7 @@ function MessageBubble({ message }: { message: MarkMessage }) {
 }
 
 function Composer({ campaignId }: { campaignId: string }) {
+  const agentName = useAgentName();
   const [state, formAction, isPending] = useActionState(sendMarkMessageAction, null);
   const [draft, setDraft] = useState("");
   const [seenState, setSeenState] = useState(state);
@@ -143,15 +146,15 @@ function Composer({ campaignId }: { campaignId: string }) {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           rows={3}
-          placeholder="Tell Mark what to build, revise, or explain…"
+          placeholder={`Tell ${agentName} what to build, revise, or explain…`}
           className="w-full resize-y rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         />
         <div className="flex items-center justify-between gap-3">
           <span className={`text-xs font-semibold ${state && !state.ok ? "text-[oklch(0.86_0.09_26)]" : "text-[var(--text-muted)]"}`}>
-            {state ? state.message : "Mark works asynchronously — replies appear in the thread."}
+            {state ? state.message : `${agentName} works asynchronously — replies appear in the thread.`}
           </span>
           <Button type="submit" variant="primary" size="sm" disabled={isPending || draft.trim().length === 0}>
-            {isPending ? "Sending…" : "Send to Mark"}
+            {isPending ? "Sending…" : `Send to ${agentName}`}
           </Button>
         </div>
       </form>
@@ -160,13 +163,14 @@ function Composer({ campaignId }: { campaignId: string }) {
 }
 
 function MarkPlan({ reasoning }: { reasoning: CampaignWorkspaceReasoning }) {
+  const agentName = useAgentName();
   const hasGuardrails = reasoning.guardrailFlags.length > 0;
   const hasTools = reasoning.toolsUsed.length > 0;
 
   return (
     <aside className="space-y-3">
       <div className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
-        <span className="signal-eyebrow">Mark&rsquo;s plan</span>
+        <span className="signal-eyebrow">{agentName}&rsquo;s plan</span>
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{reasoning.whyBuilt}</p>
         {reasoning.recommendedAction ? (
           <div className="mt-3 border-t border-[var(--border-hairline)] pt-3">
@@ -192,7 +196,7 @@ function MarkPlan({ reasoning }: { reasoning: CampaignWorkspaceReasoning }) {
 
       {hasTools ? (
         <div className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
-          <span className="signal-eyebrow">Tools Mark used</span>
+          <span className="signal-eyebrow">Tools {agentName} used</span>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {reasoning.toolsUsed.map((tool) => (
               <span key={tool} className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-0.5 font-mono text-xs text-[var(--text-secondary)]">
@@ -207,6 +211,7 @@ function MarkPlan({ reasoning }: { reasoning: CampaignWorkspaceReasoning }) {
 }
 
 function MarkAvatar({ small = false }: { small?: boolean }) {
+  const agentName = useAgentName();
   return (
     <span
       aria-hidden
@@ -214,7 +219,7 @@ function MarkAvatar({ small = false }: { small?: boolean }) {
         small ? "h-7 w-7 text-xs" : "h-10 w-10 text-base"
       }`}
     >
-      M
+      {agentName.charAt(0).toUpperCase()}
     </span>
   );
 }

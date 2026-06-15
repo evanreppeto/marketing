@@ -1,20 +1,22 @@
 import Link from "next/link";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { buttonClasses } from "@/app/_components/page-header";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 import { campaignAssetKindLabel, campaignDecisionPrompt, campaignManagerWhere, campaignNextStep, campaignPreviewText } from "./library-model";
 
 export function CampaignManagerPreview({ campaign, id }: { campaign: CampaignWorkspaceListItem; id?: string }) {
+  const agentName = useAgentName();
   const where = campaignManagerWhere(campaign);
-  const nextStep = campaignNextStep(campaign);
-  const preview = campaignPreviewText(campaign);
+  const nextStep = campaignNextStep(campaign, agentName);
+  const preview = campaignPreviewText(campaign, agentName);
 
   return (
     <div id={id} className="border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-4 sm:px-5">
       <div className="grid gap-3 xl:grid-cols-[1.15fr_0.9fr_0.8fr]">
         <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-3">
-          <h3 className="text-sm font-bold text-[var(--text-primary)]">What Mark made</h3>
+          <h3 className="text-sm font-bold text-[var(--text-primary)]">What {agentName} made</h3>
           <div className="mt-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
             <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{preview.label}</div>
             <p className="mt-1 line-clamp-5 whitespace-pre-wrap text-sm leading-5 text-[var(--text-secondary)]">{preview.text}</p>
@@ -24,7 +26,7 @@ export function CampaignManagerPreview({ campaign, id }: { campaign: CampaignWor
               Review full campaign
             </Link>
             <Link href={`${campaign.href}#mark`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Ask Mark
+              Ask {agentName}
             </Link>
           </div>
         </section>
@@ -53,7 +55,7 @@ export function CampaignManagerPreview({ campaign, id }: { campaign: CampaignWor
               ))
             ) : (
               <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-2.5 py-2 text-xs text-[var(--text-muted)]">
-                Mark is still building the content.
+                {agentName} is still building the content.
               </div>
             )}
           </div>
@@ -67,7 +69,7 @@ export function CampaignManagerPreview({ campaign, id }: { campaign: CampaignWor
             <ChecklistItem done={campaign.lifecycle === "Live"} label="Send or export" detail={nextStep} />
           </ol>
           <p className="mt-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
-            {campaignDecisionPrompt(campaign)}
+            {campaignDecisionPrompt(campaign, agentName)}
           </p>
         </section>
       </div>

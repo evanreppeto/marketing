@@ -145,8 +145,8 @@ describe("campaign detail model", () => {
   });
 
   it("builds content rows with next actions", () => {
-    expect(buildCampaignContentRows(detail()).map((row) => ({ title: row.title, status: row.status.label, where: row.where, nextAction: row.nextAction }))).toEqual([
-      { title: "Email draft", status: "Review", where: "Email", nextAction: "Approve or ask Mark to revise" },
+    expect(buildCampaignContentRows(detail(), "Agent").map((row) => ({ title: row.title, status: row.status.label, where: row.where, nextAction: row.nextAction }))).toEqual([
+      { title: "Email draft", status: "Review", where: "Email", nextAction: "Approve or ask Agent to revise" },
       { title: "One-pager", status: "Live", where: "Export", nextAction: "Check results" },
     ]);
   });
@@ -164,6 +164,7 @@ describe("campaign detail model", () => {
           ],
           launchState: { requiredCount: 1, approvedCount: 1, pendingCount: 0, deployedCount: 1, ready: true, live: true, lifecycle: "Live" },
         }),
+        "Agent",
       ).map((row) => ({ status: row.status.label, nextAction: row.nextAction })),
     ).toEqual([{ status: "Live", nextAction: "Check results" }]);
   });
@@ -181,12 +182,13 @@ describe("campaign detail model", () => {
           ],
           launchState: { requiredCount: 1, approvedCount: 1, pendingCount: 0, deployedCount: 1, ready: true, live: false, lifecycle: "Ready" },
         }),
+        "Agent",
       ).map((row) => ({ status: row.status, nextAction: row.nextAction })),
     ).toEqual([{ status: { label: "Live", tone: "green" }, nextAction: "Check results" }]);
   });
 
   it("builds checklist steps from launch state", () => {
-    expect(buildCampaignChecklist(detail()).map((step) => ({ label: step.label, state: step.state }))).toEqual([
+    expect(buildCampaignChecklist(detail(), "Agent").map((step) => ({ label: step.label, state: step.state }))).toEqual([
       { label: "Review content", state: "active" },
       { label: "Approve pieces", state: "active" },
       { label: "Send or export", state: "locked" },
@@ -201,9 +203,10 @@ describe("campaign detail model", () => {
           assets: [],
           launchState: { requiredCount: 0, approvedCount: 0, pendingCount: 0, deployedCount: 0, ready: false, live: false, lifecycle: "Drafting" },
         }),
+        "Agent",
       ).map((step) => ({ label: step.label, detail: step.detail, state: step.state })),
     ).toEqual([
-      { label: "Review content", detail: "Mark is still building content.", state: "active" },
+      { label: "Review content", detail: "Agent is still building content.", state: "active" },
       { label: "Approve pieces", detail: "Content must be created before approval.", state: "locked" },
       { label: "Send or export", detail: "Approve content first.", state: "locked" },
       { label: "Watch results", detail: "Results appear after sending.", state: "locked" },
@@ -216,6 +219,7 @@ describe("campaign detail model", () => {
         detail({
           launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 0, ready: true, live: false, lifecycle: "Ready" },
         }),
+        "Agent",
       ).map((step) => ({ label: step.label, state: step.state })),
     ).toEqual([
       { label: "Review content", state: "done" },
@@ -231,6 +235,7 @@ describe("campaign detail model", () => {
         detail({
           launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 2, ready: true, live: true, lifecycle: "Live" },
         }),
+        "Agent",
       ).map((step) => ({ label: step.label, state: step.state })),
     ).toEqual([
       { label: "Review content", state: "done" },
@@ -248,7 +253,7 @@ describe("campaign detail model", () => {
   });
 
   it("builds a simple action hub for campaigns that need review", () => {
-    const hub = buildCampaignActionHub(detail(), 0);
+    const hub = buildCampaignActionHub(detail(), "Agent", 0);
 
     expect(hub.title).toBe("1 piece needs your review");
     expect(hub.primaryLabel).toBe("Start reviewing");
@@ -266,6 +271,7 @@ describe("campaign detail model", () => {
       detail({
         launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 0, ready: true, live: false, lifecycle: "Ready" },
       }),
+      "Agent",
       0,
     );
 
@@ -279,6 +285,7 @@ describe("campaign detail model", () => {
       detail({
         launchState: { requiredCount: 2, approvedCount: 2, pendingCount: 0, deployedCount: 2, ready: true, live: true, lifecycle: "Live" },
       }),
+      "Agent",
       3,
     );
 
