@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill } from "./page-header";
+import { useAgentName } from "./agent-name-context";
 import type { ThemeTone } from "./theme";
 
 export type OpportunityRow = {
@@ -33,6 +34,7 @@ export type OpportunityBucket = {
 };
 
 export function OpportunityCommandCenter({ buckets }: { buckets: OpportunityBucket[] }) {
+  const agentName = useAgentName();
   const [activeKey, setActiveKey] = useState(buckets[0]?.key ?? "");
   const [query, setQuery] = useState("");
   const activeBucket = buckets.find((bucket) => bucket.key === activeKey) ?? buckets[0];
@@ -65,7 +67,7 @@ export function OpportunityCommandCenter({ buckets }: { buckets: OpportunityBuck
     return (
       <EmptyState
         title="No opportunity lanes yet"
-        detail="When CRM, partner, campaign, approval, and Mark task data is available, the prioritized lanes will appear here."
+        detail={`When CRM, partner, campaign, approval, and ${agentName} task data is available, the prioritized lanes will appear here.`}
       />
     );
   }
@@ -81,7 +83,7 @@ export function OpportunityCommandCenter({ buckets }: { buckets: OpportunityBuck
             </div>
             <h2 className="mt-2 text-xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">Needs attention now</h2>
             <p className="mt-1 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
-              Switch lanes instead of scrolling through every opportunity. Mark can prepare and revise; humans approve anything external.
+              Switch lanes instead of scrolling through every opportunity. {agentName} can prepare and revise; humans approve anything external.
             </p>
           </div>
 

@@ -12,6 +12,8 @@ const ACTIVE_APPROVAL_STATUSES = [
 export type ApprovalQueueFilter = {
   statuses?: string[];
   limit?: number;
+  /** Operator-configured agent display name used in rendered source/author labels. */
+  agentName?: string;
 };
 
 export type ApprovalCard = {
@@ -214,6 +216,7 @@ export async function listApprovalCards(
 ): Promise<ApprovalCard[]> {
   const statuses = filter.statuses ?? [...ACTIVE_APPROVAL_STATUSES];
   const limit = filter.limit ?? 50;
+  const agentName = filter.agentName ?? "Agent";
 
   const query = client
     .from("approval_items")
@@ -271,6 +274,7 @@ export async function listApprovalCards(
       contact: item.contact_id ? contactById.get(item.contact_id) : undefined,
       lead: item.lead_id ? leadById.get(item.lead_id) : undefined,
       agentOutput: outputByApprovalId.get(item.id),
+      agentName,
     }),
   );
 }
@@ -320,8 +324,10 @@ function mapApprovalCard(input: {
   contact?: ContactRow;
   lead?: LeadRow;
   agentOutput?: AgentOutputRow;
+  agentName?: string;
 }): ApprovalCard {
   const { item, campaign, asset, company, contact, lead, agentOutput } = input;
+  const agentName = input.agentName ?? "Agent";
   const promptInputs = mergeObjects(asset?.prompt_inputs, item.prompt_inputs);
   const reasoningPayload = item.reasoning_payload ?? {};
   const leadMetadata = lead?.metadata ?? {};
@@ -343,7 +349,7 @@ function mapApprovalCard(input: {
     riskLevel: item.risk_level,
     persona: campaign?.persona ?? company?.persona ?? getString(promptInputs.persona) ?? "unassigned",
     channel: asset?.channel ?? getString(promptInputs.channel) ?? "review",
-    sourceAgent: (item.requested_by ?? getString(item.audit_payload?.created_by_agent_id) ?? "Mark").replace(/hermes/gi, "Mark"),
+    sourceAgent: (item.requested_by ?? getString(item.audit_payload?.created_by_agent_id) ?? agentName).replace(/hermes/gi, agentName),
     submittedAt: item.submitted_at,
     campaign: {
       id: campaign?.id ?? null,
@@ -397,6 +403,7 @@ function mapApprovalCard(input: {
       assetReasoningPayload: asset?.reasoning_payload ?? {},
       agentStructuredPayload: agentOutput?.structured_payload ?? {},
       draftOutput,
+      agentName,
     }),
   };
 }
@@ -623,7 +630,9 @@ function buildCreativeAssets(input: {
   assetReasoningPayload: JsonObject;
   agentStructuredPayload: JsonObject;
   draftOutput: string;
+  agentName?: string;
 }): ApprovalCreativeAsset[] {
+  const agentName = input.agentName ?? "Agent";
   const candidates: ApprovalCreativeAsset[] = [];
   const objects = [
     input.promptInputs,
@@ -635,7 +644,7 @@ function buildCreativeAssets(input: {
   ];
 
   for (const object of objects) {
-    collectCreativeAssetsFromObject(object, candidates, "Mark output");
+    collectCreativeAssetsFromObject(object, candidates, `${agentName} output`);
   }
 
   for (const url of extractUrls(input.draftOutput)) {

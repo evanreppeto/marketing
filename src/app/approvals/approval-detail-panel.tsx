@@ -13,9 +13,11 @@ import { decideApprovalItemAction } from "./actions";
 export function ApprovalDetailPanel({
   item,
   requestedItemId,
+  agentName = "Agent",
 }: {
   item: ApprovalCard | null;
   requestedItemId?: string | null;
+  agentName?: string;
 }) {
   if (!item) {
     return (
@@ -54,10 +56,10 @@ export function ApprovalDetailPanel({
         </div>
 
         <div className="space-y-4 p-5">
-          <IntelligencePanel model={buildApprovalIntelligence(item, relatedRecords.length)} />
-          <DecisionForms item={item} />
+          <IntelligencePanel model={buildApprovalIntelligence(item, relatedRecords.length)} agentName={agentName} />
+          <DecisionForms item={item} agentName={agentName} />
 
-          <PacketSection title="What Mark created">
+          <PacketSection title={`What ${agentName} created`}>
             <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-1">
               <CompactField label="Type" value={item.type} />
               <CompactField label="Channel" value={item.channel} />
@@ -196,7 +198,7 @@ function approvalCtaRule(item: ApprovalCard) {
   return "Internal CTA rule only. No send, publish, launch, spend, or contact action without approval.";
 }
 
-function DecisionForms({ item }: { item: ApprovalCard }) {
+function DecisionForms({ item, agentName }: { item: ApprovalCard; agentName: string }) {
   return (
     <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -218,7 +220,7 @@ function DecisionForms({ item }: { item: ApprovalCard }) {
           <textarea
             className="min-h-24 w-full resize-y rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             name="notes"
-            placeholder="Tell Mark what needs to change..."
+            placeholder={`Tell ${agentName} what needs to change...`}
           />
         </label>
         <Button className="mt-2 w-full" size="sm" type="submit" variant="ghost">

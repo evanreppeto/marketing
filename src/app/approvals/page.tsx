@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { PageHeader, StatusPill } from "@/app/_components/page-header";
 import { TabNav } from "@/app/_components/tab-nav";
 import { listApprovalCards, listApprovalHistory } from "@/lib/approvals/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { ApprovalHistoryTable } from "./approval-history-table";
@@ -21,7 +22,8 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
 
   const query = searchParams ? await searchParams : {};
   const activeTab = normalizeTab(query.tab);
-  const [queueItems, decisions] = isSupabaseAdminConfigured() ? await Promise.all([loadQueue(), loadHistory()]) : [[], []];
+  const agentName = await getAgentName();
+  const [queueItems, decisions] = isSupabaseAdminConfigured() ? await Promise.all([loadQueue(agentName), loadHistory()]) : [[], []];
   const selectedItemId = normalizeSearchValue(query.item);
   const selectedItem = selectedItemId ? queueItems.find((item) => item.id === selectedItemId) ?? null : null;
 
@@ -30,7 +32,7 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
       <PageHeader
         eyebrow="Review"
         title="Approval queue and decision history"
-        description="Mark prepares campaign drafts, lead lists, assets, and recommendations. Humans approve what moves. This page does not send, publish, launch, spend, or contact anyone."
+        description={`${agentName} prepares campaign drafts, lead lists, assets, and recommendations. Humans approve what moves. This page does not send, publish, launch, spend, or contact anyone.`}
         aside={
           <div className="flex flex-wrap gap-2">
             <StatusPill tone={queueItems.length > 0 ? "amber" : "green"}>{queueItems.length} waiting</StatusPill>
@@ -53,7 +55,7 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
       {activeTab === "queue" ? (
         <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
           <ApprovalQueueTable items={queueItems} selectedItemId={selectedItemId} />
-          <ApprovalDetailPanel item={selectedItem} requestedItemId={selectedItemId} />
+          <ApprovalDetailPanel item={selectedItem} requestedItemId={selectedItemId} agentName={agentName} />
         </div>
       ) : null}
       {activeTab === "history" ? <ApprovalHistoryTable decisions={decisions} /> : null}
@@ -61,9 +63,9 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
   );
 }
 
-async function loadQueue() {
+async function loadQueue(agentName: string) {
   try {
-    return await listApprovalCards({ limit: 200 });
+    return await listApprovalCards({ limit: 200, agentName });
   } catch {
     return [];
   }

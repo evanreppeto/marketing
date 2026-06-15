@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 
 import { getCrmNavCounts, getCrmObjectData } from "@/lib/crm/read-model";
+import { getAgentName } from "@/lib/settings/agent-name";
 
 import { CrmObjectPage } from "../_components/crm-object-page";
 
@@ -12,11 +13,12 @@ export default async function Page({ searchParams }: PageProps) {
   await connection();
 
   const query = searchParams ? await searchParams : {};
-  const [liveObject, navCounts] = await Promise.all([getCrmObjectData("contacts"), getCrmNavCounts()]);
+  const [liveObject, navCounts, agentName] = await Promise.all([getCrmObjectData("contacts"), getCrmNavCounts(), getAgentName()]);
 
   return (
     <CrmObjectPage
       action={getValue(query.action)}
+      agentName={agentName}
       liveMessage={liveObject.status === "unavailable" ? liveObject.message : undefined}
       liveObject={liveObject.status === "live" ? liveObject : undefined}
       navCounts={navCounts.status === "live" ? navCounts.counts : undefined}

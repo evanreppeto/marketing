@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill, buttonClasses } from "@/app/_components/page-header";
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { PaginationControls } from "@/app/_components/pagination-controls";
 import { type ApprovalCard } from "@/lib/approvals/read-model";
 
@@ -21,6 +22,7 @@ const QUEUE_FILTERS: Array<{ key: QueueFilter; label: string }> = [
 ];
 
 export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalCard[]; selectedItemId?: string | null }) {
+  const agentName = useAgentName();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<QueueFilter>("all");
   const [page, setPage] = useState(1);
@@ -68,7 +70,7 @@ export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalC
     return (
       <EmptyState
         title="Nothing waiting on approval"
-        detail="When Mark prepares campaign drafts, lead lists, copy, media concepts, or recommendations that need a human gate, they will appear here."
+        detail={`When ${agentName} prepares campaign drafts, lead lists, copy, media concepts, or recommendations that need a human gate, they will appear here.`}
       />
     );
   }
@@ -189,6 +191,7 @@ export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalC
 }
 
 function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: ApprovalCard }) {
+  const agentName = useAgentName();
   const router = useRouter();
   const detailHref = `/approvals?tab=queue&item=${item.id}`;
   const campaignHref = item.campaign.id ? `/campaigns/${item.campaign.id}` : detailHref;
@@ -227,7 +230,7 @@ function ApprovalQueueCard({ isSelected, item }: { isSelected: boolean; item: Ap
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <QueueDetail label="Persona" value={item.persona} />
-        <QueueDetail label="Mark source" value={item.sourceAgent} />
+        <QueueDetail label={`${agentName} source`} value={item.sourceAgent} />
         <QueueDetail label="Campaign" value={item.campaign.name} />
         <QueueDetail label="Human decision" value={item.recommendedAction} />
       </div>

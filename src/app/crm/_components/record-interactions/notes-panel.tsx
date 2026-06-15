@@ -11,10 +11,12 @@ export function NotesPanel({
   entityType,
   entityId,
   notes,
+  agentName = "Agent",
 }: {
   entityType: CrmEntityType;
   entityId: string;
   notes: NoteEntry[];
+  agentName?: string;
 }) {
   return (
     <Panel className="module-rise">
@@ -28,7 +30,7 @@ export function NotesPanel({
           name="body"
           required
           rows={3}
-          placeholder="Add context for the team and Mark…"
+          placeholder={`Add context for the team and ${agentName}…`}
           className={inputClass}
         />
         <div className="flex items-center justify-between gap-3">

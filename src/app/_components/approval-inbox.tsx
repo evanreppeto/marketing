@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button, EmptyState, StatusPill, buttonClasses } from "./page-header";
+import { useAgentName } from "./agent-name-context";
 import { decideFromInboxAction, undoInboxDecisionAction } from "../_data/inbox-actions";
 
 export type InboxItem = {
@@ -36,6 +37,7 @@ function riskTone(risk: string): "amber" | "red" | "green" | "blue" | "gray" {
 }
 
 export function ApprovalInbox({ items }: { items: InboxItem[] }) {
+  const agentName = useAgentName();
   const router = useRouter();
   const [decided, setDecided] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ approvalItemId: string; campaignId: string | null; message: string } | null>(null);
@@ -77,7 +79,7 @@ export function ApprovalInbox({ items }: { items: InboxItem[] }) {
   }
 
   if (visible.length === 0) {
-    return <EmptyState title="Nothing waiting on your approval" detail="When Mark prepares new work that needs a decision, it shows up here." />;
+    return <EmptyState title="Nothing waiting on your approval" detail={`When ${agentName} prepares new work that needs a decision, it shows up here.`} />;
   }
 
   return (

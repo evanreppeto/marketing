@@ -15,6 +15,7 @@ type CrmObjectSectionKey = "records" | "intelligence" | "activity";
 
 type CrmObjectPageProps = {
   action?: string;
+  agentName?: string;
   liveObject?: CrmObjectData;
   liveMessage?: string;
   objectKey: CrmObjectKey;
@@ -29,13 +30,15 @@ const crmListViews: Array<{ key: CrmListViewKey; label: string; description: str
   { key: "needs-review", label: "Needs review", description: "Records that need cleanup or operator review." },
 ];
 
-const objectSections: Array<{ key: CrmObjectSectionKey; label: string; detail: string }> = [
-  { key: "records", label: "Records", detail: "Search, filter, and open CRM rows." },
-  { key: "intelligence", label: "Intelligence", detail: "Persona rules, gaps, and Mark guidance." },
-  { key: "activity", label: "Activity", detail: "Related events and next work." },
-];
+function buildObjectSections(agentName: string): Array<{ key: CrmObjectSectionKey; label: string; detail: string }> {
+  return [
+    { key: "records", label: "Records", detail: "Search, filter, and open CRM rows." },
+    { key: "intelligence", label: "Intelligence", detail: `Persona rules, gaps, and ${agentName} guidance.` },
+    { key: "activity", label: "Activity", detail: "Related events and next work." },
+  ];
+}
 
-export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, objectKey, section, view }: CrmObjectPageProps) {
+export function CrmObjectPage({ action, agentName = "Agent", liveMessage, liveObject, navCounts, objectKey, section, view }: CrmObjectPageProps) {
   const fallbackObject = crmObjects.find((object) => object.key === objectKey);
   const crmObject = liveObject ?? (fallbackObject ? { ...fallbackObject, count: 0, relationships: "No linked records", lastActivity: "No activity", sampleRows: [] } : undefined);
   const isLive = Boolean(liveObject);
@@ -56,7 +59,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
       <PageHeader
         eyebrow="CRM object"
         title={`${crmObject.label} workspace`}
-        description={`${crmObject.description} List views, record preview, relationship context, and actions are ready for Mark-created CRM records.`}
+        description={`${crmObject.description} List views, record preview, relationship context, and actions are ready for ${agentName}-created CRM records.`}
         aside={
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill tone={isLive ? "green" : "amber"}>{isLive ? "Live Supabase" : "Supabase unavailable"}</StatusPill>
@@ -128,7 +131,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
         </div>
       ) : null}
 
-      <ObjectSectionTabs activeSection={activeSection} objectHref={crmObject.href} view={activeView} />
+      <ObjectSectionTabs activeSection={activeSection} agentName={agentName} objectHref={crmObject.href} view={activeView} />
 
       {activeSection === "records" ? (
         <Panel className="module-rise overflow-hidden p-0 [animation-delay:70ms]">
@@ -155,7 +158,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
           <Panel className="module-rise [animation-delay:70ms]">
             <div className="signal-eyebrow">Intelligence contract</div>
             <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
-              Mark needs clean relationship context before outreach drafts.
+              {agentName} needs clean relationship context before outreach drafts.
             </h2>
             <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
               This object is ready for scoring tags, evidence links, relationship maturity, and next-best-action fields.
@@ -214,18 +217,21 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
 
 function ObjectSectionTabs({
   activeSection,
+  agentName,
   objectHref,
   view,
 }: {
   activeSection: CrmObjectSectionKey;
+  agentName: string;
   objectHref: string;
   view: CrmListViewKey;
 }) {
+  const objectSections = buildObjectSections(agentName);
   return (
     <section className="module-rise mt-4 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
       <div className="flex flex-col gap-2 border-b border-[var(--border-hairline)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold text-[var(--text-secondary)]">
-          Mark prepares CRM context. Humans approve anything outbound.
+          {agentName} prepares CRM context. Humans approve anything outbound.
         </p>
         <StatusPill tone="amber">Outbound locked</StatusPill>
       </div>
