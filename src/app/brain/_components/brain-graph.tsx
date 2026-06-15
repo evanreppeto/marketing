@@ -125,6 +125,8 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
 
   // ---- graph ref for imperative API ----------------------------------------
   const graphRef = useRef<ForceGraphMethods | undefined>(undefined);
+  // Fit the whole graph into view once the initial force layout settles.
+  const fittedRef = useRef(false);
 
   // ---- lookup maps ---------------------------------------------------------
   const nodeMap = useMemo<Map<string, BrainNode>>(() => {
@@ -464,6 +466,11 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
               linkWidth={linkWidth}
               linkColor={linkColor}
               onNodeClick={handleNodeClick}
+              onEngineStop={() => {
+                if (fittedRef.current) return;
+                fittedRef.current = true;
+                graphRef.current?.zoomToFit(500, 60);
+              }}
             />
           )}
         </div>
