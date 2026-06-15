@@ -125,7 +125,7 @@ export function MarkChat({
   pendingApprovals,
   defaultMode = "act",
   defaultRoute = "fast",
-  assistantName = "Arc",
+  assistantName = "Agent",
   demo = false,
 }: {
   conversations: MarkConversation[];
@@ -168,6 +168,9 @@ export function MarkChat({
   // composer) so Regenerate reuses the same live selection instead of a hard-coded one.
   const [mode, setMode] = useState<MarkMode>(defaultMode);
   const [route, setRoute] = useState<MarkRoute>(defaultRoute);
+  // When the composer's command menu is open, the empty-state quick cards hide so
+  // the same four actions never appear twice (floating list + cards).
+  const [composerSlashOpen, setComposerSlashOpen] = useState(false);
 
   // Work canvas visibility. Docked as a third column at xl+, a slide-over drawer
   // below that. One flag drives both: at xl it expands/collapses the column; below
@@ -492,7 +495,7 @@ export function MarkChat({
           <div
             className={cx(
               "relative z-10 flex min-h-0 flex-1 flex-col",
-              !hasMessages && "items-center justify-center gap-7 overflow-y-auto px-4 py-10 sm:px-6",
+              !hasMessages && "items-center justify-center gap-6 overflow-y-auto px-4 py-10 sm:px-6",
             )}
           >
             {hasMessages ? (
@@ -521,6 +524,7 @@ export function MarkChat({
                 textareaRef={composerRef}
                 demo={demo}
                 onDemoSend={demoSend}
+                onSlashOpenChange={setComposerSlashOpen}
                 registerSubmit={(fn) => {
                   submitFnRef.current = fn;
                 }}
@@ -552,7 +556,7 @@ export function MarkChat({
                 }}
               />
             </div>
-            {!hasMessages ? <ChatEmptyShortcuts assistantName={assistantName} onPick={pickSuggestion} pendingApprovals={pendingApprovals} /> : null}
+            {!hasMessages && !composerSlashOpen ? <ChatEmptyShortcuts assistantName={assistantName} onPick={pickSuggestion} pendingApprovals={pendingApprovals} /> : null}
           </div>
         </section>
 

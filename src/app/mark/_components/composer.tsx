@@ -48,16 +48,27 @@ function Spinner() {
   );
 }
 
-type PillOption<T extends string> = { id: T; label: string; hint: string };
+type PillOption<T extends string> = { id: T; label: string; hint: string; icon: React.ReactNode };
+
+/** Shared 14px line glyph so every pill/menu icon matches the footer's stroke weight. */
+function Glyph({ children }: { children: React.ReactNode }) {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
 
 const MODE_OPTIONS: PillOption<MarkMode>[] = [
-  { id: "act", label: "Act", hint: "Do the work — create approval-ready records" },
-  { id: "ask", label: "Ask", hint: "Answer only — produce no work" },
-  { id: "draft", label: "Draft", hint: "Draft content for your review" },
+  // Act = checkmark (decisive), Ask = speech bubble (answer only), Draft = pencil.
+  { id: "act", label: "Act", hint: "Do the work — create approval-ready records", icon: <Glyph><path d="M4 10.5l3.5 3.5L16 5.5" /></Glyph> },
+  { id: "ask", label: "Ask", hint: "Answer only — produce no work", icon: <Glyph><path d="M4 5.5h12v7H8l-3 2.5V12.5H4z" /></Glyph> },
+  { id: "draft", label: "Draft", hint: "Draft content for your review", icon: <Glyph><path d="M4 13.5V16h2.5l8-8L12 5.5l-8 8z" /><path d="M11 6.5l2.5 2.5" /></Glyph> },
 ];
 const ROUTE_OPTIONS: PillOption<MarkRoute>[] = [
-  { id: "fast", label: "Fast", hint: "Quick, lower-cost model route" },
-  { id: "standard", label: "Standard", hint: "Slower, more thorough route" },
+  // Fast = lightning bolt, Standard = steady arrow (more thorough).
+  { id: "fast", label: "Fast", hint: "Quick, lower-cost model route", icon: <Glyph><path d="M11 2.5 4.5 11H9l-1 6.5 7.5-9H11z" /></Glyph> },
+  { id: "standard", label: "Standard", hint: "Slower, more thorough route", icon: <Glyph><path d="M3 10h14M10 3l7 7-7 7" /></Glyph> },
 ];
 
 /** Footer pill with a labelled dropdown — used for the per-message mode + route
@@ -66,13 +77,11 @@ function PillSelect<T extends string>({
   value,
   options,
   onChange,
-  glyph,
   ariaLabel,
 }: {
   value: T;
   options: PillOption<T>[];
   onChange: (value: T) => void;
-  glyph: React.ReactNode;
   ariaLabel: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -104,7 +113,7 @@ function PillSelect<T extends string>({
         title={current.hint}
         className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)]"
       >
-        {glyph}
+        <span key={current.id} className="pill-glyph-swap flex">{current.icon}</span>
         {current.label}
         <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 8 4 4 4-4" />
@@ -122,12 +131,15 @@ function PillSelect<T extends string>({
                 setOpen(false);
               }}
               className={cx(
-                "flex w-full flex-col gap-0.5 rounded-md px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-inset)]",
+                "flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left transition hover:bg-[var(--surface-inset)]",
                 o.id === value ? "text-[var(--accent-contrast)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
               )}
             >
-              <span className="text-xs font-semibold">{o.label}</span>
-              <span className="text-[10px] leading-tight text-[var(--text-muted)]">{o.hint}</span>
+              <span className="mt-0.5">{o.icon}</span>
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-xs font-semibold">{o.label}</span>
+                <span className="text-[10px] leading-tight text-[var(--text-muted)]">{o.hint}</span>
+              </span>
             </button>
           ))}
         </div>
@@ -205,6 +217,7 @@ export function Composer({
   assistantName = "Agent",
   demo = false,
   onDemoSend,
+  onSlashOpenChange,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -230,6 +243,9 @@ export function Composer({
   /** Preview mode: send locally (no server action) via onDemoSend. */
   demo?: boolean;
   onDemoSend?: (text: string) => void;
+  /** Notifies the parent when the slash/command menu opens or closes, so the
+   *  empty-state quick cards can hide and never stack under a duplicate list. */
+  onSlashOpenChange?: (open: boolean) => void;
 }) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   // For a new chat the picked project rides along as a hidden input (assigned on
@@ -356,6 +372,13 @@ export function Composer({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [draft, textareaRef]);
+
+  // Surface the command-menu open state so the empty-state quick cards can step
+  // aside — the cards and the slash list are the same actions; never show both.
+  const slashOpen = slash !== null && slash.length > 0;
+  useEffect(() => {
+    onSlashOpenChange?.(slashOpen);
+  }, [slashOpen, onSlashOpenChange]);
 
   // Notify parent when a send completes.
   const lastHandled = useRef<SendMessageState>(null);
@@ -809,40 +832,15 @@ export function Composer({
             value={mode}
             options={MODE_OPTIONS}
             onChange={onModeChange}
-            glyph={
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 10.5l3.5 3.5L16 5.5" />
-              </svg>
-            }
           />
           <PillSelect
             ariaLabel="Route"
             value={route}
             options={ROUTE_OPTIONS}
             onChange={onRouteChange}
-            glyph={
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 10h14M10 3l7 7-7 7" />
-              </svg>
-            }
           />
 
-          <p className="hidden flex-wrap items-center gap-x-3 gap-y-1 sm:flex">
-            <span className="inline-flex items-center gap-1.5">
-              <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-[10px] leading-none text-[var(--text-muted)]">↵</kbd>
-              send
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-[10px] leading-none text-[var(--text-muted)]">@</kbd>
-              records
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-[10px] leading-none text-[var(--text-muted)]">/</kbd>
-              commands
-            </span>
-          </p>
-
-          <span className="ml-auto flex items-center gap-1">
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
             <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
               <rect x="5" y="9" width="10" height="7" rx="1.5" />
               <path d="M7 9V7a3 3 0 0 1 6 0v2" />
