@@ -193,6 +193,27 @@ describe("moveAgentTask", () => {
     expect(supabase.calls).toContainEqual(["from", "agent_run_logs"]);
   });
 
+  it("records the completed move with a valid agent_run_status enum value", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: taskRow("running"), error: null },
+      agent_run_logs: { data: { id: "log-move-3" }, error: null },
+    });
+
+    const result = await moveAgentTask(TASK_ID, "completed", supabase);
+
+    expect(result.ok).toBe(true);
+    const VALID_RUN_STATUSES = new Set(["queued", "running", "completed", "failed", "canceled"]);
+    const logInsert = supabase.calls.find(
+      ([method, payload]) =>
+        method === "insert" &&
+        typeof payload === "object" &&
+        payload !== null &&
+        "run_status" in payload,
+    ) as [string, { run_status: string }] | undefined;
+    expect(logInsert).toBeDefined();
+    expect(VALID_RUN_STATUSES.has(logInsert![1].run_status)).toBe(true);
+  });
+
   it("performs an allowed move and records an audit log", async () => {
     const supabase = createSupabaseQueryMock({
       agent_tasks: { data: taskRow("queued", { started_at: null }), error: null },
@@ -214,5 +235,20 @@ describe("moveAgentTask", () => {
     const result = await moveAgentTask(TASK_ID, "running", supabase);
 
     expect(result).toEqual({ ok: false, reason: "not_found" });
+  });
+
+  it("treats a failed audit-log insert as best-effort (move still succeeds)", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: taskRow("queued", { started_at: null }), error: null },
+      agent_run_logs: { data: null, error: { message: "run-log table offline" } },
+    });
+
+    const result = await moveAgentTask(TASK_ID, "running", supabase);
+
+    // The status change is the source of truth and already persisted; a failed
+    // audit-log insert must not throw or report the move as failed.
+    expect(result.ok).toBe(true);
+    const [, patch] = updateCalls(supabase)[0] as [string, Record<string, unknown>];
+    expect(patch).toMatchObject({ status: "running" });
   });
 });
