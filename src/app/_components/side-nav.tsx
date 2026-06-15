@@ -61,7 +61,7 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false }
             aria-current={isActive ? "page" : undefined}
             className={`group inline-flex shrink-0 items-center rounded-lg text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
               mobileDock
-                ? "h-10 w-8 justify-center gap-0 px-0 lg:min-h-11 lg:w-full lg:gap-3 lg:px-3.5"
+                ? "h-10 w-8 justify-center gap-0 px-0 lg:min-h-11 lg:w-full lg:justify-start lg:gap-3 lg:px-3.5"
                 : "min-h-11 gap-3 px-3.5 lg:w-full"
             } ${
               collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""
