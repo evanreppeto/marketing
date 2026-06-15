@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { agentProfile, getAgentDisplayName, isAgentConfigured } from "./agent-config";
+import { AGENT_LIVENESS_WINDOW_MS, agentProfile, getAgentDisplayName, isAgentConfigured, isAgentLive } from "./agent-config";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -39,5 +39,37 @@ describe("isAgentConfigured", () => {
     expect(isAgentConfigured({ MARK_RUNNER_URL: "https://r" })).toBe(true);
     expect(isAgentConfigured({ MARK_WEBHOOK_URL: "https://w" })).toBe(true);
     expect(isAgentConfigured({ HERMES_AGENT_API_TOKEN: "tok" })).toBe(true);
+  });
+});
+
+describe("isAgentLive", () => {
+  const now = Date.parse("2026-06-15T16:00:00.000Z");
+
+  it("is true for an ok heartbeat within the window", () => {
+    const seen = new Date(now - 60_000).toISOString(); // 1 min ago
+    expect(isAgentLive("ok", seen, now)).toBe(true);
+  });
+
+  it("is false once the heartbeat is older than the window", () => {
+    const seen = new Date(now - (AGENT_LIVENESS_WINDOW_MS + 1_000)).toISOString();
+    expect(isAgentLive("ok", seen, now)).toBe(false);
+  });
+
+  it("is false when the last status is not ok, even if recent", () => {
+    const seen = new Date(now - 1_000).toISOString();
+    expect(isAgentLive("error", seen, now)).toBe(false);
+    expect(isAgentLive("unreachable", seen, now)).toBe(false);
+  });
+
+  it("is false when there is no heartbeat or an unparseable timestamp", () => {
+    expect(isAgentLive("ok", null, now)).toBe(false);
+    expect(isAgentLive("ok", undefined, now)).toBe(false);
+    expect(isAgentLive("ok", "not-a-date", now)).toBe(false);
+    expect(isAgentLive(null, null, now)).toBe(false);
+  });
+
+  it("treats the exact window boundary as live", () => {
+    const seen = new Date(now - AGENT_LIVENESS_WINDOW_MS).toISOString();
+    expect(isAgentLive("ok", seen, now)).toBe(true);
   });
 });

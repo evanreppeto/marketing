@@ -34,3 +34,30 @@ export function getAgentDisplayName(override: string | null | undefined): string
 export function isAgentConfigured(env: Record<string, string | undefined> = process.env): boolean {
   return Boolean(env.MARK_RUNNER_URL ?? env.MARK_WEBHOOK_URL) || Boolean(env.HERMES_AGENT_API_TOKEN?.trim());
 }
+
+/**
+ * Freshness window for the "attached" trust signal. Every authenticated
+ * /api/v1/hermes call stamps agent_connections.last_seen_at (the poller's poll, a
+ * realtime reply, a webhook test), so a recent ok heartbeat is the ground truth
+ * that an agent is live. Tuned above the poller's heartbeat cadence (~10–60s) so a
+ * single missed beat doesn't flip the indicator to amber.
+ */
+export const AGENT_LIVENESS_WINDOW_MS = 3 * 60_000;
+
+/**
+ * Pure: is an agent currently attached, judged by a recent ok heartbeat?
+ * Architecture-agnostic — true for the realtime subscriber, the poller, or a
+ * webhook alike, as long as the agent is actually talking to the app. Does NOT
+ * depend on a configured webhook URL or agent-key naming.
+ */
+export function isAgentLive(
+  lastStatus: string | null | undefined,
+  lastSeenAtIso: string | null | undefined,
+  nowMs: number,
+  windowMs: number = AGENT_LIVENESS_WINDOW_MS,
+): boolean {
+  if (lastStatus !== "ok" || !lastSeenAtIso) return false;
+  const seenMs = Date.parse(lastSeenAtIso);
+  if (Number.isNaN(seenMs)) return false;
+  return nowMs - seenMs <= windowMs;
+}
