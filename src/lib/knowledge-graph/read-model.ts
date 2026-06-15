@@ -68,7 +68,7 @@ type EdgeRow = {
   trust_tier: TrustTier;
 };
 
-function mapNode(row: NodeRow): BrainNode {
+export function mapNode(row: NodeRow): BrainNode {
   return {
     id: row.id,
     kind: row.kind,
@@ -86,7 +86,7 @@ function mapNode(row: NodeRow): BrainNode {
   };
 }
 
-function mapEdge(row: EdgeRow): BrainEdge {
+export function mapEdge(row: EdgeRow): BrainEdge {
   return {
     id: row.id,
     fromNodeId: row.from_node_id,

@@ -8,6 +8,7 @@ import { getAgentName } from "@/lib/settings/agent-name";
 import {
   appAppearanceAccent,
   appAppearanceDensity,
+  DEFAULT_APP_SETTINGS,
   appAppearanceMotion,
   appApprovalStrictness,
   appAssistantResponseStyle,
@@ -69,7 +70,7 @@ export async function saveBrandingSettingsAction(
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
 
-  const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), "Big Shoulders", 80);
+  const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), DEFAULT_APP_SETTINGS.workspaceName, 80);
   const workspaceProfile = appWorkspaceProfile(formData.get("workspaceProfile"));
   const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), "Marketing", 42);
   const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), "Agent", 32);

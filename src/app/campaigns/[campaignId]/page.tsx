@@ -39,7 +39,7 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
           title={notFound ? "We couldn't find that campaign" : "Campaign workspace unavailable"}
           detail={
             notFound
-              ? "This campaign does not exist in the Growth Engine database, or it was removed."
+              ? "This campaign does not exist in the Arc database, or it was removed."
               : detail.message
           }
         />

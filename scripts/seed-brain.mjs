@@ -63,6 +63,34 @@ const BRAND_FACTS = [
   ["bf_insurance", "We work directly with insurance", "We document the loss and coordinate with carriers to ease claims."],
 ];
 
+// Illustrative starter relationships so the brain reads as a connected graph:
+// brand_fact -> persona via "governs" (the fact shapes how we speak to that
+// persona); persona <-> persona via "relates_to" within a segment cluster.
+const EDGES = [
+  ["bf_24_7", "governs", "persona_homeowner_emergency"],
+  ["bf_24_7", "governs", "persona_landlord"],
+  ["bf_iicrc", "governs", "persona_homeowner_rebuild"],
+  ["bf_iicrc", "governs", "persona_insurance_agent"],
+  ["bf_local", "governs", "persona_property_manager"],
+  ["bf_local", "governs", "persona_landlord"],
+  ["bf_insurance", "governs", "persona_insurance_agent"],
+  ["bf_insurance", "governs", "persona_homeowner_rebuild"],
+  // homeowner cluster
+  ["persona_homeowner_emergency", "relates_to", "persona_homeowner_preventative"],
+  ["persona_homeowner_preventative", "relates_to", "persona_homeowner_rebuild"],
+  ["persona_homeowner_emergency", "relates_to", "persona_homeowner_rebuild"],
+  // trade-partner cluster
+  ["persona_plumbing_partner", "relates_to", "persona_hvac_roof_electrical_partner"],
+  ["persona_hvac_roof_electrical_partner", "relates_to", "persona_gc_remodeler_partner"],
+  ["persona_plumbing_partner", "relates_to", "persona_gc_remodeler_partner"],
+  // real-estate cluster
+  ["persona_listing_agent", "relates_to", "persona_buyers_agent"],
+  ["persona_insurance_agent", "relates_to", "persona_listing_agent"],
+  // property-pro cluster
+  ["persona_landlord", "relates_to", "persona_property_manager"],
+  ["persona_property_manager", "relates_to", "persona_hoa_board"],
+];
+
 async function main() {
   const supabase = getSupabase();
 
@@ -103,14 +131,53 @@ async function main() {
     approved_at: new Date().toISOString(),
   }));
 
-  const { error } = await supabase
+  // Idempotent without ON CONFLICT: the (org_id, kind, key) unique index is
+  // PARTIAL (`where key is not null`), which PostgREST's on_conflict cannot
+  // target. Instead clear prior seed rows (tagged source = "seed") for this org,
+  // then insert fresh. Deleting the seed nodes cascades to their edges (FK
+  // on delete cascade), so prior seed relationships are cleared too.
+  const { error: clearError } = await supabase
     .from("knowledge_nodes")
-    .upsert([...personaRows, ...brandRows], { onConflict: "org_id,kind,key" });
+    .delete()
+    .eq("org_id", orgId)
+    .eq("source", "seed");
+  if (clearError) {
+    console.error("Seed failed (clearing prior seed rows):", clearError.message);
+    process.exit(1);
+  }
+
+  const { data: inserted, error } = await supabase
+    .from("knowledge_nodes")
+    .insert([...personaRows, ...brandRows])
+    .select("id,key");
   if (error) {
     console.error("Seed failed:", error.message);
     process.exit(1);
   }
-  console.log(`Seeded ${personaRows.length} personas + ${brandRows.length} brand facts into the brain.`);
+
+  // Wire the illustrative relationships using the freshly-minted node ids.
+  const idByKey = new Map((inserted ?? []).map((row) => [row.key, row.id]));
+  const edgeRows = EDGES.map(([from, relation, to]) => ({
+    org_id: orgId,
+    from_node_id: idByKey.get(from),
+    to_node_id: idByKey.get(to),
+    relation,
+    trust_tier: "trusted",
+    source: "seed",
+    created_by: "operator",
+    approved_by: "seed",
+    approved_at: new Date().toISOString(),
+  })).filter((edge) => edge.from_node_id && edge.to_node_id);
+
+  const { error: edgeError } = await supabase.from("knowledge_edges").insert(edgeRows);
+  if (edgeError) {
+    console.error("Seed failed (edges):", edgeError.message);
+    process.exit(1);
+  }
+
+  console.log(
+    `Seeded ${personaRows.length} personas + ${brandRows.length} brand facts + ${edgeRows.length} relationships into the brain.`,
+  );
 }
 
 main().catch((error) => {

@@ -22,9 +22,14 @@ const paths: Record<NavIconName, React.ReactNode> = {
   // Activity pulse over timeline - workspace log
   activity: (
     <>
-      <path d="M5 6.5h5" />
-      <path d="M5 12h3.2l1.7-3.4 3.1 7 1.8-3.6H19" />
-      <path d="M5 17.5h8" />
+      <path d="M6 5.8v12.4" />
+      <circle cx="6" cy="6" fill="currentColor" r="2" stroke="none" />
+      <circle cx="6" cy="12" fill="currentColor" r="2" stroke="none" />
+      <circle cx="6" cy="18" fill="currentColor" r="2" stroke="none" />
+      <rect fill="currentColor" height="2.4" rx="1.2" stroke="none" width="9.8" x="10" y="4.8" />
+      <rect fill="currentColor" height="2.4" rx="1.2" stroke="none" width="6.6" x="10" y="10.8" />
+      <rect fill="currentColor" height="2.4" rx="1.2" stroke="none" width="8.2" x="10" y="16.8" />
+      <path d="m17.5 11.8 1.1-1.9 1.8 4 1.1-1.7" />
     </>
   ),
   // Megaphone — campaign broadcast

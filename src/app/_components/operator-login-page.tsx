@@ -70,7 +70,7 @@ export function OperatorLoginPage({ from, error }: { from: string; error?: strin
           Sign in
         </h1>
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-          Enter your operator email and password to open the Growth Engine.
+          Enter your operator email and password to open Arc.
         </p>
       </div>
 
@@ -137,7 +137,7 @@ export function OperatorLoginPage({ from, error }: { from: string; error?: strin
 }
 
 export function OperatorForgotPasswordPage({ supportEmail }: { supportEmail: string }) {
-  const supportHref = `mailto:${supportEmail}?subject=${encodeURIComponent("Growth Engine password reset")}`;
+  const supportHref = `mailto:${supportEmail}?subject=${encodeURIComponent("Arc password reset")}`;
 
   return (
     <OperatorAuthSurface>
@@ -172,14 +172,8 @@ export function OperatorForgotPasswordPage({ supportEmail }: { supportEmail: str
 function LogoMark({ widthClassName }: { widthClassName: string }) {
   return (
     <div className="flex justify-center">
-      <Image
-        alt="Big Shoulders Restoration M&P"
-        className={`h-auto object-contain ${widthClassName}`}
-        height={938}
-        priority
-        src="/brand/big-shoulders-mp-logo-transparent.png"
-        width={1057}
-      />
+      {/* eslint-disable-next-line @next/next/no-img-element -- brand mark served from /public. */}
+      <img alt="Arc" className={`h-auto rounded-2xl object-contain ${widthClassName}`} src="/brand/arc-logo.png" />
     </div>
   );
 }

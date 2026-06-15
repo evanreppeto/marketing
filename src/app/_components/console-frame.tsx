@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { ShellContent } from "./shell-content";
+import { BackgroundGradientAnimation } from "./background-gradient-animation";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
@@ -25,11 +26,23 @@ function BrandMark({ brand }: { brand: ConsoleBrand }) {
     >
       {brand.logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or data URL.
-        <img alt="" className="h-full w-full object-contain p-1" src={brand.logoUrl} />
+        <img alt="" className="h-full w-full object-contain" src={brand.logoUrl} />
       ) : (
         brand.shortName
       )}
     </span>
+  );
+}
+
+function BrandWordmark() {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- transparent generated wordmark served from /public.
+    <img
+      alt=""
+      className="h-12 w-auto max-w-[118px] select-none object-contain object-left"
+      draggable={false}
+      src="/brand/arc-marketing-wordmark.png"
+    />
   );
 }
 
@@ -58,6 +71,8 @@ export function ConsoleFrame({
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
+    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
+    { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
   ];
 
   const settingsNavItems: ShellNavItem[] = [
@@ -72,7 +87,7 @@ export function ConsoleFrame({
   const collapsed = !expanded;
 
   const layout = cx(
-    "min-h-screen lg:grid lg:h-screen lg:min-h-0",
+    "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0",
     "lg:transition-[grid-template-columns] lg:duration-200 motion-reduce:lg:transition-none",
     expanded ? "lg:grid-cols-[280px_minmax(0,1fr)]" : "lg:grid-cols-[72px_minmax(0,1fr)]",
   );
@@ -82,7 +97,10 @@ export function ConsoleFrame({
       <main className={theme.shell.canvas}>
         <div className={layout}>
         <aside
-          className={theme.shell.sidebar}
+          className={cx(
+            theme.shell.sidebar,
+            "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 overflow-hidden px-2 py-2 lg:static lg:h-screen lg:items-stretch lg:gap-0 lg:overflow-hidden lg:px-4 lg:py-5",
+          )}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           onFocus={() => setFocusWithin(true)}
@@ -90,35 +108,32 @@ export function ConsoleFrame({
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusWithin(false);
           }}
         >
-          <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-1 lg:min-h-0 lg:flex-col lg:items-stretch lg:gap-3 lg:overflow-y-auto">
             <Link
               href="/mark"
               className={cx(
-                "group mb-2 flex items-center gap-3 px-1.5 leading-none transition hover:opacity-90",
+                "group flex shrink-0 items-center gap-3 px-0.5 leading-none transition hover:opacity-90 lg:mb-2 lg:px-1.5",
                 collapsed && "lg:justify-center lg:gap-0 lg:px-0",
               )}
               aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
               title={`${brand.workspaceName} ${brand.productLabel}`}
             >
               <BrandMark brand={brand} />
-              <span className={cx("flex flex-col", collapsed && "lg:hidden")}>
-                <span
-                  className="text-[1.15rem] font-semibold tracking-[-0.01em] text-[var(--text-primary)]"
-                  style={{ fontFamily: "var(--font-serif)" }}
-                >
-                  {brand.workspaceName}
-                </span>
-                <span className="mt-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.34em] text-[var(--accent)]">
-                  {brand.productLabel}
-                </span>
+              <span
+                className={cx(
+                  "hidden min-w-0 max-w-[130px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none lg:flex",
+                  collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
+                )}
+              >
+                <BrandWordmark />
               </span>
             </Link>
 
-            <SideNav active={pathname} items={navItems} collapsed={collapsed} />
+            <SideNav active={pathname} items={navItems} collapsed={collapsed} mobileDock />
           </div>
 
-          <div className={cx("mt-3 lg:mt-2", theme.surface.divider, "lg:border-t lg:pt-3")}>
-            <SideNav active={pathname} items={settingsNavItems} collapsed={collapsed} />
+          <div className={cx("shrink-0 border-l pl-1 lg:mt-2 lg:border-l-0", theme.surface.divider, "lg:border-t lg:pl-0 lg:pt-3")}>
+            <SideNav active={pathname} items={settingsNavItems} collapsed={collapsed} mobileDock />
           </div>
 
           <OperatorProfile collapsed={collapsed} />
@@ -150,7 +165,12 @@ function OperatorProfile({ collapsed }: { collapsed: boolean }) {
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-sidebar)] bg-[var(--ok)]"
           />
         </div>
-        <div className={cx("min-w-0 flex-1", collapsed && "lg:hidden")}>
+        <div
+          className={cx(
+            "min-w-0 max-w-[180px] flex-1 overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+            collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
+          )}
+        >
           <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
           <div className="truncate text-[11px] text-[var(--text-muted)]">Operator</div>
         </div>

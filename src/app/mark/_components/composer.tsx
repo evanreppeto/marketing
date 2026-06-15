@@ -48,6 +48,53 @@ function Spinner() {
   );
 }
 
+type VoiceInputState = "checking" | "unsupported" | "idle" | "listening";
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onresult: ((event: MarkSpeechRecognitionEvent) => void) | null;
+  abort: () => void;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+type MarkSpeechRecognitionResult = {
+  isFinal: boolean;
+  0?: { transcript?: string };
+};
+
+type MarkSpeechRecognitionEvent = {
+  resultIndex?: number;
+  results: {
+    length: number;
+    [index: number]: MarkSpeechRecognitionResult;
+  };
+};
+
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
+  if (typeof window === "undefined") return null;
+  const speechWindow = window as SpeechRecognitionWindow;
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+}
+
+function mergeVoiceTranscript(base: string, transcript: string): string {
+  const spoken = transcript.trim();
+  if (!spoken) return base;
+  const spacer = base.trim().length > 0 && !/\s$/.test(base) ? " " : "";
+  return `${base}${spacer}${spoken}`;
+}
+
 export function Composer({
   conversationId,
   mentionGroups,
@@ -136,8 +183,29 @@ export function Composer({
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
   const [attachments, setAttachments] = useState<MarkAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceInputState>("checking");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const voiceBaseDraftRef = useRef("");
+  const voiceTranscriptRef = useRef("");
+  const voiceShouldListenRef = useRef(false);
+  const voiceRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) setVoiceState(getSpeechRecognitionConstructor() ? "idle" : "unsupported");
+    });
+    return () => {
+      cancelled = true;
+      voiceShouldListenRef.current = false;
+      if (voiceRestartTimerRef.current) clearTimeout(voiceRestartTimerRef.current);
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -218,6 +286,95 @@ export function Composer({
     setSlash(matchSlash(value));
   }
 
+  function stopVoiceInput() {
+    voiceShouldListenRef.current = false;
+    if (voiceRestartTimerRef.current) {
+      clearTimeout(voiceRestartTimerRef.current);
+      voiceRestartTimerRef.current = null;
+    }
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setVoiceState("idle");
+    textareaRef.current?.focus();
+  }
+
+  function startVoiceInput(resume = false) {
+    const Recognition = getSpeechRecognitionConstructor();
+    if (!Recognition) {
+      setVoiceState("unsupported");
+      setVoiceError("Voice input is not available in this browser.");
+      return;
+    }
+
+    recognitionRef.current?.abort();
+    const recognition = new Recognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = typeof navigator === "undefined" ? "en-US" : navigator.language || "en-US";
+    if (!resume) {
+      voiceBaseDraftRef.current = draft;
+      voiceTranscriptRef.current = "";
+      voiceShouldListenRef.current = true;
+    }
+    setVoiceError(null);
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      for (let i = event.resultIndex ?? 0; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = result?.[0]?.transcript ?? "";
+        if (result?.isFinal) {
+          voiceTranscriptRef.current = mergeVoiceTranscript(voiceTranscriptRef.current, transcript);
+        } else {
+          interimTranscript = mergeVoiceTranscript(interimTranscript, transcript);
+        }
+      }
+      const spoken = mergeVoiceTranscript(voiceTranscriptRef.current, interimTranscript);
+      onTextChange(mergeVoiceTranscript(voiceBaseDraftRef.current, spoken));
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error === "no-speech" && voiceShouldListenRef.current) return;
+      if (event.error === "aborted" && !voiceShouldListenRef.current) return;
+      const message =
+        event.error === "not-allowed" || event.error === "service-not-allowed"
+          ? "Microphone access is blocked."
+          : "Voice input stopped unexpectedly.";
+      voiceShouldListenRef.current = false;
+      setVoiceError(message);
+      setVoiceState("idle");
+    };
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      if (voiceShouldListenRef.current) {
+        voiceRestartTimerRef.current = setTimeout(() => startVoiceInput(true), 120);
+        return;
+      }
+      setVoiceState((current) => (current === "listening" ? "idle" : current));
+    };
+
+    recognitionRef.current = recognition;
+    setVoiceState("listening");
+    try {
+      recognition.start();
+      textareaRef.current?.focus();
+    } catch {
+      recognitionRef.current = null;
+      voiceShouldListenRef.current = false;
+      setVoiceState("idle");
+      setVoiceError("Voice input could not start.");
+    }
+  }
+
+  function toggleVoiceInput() {
+    if (voiceState === "listening") {
+      stopVoiceInput();
+      return;
+    }
+    startVoiceInput();
+  }
+
   function addMention(m: MarkMention) {
     setPicked((prev) => (prev.some((p) => p.type === m.type && p.id === m.id) ? prev : [...prev, m]));
     onDraftChange(draft.replace(/@([\w-]*)$/, "").trimEnd() + " ");
@@ -248,6 +405,7 @@ export function Composer({
         className="relative"
         onSubmit={(e) => {
           if (!draft.trim() && attachments.length === 0) return;
+          if (voiceState === "listening") stopVoiceInput();
           if (demo) {
             // Preview mode: no server action — echo locally so the flow is testable.
             e.preventDefault();
@@ -393,6 +551,28 @@ export function Composer({
               Tools
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
+            <button
+              type="button"
+              onClick={toggleVoiceInput}
+              disabled={voiceState === "checking" || voiceState === "unsupported" || isPending}
+              aria-label={voiceState === "listening" ? "Stop voice input" : "Start voice input"}
+              aria-pressed={voiceState === "listening"}
+              title={voiceState === "unsupported" ? "Voice input is not available in this browser" : voiceState === "listening" ? "Stop voice input" : "Speak a message"}
+              className={cx(
+                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-[inset_0_0_0_1px_var(--border-strong)] transition active:scale-95 after:hidden",
+                voiceState === "listening"
+                  ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[0_0_22px_var(--accent-soft),inset_0_0_0_1px_var(--accent-border-strong)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
+                voiceState === "checking" || voiceState === "unsupported" || isPending ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--text-muted)]" : "",
+              )}
+            >
+              <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M10 3.5a2.5 2.5 0 0 0-2.5 2.5v3.5a2.5 2.5 0 0 0 5 0V6A2.5 2.5 0 0 0 10 3.5Z" />
+                <path d="M5.5 9.5a4.5 4.5 0 0 0 9 0" />
+                <path d="M10 14v2.5" />
+                <path d="M7.5 16.5h5" />
+              </svg>
+            </button>
             <textarea
               ref={textareaRef}
               name="body-display"
@@ -439,6 +619,9 @@ export function Composer({
 
         {state && !state.ok ? (
           <p className="mt-2 text-xs font-medium text-[var(--priority-bright)]">{state.message}</p>
+        ) : null}
+        {voiceError ? (
+          <p className="mt-2 text-xs font-medium text-[var(--text-muted)]">{voiceError}</p>
         ) : null}
 
         {/* Visible context selectors below the box (project picker), like the reference composer. */}

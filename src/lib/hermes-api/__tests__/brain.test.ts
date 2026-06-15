@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { markCreateNode, markCreateEdge } from "../brain";
+import { markCreateNode, markCreateEdge, markGraphExport } from "../brain";
 
 const ORG = "org-1";
 
@@ -34,5 +34,19 @@ describe("markCreateEdge", () => {
       { client: supabase as never, orgId: ORG },
     );
     expect(result).toEqual({ ok: true, id: "e-1" });
+  });
+});
+
+describe("markGraphExport", () => {
+  it("returns nodes and links (force-graph shape)", async () => {
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: { data: [{ id: "n-1", kind: "brand_fact", label: "x", trust_tier: "trusted", persona: null }], error: null },
+      knowledge_edges: { data: [], error: null },
+    });
+    const result = await markGraphExport({ client: supabase as never, orgId: "org-1" });
+    expect(result.status).toBe("live");
+    if (result.status !== "live") throw new Error("expected live");
+    expect(result.nodes).toHaveLength(1);
+    expect(Array.isArray(result.links)).toBe(true);
   });
 });

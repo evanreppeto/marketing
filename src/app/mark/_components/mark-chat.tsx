@@ -118,6 +118,7 @@ export function MarkChat({
   campaigns,
   activePinned,
   initialMessages,
+  projectMessages = [],
   mentionGroups,
   operatorName,
   pendingApprovals,
@@ -137,6 +138,8 @@ export function MarkChat({
   campaigns: { id: string; name: string }[];
   activePinned: boolean;
   initialMessages: MarkMessage[];
+  /** Asset-bearing messages from sibling chats in this chat's project (Studio Assets tab). */
+  projectMessages?: MarkMessage[];
   mentionGroups: MentionGroup[];
   operatorName: string | null;
   pendingApprovals: number;
@@ -332,6 +335,12 @@ export function MarkChat({
     ? { id: activeCampaignId, name: campaigns.find((c) => c.id === activeCampaignId)?.name ?? "Campaign" }
     : undefined;
 
+  // id -> title, so the Studio can label assets that came from a sibling chat.
+  const conversationTitles = useMemo(
+    () => Object.fromEntries(conversations.map((c) => [c.id, c.title] as const)),
+    [conversations],
+  );
+
   // Apply preview-mode optimistic approvals onto the rendered messages so the deck,
   // library tiles, and cover progress all reflect a click without a backend.
   const displayMessages = useMemo(() => {
@@ -523,6 +532,9 @@ export function MarkChat({
         {activeId ? (
           <WorkCanvas
             messages={displayMessages}
+            projectMessages={projectMessages}
+            currentConversationId={activeId}
+            conversationTitles={conversationTitles}
             open={canvasOpen}
             focus={studioFocus}
             campaign={activeCampaign}
@@ -554,6 +566,9 @@ export function MarkChat({
             <div className="min-h-0 flex-1 overflow-hidden">
               <WorkCanvas
                 messages={displayMessages}
+                projectMessages={projectMessages}
+                currentConversationId={activeId}
+                conversationTitles={conversationTitles}
                 variant="drawer"
                 focus={studioFocus}
                 campaign={activeCampaign}
