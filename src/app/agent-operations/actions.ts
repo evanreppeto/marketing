@@ -338,7 +338,15 @@ export async function moveTaskAction(taskId: string, toStatus: string): Promise<
     return { ok: false, message: "Supabase is not configured." };
   }
 
-  const result = await moveAgentTask(taskId, toStatus as OperatorDropTarget);
+  let result: Awaited<ReturnType<typeof moveAgentTask>>;
+  try {
+    result = await moveAgentTask(taskId, toStatus as OperatorDropTarget);
+  } catch (error) {
+    // Defense-in-depth: any unexpected persistence error becomes the board's
+    // inline error banner instead of crashing the page with a server-error overlay.
+    console.error(`moveTaskAction failed for ${taskId} -> ${toStatus}:`, error);
+    return { ok: false, message: "Couldn't move the task. Please try again." };
+  }
   if (!result.ok) {
     const message =
       result.reason === "not_found"

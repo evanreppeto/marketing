@@ -241,7 +241,8 @@ export async function blockAgentTask(
   const task = await updateAndNormalize(taskId, { status: "blocked", metadata: mergedMetadata }, client);
 
   // Record the block on the run-log timeline (best-effort; the state change is
-  // already persisted above). agent_id is NOT NULL on agent_run_logs.
+  // already persisted above, so a failed audit insert must not fail the block).
+  // agent_id is NOT NULL on agent_run_logs.
   const { error: logError } = await client.from("agent_run_logs").insert({
     task_id: taskId,
     agent_id: row.agent_id,
@@ -250,7 +251,7 @@ export async function blockAgentTask(
     reasoning_summary: "Mark blocked the task pending human input.",
   });
   if (logError) {
-    throw new Error(`block run-log insert failed: ${logError.message}`);
+    console.warn(`block run-log insert failed (block already persisted): ${logError.message}`);
   }
 
   return { ok: true, task };
@@ -316,15 +317,17 @@ export async function moveAgentTask(
 
   const task = await updateAndNormalize(taskId, patch, client);
 
+  // Audit log is best-effort: the status change above is the source of truth and
+  // is already persisted, so a failed audit insert must not fail (or crash) the move.
   const { error: logError } = await client.from("agent_run_logs").insert({
     task_id: taskId,
     agent_id: row.agent_id,
-    run_status: toStatus === "completed" ? "succeeded" : toStatus === "blocked" ? "failed" : "running",
+    run_status: toStatus === "completed" ? "completed" : toStatus === "blocked" ? "failed" : "running",
     reasoning_summary: `Operator moved task to ${toStatus} from the board.`,
     metadata: { source: "operator_board_move", from_status: row.status, to_status: toStatus },
   });
   if (logError) {
-    throw new Error(`move run-log insert failed: ${logError.message}`);
+    console.warn(`move run-log insert failed (move already persisted): ${logError.message}`);
   }
 
   return { ok: true, task };
