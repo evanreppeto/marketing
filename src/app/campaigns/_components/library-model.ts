@@ -230,6 +230,10 @@ export function managerViewCounts(campaigns: CampaignWorkspaceListItem[]): Recor
   };
 }
 
+export function shouldOpenCampaignCard(campaign: CampaignWorkspaceListItem, visibleCampaignCount: number): boolean {
+  return visibleCampaignCount <= 1 || campaign.pendingCount > 0 || campaign.lifecycle === "In review";
+}
+
 function matchesManagerView(campaign: CampaignWorkspaceListItem, view: CampaignManagerView): boolean {
   const archived = /archived/i.test(campaign.status);
   if (view === "archived") return archived;

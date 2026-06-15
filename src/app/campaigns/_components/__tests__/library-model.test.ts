@@ -14,6 +14,7 @@ import {
   managerViewCounts,
   momentumCounts,
   partitionAwaiting,
+  shouldOpenCampaignCard,
   type CampaignManagerView,
 } from "../library-model";
 
@@ -50,6 +51,7 @@ function item(overrides: Partial<CampaignWorkspaceListItem>): CampaignWorkspaceL
     channels: ["Email"],
     previewText: null,
     previewLabel: null,
+    contentPieces: [],
     updatedAt: "Jun 10",
     updatedAtIso: "2026-06-10T12:00:00Z",
     href: "/campaigns/c1",
@@ -115,6 +117,7 @@ function campaign(overrides: Partial<CampaignWorkspaceListItem> = {}): CampaignW
     channels: overrides.channels ?? ["Email", "Export"],
     previewText: overrides.previewText ?? "Subject: Fast help when plumbing jobs uncover water damage",
     previewLabel: overrides.previewLabel ?? "Email",
+    contentPieces: overrides.contentPieces ?? [],
     updatedAt: overrides.updatedAt ?? "Jun 11, 2026, 3:00 PM",
     updatedAtIso: overrides.updatedAtIso ?? "2026-06-11T19:00:00.000Z",
     href: overrides.href ?? "/campaigns/campaign-1",
@@ -326,5 +329,11 @@ describe("campaign manager helpers", () => {
     expect(managerViewCounts(items).all).toBe(3);
     expect(managerViewCounts(items).live).toBe(1);
     expect(managerViewCounts(items)["needs-attention"]).toBe(1);
+  });
+
+  it("opens the only campaign or campaigns needing review by default", () => {
+    expect(shouldOpenCampaignCard(campaign({ pendingCount: 0, lifecycle: "Ready" }), 1)).toBe(true);
+    expect(shouldOpenCampaignCard(campaign({ pendingCount: 2, lifecycle: "In review" }), 5)).toBe(true);
+    expect(shouldOpenCampaignCard(campaign({ pendingCount: 0, lifecycle: "Ready" }), 5)).toBe(false);
   });
 });

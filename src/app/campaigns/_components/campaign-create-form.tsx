@@ -97,7 +97,7 @@ export function CampaignCreateForm({ assistantName, businessName }: { assistantN
       </section>
 
       <aside className="space-y-3">
-        <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
+        <section id="ask-mark" className="scroll-mt-6 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
           <span className="signal-eyebrow">Optional helper</span>
           <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">Ask {assistantName} to draft it</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">

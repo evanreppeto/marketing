@@ -51,10 +51,23 @@ export type CampaignWorkspaceListItem = {
   channels: string[];
   previewText: string | null;
   previewLabel: string | null;
+  contentPieces: CampaignListContentPiece[];
   updatedAt: string;
   updatedAtIso: string;
   href: string;
   rollup: CampaignRollup;
+};
+
+export type CampaignListContentPiece = {
+  id: string;
+  title: string;
+  kind: string;
+  channel: string;
+  status: string;
+  preview: string;
+  media: CampaignMediaAsset[];
+  updatedAt: string;
+  needsReview: boolean;
 };
 
 export type CampaignWorkspaceList =
@@ -465,6 +478,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
         channels: Array.from(new Set(assetTypes.map(humanizeChannel))).slice(0, 3),
         previewText: preview?.text ?? null,
         previewLabel: preview?.label ?? null,
+        contentPieces: buildListContentPieces(campaignAssets),
         updatedAt: formatDate(campaign.updated_at),
         updatedAtIso: campaign.updated_at,
         href: `/campaigns/${campaign.id}`,
@@ -532,7 +546,7 @@ export async function getCampaignWorkspaceDetail(
       selectIn<LeadRow>(supabase, "leads", "id,source,status,loss_summary,lead_score,metadata", "id", relatedIds.leadIds),
     ]);
 
-    const assetsView = buildWorkspaceAssets(assets, approvals, outputs, agentName);
+    const assetsView = addPreviewCampaignPieces(campaignId, buildWorkspaceAssets(assets, approvals, outputs, agentName), campaign.updated_at);
     const media = uniqueMedia([
       ...collectMediaFromCampaign(campaign),
       ...assetsView.flatMap((asset) => asset.media),
@@ -890,6 +904,26 @@ export function selectPendingDeliverables(assets: CampaignWorkspaceAsset[]): Pen
     .map((asset) => ({ assetId: asset.id, title: asset.title, kind: asset.assetType }));
 }
 
+function buildListContentPieces(assets: CampaignWorkspaceAsset[]): CampaignListContentPiece[] {
+  return assets.map((asset) => ({
+    id: asset.id,
+    title: asset.title,
+    kind: asset.assetType,
+    channel: asset.channel,
+    status: asset.status,
+    preview: listPiecePreview(asset),
+    media: asset.media.slice(0, 4),
+    updatedAt: asset.updatedAt,
+    needsReview: assetDecisionState(asset) === "pending",
+  }));
+}
+
+function listPiecePreview(asset: CampaignWorkspaceAsset) {
+  const text = (asset.preview && asset.preview !== EMPTY_READABLE_PREVIEW ? asset.preview : asset.body).trim();
+  if (!text) return "No readable draft has been attached yet.";
+  return text.length > 420 ? `${text.slice(0, 417).trimEnd()}...` : text;
+}
+
 function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
   const rawBody = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
   const readableBody = buildReadablePreview(rawBody, asset.prompt_inputs, asset.reasoning_payload);
@@ -959,6 +993,99 @@ function buildWorkspaceAssets(
   // duplicate is dropped. Dedup by content, not just id — the same email can
   // arrive as an asset AND an output AND an approval.
   return dedupeDeliverables(uniqueById([...mappedAssets, ...outputAssets, ...approvalAssets]));
+}
+
+function addPreviewCampaignPieces(campaignId: string, assets: CampaignWorkspaceAsset[], updatedAt: string): CampaignWorkspaceAsset[] {
+  if (process.env.NODE_ENV === "production") return assets;
+  if (campaignId !== "10000000-0000-4000-8000-000000000021") return assets;
+  const existingIds = new Set(assets.map((asset) => asset.id));
+  const previewPieces = buildPreviewCampaignPieces(updatedAt).filter((asset) => !existingIds.has(asset.id));
+  return [...assets, ...previewPieces];
+}
+
+function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[] {
+  const formattedUpdatedAt = formatDate(updatedAt);
+  return [
+    {
+      id: "preview-sms-storm-follow-up",
+      title: "SMS reminder for property managers",
+      assetType: "SMS",
+      category: "virtual",
+      channel: "SMS",
+      status: "Draft",
+      body: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Big Shoulders can document the issue and coordinate mitigation this week. Want me to hold a crew slot?",
+      preview: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Big Shoulders can document the issue and coordinate mitigation this week.",
+      complianceNotes: "Demo preview content for layout review only.",
+      dispatchLocked: true,
+      toolSource: "Preview data",
+      updatedAt: formattedUpdatedAt,
+      media: [],
+      revision: null,
+      approval: null,
+    },
+    {
+      id: "preview-media-storm-creative",
+      title: "Storm response social creative",
+      assetType: "Social Ad",
+      category: "media",
+      channel: "Social Ad",
+      status: "Draft",
+      body: "Visual concept: maintenance tech documenting moisture readings in a multifamily hallway after heavy rain. Caption focuses on fast documentation for property managers.",
+      preview: "Social creative concept for post-storm property manager outreach.",
+      complianceNotes: "Demo preview content for layout review only.",
+      dispatchLocked: true,
+      toolSource: "Preview data",
+      updatedAt: formattedUpdatedAt,
+      media: [
+        {
+          id: "preview-media-storm-hallway",
+          type: "image",
+          title: "Storm response creative preview",
+          url: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
+          thumbnailUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80",
+          mimeType: "image/jpeg",
+          description: "Demo preview image for a storm response social creative.",
+          source: "Preview data",
+        },
+      ],
+      revision: null,
+      approval: null,
+    },
+    {
+      id: "preview-draft-landing-page",
+      title: "Emergency moisture documentation landing page",
+      assetType: "Landing Page",
+      category: "virtual",
+      channel: "Website",
+      status: "Draft",
+      body: "Headline: Document moisture fast after the storm.\n\nBody: Big Shoulders helps property managers capture photos, readings, and mitigation notes before small leaks become bigger claims.\n\nCTA: Request a same-week moisture walkthrough.",
+      preview: "Landing page draft for property managers who need documentation after storm calls.",
+      complianceNotes: "Demo preview content for layout review only.",
+      dispatchLocked: true,
+      toolSource: "Preview data",
+      updatedAt: formattedUpdatedAt,
+      media: [],
+      revision: null,
+      approval: null,
+    },
+    {
+      id: "preview-other-call-script",
+      title: "Leasing office callback script",
+      assetType: "Call Script",
+      category: "other",
+      channel: "CRM",
+      status: "Pending approval",
+      body: "Open by referencing the storm calls from this week, ask whether any tenant reports are unresolved, then offer a short documentation visit before the weekend schedule fills.",
+      preview: "CRM/call script for offices that responded to recent storm outreach.",
+      complianceNotes: "Demo preview content for layout review only.",
+      dispatchLocked: true,
+      toolSource: "Preview data",
+      updatedAt: formattedUpdatedAt,
+      media: [],
+      revision: null,
+      approval: null,
+    },
+  ];
 }
 
 /** One card per deliverable. Keyed by normalized title: the same piece surfaced
