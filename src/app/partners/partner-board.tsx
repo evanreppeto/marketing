@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
+import { useAgentName } from "../_components/agent-name-context";
 import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
 import { PaginationControls } from "../_components/pagination-controls";
 import { type PartnerCard } from "@/lib/partners/read-model";
@@ -21,6 +22,7 @@ const FILTERS: Array<{ key: PartnerFilter; label: string }> = [
 ];
 
 export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
+  const agentName = useAgentName();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PartnerFilter>("all");
   const [page, setPage] = useState(1);
@@ -69,10 +71,10 @@ export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
       <div className="p-4">
         <EmptyState
           title="No partner candidates yet"
-          detail="Once Mark finds or imports companies with partner personas, partner tier, or partner-score metadata, they will appear here."
+          detail={`Once ${agentName} finds or imports companies with partner personas, partner tier, or partner-score metadata, they will appear here.`}
           action={
             <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="/agent-operations">
-              Open Mark tasks
+              Open {agentName} tasks
             </Link>
           }
         />
@@ -198,6 +200,7 @@ export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
 
 function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
   const router = useRouter();
+  const agentName = useAgentName();
 
   return (
     <article
@@ -244,7 +247,7 @@ function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
       </dl>
 
       <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Mark-safe next action</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{agentName}-safe next action</div>
         <p className="mt-1 text-sm font-semibold leading-6 text-[var(--text-primary)]">{partner.nextAction}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={partner.nextActionHref}>

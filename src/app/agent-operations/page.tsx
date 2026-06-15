@@ -101,6 +101,7 @@ export default async function AgentOperationsPage() {
               ],
               outboundLocked: true,
             }}
+            agentName={agentName}
           />
 
           <WorkspacePanel eyebrow="Awaiting approval" title="Human gate">

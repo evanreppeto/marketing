@@ -12,7 +12,7 @@ const TIER_TONE: Record<string, ThemeTone> = {
   archived: "gray",
 };
 
-export function BrainBrowser({ nodes }: { nodes: BrainNode[] }) {
+export function BrainBrowser({ nodes, agentName = "Agent" }: { nodes: BrainNode[]; agentName?: string }) {
   if (nodes.length === 0) {
     return (
       <Panel>
@@ -22,7 +22,7 @@ export function BrainBrowser({ nodes }: { nodes: BrainNode[] }) {
           <code className="rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-xs text-[var(--text-primary)]">
             pnpm seed:brain
           </code>{" "}
-          or let Mark start recording what it learns.
+          or let {agentName} start recording what it learns.
         </p>
       </Panel>
     );

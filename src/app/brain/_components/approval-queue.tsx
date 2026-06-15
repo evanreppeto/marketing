@@ -2,11 +2,13 @@
 
 import { useState, useTransition } from "react";
 
+import { useAgentName } from "@/app/_components/agent-name-context";
 import { Panel, StatusPill } from "@/app/_components/page-header";
 import { approveNodeAction, rejectNodeAction } from "@/app/brain/actions";
 import { type BrainNode } from "@/lib/knowledge-graph/read-model";
 
 export function ApprovalQueue({ nodes }: { nodes: BrainNode[] }) {
+  const agentName = useAgentName();
   const [items, setItems] = useState(nodes);
   const [pending, startTransition] = useTransition();
 
@@ -17,7 +19,7 @@ export function ApprovalQueue({ nodes }: { nodes: BrainNode[] }) {
           Approval queue
         </h2>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">
-          Nothing waiting. Brand facts Mark proposes will appear here for review before they are trusted.
+          Nothing waiting. Brand facts {agentName} proposes will appear here for review before they are trusted.
         </p>
       </Panel>
     );

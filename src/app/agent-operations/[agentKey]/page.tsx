@@ -120,6 +120,7 @@ export default async function Page({ params }: PageProps) {
               proofPoints: agent.riskFlags,
               outboundLocked: true,
             }}
+            agentName={agentName}
           />
 
           <Link className={buttonClasses({ variant: "primary", className: "w-full" })} href="/agent-operations">

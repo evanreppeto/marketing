@@ -7,6 +7,7 @@ import { TabNav } from "../_components/tab-nav";
 import { WorkspacePanel } from "../_components/workspace";
 import { getPersonaIntelligenceData, type PersonaContentSignal, type PersonaTrackerRow } from "@/lib/persona-intelligence/read-model";
 import { PERSONA_CTA_RULES, personaSlug, type PersonaCtaRule } from "@/lib/persona-intelligence/cta-rules";
+import { getAgentName } from "@/lib/settings/agent-name";
 
 type IntelligenceTab = "personas" | "snapshots" | "signals" | "guardrails";
 
@@ -17,12 +18,16 @@ type PageProps = {
   }>;
 };
 
-const TABS: Array<{ id: IntelligenceTab; label: string; detail: string }> = [
-  { id: "personas", label: "Persona rules", detail: "Approved CTA and language rules" },
-  { id: "snapshots", label: "Live snapshots", detail: "Current Supabase persona memory" },
-  { id: "signals", label: "Knowledge signals", detail: "Entries Mark can reference" },
-  { id: "guardrails", label: "Guardrails", detail: "Copy and compliance checks" },
-];
+function buildTabs(agentName: string): Array<{ id: IntelligenceTab; label: string; detail: string }> {
+  return [
+    { id: "personas", label: "Persona rules", detail: "Approved CTA and language rules" },
+    { id: "snapshots", label: "Live snapshots", detail: "Current Supabase persona memory" },
+    { id: "signals", label: "Knowledge signals", detail: `Entries ${agentName} can reference` },
+    { id: "guardrails", label: "Guardrails", detail: "Copy and compliance checks" },
+  ];
+}
+
+const TAB_IDS: IntelligenceTab[] = ["personas", "snapshots", "signals", "guardrails"];
 
 export default async function PersonaIntelligencePage({ searchParams }: PageProps) {
   await connection();
@@ -30,19 +35,20 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
   const params = await searchParams;
   const activeTab = parseTab(valueOf(params?.tab));
   const inspectedKey = valueOf(params?.inspect);
-  const data = await getPersonaIntelligenceData();
+  const [data, agentName] = await Promise.all([getPersonaIntelligenceData(), getAgentName()]);
+  const tabs = buildTabs(agentName);
   const livePersonas = data.status === "live" ? data.personas : [];
   const liveBySlug = new Map(livePersonas.map((persona) => [persona.key, persona]));
   const personaRows = PERSONA_CTA_RULES.map((rule) => ({ rule, live: liveBySlug.get(personaSlug(rule.persona)) ?? null }));
   const contentSignals = data.status === "live" ? data.contentSignals : [];
   const guardrailSignals = data.status === "live" ? data.guardrailSignals : [];
-  const inspector = buildInspector(activeTab, inspectedKey, personaRows, livePersonas, contentSignals, guardrailSignals);
+  const inspector = buildInspector(activeTab, inspectedKey, personaRows, livePersonas, contentSignals, guardrailSignals, agentName);
 
   return (
     <>
       <PageHeader
         eyebrow="Persona intelligence"
-        title="Inspect persona rules before Mark uses them."
+        title={`Inspect persona rules before ${agentName} uses them.`}
         description="Use the tabs to inspect one type of intelligence at a time. Nothing here publishes pages, sends outreach, or launches campaigns."
         aside={
           <div className="flex flex-wrap items-center gap-2">
@@ -64,7 +70,7 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
         activeKey={activeTab}
         columns="sm:grid-cols-2 xl:grid-cols-4"
         className="mb-4"
-        tabs={TABS.map((tab) => ({
+        tabs={tabs.map((tab) => ({
           key: tab.id,
           label: tab.label,
           detail: tab.detail,
@@ -74,7 +80,7 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <main className="min-w-0">
-          {activeTab === "personas" ? <PersonaRulesTab rows={personaRows} /> : null}
+          {activeTab === "personas" ? <PersonaRulesTab rows={personaRows} agentName={agentName} /> : null}
           {activeTab === "snapshots" ? <SnapshotsTab rows={livePersonas} /> : null}
           {activeTab === "signals" ? <SignalsTab empty="No active persona knowledge entries are available yet." rows={contentSignals} tab="signals" title="Knowledge signals" /> : null}
           {activeTab === "guardrails" ? <SignalsTab empty="No active guardrail rules are available yet." rows={guardrailSignals} tab="guardrails" title="Guardrail checks" /> : null}
@@ -98,6 +104,7 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
               actions: inspector.actions,
               outboundLocked: true,
             }}
+            agentName={agentName}
           />
         </aside>
       </div>
@@ -105,12 +112,12 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
   );
 }
 
-function PersonaRulesTab({ rows }: { rows: Array<{ rule: PersonaCtaRule; live: PersonaTrackerRow | null }> }) {
+function PersonaRulesTab({ rows, agentName }: { rows: Array<{ rule: PersonaCtaRule; live: PersonaTrackerRow | null }>; agentName: string }) {
   return (
     <WorkspacePanel
       eyebrow="Persona rules"
       title="Approved CTA matrix"
-      description="Cards are inspection points for Mark's campaign briefs and approval cards."
+      description={`Cards are inspection points for ${agentName}'s campaign briefs and approval cards.`}
     >
       <div className="grid gap-3 p-4 xl:grid-cols-2">
         {rows.map(({ rule, live }) => (
@@ -230,6 +237,7 @@ function buildInspector(
   snapshots: PersonaTrackerRow[],
   signals: PersonaContentSignal[],
   guardrails: PersonaContentSignal[],
+  agentName: string,
 ) {
   if (tab === "snapshots") {
     const selected = snapshots.find((row) => row.key === inspectedKey) ?? snapshots[0] ?? null;
@@ -289,7 +297,7 @@ function buildInspector(
     persona: selectedRule?.label ?? "All personas",
     confidence: "Rules defined",
     stage: selectedRule?.segment ?? "Internal planning",
-    reason: selectedRule?.messageAngle ?? "Mark should use persona rules to prepare reviewable work, not to publish or contact anyone.",
+    reason: selectedRule?.messageAngle ?? `${agentName} should use persona rules to prepare reviewable work, not to publish or contact anyone.`,
     nextAction: selectedRule?.landingRule ?? "Use persona CTA rules when generating campaign briefs and approval cards.",
     cta: selectedRule ? `${selectedRule.primaryCta} / ${selectedRule.secondaryCta}` : "Call Now / Upload Photos, Request Vendor Packet, Refer a Client, or Become a Partner.",
     messageAngle: selectedRule?.messageAngle ?? "Restoration, mitigation, documentation, rebuild, and partner handoff.",
@@ -310,7 +318,7 @@ function buildInspector(
 }
 
 function parseTab(tab: string | undefined): IntelligenceTab {
-  return TABS.some((item) => item.id === tab) ? (tab as IntelligenceTab) : "personas";
+  return TAB_IDS.some((id) => id === tab) ? (tab as IntelligenceTab) : "personas";
 }
 
 function valueOf(value: string | string[] | undefined) {
