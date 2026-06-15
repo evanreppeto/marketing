@@ -14,6 +14,9 @@ importers:
       '@paper-design/shaders-react':
         specifier: ^0.0.76
         version: 0.0.76(@types/react@19.2.15)(react@19.2.4)
+      '@rive-app/react-webgl2':
+        specifier: ^4.29.1
+        version: 4.29.1(react@19.2.4)
       '@supabase/supabase-js':
         specifier: ^2.106.2
         version: 2.106.2
@@ -497,6 +500,14 @@ packages:
 
   '@paper-design/shaders@0.0.76':
     resolution: {integrity: sha512-AcNDY4J66YQHUfQYFInkCP7M9VOje0od7wLpOR7LtCmc532opJy6ll+h1W9zBovz8tt9U7OADUmJ/qKEXyOX/A==}
+
+  '@rive-app/react-webgl2@4.29.1':
+    resolution: {integrity: sha512-m80p2dXWdQR5P0Mi6dP2fOCUwSx6MYxd051LTtG/7h/ryNCBmjceK1zFJwBzlmuWrfGQCXTPvCjOFHmU+uYcpw==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0
+
+  '@rive-app/webgl2@2.38.1':
+    resolution: {integrity: sha512-dotNsRlrTaHNxTiJFxHHycB1PQhnJyIvrMTVpyzG6GYgjztnM27r07e8GJ2AuDQB/Vkmdz0Y6NRG5NVJ1OWDxQ==}
 
   '@rolldown/binding-android-arm64@1.0.2':
     resolution: {integrity: sha512-ZS4D1JPGn/MYQN/SYDWftIE/nVsM8j/AFOYEzAoOE2O3NktQOZru+/vYXGbR/qtdLdIfGCP0lcoJiYVzsEz+iQ==}
@@ -3278,6 +3289,13 @@ snapshots:
       '@types/react': 19.2.15
 
   '@paper-design/shaders@0.0.76': {}
+
+  '@rive-app/react-webgl2@4.29.1(react@19.2.4)':
+    dependencies:
+      '@rive-app/webgl2': 2.38.1
+      react: 19.2.4
+
+  '@rive-app/webgl2@2.38.1': {}
 
   '@rolldown/binding-android-arm64@1.0.2':
     optional: true
