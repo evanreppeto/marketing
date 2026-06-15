@@ -44,7 +44,7 @@ export function CrmObjectTable({
   views: CrmListView[];
 }) {
   const router = useRouter();
-  const clickTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const clickTimeoutRef = useRef<number | null>(null);
   const [query, setQuery] = useState("");
   const [dataFilter, setDataFilter] = useState<DataFilter>("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
@@ -136,7 +136,7 @@ export function CrmObjectTable({
     openRecord(row);
   }
 
-  function handleRowKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, row: CrmObjectRow) {
+  function handleRowKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, row: CrmObjectRow) {
     if (event.key === "Enter") {
       openRecord(row);
       return;
