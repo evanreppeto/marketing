@@ -487,6 +487,142 @@ h4, .font-display {
   50% { box-shadow: inset 0 0 0 1px var(--border-strong), 0 0 0 5px transparent; }
 }
 
+  /* Mark persona bubble: use the AI Elements obsidian animation with app-token color. */
+  .mark-persona {
+    --mark-persona-accent: var(--accent);
+    --mark-persona-glow: var(--accent-soft);
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    border-radius: 9999px;
+    background: transparent;
+  }
+  .mark-persona[data-state="listening"] {
+    --mark-persona-accent: var(--ok);
+    --mark-persona-glow: var(--ok-soft);
+  }
+  .mark-persona[data-state="thinking"] {
+    --mark-persona-accent: var(--accent-strong);
+    --mark-persona-glow: rgba(216, 182, 94, 0.18);
+  }
+  .mark-persona[data-state="speaking"] {
+    --mark-persona-accent: var(--accent-strong);
+    --mark-persona-glow: rgba(216, 182, 94, 0.2);
+  }
+  .mark-persona[data-state="asleep"] {
+    --mark-persona-accent: var(--text-muted);
+    --mark-persona-glow: rgba(174, 181, 194, 0.08);
+    opacity: 0.72;
+  }
+  .mark-persona-rive {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 0.98;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--mark-persona-accent) 18%, transparent));
+    pointer-events: none;
+    transform: translateZ(0);
+  }
+
+  /* Static placeholder shown until the remote Rive orb finishes streaming/initialising,
+     so the avatar never renders as an empty hole on first open. Fades out on load. */
+  .mark-persona-fallback {
+    position: absolute;
+    inset: 6%;
+    z-index: 0;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle at 50% 42%,
+      color-mix(in srgb, var(--mark-persona-accent) 72%, transparent) 0%,
+      color-mix(in srgb, var(--mark-persona-accent) 34%, transparent) 52%,
+      transparent 72%
+    );
+    opacity: 1;
+    transition: opacity 420ms ease;
+    pointer-events: none;
+    animation: mark-persona-fallback-pulse 2.4s ease-in-out infinite;
+  }
+  .mark-persona-fallback[data-loaded="true"] {
+    opacity: 0;
+  }
+  @keyframes mark-persona-fallback-pulse {
+    0%,
+    100% {
+      transform: scale(0.94);
+    }
+    50% {
+      transform: scale(1.03);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mark-persona-fallback {
+      animation: none;
+    }
+  }
+
+  /* Hero persona (empty-state) — ambient halo + slow breathing so the orb reads
+     as alive and premium, not a flat marble. Scoped to the hero modifier so the
+     small message-list avatars stay crisp and glow-free. */
+  .mark-persona--hero::before {
+    content: "";
+    position: absolute;
+    inset: -42%;
+    z-index: 0;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle at 50% 46%,
+      color-mix(in srgb, var(--mark-persona-accent) 26%, transparent) 0%,
+      var(--mark-persona-glow) 34%,
+      transparent 70%
+    );
+    filter: blur(7px);
+    pointer-events: none;
+    animation: mark-persona-breathe 5.6s ease-in-out infinite;
+  }
+  .mark-persona--hero .mark-persona-rive {
+    filter: drop-shadow(0 0 16px color-mix(in srgb, var(--mark-persona-accent) 32%, transparent));
+  }
+  @keyframes mark-persona-breathe {
+    0%,
+    100% {
+      transform: scale(0.95);
+      opacity: 0.65;
+    }
+    50% {
+      transform: scale(1.07);
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mark-persona--hero::before {
+      animation: none;
+      opacity: 0.85;
+    }
+  }
+
+  /* Mode/Route pill icon swap — replays on each selection change (the glyph is
+     keyed by option id, so React remounts it and the animation fires). */
+  .pill-glyph-swap {
+    animation: pill-glyph-swap 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  @keyframes pill-glyph-swap {
+    0% {
+      opacity: 0;
+      transform: scale(0.55) rotate(-12deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pill-glyph-swap {
+      animation: none;
+    }
+  }
+
 /* Non-gradient skeleton for not-yet-streamed content (replaces gradient-text shimmer) */
 .mark-skel {
   height: 11px;
@@ -604,57 +740,9 @@ h4, .font-display {
 
 /* Thinking orbital — a small gold-arc ring that spins while Mark generates.
    Replaces the neon loader rings from generic AI kits with one calm token-gold arc. */
-.mark-orbit {
-  width: 15px;
-  height: 15px;
-  border-radius: 9999px;
-  border: 1.5px solid var(--border-strong);
-  border-top-color: var(--accent);
-  animation: mark-orbit-spin 0.9s linear infinite;
-}
-@keyframes mark-orbit-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .mark-orbit { animation: none; } }
-
 /* Mark's living orb avatar — a swirling molten-gold orb (CSS conic gradients +
    blur + rotation). Cheap enough to render on every message (no WebGL contexts).
    Adapted from the 21st.dev "Siri Orb", recolored to Signal gold. */
-@property --mark-orb-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-.mark-orb {
-  position: relative;
-  display: grid;
-  grid-template-areas: "stack";
-  overflow: hidden;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(200, 162, 74, 0.12) 0%, rgba(200, 162, 74, 0.04) 35%, transparent 70%);
-}
-.mark-orb::before {
-  content: "";
-  grid-area: stack;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background:
-    conic-gradient(from calc(var(--mark-orb-angle) * 1.2) at 30% 65%, var(--mark-orb-c3) 0deg, transparent 45deg 315deg, var(--mark-orb-c3) 360deg),
-    conic-gradient(from calc(var(--mark-orb-angle) * 0.8) at 70% 35%, var(--mark-orb-c2) 0deg, transparent 60deg 300deg, var(--mark-orb-c2) 360deg),
-    conic-gradient(from calc(var(--mark-orb-angle) * -1.5) at 65% 75%, var(--mark-orb-c1) 0deg, transparent 90deg 270deg, var(--mark-orb-c1) 360deg),
-    radial-gradient(ellipse 120% 80% at 40% 60%, var(--mark-orb-c3) 0%, transparent 50%);
-  filter: blur(var(--mark-orb-blur, 4px)) contrast(1.5) saturate(1.15);
-  animation: mark-orb-rotate var(--mark-orb-dur, 14s) linear infinite;
-  transform: translateZ(0);
-  will-change: transform;
-}
-.mark-orb::after {
-  content: "";
-  grid-area: stack;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 42% 38%, rgba(255, 255, 255, 0.2) 0%, transparent 55%);
-  mix-blend-mode: overlay;
-}
-@keyframes mark-orb-rotate { from { --mark-orb-angle: 0deg; } to { --mark-orb-angle: 360deg; } }
-@media (prefers-reduced-motion: reduce) { .mark-orb::before { animation: none; } }
-
 /* Luma spinner — two rounded squares orbiting the corners (21st.dev "luma-spin"),
    recolored to Signal gold and made size-independent (percent insets instead of
    the original fixed 35px/65px). Used for Mark's "thinking" loader. */

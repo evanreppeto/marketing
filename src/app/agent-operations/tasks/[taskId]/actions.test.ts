@@ -8,6 +8,20 @@ import {
   updateTaskFieldAction,
 } from "./actions";
 
+const updateTaskFieldActionWithUnsafeInput = updateTaskFieldAction as (
+  taskId: string,
+  input: unknown,
+) => ReturnType<typeof updateTaskFieldAction>;
+const addTaskEventActionWithUnsafeInput = addTaskEventAction as (
+  taskId: string,
+  input: unknown,
+) => ReturnType<typeof addTaskEventAction>;
+const toggleAcceptanceCriterionActionWithUnsafeInput = toggleAcceptanceCriterionAction as (
+  taskId: string,
+  criterionId: string,
+  completed: unknown,
+) => ReturnType<typeof toggleAcceptanceCriterionAction>;
+
 const mocks = vi.hoisted(() => ({
   requireOperator: vi.fn(),
   getOperatorActor: vi.fn(),
@@ -85,7 +99,7 @@ describe("task detail actions", () => {
       agent_task_events: { data: null, error: null },
     });
 
-    const result = await (updateTaskFieldAction as any)("task-1", { field: "owner_label", value: {} });
+    const result = await updateTaskFieldActionWithUnsafeInput("task-1", { field: "owner_label", value: {} });
 
     expect(result.ok).toBe(false);
     expect(supabase.calls).not.toContainEqual(["from", "agent_tasks"]);
@@ -121,7 +135,7 @@ describe("task detail actions", () => {
       agent_task_events: { data: null, error: null },
     });
 
-    const result = await (addTaskEventAction as any)("task-1", { eventType: "instruction", body: 123 });
+    const result = await addTaskEventActionWithUnsafeInput("task-1", { eventType: "instruction", body: 123 });
 
     expect(result.ok).toBe(false);
     expect(supabase.calls.some((call) => call[0] === "insert")).toBe(false);
@@ -186,7 +200,7 @@ describe("task detail actions", () => {
       agent_task_events: { data: null, error: null },
     });
 
-    const result = await (toggleAcceptanceCriterionAction as any)("task-1", "ac-1", "true");
+    const result = await toggleAcceptanceCriterionActionWithUnsafeInput("task-1", "ac-1", "true");
 
     expect(result.ok).toBe(false);
     expect(supabase.calls.some((call) => call[0] === "update")).toBe(false);

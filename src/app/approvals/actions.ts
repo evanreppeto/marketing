@@ -5,9 +5,14 @@ import { redirect } from "next/navigation";
 
 import { APPROVAL_DECISION_ACTIONS, decideApprovalItem, type ApprovalDecisionAction } from "@/lib/approvals/decisions";
 import { requireOperator } from "@/lib/auth/operator";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function decideApprovalItemAction(formData: FormData) {
   await requireOperator();
+
+  if (!isSupabaseAdminConfigured()) {
+    redirect("/approvals?action=not-configured");
+  }
 
   const approvalItemId = getFormString(formData, "approvalItemId");
   const action = getFormString(formData, "decisionAction");

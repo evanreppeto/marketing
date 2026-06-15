@@ -4,6 +4,7 @@ import { type MarkMention } from "@/domain";
 import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTone } from "@/lib/settings/store";
 
 import { resolveAgentConnection } from "@/lib/agent/connection";
+import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
 import { type MarkAttachment } from "./persistence";
 
@@ -80,9 +81,14 @@ export async function notifyMarkWebhook(payload: MarkNotifyPayload): Promise<boo
 
   try {
     const res = await fetch(url, { method: "POST", headers, body, signal: controller.signal });
+    // The wake doubles as a reachability probe: record the outcome so the connection
+    // pill reflects whether the runner actually answered, not just whether a URL is
+    // configured. Best-effort — recordTestResult swallows its own errors.
+    await recordTestResult({ status: res.ok ? "ok" : "error", error: res.ok ? null : `HTTP ${res.status}` });
     return res.ok;
   } catch {
     // Best-effort wake-up; intentionally swallow errors and let the inbox catch it.
+    await recordTestResult({ status: "unreachable", error: "Wake request failed." });
     return false;
   } finally {
     clearTimeout(timeout);

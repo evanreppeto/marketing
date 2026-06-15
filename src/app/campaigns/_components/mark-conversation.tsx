@@ -4,6 +4,8 @@ import { useActionState, useEffect, useRef, useState } from "react";
 
 import { useAgentName } from "@/app/_components/agent-name-context";
 import { Button, StatusPill } from "@/app/_components/page-header";
+import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import type { PersonaState } from "@/components/ai-elements/persona";
 import type { CampaignWorkspaceReasoning, MarkMessage } from "@/lib/campaigns/read-model";
 
 import { sendMarkMessageAction } from "../actions";
@@ -35,7 +37,7 @@ export function MarkConversation({
     <div className="module-rise grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
       <section className="flex min-h-[28rem] flex-col overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
         <header className="flex items-center gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-          <MarkAvatar />
+          <MarkAvatar size={40} state="idle" />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold tracking-[-0.02em] text-[var(--text-primary)]">{agentName}</h2>
@@ -64,7 +66,6 @@ export function MarkConversation({
     </div>
   );
 }
-
 function MessageBubble({ message }: { message: MarkMessage }) {
   if (message.role === "operator") {
     return (
@@ -84,7 +85,7 @@ function MessageBubble({ message }: { message: MarkMessage }) {
 
   return (
     <div className="flex items-start gap-2.5">
-      <MarkAvatar small />
+      <MarkAvatar size={28} state={campaignAvatarState(message.status)} />
       <div className="min-w-0 max-w-[90%]">
         <div className="rounded-2xl rounded-tl-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-4 py-3">
           <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -100,6 +101,13 @@ function MessageBubble({ message }: { message: MarkMessage }) {
       </div>
     </div>
   );
+}
+function campaignAvatarState(status: string | null): PersonaState {
+  if (!status) return "speaking";
+  const normalized = status.toLowerCase();
+  if (normalized.includes("queued") || normalized.includes("running") || normalized.includes("pending")) return "thinking";
+  if (normalized.includes("failed") || normalized.includes("blocked")) return "asleep";
+  return "speaking";
 }
 
 function Composer({ campaignId }: { campaignId: string }) {
@@ -210,16 +218,3 @@ function MarkPlan({ reasoning }: { reasoning: CampaignWorkspaceReasoning }) {
   );
 }
 
-function MarkAvatar({ small = false }: { small?: boolean }) {
-  const agentName = useAgentName();
-  return (
-    <span
-      aria-hidden
-      className={`inline-flex shrink-0 items-center justify-center rounded-lg border border-[oklch(0.74_0.115_232/0.45)] bg-[var(--accent-soft)] font-display font-bold text-[var(--accent)] ${
-        small ? "h-7 w-7 text-xs" : "h-10 w-10 text-base"
-      }`}
-    >
-      {agentName.charAt(0).toUpperCase()}
-    </span>
-  );
-}

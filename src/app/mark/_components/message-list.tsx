@@ -408,6 +408,7 @@ function Message({
   // Mark messages within a few minutes render compact (no repeated avatar/name).
   const pending = message.status === "pending";
   const failed = message.status === "failed";
+  const avatarState = markAvatarStateForMessageStatus(message.status);
   // A concept image attached to a draft is folded INTO the draft card (and into
   // the work canvas) rather than shown as a loose attachment below it — one
   // deliverable, not three scattered blocks. Any extra media still gets a gallery.
@@ -419,7 +420,7 @@ function Message({
   const galleryMedia = cardImage ? message.media.filter((m) => m !== cardImage) : message.media;
   return (
     <div className="group flex gap-3">
-      {compact && !pending ? <span aria-hidden className="w-10 shrink-0" /> : <MarkAvatar size={42} pending={pending} />}
+      {compact && !pending ? <span aria-hidden className="w-10 shrink-0" /> : <MarkAvatar size={42} state={avatarState} />}
       <div className="min-w-0 flex-1 pt-0.5">
         {compact && !pending ? null : (
           <div className="mb-1 flex items-baseline gap-2">
@@ -507,6 +508,13 @@ function Message({
       </div>
     </div>
   );
+}
+
+function markAvatarStateForMessageStatus(status: MarkMessage["status"]) {
+  if (status === "pending") return "thinking";
+  if (status === "failed") return "asleep";
+  if (status === "complete") return "speaking";
+  return "idle";
 }
 
 export function MessageList({

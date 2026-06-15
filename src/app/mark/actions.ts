@@ -6,14 +6,14 @@ import { revalidatePath } from "next/cache";
 
 import { createSignedReadUrl, createSignedUploadUrl, isGcsConfigured } from "@/lib/storage/gcs";
 
-import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, validateMarkMessageInput, MarkMessageError } from "@/domain";
+import { deriveThreadTitle, parseMarkMode, parseMarkRoute, parseMentions, validateMarkMessageInput, MarkMessageError, type MarkMode, type MarkRoute } from "@/domain";
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
 import { hasActiveAgentTokens } from "@/lib/agent/tokens";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
-import { getMarkDisplayName, isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
+import { isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
@@ -97,7 +97,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       const conversation = await createConversation({ operator, title: deriveThreadTitle(body), projectId }, client);
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route }, client);
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
@@ -185,7 +185,10 @@ export type MarkAgentStatus = {
  */
 export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
   const connection = await resolveAgentConnection();
-  const name = await getMarkDisplayName();
+  // Name the agent from the same source as the rest of the UI (operator's Settings
+  // value), not the connection/env display name — so the pill never says "Hermes"
+  // while the chat says "Arc".
+  const name = await getAgentName();
   const base = {
     name,
     lastSeenAt: connection.health.lastSeenAt,
@@ -193,6 +196,13 @@ export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
   };
 
   if (!isSupabaseAdminConfigured() || !(await isMarkRunnerConfigured())) {
+    return { attached: false, ...base };
+  }
+  // A runner is configured, but the most recent contact attempt failed — be honest
+  // and show "not attached" instead of a green light the operator can't trust. The
+  // wake (notifyMarkWebhook) records this on every send, so it self-heals once the
+  // runner answers again.
+  if (connection.health.lastStatus === "error" || connection.health.lastStatus === "unreachable") {
     return { attached: false, ...base };
   }
   try {
@@ -469,6 +479,7 @@ export async function setMarkMessageFeedbackAction(
 export async function regenerateMarkReplyAction(
   conversationId: string,
   markMessageId: string,
+  opts?: { mode?: MarkMode; route?: MarkRoute },
 ): Promise<void> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return;
@@ -487,6 +498,11 @@ export async function regenerateMarkReplyAction(
   const lastOperator = [...slice].reverse().find((m) => m.role === "operator");
   if (!lastOperator) return;
 
+  // Prefer the settings the original turn was sent with; fall back to the caller's
+  // current selection, then validated defaults.
+  const mode = parseMarkMode(lastOperator.mode ?? opts?.mode);
+  const route = parseMarkRoute(lastOperator.route ?? opts?.route);
+
   const operator = getOperatorActor();
   const settings = await getAppSettings();
   const agentName = await getAgentName();
@@ -498,8 +514,8 @@ export async function regenerateMarkReplyAction(
         message: lastOperator.body,
         mentions: lastOperator.mentions,
         operator,
-        route: "fast",
-        mode: "ask",
+        route,
+        mode,
         assistantTone: settings.assistantTone,
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
@@ -515,8 +531,8 @@ export async function regenerateMarkReplyAction(
       message: lastOperator.body,
       mentions: lastOperator.mentions,
       operator,
-      route: "fast",
-      mode: "ask",
+      route,
+      mode,
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,

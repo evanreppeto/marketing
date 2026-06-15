@@ -36,6 +36,8 @@ export type PersonaState =
   | "speaking"
   | "asleep";
 
+type PersonaModelColor = readonly [number, number, number];
+
 interface PersonaProps {
   state: PersonaState;
   onLoad?: RiveParameters["onLoad"];
@@ -45,6 +47,7 @@ interface PersonaProps {
   onPlay?: RiveParameters["onPlay"];
   onStop?: RiveParameters["onStop"];
   className?: string;
+  modelColor?: PersonaModelColor;
   variant?: keyof typeof sources;
 }
 
@@ -161,11 +164,12 @@ const useTheme = (enabled: boolean) => {
 interface PersonaWithModelProps {
   rive: ReturnType<typeof useRive>["rive"];
   source: (typeof sources)[keyof typeof sources];
+  modelColor?: PersonaModelColor;
   children: React.ReactNode;
 }
 
 const PersonaWithModel = memo(
-  ({ rive, source, children }: PersonaWithModelProps) => {
+  ({ rive, source, modelColor, children }: PersonaWithModelProps) => {
     const theme = useTheme(source.dynamicColor);
     const viewModel = useViewModel(rive, { useDefault: true });
     const viewModelInstance = useViewModelInstance(viewModel, {
@@ -182,9 +186,9 @@ const PersonaWithModel = memo(
         return;
       }
 
-      const [r, g, b] = theme === "dark" ? [255, 255, 255] : [0, 0, 0];
+      const [r, g, b] = modelColor ?? (theme === "dark" ? [255, 255, 255] : [0, 0, 0]);
       viewModelInstanceColor.setRgb(r, g, b);
-    }, [viewModelInstanceColor, theme, source.dynamicColor]);
+    }, [viewModelInstanceColor, theme, source.dynamicColor, modelColor]);
 
     return children;
   }
@@ -193,6 +197,7 @@ const PersonaWithModel = memo(
 PersonaWithModel.displayName = "PersonaWithModel";
 
 interface PersonaWithoutModelProps {
+  modelColor?: PersonaModelColor;
   children: ReactNode;
 }
 
@@ -213,12 +218,18 @@ export const Persona: FC<PersonaProps> = memo(
     onPlay,
     onStop,
     className,
+    modelColor,
   }) => {
     const source = sources[variant];
 
     if (!source) {
       throw new Error(`Invalid variant: ${variant}`);
     }
+
+    // Drives the static placeholder: the .riv asset streams from a remote CDN, so
+    // the orb is briefly empty on first paint. We show a fallback disc until Rive's
+    // onLoad fires, then fade it out.
+    const [loaded, setLoaded] = useState(false);
 
     // Stabilize callbacks to prevent useRive from reinitializing
     const callbacksRef = useRef({
@@ -243,10 +254,10 @@ export const Persona: FC<PersonaProps> = memo(
 
     const stableCallbacks = useMemo(
       () => ({
-        onLoad: ((loadedRive) =>
-          callbacksRef.current.onLoad?.(
-            loadedRive
-          )) as RiveParameters["onLoad"],
+        onLoad: ((loadedRive) => {
+          setLoaded(true);
+          callbacksRef.current.onLoad?.(loadedRive);
+        }) as RiveParameters["onLoad"],
         onLoadError: ((err) =>
           callbacksRef.current.onLoadError?.(
             err
@@ -303,7 +314,8 @@ export const Persona: FC<PersonaProps> = memo(
     const Component = source.hasModel ? PersonaWithModel : PersonaWithoutModel;
 
     return (
-      <Component rive={rive} source={source}>
+      <Component rive={rive} source={source} modelColor={modelColor}>
+        <span aria-hidden data-loaded={loaded} className="mark-persona-fallback" />
         <RiveComponent className={cn("size-16 shrink-0", className)} />
       </Component>
     );

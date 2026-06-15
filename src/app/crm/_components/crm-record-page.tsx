@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AppShell } from "../../_components/app-shell";
 import { IntelligencePanel } from "../../_components/intelligence-panel";
-import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill, buttonClasses } from "../../_components/page-header";
+import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill } from "../../_components/page-header";
 import { CrmRecordForm } from "./crm-record-form";
 import { isCrmEntityKey } from "../entity-keys";
 import { getCrmRecordData, type CrmObjectKey, type CrmRecordData } from "@/lib/crm/read-model";
@@ -81,22 +81,24 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
   let editValues: Record<string, unknown> | undefined;
 
   if (showEditForm && isSupabaseAdminConfigured()) {
-    const { data } = await getSupabaseAdminClient().from(objectKey).select("*").eq("id", recordId).maybeSingle();
+    const orgId = await getCurrentOrgId();
+    const { data } = await getSupabaseAdminClient()
+      .from(objectKey)
+      .select("*")
+      .eq("id", recordId)
+      .eq("org_id", orgId)
+      .maybeSingle();
     editValues = (data as Record<string, unknown> | null) ?? undefined;
   }
 
   return (
     <AppShell active="/crm">
       <PageHeader
+        backHref={`/crm/${record.key}`}
+        backLabel={record.label}
         eyebrow={`${record.label} record`}
         title={record.name}
         description={record.detail}
-        aside={
-          <div className="flex flex-wrap gap-2">
-            <StatusPill tone={statusTone(record.lifecycleStatus)}>{record.lifecycleStatus}</StatusPill>
-            <StatusPill tone="amber">Outbound locked</StatusPill>
-          </div>
-        }
       />
 
       <ActionFeedback
@@ -158,7 +160,7 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
               guardrailStatus: record.guardrailStatus,
               scores: [
                 { label: "Lead", value: record.leadScore, detail: "Lead score", tone: record.leadScore === null ? "gray" : undefined },
-                { label: "Partner", value: record.partnerScore, detail: "Partner fit", tone: record.partnerScore === null ? "gray" : undefined },
+                { label: "Fit", value: record.partnerScore, detail: "Relationship fit", tone: record.partnerScore === null ? "gray" : undefined },
                 { label: "Revenue", value: record.revenueScore, detail: "Revenue signal", tone: record.revenueScore ? "green" : "gray" },
               ],
               proofPoints: record.proofPoints,
@@ -182,15 +184,10 @@ export function getCrmRecordParams(objectKey: CrmObjectKey) {
 function RecordSummary({ record }: { record: CrmRecordData }) {
   return (
     <Panel className="module-rise">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="signal-eyebrow">Record summary</div>
-          <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</h2>
-          <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{record.detail}</p>
-        </div>
-        <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={`/crm/${record.key}`}>
-          Back to {record.label}
-        </Link>
+      <div>
+        <div className="signal-eyebrow">Record summary</div>
+        <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</h2>
+        <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{record.detail}</p>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -286,13 +283,6 @@ function MissingFields({ record }: { record: CrmRecordData }) {
       </div>
     </Panel>
   );
-}
-
-function statusTone(status: string): "amber" | "green" | "red" {
-  const lower = status.toLowerCase();
-  if (["active", "ready", "won", "high priority", "qualified", "converted", "completed"].includes(lower)) return "green";
-  if (["out of scope", "lost", "inactive", "do not contact", "do_not_contact"].includes(lower)) return "red";
-  return "amber";
 }
 
 function formatDate(value: string) {

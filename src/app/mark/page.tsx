@@ -11,6 +11,7 @@ import {
   listProjects,
   listArchivedConversations,
   listProjectAssetMessages,
+  type MarkConversation,
   type MarkMessage,
 } from "@/lib/mark-chat/persistence";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
@@ -21,10 +22,10 @@ import { MarkChat } from "./_components/mark-chat";
 import { getDemoChat } from "./_data/demo";
 
 type MarkPageProps = {
-  searchParams?: Promise<{ c?: string | string[]; archived?: string | string[] }>;
+  searchParams?: Promise<{ c?: string | string[]; archived?: string | string[]; project?: string | string[] }>;
 };
 type MarkChatProps = ComponentProps<typeof MarkChat>;
-const MARK_PAGE_DATA_TIMEOUT_MS = 3000;
+const MARK_PAGE_DATA_TIMEOUT_MS = 8000;
 
 function valueOf(v: string | string[] | undefined): string {
   return Array.isArray(v) ? v[0] ?? "" : v ?? "";
@@ -53,44 +54,49 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
 
 async function loadLiveMarkChatProps(params: Awaited<MarkPageProps["searchParams"]>): Promise<MarkChatProps> {
   const operator = getOperatorActor();
-  const mentionGroups = await getMentionables();
-  const settings = await getAppSettings();
-
-  // Glanceable badge for the work launcher; never fatal if approvals are unavailable.
-  let pendingApprovals = 0;
-  try {
-    pendingApprovals = await countActiveApprovals();
-  } catch {
-    pendingApprovals = 0;
-  }
-
   const showArchived = valueOf(params?.archived) === "1";
-  const conversations = await listConversations(operator);
-  const projects = await listProjects(operator);
-  let campaigns: { id: string; name: string }[] = [];
-  try {
-    const list = await getCampaignWorkspaceList();
-    campaigns = list.status === "live" ? list.campaigns.map((c) => ({ id: c.id, name: c.name })) : [];
-  } catch {
-    campaigns = [];
-  }
-  const archived = showArchived ? await listArchivedConversations(operator) : [];
   const requestedId = valueOf(params?.c);
-  const activeConversation = requestedId ? await getConversation(requestedId) : null;
-  const initialMessages = activeConversation ? await listMessages(activeConversation.id) : [];
+  const requestedProject = valueOf(params?.project);
 
-  // Project-wide assets for the Studio: asset-bearing messages from sibling chats
-  // in the same project. Non-fatal — the chat still works if this read fails.
-  let projectMessages: MarkMessage[] = [];
-  if (activeConversation?.projectId) {
-    try {
-      projectMessages = await listProjectAssetMessages(activeConversation.projectId, operator, {
-        excludeConversationId: activeConversation.id,
-      });
-    } catch {
-      projectMessages = [];
-    }
-  }
+  // These reads are independent, so run them concurrently. Previously they were
+  // ~8 sequential Supabase round-trips that summed past the page-data timeout and
+  // silently degraded the whole chat to demo mode; one parallel batch stays well
+  // under budget. Optional reads (approvals, campaigns) self-recover to a default.
+  const [mentionGroups, settings, pendingApprovals, conversations, projects, campaigns, archived, activeConversation] =
+    await Promise.all([
+      getMentionables(),
+      getAppSettings(),
+      countActiveApprovals().catch(() => 0),
+      listConversations(operator),
+      listProjects(operator),
+      getCampaignWorkspaceList()
+        .then((list) => (list.status === "live" ? list.campaigns.map((c) => ({ id: c.id, name: c.name })) : []))
+        .catch(() => [] as { id: string; name: string }[]),
+      showArchived ? listArchivedConversations(operator) : Promise.resolve([] as MarkConversation[]),
+      requestedId ? getConversation(requestedId) : Promise.resolve(null),
+    ]);
+
+  // "New chat in this project" deep link (?project=<id>) — only meaningful for a
+  // fresh chat; ignored once a thread is active and validated against real projects.
+  const newChatProjectId =
+    !activeConversation && requestedProject && projects.some((p) => p.id === requestedProject)
+      ? requestedProject
+      : null;
+
+  // Dependent reads (need the resolved active conversation / project). Also
+  // concurrent. Project assets feed the Studio for an active thread and the
+  // empty-state hero for a fresh chat opened via the ?project=<id> deep link.
+  const assetProjectId = activeConversation?.projectId ?? newChatProjectId;
+  const [initialMessages, projectMessages] = await Promise.all([
+    activeConversation ? listMessages(activeConversation.id) : Promise.resolve([] as MarkMessage[]),
+    assetProjectId
+      ? listProjectAssetMessages(
+          assetProjectId,
+          operator,
+          activeConversation ? { excludeConversationId: activeConversation.id } : {},
+        ).catch(() => [] as MarkMessage[])
+      : Promise.resolve([] as MarkMessage[]),
+  ]);
 
   return {
     conversations,
@@ -100,6 +106,7 @@ async function loadLiveMarkChatProps(params: Awaited<MarkPageProps["searchParams
     activeId: activeConversation?.id ?? "",
     activeTitle: activeConversation?.title ?? "",
     activeProjectId: activeConversation?.projectId ?? null,
+    newChatProjectId,
     activeCampaignId: activeConversation?.campaignId ?? null,
     campaigns,
     activePinned: Boolean(activeConversation?.pinnedAt),
@@ -124,11 +131,17 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
   }
 
   const params = await searchParams;
+  let markChatProps: MarkChatProps;
+  let demo = false;
   try {
-    return <MarkChat {...(await withTimeout(loadLiveMarkChatProps(params), MARK_PAGE_DATA_TIMEOUT_MS))} />;
-  } catch {
+    markChatProps = await withTimeout(loadLiveMarkChatProps(params), MARK_PAGE_DATA_TIMEOUT_MS);
+  } catch (err) {
+    console.error("[MARK_DEMO_FALLBACK]", err);
     // Supabase may be paused, unreachable, or missing migrations. Keep the app
     // open with the full preview instead of making Vercel wait on backend reads.
-    return <MarkChat {...getDemoChat()} demo />;
+    markChatProps = getDemoChat();
+    demo = true;
   }
+
+  return <MarkChat {...markChatProps} demo={demo} />;
 }

@@ -72,6 +72,7 @@ export function ConsoleFrame({
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
+    { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
   ];

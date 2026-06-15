@@ -23,7 +23,17 @@ function category(card: MarkActionCard): string {
   return "Other";
 }
 
-function AssetTile({ asset, onSelect, sourceTitle }: { asset: StudioAsset; onSelect: (id: string) => void; sourceTitle?: string }) {
+function AssetTile({
+  asset,
+  onSelect,
+  sourceTitle,
+  eager = false,
+}: {
+  asset: StudioAsset;
+  onSelect: (id: string) => void;
+  sourceTitle?: string;
+  eager?: boolean;
+}) {
   const { card, media } = asset;
   return (
     <button
@@ -32,7 +42,7 @@ function AssetTile({ asset, onSelect, sourceTitle }: { asset: StudioAsset; onSel
       className="group flex flex-col overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] text-left transition hover:border-[var(--accent-border-strong)]"
     >
       <span className="relative block aspect-[4/3] w-full overflow-hidden bg-[var(--media-void)]">
-        <AssetThumb card={card} media={media} />
+        <AssetThumb card={card} media={media} eager={eager} />
         {card.status ? <span className="absolute left-1 top-1"><StatusPill status={card.status} /></span> : null}
         {media?.source ? <span className="absolute right-1 top-1"><SourceBadge source={media.source} /></span> : null}
       </span>
@@ -100,10 +110,10 @@ export function AssetLibrary({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="grid grid-cols-2 gap-2">
-          {shown.map((a) => {
+          {shown.map((a, index) => {
             const fromOther = Boolean(currentConversationId) && a.conversationId !== currentConversationId;
             const sourceTitle = fromOther ? conversationTitles?.[a.conversationId] ?? "another chat" : undefined;
-            return <AssetTile key={a.id} asset={a} onSelect={onSelect} sourceTitle={sourceTitle} />;
+            return <AssetTile key={a.id} asset={a} onSelect={onSelect} sourceTitle={sourceTitle} eager={index === 0} />;
           })}
         </div>
       </div>

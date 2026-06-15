@@ -13,7 +13,7 @@ const ENTITY_ID = "11111111-1111-1111-1111-111111111111";
 const notes: NoteEntry[] = [
   {
     id: "n1",
-    body: "Spoke with the facilities manager — they have a recurring moisture issue in the east stairwell and want a walkthrough next week. Flag for storm-season follow-up.",
+    body: "Spoke with the operations manager. They are evaluating a new campaign partnership and want a walkthrough next week. Flag for follow-up.",
     isPinned: true,
     isInternal: false,
     actorKind: "human",
@@ -22,7 +22,7 @@ const notes: NoteEntry[] = [
   },
   {
     id: "n2",
-    body: "Auto-research: this company manages 3 commercial properties within 2 miles of our last 4 water-damage jobs. High lookalike fit for the commercial-restoration angle.",
+    body: "Auto-research: this company matches three recent high-fit accounts and has a strong referral profile. Good fit for a partnership angle.",
     isPinned: false,
     isInternal: true,
     actorKind: "agent",
@@ -34,8 +34,8 @@ const notes: NoteEntry[] = [
 const tasks: TaskEntry[] = [
   {
     id: "t1",
-    title: "Send the commercial water-mitigation one-pager",
-    description: "Use the approved BSR proof photos from the Lincoln Park job.",
+    title: "Send the partnership one-pager",
+    description: "Use the approved proof points from the latest customer story.",
     dueAt: "2026-06-09T17:00:00.000Z",
     priority: "high",
     status: "open",
@@ -60,7 +60,7 @@ const tasks: TaskEntry[] = [
   },
   {
     id: "t3",
-    title: "Add property addresses to the CRM record",
+    title: "Add asset details to the CRM record",
     description: null,
     dueAt: "2026-06-18T17:00:00.000Z",
     priority: "low",
@@ -79,7 +79,7 @@ const timeline: TimelineEntry[] = [
     activityType: "note_added",
     tone: "blue",
     summary: "Note added",
-    detail: "Spoke with the facilities manager — recurring moisture issue in the east stairwell.",
+    detail: "Spoke with the operations manager about a possible partnership.",
     actorKind: "human",
     actorLabel: "evan.reppeto5928@gmail.com",
     occurredAt: "2026-06-11T15:20:00.000Z",
@@ -99,7 +99,7 @@ const timeline: TimelineEntry[] = [
     activityType: "call_logged",
     tone: "blue",
     summary: "Logged a call with the facilities manager (12 min)",
-    detail: "Discussed scope; they asked for references on commercial jobs.",
+    detail: "Discussed scope; they asked for relevant customer references.",
     actorKind: "human",
     actorLabel: "evan.reppeto5928@gmail.com",
     occurredAt: "2026-06-11T15:10:00.000Z",
@@ -108,8 +108,8 @@ const timeline: TimelineEntry[] = [
     id: "a4",
     activityType: "ai_recommendation",
     tone: "amber",
-    summary: "Hermes recommended the commercial-restoration message angle",
-    detail: "Based on lookalike fit with 4 recent nearby water-damage jobs.",
+    summary: "Hermes recommended a partnership message angle",
+    detail: "Based on lookalike fit with recent high-value accounts.",
     actorKind: "agent",
     actorLabel: "Hermes",
     occurredAt: "2026-06-10T09:05:00.000Z",
@@ -135,7 +135,7 @@ export default function InteractionPreviewPage() {
           CRM interaction panels
         </h1>
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-          These three panels attach to every CRM record (contact / company / property / lead / job /
+          These three panels attach to every CRM record (contact / company / asset / lead / project /
           outcome). On a real record they render live data; here they show sample content.
         </p>
       </div>

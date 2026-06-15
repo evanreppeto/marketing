@@ -78,7 +78,7 @@ export async function saveBrandingSettingsAction(
   const clearBrandLogo = String(formData.get("clearBrandLogo") ?? "") === "1";
   const uploadedLogo = normalizeBrandUrl(String(formData.get("brandLogoUpload") ?? ""));
   const typedLogo = normalizeBrandUrl(String(formData.get("brandLogoUrl") ?? ""));
-  const faviconUrl = normalizeBrandUrl(String(formData.get("brandFaviconUrl") ?? "")) || "/icon.svg";
+  const faviconUrl = normalizeBrandUrl(String(formData.get("brandFaviconUrl") ?? "")) || "/icon.png";
   const brandLogoUrl = clearBrandLogo ? "" : uploadedLogo || typedLogo;
 
   try {

@@ -1,7 +1,11 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type Company, CompanySchema, type CompanyStatus } from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+
+type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListCompaniesFilter = {
   status?: CompanyStatus;
@@ -14,15 +18,20 @@ export type ListCompaniesFilter = {
 
 export async function listCompanies(
   filter: ListCompaniesFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Company[]> {
-  let query = client.from("companies").select("*");
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("companies").select("*");
 
+  if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
   if (filter.status) {
     query = query.eq("status", filter.status);
   }
   if (filter.persona) {
-    query = query.eq("persona", filter.persona);
+    query = query.eq("persona", filter.persona as PersonaMapping);
   }
   if (filter.partnerTier) {
     query = query.eq("partner_tier", filter.partnerTier);
@@ -46,9 +55,15 @@ export async function listCompanies(
 
 export async function getCompany(
   id: string,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Company | null> {
-  const { data, error } = await client.from("companies").select("*").eq("id", id).maybeSingle();
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("companies").select("*").eq("id", id);
+  if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     throw new Error(`getCompany failed: ${error.message}`);

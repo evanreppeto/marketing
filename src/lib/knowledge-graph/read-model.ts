@@ -14,6 +14,7 @@ export type BrainNode = {
   refTable: string | null;
   refId: string | null;
   source: string | null;
+  tags: string[];
   createdBy: string | null;
   createdAt: string | null;
 };
@@ -40,7 +41,7 @@ type Live<T> = { status: "live" } & T;
 type Unavailable = { status: "unavailable"; message: string };
 
 const NODE_COLUMNS =
-  "id,kind,label,body,summary,persona,trust_tier,confidence,ref_table,ref_id,source,created_by,created_at";
+  "id,kind,label,body,summary,persona,trust_tier,confidence,ref_table,ref_id,source,tags,created_by,created_at";
 const EDGE_COLUMNS = "id,from_node_id,to_node_id,relation,weight,trust_tier";
 
 type NodeRow = {
@@ -55,6 +56,7 @@ type NodeRow = {
   ref_table: string | null;
   ref_id: string | null;
   source: string | null;
+  tags: string[] | null;
   created_by: string | null;
   created_at: string | null;
 };
@@ -81,6 +83,7 @@ export function mapNode(row: NodeRow): BrainNode {
     refTable: row.ref_table,
     refId: row.ref_id,
     source: row.source,
+    tags: row.tags ?? [],
     createdBy: row.created_by,
     createdAt: row.created_at,
   };
@@ -121,7 +124,10 @@ export async function listNodes(
       .order("updated_at", { ascending: false })
       .limit(200);
     if (filters.kind) query = query.eq("kind", filters.kind);
+    // Archived nodes are soft-deleted: hidden from normal reads (browser, summary)
+    // unless a caller explicitly asks for the archived tier.
     if (filters.trustTier) query = query.eq("trust_tier", filters.trustTier);
+    else query = query.neq("trust_tier", "archived");
     if (filters.persona) query = query.eq("persona", filters.persona as never);
     if (filters.refTable) query = query.eq("ref_table", filters.refTable);
     if (filters.refId) query = query.eq("ref_id", filters.refId);

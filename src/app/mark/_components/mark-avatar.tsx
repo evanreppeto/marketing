@@ -3,7 +3,13 @@
 import { cx } from "@/app/_components/theme";
 import { Persona, type PersonaState } from "@/components/ai-elements/persona";
 
-import { MarkOrb } from "./mark-orb";
+const MARK_PERSONA_COLORS: Record<PersonaState, readonly [number, number, number]> = {
+  asleep: [174, 181, 194],
+  idle: [200, 162, 74],
+  listening: [127, 184, 154],
+  speaking: [216, 182, 94],
+  thinking: [216, 182, 94],
+};
 
 export function MarkPersona({
   size = 42,
@@ -17,20 +23,24 @@ export function MarkPersona({
   return (
     <span
       aria-hidden
+      data-state={state}
       className={cx(
-        "relative block shrink-0 overflow-hidden rounded-full bg-[var(--surface-inset)] shadow-[inset_0_0_0_1px_var(--border-strong)]",
-        state === "thinking" ? "motion-safe:[animation:mark-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
+        "mark-persona block shrink-0",
         className,
       )}
       style={{ width: size, height: size }}
     >
-      <MarkOrb size={size} className="absolute inset-0 opacity-95" />
-      <Persona state={state} variant="halo" className="absolute inset-0 !size-full opacity-95" />
+      <Persona
+        className="mark-persona-rive"
+        modelColor={MARK_PERSONA_COLORS[state]}
+        state={state}
+        variant="obsidian"
+      />
     </span>
   );
 }
 
-/** Mark's identity avatar, backed by the official AI Elements Persona visual. */
+/** Mark's identity avatar, rendered as the stateful obsidian persona bubble. */
 export function MarkAvatar({
   size = 32,
   pending = false,

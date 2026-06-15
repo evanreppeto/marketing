@@ -3,6 +3,8 @@ import {
   type KnowledgeEdgeInput,
   type KnowledgeNodeInput,
   type NodeAuthor,
+  normalizeKind,
+  normalizeTags,
   resolveDecisionTier,
   resolveInitialTrustTier,
   validateEdgeInput,
@@ -14,6 +16,7 @@ import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfig
 export type WriteResult = { ok: true; id: string } | { ok: false; error: string };
 
 const NOT_CONFIGURED = "Supabase is not configured, so nothing was written.";
+const MISSING_WRITE_ID = "Write succeeded but did not return an id.";
 
 type WriteDeps = {
   client?: TypedSupabaseClient;
@@ -68,6 +71,7 @@ export async function createNode(input: KnowledgeNodeInput, deps: WriteDeps = {}
     .select("id")
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
   return { ok: true, id: data.id };
 }
 
@@ -98,6 +102,7 @@ export async function createEdge(input: KnowledgeEdgeInput, deps: WriteDeps = {}
     .select("id")
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
   return { ok: true, id: data.id };
 }
 
@@ -136,6 +141,89 @@ export async function decideNode(
     .select("id")
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
+  return { ok: true, id: data.id };
+}
+
+/**
+ * Edit a node's label and/or body (operator-curated). Trust tier is untouched —
+ * the operator is the human gate, so an edit doesn't bounce the node to review.
+ */
+export async function updateNode(
+  nodeId: string,
+  fields: { label?: string; body?: string | null },
+  deps: WriteDeps = {},
+): Promise<WriteResult> {
+  const patch: { label?: string; body?: string | null } = {};
+  if (fields.label !== undefined) {
+    const label = fields.label.trim();
+    if (!label) return { ok: false, error: "A node needs a label." };
+    patch.label = label;
+  }
+  if (fields.body !== undefined) {
+    patch.body = (fields.body ?? "").trim() || null;
+  }
+  if (Object.keys(patch).length === 0) return { ok: false, error: "Nothing to update." };
+
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+  const { data, error } = await client
+    .from("knowledge_nodes")
+    .update(patch)
+    .eq("id", nodeId)
+    .eq("org_id", orgId)
+    .select("id")
+    .single<{ id: string }>();
+  if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
+  return { ok: true, id: data.id };
+}
+
+/**
+ * Change a node's kind (operator-curated). Accepts built-in or custom kinds via
+ * normalizeKind. The trust tier is left untouched — this only re-labels the node.
+ */
+export async function setNodeKind(
+  nodeId: string,
+  kind: string,
+  deps: WriteDeps = {},
+): Promise<WriteResult> {
+  const normalized = normalizeKind(kind);
+  if (!normalized) return { ok: false, error: "That kind isn't valid (start with a letter; letters, numbers, underscores)." };
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+  const { data, error } = await client
+    .from("knowledge_nodes")
+    .update({ kind: normalized })
+    .eq("id", nodeId)
+    .eq("org_id", orgId)
+    .select("id")
+    .single<{ id: string }>();
+  if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
+  return { ok: true, id: data.id };
+}
+
+/** Replace a node's freeform tags (operator-curated metadata, not gated). */
+export async function setNodeTags(
+  nodeId: string,
+  tags: string[],
+  deps: WriteDeps = {},
+): Promise<WriteResult> {
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+  const { data, error } = await client
+    .from("knowledge_nodes")
+    .update({ tags: normalizeTags(tags) })
+    .eq("id", nodeId)
+    .eq("org_id", orgId)
+    .select("id")
+    .single<{ id: string }>();
+  if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
   return { ok: true, id: data.id };
 }
 
@@ -152,5 +240,6 @@ export async function archiveNode(nodeId: string, deps: WriteDeps = {}): Promise
     .select("id")
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
   return { ok: true, id: data.id };
 }
