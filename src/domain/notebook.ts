@@ -5,7 +5,7 @@ export type VaultNote = {
   title: string;
   folder: string;
   tags: string[];
-  author: string; // "Mark" or an operator name
+  author: string; // "Arc" or an operator name
   status: NoteStatus;
   updated: string; // human-readable display string; persistence maps updated_at into this
   body: string; // raw markdown body (no frontmatter)
@@ -108,7 +108,7 @@ export function computeBacklinks(allNotes: VaultNote[], slug: string): VaultNote
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-export function toRenderableMarkdown(body: string, ctx: LinkResolutionContext): string {
+export function toRenderableArcdown(body: string, ctx: LinkResolutionContext): string {
   return body.replace(WIKI_LINK_RE, (_full, inner: string) => {
     const pipe = inner.indexOf("|");
     const target = (pipe === -1 ? inner : inner.slice(0, pipe)).trim();

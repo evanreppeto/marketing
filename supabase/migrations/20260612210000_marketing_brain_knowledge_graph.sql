@@ -1,5 +1,5 @@
 -- Marketing Brain knowledge graph.
--- Generic property-graph overlay for Hermes/Mark's durable marketing memory:
+-- Generic property-graph overlay for Arc/Arc's durable marketing memory:
 -- knowledge_nodes (brand facts, personas, proof, learnings, signals) + typed
 -- knowledge_edges. Nodes REFERENCE existing typed rows (ref_table/ref_id) rather
 -- than copying them, so the CRM/campaign tables stay the system of record.

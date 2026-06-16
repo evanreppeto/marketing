@@ -1,4 +1,4 @@
--- Broadcast agent_tasks inserts over Supabase Realtime so the Mark/Hermes runner
+-- Broadcast agent_tasks inserts over Supabase Realtime so the Arc/Arc runner
 -- can receive queued chat tasks instantly (outbound socket) instead of via an
 -- inbound webhook tunnel. INSERT events carry the full new row under default
 -- replica identity, so no replica-identity change is required.

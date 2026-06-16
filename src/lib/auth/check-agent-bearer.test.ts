@@ -11,19 +11,19 @@ function req(token?: string) {
 }
 
 describe("checkAgentBearer", () => {
-  const originalToken = process.env.HERMES_AGENT_API_TOKEN;
+  const originalToken = process.env.ARC_AGENT_API_TOKEN;
   const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const originalSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   beforeEach(() => {
-    delete process.env.HERMES_AGENT_API_TOKEN;
+    delete process.env.ARC_AGENT_API_TOKEN;
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   });
 
   afterEach(() => {
-    if (originalToken === undefined) delete process.env.HERMES_AGENT_API_TOKEN;
-    else process.env.HERMES_AGENT_API_TOKEN = originalToken;
+    if (originalToken === undefined) delete process.env.ARC_AGENT_API_TOKEN;
+    else process.env.ARC_AGENT_API_TOKEN = originalToken;
     if (originalSupabaseUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     else process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
     if (originalSupabaseKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -31,7 +31,7 @@ describe("checkAgentBearer", () => {
   });
 
   it("accepts the env token for back-compat", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "env-secret";
+    process.env.ARC_AGENT_API_TOKEN = "env-secret";
 
     const result = await checkAgentBearer(req("env-secret"), { recordSeen: async () => undefined });
 
@@ -39,7 +39,7 @@ describe("checkAgentBearer", () => {
   });
 
   it("accepts a DB token when the env token does not match", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "env-secret";
+    process.env.ARC_AGENT_API_TOKEN = "env-secret";
     const verify = vi.fn().mockResolvedValue({ ok: true, workspaceId: "default" });
 
     const result = await checkAgentBearer(req("sk_live_db"), {

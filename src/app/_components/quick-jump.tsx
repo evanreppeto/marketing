@@ -18,7 +18,7 @@ type JumpItem = {
 function buildItems(agentName: string): JumpItem[] {
   return navItems.map((item) => ({
     key: `nav:${item.href}`,
-    label: item.href === "/mark" ? agentName : item.label,
+    label: item.href === "/arc" ? agentName : item.label,
     subtitle: "Section",
     href: item.href,
   }));

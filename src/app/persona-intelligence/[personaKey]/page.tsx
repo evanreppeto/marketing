@@ -13,15 +13,15 @@ type PersonaDetailPageProps = {
   searchParams?: Promise<{ tab?: string | string[] }>;
 };
 
-type PersonaDetailTab = "rule" | "memory" | "mark-use";
+type PersonaDetailTab = "rule" | "memory" | "arc-use";
 
-const PERSONA_DETAIL_TAB_KEYS: PersonaDetailTab[] = ["rule", "memory", "mark-use"];
+const PERSONA_DETAIL_TAB_KEYS: PersonaDetailTab[] = ["rule", "memory", "arc-use"];
 
 function buildPersonaDetailTabs(agentName: string): Array<{ key: PersonaDetailTab; label: string; detail: string }> {
   return [
     { key: "rule", label: "CTA rule", detail: "Approved internal language" },
     { key: "memory", label: "Live memory", detail: "Supabase snapshot if available" },
-    { key: "mark-use", label: `${agentName} use`, detail: "How the agent applies it" },
+    { key: "arc-use", label: `${agentName} use`, detail: "How the agent applies it" },
   ];
 }
 
@@ -96,7 +96,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
             </WorkspacePanel>
           ) : null}
 
-          {activeTab === "mark-use" ? (
+          {activeTab === "arc-use" ? (
             <WorkspacePanel eyebrow={`${agentName} use`} title={`How ${agentName} should use this`}>
               <div className="grid gap-3 p-4 md:grid-cols-2">
                 {[

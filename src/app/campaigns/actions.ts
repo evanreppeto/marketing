@@ -8,11 +8,11 @@ import { createCampaignShell, createOperatorCampaign, type CampaignPhoto } from 
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { type ApprovalDecision, decideApprovalItem, decideAsset, reopenAsset } from "@/lib/campaigns/decisions";
 import { deployAsset, launchCampaign } from "@/lib/campaigns/launch";
-import { sendMarkDirective } from "@/lib/campaigns/mark-conversation";
+import { sendArcDirective } from "@/lib/campaigns/arc-conversation";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getAgentName } from "@/lib/settings/agent-name";
-import { assignConversationToCampaign, createConversation, insertOperatorMessage } from "@/lib/mark-chat/persistence";
+import { assignConversationToCampaign, createConversation, insertOperatorMessage } from "@/lib/arc-chat/persistence";
 import { parseBuildPrompt, deriveCampaignName } from "./build-campaign";
 
 const DECISIONS: ApprovalDecision[] = ["approved", "declined", "archived"];
@@ -22,7 +22,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export type RevisionActionState = { ok: boolean; message: string } | null;
 
 /**
- * Operator asks Mark to revise a specific campaign asset. Gated by the operator
+ * Operator asks Arc to revise a specific campaign asset. Gated by the operator
  * check + Supabase config, validated through the domain, then persisted as a
  * real revision request (outbound stays locked). Shaped for `useActionState`.
  */
@@ -122,7 +122,7 @@ export async function decideApprovalAction(
 }
 
 /**
- * Decide a deliverable by its asset id. Works whether or not Mark attached an
+ * Decide a deliverable by its asset id. Works whether or not Arc attached an
  * approval gate, so every piece is decidable. Shaped for `useActionState`; the
  * clicked submit button supplies `decision`.
  */
@@ -202,19 +202,19 @@ export async function reopenAssetAction(
   return { ok: true, message: "Back in the review queue — dispatch re-locked." };
 }
 
-export type MarkMessageActionState = { ok: boolean; message: string } | null;
+export type ArcMessageActionState = { ok: boolean; message: string } | null;
 
-const MAX_MARK_MESSAGE = 2000;
+const MAX_ARC_MESSAGE = 2000;
 
 /**
- * Operator sends Mark a message for a campaign. Records it as a durable queued
- * directive (agent_task) for Hermes — no live AI call. Shaped for
+ * Operator sends Arc a message for a campaign. Records it as a durable queued
+ * directive (agent_task) for Arc — no live AI call. Shaped for
  * `useActionState`.
  */
-export async function sendMarkMessageAction(
-  _previous: MarkMessageActionState,
+export async function sendArcMessageAction(
+  _previous: ArcMessageActionState,
   formData: FormData,
-): Promise<MarkMessageActionState> {
+): Promise<ArcMessageActionState> {
   await requireOperator();
   const agentName = await getAgentName();
 
@@ -231,12 +231,12 @@ export async function sendMarkMessageAction(
   if (!message) {
     return { ok: false, message: `Write a message for ${agentName} first.` };
   }
-  if (message.length > MAX_MARK_MESSAGE) {
-    return { ok: false, message: `Keep it under ${MAX_MARK_MESSAGE} characters.` };
+  if (message.length > MAX_ARC_MESSAGE) {
+    return { ok: false, message: `Keep it under ${MAX_ARC_MESSAGE} characters.` };
   }
 
   try {
-    await sendMarkDirective({ campaignId, message, operator: getOperatorActor(), agentName }, getSupabaseAdminClient());
+    await sendArcDirective({ campaignId, message, operator: getOperatorActor(), agentName }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : `Couldn't send the message to ${agentName}.` };
   }
@@ -250,7 +250,7 @@ export type LaunchActionState = { ok: boolean; message: string } | null;
 
 /**
  * Deploy a single approved deliverable ahead of the full campaign. Unlocks that
- * one piece and records a handoff event for Mark. Shaped for `useActionState`.
+ * one piece and records a handoff event for Arc. Shaped for `useActionState`.
  */
 export async function deployAssetAction(
   _previous: LaunchActionState,
@@ -286,7 +286,7 @@ export async function deployAssetAction(
 /**
  * Operator launches a campaign once its pieces are approved. A real backend
  * state transition (campaign → live, approved deliverables unlocked) plus a
- * `campaign_launched` handoff event for Mark/Hermes to execute the sends. The
+ * `campaign_launched` handoff event for Arc/Arc to execute the sends. The
  * app records state and hands off; it does not send anything itself.
  */
 export async function launchCampaignAction(
@@ -412,15 +412,15 @@ async function readPhotos(formData: FormData): Promise<CampaignPhoto[]> {
 }
 
 /**
- * Operator describes a campaign; Mark builds it. Creates a shell campaign, a Mark
+ * Operator describes a campaign; Arc builds it. Creates a shell campaign, a Arc
  * conversation linked to it, files the operator's first message, queues a board
- * task for Mark, then sends the operator into the chat. Outbound stays locked.
+ * task for Arc, then sends the operator into the chat. Outbound stays locked.
  *
  * Persona seed: `persona_homeowner_emergency` (the DB rejects `unassigned_persona`
- * via check constraint; Mark fills in the real persona during the build).
- * Restoration focus seed: `flood` (first valid enum value; Mark updates it).
+ * via check constraint; Arc fills in the real persona during the build).
+ * Restoration focus seed: `flood` (first valid enum value; Arc updates it).
  */
-export async function askMarkToBuildCampaignAction(formData: FormData): Promise<void> {
+export async function askArcToBuildCampaignAction(formData: FormData): Promise<void> {
   await requireOperator();
   const agentName = await getAgentName();
   if (!isSupabaseAdminConfigured()) {
@@ -442,10 +442,10 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
     operator,
     name,
     // DB rejects "unassigned_persona" (check constraint). Seed with a valid enum
-    // value; Mark fills in the correct persona during the campaign build.
+    // value; Arc fills in the correct persona during the campaign build.
     persona: "persona_homeowner_emergency",
     // "general" is not in the restoration_focus enum. Seed with "flood" (first
-    // valid value); Mark updates this when drafting the campaign.
+    // valid value); Arc updates this when drafting the campaign.
     restorationFocus: "flood",
     agentName,
     client,
@@ -462,7 +462,7 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
   );
 
   await client.from("agent_tasks").insert({
-    agent_id: await ensureMarkAgentId(agentName, client),
+    agent_id: await ensureArcAgentId(agentName, client),
     status: "queued",
     priority: "high",
     objective: `Build campaign package: ${prompt.slice(0, 180)}`,
@@ -479,12 +479,12 @@ export async function askMarkToBuildCampaignAction(formData: FormData): Promise<
   });
 
   revalidatePath("/campaigns");
-  redirect(`/mark?c=${conversation.id}`);
+  redirect(`/arc?c=${conversation.id}`);
 }
 
-/** Hand an existing campaign to Mark to keep building. Queues a board task linked
+/** Hand an existing campaign to Arc to keep building. Queues a board task linked
  *  to the campaign. */
-export async function handToMarkAction(formData: FormData): Promise<void> {
+export async function handToArcAction(formData: FormData): Promise<void> {
   await requireOperator();
   const agentName = await getAgentName();
   if (!isSupabaseAdminConfigured()) {
@@ -495,7 +495,7 @@ export async function handToMarkAction(formData: FormData): Promise<void> {
 
   const client = getSupabaseAdminClient();
   await client.from("agent_tasks").insert({
-    agent_id: await ensureMarkAgentId(agentName, client),
+    agent_id: await ensureArcAgentId(agentName, client),
     status: "queued",
     priority: "medium",
     objective: "Continue building this campaign — draft the remaining assets.",
@@ -508,19 +508,19 @@ export async function handToMarkAction(formData: FormData): Promise<void> {
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
-  redirect(`/campaigns/${campaignId}?action=handed-to-mark`);
+  redirect(`/campaigns/${campaignId}?action=handed-to-arc`);
 }
 
-/** Ensure the Mark agent row exists; return its id.
- *  Canonical full definition lives in ensureMarkAgent (agent-operations/actions.ts).
+/** Ensure the Arc agent row exists; return its id.
+ *  Canonical full definition lives in ensureArcAgent (agent-operations/actions.ts).
  *  This carries the safety-critical subset; a shared helper is a future cleanup.
  *  `agentName` is the operator-configured display name stored on the row. */
-async function ensureMarkAgentId(agentName: string, client = getSupabaseAdminClient()): Promise<string> {
+async function ensureArcAgentId(agentName: string, client = getSupabaseAdminClient()): Promise<string> {
   const { data, error } = await client
     .from("agents")
     .upsert(
       {
-        key: "mark",
+        key: "arc",
         name: agentName,
         status: "ready",
         blocked_actions: ["send_email", "send_sms", "publish_social_post", "launch_ads", "change_ad_spend"],

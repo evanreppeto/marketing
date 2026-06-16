@@ -34,7 +34,7 @@ describe("requestAssetRevision", () => {
     expect(inserts).toContainEqual(expect.objectContaining({ decision: "revision_requested", next_status: "revision_requested" }));
     // campaign event on the timeline
     expect(inserts).toContainEqual(expect.objectContaining({ event_type: "approval_decided" }));
-    // Mark is queued with the right task type
+    // Arc is queued with the right task type
     expect(inserts).toContainEqual(expect.objectContaining({ task_type: "campaign_asset_revision", status: "queued" }));
 
     // the asset is flipped to revision_requested...
@@ -46,7 +46,7 @@ describe("requestAssetRevision", () => {
     }
   });
 
-  it("still records the transition when no Mark agent is registered", async () => {
+  it("still records the transition when no Arc agent is registered", async () => {
     const supabase = createSupabaseQueryMock({
       approval_items: { data: { id: "appr-1", status: "pending_owner_approval" }, error: null },
       agents: { data: null, error: null },

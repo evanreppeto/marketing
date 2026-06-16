@@ -13,7 +13,7 @@ alter table if exists public.agent_tasks
   add column if not exists driver_kind text not null default 'agent'
     check (driver_kind in ('human', 'agent', 'system')),
   add column if not exists driver_agent_id uuid references public.agents(id) on delete set null,
-  add column if not exists driver_label text not null default 'Mark'
+  add column if not exists driver_label text not null default 'Arc'
     check (length(btrim(driver_label)) > 0),
   add column if not exists approver_label text not null default 'Owner'
     check (length(btrim(approver_label)) > 0);
@@ -147,7 +147,7 @@ create trigger outbound_dispatches_set_updated_at
 before update on public.outbound_dispatches
 for each row execute function public.set_updated_at();
 
-create table if not exists public.mark_projects (
+create table if not exists public.arc_projects (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null default public.default_organization_id() references public.organizations(id) on delete restrict,
   operator text not null default 'Operator' check (length(btrim(operator)) > 0),
@@ -157,23 +157,23 @@ create table if not exists public.mark_projects (
   metadata jsonb not null default '{}'::jsonb
 );
 
-create index if not exists mark_projects_org_operator_idx on public.mark_projects(org_id, operator, created_at);
-create index if not exists mark_projects_operator_idx on public.mark_projects(operator, created_at);
+create index if not exists arc_projects_org_operator_idx on public.arc_projects(org_id, operator, created_at);
+create index if not exists arc_projects_operator_idx on public.arc_projects(operator, created_at);
 
-drop trigger if exists mark_projects_set_updated_at on public.mark_projects;
-create trigger mark_projects_set_updated_at
-before update on public.mark_projects
+drop trigger if exists arc_projects_set_updated_at on public.arc_projects;
+create trigger arc_projects_set_updated_at
+before update on public.arc_projects
 for each row execute function public.set_updated_at();
 
-alter table if exists public.mark_conversations
-  add column if not exists project_id uuid references public.mark_projects(id) on delete set null,
+alter table if exists public.arc_conversations
+  add column if not exists project_id uuid references public.arc_projects(id) on delete set null,
   add column if not exists pinned_at timestamptz,
   add column if not exists campaign_id uuid references public.campaigns(id) on delete set null;
 
-create index if not exists mark_conversations_pin_idx
-  on public.mark_conversations(operator, pinned_at desc nulls last, last_message_at desc);
+create index if not exists arc_conversations_pin_idx
+  on public.arc_conversations(operator, pinned_at desc nulls last, last_message_at desc);
 
-create table if not exists public.mark_saved_items (
+create table if not exists public.arc_saved_items (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null default public.default_organization_id() references public.organizations(id) on delete restrict,
   operator text not null check (length(btrim(operator)) > 0),
@@ -182,8 +182,8 @@ create table if not exists public.mark_saved_items (
   body text,
   media_url text,
   caption text,
-  source_conversation_id uuid references public.mark_conversations(id) on delete set null,
-  source_message_id uuid references public.mark_messages(id) on delete set null,
+  source_conversation_id uuid references public.arc_conversations(id) on delete set null,
+  source_message_id uuid references public.arc_messages(id) on delete set null,
   source_campaign_id uuid references public.campaigns(id) on delete set null,
   source_asset_id uuid references public.campaign_assets(id) on delete set null,
   note text,
@@ -193,13 +193,13 @@ create table if not exists public.mark_saved_items (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists mark_saved_items_org_operator_idx on public.mark_saved_items(org_id, operator, created_at desc);
-create index if not exists mark_saved_items_operator_idx on public.mark_saved_items(operator, created_at desc);
-create index if not exists mark_saved_items_kind_idx on public.mark_saved_items(kind);
+create index if not exists arc_saved_items_org_operator_idx on public.arc_saved_items(org_id, operator, created_at desc);
+create index if not exists arc_saved_items_operator_idx on public.arc_saved_items(operator, created_at desc);
+create index if not exists arc_saved_items_kind_idx on public.arc_saved_items(kind);
 
-drop trigger if exists mark_saved_items_set_updated_at on public.mark_saved_items;
-create trigger mark_saved_items_set_updated_at
-before update on public.mark_saved_items
+drop trigger if exists arc_saved_items_set_updated_at on public.arc_saved_items;
+create trigger arc_saved_items_set_updated_at
+before update on public.arc_saved_items
 for each row execute function public.set_updated_at();
 
 create table if not exists public.agent_task_events (
@@ -234,8 +234,8 @@ alter table public.routing_decisions enable row level security;
 alter table public.integrity_findings enable row level security;
 alter table public.campaign_dispatches enable row level security;
 alter table public.outbound_dispatches enable row level security;
-alter table public.mark_projects enable row level security;
-alter table public.mark_saved_items enable row level security;
+alter table public.arc_projects enable row level security;
+alter table public.arc_saved_items enable row level security;
 alter table public.agent_task_events enable row level security;
 
 grant select, insert, update, delete on
@@ -244,8 +244,8 @@ grant select, insert, update, delete on
   public.integrity_findings,
   public.campaign_dispatches,
   public.outbound_dispatches,
-  public.mark_projects,
-  public.mark_saved_items,
+  public.arc_projects,
+  public.arc_saved_items,
   public.agent_task_events
 to service_role;
 
@@ -255,7 +255,7 @@ grant select on
   public.integrity_findings,
   public.campaign_dispatches,
   public.outbound_dispatches,
-  public.mark_projects,
-  public.mark_saved_items,
+  public.arc_projects,
+  public.arc_saved_items,
   public.agent_task_events
 to anon, authenticated;

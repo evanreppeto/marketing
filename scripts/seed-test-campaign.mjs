@@ -60,7 +60,7 @@ async function seedTestCampaign() {
     metadata: { demo_seed: true, run_id: runId, source_note: "Manages 14 multifamily buildings along the North Shore.", service_area_zips: ["60091", "60093", "60201"] },
   });
 
-  // contacts has a name-or-channel CHECK constraint; provide name + email like seed-hermes-demo does.
+  // contacts has a name-or-channel CHECK constraint; provide name + email like seed-arc-demo does.
   const contactId = await insertOne(supabase, "contacts", {
     company_id: companyId,
     persona: PERSONA,
@@ -73,7 +73,7 @@ async function seedTestCampaign() {
     metadata: { demo_seed: true, run_id: runId, relationship_stage: "engaged", confidence_score: 88, title: "Director of Operations" },
   });
 
-  // leads.source is NOT NULL with a non-empty CHECK; provide source (and other fields seed-hermes-demo supplies).
+  // leads.source is NOT NULL with a non-empty CHECK; provide source (and other fields seed-arc-demo supplies).
   const leadId = await insertOne(supabase, "leads", {
     company_id: companyId,
     contact_id: contactId,
@@ -94,7 +94,7 @@ async function seedTestCampaign() {
     company_id: companyId,
     contact_id: contactId,
     lead_id: leadId,
-    owner: "Mark (Hermes)",
+    owner: "Arc (Arc)",
     objective: "Pre-approve Big Shoulders as the priority water-loss vendor for North Shore managed buildings before spring thaw.",
     audience_summary: "Property managers and operations directors overseeing multifamily portfolios in 60091/60093/60201.",
     offer_summary: "Documented, insurance-ready water-loss response with a managed-building SLA and a vendor pre-approval packet.",
@@ -150,7 +150,7 @@ async function seedTestCampaign() {
     status: "approved",
     risk_level: "low",
     draft_output: ASSETS[3].draft_body,
-    requested_by: "hermes",
+    requested_by: "arc",
     reviewed_by: "Evan",
     reviewed_at: new Date().toISOString(),
     reasoning_payload: { demo_seed: true, run_id: runId },
@@ -175,7 +175,7 @@ async function seedTestCampaign() {
     status: "pending_approval",
     risk_level: "medium",
     draft_output: ASSETS[0].draft_body,
-    requested_by: "hermes",
+    requested_by: "arc",
     reasoning_payload: { demo_seed: true, run_id: runId },
     audit_payload: { demo_seed: true, run_id: runId },
   });
@@ -188,7 +188,7 @@ async function seedTestCampaign() {
     status: "pending_approval",
     risk_level: "high",
     draft_output: ASSETS[1].draft_body,
-    requested_by: "hermes",
+    requested_by: "arc",
     compliance_notes: "Paid spend — requires budget sign-off before launch.",
     reasoning_payload: { demo_seed: true, run_id: runId },
     audit_payload: { demo_seed: true, run_id: runId },

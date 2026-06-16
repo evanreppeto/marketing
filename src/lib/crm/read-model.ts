@@ -507,7 +507,7 @@ function buildPipelineRows(data: Awaited<ReturnType<typeof getCrmTableBundle>>):
       type: titleize(lead.persona ?? "Lead"),
       objectType: "lead",
       stage: titleize(lead.status ?? "new"),
-      owner: getString(metadata.owner) ?? "Hermes",
+      owner: getString(metadata.owner) ?? "Arc",
       value: scoreValue(lead.lead_score),
       nextStep: nextStepForLead(lead.status),
       updated: lead.updated_at ?? lead.received_at ?? "Now",
@@ -617,7 +617,7 @@ function mapObjectRows(key: CrmObjectKey, data: Awaited<ReturnType<typeof getCrm
   }
 
   if (key === "leads") {
-    return data.leads.map((lead) => decorateObjectRow(key, lead, data, "Hermes", lead.updated_at ?? lead.received_at ?? "Now"));
+    return data.leads.map((lead) => decorateObjectRow(key, lead, data, "Arc", lead.updated_at ?? lead.received_at ?? "Now"));
   }
 
   if (key === "jobs") {
@@ -780,7 +780,7 @@ function urgencyForRecord(key: CrmObjectKey, leadScore: number | null, metadata:
 }
 
 function attentionReasonForRecord(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>, agentName: string = "Agent") {
-  const explicit = getString(metadata.attention_reason) ?? getString(metadata.why_mark_created_it);
+  const explicit = getString(metadata.attention_reason) ?? getString(metadata.why_arc_created_it);
   if (explicit) return explicit;
   if (key === "leads") return (record as LeadRow).loss_summary ?? "Lead needs validation, scoring, enrichment, and approval before outreach.";
   if (key === "companies") return "Company may support referral, partner, or campaign development workflows.";

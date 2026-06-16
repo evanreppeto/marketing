@@ -123,7 +123,7 @@ describe("getRecordNotes", () => {
             is_pinned: true,
             is_internal: true,
             author_kind: "agent",
-            author_name: "Hermes",
+            author_name: "Arc",
             created_at: "2026-06-12T08:00:00.000Z",
             updated_at: "2026-06-12T08:00:00.000Z",
           },
@@ -136,7 +136,7 @@ describe("getRecordNotes", () => {
     expect(result.status).toBe("live");
     if (result.status !== "live") return;
     expect(result.notes.map((n) => n.id)).toEqual(["n2", "n1"]);
-    expect(result.notes[0]).toMatchObject({ isPinned: true, actorKind: "agent", actorLabel: "Hermes" });
+    expect(result.notes[0]).toMatchObject({ isPinned: true, actorKind: "agent", actorLabel: "Arc" });
   });
 
   it("reports unavailable when the query errors", async () => {

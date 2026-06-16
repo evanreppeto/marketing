@@ -3,7 +3,7 @@
 --
 -- Seed policy:
 -- - Seed Big Shoulders Restoration as the only organization.
--- - Seed required persona taxonomy, connection registry, app settings, and Mark connection.
+-- - Seed required persona taxonomy, connection registry, app settings, and Arc connection.
 -- - Do not seed placeholder companies, contacts, leads, campaigns, approvals, messages, or analytics.
 
 create extension if not exists pgcrypto;
@@ -520,7 +520,7 @@ create table public.campaign_results (
 create trigger campaign_assets_set_updated_at before update on public.campaign_assets for each row execute function public.set_updated_at();
 create trigger approval_items_set_updated_at before update on public.approval_items for each row execute function public.set_updated_at();
 
--- ---------- Agents, Mark, and Vault ----------
+-- ---------- Agents, Arc, and Vault ----------
 
 create table public.agents (
   id uuid primary key default gen_random_uuid(),
@@ -609,7 +609,7 @@ create table public.agent_run_logs (
   metadata jsonb not null default '{}'::jsonb
 );
 
-create table public.mark_conversations (
+create table public.arc_conversations (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null default public.default_organization_id() references public.organizations(id) on delete cascade,
   operator text not null,
@@ -623,11 +623,11 @@ create table public.mark_conversations (
   updated_at timestamptz not null default now()
 );
 
-create table public.mark_messages (
+create table public.arc_messages (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null default public.default_organization_id() references public.organizations(id) on delete cascade,
-  conversation_id uuid not null references public.mark_conversations(id) on delete cascade,
-  role text not null check (role in ('operator', 'mark', 'system')),
+  conversation_id uuid not null references public.arc_conversations(id) on delete cascade,
+  role text not null check (role in ('operator', 'arc', 'system')),
   body text not null default '',
   status text not null default 'sent' check (status in ('sent', 'pending', 'complete', 'failed')),
   agent_task_id uuid references public.agent_tasks(id) on delete set null,
@@ -653,7 +653,7 @@ create table public.vault_notes (
 create trigger agents_set_updated_at before update on public.agents for each row execute function public.set_updated_at();
 create trigger agent_tasks_set_updated_at before update on public.agent_tasks for each row execute function public.set_updated_at();
 create trigger agent_outputs_set_updated_at before update on public.agent_outputs for each row execute function public.set_updated_at();
-create trigger mark_conversations_set_updated_at before update on public.mark_conversations for each row execute function public.set_updated_at();
+create trigger arc_conversations_set_updated_at before update on public.arc_conversations for each row execute function public.set_updated_at();
 create trigger vault_notes_set_updated_at before update on public.vault_notes for each row execute function public.set_updated_at();
 
 -- ---------- Knowledge and guardrails ----------
@@ -778,8 +778,8 @@ create index crm_activities_entity_idx on public.crm_activities(org_id, entity_t
 create index engagement_events_entity_idx on public.engagement_events(org_id, entity_type, entity_id, occurred_at desc);
 create index agent_tasks_status_idx on public.agent_tasks(org_id, status, priority, created_at desc);
 create index agent_outputs_task_idx on public.agent_outputs(task_id, created_at desc);
-create index mark_conversations_operator_idx on public.mark_conversations(org_id, operator, status, last_message_at desc);
-create index mark_messages_conversation_idx on public.mark_messages(conversation_id, created_at);
+create index arc_conversations_operator_idx on public.arc_conversations(org_id, operator, status, last_message_at desc);
+create index arc_messages_conversation_idx on public.arc_messages(conversation_id, created_at);
 create index persona_snapshots_entity_idx on public.persona_snapshots(org_id, entity_type, entity_id, updated_at desc);
 create index next_best_actions_entity_idx on public.next_best_actions(org_id, entity_type, entity_id, status, created_at desc);
 
@@ -818,8 +818,8 @@ begin
     'agent_task_inputs',
     'agent_outputs',
     'agent_run_logs',
-    'mark_conversations',
-    'mark_messages',
+    'arc_conversations',
+    'arc_messages',
     'vault_notes',
     'persona_snapshots',
     'persona_knowledge_entries',
@@ -838,11 +838,11 @@ grant usage on schema public to anon, authenticated, service_role;
 insert into public.app_settings (key, value) values
   ('workspace_name', '"Big Shoulders"'::jsonb),
   ('product_label', '"Marketing"'::jsonb),
-  ('assistant_name', '"Mark"'::jsonb),
+  ('assistant_name', '"Arc"'::jsonb),
   ('brand_short_name', '"BSR"'::jsonb),
   ('brand_favicon_url', '"/icon.svg"'::jsonb),
-  ('mark_default_mode', '"act"'::jsonb),
-  ('mark_default_route', '"fast"'::jsonb),
+  ('arc_default_mode', '"act"'::jsonb),
+  ('arc_default_route', '"fast"'::jsonb),
   ('appearance_accent', '"gold"'::jsonb),
   ('appearance_density', '"comfortable"'::jsonb),
   ('appearance_motion', '"standard"'::jsonb);
@@ -855,7 +855,7 @@ insert into public.connections (provider, kind, label, env_var, config) values
   ('x', 'social', 'X', 'X_API_KEY', '{"requiredEnvVars":["X_API_KEY","X_API_SECRET","X_ACCESS_TOKEN","X_ACCESS_TOKEN_SECRET"]}'::jsonb);
 
 insert into public.agent_connections (workspace_id, display_name, agent_key, enabled)
-values ('default', 'Mark', 'mark', true);
+values ('default', 'Arc', 'arc', true);
 
 insert into public.persona_definitions (key, label, audience_type, sort_order) values
   ('persona_homeowner_emergency', 'Homeowner Emergency', 'homeowner', 10),
@@ -873,8 +873,8 @@ insert into public.persona_definitions (key, label, audience_type, sort_order) v
 
 insert into public.agents (key, name, description, blocked_actions, default_approval_policy)
 values (
-  'mark',
-  'Mark',
+  'arc',
+  'Arc',
   'Default Growth Engine assistant for internal marketing operations.',
   '["send_email","send_sms","publish_social","launch_ads","modify_public_site"]'::jsonb,
   'approval_required'

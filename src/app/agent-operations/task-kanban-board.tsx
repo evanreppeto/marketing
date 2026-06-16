@@ -58,7 +58,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
       state.map((task) => (task.fullId === move.taskId ? { ...task, status: move.toStatus } : task)),
   );
 
-  // Live polling: refresh server data while the board is visible. When Mark moves
+  // Live polling: refresh server data while the board is visible. When Arc moves
   // a task or reports progress via his API, the next refresh reflects it.
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -282,7 +282,7 @@ function Card({
       : null;
   const ownerLabel = task.owner?.label ?? "Operator";
   const driverLabel = task.driver?.label ?? task.agentName;
-  const driverIsMark = task.driver?.kind === "agent";
+  const driverIsArc = task.driver?.kind === "agent";
   const nextAction = nextActionLabel(task.status, needsApproval, working, scheduledLabel, driverLabel);
   const statusLabel = status.label;
 
@@ -296,7 +296,7 @@ function Card({
     >
       <div className="flex items-start gap-2.5">
         <EntityAvatar
-          owner={driverIsMark ? { kind: "agent" } : { kind: "human", name: driverLabel }}
+          owner={driverIsArc ? { kind: "agent" } : { kind: "human", name: driverLabel }}
           size={24}
           pending={working}
         />

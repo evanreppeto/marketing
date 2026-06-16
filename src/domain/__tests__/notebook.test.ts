@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { parseFrontmatter, extractLinks, resolveWikiTarget, computeBacklinks, toRenderableMarkdown, computeGraphLayout, type LinkResolutionContext, type VaultNote, type GraphNode } from "../notebook";
+import { parseFrontmatter, extractLinks, resolveWikiTarget, computeBacklinks, toRenderableArcdown, computeGraphLayout, type LinkResolutionContext, type VaultNote, type GraphNode } from "../notebook";
 
 describe("parseFrontmatter", () => {
   it("splits YAML frontmatter from the body and parses scalars and lists", () => {
     const raw = [
       "---",
       "title: Apex Plumbing Intel",
-      "author: Mark",
+      "author: Arc",
       "status: Needs review",
       "tags: [partner, plumbing]",
       "---",
@@ -20,7 +20,7 @@ describe("parseFrontmatter", () => {
 
     expect(result.frontmatter).toEqual({
       title: "Apex Plumbing Intel",
-      author: "Mark",
+      author: "Arc",
       status: "Needs review",
       tags: ["partner", "plumbing"],
     });
@@ -34,9 +34,9 @@ describe("parseFrontmatter", () => {
   });
 
   it("parses CRLF-delimited frontmatter (real Windows Obsidian files)", () => {
-    const raw = "---\r\ntitle: Win Note\r\nauthor: Mark\r\n---\r\n\r\n# Win Note\r\nBody.";
+    const raw = "---\r\ntitle: Win Note\r\nauthor: Arc\r\n---\r\n\r\n# Win Note\r\nBody.";
     const result = parseFrontmatter(raw);
-    expect(result.frontmatter).toEqual({ title: "Win Note", author: "Mark" });
+    expect(result.frontmatter).toEqual({ title: "Win Note", author: "Arc" });
     expect(result.body.trim().startsWith("# Win Note")).toBe(true);
   });
 });
@@ -97,7 +97,7 @@ describe("extractLinks", () => {
 
 const NOTES: VaultNote[] = [
   { slug: "a", title: "A", folder: "Playbooks", tags: [], author: "Evan", status: "Published", updated: "Today", body: "Links to [[b]]." },
-  { slug: "b", title: "B", folder: "Playbooks", tags: [], author: "Mark", status: "Published", updated: "Today", body: "No links." },
+  { slug: "b", title: "B", folder: "Playbooks", tags: [], author: "Arc", status: "Published", updated: "Today", body: "No links." },
   { slug: "c", title: "C", folder: "SOPs", tags: [], author: "Evan", status: "Published", updated: "Today", body: "Also links to [[b|Bee]]." },
 ];
 
@@ -111,15 +111,15 @@ describe("computeBacklinks", () => {
   });
 });
 
-describe("toRenderableMarkdown", () => {
+describe("toRenderableArcdown", () => {
   it("rewrites wiki-links to markdown links with resolved hrefs", () => {
     const ctx = { notes: new Map([["b", "/notebook/b"]]), records: new Map(), personas: new Map() };
-    expect(toRenderableMarkdown("Go to [[b|Bee]] now.", ctx)).toBe("Go to [Bee](/notebook/b) now.");
+    expect(toRenderableArcdown("Go to [[b|Bee]] now.", ctx)).toBe("Go to [Bee](/notebook/b) now.");
   });
 
   it("rewrites unresolved wiki-links with the sentinel href", () => {
     const ctx = { notes: new Map(), records: new Map(), personas: new Map() };
-    expect(toRenderableMarkdown("Missing [[ghost]].", ctx)).toBe("Missing [ghost](unresolved:ghost).");
+    expect(toRenderableArcdown("Missing [[ghost]].", ctx)).toBe("Missing [ghost](unresolved:ghost).");
   });
 });
 

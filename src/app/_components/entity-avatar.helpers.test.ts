@@ -7,7 +7,7 @@ describe("initialsFromName", () => {
     expect(initialsFromName("Evan Reppeto")).toBe("ER");
   });
   it("returns first two letters for a single word", () => {
-    expect(initialsFromName("Mark")).toBe("MA");
+    expect(initialsFromName("Arc")).toBe("AR");
   });
   it("falls back to ? for empty input", () => {
     expect(initialsFromName("   ")).toBe("?");

@@ -11,7 +11,7 @@ export function TicketActivityTimeline({ agentName, timeline }: { agentName: str
           {timeline.map((item) => (
             <li className="grid gap-3 px-4 py-4 sm:grid-cols-[96px_minmax(0,1fr)]" key={`${item.source}-${item.id}-${item.eventType}`}>
               <div className="flex flex-wrap items-start gap-2 sm:block">
-                <StatusPill tone={sourceTone(item.source)}>{item.source === "Mark" ? agentName : item.source}</StatusPill>
+                <StatusPill tone={sourceTone(item.source)}>{item.source === "Arc" ? agentName : item.source}</StatusPill>
                 <div className="mt-0 text-xs font-medium text-[var(--text-muted)] sm:mt-2">
                   {humanize(item.eventType)}
                 </div>
@@ -36,7 +36,7 @@ export function TicketActivityTimeline({ agentName, timeline }: { agentName: str
 }
 
 function sourceTone(source: LiveDetail["timeline"][number]["source"]): "amber" | "green" | "red" | "blue" | "gray" {
-  if (source === "Mark") return "blue";
+  if (source === "Arc") return "blue";
   if (source === "Human") return "amber";
   if (source === "Approval") return "green";
   return "gray";

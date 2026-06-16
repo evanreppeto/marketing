@@ -25,7 +25,7 @@ export function buildCampaignLink({ destinationUrl, campaignId, assetId, channel
     ...(channel ? { ch: channel } : {}),
   };
   const token = toBase64Url(JSON.stringify(tokenPayload));
-  url.searchParams.set("utm_source", channel ?? "mark");
+  url.searchParams.set("utm_source", channel ?? "arc");
   url.searchParams.set("utm_medium", "campaign");
   url.searchParams.set("utm_campaign", campaignId);
   url.searchParams.set("bsg_at", token);

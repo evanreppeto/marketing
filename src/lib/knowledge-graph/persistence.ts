@@ -21,7 +21,7 @@ const MISSING_WRITE_ID = "Write succeeded but did not return an id.";
 type WriteDeps = {
   client?: TypedSupabaseClient;
   orgId?: string;
-  /** "mark" gates gated kinds to proposed; "operator" trusts immediately. */
+  /** "arc" gates gated kinds to proposed; "operator" trusts immediately. */
   createdBy?: NodeAuthor;
   /** Display name stamped as approver when an operator creates a trusted node. */
   actor?: string;
@@ -40,9 +40,9 @@ export async function createNode(input: KnowledgeNodeInput, deps: WriteDeps = {}
   const resolved = await resolveDeps(deps);
   if (!resolved) return { ok: false, error: NOT_CONFIGURED };
   const { client, orgId } = resolved;
-  const createdBy = deps.createdBy ?? "mark";
+  const createdBy = deps.createdBy ?? "arc";
   const value = parsed.value;
-  // Tier is ALWAYS derived — never trusted from the caller. Mark cannot self-approve.
+  // Tier is ALWAYS derived — never trusted from the caller. Arc cannot self-approve.
   const trustTier = resolveInitialTrustTier({ kind: value.kind, createdBy });
   const approvedBy = trustTier === "trusted" && createdBy === "operator" ? deps.actor ?? "Operator" : null;
 
@@ -81,7 +81,7 @@ export async function createEdge(input: KnowledgeEdgeInput, deps: WriteDeps = {}
   const resolved = await resolveDeps(deps);
   if (!resolved) return { ok: false, error: NOT_CONFIGURED };
   const { client, orgId } = resolved;
-  const createdBy = deps.createdBy ?? "mark";
+  const createdBy = deps.createdBy ?? "arc";
   const trustTier = createdBy === "operator" ? "trusted" : "observed";
 
   const { data, error } = await client

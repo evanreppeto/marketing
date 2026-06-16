@@ -9,7 +9,7 @@ function findCalls(supabase: { calls: Array<[string, ...unknown[]]> }, method: s
 }
 
 const APPROVED = { status: "approved" };
-const ENABLED_RESEND = { enabled: true, env_var: "RESEND_API_KEY", config: { fromEmail: "Mark <mark@bsg.com>" } };
+const ENABLED_RESEND = { enabled: true, env_var: "RESEND_API_KEY", config: { fromEmail: "Arc <mark@bsg.com>" } };
 
 function queuedDispatch(overrides: Record<string, unknown> = {}) {
   return {

@@ -10,7 +10,7 @@ export type MarkMention = { type: string; id: string; label: string; href: strin
 export type ArcHistoryTurn = { role: "operator" | "arc"; body: string };
 
 export type MarkChatMessagePayload = {
-  type: "mark_chat_message";
+  type: "arc_chat_message";
   messageId: string;
   conversationId: string;
   /** The conversation's project, if any — enables project-scoped context. */

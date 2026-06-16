@@ -55,7 +55,7 @@ describe("promoteAssetToCampaign", () => {
     const [asset, gate, event] = inserts(supabase);
     expect(asset.status).toBe("pending_approval");
     expect(asset.dispatch_locked).toBe(true);
-    expect(asset.tool_source).toBe("mark_saved");
+    expect(asset.tool_source).toBe("arc_saved");
     expect(gate.campaign_asset_id).toBe("asset-1");
     expect(gate.status).toBe("pending_approval");
     expect(event.event_type).toBe("asset_generated");

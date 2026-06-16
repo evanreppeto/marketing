@@ -9,7 +9,7 @@ import {
   saveAppearanceSettingsAction,
   saveBrandingSettingsAction,
   saveGeneralSettingsAction,
-  saveMarkDefaultsAction,
+  saveArcDefaultsAction,
   type SettingsActionState,
 } from "./app-settings-actions";
 
@@ -285,7 +285,7 @@ export function BrandingSettingsForm({
   );
 }
 
-export function MarkDefaultsForm({
+export function ArcDefaultsForm({
   initialMode,
   initialRoute,
 }: {
@@ -293,7 +293,7 @@ export function MarkDefaultsForm({
   initialRoute: "fast" | "standard";
 }) {
   const agentName = useAgentName();
-  const [state, action, pending] = useActionState(saveMarkDefaultsAction, null);
+  const [state, action, pending] = useActionState(saveArcDefaultsAction, null);
 
   return (
     <form action={action} className="grid gap-4">
@@ -317,7 +317,7 @@ export function MarkDefaultsForm({
             <option value="standard">Standard - deeper drafting/reasoning</option>
           </select>
           <span className="text-xs text-[var(--text-muted)]">
-            Sent to the agent as metadata so Hermes can choose the right runner path.
+            Sent to the agent as metadata so Arc can choose the right runner path.
           </span>
         </label>
       </div>

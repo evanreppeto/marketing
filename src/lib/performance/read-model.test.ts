@@ -12,7 +12,7 @@ describe("getPerformanceReadModel", () => {
           {
             id: "lead-1",
             persona: "persona_property_manager",
-            source: "mark_partner_campaign",
+            source: "arc_partner_campaign",
             status: "qualified",
             lead_score: 84,
             created_at: "2026-06-02T12:00:00.000Z",

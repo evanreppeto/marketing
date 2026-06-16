@@ -18,10 +18,10 @@ describe("campaignDriver", () => {
   it("operator-authored campaigns are operator-driven", () => {
     expect(campaignDriver({ sourceSystem: "operator", lifecycle: "Ready" })).toBe("operator");
   });
-  it("Mark-authored campaigns are agent-driven", () => {
-    expect(campaignDriver({ sourceSystem: "mark_saved", lifecycle: "Ready" })).toBe("agent");
+  it("Arc-authored campaigns are agent-driven", () => {
+    expect(campaignDriver({ sourceSystem: "arc_saved", lifecycle: "Ready" })).toBe("agent");
   });
-  it("a Drafting campaign is agent-driven regardless of source (Mark is actively building)", () => {
+  it("a Drafting campaign is agent-driven regardless of source (Arc is actively building)", () => {
     expect(campaignDriver({ sourceSystem: "operator", lifecycle: "Drafting" })).toBe("agent");
   });
 });

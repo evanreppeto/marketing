@@ -23,7 +23,7 @@ function asset(overrides: Partial<CampaignWorkspaceAsset> = {}): CampaignWorkspa
     preview: overrides.preview ?? "Subject: Hello",
     complianceNotes: overrides.complianceNotes ?? "No issues",
     dispatchLocked: overrides.dispatchLocked ?? true,
-    toolSource: overrides.toolSource ?? "mark",
+    toolSource: overrides.toolSource ?? "arc",
     updatedAt: overrides.updatedAt ?? "Jun 11, 2026",
     media: overrides.media ?? [],
     revision: overrides.revision ?? null,
@@ -275,7 +275,7 @@ describe("campaign detail model", () => {
     expect(hub.cards.map((card) => ({ key: card.key, value: card.value, href: card.href }))).toEqual([
       { key: "review", value: "1 waiting", href: "#content" },
       { key: "ready", value: "1/2 ready", href: "#send-export" },
-      { key: "mark", value: "Available", href: "#mark" },
+      { key: "arc", value: "Available", href: "#arc" },
       { key: "results", value: "Not started", href: "#results" },
     ]);
   });

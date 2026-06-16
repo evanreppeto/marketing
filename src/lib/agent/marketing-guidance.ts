@@ -192,7 +192,7 @@ export function getCreativeToolRecommendations(): CreativeToolRecommendation[] {
       id: "openai-images",
       title: "OpenAI Images",
       bestFor: "Generating and editing original campaign visuals from a prompt.",
-      setupHint: "Give Hermes an OpenAI API key only if you want it to generate or edit images directly.",
+      setupHint: "Give Arc an OpenAI API key only if you want it to generate or edit images directly.",
       prompt:
         "Use this when we need original campaign visuals, image variations, or edits from a written brief. Draft the image prompt first, explain the intended channel and aspect ratio, and keep every generated asset in draft or approval state.",
     },

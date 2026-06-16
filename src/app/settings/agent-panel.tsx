@@ -7,7 +7,7 @@ import { resolveAppBaseUrl } from "@/lib/deployment/app-url";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { Button, StatusPill } from "../_components/page-header";
-import { testAgentConnectionAction } from "../mark/actions";
+import { testAgentConnectionAction } from "../arc/actions";
 import { AgentSetupBundle, AgentTestButton, AgentTokenIssue, CopyPromptButton } from "./agent-panel.client";
 import {
   type GenerateSetupBundleResult,
@@ -41,10 +41,10 @@ function AfterSetupGuidance() {
   return (
     <div className="grid gap-4 px-5 py-4">
       <div className="grid gap-2">
-        <div className="text-sm font-bold text-[var(--text-primary)]">After Hermes is connected</div>
+        <div className="text-sm font-bold text-[var(--text-primary)]">After Arc is connected</div>
         <p className="max-w-[78ch] text-xs leading-5 text-[var(--text-muted)]">
-          The setup bundle already gives Hermes the main marketing instructions. These are optional shortcuts you can
-          copy later when you want Hermes to focus on a specific job.
+          The setup bundle already gives Arc the main marketing instructions. These are optional shortcuts you can
+          copy later when you want Arc to focus on a specific job.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ function AfterSetupGuidance() {
         <div>
           <div className="text-sm font-bold text-[var(--text-primary)]">Optional image and design tools</div>
           <p className="mt-1 max-w-[78ch] text-xs leading-5 text-[var(--text-muted)]">
-            Hermes does not need these to connect. Add one later only when you want help creating, editing, or preparing
+            Arc does not need these to connect. Add one later only when you want help creating, editing, or preparing
             visuals for approval.
           </p>
         </div>
@@ -97,10 +97,10 @@ function SetupGuide({
   return (
     <div className="grid gap-4 px-5 py-4">
       <div className="grid gap-2">
-        <div className="text-sm font-bold text-[var(--text-primary)]">Connect Hermes</div>
+        <div className="text-sm font-bold text-[var(--text-primary)]">Connect Arc</div>
         <p className="max-w-[76ch] text-xs leading-5 text-[var(--text-muted)]">
-          The easiest path is one setup bundle. The app creates a fresh token, webhook secret, Hermes prompt, env snippet,
-          and verification message. You copy the generated prompt into Hermes; nothing is sent to Hermes automatically.
+          The easiest path is one setup bundle. The app creates a fresh token, webhook secret, Arc prompt, env snippet,
+          and verification message. You copy the generated prompt into Arc; nothing is sent to Arc automatically.
         </p>
       </div>
 
@@ -115,7 +115,7 @@ function SetupGuide({
         </div>
         <div>
           <div className="font-bold text-[var(--text-primary)]">What you do next</div>
-          <div className="mt-1 text-[11px] text-[var(--text-secondary)]">Copy the prompt into Hermes</div>
+          <div className="mt-1 text-[11px] text-[var(--text-secondary)]">Copy the prompt into Arc</div>
         </div>
       </div>
 
@@ -123,8 +123,8 @@ function SetupGuide({
         <AgentSetupBundle action={generateBundleAction} agentName={agentName} appBaseUrl={appBaseUrl} />
       ) : (
         <div className="rounded-md border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-3 py-2 text-xs leading-5 text-[var(--warn-text)]">
-          Connect Supabase admin env vars before generating setup bundles in the app. Env-only Hermes connections can
-          still use <code className="font-mono">HERMES_AGENT_API_TOKEN</code>.
+          Connect Supabase admin env vars before generating setup bundles in the app. Env-only Arc connections can
+          still use <code className="font-mono">ARC_AGENT_API_TOKEN</code>.
         </div>
       )}
     </div>
@@ -187,7 +187,7 @@ function RunnerConnectivityHint({ connection }: { connection: EffectiveAgentConn
 
         {url && fromEnv ? (
           <p className="text-xs leading-5 text-[var(--text-muted)]">
-            This URL comes from the <code className="font-mono">MARK_RUNNER_URL</code> environment variable, so update it
+            This URL comes from the <code className="font-mono">ARC_RUNNER_URL</code> environment variable, so update it
             there (e.g. <code className="font-mono">.env.local</code>) and restart the app. The Webhook URL field in
             Advanced connection controls is ignored while the env override is set.
           </p>
@@ -232,11 +232,11 @@ export async function AgentPanel() {
         title="Agent"
       >
         <div className="-mx-5 -my-4 divide-y divide-[var(--border-hairline)]">
-          <SetupGuide agentName="Hermes" appBaseUrl={appBaseUrl} />
+          <SetupGuide agentName="Arc" appBaseUrl={appBaseUrl} />
           <div className="px-5 py-4">
             <p className="text-sm leading-6 text-[var(--text-muted)]">
-              The app will read MARK_DISPLAY_NAME, MARK_AGENT_KEY, MARK_RUNNER_URL, MARK_WEBHOOK_URL,
-              MARK_WEBHOOK_SECRET, and HERMES_AGENT_API_TOKEN from the environment until Supabase is configured.
+              The app will read ARC_DISPLAY_NAME, ARC_AGENT_KEY, ARC_RUNNER_URL, ARC_WEBHOOK_URL,
+              ARC_WEBHOOK_SECRET, and ARC_AGENT_API_TOKEN from the environment until Supabase is configured.
             </p>
           </div>
         </div>
@@ -258,7 +258,7 @@ export async function AgentPanel() {
   return (
     <SettingsSection
       bodyClassName="p-0"
-      description="Register the agent port other Hermes-compatible workers use to read tasks, return drafts, and wake on new operator messages."
+      description="Register the agent port other Arc-compatible workers use to read tasks, return drafts, and wake on new operator messages."
       id="agent"
       title="Agent"
       actions={

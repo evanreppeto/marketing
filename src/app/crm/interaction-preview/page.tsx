@@ -26,7 +26,7 @@ const notes: NoteEntry[] = [
     isPinned: false,
     isInternal: true,
     actorKind: "agent",
-    actorLabel: "Hermes",
+    actorLabel: "Arc",
     createdAt: "2026-06-10T09:05:00.000Z",
   },
 ];
@@ -42,7 +42,7 @@ const tasks: TaskEntry[] = [
     urgency: "overdue",
     assigneeLabel: "evan.reppeto5928@gmail.com",
     actorKind: "agent",
-    actorLabel: "Hermes",
+    actorLabel: "Arc",
     createdAt: "2026-06-08T12:00:00.000Z",
   },
   {
@@ -108,10 +108,10 @@ const timeline: TimelineEntry[] = [
     id: "a4",
     activityType: "ai_recommendation",
     tone: "amber",
-    summary: "Hermes recommended a partnership message angle",
+    summary: "Arc recommended a partnership message angle",
     detail: "Based on lookalike fit with recent high-value accounts.",
     actorKind: "agent",
-    actorLabel: "Hermes",
+    actorLabel: "Arc",
     occurredAt: "2026-06-10T09:05:00.000Z",
   },
   {

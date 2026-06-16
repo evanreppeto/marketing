@@ -21,7 +21,7 @@ const approvalItemRow = {
   },
   draft_output: "Approval item draft output",
   edited_output: null,
-  requested_by: "Mark Demo Orchestrator",
+  requested_by: "Arc Demo Orchestrator",
   locked_until_approved: true,
   submitted_at: "2026-05-29T18:02:38.000Z",
   risk_level: "medium",
@@ -123,7 +123,7 @@ describe("listApprovalCards", () => {
         data: [
           {
             id: approvalItemRow.lead_id,
-            source: "hermes_demo",
+            source: "arc_demo",
             status: "needs_review",
             lead_score: 88,
             loss_summary: "Plumbing partner lead",
@@ -191,7 +191,7 @@ describe("listApprovalCards", () => {
       riskLevel: "medium",
       persona: "persona_plumbing_partner",
       channel: "email",
-      sourceAgent: "Mark Demo Orchestrator",
+      sourceAgent: "Arc Demo Orchestrator",
       campaign: {
         name: "Plumbing Partner Outreach Demo",
         objective: "Create a referral relationship.",
@@ -210,7 +210,7 @@ describe("listApprovalCards", () => {
           detail: "Operations Manager",
         },
         lead: {
-          label: "hermes_demo lead",
+          label: "arc_demo lead",
           detail: "needs_review, score 88",
         },
       },

@@ -25,7 +25,7 @@ seeds/dev_demo_data.sql
 ```
 
 This inserts clearly tagged demo records into the real app tables: CRM records,
-campaigns, approvals, Mark messages, agent work, activity, and Vault. To remove
+campaigns, approvals, Arc messages, agent work, activity, and Vault. To remove
 only those demo records later, apply:
 
 ```sql

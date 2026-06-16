@@ -4,7 +4,7 @@ import { connection } from "next/server";
 
 import { buttonClasses, EmptyState, PageHeader, StatusPill } from "../_components/page-header";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
-import { getAgentDisplayName, isAgentConfigured } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName, isAgentConfigured } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 import type { CampaignManagerView } from "./_components/library-model";
 
@@ -60,7 +60,7 @@ function getParam(value: string | string[] | undefined) {
 
 function getViewParam(value: string | string[] | undefined): CampaignManagerView {
   const raw = getParam(value);
-  if (raw === "all" || raw === "ready-to-send" || raw === "mark-working" || raw === "live" || raw === "archived") return raw;
+  if (raw === "all" || raw === "ready-to-send" || raw === "arc-working" || raw === "live" || raw === "archived") return raw;
   if (raw === "needs-attention") return raw;
   return "all";
 }
@@ -77,7 +77,7 @@ function CampaignsHeader({ pendingCount, agentName }: { pendingCount: number; ag
           <Link href="/campaigns/new" className={buttonClasses({ variant: "ghost", size: "sm" })}>
             New campaign
           </Link>
-          <Link href="/campaigns/new#ask-mark" className={buttonClasses({ size: "sm" })}>
+          <Link href="/campaigns/new#ask-arc" className={buttonClasses({ size: "sm" })}>
             Ask {agentName}
           </Link>
         </div>
