@@ -4,8 +4,12 @@ import {
   NEUTRAL_PERSONAS,
   parseBusinessProfile,
   validateBusinessProfile,
+  INDUSTRY_TEMPLATES,
+  getIndustryTemplate,
+  assembleArcContext,
   type BusinessProfile,
   type PersonaDefinition,
+  type ArcBusinessContext,
 } from "@/domain/brand-kit";
 
 describe("NEUTRAL_DEFAULTS", () => {
@@ -78,9 +82,6 @@ describe("validateBusinessProfile", () => {
     expect(result.ok).toBe(true);
   });
 });
-
-import { INDUSTRY_TEMPLATES, getIndustryTemplate } from "@/domain/brand-kit";
-import { assembleArcContext, type ArcBusinessContext } from "@/domain/brand-kit";
 
 describe("INDUSTRY_TEMPLATES", () => {
   it("includes broad buckets and a neutral start, all equal citizens", () => {

@@ -125,6 +125,17 @@ function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
+function asProofPoints(value: unknown): ProofPoint[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (v): v is ProofPoint =>
+      v != null &&
+      typeof v === "object" &&
+      typeof (v as ProofPoint).kind === "string" &&
+      typeof (v as ProofPoint).label === "string",
+  );
+}
+
 function asString(value: unknown, fallback: string): string {
   return typeof value === "string" && value.length > 0 ? value : fallback;
 }
@@ -139,6 +150,7 @@ export function parseBusinessProfile(row: Record<string, unknown>): BusinessProf
   const density = row.density === "compact" ? "compact" : "comfortable";
   const motion = row.motion === "reduced" ? "reduced" : "standard";
   const status = row.status === "active" ? "active" : "draft";
+  const disallowedClaims = asStringArray(guardrailsRaw.disallowedClaims);
   return {
     displayName: asString(row.display_name, NEUTRAL_DEFAULTS.displayName),
     legalName: asNullableString(row.legal_name),
@@ -159,12 +171,10 @@ export function parseBusinessProfile(row: Record<string, unknown>): BusinessProf
     preferredPhrases: asStringArray(row.preferred_phrases),
     bannedPhrases: asStringArray(row.banned_phrases),
     services: asStringArray(row.services),
-    proofPoints: Array.isArray(row.proof_points) ? (row.proof_points as ProofPoint[]) : [],
+    proofPoints: asProofPoints(row.proof_points),
     guardrails: {
       disallowedClaims:
-        asStringArray(guardrailsRaw.disallowedClaims).length > 0
-          ? asStringArray(guardrailsRaw.disallowedClaims)
-          : NEUTRAL_DEFAULTS.guardrails.disallowedClaims,
+        disallowedClaims.length > 0 ? disallowedClaims : NEUTRAL_DEFAULTS.guardrails.disallowedClaims,
       complianceNotes: asString(
         guardrailsRaw.complianceNotes,
         NEUTRAL_DEFAULTS.guardrails.complianceNotes,
