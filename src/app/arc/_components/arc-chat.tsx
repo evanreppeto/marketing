@@ -15,6 +15,7 @@ import Link from "next/link";
 import { ChatSettings } from "./chat-settings";
 import { CommandPalette } from "./command-palette";
 import { AgentSettingsDrawer } from "./agent-settings-drawer";
+import { RunsDrawer } from "./runs-drawer";
 import { ArcBackdrop } from "./arc-backdrop";
 import type { SlashCommand } from "./slash-commands";
 import { Composer } from "./composer";
@@ -164,6 +165,7 @@ export function ArcChat({
   const applyCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [agentSettingsOpen, setAgentSettingsOpen] = useState(false);
+  const [runsOpen, setRunsOpen] = useState(false);
   // Per-message mode/route, seeded from Settings defaults. Lifted here (not in the
   // composer) so Regenerate reuses the same live selection instead of a hard-coded one.
   const [mode, setMode] = useState<ArcMode>(defaultMode);
@@ -515,6 +517,24 @@ export function ArcChat({
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setRunsOpen(true)}
+                title="Runs — see what Arc is working on across all threads"
+                aria-label="Open runs"
+                className="relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="10" cy="10" r="7" />
+                  <path d="M10 6v4l2.5 1.5" />
+                </svg>
+                <span className="hidden sm:inline">Runs</span>
+                {runningConversationIds.size > 0 ? (
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold tabular-nums text-[var(--on-accent)]">
+                    {runningConversationIds.size}
+                  </span>
+                ) : null}
+              </button>
               {demo ? (
                 <button
                   type="button"
@@ -743,6 +763,7 @@ export function ArcChat({
         onSelect={(cmd) => applyCommandRef.current?.(cmd)}
       />
       <AgentSettingsDrawer open={agentSettingsOpen} onClose={() => setAgentSettingsOpen(false)} />
+      <RunsDrawer open={runsOpen} onClose={() => setRunsOpen(false)} />
     </div>
   );
 }

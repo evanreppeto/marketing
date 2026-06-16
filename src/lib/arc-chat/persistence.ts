@@ -218,6 +218,78 @@ export async function listActiveArcRunConversationIds(
   return [...ids];
 }
 
+export type ArcRunStatus =
+  | "queued"
+  | "running"
+  | "blocked"
+  | "needs_approval"
+  | "completed"
+  | "failed"
+  | "canceled";
+
+export type ArcRun = {
+  taskId: string;
+  conversationId: string | null;
+  title: string | null;
+  status: ArcRunStatus;
+  objective: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+type ArcRunRow = {
+  id: string;
+  status: ArcRunStatus;
+  objective: string | null;
+  source_id: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
+/**
+ * Recent Arc chat runs across all conversations (newest activity first) — feeds
+ * the global Runs view. Reads the agent_tasks queue and resolves each run's
+ * conversation title in a second batched lookup.
+ */
+export async function listRecentArcRuns(
+  limit = 30,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ArcRun[]> {
+  const { data, error } = await client
+    .from("agent_tasks")
+    .select("id, status, objective, source_id, created_at, started_at, completed_at")
+    .eq("task_type", "arc_chat_message")
+    .eq("source_type", "arc_conversation")
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  assertOk("agent_tasks recent arc runs", error);
+  const rows = (data ?? []) as ArcRunRow[];
+
+  const convIds = [...new Set(rows.map((r) => r.source_id).filter((id): id is string => Boolean(id)))];
+  const titles = new Map<string, string>();
+  if (convIds.length > 0) {
+    const { data: convs, error: convErr } = await client
+      .from("arc_conversations")
+      .select("id, title")
+      .in("id", convIds);
+    assertOk("arc_conversations run titles", convErr);
+    for (const c of (convs ?? []) as { id: string; title: string }[]) titles.set(c.id, c.title);
+  }
+
+  return rows.map((r) => ({
+    taskId: r.id,
+    conversationId: r.source_id,
+    title: r.source_id ? titles.get(r.source_id) ?? null : null,
+    status: r.status,
+    objective: r.objective,
+    createdAt: r.created_at,
+    startedAt: r.started_at,
+    completedAt: r.completed_at,
+  }));
+}
+
 export async function getConversation(
   id: string,
   client: SupabaseClient = getSupabaseAdminClient(),
