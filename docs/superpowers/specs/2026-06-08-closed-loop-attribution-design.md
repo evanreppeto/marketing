@@ -6,7 +6,7 @@
 
 ## Problem
 
-Attribution today is **aggregate and self-reported**. Mark posts `campaign_results`
+Attribution today is **aggregate and self-reported**. Arc posts `campaign_results`
 rows (impressions, clicks, leads, jobs, `won_revenue_cents`, `spend_cents`) per
 campaign/period via `POST /api/v1/campaigns/results`. But individual records are
 not linked:
@@ -17,8 +17,8 @@ not linked:
   `lead_id` — real ground-truth money — but there is **no path from that revenue
   back up to the campaign that produced the lead**.
 
-Consequence: a campaign's won revenue is whatever Mark *says* it is, not what the
-CRM *proves*. Mark has no trustworthy feedback signal on what actually worked.
+Consequence: a campaign's won revenue is whatever Arc *says* it is, not what the
+CRM *proves*. Arc has no trustworthy feedback signal on what actually worked.
 
 ## Goal
 
@@ -37,7 +37,7 @@ shown alongside the self-reported number.**
 
 ## The Chain (data flow)
 
-1. Mark mints a tagged link via `buildCampaignLink` (utm params + `bsg_at` token).
+1. Arc mints a tagged link via `buildCampaignLink` (utm params + `bsg_at` token).
 2. Prospect clicks the link, lands, and converts (form submit / call).
 3. The external system posts to `POST /api/v1/leads/ingest` with an `attribution`
    block.

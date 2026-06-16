@@ -44,7 +44,7 @@ the product, because they cannot have different personas.
   the shape; it does not become per-org configurable in this slice.
 - **Persona *identity* is per-org; persona *strategy* stays BSR-default.**
   Persona-keyed business logic (CTA rules and any scoring weights in
-  `src/lib/persona-intelligence/cta-rules.ts`, Hermes contracts) keeps its
+  `src/lib/persona-intelligence/cta-rules.ts`, Arc contracts) keeps its
   current BSR mapping and **degrades gracefully** for personas it does not
   recognize. Making that strategy layer per-org is an explicit future slice.
 - **App-layer validation, not database constraints.** Persona validity is
@@ -95,7 +95,7 @@ consumers keeps compiling.
 - `isAllowedPersona(persona, allowedKeys)` — new injected-set membership helper.
 - `INTERNAL_UNASSIGNED_PERSONA` and the internal-only rule stay as domain
   constants — that rule is product-wide, not per-org.
-- `OFFICIAL_PERSONA_MAPPINGS` is **kept** but its doc comment is changed to mark
+- `OFFICIAL_PERSONA_MAPPINGS` is **kept** but its doc comment is changed to arc
   it as the BSR default/seed taxonomy, not the global validation authority.
   Existing helpers (`isOfficialPersonaMapping`, `isAllowedForLeadIngestion`)
   remain for the consumers that still use the default set.
@@ -103,9 +103,9 @@ consumers keeps compiling.
 Domain stays pure and unit-tested; the *ingestion* allowed set is injected.
 
 **Deliberately not cascaded this slice.** `OFFICIAL_PERSONA_MAPPINGS` is consumed
-by ~20 files (CRM record-form dropdowns, the mark promote dialog, the campaign
+by ~20 files (CRM record-form dropdowns, the arc promote dialog, the campaign
 create form, mention search, vault links, and as the `z.enum()` source for the
-Hermes contracts, `competitor-intel`, and the CRM domain record schemas in
+Arc contracts, `competitor-intel`, and the CRM domain record schemas in
 `companies/contacts/jobs/outcomes/properties`). Migrating those surfaces to read
 per-org personas is later-slice work, scoped to each surface as it is
 productized. This slice changes only the ingestion validation source.
@@ -166,7 +166,7 @@ Named to prevent scope creep — each is its own later slice:
 
 - Per-org `app_settings` / `connections` / `agent_connections` (currently global
   primary keys) — **slice 2: per-org identity & settings**.
-- Per-org agent identity (the "Mark" name, voice, branding) — slice 2.
+- Per-org agent identity (the "Arc" name, voice, branding) — slice 2.
 - Persona-keyed *strategy* (CTA rules, scoring weights) becoming per-org
   configurable — future.
 - Real tenant auth / org routing (signed-in user → org; token → org for

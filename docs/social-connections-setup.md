@@ -2,8 +2,8 @@
 
 How to obtain every `META_*`, `LINKEDIN_*`, and `X_*` value the social connections
 feature reads. These are **control-plane secrets**: they live only in this app's
-environment (Vercel), never in the database and never on the Mark/Hermes runtime.
-Mark proposes social posts; the app executes them after approval, using these creds.
+environment (Vercel), never in the database and never on the Arc runtime.
+Arc proposes social posts; the app executes them after approval, using these creds.
 
 > **Vercel notes**
 > - Paste each value with **no surrounding quotes**.
@@ -115,10 +115,10 @@ brand accounts. Add yourself under *App roles* so it works before review.
 
 ---
 
-## Why Mark doesn't get these keys
+## Why Arc doesn't get these keys
 
-Mark (Hermes) holds exactly one credential — `HERMES_AGENT_API_TOKEN` — and uses it to
+Arc holds exactly one credential — `ARC_AGENT_API_TOKEN` — and uses it to
 *propose* social posts (draft → approval) and trigger an **approved** dispatch via the API.
 The actual post is executed by the control plane with the secrets above. This keeps the
 approval gate enforceable ("no page publishing without explicit human approval"), gives one
-revocation point and a single audit trail, and keeps secrets off the Mark runtime host.
+revocation point and a single audit trail, and keeps secrets off the Arc runtime host.

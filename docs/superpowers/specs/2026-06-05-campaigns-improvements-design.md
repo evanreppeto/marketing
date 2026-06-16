@@ -27,14 +27,14 @@ own commit; B may be its own PR.
   header, gallery with segments/sort/card+table views, persona/status/query
   filters, pagination. It is **not** in `navItems` — reachable only by URL.
 - `/campaigns/[id]` workspace has 7 tabs (Deliverables, Media, Decision log,
-  Audience & sources, Talk to Mark, Measurement, Audit), executive overview,
+  Audience & sources, Talk to Arc, Measurement, Audit), executive overview,
   launch-state lifecycle, and per-deliverable approve/decline/revise/archive.
 - `/approvals` ("Activity") already provides a **cross-campaign** approval queue +
   decision history over `approval_items`. The Tier A queue must not duplicate it.
 - `launchCampaign` / `deployAsset` (`src/lib/campaigns/launch.ts`) already verify
   all gating approvals are decided, unlock approved assets (`dispatch_locked →
-  false`), mark the campaign live (`launch_locked → false`), and emit a
-  `campaign_launched` / `asset_deployed` event "handed off to Mark/Hermes to do
+  false`), arc the campaign live (`launch_locked → false`), and emit a
+  `campaign_launched` / `asset_deployed` event "handed off to Arc to do
   the actual sends." The module never sends anything itself.
 - `campaign_events` (migration `20260528162000_hyper_personalization_layer.sql`)
   uses a `campaign_event_type` enum; new event types require an enum-extension
@@ -42,8 +42,8 @@ own commit; B may be its own PR.
 - A `campaign_results` table already exists (channel/period/impressions) — the
   substrate for deferred Measurement.
 
-Product posture (per CLAUDE.md): backend/control plane for the Hermes agent
-(surfaced as **Mark**). Build durable APIs, records, queues, approvals, logs,
+Product posture (per CLAUDE.md): backend/control plane for the Arc agent
+(surfaced as **Arc**). Build durable APIs, records, queues, approvals, logs,
 state transitions first. "Outbound stays locked" is a core principle — the app
 does not send, publish, or contact anyone.
 
@@ -143,7 +143,7 @@ surfaces on the campaign detail view.
 
 - Real send integrations (ESP/SMS/ad platforms). "Outbound stays locked."
 - Per-recipient dispatch rows.
-- An external dispatch API for Mark/Hermes to drive transitions — a clean future
+- An external dispatch API for Arc to drive transitions — a clean future
   extension, noted but not built. The state machine is operator-driven for now.
 
 ## Testing
@@ -157,7 +157,7 @@ surfaces on the campaign detail view.
 ## Known decisions / tech debt
 
 - **Two dispatch tables.** A pre-existing, unused `outbound_dispatches` table
-  (Hermes backend foundation) already models dispatches with richer semantics
+  (Arc backend foundation) already models dispatches with richer semantics
   (per-contact granularity, `idempotency_key`, `provider`/`provider_message_id`,
   approval-gate constraint). The Outbox deliberately ships on a simpler,
   deliverable-level `campaign_dispatches` table that is fully wired and tested.

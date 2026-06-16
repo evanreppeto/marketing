@@ -2,53 +2,53 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the app shell feel like a connectable product — a collapsible icon-rail sidebar, agent identity as configuration, a connect-your-agent onboarding state, and an Agent settings drawer in the Mark tab — all built on the existing Signal design system and the existing `agent-config.ts` seam.
+**Goal:** Make the app shell feel like a connectable product — a collapsible icon-rail sidebar, agent identity as configuration, a connect-your-agent onboarding state, and an Agent settings drawer in the Arc tab — all built on the existing Signal design system and the existing `agent-config.ts` seam.
 
-**Architecture:** Extend `src/lib/mark-chat/agent-config.ts` (the existing agent identity/connection seam) rather than duplicate it. Pure helpers (`agentProfile`, `getAgentDisplayName`, `isAgentConfigured`, `isSidebarExpanded`) feed thin presentational changes in `ConsoleFrame`/`SideNav`, a reusable `ConnectAgentPanel`, and an `AgentSettingsDrawer` reached from the Mark header. Agent name becomes operator-editable via `app_settings` (layered over the `MARK_DISPLAY_NAME` env default). No secrets in the DB. No new dependencies.
+**Architecture:** Extend `src/lib/arc-chat/agent-config.ts` (the existing agent identity/connection seam) rather than duplicate it. Pure helpers (`agentProfile`, `getAgentDisplayName`, `isAgentConfigured`, `isSidebarExpanded`) feed thin presentational changes in `ConsoleFrame`/`SideNav`, a reusable `ConnectAgentPanel`, and an `AgentSettingsDrawer` reached from the Arc header. Agent name becomes operator-editable via `app_settings` (layered over the `ARC_DISPLAY_NAME` env default). No secrets in the DB. No new dependencies.
 
-**Tech Stack:** Next.js 16 (server + client components, server actions), React 19 (`useActionState`), TypeScript, Tailwind, Vitest. Existing seams: `theme.ts`, `page-header.tsx`, `nav-icons.tsx`, `mark-chat/agent-config.ts`, `settings/store.ts`, `settings/app-settings-actions.ts`, `mark/actions.ts`.
+**Tech Stack:** Next.js 16 (server + client components, server actions), React 19 (`useActionState`), TypeScript, Tailwind, Vitest. Existing seams: `theme.ts`, `page-header.tsx`, `nav-icons.tsx`, `arc-chat/agent-config.ts`, `settings/store.ts`, `settings/app-settings-actions.ts`, `arc/actions.ts`.
 
 ---
 
 ## Deviations / decisions (read first)
 
 1. **Build on `agent-config.ts`, don't duplicate.** The existing module already owns agent name (`getMarkDisplayName`), runner config (`isMarkRunnerConfigured`), and keys. We add `agentProfile`, `getAgentDisplayName(override)`, and `isAgentConfigured(env)` there.
-2. **Agent name editable via `app_settings` (default `""`), layered over env.** `getAgentDisplayName(settings.agentName)` = DB value → `MARK_DISPLAY_NAME` → `"Mark"`. No behavior change until overridden.
-3. **No in-UI secrets.** The Mark drawer edits the display *name* and shows env-credential status + instructions only. Full in-UI credential storage is a deferred follow-up.
-4. **Campaigns "Talk to Mark" rename deferred to Sub-project 2** (which reworks that tab).
+2. **Agent name editable via `app_settings` (default `""`), layered over env.** `getAgentDisplayName(settings.agentName)` = DB value → `ARC_DISPLAY_NAME` → `"Arc"`. No behavior change until overridden.
+3. **No in-UI secrets.** The Arc drawer edits the display *name* and shows env-credential status + instructions only. Full in-UI credential storage is a deferred follow-up.
+4. **Campaigns "Talk to Arc" rename deferred to Sub-project 2** (which reworks that tab).
 
 ## File structure
 
 **Create:**
-- `src/lib/mark-chat/agent-config.test.ts` — tests for new helpers.
+- `src/lib/arc-chat/agent-config.test.ts` — tests for new helpers.
 - `src/app/_components/sidebar-state.ts` + `.test.ts` — pure rail-state helpers.
 - `src/app/_components/connect-agent-panel.tsx` — onboarding panel.
-- `src/app/mark/_components/agent-settings-drawer.tsx` — the Mark drawer.
+- `src/app/arc/_components/agent-settings-drawer.tsx` — the Arc drawer.
 
 **Modify:**
-- `src/lib/mark-chat/agent-config.ts` — add `agentProfile`, `getAgentDisplayName`, `isAgentConfigured`.
+- `src/lib/arc-chat/agent-config.ts` — add `agentProfile`, `getAgentDisplayName`, `isAgentConfigured`.
 - `src/lib/settings/store.ts` (+ `.test.ts`) — add `agentName` (default `""`).
 - `src/app/settings/app-settings-actions.ts` — add `saveAgentNameAction`.
-- `src/app/mark/actions.ts` — add `getAgentConnectionInfoAction` + type.
+- `src/app/arc/actions.ts` — add `getAgentConnectionInfoAction` + type.
 - `src/app/_components/side-nav.tsx` — `collapsed` prop.
 - `src/app/_components/console-frame.tsx` — collapsible rail, pin, agent label/monogram.
 - `src/app/layout.tsx` — async; resolve agent name; pass to `ConsoleFrame`.
 - `src/app/campaigns/page.tsx` — `ConnectAgentPanel` when unconfigured.
 - `src/app/settings/system-status.tsx` — `ConnectAgentPanel` block when unconfigured.
-- `src/app/mark/_components/mark-chat.tsx` — gear button + drawer.
+- `src/app/arc/_components/arc-chat.tsx` — gear button + drawer.
 
 ---
 
 ## Task 1: Agent identity helpers (extend agent-config.ts)
 
 **Files:**
-- Modify: `src/lib/mark-chat/agent-config.ts`
-- Test: `src/lib/mark-chat/agent-config.test.ts`
+- Modify: `src/lib/arc-chat/agent-config.ts`
+- Test: `src/lib/arc-chat/agent-config.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
-// src/lib/mark-chat/agent-config.test.ts
+// src/lib/arc-chat/agent-config.test.ts
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { agentProfile, getAgentDisplayName, isAgentConfigured } from "./agent-config";
@@ -58,26 +58,26 @@ afterEach(() => {
 });
 
 describe("agentProfile", () => {
-  it("defaults to Mark/M for empty input", () => {
-    expect(agentProfile("")).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
-    expect(agentProfile(undefined)).toEqual({ name: "Mark", shortName: "Mark", monogram: "M" });
+  it("defaults to Arc/M for empty input", () => {
+    expect(agentProfile("")).toEqual({ name: "Arc", shortName: "Arc", monogram: "M" });
+    expect(agentProfile(undefined)).toEqual({ name: "Arc", shortName: "Arc", monogram: "M" });
   });
 
   it("derives first-word shortName and uppercase monogram", () => {
-    expect(agentProfile("Hermes")).toEqual({ name: "Hermes", shortName: "Hermes", monogram: "H" });
+    expect(agentProfile("Arc")).toEqual({ name: "Arc", shortName: "Arc", monogram: "H" });
     expect(agentProfile("Ada Lovelace")).toEqual({ name: "Ada Lovelace", shortName: "Ada", monogram: "A" });
     expect(agentProfile("@nova").monogram).toBe("N");
   });
 });
 
 describe("getAgentDisplayName", () => {
-  it("prefers the operator override, then env, then Mark", () => {
-    vi.stubEnv("MARK_DISPLAY_NAME", "Hermes");
+  it("prefers the operator override, then env, then Arc", () => {
+    vi.stubEnv("ARC_DISPLAY_NAME", "Arc");
     expect(getAgentDisplayName("Nova")).toBe("Nova");
-    expect(getAgentDisplayName("")).toBe("Hermes");
-    expect(getAgentDisplayName(null)).toBe("Hermes");
-    vi.stubEnv("MARK_DISPLAY_NAME", "");
-    expect(getAgentDisplayName(undefined)).toBe("Mark");
+    expect(getAgentDisplayName("")).toBe("Arc");
+    expect(getAgentDisplayName(null)).toBe("Arc");
+    vi.stubEnv("ARC_DISPLAY_NAME", "");
+    expect(getAgentDisplayName(undefined)).toBe("Arc");
   });
 });
 
@@ -86,53 +86,53 @@ describe("isAgentConfigured", () => {
     expect(isAgentConfigured({})).toBe(false);
   });
   it("is true when a runner URL or the API token is set", () => {
-    expect(isAgentConfigured({ MARK_RUNNER_URL: "https://r" })).toBe(true);
-    expect(isAgentConfigured({ MARK_WEBHOOK_URL: "https://w" })).toBe(true);
-    expect(isAgentConfigured({ HERMES_AGENT_API_TOKEN: "tok" })).toBe(true);
+    expect(isAgentConfigured({ ARC_RUNNER_URL: "https://r" })).toBe(true);
+    expect(isAgentConfigured({ ARC_WEBHOOK_URL: "https://w" })).toBe(true);
+    expect(isAgentConfigured({ ARC_AGENT_API_TOKEN: "tok" })).toBe(true);
   });
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm test src/lib/mark-chat/agent-config.test.ts`
+Run: `pnpm test src/lib/arc-chat/agent-config.test.ts`
 Expected: FAIL — `agentProfile` / `getAgentDisplayName` / `isAgentConfigured` are not exported.
 
 - [ ] **Step 3: Add the helpers**
 
-Append to `src/lib/mark-chat/agent-config.ts`:
+Append to `src/lib/arc-chat/agent-config.ts`:
 
 ```ts
 export type AgentProfile = { name: string; shortName: string; monogram: string };
 
-/** Derive display identity from a resolved name. Pure; empty falls back to "Mark". */
+/** Derive display identity from a resolved name. Pure; empty falls back to "Arc". */
 export function agentProfile(rawName: string | null | undefined): AgentProfile {
-  const name = (rawName ?? "").trim() || "Mark";
+  const name = (rawName ?? "").trim() || "Arc";
   const shortName = name.split(/\s+/)[0] || name;
   const firstAlnum = name.replace(/[^A-Za-z0-9]/g, "")[0] ?? "M";
   return { name, shortName, monogram: firstAlnum.toUpperCase() };
 }
 
-/** Resolve the agent's display name: operator override (DB) → env → "Mark". */
+/** Resolve the agent's display name: operator override (DB) → env → "Arc". */
 export function getAgentDisplayName(override: string | null | undefined): string {
   return override?.trim() || getMarkDisplayName();
 }
 
 /** Whether any agent link is configured (runner endpoint or inbound API token). */
 export function isAgentConfigured(env: Record<string, string | undefined> = process.env): boolean {
-  return Boolean(env.MARK_RUNNER_URL ?? env.MARK_WEBHOOK_URL) || Boolean(env.HERMES_AGENT_API_TOKEN?.trim());
+  return Boolean(env.ARC_RUNNER_URL ?? env.ARC_WEBHOOK_URL) || Boolean(env.ARC_AGENT_API_TOKEN?.trim());
 }
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm test src/lib/mark-chat/agent-config.test.ts`
+Run: `pnpm test src/lib/arc-chat/agent-config.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/mark-chat/agent-config.ts src/lib/mark-chat/agent-config.test.ts
+git add src/lib/arc-chat/agent-config.ts src/lib/arc-chat/agent-config.test.ts
 git commit -m "feat(agent): agentProfile + name resolver + isAgentConfigured"
 ```
 
@@ -155,7 +155,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_APP_SETTINGS, getAppSettings } from "./store";
 
 describe("app settings agentName", () => {
-  it("defaults agentName to empty string (falls through to env/Mark elsewhere)", () => {
+  it("defaults agentName to empty string (falls through to env/Arc elsewhere)", () => {
     expect(DEFAULT_APP_SETTINGS.agentName).toBe("");
   });
 
@@ -244,7 +244,7 @@ export async function saveAgentNameAction(
   }
 
   revalidatePath("/settings");
-  revalidatePath("/mark");
+  revalidatePath("/arc");
   revalidatePath("/", "layout"); // refresh the shell nav label
   return { ok: true, message: "Agent name saved." };
 }
@@ -387,7 +387,7 @@ export function ConnectAgentPanel({ agentName }: { agentName: string }) {
   return (
     <EmptyState
       title={`Connect your ${agentName} agent`}
-      detail={`No agent is wired up yet. Point this workspace at your Hermes agent by setting its runner endpoint (MARK_RUNNER_URL) and API token (HERMES_AGENT_API_TOKEN) in the environment. Once connected, ${agentName}'s drafts and approvals appear here automatically. Check status anytime in System status.`}
+      detail={`No agent is wired up yet. Point this workspace at your Arc agent by setting its runner endpoint (ARC_RUNNER_URL) and API token (ARC_AGENT_API_TOKEN) in the environment. Once connected, ${agentName}'s drafts and approvals appear here automatically. Check status anytime in System status.`}
       action={
         <Link href="/settings" className={buttonClasses({ size: "sm" })}>
           Open System status
@@ -502,7 +502,7 @@ export function ConsoleFrame({
   }
 
   const navItems: ShellNavItem[] = [
-    { label: agentName, href: "/mark", icon: "mark", matches: ["/mark", "/"] },
+    { label: agentName, href: "/arc", icon: "arc", matches: ["/arc", "/"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
   ];
 
@@ -533,7 +533,7 @@ export function ConsoleFrame({
         >
           <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:pr-1 [&::-webkit-scrollbar]:hidden">
             <Link
-              href="/mark"
+              href="/arc"
               className="group mb-2 flex items-center px-1.5 leading-none transition hover:opacity-90"
               aria-label="Big Shoulders Marketing — go to home"
               title="Big Shoulders Marketing"
@@ -581,7 +581,7 @@ export function ConsoleFrame({
 
         <section
           className={
-            pathname.startsWith("/mark")
+            pathname.startsWith("/arc")
               ? "min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden"
               : theme.shell.content
           }
@@ -621,7 +621,7 @@ Note: `agentMonogram` is passed for layout-contract stability/future agent-avata
 In `src/app/layout.tsx`, add imports (keep the single existing `getAppSettings` import):
 
 ```ts
-import { agentProfile, getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { agentProfile, getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 ```
 
 Replace `RootLayout`:
@@ -679,8 +679,8 @@ git commit -m "feat(shell): collapsible icon-rail sidebar with pin + agent ident
 In `src/app/campaigns/page.tsx`, add imports:
 
 ```ts
-import { isAgentConfigured } from "@/lib/mark-chat/agent-config";
-import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { isAgentConfigured } from "@/lib/arc-chat/agent-config";
+import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 import { ConnectAgentPanel } from "../_components/connect-agent-panel";
 ```
@@ -701,7 +701,7 @@ Replace the empty-state branch:
       ) : configured ? (
         <EmptyState
           title="No campaigns yet"
-          detail="When Mark drafts a campaign it appears here with its creative, the leads and reasoning behind it, and a human-gate approval record. Outbound stays locked until you approve."
+          detail="When Arc drafts a campaign it appears here with its creative, the leads and reasoning behind it, and a human-gate approval record. Outbound stays locked until you approve."
         />
       ) : (
         <ConnectAgentPanel agentName={displayName} />
@@ -713,7 +713,7 @@ Replace the empty-state branch:
 In `src/app/settings/system-status.tsx`, add imports:
 
 ```ts
-import { getAgentDisplayName, isAgentConfigured } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName, isAgentConfigured } from "@/lib/arc-chat/agent-config";
 import { ConnectAgentPanel } from "../_components/connect-agent-panel";
 ```
 
@@ -752,11 +752,11 @@ git commit -m "feat(shell): surface ConnectAgentPanel on campaigns + system stat
 ## Task 8: Agent connection info action
 
 **Files:**
-- Modify: `src/app/mark/actions.ts`
+- Modify: `src/app/arc/actions.ts`
 
 - [ ] **Step 1: Add the action + type**
 
-In `src/app/mark/actions.ts`, after the `getMarkAgentStatusAction` definition (it already imports `isMarkRunnerConfigured` from `@/lib/mark-chat/agent-config`), add:
+In `src/app/arc/actions.ts`, after the `getMarkAgentStatusAction` definition (it already imports `isMarkRunnerConfigured` from `@/lib/arc-chat/agent-config`), add:
 
 ```ts
 export type AgentConnectionInfo = {
@@ -774,7 +774,7 @@ export async function getAgentConnectionInfoAction(): Promise<AgentConnectionInf
     attached: status.attached,
     name: status.name,
     runnerConfigured: isMarkRunnerConfigured(),
-    tokenConfigured: Boolean(process.env.HERMES_AGENT_API_TOKEN?.trim()),
+    tokenConfigured: Boolean(process.env.ARC_AGENT_API_TOKEN?.trim()),
   };
 }
 ```
@@ -787,22 +787,22 @@ Expected: no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/app/mark/actions.ts
-git commit -m "feat(mark): getAgentConnectionInfoAction for the settings drawer"
+git add src/app/arc/actions.ts
+git commit -m "feat(arc): getAgentConnectionInfoAction for the settings drawer"
 ```
 
 ---
 
-## Task 9: Agent settings drawer + Mark header gear
+## Task 9: Agent settings drawer + Arc header gear
 
 **Files:**
-- Create: `src/app/mark/_components/agent-settings-drawer.tsx`
-- Modify: `src/app/mark/_components/mark-chat.tsx`
+- Create: `src/app/arc/_components/agent-settings-drawer.tsx`
+- Modify: `src/app/arc/_components/arc-chat.tsx`
 
 - [ ] **Step 1: Write the drawer component**
 
 ```tsx
-// src/app/mark/_components/agent-settings-drawer.tsx
+// src/app/arc/_components/agent-settings-drawer.tsx
 "use client";
 
 import Link from "next/link";
@@ -817,7 +817,7 @@ const inputClass =
   "min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]";
 
 /**
- * In-context agent configuration, opened from the Mark header. Shows live
+ * In-context agent configuration, opened from the Arc header. Shows live
  * connection status, lets the operator rename the agent (persisted), and lists
  * the env credentials to set. Secrets are never entered or stored here.
  */
@@ -892,8 +892,8 @@ export function AgentSettingsDrawer({ open, onClose }: { open: boolean; onClose:
 
         <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Connection</h3>
         <div className="divide-y divide-[var(--border-hairline)] rounded-lg border border-[var(--border-hairline)]">
-          <ChecklistRow ok={Boolean(info?.runnerConfigured)} label="Runner endpoint" env="MARK_RUNNER_URL" hint="Where the app wakes your agent." />
-          <ChecklistRow ok={Boolean(info?.tokenConfigured)} label="Agent API token" env="HERMES_AGENT_API_TOKEN" hint="Bearer token your agent uses to reach the control-plane API." />
+          <ChecklistRow ok={Boolean(info?.runnerConfigured)} label="Runner endpoint" env="ARC_RUNNER_URL" hint="Where the app wakes your agent." />
+          <ChecklistRow ok={Boolean(info?.tokenConfigured)} label="Agent API token" env="ARC_AGENT_API_TOKEN" hint="Bearer token your agent uses to reach the control-plane API." />
         </div>
         <p className="mt-2 text-xs text-[var(--text-muted)]">Credentials are set via environment variables for security, not stored here.</p>
 
@@ -922,9 +922,9 @@ function ChecklistRow({ ok, label, env, hint }: { ok: boolean; label: string; en
 }
 ```
 
-- [ ] **Step 2: Wire the gear button + drawer into `mark-chat.tsx`**
+- [ ] **Step 2: Wire the gear button + drawer into `arc-chat.tsx`**
 
-In `src/app/mark/_components/mark-chat.tsx`:
+In `src/app/arc/_components/arc-chat.tsx`:
 
 (a) Add imports near the other `_components` imports:
 
@@ -966,8 +966,8 @@ Run: `pnpm test` → PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/app/mark/_components/agent-settings-drawer.tsx src/app/mark/_components/mark-chat.tsx
-git commit -m "feat(mark): Agent settings drawer with connect-your-agent guidance"
+git add src/app/arc/_components/agent-settings-drawer.tsx src/app/arc/_components/arc-chat.tsx
+git commit -m "feat(arc): Agent settings drawer with connect-your-agent guidance"
 ```
 
 ---
@@ -983,9 +983,9 @@ git commit -m "feat(mark): Agent settings drawer with connect-your-agent guidanc
   - `Tab` into the nav expands the rail (focus-within); labels visible while focused.
   - Pin locks it open; reload keeps it pinned (localStorage); unpin reverts.
   - Collapsed icons show tooltips; brand shows "BS" collapsed, full wordmark expanded.
-  - With no agent env set, `/campaigns` (no campaigns) and `/settings` show "Connect your Mark agent"; set `MARK_RUNNER_URL` or `HERMES_AGENT_API_TOKEN` → reverts.
-  - On `/mark`, the gear opens the Agent settings drawer: status pill, editable name, credential checklist, System status link. Escape and backdrop-click close it. Saving a name (with Supabase configured) updates the nav label after refresh.
-  - Set the agent name to "Hermes" in the drawer → nav label + onboarding copy read "Hermes". Clear it → falls back to env/`Mark`.
+  - With no agent env set, `/campaigns` (no campaigns) and `/settings` show "Connect your Arc agent"; set `ARC_RUNNER_URL` or `ARC_AGENT_API_TOKEN` → reverts.
+  - On `/arc`, the gear opens the Agent settings drawer: status pill, editable name, credential checklist, System status link. Escape and backdrop-click close it. Saving a name (with Supabase configured) updates the nav label after refresh.
+  - Set the agent name to "Arc" in the drawer → nav label + onboarding copy read "Arc". Clear it → falls back to env/`Arc`.
   - OS reduce-motion → rail snaps instead of animating.
   - Below `lg`, the sidebar is unchanged.
 - [ ] **Step 4: Final commit** (if manual fixes were needed):
@@ -999,8 +999,8 @@ git commit -m "fix(shell): manual verification adjustments"
 
 ## Self-review notes
 
-- **Spec coverage:** Unit 1 (rail) → Tasks 4, 6. Unit 2 (identity) → Tasks 1, 2, 3, 6. Unit 3 (onboarding) → Tasks 1, 5, 7. Unit 4 (Mark drawer) → Tasks 1, 2, 3, 8, 9. No-new-deps → honored.
-- **Reconciliation:** all agent identity/connection logic lives in `mark-chat/agent-config.ts`; no parallel `src/lib/agent/` module.
+- **Spec coverage:** Unit 1 (rail) → Tasks 4, 6. Unit 2 (identity) → Tasks 1, 2, 3, 6. Unit 3 (onboarding) → Tasks 1, 5, 7. Unit 4 (Arc drawer) → Tasks 1, 2, 3, 8, 9. No-new-deps → honored.
+- **Reconciliation:** all agent identity/connection logic lives in `arc-chat/agent-config.ts`; no parallel `src/lib/agent/` module.
 - **Type consistency:** `agentProfile()` → `{name,shortName,monogram}`; `getAgentDisplayName(override)`; `isAgentConfigured(env?)`; `AgentConnectionInfo {attached,name,runnerConfigured,tokenConfigured}`; `saveAgentNameAction(prev,formData)` returns `SettingsActionState` (reused from `app-settings-actions.ts`). Drawer reads `info.name` for the name field default (no separate prop). `app_settings.agentName` defaults to `""` so the resolver falls through to env.
-- **Deferred (documented):** full in-UI credential storage; Mark-surface campaigns "Talk to Mark" rename (Sub-project 2).
+- **Deferred (documented):** full in-UI credential storage; Arc-surface campaigns "Talk to Arc" rename (Sub-project 2).
 ```

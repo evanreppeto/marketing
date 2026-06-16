@@ -19,7 +19,7 @@ spec makes them first-class, configurable rows.
 
 - The app is a **control plane**. The only real outbound is an operator-triggered,
   approval-gated dispatch. Nothing in this spec sends anything.
-- **Secrets live in env vars (Vercel), never in the DB, never on the Mark runtime.** Matches
+- **Secrets live in env vars (Vercel), never in the DB, never on the Arc runtime.** Matches
   every existing secret. See "Secret ownership" below.
 - Layering: `src/domain/` (pure) → `src/lib/<feature>/` (I/O) → `src/app/<route>/`.
 - Reuse shared UI primitives (`Panel`, `StatusPill`, `Button`) per `DESIGN.md`. No new layout
@@ -29,13 +29,13 @@ spec makes them first-class, configurable rows.
 
 ## Secret ownership (decided)
 
-Social secrets are **control-plane-only**. Mark/Hermes holds just `HERMES_AGENT_API_TOKEN`
+Social secrets are **control-plane-only**. Arc holds just `ARC_AGENT_API_TOKEN`
 and *proposes* posts (draft → approval) + triggers an **approved** dispatch via API; the app
 executes the real call with the credentials. This preserves the approval gate ("no page
 publishing without explicit human approval"), one revocation point, one audit trail, and a
-smaller secret footprint on the Mark host. This refines the earlier Connections+Resend note
-("Social → Hermes executes"): regardless of *where* the final HTTP call ultimately runs, the
-**secrets are never shipped to Mark** — they stay in this app's env.
+smaller secret footprint on the Arc host. This refines the earlier Connections+Resend note
+("Social → Arc executes"): regardless of *where* the final HTTP call ultimately runs, the
+**secrets are never shipped to Arc** — they stay in this app's env.
 
 ## Credentials (the Vercel env vars)
 
@@ -133,5 +133,5 @@ the other) that share the Meta credential block.
   **Not configured → Connected** without code changes.
 - Operator can enable/disable each social provider and run a presence "test" that records
   telemetry, exactly like Resend (minus send).
-- No secret is ever rendered, persisted, or sent to Mark.
+- No secret is ever rendered, persisted, or sent to Arc.
 - `pnpm test` and `pnpm lint` pass.

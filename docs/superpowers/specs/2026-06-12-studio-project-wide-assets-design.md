@@ -2,23 +2,23 @@
 
 **Date:** 2026-06-12
 **Status:** Approved (design)
-**Area:** `src/app/mark` (Mark chat + Studio)
+**Area:** `src/app/arc` (Arc chat + Studio)
 
 ## Problem
 
-The Studio (the persistent right-side workspace in the Mark chat, `work-canvas.tsx`)
+The Studio (the persistent right-side workspace in the Arc chat, `work-canvas.tsx`)
 shows the asset library for the **current conversation only**. Its assets are derived
 purely from the active chat's message `actions` via `collectAssets(messages)`. When an
-operator works on the same body of work across several chats inside one Mark Project,
+operator works on the same body of work across several chats inside one Arc Project,
 each chat has its own isolated asset library, so previously generated assets are not
 visible from a sibling chat.
 
-We want the Studio's **Assets** library to aggregate every asset Mark has generated
-across all chats that belong to the **same Mark Project** (`mark_conversations.project_id`).
+We want the Studio's **Assets** library to aggregate every asset Arc has generated
+across all chats that belong to the **same Arc Project** (`arc_conversations.project_id`).
 
 ## Scope (decided)
 
-- **Asset scope:** the **Mark Project group**. All active conversations sharing the
+- **Asset scope:** the **Arc Project group**. All active conversations sharing the
   active chat's `project_id` contribute to one shared asset library. A chat with **no
   project** (`project_id IS NULL`) behaves exactly as today — it shows only its own assets.
 - **Tab scope:** **only the Assets tab** (library grid + the campaign-cover asset count)
@@ -32,7 +32,7 @@ across all chats that belong to the **same Mark Project** (`mark_conversations.p
 ## Approach (chosen: A)
 
 Aggregate from sibling-chat messages. Assets are already message-derived, so we load the
-asset-bearing Mark messages from the other conversations in the project and feed them into
+asset-bearing Arc messages from the other conversations in the project and feed them into
 the same `collectAssets` pipeline. Rejected alternatives:
 
 - **B — campaigns-table read-model:** more "correct" data modeling, but the Studio's assets
@@ -43,7 +43,7 @@ the same `collectAssets` pipeline. Rejected alternatives:
 
 ## Design
 
-### 1. Persistence — `src/lib/mark-chat/persistence.ts`
+### 1. Persistence — `src/lib/arc-chat/persistence.ts`
 
 Add:
 
@@ -57,20 +57,20 @@ export async function listProjectAssetMessages(
 ```
 
 Behavior:
-- Resolve the active conversation IDs in the project: `mark_conversations` where
+- Resolve the active conversation IDs in the project: `arc_conversations` where
   `operator = operator`, `project_id = projectId`, `status = 'active'`.
 - Optionally drop `excludeConversationId` (the active chat — its messages already arrive
   live via `initialMessages` + polling, so we don't double-load them).
-- Return `mark_messages` for those conversation IDs where `role = 'mark'` and `actions`
+- Return `arc_messages` for those conversation IDs where `role = 'arc'` and `actions`
   is non-empty, ordered `created_at DESC`, capped at `limit` (default ~100), mapped through
   the existing `toMessage`.
 - Returns `[]` for no sibling conversations. Reuses `MESSAGE_COLUMNS` / `toMessage`; no new
   row shape.
 
-If filtering `actions` non-empty in SQL is awkward (JSONB), select role='mark' messages and
+If filtering `actions` non-empty in SQL is awkward (JSONB), select role='arc' messages and
 filter `m.actions.length > 0` in JS after `toMessage` — still bounded by `limit`.
 
-### 2. Page wiring — `src/app/mark/page.tsx`
+### 2. Page wiring — `src/app/arc/page.tsx`
 
 In `loadLiveMarkChatProps`, after resolving `activeConversation`:
 - If `activeConversation?.projectId` is set, call
@@ -80,14 +80,14 @@ In `loadLiveMarkChatProps`, after resolving `activeConversation`:
 
 Demo path (`getDemoChat`) passes `projectMessages: []` — behavior unchanged without backend.
 
-### 3. Component plumbing — `src/app/mark/_components/mark-chat.tsx`
+### 3. Component plumbing — `src/app/arc/_components/arc-chat.tsx`
 
 - Add `projectMessages: MarkMessage[]` to `MarkChat`'s props (default `[]`).
 - Pass `projectMessages` to both `WorkCanvas` instances (docked + drawer).
 - No change to `messages` / `displayMessages` — those remain the current chat and continue
   to drive the chat thread, `Now`, `Building`, and `Audience`.
 
-### 4. Studio — `src/app/mark/_components/work-canvas.tsx`
+### 4. Studio — `src/app/arc/_components/work-canvas.tsx`
 
 - Add `projectMessages?: MarkMessage[]` prop (default `[]`).
 - Build the Assets-tab source set by merging current + project messages and collecting once:
@@ -99,7 +99,7 @@ Demo path (`getDemoChat`) passes `projectMessages: []` — behavior unchanged wi
 - `Now` / `Building` / `Audience` continue to read from `messages` only (unchanged).
 - The Assets count badge and `CampaignCover` asset count reflect the merged set.
 
-### 5. Source chip — `src/app/mark/_components/asset-library.tsx`
+### 5. Source chip — `src/app/arc/_components/asset-library.tsx`
 
 - `StudioAsset` already carries `conversationId`. Pass an optional
   `currentConversationId` and a `conversationTitles: Record<string, string>` (id → title)

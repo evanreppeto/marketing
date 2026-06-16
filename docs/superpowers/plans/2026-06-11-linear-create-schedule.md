@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give the board a Linear-grade, non-technical task-creation flow with a working Schedule control (one-time "when Mark starts"), keeping Mark/Hermes the named doer and the human the approver.
+**Goal:** Give the board a Linear-grade, non-technical task-creation flow with a working Schedule control (one-time "when Arc starts"), keeping Arc the named doer and the human the approver.
 
 **Architecture:** Pure scheduling math in `src/domain/task-schedule.ts` (now injected, unit-tested). A new `scheduled_for` column on `agent_tasks` (migration + hand-edited generated types). `createTaskAction` writes it. The read-model surfaces it. A redesigned client dialog (`new-task-dialog.tsx`) owns priority + "when" pill menus and renders BOTH the Schedule and New task buttons; the toolbar just mounts it. Queued cards show a subtle "Scheduled · …" chip.
 
@@ -109,7 +109,7 @@ Expected: FAIL — cannot resolve `../task-schedule`.
 Create `src/domain/task-schedule.ts`:
 
 ```ts
-/** Pure scheduling math for the board's "When should Mark start?" control.
+/** Pure scheduling math for the board's "When should Arc start?" control.
  *  `now` is injected so the logic stays deterministic and unit-tested. Times are
  *  computed in UTC for determinism; the external runner only gates on the value
  *  — it never authorizes outbound. */
@@ -207,16 +207,16 @@ git commit -m "feat(board): pure schedule preset helper"
 Create `supabase/migrations/20260611120000_agent_task_scheduled_for.sql`:
 
 ```sql
--- Add a one-time START gate for board tasks: when Mark should pick the task up.
+-- Add a one-time START gate for board tasks: when Arc should pick the task up.
 -- This gates start time ONLY. It never authorizes outbound — outbound stays
--- behind human approval. The external runner (Mark) must only claim queued
+-- behind human approval. The external runner (Arc) must only claim queued
 -- tasks where scheduled_for is null or <= now().
 
 alter table public.agent_tasks
   add column if not exists scheduled_for timestamptz;
 
 comment on column public.agent_tasks.scheduled_for is
-  'Optional one-time start gate. Mark only claims queued tasks where scheduled_for is null or <= now(). Gates start time only; never authorizes outbound.';
+  'Optional one-time start gate. Arc only claims queued tasks where scheduled_for is null or <= now(). Gates start time only; never authorizes outbound.';
 
 create index if not exists agent_tasks_scheduled_for_idx
   on public.agent_tasks (scheduled_for)
@@ -430,7 +430,7 @@ Replace the entire contents of `src/app/agent-operations/new-task-dialog.tsx` wi
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import { MarkAvatar } from "@/app/arc/_components/arc-avatar";
 import { formatScheduleLabel, resolveScheduledFor, type SchedulePreset } from "@/domain";
 
 import { createTaskAction } from "./actions";
@@ -549,14 +549,14 @@ export function NewTaskDialog() {
             <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] px-5 py-4">
               <MarkAvatar size={28} />
               <div>
-                <h2 className="text-sm font-bold text-[var(--text-primary)]">New task for Mark</h2>
-                <p className="text-xs text-[var(--text-muted)]">Mark prepares the work. You approve anything that goes out.</p>
+                <h2 className="text-sm font-bold text-[var(--text-primary)]">New task for Arc</h2>
+                <p className="text-xs text-[var(--text-muted)]">Arc prepares the work. You approve anything that goes out.</p>
               </div>
             </div>
 
             <div className="px-5 py-4">
               <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-                What should Mark work on?
+                What should Arc work on?
                 <textarea
                   autoFocus
                   name="objective"
@@ -824,7 +824,7 @@ Replace the bottom meta row (lines 387-395):
         {working ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-strong)]">
             <span className="kanban-presence" />
-            Mark · live
+            Arc · live
           </span>
         ) : null}
       </div>
@@ -842,7 +842,7 @@ with:
         {working ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-strong)]">
             <span className="kanban-presence" />
-            Mark · live
+            Arc · live
           </span>
         ) : null}
       </div>
@@ -891,7 +891,7 @@ Expected: no errors.
 
 Run `pnpm dev`, open `/board`:
 - Toolbar shows a ghost **Schedule** and a primary **New task** button (compact, Linear-scale). Pressing **C** (not while typing) opens the dialog.
-- Dialog: Mark's sphere + reassurance copy; "What should Mark work on?" textarea autofocused; **Priority** and **When** pill menus work; choosing "Pick date & time…" reveals a datetime field. ⌘/Ctrl+↵ submits; Esc closes the menu then the dialog.
+- Dialog: Arc's sphere + reassurance copy; "What should Arc work on?" textarea autofocused; **Priority** and **When** pill menus work; choosing "Pick date & time…" reveals a datetime field. ⌘/Ctrl+↵ submits; Esc closes the menu then the dialog.
 - **Schedule** button opens the same dialog with the When menu already open; the submit button reads "Schedule task" for any non-"Now" choice.
 - Create a task scheduled for tomorrow → the new queued card shows a "Scheduled · Tomorrow, 9:00 AM" chip. Create one with "Now" → no chip.
 - Existing drag-and-drop, demo toggle, and approval guardrails still work.

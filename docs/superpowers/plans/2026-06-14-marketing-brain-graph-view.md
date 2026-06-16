@@ -163,14 +163,14 @@ git commit -m "feat(brain): full-graph read-model with dangling-edge pruning"
 
 ---
 
-## Task 3: graph.json export — Hermes endpoint (TDD)
+## Task 3: graph.json export — Arc endpoint (TDD)
 
 **Files:**
-- Modify: `src/lib/hermes-api/brain.ts` — add `markGraphExport`.
-- Modify: `src/lib/hermes-api/__tests__/brain.test.ts` — add a test.
-- Create: `src/app/api/v1/hermes/brain/graph/route.ts`.
+- Modify: `src/lib/arc-api/brain.ts` — add `markGraphExport`.
+- Modify: `src/lib/arc-api/__tests__/brain.test.ts` — add a test.
+- Create: `src/app/api/v1/arc/brain/graph/route.ts`.
 
-- [ ] **Step 1 — add the test** to `src/lib/hermes-api/__tests__/brain.test.ts`:
+- [ ] **Step 1 — add the test** to `src/lib/arc-api/__tests__/brain.test.ts`:
 
 ```ts
 // add this import at the top alongside the existing ones:
@@ -191,9 +191,9 @@ describe("markGraphExport", () => {
 });
 ```
 
-- [ ] **Step 2 — run, expect fail:** `npx vitest run src/lib/hermes-api/__tests__/brain.test.ts`.
+- [ ] **Step 2 — run, expect fail:** `npx vitest run src/lib/arc-api/__tests__/brain.test.ts`.
 
-- [ ] **Step 3 — implement `markGraphExport`** in `src/lib/hermes-api/brain.ts` (append):
+- [ ] **Step 3 — implement `markGraphExport`** in `src/lib/arc-api/brain.ts` (append):
 
 ```ts
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
@@ -220,15 +220,15 @@ export async function markGraphExport(deps: ApiDeps = {}): Promise<GraphExport> 
 ```
 > `ApiDeps` already exists in this file. If `ReturnType<typeof toExportNode>` ordering causes a TS "used before declaration" issue, declare `toExportNode` above the type alias or give `nodes` an explicit inline type.
 
-- [ ] **Step 4 — route.** Create `src/app/api/v1/hermes/brain/graph/route.ts`:
+- [ ] **Step 4 — route.** Create `src/app/api/v1/arc/brain/graph/route.ts`:
 
 ```ts
-import { fail, guard, ok } from "@/app/api/v1/hermes/_lib/http";
-import { markGraphExport } from "@/lib/hermes-api/brain";
+import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { markGraphExport } from "@/lib/arc-api/brain";
 
 /**
- * Mark/portable tools fetch the whole brain as a graph.json artifact.
- *   GET /api/v1/hermes/brain/graph  ->  { nodes, links }
+ * Arc/portable tools fetch the whole brain as a graph.json artifact.
+ *   GET /api/v1/arc/brain/graph  ->  { nodes, links }
  */
 export async function GET(request: Request) {
   const denied = await guard(request);
@@ -243,10 +243,10 @@ export async function GET(request: Request) {
 }
 ```
 
-- [ ] **Step 5 — run tests + typecheck + commit:** `npx vitest run src/lib/hermes-api/__tests__/brain.test.ts` (pass), `npx tsc --noEmit` (clean), then
+- [ ] **Step 5 — run tests + typecheck + commit:** `npx vitest run src/lib/arc-api/__tests__/brain.test.ts` (pass), `npx tsc --noEmit` (clean), then
 ```
-git add src/lib/hermes-api/brain.ts src/lib/hermes-api/__tests__/brain.test.ts src/app/api/v1/hermes/brain/graph
-git commit -m "feat(brain): graph.json export endpoint (GET hermes/brain/graph)"
+git add src/lib/arc-api/brain.ts src/lib/arc-api/__tests__/brain.test.ts src/app/api/v1/arc/brain/graph
+git commit -m "feat(brain): graph.json export endpoint (GET arc/brain/graph)"
 ```
 
 ---
@@ -276,7 +276,7 @@ Requirements:
 - Controls bar (above the canvas): a search input; filter chips for kinds and trust tiers (toggle); a **"Download graph.json"** button that builds `{ nodes, links }` from the current full props (not the filtered view) and triggers a client-side download via a `Blob` + temporary `<a>`.
 - A **detail side panel** when a node is selected: kind, label, body, persona, refs (link to `/crm/{refTable}/{refId}` when present), and a neighbor list (compute from `edges`). When the selected node's `trustTier === "proposed"`, show **Approve** / **Reject** buttons that call `approveNodeAction`/`rejectNodeAction` from `@/app/brain/actions` inside a `useTransition`; on success, update that node's `trustTier` locally (approve → `trusted`, reject → remove/dim).
 - Sizes to its container: wrap the canvas in a `div` with a `ref` + `ResizeObserver` (or a fixed responsive height like `h-[70vh]`), passing explicit `width`/`height` to `ForceGraph2D`.
-- Empty state (no nodes): a `Panel`/message telling the operator to seed or let Mark populate the brain.
+- Empty state (no nodes): a `Panel`/message telling the operator to seed or let Arc populate the brain.
 - DESIGN.md: charcoal canvas background (`backgroundColor` prop using the surface token's resolved color or a dark hex consistent with the app), restoration-red accents, no neon.
 
 - [ ] **Build it, then verify it compiles:** `cd "C:/Users/evanr/marketing-brain-pr"; npx tsc --noEmit` (clean) and `npx eslint src/app/brain/_components/brain-graph.tsx` (no errors). The full render is verified in Task 5 via `pnpm build`.
@@ -326,7 +326,7 @@ export default async function BrainPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Marketing Brain"
-        description={`Mark's durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
+        description={`Arc's durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
       />
       <BrainGraph nodes={graphNodes} edges={graphEdges} />
       <ApprovalQueue nodes={proposedNodes} />
@@ -341,7 +341,7 @@ export default async function BrainPage() {
 `react-force-graph-2d` import during SSR/prerender, ensure the dynamic import has `ssr:false`
 and that no force-graph type/import is evaluated at module scope on the server. The page is
 `force-dynamic`, so it won't be statically prerendered.
-- [ ] **Step 3 — lint + full tests:** `npx eslint src/app/brain src/lib/knowledge-graph src/lib/hermes-api/brain.ts src/app/api/v1/hermes/brain` (clean) and `npx vitest run` (all pass).
+- [ ] **Step 3 — lint + full tests:** `npx eslint src/app/brain src/lib/knowledge-graph src/lib/arc-api/brain.ts src/app/api/v1/arc/brain` (clean) and `npx vitest run` (all pass).
 - [ ] **Step 4 — commit:**
 ```
 git add src/app/brain/page.tsx

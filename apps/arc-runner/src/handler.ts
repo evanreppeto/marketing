@@ -1,17 +1,17 @@
 import { runArc } from "./arc";
 import type { Config } from "./config";
-import type { HermesClient } from "./hermes-client";
-import type { MarkChatMessagePayload } from "./types";
+import type { ArcClient } from "./arc-client";
+import type { ArcChatMessagePayload } from "./types";
 
 /**
  * Handle one operator chat message: run it through Arc (Claude Agent SDK, on your
  * subscription) and post the reply back to the app, which resolves the pending
- * bubble in /mark. Outbound stays locked — this only records a chat reply.
+ * bubble in /arc. Outbound stays locked — this only records a chat reply.
  */
 export async function handleChatMessage(
-  client: HermesClient,
+  client: ArcClient,
   config: Config,
-  payload: MarkChatMessagePayload,
+  payload: ArcChatMessagePayload,
 ): Promise<void> {
   console.log(`[arc-runner] wake received → running Arc for task ${payload.agentTaskId} (model=${config.model})`);
   const started = Date.now();

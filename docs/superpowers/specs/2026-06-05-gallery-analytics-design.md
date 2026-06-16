@@ -19,7 +19,7 @@ work, now unblocked because the Outbox produces dispatch data.
 
 ## Context (current state)
 
-- **Mark/Hermes is deterministic** — no live LLM anywhere. Irrelevant to this
+- **Arc is deterministic** — no live LLM anywhere. Irrelevant to this
   feature (read + ingest only), but rules out "AI-generated insights."
 - **Live campaigns** are identified by `lifecycle === "Live"` (`launch_locked =
   false`), computed by `buildLaunchState` in `src/lib/campaigns/read-model.ts`.
@@ -171,7 +171,7 @@ Supabase.
 
 - A separate ads table / ads CRUD — ads remain `campaign_assets`.
 - Live ad-platform OAuth integrations — ingest is API + seed.
-- AI-generated insights/commentary (Mark is deterministic).
+- AI-generated insights/commentary (Arc is deterministic).
 - Per-asset (ad-level) analytics drill-down — Phase 1 is campaign-level
   (`campaign_results.campaign_asset_id` is captured at ingest for a future
   ad-level view, but not surfaced now).

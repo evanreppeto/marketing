@@ -45,7 +45,7 @@ honoring per-piece approval.
 A campaign's **pieces** = its deliverables, one per `campaign_asset`.
 
 The roll-up is **decision-centric**: each piece's **effective status** is the status of its
-linked `approval_items` record if one exists; otherwise the piece is **draft** (Mark produced
+linked `approval_items` record if one exists; otherwise the piece is **draft** (Arc produced
 it but never submitted it for a decision), regardless of the asset's own row status. (Linkage
 is `approval_items.campaign_asset_id = campaign_assets.id`, already loaded by the read-model.)
 This means an asset whose row reads `pending_approval` but has no approval item does **not**

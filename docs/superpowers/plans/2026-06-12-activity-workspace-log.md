@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `/activity` as a readable workspace log that shows human actions, Hermes work, approvals, risks, CRM/campaign changes, and marketing progress in one simple timeline.
+**Goal:** Build `/activity` as a readable workspace log that shows human actions, Arc work, approvals, risks, CRM/campaign changes, and marketing progress in one simple timeline.
 
 **Architecture:** Extend the existing `src/lib/activity/read-model.ts` read model so all filtering, mapping, summary counts, and date grouping are pure and testable. Then add a server-rendered App Router page that uses existing `PageHeader`, `MetricStrip`, `WorkspacePanel`, `EmptyState`, `StatusPill`, and query-param filter patterns. Add a nav icon and nav item last so the route becomes discoverable only after the page works.
 
@@ -23,7 +23,7 @@ Do not implement future-work items from the spec:
 - No detail drawer.
 - No export flow.
 - No saved views.
-- No "Ask Hermes what happened this week" action.
+- No "Ask Arc what happened this week" action.
 - No alert rules.
 - No real-time feed.
 - No write actions.
@@ -63,7 +63,7 @@ Use these public types in `src/lib/activity/read-model.ts`:
 ```ts
 export type ActivityKind = "decision" | "run" | "draft" | "campaign" | "event";
 export type ActivityTone = "green" | "red" | "amber" | "blue" | "gray";
-export type ActivityActorType = "human" | "hermes" | "sub_agent" | "integration" | "system";
+export type ActivityActorType = "human" | "arc" | "sub_agent" | "integration" | "system";
 export type ActivityCategory = "approval" | "campaign" | "crm" | "asset" | "agent" | "integration" | "risk" | "system";
 export type ActivityInsightLabel =
   | "Needs review"
@@ -178,8 +178,8 @@ function entry(
     tone: "blue",
     title: id,
     detail: "",
-    actor: "Hermes",
-    actorType: "hermes",
+    actor: "Arc",
+    actorType: "arc",
     category: "agent",
     insightLabel: "Agent work",
     relatedLabel: null,
@@ -222,8 +222,8 @@ describe("applyActivityFilters", () => {
       insightLabel: "Needs review",
     }),
     entry("risk", "2026-06-11T14:00:00Z", {
-      actor: "Hermes",
-      actorType: "hermes",
+      actor: "Arc",
+      actorType: "arc",
       category: "risk",
       tone: "red",
       title: "Compliance blocked one SMS draft",
@@ -261,7 +261,7 @@ describe("applyActivityFilters", () => {
 
   it("searches title, detail, actor, related label, category, and insight label", () => {
     expect(applyActivityFilters(entries, { search: "launch" }).map((item) => item.id)).toEqual(["approval"]);
-    expect(applyActivityFilters(entries, { search: "hermes" }).map((item) => item.id)).toEqual(["risk"]);
+    expect(applyActivityFilters(entries, { search: "arc" }).map((item) => item.id)).toEqual(["risk"]);
     expect(applyActivityFilters(entries, { search: "spring" }).map((item) => item.id)).toEqual(["campaign"]);
     expect(applyActivityFilters(entries, { search: "marketing progress" }).map((item) => item.id)).toEqual(["campaign"]);
     expect(applyActivityFilters(entries, { search: "approval" }).map((item) => item.id)).toEqual(["approval"]);
@@ -282,9 +282,9 @@ describe("buildActivitySummary", () => {
         insightLabel: "Needs review",
         actorType: "human",
       }),
-      entry("hermes", "2026-06-12T13:00:00Z", {
+      entry("arc", "2026-06-12T13:00:00Z", {
         category: "agent",
-        actorType: "hermes",
+        actorType: "arc",
         insightLabel: "Agent work",
       }),
       entry("campaign", "2026-06-12T12:00:00Z", {
@@ -510,7 +510,7 @@ export function applyActivityFilters(entries: ActivityEntry[], query: ActivityQu
 export function buildActivitySummary(entries: ActivityEntry[]): ActivitySummary {
   return {
     needsReview: entries.filter((entry) => entry.insightLabel === "Needs review").length,
-    hermesActions: entries.filter((entry) => entry.actorType === "hermes" || entry.actorType === "sub_agent").length,
+    hermesActions: entries.filter((entry) => entry.actorType === "arc" || entry.actorType === "sub_agent").length,
     campaignProgress: entries.filter((entry) => entry.category === "campaign" || entry.insightLabel === "Marketing progress").length,
     blockedOrRisky: entries.filter((entry) => entry.category === "risk" || entry.tone === "red" || entry.insightLabel === "Risk blocked").length,
   };
@@ -553,7 +553,7 @@ For `mapRun`, add:
 For `mapOutput`, add:
 
 ```ts
-    actorType: "hermes",
+    actorType: "arc",
     category: outputTone(`${compliance} ${approval} ${risk}`) === "red" ? "risk" : "asset",
     insightLabel: approval.toLowerCase().includes("approved") ? "Marketing progress" : "Needs review",
     relatedLabel: str(row.title) ?? titleize(str(row.output_type) ?? "Draft"),
@@ -638,13 +638,13 @@ function displayActor(value: string | null): string {
   if (!value) return "System";
   const normalized = value.toLowerCase();
   if (normalized.includes("system.") || normalized.includes("_process")) return "System";
-  if (normalized.includes("hermes") || normalized.includes("mark")) return "Hermes";
+  if (normalized.includes("arc") || normalized.includes("arc")) return "Arc";
   return value;
 }
 
 function actorTypeFromActor(actor: string | null): ActivityActorType {
   const value = (actor ?? "").toLowerCase();
-  if (value.includes("hermes") || value.includes("mark")) return "hermes";
+  if (value.includes("arc") || value.includes("arc")) return "arc";
   if (value.includes("integration")) return "integration";
   if (value === "system" || value.includes("system")) return "system";
   if (value.includes("agent")) return "sub_agent";
@@ -653,9 +653,9 @@ function actorTypeFromActor(actor: string | null): ActivityActorType {
 
 function agentActorType(model: string | null): ActivityActorType {
   const value = (model ?? "").toLowerCase();
-  if (value.includes("hermes") || value.includes("mark")) return "hermes";
+  if (value.includes("arc") || value.includes("arc")) return "arc";
   if (value.includes("agent")) return "sub_agent";
-  return "hermes";
+  return "arc";
 }
 
 function eventTone(eventType: string): ActivityTone {
@@ -758,11 +758,11 @@ type ActivityPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-const categoryFilters: Array<{ label: string; value: ActivityCategory | "all" | "needs-review" | "humans" | "hermes" }> = [
+const categoryFilters: Array<{ label: string; value: ActivityCategory | "all" | "needs-review" | "humans" | "arc" }> = [
   { label: "All", value: "all" },
   { label: "Needs review", value: "needs-review" },
   { label: "Humans", value: "humans" },
-  { label: "Hermes", value: "hermes" },
+  { label: "Arc", value: "arc" },
   { label: "Approvals", value: "approval" },
   { label: "Campaigns", value: "campaign" },
   { label: "CRM", value: "crm" },
@@ -814,14 +814,14 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
             href: activity.summary.needsReview > 0 ? "/activity?filter=needs-review" : undefined,
           },
           {
-            label: "Hermes actions",
+            label: "Arc actions",
             value: activity.summary.hermesActions,
             detail:
               activity.summary.hermesActions > 0
                 ? `${activity.summary.hermesActions} ${plural(activity.summary.hermesActions, "agent action")} in this view.`
-                : "No Hermes work in this range.",
+                : "No Arc work in this range.",
             tone: activity.summary.hermesActions > 0 ? "blue" : "gray",
-            href: activity.summary.hermesActions > 0 ? "/activity?filter=hermes" : undefined,
+            href: activity.summary.hermesActions > 0 ? "/activity?filter=arc" : undefined,
           },
           {
             label: "Campaign progress",
@@ -848,7 +848,7 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
 
       <WorkspacePanel
         title="Workspace log"
-        description="A plain-English record of what people, Hermes, integrations, and the system have done across the workspace."
+        description="A plain-English record of what people, Arc, integrations, and the system have done across the workspace."
         aside={<ResultCount count={activity.entries.length} />}
       >
         <ActivityFilters selectedFilter={selectedFilter} selectedRange={selectedRange} search={search} />
@@ -886,7 +886,7 @@ function ActivityHeader() {
       <PageHeader
         eyebrow="Workspace log"
         title="Activity"
-        description="A clear record of human actions, Hermes work, approvals, risks, and marketing progress."
+        description="A clear record of human actions, Arc work, approvals, risks, and marketing progress."
       />
     </div>
   );
@@ -1008,7 +1008,7 @@ function buildActivityQuery(filter: string, range: string, search: string): Acti
 
   if (filter === "needs-review") query.search = mergeSearch(search, "Needs review");
   else if (filter === "humans") query.actorTypes = ["human"];
-  else if (filter === "hermes") query.actorTypes = ["hermes", "sub_agent"];
+  else if (filter === "arc") query.actorTypes = ["arc", "sub_agent"];
   else if (isCategory(filter)) query.categories = [filter];
 
   const bounds = rangeBounds(range);
@@ -1055,7 +1055,7 @@ function activityHref({ filter, range, q }: { filter: string; range: string; q: 
 
 function actorLabel(actorType: ActivityActorType) {
   if (actorType === "human") return "Human";
-  if (actorType === "hermes") return "Hermes";
+  if (actorType === "arc") return "Arc";
   if (actorType === "sub_agent") return "Sub-agent";
   if (actorType === "integration") return "Integration";
   return "System";
@@ -1128,13 +1128,13 @@ Expected: Commit includes only the new route file.
 Change:
 
 ```ts
-export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "mark" | "settings" | "board" | "analytics";
+export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "arc" | "settings" | "board" | "analytics";
 ```
 
 to:
 
 ```ts
-export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "mark" | "settings" | "board" | "analytics" | "activity";
+export type NavIconName = "campaigns" | "crm" | "outbox" | "gallery" | "arc" | "settings" | "board" | "analytics" | "activity";
 ```
 
 - [ ] **Step 2: Add the activity icon path**
@@ -1158,7 +1158,7 @@ In `src/app/_components/console-frame.tsx`, change the nav items to include Acti
 
 ```ts
   const navItems: ShellNavItem[] = [
-    { label: agentName, href: "/mark", icon: "mark", matches: ["/mark", "/"] },
+    { label: agentName, href: "/arc", icon: "arc", matches: ["/arc", "/"] },
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
@@ -1252,7 +1252,7 @@ Expected:
 Open these URLs:
 
 ```text
-/activity?filter=hermes
+/activity?filter=arc
 /activity?filter=risk
 /activity?range=today
 /activity?q=campaign
@@ -1290,7 +1290,7 @@ Expected: Only unrelated pre-existing worktree changes remain. The Activity impl
 Spec coverage:
 
 - Plain-English readable rows: Task 3 mapper changes and Task 4 `ActivityRow`.
-- Human/Hermes/integration/system actors: Task 3 actor fields and Task 4 row labels.
+- Human/Arc/integration/system actors: Task 3 actor fields and Task 4 row labels.
 - Summary tiles: Task 3 `buildActivitySummary` and Task 4 `MetricStrip`.
 - Filters/search/date range: Task 3 `applyActivityFilters` and Task 4 `ActivityFilters`.
 - Timeline grouped by day: Task 3 `groupActivityEntriesByDay` and Task 4 grouped rendering.

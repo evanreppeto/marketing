@@ -36,7 +36,7 @@ function assertOk(label: string, error: { message: string } | null) {
 /**
  * Queue an operator chat message as an agent_task for Arc. Arc's reply comes
  * back via POST /api/v1/arc/messages. Outbound stays locked. Returns the new
- * task id, or throws if no Arc/Arc agent is registered yet.
+ * task id, or throws if no Arc agent is registered yet.
  */
 export async function enqueueArcChatTask(
   input: EnqueueChatTaskInput,

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a property-graph "marketing brain" (knowledge_nodes + knowledge_edges) that Hermes/Mark reads and writes as durable memory, with a tiered trust model gating outbound-governing knowledge behind operator approval.
+**Goal:** Build a property-graph "marketing brain" (knowledge_nodes + knowledge_edges) that Arc reads and writes as durable memory, with a tiered trust model gating outbound-governing knowledge behind operator approval.
 
-**Architecture:** Generic node/edge overlay in Supabase that references existing CRM/campaign rows instead of copying them. Pure validation + trust logic in `src/domain/knowledge-graph.ts`; persistence + read-model in `src/lib/knowledge-graph/`; bearer-gated Hermes write/query API; an operator `/brain` page (curation list + approval queue). Follows the existing vault/campaigns/interactions reference shape exactly.
+**Architecture:** Generic node/edge overlay in Supabase that references existing CRM/campaign rows instead of copying them. Pure validation + trust logic in `src/domain/knowledge-graph.ts`; persistence + read-model in `src/lib/knowledge-graph/`; bearer-gated Arc write/query API; an operator `/brain` page (curation list + approval queue). Follows the existing vault/campaigns/interactions reference shape exactly.
 
 **Tech Stack:** Next.js 16 (App Router, server components + `"use server"` actions), React 19, Supabase (service-role admin client, RLS as defense-in-depth), TypeScript, Vitest. Package manager **pnpm**.
 
@@ -30,11 +30,11 @@
 - `src/lib/knowledge-graph/persistence.test.ts` — persistence unit tests.
 - `src/lib/knowledge-graph/read-model.ts` — list/get/queue/summary/graph reads.
 - `src/lib/knowledge-graph/read-model.test.ts` — read-model unit tests.
-- `src/lib/hermes-api/brain.ts` — Hermes-facing create-node / create-edge / query logic.
-- `src/lib/hermes-api/__tests__/brain.test.ts` — Hermes API logic tests.
-- `src/app/api/v1/hermes/brain/nodes/route.ts` — `POST` create/upsert node.
-- `src/app/api/v1/hermes/brain/edges/route.ts` — `POST` create edge.
-- `src/app/api/v1/hermes/brain/query/route.ts` — `POST` query the brain.
+- `src/lib/arc-api/brain.ts` — Arc-facing create-node / create-edge / query logic.
+- `src/lib/arc-api/__tests__/brain.test.ts` — Arc API logic tests.
+- `src/app/api/v1/arc/brain/nodes/route.ts` — `POST` create/upsert node.
+- `src/app/api/v1/arc/brain/edges/route.ts` — `POST` create edge.
+- `src/app/api/v1/arc/brain/query/route.ts` — `POST` query the brain.
 - `src/app/brain/page.tsx` — operator curation + approval page.
 - `src/app/brain/actions.ts` — `"use server"` operator actions.
 - `src/app/brain/_components/approval-queue.tsx` — proposed-node cards with approve/reject.
@@ -60,7 +60,7 @@ Create `supabase/migrations/20260612210000_marketing_brain_knowledge_graph.sql`:
 
 ```sql
 -- Marketing Brain knowledge graph.
--- Generic property-graph overlay for Hermes/Mark's durable marketing memory:
+-- Generic property-graph overlay for Arc's durable marketing memory:
 -- knowledge_nodes (brand facts, personas, proof, learnings, signals) + typed
 -- knowledge_edges. Nodes REFERENCE existing typed rows (ref_table/ref_id) rather
 -- than copying them, so the CRM/campaign tables stay the system of record.
@@ -388,13 +388,13 @@ describe("resolveInitialTrustTier", () => {
     expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "operator" })).toBe("trusted");
     expect(resolveInitialTrustTier({ kind: "learning", createdBy: "operator" })).toBe("trusted");
   });
-  it("proposes gated kinds Mark creates", () => {
-    expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "mark" })).toBe("proposed");
-    expect(resolveInitialTrustTier({ kind: "cta", createdBy: "mark" })).toBe("proposed");
+  it("proposes gated kinds Arc creates", () => {
+    expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "arc" })).toBe("proposed");
+    expect(resolveInitialTrustTier({ kind: "cta", createdBy: "arc" })).toBe("proposed");
   });
-  it("lets Mark observe non-gated kinds freely", () => {
-    expect(resolveInitialTrustTier({ kind: "learning", createdBy: "mark" })).toBe("observed");
-    expect(resolveInitialTrustTier({ kind: "signal", createdBy: "mark" })).toBe("observed");
+  it("lets Arc observe non-gated kinds freely", () => {
+    expect(resolveInitialTrustTier({ kind: "learning", createdBy: "arc" })).toBe("observed");
+    expect(resolveInitialTrustTier({ kind: "signal", createdBy: "arc" })).toBe("observed");
   });
 });
 
@@ -530,7 +530,7 @@ export const REFERENCEABLE_TABLES = [
 ] as const;
 export type ReferenceableTable = (typeof REFERENCEABLE_TABLES)[number];
 
-export type NodeAuthor = "mark" | "operator";
+export type NodeAuthor = "arc" | "operator";
 export type ApprovalDecision = "approve" | "reject";
 
 export type KnowledgeNodeInput = {
@@ -579,7 +579,7 @@ export function isEdgeRelation(value: unknown): value is EdgeRelation {
 
 /**
  * Initial trust tier for a new node. Operator writes are trusted immediately;
- * Mark's gated kinds enter the approval queue (proposed); Mark's other kinds are
+ * Arc's gated kinds enter the approval queue (proposed); Arc's other kinds are
  * recorded as observed (usable internally, flagged as not operator-verified).
  */
 export function resolveInitialTrustTier(args: { kind: NodeKind; createdBy: NodeAuthor }): TrustTier {
@@ -734,7 +734,7 @@ git commit -m "feat(brain): domain vocabulary, validation, and trust logic"
 - Create: `src/lib/knowledge-graph/persistence.ts`
 - Test: `src/lib/knowledge-graph/persistence.test.ts`
 
-The Mark-facing create paths must NEVER accept a caller-supplied trusted tier for gated kinds — the tier is always derived from `resolveInitialTrustTier`. Functions accept an injectable `client` and `orgId` for testability (default to the admin client + `getCurrentOrgId()`).
+The Arc-facing create paths must NEVER accept a caller-supplied trusted tier for gated kinds — the tier is always derived from `resolveInitialTrustTier`. Functions accept an injectable `client` and `orgId` for testability (default to the admin client + `getCurrentOrgId()`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -757,27 +757,27 @@ function insertPayload(supabase: ReturnType<typeof createSupabaseQueryMock>) {
 }
 
 describe("createNode", () => {
-  it("forces Mark's brand_fact to proposed and stamps created_by", async () => {
+  it("forces Arc's brand_fact to proposed and stamps created_by", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: { id: "n-1" }, error: null } });
 
     const result = await createNode(
       { kind: "brand_fact", label: "We answer 24/7" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
 
     expect(result).toEqual({ ok: true, id: "n-1" });
     const payload = insertPayload(supabase)!;
     expect(payload.trust_tier).toBe("proposed");
-    expect(payload.created_by).toBe("mark");
+    expect(payload.created_by).toBe("arc");
     expect(payload.org_id).toBe(ORG);
     expect(payload.approved_by).toBeNull();
   });
 
-  it("records Mark's learning as observed", async () => {
+  it("records Arc's learning as observed", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: { id: "n-2" }, error: null } });
     await createNode(
       { kind: "learning", label: "Emergency persona replies fastest by SMS" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(insertPayload(supabase)!.trust_tier).toBe("observed");
   });
@@ -797,7 +797,7 @@ describe("createNode", () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: null, error: null } });
     const result = await createNode(
       { kind: "nonsense", label: "" } as never,
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(result.ok).toBe(false);
     expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
@@ -805,11 +805,11 @@ describe("createNode", () => {
 });
 
 describe("createEdge", () => {
-  it("inserts a validated edge as observed for Mark", async () => {
+  it("inserts a validated edge as observed for Arc", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_edges: { data: { id: "e-1" }, error: null } });
     const result = await createEdge(
       { fromNodeId: "a", toNodeId: "b", relation: "proves" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(result).toEqual({ ok: true, id: "e-1" });
     const payload = insertPayload(supabase)!;
@@ -821,7 +821,7 @@ describe("createEdge", () => {
     const supabase = createSupabaseQueryMock({ knowledge_edges: { data: null, error: null } });
     const result = await createEdge(
       { fromNodeId: "a", toNodeId: "a", relation: "proves" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(result.ok).toBe(false);
     expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
@@ -876,7 +876,7 @@ const NOT_CONFIGURED = "Supabase is not configured, so nothing was written.";
 type WriteDeps = {
   client?: TypedSupabaseClient;
   orgId?: string;
-  /** "mark" gates gated kinds to proposed; "operator" trusts immediately. */
+  /** "arc" gates gated kinds to proposed; "operator" trusts immediately. */
   createdBy?: NodeAuthor;
   /** Display name stamped as approver when an operator creates a trusted node. */
   actor?: string;
@@ -895,9 +895,9 @@ export async function createNode(input: KnowledgeNodeInput, deps: WriteDeps = {}
   const resolved = await resolveDeps(deps);
   if (!resolved) return { ok: false, error: NOT_CONFIGURED };
   const { client, orgId } = resolved;
-  const createdBy = deps.createdBy ?? "mark";
+  const createdBy = deps.createdBy ?? "arc";
   const value = parsed.value;
-  // Tier is ALWAYS derived — never trusted from the caller. Mark cannot self-approve.
+  // Tier is ALWAYS derived — never trusted from the caller. Arc cannot self-approve.
   const trustTier = resolveInitialTrustTier({ kind: value.kind, createdBy });
   const approvedBy = trustTier === "trusted" && createdBy === "operator" ? deps.actor ?? "Operator" : null;
 
@@ -972,7 +972,7 @@ export async function createEdge(input: KnowledgeEdgeInput, deps: WriteDeps = {}
   const resolved = await resolveDeps(deps);
   if (!resolved) return { ok: false, error: NOT_CONFIGURED };
   const { client, orgId } = resolved;
-  const createdBy = deps.createdBy ?? "mark";
+  const createdBy = deps.createdBy ?? "arc";
   const trustTier = createdBy === "operator" ? "trusted" : "observed";
 
   const { data, error } = await client
@@ -1366,17 +1366,17 @@ git commit -m "feat(brain): knowledge-graph read-model with graceful degradation
 
 ---
 
-## Task 6: Hermes API logic (TDD)
+## Task 6: Arc API logic (TDD)
 
 **Files:**
-- Create: `src/lib/hermes-api/brain.ts`
-- Test: `src/lib/hermes-api/__tests__/brain.test.ts`
+- Create: `src/lib/arc-api/brain.ts`
+- Test: `src/lib/arc-api/__tests__/brain.test.ts`
 
-Thin orchestration over the persistence layer for the API routes. Mark's writes always pass `createdBy: "mark"`. A query helper reads the brain.
+Thin orchestration over the persistence layer for the API routes. Arc's writes always pass `createdBy: "arc"`. A query helper reads the brain.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `src/lib/hermes-api/__tests__/brain.test.ts`:
+Create `src/lib/arc-api/__tests__/brain.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -1388,7 +1388,7 @@ import { markCreateNode, markCreateEdge } from "../brain";
 const ORG = "org-1";
 
 describe("markCreateNode", () => {
-  it("creates a brand_fact as proposed (Mark can never self-trust)", async () => {
+  it("creates a brand_fact as proposed (Arc can never self-trust)", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: { id: "n-1" }, error: null } });
     const result = await markCreateNode(
       { kind: "brand_fact", label: "We answer 24/7", trust_tier: "trusted" },
@@ -1397,7 +1397,7 @@ describe("markCreateNode", () => {
     expect(result).toEqual({ ok: true, id: "n-1" });
     const insert = supabase.calls.find(([m]) => m === "insert") as [string, Record<string, unknown>];
     expect(insert[1].trust_tier).toBe("proposed");
-    expect(insert[1].created_by).toBe("mark");
+    expect(insert[1].created_by).toBe("arc");
   });
 
   it("returns a validation error for an unknown kind", async () => {
@@ -1421,12 +1421,12 @@ describe("markCreateEdge", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `pnpm test src/lib/hermes-api/__tests__/brain.test.ts`
+Run: `pnpm test src/lib/arc-api/__tests__/brain.test.ts`
 Expected: FAIL — cannot resolve `../brain`.
 
 - [ ] **Step 3: Write the implementation**
 
-Create `src/lib/hermes-api/brain.ts`:
+Create `src/lib/arc-api/brain.ts`:
 
 ```ts
 import { type NodeKind, type EdgeRelation } from "@/domain";
@@ -1436,7 +1436,7 @@ import { listNodes, type NodeFilters } from "@/lib/knowledge-graph/read-model";
 
 type ApiDeps = { client?: TypedSupabaseClient; orgId?: string };
 
-/** Mark creates a node — always created_by "mark"; gated kinds are forced to proposed. */
+/** Arc creates a node — always created_by "arc"; gated kinds are forced to proposed. */
 export async function markCreateNode(
   payload: Record<string, unknown>,
   deps: ApiDeps = {},
@@ -1452,12 +1452,12 @@ export async function markCreateNode(
       key: (payload.key as string) ?? null,
       refTable: (payload.ref_table as never) ?? null,
       refId: (payload.ref_id as string) ?? null,
-      source: (payload.source as string) ?? "mark",
+      source: (payload.source as string) ?? "arc",
       sourceReference: (payload.source_reference as string) ?? null,
       tags: Array.isArray(payload.tags) ? (payload.tags as string[]) : [],
       props: (payload.props as Record<string, unknown>) ?? {},
     },
-    { ...deps, createdBy: "mark" },
+    { ...deps, createdBy: "arc" },
   );
 }
 
@@ -1471,14 +1471,14 @@ export async function markCreateEdge(
       toNodeId: payload.to_node_id as string,
       relation: payload.relation as EdgeRelation,
       weight: (payload.weight as number) ?? null,
-      source: (payload.source as string) ?? "mark",
+      source: (payload.source as string) ?? "arc",
       props: (payload.props as Record<string, unknown>) ?? {},
     },
-    { ...deps, createdBy: "mark" },
+    { ...deps, createdBy: "arc" },
   );
 }
 
-/** Mark reads its brain for reasoning context. */
+/** Arc reads its brain for reasoning context. */
 export async function markQueryBrain(payload: Record<string, unknown>, deps: ApiDeps = {}) {
   const filters: NodeFilters = {
     kind: typeof payload.kind === "string" ? payload.kind : undefined,
@@ -1494,41 +1494,41 @@ export async function markQueryBrain(payload: Record<string, unknown>, deps: Api
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `pnpm test src/lib/hermes-api/__tests__/brain.test.ts`
+Run: `pnpm test src/lib/arc-api/__tests__/brain.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/hermes-api/brain.ts src/lib/hermes-api/__tests__/brain.test.ts
-git commit -m "feat(brain): Hermes API brain logic (create node/edge, query)"
+git add src/lib/arc-api/brain.ts src/lib/arc-api/__tests__/brain.test.ts
+git commit -m "feat(brain): Arc API brain logic (create node/edge, query)"
 ```
 
 ---
 
-## Task 7: Hermes API routes
+## Task 7: Arc API routes
 
 **Files:**
-- Create: `src/app/api/v1/hermes/brain/nodes/route.ts`
-- Create: `src/app/api/v1/hermes/brain/edges/route.ts`
-- Create: `src/app/api/v1/hermes/brain/query/route.ts`
+- Create: `src/app/api/v1/arc/brain/nodes/route.ts`
+- Create: `src/app/api/v1/arc/brain/edges/route.ts`
+- Create: `src/app/api/v1/arc/brain/query/route.ts`
 
-Each route uses the shared `guard` (bearer + Supabase) and `ok`/`fail`/`readJson` helpers from `@/app/api/v1/hermes/_lib/http`, matching `crm/interactions/route.ts`.
+Each route uses the shared `guard` (bearer + Supabase) and `ok`/`fail`/`readJson` helpers from `@/app/api/v1/arc/_lib/http`, matching `crm/interactions/route.ts`.
 
 - [ ] **Step 1: Write the nodes route**
 
-Create `src/app/api/v1/hermes/brain/nodes/route.ts`:
+Create `src/app/api/v1/arc/brain/nodes/route.ts`:
 
 ```ts
-import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/hermes/_lib/http";
-import { markCreateNode } from "@/lib/hermes-api/brain";
+import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { markCreateNode } from "@/lib/arc-api/brain";
 
 /**
- * Mark writes a node into its marketing brain. Gated kinds (brand_fact,
- * messaging_angle, cta, proof_point) are ALWAYS forced to `proposed` — Mark
+ * Arc writes a node into its marketing brain. Gated kinds (brand_fact,
+ * messaging_angle, cta, proof_point) are ALWAYS forced to `proposed` — Arc
  * cannot self-approve. No outbound side effects.
  *
- *   POST /api/v1/hermes/brain/nodes
+ *   POST /api/v1/arc/brain/nodes
  *   { "kind": "brand_fact", "label": "...", "body": "...", ... }
  */
 export async function POST(request: Request) {
@@ -1552,16 +1552,16 @@ export async function POST(request: Request) {
 
 - [ ] **Step 2: Write the edges route**
 
-Create `src/app/api/v1/hermes/brain/edges/route.ts`:
+Create `src/app/api/v1/arc/brain/edges/route.ts`:
 
 ```ts
-import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/hermes/_lib/http";
-import { markCreateEdge } from "@/lib/hermes-api/brain";
+import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { markCreateEdge } from "@/lib/arc-api/brain";
 
 /**
- * Mark links two existing brain nodes with a typed relation.
+ * Arc links two existing brain nodes with a typed relation.
  *
- *   POST /api/v1/hermes/brain/edges
+ *   POST /api/v1/arc/brain/edges
  *   { "from_node_id": "...", "to_node_id": "...", "relation": "proves" }
  */
 export async function POST(request: Request) {
@@ -1585,16 +1585,16 @@ export async function POST(request: Request) {
 
 - [ ] **Step 3: Write the query route**
 
-Create `src/app/api/v1/hermes/brain/query/route.ts`:
+Create `src/app/api/v1/arc/brain/query/route.ts`:
 
 ```ts
-import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/hermes/_lib/http";
-import { markQueryBrain } from "@/lib/hermes-api/brain";
+import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { markQueryBrain } from "@/lib/arc-api/brain";
 
 /**
- * Mark reads its marketing brain for reasoning context.
+ * Arc reads its marketing brain for reasoning context.
  *
- *   POST /api/v1/hermes/brain/query
+ *   POST /api/v1/arc/brain/query
  *   { "kind": "brand_fact", "trust_tier": "trusted", "search": "..." }
  */
 export async function POST(request: Request) {
@@ -1622,8 +1622,8 @@ Expected: build succeeds; no errors referencing the new `brain` routes.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/api/v1/hermes/brain
-git commit -m "feat(brain): Hermes brain API routes (nodes, edges, query)"
+git add src/app/api/v1/arc/brain
+git commit -m "feat(brain): Arc brain API routes (nodes, edges, query)"
 ```
 
 ---
@@ -1760,7 +1760,7 @@ export function ApprovalQueue({ nodes }: { nodes: BrainNode[] }) {
     return (
       <Panel title="Approval queue">
         <p className="text-sm text-neutral-400">
-          Nothing waiting. Brand facts Mark proposes will appear here for review before they are trusted.
+          Nothing waiting. Brand facts Arc proposes will appear here for review before they are trusted.
         </p>
       </Panel>
     );
@@ -1836,7 +1836,7 @@ export function BrainBrowser({ nodes }: { nodes: BrainNode[] }) {
     return (
       <Panel title="Brain">
         <p className="text-sm text-neutral-400">
-          The brain is empty. Run <code className="text-neutral-300">pnpm seed:brain</code> or let Mark start
+          The brain is empty. Run <code className="text-neutral-300">pnpm seed:brain</code> or let Arc start
           recording what it learns.
         </p>
       </Panel>
@@ -1901,7 +1901,7 @@ export default async function BrainPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Marketing Brain"
-        description={`Mark's durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
+        description={`Arc's durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
       />
       <ApprovalQueue nodes={proposedNodes} />
       <BrainBrowser nodes={allNodes} />
@@ -1937,7 +1937,7 @@ In `src/app/_data/growth-engine.ts`, change `navItems` to include Brain:
 
 ```ts
 export const navItems = [
-  { label: "Mark", href: "/mark", icon: "agents" },
+  { label: "Arc", href: "/arc", icon: "agents" },
   { label: "Campaigns", href: "/campaigns", icon: "approval" },
   { label: "Brain", href: "/brain", icon: "agents" },
 ];
@@ -1965,16 +1965,16 @@ git commit -m "feat(brain): add Brain to the primary nav"
 - Create: `scripts/seed-brain.mjs`
 - Modify: `package.json`
 
-Seeds the 12 personas as `persona` nodes and a small starter set of BSR `brand_fact` nodes (trusted), so the page and Mark's memory aren't empty. Model it on `scripts/seed-hermes-demo.mjs` — read that file first for the exact Supabase-client bootstrap (env var names, createClient call, upsert idioms).
+Seeds the 12 personas as `persona` nodes and a small starter set of BSR `brand_fact` nodes (trusted), so the page and Arc's memory aren't empty. Model it on `scripts/seed-arc-demo.mjs` — read that file first for the exact Supabase-client bootstrap (env var names, createClient call, upsert idioms).
 
 - [ ] **Step 1: Read the existing seed for the house pattern**
 
-Run: `cat scripts/seed-hermes-demo.mjs`
+Run: `cat scripts/seed-arc-demo.mjs`
 Expected: shows how the script reads `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`, creates the client, resolves the org id, and inserts rows. Reuse that exact bootstrap.
 
 - [ ] **Step 2: Write the seed script**
 
-Create `scripts/seed-brain.mjs` (adjust the bootstrap lines to match `seed-hermes-demo.mjs` exactly):
+Create `scripts/seed-brain.mjs` (adjust the bootstrap lines to match `seed-arc-demo.mjs` exactly):
 
 ```js
 // Seeds the Marketing Brain: 12 personas as persona nodes + starter BSR brand
@@ -2085,7 +2085,7 @@ git commit -m "feat(brain): seed personas and starter brand facts"
 - [ ] **Step 1: Run the whole test suite**
 
 Run: `pnpm test`
-Expected: all tests pass, including the four new files (`domain/__tests__/knowledge-graph.test.ts`, `lib/knowledge-graph/persistence.test.ts`, `lib/knowledge-graph/read-model.test.ts`, `lib/hermes-api/__tests__/brain.test.ts`).
+Expected: all tests pass, including the four new files (`domain/__tests__/knowledge-graph.test.ts`, `lib/knowledge-graph/persistence.test.ts`, `lib/knowledge-graph/read-model.test.ts`, `lib/arc-api/__tests__/brain.test.ts`).
 
 - [ ] **Step 2: Typecheck the build**
 
@@ -2094,20 +2094,20 @@ Expected: build succeeds with no type errors.
 
 - [ ] **Step 3: Lint the changed files**
 
-Run: `pnpm exec eslint src/domain/knowledge-graph.ts src/lib/knowledge-graph src/lib/hermes-api/brain.ts src/app/brain src/app/api/v1/hermes/brain`
+Run: `pnpm exec eslint src/domain/knowledge-graph.ts src/lib/knowledge-graph src/lib/arc-api/brain.ts src/app/brain src/app/api/v1/arc/brain`
 Expected: no errors.
 
 - [ ] **Step 4: Manual smoke (optional, requires Supabase env + applied migration)**
 
 Apply the migration to your Supabase dev DB, then:
 Run: `pnpm seed:brain` then `pnpm dev` and open `/brain`.
-Expected: the page shows the seeded brand facts/personas as trusted; the approval queue is empty until Mark proposes a gated node via `POST /api/v1/hermes/brain/nodes`.
+Expected: the page shows the seeded brand facts/personas as trusted; the approval queue is empty until Arc proposes a gated node via `POST /api/v1/arc/brain/nodes`.
 
 ---
 
 ## Notes for the implementer
 
-- **Trust enforcement is the safety property.** Never let a caller-supplied `trust_tier` reach the DB for a Mark write — `markCreateNode`/`createNode` always derive it. The `brain.test.ts` and `persistence.test.ts` cases that pass `trust_tier: "trusted"` and assert `proposed` guard this; keep them.
+- **Trust enforcement is the safety property.** Never let a caller-supplied `trust_tier` reach the DB for a Arc write — `markCreateNode`/`createNode` always derive it. The `brain.test.ts` and `persistence.test.ts` cases that pass `trust_tier: "trusted"` and assert `proposed` guard this; keep them.
 - **`pnpm lint` won't catch type errors** and scans vendored files — rely on `pnpm build` for types and scope eslint to changed paths.
 - **Prod migration is manual** — flag it in the PR description.
 - The visual graph view, pgvector search, and FK-derived edges are intentionally out of scope (see spec §Out of scope).

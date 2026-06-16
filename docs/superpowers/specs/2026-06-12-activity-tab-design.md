@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-12
 **Status:** Approved direction, pending implementation plan
-**Topic:** A top-level Activity page that makes workspace actions, Hermes work, approvals, risks, and marketing progress easy for normal users to understand.
+**Topic:** A top-level Activity page that makes workspace actions, Arc work, approvals, risks, and marketing progress easy for normal users to understand.
 
 ## Product Thesis
 
@@ -13,7 +13,7 @@ It should not feel like a developer audit table. It should feel like a calm, mod
 The page must serve three jobs, in this order:
 
 1. **Operational clarity:** What happened, what changed, and what needs attention?
-2. **Trust and accountability:** Which human, Hermes agent, integration, or system process did it?
+2. **Trust and accountability:** Which human, Arc agent, integration, or system process did it?
 3. **Marketing insight:** Which activity moved audiences, campaigns, leads, assets, and approvals forward?
 
 ## Current Context
@@ -38,13 +38,13 @@ Suggested page header:
 
 - Eyebrow: `Workspace log`
 - Title: `Activity`
-- Description: `A clear record of human actions, Hermes work, approvals, risks, and marketing progress.`
+- Description: `A clear record of human actions, Arc work, approvals, risks, and marketing progress.`
 
 ## Goals
 
 - Make the page understandable in under 10 seconds.
 - Use natural language instead of raw IDs, table names, enum values, or JSON.
-- Show humans and Hermes side by side as accountable actors.
+- Show humans and Arc side by side as accountable actors.
 - Surface important marketing movement, not just system noise.
 - Make "needs attention" obvious without turning the page into an alerts dashboard.
 - Keep the design sleek, quiet, and consistent with the Signal design system.
@@ -68,7 +68,7 @@ The page should answer:
 
 - What happened recently?
 - Who did it?
-- Was it a human, Hermes, a sub-agent, an integration, or the system?
+- Was it a human, Arc, a sub-agent, an integration, or the system?
 - What object did it affect?
 - Does it need review?
 - Was anything blocked or risky?
@@ -80,14 +80,14 @@ The page should answer:
 Every visible row should resolve to one of these actor types:
 
 - **Human:** a workspace user, such as an owner, marketer, or operator.
-- **Hermes:** the primary marketing agent.
-- **Sub-agent:** specialist agent work delegated by Hermes.
+- **Arc:** the primary marketing agent.
+- **Sub-agent:** specialist agent work delegated by Arc.
 - **Integration:** external system activity, such as CRM, email, ads, forms, reviews, calls, or analytics.
 - **System:** app-owned state changes, scheduled jobs, imports, or guardrails.
 
 Actor labels must be human-readable:
 
-- Good: `Hermes`
+- Good: `Arc`
 - Good: `Evan`
 - Good: `Google Ads integration`
 - Bad: `agent_run_logs.actor_id`
@@ -100,7 +100,7 @@ V1 should support these categories as filter chips:
 - `All`
 - `Needs review`
 - `Humans`
-- `Hermes`
+- `Arc`
 - `Approvals`
 - `Campaigns`
 - `CRM`
@@ -113,8 +113,8 @@ Internally, the source kinds can remain more technical, but the UI labels should
 Existing source kinds can map roughly as:
 
 - Approval decisions -> `Approvals`, sometimes `Needs review`.
-- Agent run logs -> `Hermes`.
-- Drafts -> `Assets`, `Hermes`, sometimes `Needs review`.
+- Agent run logs -> `Arc`.
+- Drafts -> `Assets`, `Arc`, sometimes `Needs review`.
 - Campaign events -> `Campaigns`.
 - CRM events -> `CRM`.
 - Future integration events -> `Integrations`.
@@ -138,13 +138,13 @@ These labels should help scanning. They should not crowd every row.
 
 Rows should read like simple sentences:
 
-- `Hermes drafted 3 email variants for Spring Winback.`
+- `Arc drafted 3 email variants for Spring Winback.`
 - `Evan approved Google ad copy for Emergency Leads.`
 - `Compliance blocked one SMS draft for risky language.`
 - `A new lead entered the Homeowner Emergency segment.`
 - `Campaign "Referral Push" moved to Ready for Review.`
 - `The Google Ads integration imported 12 new campaign events.`
-- `Hermes recommended a dormant-customer campaign.`
+- `Arc recommended a dormant-customer campaign.`
 
 Do not expose raw implementation language:
 
@@ -163,7 +163,7 @@ Content:
 
 - Eyebrow: `Workspace log`
 - Title: `Activity`
-- Description: `A clear record of human actions, Hermes work, approvals, risks, and marketing progress.`
+- Description: `A clear record of human actions, Arc work, approvals, risks, and marketing progress.`
 
 The header should be compact. This is an operating surface, not a landing page.
 
@@ -172,7 +172,7 @@ The header should be compact. This is an operating surface, not a landing page.
 Directly below the header, show four compact summary modules:
 
 1. **Needs review** - pending approvals, blocked drafts, or decision points.
-2. **Hermes actions** - agent tasks, drafts, recommendations, and completed work.
+2. **Arc actions** - agent tasks, drafts, recommendations, and completed work.
 3. **Campaign progress** - campaign movement, assets created, launches, or results.
 4. **Blocked or risky** - compliance blocks, failed syncs, rejected assets, or risky language.
 
@@ -196,7 +196,7 @@ Use simple query-param filters, not client-heavy state.
 
 Controls:
 
-- Category chips: `All`, `Needs review`, `Humans`, `Hermes`, `Approvals`, `Campaigns`, `CRM`, `Assets`, `Integrations`, `Risk`.
+- Category chips: `All`, `Needs review`, `Humans`, `Arc`, `Approvals`, `Campaigns`, `CRM`, `Assets`, `Integrations`, `Risk`.
 - Date chips: `Today`, `7 days`, `30 days`, `All time`.
 - Search input: searches title, detail, actor, linked object label, and category label.
 
@@ -223,7 +223,7 @@ Each row shows:
 Recommended row structure:
 
 ```text
-Hermes
+Arc
 Drafted 3 email variants for Spring Winback
 Campaign asset - needs review
 2:45 PM
@@ -268,7 +268,7 @@ type ActivityEntry = {
   id: string;
   occurredAt: string;
   actorName: string;
-  actorType: "human" | "hermes" | "sub_agent" | "integration" | "system";
+  actorType: "human" | "arc" | "sub_agent" | "integration" | "system";
   title: string;
   detail?: string;
   category: "approval" | "campaign" | "crm" | "asset" | "agent" | "integration" | "risk" | "system";
@@ -285,7 +285,7 @@ The exact implementation can reuse existing names where appropriate, but the UI 
 
 ### Agent Run Logs
 
-Show Hermes and sub-agent activity:
+Show Arc and sub-agent activity:
 
 - Task claimed.
 - Task completed.
@@ -314,7 +314,7 @@ Important display rules:
 
 - Make decision state very clear.
 - Actor should be the reviewer when available.
-- Hermes can recommend approval, but cannot be shown as the approver.
+- Arc can recommend approval, but cannot be shown as the approver.
 
 ### Drafts And Assets
 
@@ -391,7 +391,7 @@ The insight strip can be computed from the filtered or default activity window.
 V1 definitions:
 
 - **Needs review:** entries with `insightLabel = "Needs review"` or category `approval` with pending/revision status.
-- **Hermes actions:** actor type `hermes` or `sub_agent`.
+- **Arc actions:** actor type `arc` or `sub_agent`.
 - **Campaign progress:** category `campaign` or campaign-linked asset events.
 - **Blocked or risky:** category `risk`, red tone, failed agent tasks, compliance blocks, or rejected approvals.
 
@@ -482,8 +482,8 @@ Verification:
 
 - A user can open Activity from the main nav.
 - The page clearly shows recent workspace actions in plain English.
-- The page distinguishes humans, Hermes, integrations, and system events.
-- The page shows high-level counts for review needs, Hermes actions, campaign progress, and blocked/risky events.
+- The page distinguishes humans, Arc, integrations, and system events.
+- The page shows high-level counts for review needs, Arc actions, campaign progress, and blocked/risky events.
 - Users can filter by category, date, and search text.
 - Events link to related records when available.
 - The page handles empty and unavailable states cleanly.
@@ -491,10 +491,10 @@ Verification:
 
 ## Future Work
 
-- Event detail drawer with source records, before/after changes, and Hermes reasoning summaries.
+- Event detail drawer with source records, before/after changes, and Arc reasoning summaries.
 - Exportable audit log for admins.
-- Saved views such as `Only risk`, `Only Hermes`, or `Approvals this week`.
-- "Ask Hermes what happened this week" summary action.
+- Saved views such as `Only risk`, `Only Arc`, or `Approvals this week`.
+- "Ask Arc what happened this week" summary action.
 - Alert rules for failed integrations, repeated compliance blocks, or stalled campaigns.
 - Real-time updates.
 - Org-scoped activity once every source table carries workspace or organization identity.
@@ -503,4 +503,4 @@ Verification:
 
 Build **Activity** as a modern workspace intelligence log.
 
-It should be simple enough for any user to understand, serious enough for accountability, and useful enough that a marketer can scan it daily to see what the team, Hermes, and the marketing system are doing.
+It should be simple enough for any user to understand, serious enough for accountability, and useful enough that a marketer can scan it daily to see what the team, Arc, and the marketing system are doing.

@@ -7,11 +7,11 @@
 ## Summary
 
 Upgrade the existing Vault tab from a static-feeling editable surface into a **living,
-color-differentiated operations view** that syncs with the Hermes/Mark agent and live
+color-differentiated operations view** that syncs with the Arc agent and live
 Supabase data. Four capabilities, all within the DESIGN.md palette (one blue accent +
 restoration red + green/amber/gray status — no new hues, no emojis):
 
-1. **Mark activity feed** — a live rail showing Mark's status/heartbeat, what he's
+1. **Arc activity feed** — a live rail showing Arc's status/heartbeat, what he's
    drafting, the real review-queue count, and recent agent outputs.
 2. **Live record signals on notes** — a chip beside each outgoing record/persona link
    showing a live or reference stat for that record.
@@ -27,7 +27,7 @@ untouched.
 
 ## Goals
 
-- Make the Vault feel connected to Hermes and to live data, not templated.
+- Make the Vault feel connected to Arc and to live data, not templated.
 - Differentiate collections and statuses with color, staying strictly on-palette.
 - Degrade gracefully when Supabase is unconfigured (parallels the rest of the app).
 
@@ -50,7 +50,7 @@ Takes an untyped `SupabaseClient` internally via `getSupabaseAdminClient()`; gua
 
 ```ts
 export type MarkActivity = {
-  name: string;            // "Mark"
+  name: string;            // "Arc"
   status: string;          // titleized agent status, e.g. "Ready"
   killSwitch: string;      // e.g. "Outbound locked"
   lastHeartbeat: string | null;
@@ -67,10 +67,10 @@ export type VaultLiveSignals =
 export async function getVaultLiveSignals(): Promise<VaultLiveSignals>;
 ```
 
-- Sources: `agents` (Mark row → status/heartbeat/killSwitch from metadata, same fields the
-  agent-ops `mapMarkRunner` reads), `agent_tasks` (Mark's open tasks → `drafting`),
+- Sources: `agents` (Arc row → status/heartbeat/killSwitch from metadata, same fields the
+  agent-ops `mapMarkRunner` reads), `agent_tasks` (Arc's open tasks → `drafting`),
   `agent_outputs` (recent → `recentOutputs`), `vault_notes` (count `needs_review`).
-- `fallback` (unconfigured) returns an empty `MarkActivity` (name "Mark", status "Offline",
+- `fallback` (unconfigured) returns an empty `MarkActivity` (name "Arc", status "Offline",
   `drafting: []`, `awaitingReview` from seed notes, `recentOutputs: []`) + a message.
 - Pure shaping helpers are extracted and unit-tested: `toMarkActivity(agentRow, tasks,
   outputs, reviewCount)`, `shortTime(iso)`.
@@ -117,7 +117,7 @@ export const collectionThemes: Record<string, { tone: StatusTone; icon: Collecti
 
 ### Components
 
-- `src/app/notebook/_components/mark-activity-rail.tsx` — renders `MarkActivity`: a status
+- `src/app/notebook/_components/arc-activity-rail.tsx` — renders `MarkActivity`: a status
   line (breathing dot when "live"), "drafting now" list, an "N awaiting review" row linking
   to the first needs-review note's detail page (or staying on `/notebook` when the queue is
   empty), recent outputs, heartbeat. Server component; pure props — it receives the resolved
@@ -133,7 +133,7 @@ export const collectionThemes: Record<string, { tone: StatusTone; icon: Collecti
 ### Page changes
 
 - **`src/app/notebook/page.tsx`** (redesign): asymmetric hero (PageHeader + compact live
-  Mark aside); tone-coded stat strip; left column = color-coded collection sections (theme
+  Arc aside); tone-coded stat strip; left column = color-coded collection sections (theme
   dot/glyph + live count + "updated Xm ago" freshness derived from the newest note in the
   collection); right rail = `MarkActivityRail` above the graph; `<AutoRefresh />` mounted;
   fallback/error banners for both the notes read-model and live-signals. Calls
@@ -154,7 +154,7 @@ counts, freshness, and review queue update. Writes still `revalidatePath("/noteb
 - Every live fetch is wrapped; failures return `error`/`fallback` with seeded or empty data
   and a banner. The page never crashes on a Supabase outage.
 - `getRecordSignals` failures yield an empty Map → links render without chips (no error).
-- Unconfigured Supabase: Mark rail shows "Offline", persona signals show reference counts,
+- Unconfigured Supabase: Arc rail shows "Offline", persona signals show reference counts,
   review count comes from seed notes.
 
 ## Testing

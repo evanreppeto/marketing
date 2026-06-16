@@ -21,7 +21,7 @@ function isDecided(status: string) {
  * Deploy a campaign — a real backend state transition + handoff, not an in-app
  * send. Verifies every gating deliverable has been decided (nothing still
  * pending), unlocks the approved deliverables for dispatch, marks the campaign
- * live, and records a `campaign_launched` event that Arc/Arc consumes to
+ * live, and records a `campaign_launched` event that Arc consumes to
  * perform the actual sends/publishes. This module never sends anything itself.
  */
 export async function launchCampaign(
@@ -102,7 +102,7 @@ export async function launchCampaign(
   // Open the Outbox: one queued dispatch per approved deliverable.
   await enqueueDispatchesForAssets({ campaignId, assetIds: approvedAssetIds, operator }, client);
 
-  // Record the handoff signal Arc/Arc consumes to do the actual sends.
+  // Record the handoff signal Arc consumes to do the actual sends.
   const { error: eventError } = await client.from("campaign_events").insert({
     campaign_id: campaignId,
     event_type: "campaign_launched",
@@ -126,7 +126,7 @@ export type DeployAssetInput = {
 /**
  * Deploy a single approved deliverable ahead of the full campaign launch.
  * Verifies the piece is approved, unlocks just that piece for dispatch, and
- * records an `asset_deployed` handoff event for Arc/Arc. Leaves the
+ * records an `asset_deployed` handoff event for Arc. Leaves the
  * campaign's overall launch lock untouched — the campaign can still be in
  * review while individual pieces go live.
  */

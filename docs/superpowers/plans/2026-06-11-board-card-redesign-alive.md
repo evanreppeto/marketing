@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Redesign the Kanban task card into a scannable, "alive" unit (progress, priority/risk grammar, due date, Mark's chat sphere as the owner avatar, presence + motion), add an off-by-default client-side demo toggle, and apply light board polish.
+**Goal:** Redesign the Kanban task card into a scannable, "alive" unit (progress, priority/risk grammar, due date, Arc's chat sphere as the owner avatar, presence + motion), add an off-by-default client-side demo toggle, and apply light board polish.
 
-**Architecture:** Pure logic goes in `src/domain` (demo sequence) and pure presentation helpers next to their components (avatar resolution); both are unit-tested in the existing `node` vitest setup. The read-model surfaces two existing `agent_tasks` columns (`priority`, `due_at`) plus an optional parsed `progress`. The chat's `MarkAvatar` is promoted to a shared component so the board and chat render the identical sphere; an `EntityAvatar` chooser renders Mark's sphere for agents and a profile-picture-ready circle for humans. The card, demo toggle, polling, and board polish are wired into the existing `task-kanban-board.tsx` client component.
+**Architecture:** Pure logic goes in `src/domain` (demo sequence) and pure presentation helpers next to their components (avatar resolution); both are unit-tested in the existing `node` vitest setup. The read-model surfaces two existing `agent_tasks` columns (`priority`, `due_at`) plus an optional parsed `progress`. The chat's `MarkAvatar` is promoted to a shared component so the board and chat render the identical sphere; an `EntityAvatar` chooser renders Arc's sphere for agents and a profile-picture-ready circle for humans. The card, demo toggle, polling, and board polish are wired into the existing `task-kanban-board.tsx` client component.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Tailwind, Vitest (node env — **no React component tests exist in this repo**; UI is verified via `pnpm build` + scoped eslint + manual check). Package manager **pnpm**.
 
@@ -22,14 +22,14 @@
 - `src/domain/__tests__/board-demo.test.ts` — unit tests for the demo sequence.
 - `src/app/_components/entity-avatar.helpers.ts` — pure avatar resolution (`initialsFromName`, `resolveHumanAvatar`), no React imports.
 - `src/app/_components/entity-avatar.helpers.test.ts` — unit tests for the helpers.
-- `src/app/mark/_components/mark-avatar.tsx` — the chat's `MarkAvatar`, promoted to a shared, size-parameterized component.
+- `src/app/arc/_components/arc-avatar.tsx` — the chat's `MarkAvatar`, promoted to a shared, size-parameterized component.
 - `src/app/_components/entity-avatar.tsx` — chooser: agent → `MarkAvatar`; human → photo/initials circle.
 
 **Modify:**
 - `src/domain/index.ts` — re-export `board-demo`.
 - `src/lib/agent-operations/read-model.ts` — add `due_at` to the `agent_tasks` select; add `priority`, `dueAt`, `progress` to `AgentOperationsTask` + `mapTask`; add `parseProgress` + `due_at` on `AgentTaskRow`.
 - `src/lib/agent-operations/read-model.test.ts` — assert the new fields.
-- `src/app/mark/_components/message-list.tsx` — import `MarkAvatar` from the new module; delete the local definition.
+- `src/app/arc/_components/message-list.tsx` — import `MarkAvatar` from the new module; delete the local definition.
 - `src/app/agent-operations/task-kanban-board.tsx` — new `Card` anatomy, `EntityAvatar`, presence/shimmer/entrance motion, demo toggle, polling, WIP counts, empty states; remove the now-shared local `initials`.
 
 ---
@@ -270,7 +270,7 @@ describe("initialsFromName", () => {
     expect(initialsFromName("Evan Reppeto")).toBe("ER");
   });
   it("returns first two letters for a single word", () => {
-    expect(initialsFromName("Mark")).toBe("MA");
+    expect(initialsFromName("Arc")).toBe("MA");
   });
   it("falls back to ? for empty input", () => {
     expect(initialsFromName("   ")).toBe("?");
@@ -345,23 +345,23 @@ git commit -m "feat(board): pure avatar resolution helpers"
 ## Task 4: Promote MarkAvatar to a shared component
 
 **Files:**
-- Create: `src/app/mark/_components/mark-avatar.tsx`
-- Modify: `src/app/mark/_components/message-list.tsx`
+- Create: `src/app/arc/_components/arc-avatar.tsx`
+- Modify: `src/app/arc/_components/message-list.tsx`
 
 Context: `MarkAvatar` is currently defined inline in `message-list.tsx:73-86` and used at `message-list.tsx:397`. It imports `MarkSphere` (line 13) and `cx` (from `@/app/_components/theme`). Goal: move it out **with no visual change to the chat**, adding a `size` prop (default 32, the chat's current size).
 
 - [ ] **Step 1: Create the shared component**
 
-Create `src/app/mark/_components/mark-avatar.tsx`:
+Create `src/app/arc/_components/arc-avatar.tsx`:
 
 ```tsx
 "use client";
 
 import { cx } from "@/app/_components/theme";
 
-import { MarkSphere } from "./mark-sphere";
+import { MarkSphere } from "./arc-sphere";
 
-/** Mark's identity avatar — the shared WebGL sphere + teal "online" presence dot,
+/** Arc's identity avatar — the shared WebGL sphere + teal "online" presence dot,
  *  with an optional "thinking" ring. Single source of truth for chat AND board. */
 export function MarkAvatar({
   size = 32,
@@ -377,13 +377,13 @@ export function MarkAvatar({
       aria-hidden
       className={cx(
         "relative flex shrink-0 items-center justify-center rounded-full",
-        pending ? "motion-safe:[animation:mark-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
+        pending ? "motion-safe:[animation:arc-ring_2.6s_cubic-bezier(.4,0,.2,1)_infinite]" : "",
         className,
       )}
       style={{ width: size, height: size }}
     >
       <MarkSphere size={size} className="shadow-[inset_0_0_0_1px_var(--border-strong)]" />
-      {/* Live presence dot — Mark is online (the chat polls). Ring, not glow. */}
+      {/* Live presence dot — Arc is online (the chat polls). Ring, not glow. */}
       <span className="absolute -bottom-0.5 -right-0.5 z-[1] h-2.5 w-2.5 rounded-full bg-[var(--ok)] shadow-[0_0_0_2px_var(--canvas)]" />
     </span>
   );
@@ -392,12 +392,12 @@ export function MarkAvatar({
 
 - [ ] **Step 2: Import it in message-list and delete the local definition**
 
-In `src/app/mark/_components/message-list.tsx`:
+In `src/app/arc/_components/message-list.tsx`:
 
-1. Add this import next to the other `_components` imports (alongside line 13's `import { MarkSphere } from "./mark-sphere";`):
+1. Add this import next to the other `_components` imports (alongside line 13's `import { MarkSphere } from "./arc-sphere";`):
 
 ```tsx
-import { MarkAvatar } from "./mark-avatar";
+import { MarkAvatar } from "./arc-avatar";
 ```
 
 2. Delete the local `function MarkAvatar(...) { ... }` block at lines 73-86 (the whole function).
@@ -409,20 +409,20 @@ Leave the usage at line 397 (`<MarkAvatar pending={pending} />`) unchanged — i
 Run: `pnpm build`
 Expected: compiles clean (no unused-import error for `MarkSphere` — confirm `message-list.tsx` still uses `MarkSphere` elsewhere; if not, remove its now-unused import).
 
-Run: `pnpm exec eslint src/app/mark/_components/message-list.tsx src/app/mark/_components/mark-avatar.tsx`
+Run: `pnpm exec eslint src/app/arc/_components/message-list.tsx src/app/arc/_components/arc-avatar.tsx`
 Expected: no errors.
 
-> Note: if `pnpm build` reports `MarkSphere` is now unused in `message-list.tsx`, delete the `import { MarkSphere } from "./mark-sphere";` line and re-run.
+> Note: if `pnpm build` reports `MarkSphere` is now unused in `message-list.tsx`, delete the `import { MarkSphere } from "./arc-sphere";` line and re-run.
 
 - [ ] **Step 4: Manual check**
 
-Run `pnpm dev`, open `/mark`. Confirm Mark's message avatar (sphere + teal dot) looks exactly as before, including the "thinking" ring on a pending message.
+Run `pnpm dev`, open `/arc`. Confirm Arc's message avatar (sphere + teal dot) looks exactly as before, including the "thinking" ring on a pending message.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/mark/_components/mark-avatar.tsx src/app/mark/_components/message-list.tsx
-git commit -m "refactor(mark): promote MarkAvatar to a shared component"
+git add src/app/arc/_components/arc-avatar.tsx src/app/arc/_components/message-list.tsx
+git commit -m "refactor(arc): promote MarkAvatar to a shared component"
 ```
 
 ---
@@ -441,11 +441,11 @@ Create `src/app/_components/entity-avatar.tsx`:
 ```tsx
 "use client";
 
-import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import { MarkAvatar } from "@/app/arc/_components/arc-avatar";
 
 import { resolveHumanAvatar, type AvatarOwner } from "./entity-avatar.helpers";
 
-/** One avatar slot for both kinds of board owner: Mark (sphere) and humans
+/** One avatar slot for both kinds of board owner: Arc (sphere) and humans
  *  (profile photo, with initials fallback until photos exist). */
 export function EntityAvatar({
   owner,
@@ -495,7 +495,7 @@ Expected: no errors.
 
 ```bash
 git add src/app/_components/entity-avatar.tsx
-git commit -m "feat(board): EntityAvatar chooser (Mark sphere / human photo)"
+git commit -m "feat(board): EntityAvatar chooser (Arc sphere / human photo)"
 ```
 
 ---
@@ -600,7 +600,7 @@ function Card({
         {working ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--accent-strong)]">
             <span className="kanban-presence" />
-            Mark · live
+            Arc · live
           </span>
         ) : null}
       </div>
@@ -706,7 +706,7 @@ Expected: no errors.
 
 - [ ] **Step 7: Manual check**
 
-Run `pnpm dev`, open `/board`. Confirm: cards show Mark's sphere, priority + risk + due, optional progress bar on any task with `metadata.progress`, and a "Mark · live" pulse + shimmer on Running cards. Drag still works and illegal drops still snap back.
+Run `pnpm dev`, open `/board`. Confirm: cards show Arc's sphere, priority + risk + due, optional progress bar on any task with `metadata.progress`, and a "Arc · live" pulse + shimmer on Running cards. Drag still works and illegal drops still snap back.
 
 - [ ] **Step 8: Commit**
 
@@ -740,7 +740,7 @@ Inside the `TaskKanbanBoard` component, after the existing `useState`/`useOptimi
   const [demo, setDemo] = useState(false);
   const [demoFrame, setDemoFrame] = useState(initialDemoFrame);
 
-  // Live polling: refresh the server data while the board is visible. When Mark
+  // Live polling: refresh the server data while the board is visible. When Arc
   // moves a task or reports progress via his API, the next refresh reflects it
   // and the entrance animation plays.
   useEffect(() => {
@@ -772,10 +772,10 @@ After the `visible` / `open` / `closedCount` definitions (lines 137-139), add:
     ? {
         id: "demo",
         fullId: "__demo__",
-        agentKey: "mark",
-        agentName: "Mark",
+        agentKey: "arc",
+        agentName: "Arc",
         task: "Demo",
-        objective: "Demo · Mark working a task across the board",
+        objective: "Demo · Arc working a task across the board",
         linkedObject: "Campaign: Demo Walkthrough",
         linkedHref: "/board",
         approvalHref: null,
@@ -850,7 +850,7 @@ Expected: no errors (the `useEffect` polling deps are `[router]`; demo deps `[de
 
 - [ ] **Step 7: Manual check**
 
-Run `pnpm dev`, open `/board`. Toggle **Demo** on: a tagged card loops Queued → Running (shimmer + "Mark · live") → Needs approval → Completed, animating between columns. Toggle off: the demo card disappears and nothing was written. Confirm real cards are untouched and dragging a real card still works.
+Run `pnpm dev`, open `/board`. Toggle **Demo** on: a tagged card loops Queued → Running (shimmer + "Arc · live") → Needs approval → Completed, animating between columns. Toggle off: the demo card disappears and nothing was written. Confirm real cards are untouched and dragging a real card still works.
 
 - [ ] **Step 8: Commit**
 
@@ -944,7 +944,7 @@ Expected: clean build, no type errors.
 Run:
 
 ```bash
-pnpm exec eslint src/domain/board-demo.ts src/app/_components/entity-avatar.helpers.ts src/app/_components/entity-avatar.tsx src/app/mark/_components/mark-avatar.tsx src/app/mark/_components/message-list.tsx src/app/agent-operations/task-kanban-board.tsx src/lib/agent-operations/read-model.ts
+pnpm exec eslint src/domain/board-demo.ts src/app/_components/entity-avatar.helpers.ts src/app/_components/entity-avatar.tsx src/app/arc/_components/arc-avatar.tsx src/app/arc/_components/message-list.tsx src/app/agent-operations/task-kanban-board.tsx src/lib/agent-operations/read-model.ts
 ```
 
 Expected: no errors.
@@ -952,7 +952,7 @@ Expected: no errors.
 - [ ] **Step 4: Manual end-to-end check**
 
 Run `pnpm dev`:
-- `/mark` — Mark's chat avatar unchanged (sphere + teal dot + thinking ring).
+- `/arc` — Arc's chat avatar unchanged (sphere + teal dot + thinking ring).
 - `/board` — redesigned cards; progress bars on tasks with `metadata.progress`; presence + shimmer on Running; demo toggle loops a tagged card through the lifecycle with visible motion; empty columns show the calm dashed state; drag-and-drop and guardrails still work.
 
 ---

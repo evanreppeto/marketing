@@ -310,7 +310,7 @@ export function CampaignAnalyticsDetail({ detail }: { detail: LiveCampaignWorksp
             ))}
           </div>
         ) : (
-          <EmptyState title="No deliverables yet" detail="Once Mark drafts pieces for this campaign, their channels appear here." />
+          <EmptyState title="No deliverables yet" detail="Once Arc drafts pieces for this campaign, their channels appear here." />
         )}
       </WorkspacePanel>
 
@@ -393,7 +393,7 @@ import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "../../_components/page-header";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
-import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
 import { CampaignAnalyticsDetail } from "../_components/campaign-analytics-detail";
@@ -811,7 +811,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
           ) : (
             <EmptyState
               title="No campaigns yet"
-              detail="When Mark drafts a campaign or you create one, it will appear here with its progress."
+              detail="When Arc drafts a campaign or you create one, it will appear here with its progress."
             />
           )}
         </WorkspacePanel>

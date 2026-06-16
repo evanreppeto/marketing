@@ -17,11 +17,11 @@ The page should not feel like a technical agent console, a generic dashboard, or
 - Where can the campaign go?
 - What should I do next?
 
-Mark should be useful and visible, but not dominant. Mark appears through contextual actions such as "Ask Mark to revise," "Add missing content," "Summarize this campaign," or "Build another piece."
+Arc should be useful and visible, but not dominant. Arc appears through contextual actions such as "Ask Arc to revise," "Add missing content," "Summarize this campaign," or "Build another piece."
 
 ## Design Principles
 
-1. **Campaign-first:** The campaign is the primary object. Tasks, approvals, Mark threads, assets, CRM records, and results attach to campaigns.
+1. **Campaign-first:** The campaign is the primary object. Tasks, approvals, Arc threads, assets, CRM records, and results attach to campaigns.
 2. **Plain language:** Use words regular users understand: `review`, `ready`, `send`, `export`, `live`, `draft`, `content`, `audience`, and `results`.
 3. **No technical labels in the UI:** Avoid words such as `dispatch`, `lifecycle`, `agent task`, `source payload`, `deployment target`, and `audit payload` in user-facing copy.
 4. **Manage many, finish one:** The list page helps users scan and manage many campaigns. The detail page helps them complete one campaign.
@@ -38,7 +38,7 @@ The header should be calm and functional:
 
 - Title: `Campaigns`
 - Description: `Manage all campaigns, content, approvals, and send/export steps from one place.`
-- Primary action: `Ask Mark`
+- Primary action: `Ask Arc`
 - Secondary action: `Create campaign`
 
 The page should not lead with a large hero area. This is a working surface.
@@ -54,7 +54,7 @@ Saved views should be plain and task-oriented:
 - `Needs attention`
 - `All campaigns`
 - `Ready to send`
-- `Mark is working`
+- `Arc is working`
 - `Live`
 - `Archived`
 
@@ -68,7 +68,7 @@ The table is the main management surface. Recommended columns:
 | --- | --- |
 | Expand | Opens the quick preview dropdown. |
 | Campaign | Campaign name and short human-readable purpose. |
-| Status | Simple state such as `Review needed`, `Ready`, `Live`, `Mark drafting`, `Blocked`. |
+| Status | Simple state such as `Review needed`, `Ready`, `Live`, `Arc drafting`, `Blocked`. |
 | Content | Number of pieces and whether any need review. |
 | Where | Simple destinations such as `Email`, `Social`, `Website`, `Export`, `CRM`. |
 | Next step | The one thing the user should do next. |
@@ -91,11 +91,11 @@ Preview sections:
 - **Campaign preview:** Short plain-language summary.
 - **What is inside:** Content pieces such as email, one-pager, call script, image, landing page, audience.
 - **Can it go out?:** Plain readiness by destination.
-- **Quick actions:** `Review content`, `Ask Mark to revise`, `Send / Export` when allowed, `Open full page`.
+- **Quick actions:** `Review content`, `Ask Arc to revise`, `Send / Export` when allowed, `Open full page`.
 
 Example preview copy:
 
-> A partner-facing campaign for plumbers. Mark made three pieces. The one-pager is ready, but the email and call script need a person to review before anything is sent.
+> A partner-facing campaign for plumbers. Arc made three pieces. The one-pager is ready, but the email and call script need a person to review before anything is sent.
 
 Preview status examples:
 
@@ -112,9 +112,9 @@ Bulk actions should be conservative and approval-safe. Useful bulk actions:
 
 - `Archive`
 - `Assign owner`
-- `Ask Mark to summarize selected`
+- `Ask Arc to summarize selected`
 - `Export selected`
-- `Mark as reviewed` only for safe internal states
+- `Arc as reviewed` only for safe internal states
 
 Bulk send should not exist unless every selected item is approved and the destination is explicit.
 
@@ -130,7 +130,7 @@ The header should show:
 - Short description
 - Status pill
 - Primary action: `Send / Export` when anything is ready, otherwise `Review content`
-- Secondary action: `Ask Mark to revise`
+- Secondary action: `Ask Arc to revise`
 - Back link to `Campaigns`
 
 ### Checklist
@@ -166,7 +166,7 @@ Example rows:
 
 | Content | Status | Where | What to do |
 | --- | --- | --- | --- |
-| Email draft | Review | Email | Approve or ask Mark to revise. |
+| Email draft | Review | Email | Approve or ask Arc to revise. |
 | One-pager | Ready | Export | Can be downloaded now. |
 | Call script | Review | CRM task | Approve before assigning. |
 
@@ -180,7 +180,7 @@ For copy assets:
 - Body preview
 - Approval status
 - `Approve`
-- `Ask Mark to revise`
+- `Ask Arc to revise`
 - `Edit` if manual editing is available
 
 For visual assets:
@@ -190,7 +190,7 @@ For visual assets:
 - Platform fit
 - Approval status
 - `Approve`
-- `Ask Mark to revise`
+- `Ask Arc to revise`
 
 ### Right Rail
 
@@ -200,14 +200,14 @@ The right rail should explain the campaign in simple terms:
    - Audience
    - Purpose
    - Owner
-   - Mark status
+   - Arc status
 
 2. **Send / export**
    - `Send email: blocked/ready`
    - `Export one-pager: ready`
    - `Create CRM tasks: after approval`
 
-3. **Mark**
+3. **Arc**
    - `Revise selected`
    - `Add missing piece`
    - `Summarize campaign`
@@ -221,7 +221,7 @@ The right rail should explain the campaign in simple terms:
 
 Keep history available, but do not make it a primary tab. It can be a collapsible section:
 
-- Created by Mark
+- Created by Arc
 - Edited by user
 - Approved
 - Sent/exported
@@ -230,23 +230,23 @@ Keep history available, but do not make it a primary tab. It can be a collapsibl
 
 The history exists for trust and troubleshooting, not as the main experience.
 
-## Mark Integration
+## Arc Integration
 
-Mark should appear in context:
+Arc should appear in context:
 
-- On the main page: `Ask Mark` in the header and row preview actions.
+- On the main page: `Ask Arc` in the header and row preview actions.
 - On the detail page: actions tied to selected content or campaign state.
 
-Good Mark actions:
+Good Arc actions:
 
 - `Revise selected`
 - `Add missing piece`
 - `Summarize this campaign`
 - `Explain why this was made`
 - `Create another version`
-- `Attach this campaign to a Mark thread`
+- `Attach this campaign to a Arc thread`
 
-Avoid making Mark the whole page. Users came to manage campaigns.
+Avoid making Arc the whole page. Users came to manage campaigns.
 
 ## Send And Export Model
 
@@ -283,10 +283,10 @@ This direction follows familiar patterns from campaign tools:
 - Campaign detail pages show assets, approvals, destinations, and results.
 - Performance lives with the campaign after it goes live.
 
-The differentiator is simplicity plus Mark:
+The differentiator is simplicity plus Arc:
 
 - A normal user can understand the campaign status without learning marketing operations terms.
-- Mark helps fill gaps and revise content, but the campaign remains the center.
+- Arc helps fill gaps and revise content, but the campaign remains the center.
 - The interface gives a next step instead of only showing data.
 
 ## Implementation Scope
@@ -297,7 +297,7 @@ Phase 1 should focus on the product shape without adding new integrations:
 - Add expandable row previews.
 - Keep existing campaign data and actions where possible.
 - Rewrite `/campaigns/[campaignId]` into the checklist/content-table layout.
-- Reuse existing approval, launch, Mark, CRM, and campaign read-model data.
+- Reuse existing approval, launch, Arc, CRM, and campaign read-model data.
 - Use simple labels even if backend state names are technical.
 
 Phase 2 can add stronger send/export workflows:
@@ -313,13 +313,13 @@ Phase 3 can add advanced management:
 - Campaign templates.
 - Campaign cloning.
 - Calendar/schedule view.
-- More advanced Mark automation.
+- More advanced Arc automation.
 
 ## Out Of Scope For First Implementation
 
 - Building new external platform integrations.
 - Bulk sending.
-- Replacing the Mark chat experience.
+- Replacing the Arc chat experience.
 - Advanced analytics dashboards.
 - Drag-and-drop campaign planning.
 - Complex permission systems.
@@ -333,7 +333,7 @@ Manual UI checks:
 - A user can find the next step without opening the detail page.
 - A user can open a campaign and see every content piece.
 - A user can tell what is ready, blocked, or waiting for review.
-- Mark actions are contextual and do not dominate the page.
+- Arc actions are contextual and do not dominate the page.
 
 Technical checks:
 

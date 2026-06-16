@@ -13,9 +13,9 @@
 ## Summary
 
 Add a new top-level tab, **Vault**, an Obsidian-style linked knowledge base shared
-by the team and the Mark agent. Notes are markdown with `[[wiki-links]]` that resolve
+by the team and the Arc agent. Notes are markdown with `[[wiki-links]]` that resolve
 to other notes *and* to live CRM records and personas. Each note has a backlinks
-("linked references") panel and the vault has a graph view. Mark can author notes,
+("linked references") panel and the vault has a graph view. Arc can author notes,
 which flow through the existing Approvals guardrail before they read as "Published."
 
 The tab ships in **scaffold-mode**, consistent with every other page in the app:
@@ -25,31 +25,31 @@ persistence and no real file I/O are wired yet.
 
 The notes are stored as the **raw markdown a real Obsidian file would contain**
 (YAML frontmatter, `[[note]]` / `[[note|alias]]` links, `#tags`, folders-as-collections)
-so that when Mark later imports the team's actual Obsidian vault, real `.md` files
+so that when Arc later imports the team's actual Obsidian vault, real `.md` files
 parse without a translation layer. The seeded notes are simply hand-written examples
 in that real format.
 
 ## Goals
 
-- A shared, interlinked knowledge base ("shared brain") for operators and Mark.
+- A shared, interlinked knowledge base ("shared brain") for operators and Arc.
 - Notes link to each other and to live CRM records / personas; backlinks surface
   automatically.
 - A graph view that gives the signature Obsidian "see how it connects" moment.
-- Mark can draft notes; drafts route through Approvals before publishing.
-- Data shape matches real Obsidian files so Mark's future import is a drop-in.
+- Arc can draft notes; drafts route through Approvals before publishing.
+- Data shape matches real Obsidian files so Arc's future import is a drop-in.
 
 ## Non-goals (this phase)
 
 - Real persistence or editing that saves (stays preview-only, like the rest of the app).
 - Real file reading / vault import (represented as a preview-only "Sync vault" action).
-- Wiring Mark's live runner to author notes (drafts are seeded; the approval deep-link
+- Wiring Arc's live runner to author notes (drafts are seeded; the approval deep-link
   pattern is reused).
 
 ## Architecture
 
 ### Routes & file layout
 
-A new top-level tab **Vault**, placed in `navItems` between Mark and Settings:
+A new top-level tab **Vault**, placed in `navItems` between Arc and Settings:
 
 ```ts
 // src/app/_data/growth-engine.ts → navItems
@@ -88,7 +88,7 @@ type VaultNote = {
   title: string;         // frontmatter `title:` or first H1
   folder: string;        // vault folder → collection (Playbooks, Partner Intel, …)
   tags: string[];        // frontmatter tags + inline #tags
-  author: "Mark" | string;
+  author: "Arc" | string;
   status: "Published" | "Draft" | "Needs review";
   updated: string;
   body: string;          // raw markdown, exactly as it would sit on disk
@@ -106,7 +106,7 @@ Persona Docs, SOPs, Field Notes.
   link `{ kind: "note" | "record" | "persona" | "unresolved", href, label }`. Targets
   are checked against: note slugs, CRM record ids (from `crmObjects` sample rows), and
   persona keys (`OFFICIAL_PERSONA_MAPPINGS`). Unmatched targets become `unresolved` —
-  rendered muted, and also a useful "what Mark still needs to import" signal.
+  rendered muted, and also a useful "what Arc still needs to import" signal.
 - `computeBacklinks(allNotes, slug)` → every note whose body links to `slug`,
   deterministic and sorted.
 
@@ -125,15 +125,15 @@ destination (Obsidian style).
 
 ### Vault home (`/notebook`)
 
-- **PageHeader** — eyebrow "Vault"; title e.g. "The shared brain for Mark and the team."
+- **PageHeader** — eyebrow "Vault"; title e.g. "The shared brain for Arc and the team."
 - **OperatorBar** — primary `Sync vault` (`?action=sync`), secondary `New note`
-  (`?action=new`). Paired **ActionFeedback** explains the preview, e.g. "Preview: Mark
+  (`?action=new`). Paired **ActionFeedback** explains the preview, e.g. "Preview: Arc
   would read N markdown files from your Obsidian vault and queue them for review. No
   files read yet."
-- **Stat row** — Notes, Collections, Links resolved, Unresolved links, Mark drafts
+- **Stat row** — Notes, Collections, Links resolved, Unresolved links, Arc drafts
   awaiting review.
 - **Collections** — notes grouped by folder, each a `NoteCard` (title, summary, author
-  pill, status pill, tag chips, updated). Mark-authored cards carry a "Mark" pill.
+  pill, status pill, tag chips, updated). Arc-authored cards carry a "Arc" pill.
 - **Graph teaser** — compact panel linking to / embedding the full graph.
 
 ### Note page (`/notebook/[noteSlug]`)
@@ -146,15 +146,15 @@ destination (Obsidian style).
   lib, no glow). Nodes = notes + linked records/personas; edges = links. Home page shows
   the whole vault; a note page shows a local neighborhood with the current note
   emphasized. Restoration palette only, per `DESIGN.md`.
-- **OperatorBar** actions: `Edit`, `Publish`, `Ask Mark to expand`, `Archive` — all
+- **OperatorBar** actions: `Edit`, `Publish`, `Ask Arc to expand`, `Archive` — all
   preview-only.
 
-## Mark integration
+## Arc integration
 
-- Mark-authored notes default to status **Needs review**. The note page shows a banner
+- Arc-authored notes default to status **Needs review**. The note page shows a banner
   deep-linking to `/approvals?item=…`, reusing the existing approval-guardrail pattern.
 - "Published" notes read as canonical; "Draft" / "Needs review" are clearly marked.
-- This mirrors the documented ContentEngine-style approval flow: Mark drafts → human
+- This mirrors the documented ContentEngine-style approval flow: Arc drafts → human
   approves / declines / requests revision / archives.
 
 ## Design system
@@ -176,7 +176,7 @@ adding any new layout primitive.
 
 ## Future phases (out of scope here)
 
-- Real Obsidian vault import: Mark reads `.md` files and queues them as Needs-review
+- Real Obsidian vault import: Arc reads `.md` files and queues them as Needs-review
   notes. The data shape above is already import-ready.
 - Persistence: notes become real records; preview actions (`Sync vault`, `New note`,
   `Edit`, `Publish`, `Archive`) become real backend state transitions per the
@@ -234,7 +234,7 @@ inventing new ones.
 - **`src/app/notebook/new/page.tsx`** — blank editor to create a note.
 - **`src/app/notebook/[noteSlug]/edit/page.tsx`** — editor pre-filled from the note.
 - **Note detail page** wires real actions: `Edit` links to `…/edit`; `Publish` and
-  `Archive`/`Delete` are form buttons posting to the server actions; the Mark "Needs review"
+  `Archive`/`Delete` are form buttons posting to the server actions; the Arc "Needs review"
   banner remains and `Publish` performs the real `draft/needs_review → published` transition.
 - **Vault home**: `New note` links to `/notebook/new` (not a preview); a banner shows when the
   read-model status is `fallback` (Supabase not configured) or `error`.

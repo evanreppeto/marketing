@@ -2,30 +2,30 @@
 
 **Date:** 2026-06-09
 **Status:** Approved (design); pending implementation plan
-**Topic:** Editing, photo management, one-step deploy, and Mark hand-off for operator-authored campaigns
+**Topic:** Editing, photo management, one-step deploy, and Arc hand-off for operator-authored campaigns
 
 ## Problem
 
 Operator-authored campaigns (the prior feature) are **create-only**. After creation
 the operator can't edit the campaign, add or remove photos, deploy in one step, or
-hand it to Mark with a click. This iteration rounds out that authoring lifecycle.
+hand it to Arc with a click. This iteration rounds out that authoring lifecycle.
 
 ## Goal
 
 On top of the existing create flow, add four capabilities, reusing the wired
-campaigns/Launch/Mark machinery:
+campaigns/Launch/Arc machinery:
 
 1. **Create & deploy in one step** — create *and* Launch to the Outbox in one click.
 2. **Add/remove photos later** — manage a draft campaign's photos after creation.
 3. **Edit campaign fields** — change title/audience/objective/offer after creation.
-4. **Send to Mark** — a one-click hand-off button.
+4. **Send to Arc** — a one-click hand-off button.
 
 ## Decisions (confirmed)
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Authoring scope | Edit / add / remove apply to **operator-authored** campaigns (`source_system='operator'`) while still a **draft** (not launched). Locked once launched. | Safe and clear; once live, outbound is committed. Mark's campaigns keep their own approve/revise flow. |
-| Send to Mark scope | Available any time, on the detail page | It's just a directive message; no mutation risk. |
+| Authoring scope | Edit / add / remove apply to **operator-authored** campaigns (`source_system='operator'`) while still a **draft** (not launched). Locked once launched. | Safe and clear; once live, outbound is committed. Arc's campaigns keep their own approve/revise flow. |
+| Send to Arc scope | Available any time, on the detail page | It's just a directive message; no mutation risk. |
 | Remove semantics | **Delete** the photo's `campaign_assets` row (its `approval_items` cascade via FK) + best-effort delete the Storage object; only when the asset isn't deployed (`dispatch_locked = true`). | A photo added by mistake should disappear cleanly. |
 | Create & deploy precondition | Requires **≥1 photo** (deploy needs a deliverable to unlock); zero photos → clear error. | `launchCampaign` throws without an approved deliverable. |
 | Editable fields | `name`, `audience_summary`, `objective`, `offer_summary` only | Persona/restoration_focus are structural; editing them post-create is low-value and riskier. (`channel` lives on assets, not the campaign.) |
@@ -35,7 +35,7 @@ campaigns/Launch/Mark machinery:
 Layering unchanged: `domain/` (pure validation) → `lib/campaigns/` (persistence) →
 `app/campaigns/` (server components + actions). New code reuses the existing
 `createOperatorCampaign` photo logic, the existing `launchCampaign`, and the existing
-`sendMarkDirective`.
+`sendArcDirective`.
 
 ## Components
 
@@ -86,7 +86,7 @@ Layering unchanged: `domain/` (pure validation) → `lib/campaigns/` (persistenc
   - `addCampaignPhotosAction` — campaignId + photos (reuse the existing `readPhotos`
     helper) → `addCampaignPhotos`.
   - `removeCampaignAssetAction` — campaignId + assetId → `removeCampaignAsset`.
-  - `sendCampaignToMarkAction` — campaignId → `sendMarkDirective` with a standard
+  - `sendCampaignToMarkAction` — campaignId → `sendArcDirective` with a standard
     hand-off directive ("Operator handed off this campaign — please review the photos
     and draft/refine the creative."); returns the queued confirmation.
 
@@ -105,7 +105,7 @@ Layering unchanged: `domain/` (pure validation) → `lib/campaigns/` (persistenc
   - **Add photos** — a small upload form bound to `addCampaignPhotosAction`.
   - **Remove** — a per-photo `×` control (bound to `removeCampaignAssetAction`) on the
     operator photos.
-  - **Send to Mark** button (bound to `sendCampaignToMarkAction`), shown regardless of
+  - **Send to Arc** button (bound to `sendCampaignToMarkAction`), shown regardless of
     draft state.
   - The read-model that feeds the detail page must expose `sourceSystem` and the
     per-photo `assetId`/`path` so the panel can gate itself and target removals.
@@ -138,6 +138,6 @@ Layering unchanged: `domain/` (pure validation) → `lib/campaigns/` (persistenc
 
 - Editing persona / restoration_focus.
 - Reordering photos or per-photo headline/body copy.
-- Authoring on Mark-authored campaigns or post-launch campaigns.
-- Defining Mark's behavior on hand-off beyond posting the directive.
+- Authoring on Arc-authored campaigns or post-launch campaigns.
+- Defining Arc's behavior on hand-off beyond posting the directive.
 - Paste-image-URL input (still upload-only).

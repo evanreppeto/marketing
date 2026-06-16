@@ -6,10 +6,10 @@
 
 ## Problem
 
-The Campaigns tab is Mark's (Hermes') approval queue — the ContentEngine-style human gate where
+The Campaigns tab is Arc's (Arc') approval queue — the ContentEngine-style human gate where
 the operator reviews drafted work and approves before outbound unlocks. Today the list shows nine
 visually identical "NEEDS YOU" rows carrying only `name · persona · channel · asset-count · "Drafted
-by Mark · date"`. The decision the operator must make — *should this go out?* — is unsupported:
+by Arc · date"`. The decision the operator must make — *should this go out?* — is unsupported:
 
 1. **Decision-relevant data is discarded.** The read model (`CampaignWorkspaceListItem`) already
    delivers `whyBuilt`, `objective`, `previewText`, `previewLabel`, and `thumbnailUrl` to the client,
@@ -17,8 +17,8 @@ by Mark · date"`. The decision the operator must make — *should this go out?*
 2. **No content preview.** You can't tell a strong draft from a weak one without opening it.
 3. **Everything looks equally urgent.** Four near-identical internal "CRM Population" batches get the
    same gold weight as a real outbound partner email.
-4. **Time isn't framed as urgency.** "Drafted by Mark · Jun 1" is a passive stamp, not "waiting 9d".
-5. **Per-row Mark branding is redundant** — the "M" chip + "Drafted by Mark" repeats on every row.
+4. **Time isn't framed as urgency.** "Drafted by Arc · Jun 1" is a passive stamp, not "waiting 9d".
+5. **Per-row Arc branding is redundant** — the "M" chip + "Drafted by Arc" repeats on every row.
 6. **No sense of pipeline / momentum** — Ready/Live/Drafts all read 0; the screen is one big pile.
 
 ## Goal
@@ -39,17 +39,17 @@ This keeps outbound safe — no campaign can go out from a quick list click. The
 Each campaign row becomes a three-part block:
 
 - **Title line:** campaign name + lifecycle pill (e.g. gold "Needs you").
-- **Why line:** one line of `whyBuilt` (fallback `objective`) — *why Mark built this*.
+- **Why line:** one line of `whyBuilt` (fallback `objective`) — *why Arc built this*.
 - **Meta line:** `persona · channel-summary · N assets · wait-time` (relative, e.g. "waiting 4h").
 
-The redundant per-row "M / Drafted by Mark" attribution is removed; the entire tab is Mark's work, so
-it becomes implicit. (Attribution is reserved for future non-Mark rows, e.g. operator-created.)
+The redundant per-row "M / Drafted by Arc" attribution is removed; the entire tab is Arc's work, so
+it becomes implicit. (Attribution is reserved for future non-Arc rows, e.g. operator-created.)
 
 ### 2. Content preview (outbound rows only)
 
 Outbound campaign rows additionally render a compact preview panel: `previewLabel` +
 `previewText` (e.g. "Email · subject" → the subject + first line), or `thumbnailUrl` for visual
-assets. This lets the operator judge Mark's actual draft quality before opening. Preview is **omitted
+assets. This lets the operator judge Arc's actual draft quality before opening. Preview is **omitted
 for internal CRM-population batches** (see §3) and when no preview data exists.
 
 ### 3. Internal vs. outbound split
@@ -83,7 +83,7 @@ degrades gracefully (renders nothing) when the list is empty.
 
 - Lifecycle grouping: Awaiting → Ready → Live → Drafts.
 - Filter chips with counts (All / Awaiting approval / Ready / Live / Drafts).
-- `PageHeader` with the "N awaiting you" pill and "＋ Ask Mark to build one".
+- `PageHeader` with the "N awaiting you" pill and "＋ Ask Arc to build one".
 - Empty lifecycle groups get a one-line affordance ("Nothing ready yet — approved campaigns land
   here.") instead of disappearing, so the pipeline shape stays legible.
 
@@ -137,7 +137,7 @@ server component.
 - Inline / bulk approve-decline from the list (operator chose workspace-only decisions).
 - Engagement/performance metrics in the momentum strip (needs performance read-model).
 - Any change to the campaign workspace (`[campaignId]`) itself.
-- Changes to how Mark drafts campaigns or the approval backend.
+- Changes to how Arc drafts campaigns or the approval backend.
 
 ## Design system
 

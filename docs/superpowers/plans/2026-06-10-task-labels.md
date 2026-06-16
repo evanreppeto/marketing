@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a reusable, colored label catalog to the Mark task board — operator-curated, with Mark able to suggest existing labels or propose new ones (pending operator acceptance).
+**Goal:** Add a reusable, colored label catalog to the Arc task board — operator-curated, with Arc able to suggest existing labels or propose new ones (pending operator acceptance).
 
-**Architecture:** Pure label logic (palette, name normalization, validation) in `src/domain/task-labels.ts`; I/O in `src/lib/task-labels/`; operator mutations as `requireOperator()`-gated server actions; Mark's suggestions via a bearer-gated `/api/v1/hermes` route. Two new tables back it; the board read-model batch-loads labels onto each task.
+**Architecture:** Pure label logic (palette, name normalization, validation) in `src/domain/task-labels.ts`; I/O in `src/lib/task-labels/`; operator mutations as `requireOperator()`-gated server actions; Arc's suggestions via a bearer-gated `/api/v1/arc` route. Two new tables back it; the board read-model batch-loads labels onto each task.
 
 **Tech Stack:** Next.js 16 server components + server actions, Supabase (Postgres + admin client), Vitest. No new npm dependencies.
 
@@ -27,9 +27,9 @@
 | `src/lib/task-labels/suggest.ts` | `suggestLabel` (agent path) | Create |
 | `src/lib/task-labels/__tests__/*.test.ts` | Persistence tests | Create |
 | `src/app/agent-operations/labels-actions.ts` | Operator-gated server actions | Create |
-| `src/app/api/v1/hermes/labels/route.ts` | `GET` catalog | Create |
-| `src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.ts` | `POST` suggest | Create |
-| `src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.test.ts` | API test | Create |
+| `src/app/api/v1/arc/labels/route.ts` | `GET` catalog | Create |
+| `src/app/api/v1/arc/tasks/[id]/labels/suggest/route.ts` | `POST` suggest | Create |
+| `src/app/api/v1/arc/tasks/[id]/labels/suggest/route.test.ts` | API test | Create |
 | `src/lib/agent-operations/read-model.ts` | Add `labels` to `AgentOperationsTask` + dashboard | Modify |
 | `src/app/agent-operations/label-chip.tsx` | Applied/suggested chip rendering | Create |
 | `src/app/agent-operations/label-picker.tsx` | Add/create labels popover | Create |
@@ -227,7 +227,7 @@ This module exposes the catalog and a batch loader for the board. Mirror the gua
 
 - [ ] **Step 1: Write the failing test**
 
-Create `src/lib/task-labels/__tests__/read-model.test.ts`. Use the codebase's existing Supabase test-mock helper `createSupabaseQueryMock` from `@/lib/repos/__tests__/test-helpers` (the same one `src/lib/hermes-api/__tests__/tasks.test.ts` uses — open that file to copy the exact import + usage idiom):
+Create `src/lib/task-labels/__tests__/read-model.test.ts`. Use the codebase's existing Supabase test-mock helper `createSupabaseQueryMock` from `@/lib/repos/__tests__/test-helpers` (the same one `src/lib/arc-api/__tests__/tasks.test.ts` uses — open that file to copy the exact import + usage idiom):
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -247,7 +247,7 @@ describe("getLabelsForTasks", () => {
       agent_task_label_assignments: {
         data: [
           { task_id: "t1", label_id: "l1", state: "applied", suggested_by: null, task_labels: { id: "l1", name: "Urgent", color: "red", status: "active" } },
-          { task_id: "t1", label_id: "l2", state: "suggested", suggested_by: "mark", task_labels: { id: "l2", name: "Weather", color: "blue", status: "proposed" } },
+          { task_id: "t1", label_id: "l2", state: "suggested", suggested_by: "arc", task_labels: { id: "l2", name: "Weather", color: "blue", status: "proposed" } },
         ],
         error: null,
       },
@@ -255,7 +255,7 @@ describe("getLabelsForTasks", () => {
     const result = await getLabelsForTasks(["t1"], supabase);
     expect(result.get("t1")).toEqual([
       { id: "l1", name: "Urgent", color: "red", state: "applied", suggestedBy: null },
-      { id: "l2", name: "Weather", color: "blue", state: "suggested", suggestedBy: "mark" },
+      { id: "l2", name: "Weather", color: "blue", state: "suggested", suggestedBy: "arc" },
     ]);
   });
 });
@@ -362,7 +362,7 @@ git commit -m "feat(labels): catalog + per-task read model"
 - Create: `src/lib/task-labels/suggest.ts`
 - Test: `src/lib/task-labels/__tests__/mutations.test.ts`
 
-Study `src/lib/hermes-api/tasks.ts` for the read-row → validate → write rhythm and the `createSupabaseQueryMock` test idiom before writing.
+Study `src/lib/arc-api/tasks.ts` for the read-row → validate → write rhythm and the `createSupabaseQueryMock` test idiom before writing.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -575,7 +575,7 @@ export async function suggestLabel(
 
   const { error: aErr } = await client
     .from("agent_task_label_assignments")
-    .upsert({ task_id: taskId, label_id: labelId, state: "suggested", suggested_by: "mark" }, { onConflict: "task_id,label_id" });
+    .upsert({ task_id: taskId, label_id: labelId, state: "suggested", suggested_by: "arc" }, { onConflict: "task_id,label_id" });
   if (aErr) throw new Error(`suggestLabel assignment failed: ${aErr.message}`);
   return { ok: true, labelId };
 }
@@ -728,15 +728,15 @@ git commit -m "feat(labels): operator-gated label server actions"
 ## Task 6: Agent API — list + suggest
 
 **Files:**
-- Create: `src/app/api/v1/hermes/labels/route.ts`
-- Create: `src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.ts`
-- Test: `src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.test.ts`
+- Create: `src/app/api/v1/arc/labels/route.ts`
+- Create: `src/app/api/v1/arc/tasks/[id]/labels/suggest/route.ts`
+- Test: `src/app/api/v1/arc/tasks/[id]/labels/suggest/route.test.ts`
 
-Mirror `src/app/api/v1/hermes/tasks/[id]/claim/route.ts`: `guard(request)` for bearer, `fail(...)` for errors, `parseJson` if present in `_lib/http.ts`.
+Mirror `src/app/api/v1/arc/tasks/[id]/claim/route.ts`: `guard(request)` for bearer, `fail(...)` for errors, `parseJson` if present in `_lib/http.ts`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.test.ts`. First open `claim/route.test.ts` to copy how it stubs the bearer + the `suggestLabel` dependency. Then:
+Create `src/app/api/v1/arc/tasks/[id]/labels/suggest/route.test.ts`. First open `claim/route.test.ts` to copy how it stubs the bearer + the `suggestLabel` dependency. Then:
 
 ```ts
 import { describe, expect, it, vi } from "vitest";
@@ -748,7 +748,7 @@ vi.mock("@/lib/task-labels/suggest", () => ({
 import { POST } from "./route";
 
 function req(body: unknown, token = "test-token") {
-  return new Request("http://localhost/api/v1/hermes/tasks/t1/labels/suggest", {
+  return new Request("http://localhost/api/v1/arc/tasks/t1/labels/suggest", {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -762,7 +762,7 @@ describe("POST suggest label", () => {
   });
 
   it("suggests for a valid request", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "test-token";
+    process.env.ARC_AGENT_API_TOKEN = "test-token";
     const res = await POST(req({ name: "Weather", color: "blue" }), { params: Promise.resolve({ id: "t1" }) });
     expect(res.status).toBe(201);
   });
@@ -773,17 +773,17 @@ describe("POST suggest label", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm test "src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.test.ts"`
+Run: `pnpm test "src/app/api/v1/arc/tasks/[id]/labels/suggest/route.test.ts"`
 Expected: FAIL — route not found.
 
 - [ ] **Step 3: Write the GET catalog route**
 
-Create `src/app/api/v1/hermes/labels/route.ts`:
+Create `src/app/api/v1/arc/labels/route.ts`:
 
 ```ts
 import { NextResponse } from "next/server";
 
-import { fail, guard } from "@/app/api/v1/hermes/_lib/http";
+import { fail, guard } from "@/app/api/v1/arc/_lib/http";
 import { listLabels } from "@/lib/task-labels/read-model";
 
 export async function GET(request: Request) {
@@ -800,12 +800,12 @@ export async function GET(request: Request) {
 
 - [ ] **Step 4: Write the POST suggest route**
 
-Create `src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.ts`:
+Create `src/app/api/v1/arc/tasks/[id]/labels/suggest/route.ts`:
 
 ```ts
 import { NextResponse } from "next/server";
 
-import { fail, guard } from "@/app/api/v1/hermes/_lib/http";
+import { fail, guard } from "@/app/api/v1/arc/_lib/http";
 import { isLabelColor } from "@/domain";
 import { suggestLabel } from "@/lib/task-labels/suggest";
 
@@ -848,13 +848,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
 - [ ] **Step 5: Run test + lint**
 
-Run: `pnpm test "src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.test.ts" && npx eslint "src/app/api/v1/hermes/labels/route.ts" "src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.ts"`
+Run: `pnpm test "src/app/api/v1/arc/tasks/[id]/labels/suggest/route.test.ts" && npx eslint "src/app/api/v1/arc/labels/route.ts" "src/app/api/v1/arc/tasks/[id]/labels/suggest/route.ts"`
 Expected: PASS, eslint clean.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add "src/app/api/v1/hermes/labels/route.ts" "src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.ts" "src/app/api/v1/hermes/tasks/[id]/labels/suggest/route.test.ts"
+git add "src/app/api/v1/arc/labels/route.ts" "src/app/api/v1/arc/tasks/[id]/labels/suggest/route.ts" "src/app/api/v1/arc/tasks/[id]/labels/suggest/route.test.ts"
 git commit -m "feat(labels): agent API to list catalog and suggest labels"
 ```
 
@@ -958,7 +958,7 @@ export function LabelChip({ taskId, label }: { taskId: string; label: AssignedLa
       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold"
       style={{ background: suggested ? "transparent" : t.bg, color: t.fg, border: `1px ${suggested ? "dashed" : "solid"} ${t.border}` }}
     >
-      {suggested ? <span title="Suggested by Mark">✦</span> : null}
+      {suggested ? <span title="Suggested by Arc">✦</span> : null}
       {label.name}
       {suggested ? (
         <>

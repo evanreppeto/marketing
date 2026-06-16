@@ -115,8 +115,8 @@ async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]
     mentionGroups,
     operatorName: displayName(operator),
     pendingApprovals,
-    defaultMode: settings.markDefaultMode,
-    defaultRoute: settings.markDefaultRoute,
+    defaultMode: settings.arcDefaultMode,
+    defaultRoute: settings.arcDefaultRoute,
     assistantName: settings.assistantName,
   };
 }

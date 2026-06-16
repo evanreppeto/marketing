@@ -417,7 +417,7 @@ In `src/app/_components/console-frame.tsx`, add to `navItems` after the Outbox e
   { label: "Gallery", href: "/gallery", iconSrc: "/brand/nav-icons/personas-icon.png", matches: ["/gallery"] },
 ```
 
-> No dedicated gallery icon exists under `public/brand/nav-icons/` (available: crm, mark, personas, review, settings, today, vault — `today` is used by Outbox, `review` by Campaigns, `crm` by CRM). `personas-icon.png` is a placeholder reuse; flag in the report that a real gallery icon should be supplied. Confirm the chosen file exists with `ls public/brand/nav-icons/`.
+> No dedicated gallery icon exists under `public/brand/nav-icons/` (available: crm, arc, personas, review, settings, today, vault — `today` is used by Outbox, `review` by Campaigns, `crm` by CRM). `personas-icon.png` is a placeholder reuse; flag in the report that a real gallery icon should be supplied. Confirm the chosen file exists with `ls public/brand/nav-icons/`.
 
 In `src/app/_data/growth-engine.ts`, add to `navItems` after the Outbox entry:
 
@@ -512,7 +512,7 @@ function GalleryCard({ campaign }: { campaign: GalleryCampaign }) {
     >
       <div className="flex h-40 items-center justify-center overflow-hidden bg-[oklch(0.14_0.025_246)]">
         {campaign.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config
+          // eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config
           <img src={campaign.thumbnailUrl} alt={campaign.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
         ) : (
           <span className="px-4 text-center font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -1091,7 +1091,7 @@ Add a line near the other API token vars:
 CAMPAIGN_RESULTS_API_TOKEN=
 ```
 
-> Read `.env.example` first and match its comment style/section placement (group with `HERMES_AGENT_API_TOKEN` / `LEADS_INGEST_API_TOKEN`).
+> Read `.env.example` first and match its comment style/section placement (group with `ARC_AGENT_API_TOKEN` / `LEADS_INGEST_API_TOKEN`).
 
 - [ ] **Step 4: Verify**
 

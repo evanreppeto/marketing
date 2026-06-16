@@ -13,7 +13,7 @@ import { getAgentName } from "@/lib/settings/agent-name";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
- * Fallback inbox for the external Arc/Arc agent. The primary wake is the
+ * Fallback inbox for the external Arc agent. The primary wake is the
  * ARC_WEBHOOK_URL push; this is the catch-up path for messages whose push
  * didn't land. Each returned task is claimed (queued -> running) before it's
  * handed out, so a message is delivered to exactly one puller and never

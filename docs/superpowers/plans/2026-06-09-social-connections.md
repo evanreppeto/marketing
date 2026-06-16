@@ -4,7 +4,7 @@
 
 **Goal:** Give the four social providers (Instagram, Facebook, LinkedIn, X) their real Vercel env vars, compute operator-facing status from env-var presence, and surface the same enable/disable + test controls Resend has — with real posting transport left for a later spec.
 
-**Architecture:** Extend the existing connections registry (`src/domain/connections.ts`) so each provider declares its full `requiredEnvVars` set. The read-model computes "configured" from the registry (all required vars present) instead of a single DB column. A new server-action branch lets social providers be enabled/tested, where "test" is a credential-presence check (no live API call). A new `SocialConnectionControls` row renders them in the Settings panel. Secrets stay in env vars; nothing is sent to Mark.
+**Architecture:** Extend the existing connections registry (`src/domain/connections.ts`) so each provider declares its full `requiredEnvVars` set. The read-model computes "configured" from the registry (all required vars present) instead of a single DB column. A new server-action branch lets social providers be enabled/tested, where "test" is a credential-presence check (no live API call). A new `SocialConnectionControls` row renders them in the Settings panel. Secrets stay in env vars; nothing is sent to Arc.
 
 **Tech Stack:** TypeScript, Next.js 16 server actions, React 19 (`useActionState`), Supabase (Postgres migration), Vitest.
 
@@ -718,4 +718,4 @@ git status   # expect clean
 - **Spec coverage:** Credentials (Task 7 + setup guide) · `requiredEnvVars` registry (Task 1) · status from all-required presence (Task 2) · migration display var (Task 3) · social enable/disable + presence test, email-only send (Task 4) · `SocialConnectionControls` (Task 5) · panel rendering (Task 6). All spec sections map to a task.
 - **Out of scope (transport spec):** OAuth flows, `execute-social`, `social_accounts`/`social_posts`, live social API calls — none appear in any task. ✔
 - **Type consistency:** `missingRequiredEnvVars(provider, env)` signature is identical across domain, read-model, and the action. `requiredEnvVars: string[]` added to both `ConnectionView` (read-model) and `ConnectionRowView` (controls). `providerMeta` returns `{ kind, label }` used consistently. ✔
-- **Secret ownership:** No task passes credentials to Mark; `HERMES_AGENT_API_TOKEN` is untouched. ✔
+- **Secret ownership:** No task passes credentials to Arc; `ARC_AGENT_API_TOKEN` is untouched. ✔

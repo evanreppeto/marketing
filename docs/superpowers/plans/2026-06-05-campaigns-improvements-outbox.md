@@ -90,7 +90,7 @@ export const navItems = [
   { label: "Campaigns", href: "/campaigns", icon: "approval" },
   { label: "CRM", href: "/crm", icon: "crm" },
   { label: "Personas", href: "/persona-intelligence", icon: "persona" },
-  { label: "Mark", href: "/agent-operations", icon: "agents" },
+  { label: "Arc", href: "/agent-operations", icon: "agents" },
   { label: "Settings", href: "/settings", icon: "sliders" },
 ];
 ```
@@ -409,7 +409,7 @@ Expected: PASS.
 Add to `CampaignWorkspaceAsset` (after `media`, line ~81):
 
 ```ts
-  /** Original draft vs current text, present only when Mark revised the piece.
+  /** Original draft vs current text, present only when Arc revised the piece.
    *  Drives the "What changed" diff in the review drawer. */
   revision: { draft: string; current: string } | null;
 ```
@@ -1285,7 +1285,7 @@ const navItems: ShellNavItem[] = [
 ```
 
 > **Icon:** there is no dedicated outbox icon under `public/brand/nav-icons/`
-> (available: crm, mark, personas, review, settings, today, vault). `today-icon.png`
+> (available: crm, arc, personas, review, settings, today, vault). `today-icon.png`
 > is a placeholder reuse — flag this in the report so the human can supply a real
 > outbox icon later. Do NOT reuse `review-icon.png` (Campaigns already uses it).
 
@@ -1381,7 +1381,7 @@ function DispatchControls({ dispatch }: { dispatch: DispatchView }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
       {dispatch.status === "queued" || dispatch.status === "scheduled" ? (
-        <TransitionButton action={markDispatchSentAction} dispatch={dispatch} label="Mark sent" variant="primary" />
+        <TransitionButton action={markDispatchSentAction} dispatch={dispatch} label="Arc sent" variant="primary" />
       ) : null}
       {dispatch.status === "sent" ? (
         <>
@@ -1446,7 +1446,7 @@ export default async function OutboxPage() {
       <PageHeader
         eyebrow="Dispatch"
         title="Outbox"
-        description="Every approved deliverable that has been launched, and where it stands. The app records dispatch state and hands off to Mark — it does not send, publish, or contact anyone."
+        description="Every approved deliverable that has been launched, and where it stands. The app records dispatch state and hands off to Arc — it does not send, publish, or contact anyone."
         aside={<StatusPill tone="amber">Outbound locked</StatusPill>}
       />
       {list.status === "unavailable" ? (

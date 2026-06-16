@@ -56,7 +56,7 @@ These fields are intentionally simple database primitives. The application layer
 
 ## Backend-First Growth Layer
 
-The next schema layer turns the app into a Hermes-ready backend without requiring Hermes to exist yet.
+The next schema layer turns the app into a Arc-ready backend without requiring Arc to exist yet.
 
 Core operating tables:
 
@@ -130,11 +130,11 @@ Important fields:
 
 Only official personas are allowed for new AI routing. `unassigned_persona` remains internal-only.
 
-## Hermes Integration Boundaries
+## Arc Integration Boundaries
 
-Hermes should be added last, after the backend tables and APIs are stable.
+Arc should be added last, after the backend tables and APIs are stable.
 
-The first Hermes-facing API layer should expose:
+The first Arc-facing API layer should expose:
 
 - CRM reads and validated intake writes.
 - Approval queue reads, decision writes, and dispatch eligibility checks.
@@ -143,7 +143,7 @@ The first Hermes-facing API layer should expose:
 - Weather/capacity events as inputs, not direct external actions.
 - Platform events and object mappings for cross-app synchronization.
 
-Hermes should not get direct permission to publish, send, spend, or alter public pages until those actions are represented as approved backend state transitions.
+Arc should not get direct permission to publish, send, spend, or alter public pages until those actions are represented as approved backend state transitions.
 
 ## Security Default
 

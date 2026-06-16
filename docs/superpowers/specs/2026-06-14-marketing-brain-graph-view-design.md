@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-14
 **Status:** Approved design, ready for implementation plan
-**Builds on:** `2026-06-12-marketing-brain-knowledge-graph-design.md` (the node/edge data layer, trust model, Hermes API, and `/brain` approval/browse UI already shipped).
+**Builds on:** `2026-06-12-marketing-brain-knowledge-graph-design.md` (the node/edge data layer, trust model, Arc API, and `/brain` approval/browse UI already shipped).
 
 ## Summary
 
@@ -13,7 +13,7 @@ visualization and export on top. It does NOT add ingestion — auto-extraction i
 
 Reference: Graphify (graphify.net) renders a repo's knowledge graph as an interactive
 `graph.html` (search, filter, community navigation) plus a `graph.json` artifact an agent
-can reason over. We mirror that experience over Mark's marketing knowledge.
+can reason over. We mirror that experience over Arc's marketing knowledge.
 
 ## Scope
 
@@ -57,8 +57,8 @@ export async function getBrainGraph(
   "links": [{ "source": "<fromNodeId>", "target": "<toNodeId>", "relation", "weight" }] }
 ```
 
-- **Agent endpoint:** `GET /api/v1/hermes/brain/graph` — bearer-gated via the shared `guard`,
-  returns `{ ok, status, nodes, links }`. Logic in `src/lib/hermes-api/brain.ts` as
+- **Agent endpoint:** `GET /api/v1/arc/brain/graph` — bearer-gated via the shared `guard`,
+  returns `{ ok, status, nodes, links }`. Logic in `src/lib/arc-api/brain.ts` as
   `markGraphExport(deps)` (calls `getBrainGraph` and maps edges → `links`). `503` when Supabase
   is unconfigured; `200` live. Contract-tested.
 - **Operator download:** a "Download graph.json" button in the graph view serializes the
@@ -118,5 +118,5 @@ against React 19.2.4 / Next 16. Added to `package.json` + `pnpm-lock.yaml`.
 
 ## Out of scope for 2A (→ 2B: auto-extraction)
 
-Mark/job reading CRM records, campaign results, and docs to auto-propose nodes/edges into the
+Arc/job reading CRM records, campaign results, and docs to auto-propose nodes/edges into the
 brain. 2A only visualizes and exports the existing graph; the trust gate is unchanged.

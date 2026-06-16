@@ -6,7 +6,7 @@
 
 **Architecture:** A new client orchestrator `CampaignCockpit` renders the header, the launch tracker, a thin drawer-trigger row, a two-column (creative | why/who/risk rail) body, and one generic `WorkspaceDrawer` whose content is swapped by a key. Existing components (`CreativeTab`, `MarkConversation`, `ApprovalsTab`, `PerformanceTab`, `AuditLog`, `DispatchPanel`, `CampaignMediaBoard`, `CampaignEconomicsPanel`, `AudienceLeadsTab`, `FullBrief`) are reused verbatim inside drawers or the body. A pure mapper decides which drawer a URL/key opens (tested).
 
-**Tech stack:** Next.js 16 client components, React 19, TS, Tailwind, Vitest. Reuse `theme.ts`, `page-header.tsx`. Drawer interaction mirrors the already-built `src/app/mark/_components/agent-settings-drawer.tsx`.
+**Tech stack:** Next.js 16 client components, React 19, TS, Tailwind, Vitest. Reuse `theme.ts`, `page-header.tsx`. Drawer interaction mirrors the already-built `src/app/arc/_components/agent-settings-drawer.tsx`.
 
 ---
 
@@ -108,7 +108,7 @@ export function drawerForUrl({ drawer, item }: { drawer: string | null; item: st
 
 **Files:** Create `src/app/campaigns/_components/workspace-drawer.tsx`.
 
-A generic drawer modeled on `src/app/mark/_components/agent-settings-drawer.tsx` (READ it first for the exact interaction pattern). No data fetching — pure container.
+A generic drawer modeled on `src/app/arc/_components/agent-settings-drawer.tsx` (READ it first for the exact interaction pattern). No data fetching — pure container.
 
 - [ ] **Step 1: Implement**
 
@@ -120,7 +120,7 @@ import { useEffect, useRef } from "react";
 import { cx } from "@/app/_components/theme";
 
 /** Generic right-anchored slide-over. role=dialog, Escape + backdrop close,
- *  focus moves to the panel on open. CSS-only; mirrors the Mark agent drawer. */
+ *  focus moves to the panel on open. CSS-only; mirrors the Arc agent drawer. */
 export function WorkspaceDrawer({
   open,
   title,
@@ -176,7 +176,7 @@ export function WorkspaceDrawer({
 }
 ```
 
-- [ ] **Step 2:** `pnpm lint` clean. Confirm `--overlay`, `--surface-panel`, `--elev-panel`, `--border-panel`, `--border-hairline` exist (they do — used by the Mark drawer).
+- [ ] **Step 2:** `pnpm lint` clean. Confirm `--overlay`, `--surface-panel`, `--elev-panel`, `--border-panel`, `--border-hairline` exist (they do — used by the Arc drawer).
 - [ ] **Step 3: Commit** — `git commit -m "feat(campaigns): generic WorkspaceDrawer slide-over"`
 
 ---
@@ -289,7 +289,7 @@ READ first: `campaign-workspace.tsx` (current data wiring + URL helpers `buildHr
   URL behavior: derive the open drawer from search params using `drawerForUrl({ drawer: searchParams.get("drawer"), item: searchParams.get("item") })` (import from `./cockpit-drawers`). Open a drawer via `pushState` writing `?drawer=<key>` (and clearing `item`); close by clearing both — reuse the same `buildHref`/`writeParams` pattern the current `campaign-workspace.tsx` uses (copy those helpers in). `focus` for `ApprovalsTab` stays derived from `?item=` exactly as today. Keep `filter` via `replaceParams` as today.
 
 - [ ] **Step 2: Update `src/app/campaigns/[campaignId]/page.tsx`** — replace the render block so it computes the agent name and renders the cockpit, dropping the separate economics panel:
-  - Add: `import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";` and `import { getAppSettings } from "@/lib/settings/store";` and `import { CampaignCockpit } from "../_components/campaign-cockpit";`
+  - Add: `import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";` and `import { getAppSettings } from "@/lib/settings/store";` and `import { CampaignCockpit } from "../_components/campaign-cockpit";`
   - In the `live` branch: `const { agentName } = await getAppSettings();` then render only:
     ```tsx
     <CampaignCockpit detail={detail} dispatches={dispatches} economics={economics} agentName={getAgentDisplayName(agentName)} />

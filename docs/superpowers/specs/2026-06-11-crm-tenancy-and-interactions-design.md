@@ -11,7 +11,7 @@ outcomes) with list and detail pages. Two things are missing that block it from
 being (a) a working CRM and (b) a product other businesses can use:
 
 1. **No interaction layer.** Detail pages are read-only. There is no place for a
-   human *or* Hermes to add a note, log a call, or set a follow-up task against a
+   human *or* Arc to add a note, log a call, or set a follow-up task against a
    specific record. The existing `src/lib/activity/read-model.ts` derives a feed
    by merging four audit tables, but it is read-only and not attached to any
    individual CRM record.
@@ -24,14 +24,14 @@ This spec is the **foundation**. Two later specs build on it:
 - **Spec 2 — CRM Cockpit:** dashboard (follow-ups due, high-score leads, pending
   approvals), global search, list filters/sort.
 - **Spec 3 — AI Next-Best-Action:** `next_best_action`, `ai_summary`,
-  `ai_score_reason`, recommendation panel, agent audit trail wired to Hermes.
+  `ai_score_reason`, recommendation panel, agent audit trail wired to Arc.
 
 ## Guiding constraints
 
 - **Approval-safe.** Nothing in this spec sends, publishes, or contacts anyone.
   Notes, tasks, and activities are internal records only. (CLAUDE.md
   non-negotiable: no outbound without human approval.)
-- **Human vs. Hermes is always visible.** Every note/task/activity is attributed
+- **Human vs. Arc is always visible.** Every note/task/activity is attributed
   to `human`, `agent`, or `system`, plus an optional free-text name. No per-user
   login accounts in this spec.
 - **Follow existing patterns:** `src/domain/` (pure) → `src/lib/<feature>/` (I/O)
@@ -207,13 +207,13 @@ Indexes on all three: `(org_id, entity_type, entity_id, <time> desc)`.
 companion activity → `revalidatePath` the record + list. Redirect with
 `?action=…` feedback consistent with `crm/actions.ts`. **No outbound.**
 
-### Hermes API surface
+### Arc API surface
 
-New bearer-gated `POST /api/v1/hermes/crm/interactions` (validated by
-`checkBearerToken(request, "HERMES_AGENT_API_TOKEN")`). Body selects
+New bearer-gated `POST /api/v1/arc/crm/interactions` (validated by
+`checkBearerToken(request, "ARC_AGENT_API_TOKEN")`). Body selects
 `kind: note | task | activity` + payload; writes through the same
 `src/lib/interactions/persistence.ts` with `author_kind = 'agent'`. This makes
-the layer first-class for Hermes, not just the UI.
+the layer first-class for Arc, not just the UI.
 
 ---
 
@@ -222,7 +222,7 @@ the layer first-class for Hermes, not just the UI.
 New components under `src/app/crm/_components/record-interactions/`:
 
 - `RecordTimeline` — chronological list. Each row: small type icon, tone-colored
-  dot (per `ActivityTone`), summary, actor badge (**Human** / **Hermes** /
+  dot (per `ActivityTone`), summary, actor badge (**Human** / **Arc** /
   **System**), relative time. Empty state via `EmptyState`.
 - `NotesPanel` — pinned notes first (pin glyph), then recent. Inline add-note
   form: textarea + "internal" toggle + submit. Pin/unpin button per note.
@@ -272,7 +272,7 @@ are typed and `pnpm build` typechecks.
   (vendor noise per project memory), `pnpm build` (typecheck).
 - Manual: a detail page shows Timeline/Notes/Tasks; adding a note appears in both
   Notes and Timeline; creating + completing a task updates Tasks + Timeline;
-  Human vs. Hermes badges render.
+  Human vs. Arc badges render.
 
 ---
 

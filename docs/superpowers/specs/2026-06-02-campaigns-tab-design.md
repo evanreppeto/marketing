@@ -6,20 +6,20 @@
 
 ## Goal
 
-Make **Campaigns** the single visible tab. It shows every campaign Mark (Hermes)
+Make **Campaigns** the single visible tab. It shows every campaign Arc
 creates, lets the operator preview creative (ads, video, physical, virtual),
-see what leads/tools/reasoning produced each campaign, and prompt Mark inline to
+see what leads/tools/reasoning produced each campaign, and prompt Arc inline to
 request a revision — all detailed but uncluttered. **Outbound stays locked**;
-prompting Mark creates a revision request, never a send.
+prompting Arc creates a revision request, never a send.
 
 ## Decisions (from brainstorm)
 
 - **Layout:** Library (gallery) → full-screen workspace with sub-tabs + a
-  persistent Mark rail. (Direction A structure + Direction C persistent Mark.)
+  persistent Arc rail. (Direction A structure + Direction C persistent Arc.)
 - **Rebuild UI fresh**, keep the intact `src/lib/campaigns/read-model.ts`.
 - **Data:** live-only. No Supabase / no campaigns → clean empty state.
 - **Revision scope:** per-asset.
-- **Mark prompt = revision request** (deterministic Mark; no live LLM rewrite).
+- **Arc prompt = revision request** (deterministic Arc; no live LLM rewrite).
 
 ## Routes
 
@@ -28,7 +28,7 @@ prompting Mark creates a revision request, never a send.
   cards (thumbnail, asset-type chips, status pill, counts), metric strip, status
   filter, empty/unavailable states.
 - `/campaigns/[campaignId]` — workspace. `getCampaignWorkspaceDetail(id)`. Wide
-  content column with sub-tabs + persistent Mark rail. Handles `not_found` /
+  content column with sub-tabs + persistent Arc rail. Handles `not_found` /
   `unavailable`.
 
 ## Sub-tabs (client state, default Creative)
@@ -36,23 +36,23 @@ prompting Mark creates a revision request, never a send.
 1. **Creative** — assets grouped Physical / Virtual / Ads / Media (read-model
    already classifies). `AssetPreview` renders by type: copy → formatted body;
    image → `<Image>`; video/embed → player; file/link → link card. Each asset
-   card has an "Ask Mark to revise" affordance that targets it in the rail.
+   card has an "Ask Arc to revise" affordance that targets it in the rail.
 2. **Overview** — objective, audience & offer, persona, restoration focus,
    status, counts.
 3. **Audience & Leads** — leads/companies/contacts used (`sources`), persona
    snapshot, evidence URLs.
-4. **Reasoning** — why Mark built it, recommended action, **tools used**,
+4. **Reasoning** — why Arc built it, recommended action, **tools used**,
    prompt inputs, guardrail flags.
 5. **Approvals** — approval items, risk, status, decision history; link to
    `/approvals`.
 
-## Mark rail (persistent, right column, client)
+## Arc rail (persistent, right column, client)
 
 Shows current campaign context (leads, tools, persona, "why built"). Per-asset
 revision form: target asset (set by clicking an asset, or a dropdown) +
 instruction textarea + submit. Uses `useActionState` for inline result.
 
-## "Prompt Mark" write sequence
+## "Prompt Arc" write sequence
 
 Server action `requestRevisionAction` in `src/app/campaigns/actions.ts`
 (`"use server"`), gated by `requireOperator()` + `isSupabaseAdminConfigured()`,
@@ -69,7 +69,7 @@ delegating to `requestAssetRevision()` in `src/lib/campaigns/revisions.ts`:
    `dispatch_locked` (stays true).**
 4. Insert `campaign_events` → `event_type='approval_decided'`, actor,
    `detail="Revision requested: …"`, payload.
-5. Look up `agents` by `key='hermes'`. If found, insert `agent_tasks`
+5. Look up `agents` by `key='arc'`. If found, insert `agent_tasks`
    (`status='queued'`, `priority='high'`, `task_type='campaign_asset_revision'`,
    `source_type='campaign_asset'`, `source_id=assetId`, `campaign_id`,
    `approval_item_id`) + `agent_task_inputs` row carrying the instruction.
@@ -91,7 +91,7 @@ No migration needed — all enums (`revision_requested`, `approval_decided`,
 `campaign-gallery.tsx`, `campaign-workspace.tsx` (client; owns `activeTab` +
 `targetAssetId`), `creative-tab.tsx`, `overview-tab.tsx`,
 `audience-leads-tab.tsx`, `reasoning-tab.tsx`, `approvals-tab.tsx`,
-`asset-preview.tsx`, `mark-rail.tsx` (client; form → action). Reuse
+`asset-preview.tsx`, `arc-rail.tsx` (client; form → action). Reuse
 `WorkspaceHeader/WorkspacePanel/MetricStrip/DetailStack` +
 `StatusPill/buttonClasses/EmptyState`. Follow `DESIGN.md`.
 

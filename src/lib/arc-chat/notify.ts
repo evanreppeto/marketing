@@ -37,7 +37,7 @@ export type ArcNotifyPayload = {
 
 /**
  * Wake Arc the moment a chat message is sent — push, not poll (Telegram-style).
- * POSTs the message to ARC_RUNNER_URL (Arc's Arc Agent webhook route; the
+ * POSTs the message to ARC_RUNNER_URL (Arc's Claude Agent webhook route; the
  * legacy ARC_WEBHOOK_URL is still honored as a fallback). Arc turns the
  * payload into a prompt, runs Arc, and Arc posts his
  * reply back to POST /api/v1/arc/messages. The agent runs only when there's
@@ -57,7 +57,7 @@ export type ArcNotifyPayload = {
  * queued for the inbox fallback.
  *
  * Env:
- *   ARC_RUNNER_URL      — Arc/Arc runner webhook route, e.g.
+ *   ARC_RUNNER_URL      — Arc runner webhook route, e.g.
  *                          https://host:8644/webhooks/growth-chat. (Legacy alias:
  *                          ARC_WEBHOOK_URL — read as a fallback for back-compat.)
  *   ARC_WEBHOOK_SECRET  — the route's secret (used to HMAC-sign the body)

@@ -20,7 +20,7 @@ recipe and makes the Deliverables statuses decision-aware, **worst-first**.
 
 - Make Deliverable statuses **decision-aware** and improve their spacing/layout.
 - Group **Audience & sources** by kind with content-fit treatments (biggest visual gap today).
-- Make **Mark notes** editorial (featured reasoning, chips, a real timeline) instead of monotone panels.
+- Make **Arc notes** editorial (featured reasoning, chips, a real timeline) instead of monotone panels.
 - Give **Approvals** a tighter, risk-signalled decision-queue feel.
 - Light polish on **Performance** to match the system.
 - Extract the Media recipe's section-header pattern into one shared component so it's applied consistently.
@@ -83,12 +83,12 @@ Group `sources` by kind into ordered sections, each led by a `SectionHeader`:
   title, detail, "Open original" affordance).
 Empty-state unchanged.
 
-### 3. Mark notes — `reasoning-tab.tsx` (editorial)
-- **Featured reasoning:** combine "Why Mark built this" + "Recommended action" into one prominent
+### 3. Arc notes — `reasoning-tab.tsx` (editorial)
+- **Featured reasoning:** combine "Why Arc built this" + "Recommended action" into one prominent
   accent-bordered callout at the top (larger lead type), instead of two identical small panels.
 - **Tools used** → keep chips. **Guardrails** → warning-toned chips/rows (amber).
 - **Prompt inputs** → keep the definition list inside a lighter panel.
-- **Mark outputs** → keep the cards.
+- **Arc outputs** → keep the cards.
 - **Campaign timeline** → render as a real vertical timeline: a left rail with dots, each event
   showing time + type + detail/actor — replacing the current grid-of-panels.
 

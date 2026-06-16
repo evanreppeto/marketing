@@ -286,7 +286,7 @@ export async function deployAssetAction(
 /**
  * Operator launches a campaign once its pieces are approved. A real backend
  * state transition (campaign → live, approved deliverables unlocked) plus a
- * `campaign_launched` handoff event for Arc/Arc to execute the sends. The
+ * `campaign_launched` handoff event for Arc to execute the sends. The
  * app records state and hands off; it does not send anything itself.
  */
 export async function launchCampaignAction(

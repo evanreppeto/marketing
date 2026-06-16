@@ -38,7 +38,7 @@ Keep the existing `tone` / `eyebrow` / `detail` / `count` prop API so both `crea
 
 ### 2. Email / body preview — `asset-preview.tsx`
 
-Mark `asset-preview.tsx` `"use client"` and make `ReadableCopy` stateful:
+Arc `asset-preview.tsx` `"use client"` and make `ReadableCopy` stateful:
 
 - Render the parsed body with a collapsed default: clamp to ~6 lines (`max-height` on the prose block) with a bottom fade gradient (`linear-gradient(transparent, var(--surface-soft))`).
 - Add a **"Read full email" / "Collapse"** toggle button (accent, ghost-weight) below the fade. Expanded state removes the clamp and fade and shows the entire body.

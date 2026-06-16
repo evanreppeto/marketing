@@ -2,9 +2,9 @@
 
 ## Goal
 
-Build the Big Shoulders Growth Engine as a backend-first operating layer for the Hermes agent, with visible, accountable AI work that humans can inspect, approve, decline, revise, and measure.
+Build the Big Shoulders Growth Engine as a backend-first operating layer for the Arc agent, with visible, accountable AI work that humans can inspect, approve, decline, revise, and measure.
 
-Hermes is the primary operator. The web UI is the control room: it helps Hermes, Robby, and the team see the work, understand why it happened, and intervene when a human decision is required.
+Arc is the primary operator. The web UI is the control room: it helps Arc, Robby, and the team see the work, understand why it happened, and intervene when a human decision is required.
 
 The app should not hide AI behind a generic "generate" button. It should show agent work clearly:
 
@@ -23,11 +23,11 @@ Generic marketing software automates tasks. The Big Shoulders system should coor
 
 The important difference is accountability. Every agent output should be inspectable, editable, and tied back to source data.
 
-This app should not be designed as a traditional dashboard where humans drive every workflow. Most value should live in the backend contract: durable records, task queues, approvals, reasoning logs, compliance checks, and integration-ready APIs that Hermes can call. The UI exists for detailed views, approvals, debugging, and occasional operator control.
+This app should not be designed as a traditional dashboard where humans drive every workflow. Most value should live in the backend contract: durable records, task queues, approvals, reasoning logs, compliance checks, and integration-ready APIs that Arc can call. The UI exists for detailed views, approvals, debugging, and occasional operator control.
 
-## Hermes Backend Contract
+## Arc Backend Contract
 
-Hermes should be able to use the app as an operational backend:
+Arc should be able to use the app as an operational backend:
 
 - Read CRM, persona, campaign, approval, and task context through stable APIs.
 - Create or update draft tasks, campaign briefs, and generated assets in non-public states.
@@ -38,7 +38,7 @@ Hermes should be able to use the app as an operational backend:
 
 The UI should expose the same contract humans need:
 
-- What Hermes or a sub-agent did.
+- What Arc or a sub-agent did.
 - Which data it used.
 - What it produced.
 - Why the output is recommended or blocked.
@@ -49,7 +49,7 @@ The UI should expose the same contract humans need:
 
 Use the ContentEngine-style review model for campaigns, ads, and other generated assets:
 
-1. Hermes or an agent creates a draft campaign, ad, script, one-pager, post, or message.
+1. Arc or an agent creates a draft campaign, ad, script, one-pager, post, or message.
 2. The draft enters an approval queue with prompt input, source records, generated output, risk flags, and compliance notes.
 3. A human can approve, decline, request revision, or archive.
 4. Approve unlocks the asset for the next backend step, such as export, scheduling, dispatch eligibility, or campaign activation.

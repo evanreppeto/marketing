@@ -68,8 +68,8 @@ describe("settings store helpers", () => {
       brandLogoUrl: "/brand/custom-logo.png",
       brandFaviconUrl: "/brand/custom-icon.png",
       supportEmail: "help@example.com",
-      markDefaultMode: "draft",
-      markDefaultRoute: "standard",
+      arcDefaultMode: "draft",
+      arcDefaultRoute: "standard",
       appearanceAccent: "emerald",
       appearanceDensity: "compact",
       appearanceMotion: "reduced",
@@ -95,8 +95,8 @@ describe("settings store helpers", () => {
       { key: "brand_favicon_url", value: "data:text/html;base64,PGgxPk5vPC9oMT4=" },
     ]);
 
-    expect(settings.markDefaultMode).toBe("act");
-    expect(settings.markDefaultRoute).toBe("fast");
+    expect(settings.arcDefaultMode).toBe("act");
+    expect(settings.arcDefaultRoute).toBe("fast");
     expect(settings.appearanceAccent).toBe("gold");
     expect(settings.appearanceDensity).toBe("comfortable");
     expect(settings.appearanceMotion).toBe("standard");

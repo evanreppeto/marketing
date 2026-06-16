@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the CRM tenant-isolated (per-organization) and give every CRM record a real interaction layer — a chronological activity timeline, notes, and follow-up tasks that both human operators and the Hermes agent can write to.
+**Goal:** Make the CRM tenant-isolated (per-organization) and give every CRM record a real interaction layer — a chronological activity timeline, notes, and follow-up tasks that both human operators and the Arc agent can write to.
 
-**Architecture:** Three layers per the codebase convention — `src/domain/interactions.ts` (pure validation + derivations, unit-tested), `src/lib/interactions/` (org-scoped Supabase I/O), and `src/app/crm/` (server actions + UI panels). Tenancy is enforced in the app layer through a single `getCurrentOrgId()` chokepoint (the app uses the service-role client, which bypasses RLS), with RLS policies added as defense-in-depth. A new bearer-gated `POST /api/v1/hermes/crm/interactions` lets Hermes write through the same persistence path as humans.
+**Architecture:** Three layers per the codebase convention — `src/domain/interactions.ts` (pure validation + derivations, unit-tested), `src/lib/interactions/` (org-scoped Supabase I/O), and `src/app/crm/` (server actions + UI panels). Tenancy is enforced in the app layer through a single `getCurrentOrgId()` chokepoint (the app uses the service-role client, which bypasses RLS), with RLS policies added as defense-in-depth. A new bearer-gated `POST /api/v1/arc/crm/interactions` lets Arc write through the same persistence path as humans.
 
 **Tech Stack:** Next.js 16 (App Router, server components + server actions), React 19, Supabase (Postgres), TypeScript, Vitest. Package manager: pnpm. Path alias `@/*` → `./src/*`.
 
@@ -33,8 +33,8 @@
 - `src/app/crm/_components/record-interactions/tasks-panel.tsx` — `TasksPanel`.
 - `src/app/crm/_components/crm-record-page.tsx` — wire panels in, drop scaffold (modify).
 
-**API (Hermes):**
-- `src/app/api/v1/hermes/crm/interactions/route.ts` — `POST` writes note/task/activity as agent.
+**API (Arc):**
+- `src/app/api/v1/arc/crm/interactions/route.ts` — `POST` writes note/task/activity as agent.
 
 **Types:**
 - `src/lib/supabase/database.types.ts` — add `org_id` to 6 tables; add organizations + 3 interaction tables + new enums (modify).
@@ -557,7 +557,7 @@ describe("parseTaskInput", () => {
       entityId: "22222222-2222-2222-2222-222222222222",
       title: "Follow up on water damage estimate",
       authorKind: "agent",
-      authorName: "Hermes",
+      authorName: "Arc",
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -1139,7 +1139,7 @@ describe("getRecordNotes", () => {
             is_pinned: true,
             is_internal: true,
             author_kind: "agent",
-            author_name: "Hermes",
+            author_name: "Arc",
             created_at: "2026-06-12T08:00:00.000Z",
             updated_at: "2026-06-12T08:00:00.000Z",
           },
@@ -1152,7 +1152,7 @@ describe("getRecordNotes", () => {
     expect(result.status).toBe("live");
     if (result.status !== "live") return;
     expect(result.notes.map((n) => n.id)).toEqual(["n2", "n1"]);
-    expect(result.notes[0]).toMatchObject({ isPinned: true, actorKind: "agent", actorLabel: "Hermes" });
+    expect(result.notes[0]).toMatchObject({ isPinned: true, actorKind: "agent", actorLabel: "Arc" });
   });
 });
 ```
@@ -1247,7 +1247,7 @@ const ACTIVITY_TONE: Record<CrmActivityType, ActivityTone> = {
 
 function actorLabel(kind: ActorKind, name: string | null): string {
   if (name && name.trim()) return name.trim();
-  if (kind === "agent") return "Hermes";
+  if (kind === "agent") return "Arc";
   if (kind === "system") return "System";
   return "Operator";
 }
@@ -1556,7 +1556,7 @@ export async function insertTask(input: TaskInput): Promise<PersistResult> {
   return { ok: true, id: data.id };
 }
 
-/** Mark a task completed (or another terminal status) and log a companion activity. */
+/** Arc a task completed (or another terminal status) and log a companion activity. */
 export async function updateTaskStatus(
   taskId: string,
   status: TaskInput["status"],
@@ -1831,26 +1831,26 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 8: Hermes API — `POST /api/v1/hermes/crm/interactions`
+## Task 8: Arc API — `POST /api/v1/arc/crm/interactions`
 
 **Files:**
-- Create: `src/app/api/v1/hermes/crm/interactions/route.ts`
+- Create: `src/app/api/v1/arc/crm/interactions/route.ts`
 
 - [ ] **Step 1: Write the implementation**
 
-Create `src/app/api/v1/hermes/crm/interactions/route.ts`:
+Create `src/app/api/v1/arc/crm/interactions/route.ts`:
 
 ```typescript
-import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/hermes/_lib/http";
+import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
 import { parseActivityInput, parseNoteInput, parseTaskInput } from "@/domain";
 import { insertActivity, insertNote, insertTask } from "@/lib/interactions/persistence";
 
 /**
- * Lets Hermes attach notes, follow-up tasks, and timeline activities to any CRM
+ * Lets Arc attach notes, follow-up tasks, and timeline activities to any CRM
  * record. Writes through the same persistence path as the human UI, always as
  * author_kind = "agent". No outbound side effects.
  *
- *   POST /api/v1/hermes/crm/interactions
+ *   POST /api/v1/arc/crm/interactions
  *   { "kind": "note" | "task" | "activity", ...payload }
  */
 export async function POST(request: Request) {
@@ -1864,7 +1864,7 @@ export async function POST(request: Request) {
 
   const payload = body as Record<string, unknown>;
   const kind = payload.kind;
-  const authorName = typeof payload.author_name === "string" ? payload.author_name : "Hermes";
+  const authorName = typeof payload.author_name === "string" ? payload.author_name : "Arc";
 
   try {
     if (kind === "note") {
@@ -1930,14 +1930,14 @@ export async function POST(request: Request) {
 
 Run: `pnpm exec tsc --noEmit`
 Expected: PASS.
-Run: `pnpm exec eslint src/app/api/v1/hermes/crm/interactions/route.ts`
+Run: `pnpm exec eslint src/app/api/v1/arc/crm/interactions/route.ts`
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/app/api/v1/hermes/crm/interactions/route.ts
-git commit -m "feat(crm): Hermes API to attach notes/tasks/activities to records
+git add src/app/api/v1/arc/crm/interactions/route.ts
+git commit -m "feat(crm): Arc API to attach notes/tasks/activities to records
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -1964,7 +1964,7 @@ import { type ActorKind } from "@/domain";
 
 export function ActorBadge({ kind, label }: { kind: ActorKind; label: string }) {
   const tone = kind === "agent" ? "blue" : kind === "system" ? "gray" : "green";
-  const who = kind === "agent" ? "Hermes" : kind === "system" ? "System" : "Human";
+  const who = kind === "agent" ? "Arc" : kind === "system" ? "System" : "Human";
   return (
     <StatusPill tone={tone}>
       {who}
@@ -2062,7 +2062,7 @@ export function NotesPanel({
           name="body"
           required
           rows={3}
-          placeholder="Add context for the team and Mark…"
+          placeholder="Add context for the team and Arc…"
           className={inputClass}
         />
         <div className="flex items-center justify-between gap-3">
@@ -2213,7 +2213,7 @@ export function TasksPanel({
                   <input type="hidden" name="entityType" value={entityType} />
                   <input type="hidden" name="entityId" value={entityId} />
                   <button type="submit" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-                    Mark complete
+                    Arc complete
                   </button>
                 </form>
               </div>
@@ -2483,7 +2483,7 @@ DEFAULT_ORG_SLUG=big-shoulders-restoration
 In `CLAUDE.md`, under "Wired Persistence vs. Scaffold-Mode", add a bullet to the wired list:
 
 ```markdown
-- **CRM interactions** (`src/app/crm/_components/record-interactions/`, `src/lib/interactions/`, `src/domain/interactions.ts`) — record-attached notes, follow-up tasks, and activity timeline. Org-scoped via `getCurrentOrgId()` (`src/lib/auth/org.ts`); the same persistence path serves humans (server actions) and Hermes (`POST /api/v1/hermes/crm/interactions`).
+- **CRM interactions** (`src/app/crm/_components/record-interactions/`, `src/lib/interactions/`, `src/domain/interactions.ts`) — record-attached notes, follow-up tasks, and activity timeline. Org-scoped via `getCurrentOrgId()` (`src/lib/auth/org.ts`); the same persistence path serves humans (server actions) and Arc (`POST /api/v1/arc/crm/interactions`).
 ```
 
 - [ ] **Step 3: Run the full test suite**
@@ -2498,7 +2498,7 @@ Expected: build succeeds (this is the real typecheck gate per project memory).
 
 - [ ] **Step 5: Lint the full set of changed files**
 
-Run: `pnpm exec eslint src/domain/interactions.ts src/domain/__tests__/interactions.test.ts src/lib/auth/org.ts src/lib/interactions/persistence.ts src/lib/interactions/read-model.ts src/lib/interactions/read-model.test.ts src/app/crm/interactions-actions.ts src/app/crm/actions.ts src/app/crm/_components/crm-record-page.tsx src/app/crm/_components/record-interactions/timeline.tsx src/app/crm/_components/record-interactions/notes-panel.tsx src/app/crm/_components/record-interactions/tasks-panel.tsx src/app/api/v1/hermes/crm/interactions/route.ts src/lib/crm/read-model.ts`
+Run: `pnpm exec eslint src/domain/interactions.ts src/domain/__tests__/interactions.test.ts src/lib/auth/org.ts src/lib/interactions/persistence.ts src/lib/interactions/read-model.ts src/lib/interactions/read-model.test.ts src/app/crm/interactions-actions.ts src/app/crm/actions.ts src/app/crm/_components/crm-record-page.tsx src/app/crm/_components/record-interactions/timeline.tsx src/app/crm/_components/record-interactions/notes-panel.tsx src/app/crm/_components/record-interactions/tasks-panel.tsx src/app/api/v1/arc/crm/interactions/route.ts src/lib/crm/read-model.ts`
 Expected: no errors.
 
 - [ ] **Step 6: Commit**
@@ -2518,9 +2518,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - [ ] Add a note → it appears in Notes immediately and as a `note_added` row in Timeline; the Human badge shows.
 - [ ] Pin the note → it sorts to the top with a "Pinned" pill.
 - [ ] Create a task with a past due date → it shows "Overdue" (red) styling.
-- [ ] Mark the task complete → it leaves the open list and a `task_completed` row appears in Timeline.
-- [ ] `POST /api/v1/hermes/crm/interactions` with `{ "kind":"note", "entity_type":"contact", "entity_id":"<id>", "body":"agent note" }` and a valid bearer token → 201; the note shows a **Hermes** badge on the page.
-- [ ] Without `HERMES_AGENT_API_TOKEN` set, the same POST returns 503 `not_configured`.
+- [ ] Arc the task complete → it leaves the open list and a `task_completed` row appears in Timeline.
+- [ ] `POST /api/v1/arc/crm/interactions` with `{ "kind":"note", "entity_type":"contact", "entity_id":"<id>", "body":"agent note" }` and a valid bearer token → 201; the note shows a **Arc** badge on the page.
+- [ ] Without `ARC_AGENT_API_TOKEN` set, the same POST returns 503 `not_configured`.
 
 ---
 
@@ -2536,9 +2536,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 | C. domain/interactions.ts (pure, tested) | Task 3 |
 | C. lib/interactions persistence + read-model | Task 5, 6 |
 | C. crm/interactions-actions.ts (requireOperator, no outbound) | Task 7 |
-| C. Hermes API endpoint (agent author) | Task 8 |
+| C. Arc API endpoint (agent author) | Task 8 |
 | D. Timeline / Notes / Tasks UI + action affordances | Task 9, 10 |
-| D. Human vs Hermes badge | Task 9 (`ActorBadge`) |
+| D. Human vs Arc badge | Task 9 (`ActorBadge`) |
 | E. Migration + database.types.ts update | Task 1, 2 |
 | F. Tests + verification | Task 3, 5, 13 |
 | Isolation completeness (reads + writes scoped) | Task 11, 12 |

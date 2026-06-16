@@ -112,16 +112,16 @@ export async function saveAgentBehaviorSettingsAction(
   const assistantTone = appAssistantTone(formData.get("assistantTone"));
   const assistantResponseStyle = appAssistantResponseStyle(formData.get("assistantResponseStyle"));
   const approvalStrictness = appApprovalStrictness(formData.get("approvalStrictness"));
-  const markDefaultMode = parseArcMode(formData.get("markDefaultMode"));
-  const markDefaultRoute = parseArcRoute(formData.get("markDefaultRoute"));
+  const arcDefaultMode = parseArcMode(formData.get("arcDefaultMode"));
+  const arcDefaultRoute = parseArcRoute(formData.get("arcDefaultRoute"));
 
   try {
     await saveAppSettings(getSupabaseAdminClient(), {
       assistant_tone: assistantTone,
       assistant_response_style: assistantResponseStyle,
       approval_strictness: approvalStrictness,
-      arc_default_mode: markDefaultMode,
-      arc_default_route: markDefaultRoute,
+      arc_default_mode: arcDefaultMode,
+      arc_default_route: arcDefaultRoute,
     });
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't save agent behavior." };
@@ -140,14 +140,14 @@ export async function saveArcDefaultsAction(
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
 
-  const markDefaultMode = parseArcMode(formData.get("markDefaultMode"));
-  const markDefaultRoute = parseArcRoute(formData.get("markDefaultRoute"));
+  const arcDefaultMode = parseArcMode(formData.get("arcDefaultMode"));
+  const arcDefaultRoute = parseArcRoute(formData.get("arcDefaultRoute"));
   const agentName = await getAgentName();
 
   try {
     await saveAppSettings(getSupabaseAdminClient(), {
-      arc_default_mode: markDefaultMode,
-      arc_default_route: markDefaultRoute,
+      arc_default_mode: arcDefaultMode,
+      arc_default_route: arcDefaultRoute,
     });
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : `Couldn't save ${agentName} defaults.` };

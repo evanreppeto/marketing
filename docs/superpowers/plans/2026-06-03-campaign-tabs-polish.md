@@ -4,7 +4,7 @@
 
 **Goal:** Lift the non-Media campaign detail tabs to the Media tab's design recipe (content-fit layouts, tone-coded section headers, adaptive grids, glanceable counts) and make Deliverable statuses decision-aware.
 
-**Architecture:** Extract the Media recipe's section-header into one shared `SectionHeader` component and add a pure `assetDecisionStatus` helper; then apply both across the Deliverables, Audience, Mark-notes, Approvals, and Performance tabs. Reuse existing primitives (`StatusPill`, tones, `DecisionControls`, the Media link-card visual). No data-model or persistence changes — the read-model already exposes `asset.approval`, `source.kind`, `reasoning`, and `events`.
+**Architecture:** Extract the Media recipe's section-header into one shared `SectionHeader` component and add a pure `assetDecisionStatus` helper; then apply both across the Deliverables, Audience, Arc-notes, Approvals, and Performance tabs. Reuse existing primitives (`StatusPill`, tones, `DecisionControls`, the Media link-card visual). No data-model or persistence changes — the read-model already exposes `asset.approval`, `source.kind`, `reasoning`, and `events`.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Tailwind (CSS variables), Vitest. pnpm.
 
@@ -287,10 +287,10 @@ const KIND_LABELS: Record<CampaignWorkspaceSource["kind"], string> = {
 
 // Ordered groups: record kinds first (as cards), evidence/web last (as link cards).
 const GROUPS: Array<{ key: "company" | "contact" | "lead" | "evidence"; eyebrow: string; detail: string; tone: Tone }> = [
-  { key: "company", eyebrow: "Companies", detail: "Partner and prospect organizations Mark linked.", tone: "blue" },
+  { key: "company", eyebrow: "Companies", detail: "Partner and prospect organizations Arc linked.", tone: "blue" },
   { key: "contact", eyebrow: "Contacts", detail: "People associated with this campaign.", tone: "green" },
   { key: "lead", eyebrow: "Leads", detail: "Qualified records driving the outreach.", tone: "amber" },
-  { key: "evidence", eyebrow: "Evidence & sources", detail: "External references captured by Mark.", tone: "gray" },
+  { key: "evidence", eyebrow: "Evidence & sources", detail: "External references captured by Arc.", tone: "gray" },
 ];
 
 function groupOf(source: CampaignWorkspaceSource): "company" | "contact" | "lead" | "evidence" {
@@ -316,7 +316,7 @@ export function AudienceLeadsTab({ sources }: { sources: CampaignWorkspaceSource
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-[var(--text-secondary)]">The records and evidence Mark used to build this campaign.</p>
+      <p className="text-sm text-[var(--text-secondary)]">The records and evidence Arc used to build this campaign.</p>
 
       {grouped.map((group) => (
         <section key={group.key}>
@@ -403,7 +403,7 @@ git commit -m "Group Audience & sources by kind with record and evidence cards"
 
 ---
 
-## Task 4: Mark notes — editorial layout + vertical timeline
+## Task 4: Arc notes — editorial layout + vertical timeline
 
 **Files:**
 - Modify: `src/app/campaigns/_components/reasoning-tab.tsx`
@@ -413,7 +413,7 @@ git commit -m "Group Audience & sources by kind with record and evidence cards"
 In `reasoning-tab.tsx`, replace the first two blocks:
 
 ```tsx
-      <Block title="Why Mark built this">
+      <Block title="Why Arc built this">
         <p className="text-sm leading-6 text-[var(--text-secondary)]">{reasoning.whyBuilt}</p>
       </Block>
 
@@ -427,7 +427,7 @@ with a single prominent accent-bordered callout:
 ```tsx
       <section className="overflow-hidden rounded-2xl border border-[oklch(0.76_0.14_232/0.4)] bg-[oklch(0.48_0.14_232/0.08)] shadow-[var(--elev-panel)]">
         <div className="border-b border-[var(--border-hairline)] px-5 py-4">
-          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">Why Mark built this</div>
+          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">Why Arc built this</div>
           <p className="mt-2 text-base leading-7 text-[var(--text-primary)]">{reasoning.whyBuilt}</p>
         </div>
         <div className="px-5 py-4">
@@ -519,7 +519,7 @@ Run: `pnpm lint` → expected clean.
 
 ```bash
 git add src/app/campaigns/_components/reasoning-tab.tsx
-git commit -m "Make Mark notes editorial: featured reasoning, guardrail chips, timeline rail"
+git commit -m "Make Arc notes editorial: featured reasoning, guardrail chips, timeline rail"
 ```
 
 ---
@@ -692,7 +692,7 @@ Run: `pnpm build` → completes with no type errors.
 With the seeded campaign on the running dev server (`/campaigns/<id>`), open each tab and confirm:
 - **Deliverables:** card header chips are decision-aware (email → "Approved", the two with pending approvals → "Pending approval", the five with no approval → "Draft"); cards reflow in an auto-fill grid; section headers are tone-coded.
 - **Audience & sources:** sources are grouped by kind (Companies/Contacts/Leads/Evidence) with record cards and evidence link cards.
-- **Mark notes:** featured reasoning callout at top; guardrails as amber chips; events as a vertical timeline.
+- **Arc notes:** featured reasoning callout at top; guardrails as amber chips; events as a vertical timeline.
 - **Approvals:** each card has a risk-colored left rail; "Decision required (N)" and "Decided (N)" section headers.
 - **Performance:** the two right-column intros use the shared section header.
 

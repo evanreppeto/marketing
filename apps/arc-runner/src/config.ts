@@ -12,7 +12,7 @@
 
 export type Config = {
   appApiBaseUrl: string;
-  hermesAgentApiToken: string;
+  arcAgentApiToken: string;
   webhookSecret: string | null;
   model: string;
   port: number;
@@ -30,7 +30,7 @@ function required(name: string): string {
 
 export function loadConfig(): Config {
   const appApiBaseUrl = required("APP_API_BASE_URL").replace(/\/+$/, "");
-  const hermesAgentApiToken = required("HERMES_AGENT_API_TOKEN");
+  const arcAgentApiToken = required("ARC_AGENT_API_TOKEN");
 
   // Auth sanity checks for the subscription path.
   if (!process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim() && !process.env.ANTHROPIC_API_KEY?.trim()) {
@@ -47,8 +47,8 @@ export function loadConfig(): Config {
 
   return {
     appApiBaseUrl,
-    hermesAgentApiToken,
-    webhookSecret: process.env.MARK_WEBHOOK_SECRET?.trim() || null,
+    arcAgentApiToken,
+    webhookSecret: process.env.ARC_WEBHOOK_SECRET?.trim() || null,
     model: process.env.ARC_MODEL?.trim() || "claude-haiku-4-5",
     port: Number(process.env.PORT) || 8788,
     webhookPath: process.env.WEBHOOK_PATH?.trim() || "/webhooks/growth-chat",

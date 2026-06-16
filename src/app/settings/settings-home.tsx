@@ -34,8 +34,8 @@ export async function SettingsHome() {
     settings.assistantTone !== "direct" ||
     settings.assistantResponseStyle !== "balanced" ||
     settings.approvalStrictness !== "standard" ||
-    settings.markDefaultMode !== "act" ||
-    settings.markDefaultRoute !== "fast";
+    settings.arcDefaultMode !== "act" ||
+    settings.arcDefaultRoute !== "fast";
 
   const cards: HomeCard[] = [
     {

@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give the Hermes/Mark Claude computer-use agent a bearer-gated endpoint to file structured competitor-campaign intel, persisted as both a typed `competitor_campaigns` record and a human-readable Obsidian vault note, reviewed via a light status flow under Mark/agent-operations.
+**Goal:** Give the Arc Claude computer-use agent a bearer-gated endpoint to file structured competitor-campaign intel, persisted as both a typed `competitor_campaigns` record and a human-readable Obsidian vault note, reviewed via a light status flow under Arc/agent-operations.
 
-**Architecture:** Pure domain layer (`src/domain/competitor-intel.ts`) validates/normalizes payloads, computes a dedupe key, scores activity, and renders the vault-note markdown. An I/O layer (`src/lib/competitor-intel/persistence.ts`) upserts the record + note. A bearer-gated route (`POST /api/v1/hermes/competitor-intel`) mirrors `/api/v1/hermes/runs`. A repo + a server-component sub-route under agent-operations gives operators a Confirm/Archive review surface. A Claude skill teaches Mark the scrape-and-POST procedure.
+**Architecture:** Pure domain layer (`src/domain/competitor-intel.ts`) validates/normalizes payloads, computes a dedupe key, scores activity, and renders the vault-note markdown. An I/O layer (`src/lib/competitor-intel/persistence.ts`) upserts the record + note. A bearer-gated route (`POST /api/v1/arc/competitor-intel`) mirrors `/api/v1/arc/runs`. A repo + a server-component sub-route under agent-operations gives operators a Confirm/Archive review surface. A Claude skill teaches Arc the scrape-and-POST procedure.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Zod, Supabase (admin client), Vitest. Package manager pnpm.
 
 **Spec:** `docs/superpowers/specs/2026-06-02-competitor-campaign-intel-design.md`
 
 **Conventions to honor:**
-- All persistence functions take an untyped `SupabaseClient` param (like `src/lib/hermes/orchestrator.ts`) so new tables don't require regenerating `database.types.ts`.
+- All persistence functions take an untyped `SupabaseClient` param (like `src/lib/arc/orchestrator.ts`) so new tables don't require regenerating `database.types.ts`.
 - Don't edit shipped migrations — add a new timestamp-prefixed file.
 - Re-export domain through `src/domain/index.ts`; import via `@/domain`.
 - Response codes are load-bearing: `400` validation, `503` not_configured, `201` persisted, `502` persistence error.
@@ -27,11 +27,11 @@
 - `src/lib/competitor-intel/persistence.ts` — `persistCompetitorIntel` (record + vault note).
 - `src/lib/competitor-intel/persistence.test.ts` — persistence test using the shared Supabase query mock.
 - `src/lib/repos/competitor-campaigns.ts` — typed list + status update.
-- `src/app/api/v1/hermes/competitor-intel/route.ts` — bearer-gated POST.
-- `src/app/api/v1/hermes/competitor-intel/route.test.ts` — route auth/validation tests.
+- `src/app/api/v1/arc/competitor-intel/route.ts` — bearer-gated POST.
+- `src/app/api/v1/arc/competitor-intel/route.test.ts` — route auth/validation tests.
 - `src/app/agent-operations/competitor-intel/page.tsx` — operator review list.
 - `src/app/agent-operations/competitor-intel/actions.ts` — Confirm/Archive server actions.
-- `.claude/skills/competitor-intel-scout/SKILL.md` — Mark's scrape-and-POST procedure.
+- `.claude/skills/competitor-intel-scout/SKILL.md` — Arc's scrape-and-POST procedure.
 
 **Modify:**
 - `src/domain/index.ts` — add `export * from "./competitor-intel";`.
@@ -46,7 +46,7 @@
 - [ ] **Step 1: Write the migration**
 
 ```sql
--- Competitor campaign intel: structured findings filed by Mark (Claude computer-use
+-- Competitor campaign intel: structured findings filed by Arc (Claude computer-use
 -- agent) from ad libraries, SimilarWeb, and competitor landing pages. Read-only intel;
 -- light review only (needs_review -> confirmed/archived). Reuses set_updated_at().
 
@@ -628,7 +628,7 @@ export async function persistCompetitorIntel(
       title: note.title,
       folder: note.folder,
       tags: note.tags,
-      author: "Mark",
+      author: "Arc",
       status: "needs_review",
       body: note.body,
     },
@@ -649,7 +649,7 @@ export async function persistCompetitorIntel(
 }
 
 async function lookupMarkAgentId(client: SupabaseClient): Promise<string | null> {
-  const { data } = await client.from("agents").select("id").eq("key", "mark").maybeSingle<{ id: string }>();
+  const { data } = await client.from("agents").select("id").eq("key", "arc").maybeSingle<{ id: string }>();
   return data?.id ?? null;
 }
 ```
@@ -774,8 +774,8 @@ git commit -m "feat: competitor_campaigns repo (list + status update)"
 ## Task 8: API route + tests
 
 **Files:**
-- Create: `src/app/api/v1/hermes/competitor-intel/route.ts`
-- Test: `src/app/api/v1/hermes/competitor-intel/route.test.ts`
+- Create: `src/app/api/v1/arc/competitor-intel/route.ts`
+- Test: `src/app/api/v1/arc/competitor-intel/route.test.ts`
 
 Note: validation runs **before** the Supabase config check (so bad payloads are rejected
 regardless of config, and the 400 path is testable without Supabase). This mirrors the
@@ -798,7 +798,7 @@ vi.mock("@/lib/competitor-intel/persistence", () => ({
 import { POST } from "./route";
 
 function intelRequest(body: unknown, authorization?: string) {
-  return new Request("http://localhost/api/v1/hermes/competitor-intel", {
+  return new Request("http://localhost/api/v1/arc/competitor-intel", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -808,9 +808,9 @@ function intelRequest(body: unknown, authorization?: string) {
   });
 }
 
-const ENV_KEYS = ["HERMES_AGENT_API_TOKEN", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] as const;
+const ENV_KEYS = ["ARC_AGENT_API_TOKEN", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] as const;
 
-describe("POST /api/v1/hermes/competitor-intel", () => {
+describe("POST /api/v1/arc/competitor-intel", () => {
   const original: Record<string, string | undefined> = {};
   for (const k of ENV_KEYS) original[k] = process.env[k];
 
@@ -822,19 +822,19 @@ describe("POST /api/v1/hermes/competitor-intel", () => {
   });
 
   it("returns 401 on a bad token", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "secret";
+    process.env.ARC_AGENT_API_TOKEN = "secret";
     const res = await POST(intelRequest({ source: "meta_ad_library", competitorName: "X" }, "Bearer wrong"));
     expect(res.status).toBe(401);
   });
 
   it("returns 400 on an invalid payload", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "secret";
+    process.env.ARC_AGENT_API_TOKEN = "secret";
     const res = await POST(intelRequest({ source: "tiktok", competitorName: "X" }, "Bearer secret"));
     expect(res.status).toBe(400);
   });
 
   it("returns 503 when Supabase is not configured", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "secret";
+    process.env.ARC_AGENT_API_TOKEN = "secret";
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     const res = await POST(intelRequest({ source: "meta_ad_library", competitorName: "X" }, "Bearer secret"));
@@ -842,7 +842,7 @@ describe("POST /api/v1/hermes/competitor-intel", () => {
   });
 
   it("returns 201 with a valid token, payload, and Supabase configured", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "secret";
+    process.env.ARC_AGENT_API_TOKEN = "secret";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     const res = await POST(intelRequest({ source: "meta_ad_library", competitorName: "Apex" }, "Bearer secret"));
@@ -856,7 +856,7 @@ describe("POST /api/v1/hermes/competitor-intel", () => {
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `pnpm test src/app/api/v1/hermes/competitor-intel/route.test.ts`
+Run: `pnpm test src/app/api/v1/arc/competitor-intel/route.test.ts`
 Expected: FAIL — cannot find module `./route`.
 
 - [ ] **Step 3: Implement**
@@ -871,13 +871,13 @@ import { persistCompetitorIntel } from "@/lib/competitor-intel/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = checkBearerToken(request, "ARC_AGENT_API_TOKEN");
 
   if (!auth.ok) {
     return NextResponse.json(
       auth.reason === "not_configured"
-        ? { ok: false, status: "not_configured", message: "Set HERMES_AGENT_API_TOKEN before enabling Hermes API runs." }
-        : { ok: false, status: "unauthorized", message: "Hermes API runs require a valid bearer token." },
+        ? { ok: false, status: "not_configured", message: "Set ARC_AGENT_API_TOKEN before enabling Arc API runs." }
+        : { ok: false, status: "unauthorized", message: "Arc API runs require a valid bearer token." },
       { status: auth.status },
     );
   }
@@ -915,7 +915,7 @@ export async function POST(request: Request) {
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { ok: false, status: "not_configured", message: "Supabase admin env vars are required before Hermes can persist intel." },
+      { ok: false, status: "not_configured", message: "Supabase admin env vars are required before Arc can persist intel." },
       { status: 503 },
     );
   }
@@ -934,14 +934,14 @@ export async function POST(request: Request) {
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `pnpm test src/app/api/v1/hermes/competitor-intel/route.test.ts`
+Run: `pnpm test src/app/api/v1/arc/competitor-intel/route.test.ts`
 Expected: PASS (4 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/api/v1/hermes/competitor-intel/route.ts src/app/api/v1/hermes/competitor-intel/route.test.ts
-git commit -m "feat: POST /api/v1/hermes/competitor-intel endpoint"
+git add src/app/api/v1/arc/competitor-intel/route.ts src/app/api/v1/arc/competitor-intel/route.test.ts
+git commit -m "feat: POST /api/v1/arc/competitor-intel endpoint"
 ```
 
 ---
@@ -1016,15 +1016,15 @@ export default async function CompetitorIntelPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Mark · Agent Operations"
+        eyebrow="Arc · Agent Operations"
         title="Competitor Intel"
-        description="Findings Mark filed from ad libraries, SimilarWeb, and competitor landing pages. Review and confirm before they're trusted."
+        description="Findings Arc filed from ad libraries, SimilarWeb, and competitor landing pages. Review and confirm before they're trusted."
       />
 
       {rows.length === 0 ? (
         <EmptyState
           title="No competitor intel awaiting review"
-          detail="When Mark files competitor findings, they appear here as needs-review."
+          detail="When Arc files competitor findings, they appear here as needs-review."
         />
       ) : (
         <div className="space-y-4">
@@ -1132,7 +1132,7 @@ git commit -m "feat: competitor intel operator review UI under agent-operations"
 **Files:**
 - Create: `.claude/skills/competitor-intel-scout/SKILL.md`
 
-This is the procedure that steers Mark (the Claude computer-use agent). Authoring should
+This is the procedure that steers Arc (the Claude computer-use agent). Authoring should
 follow the `superpowers:writing-skills` skill for structure; the content below is the v1
 baseline.
 
@@ -1146,7 +1146,7 @@ description: Use when gathering competitor marketing-campaign intelligence (ad c
 
 # Competitor Intel Scout
 
-You are Mark, gathering competitor campaign intelligence via computer use and filing it
+You are Arc, gathering competitor campaign intelligence via computer use and filing it
 to the Growth Engine backend. You NEVER take outbound action — this is read-only intel.
 
 ## Sources (in priority order)
@@ -1176,8 +1176,8 @@ to the Growth Engine backend. You NEVER take outbound action — this is read-on
 
 ## Filing the intel
 
-POST to `/api/v1/hermes/competitor-intel` with the bearer token
-(`Authorization: Bearer $HERMES_AGENT_API_TOKEN`). One POST per competitor+source.
+POST to `/api/v1/arc/competitor-intel` with the bearer token
+(`Authorization: Bearer $ARC_AGENT_API_TOKEN`). One POST per competitor+source.
 
 Example body:
 
@@ -1197,7 +1197,7 @@ Example body:
 \`\`\`
 
 A `201` means it was filed as `needs_review`. The operator confirms it in the Growth
-Engine (Mark → Agent Operations → Competitor Intel). Do not treat unconfirmed intel as
+Engine (Arc → Agent Operations → Competitor Intel). Do not treat unconfirmed intel as
 ground truth.
 
 ## Guardrails
@@ -1216,7 +1216,7 @@ Expected: shows the new SKILL.md added.
 
 ```bash
 git add .claude/skills/competitor-intel-scout/SKILL.md
-git commit -m "feat: competitor-intel-scout Claude skill for Mark"
+git commit -m "feat: competitor-intel-scout Claude skill for Arc"
 ```
 
 ---
@@ -1238,7 +1238,7 @@ Expected: no errors.
 - [ ] **Step 3: Build**
 
 Run: `pnpm build`
-Expected: build succeeds; `/api/v1/hermes/competitor-intel` and
+Expected: build succeeds; `/api/v1/arc/competitor-intel` and
 `/agent-operations/competitor-intel` both appear in the route manifest.
 
 - [ ] **Step 4: Commit any lint/build fixups**
@@ -1254,8 +1254,8 @@ git commit -m "chore: competitor intel verification fixups" || echo "nothing to 
 
 - **Apply the migration** to your Supabase project via your normal migration workflow
   before exercising the endpoint against a real database.
-- **Set `HERMES_AGENT_API_TOKEN`** in the environment Mark POSTs from; reuse the same
-  token already used by `/api/v1/hermes/runs`.
+- **Set `ARC_AGENT_API_TOKEN`** in the environment Arc POSTs from; reuse the same
+  token already used by `/api/v1/arc/runs`.
 - **Optional nav:** if you later want a direct link, add `/agent-operations/competitor-intel`
   to the agent-operations view (currently a `BlankPage`) — out of scope for v1.
 - **Next sub-project:** lead discovery — a separate spec + plan on this same

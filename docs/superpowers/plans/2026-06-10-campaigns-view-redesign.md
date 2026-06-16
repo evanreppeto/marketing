@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the `/campaigns` approval list from a row of identical "NEEDS YOU" stubs into a self-sufficient triage surface — each row shows *why* Mark built the campaign, a content preview, and how long it's waited; internal CRM batches collapse into one fold; a slim momentum strip gives the queue a destination.
+**Goal:** Turn the `/campaigns` approval list from a row of identical "NEEDS YOU" stubs into a self-sufficient triage surface — each row shows *why* Arc built the campaign, a content preview, and how long it's waited; internal CRM batches collapse into one fold; a slim momentum strip gives the queue a destination.
 
 **Architecture:** All real logic lives in pure, unit-tested functions — a `classifyCampaignKind` domain helper (outbound vs internal), a `formatWaitTime` formatter, and a `library-model` module that partitions/sorts the awaiting items and tallies lifecycle counts. The React components (`campaign-library.tsx` and three new presentational/client pieces) stay thin and are verified by lint + typecheck/build, matching the existing codebase convention (the only current campaigns component test covers a pure helper, not a render). The read model gains one raw-ISO field so wait-time can be computed client-side.
 
@@ -22,7 +22,7 @@
 - **Modify** `src/lib/campaigns/read-model.ts` — add `updatedAtIso` to `CampaignWorkspaceListItem` (type + assignment).
 - **Create** `src/app/campaigns/_components/momentum-strip.tsx` — presentational lifecycle-count strip.
 - **Create** `src/app/campaigns/_components/collapsed-batch-group.tsx` — `"use client"` expandable internal-batch fold.
-- **Modify** `src/app/campaigns/_components/campaign-library.tsx` — enriched rows, preview, partitioned awaiting section, momentum strip, empty-group affordances; remove redundant "Drafted by Mark" chip.
+- **Modify** `src/app/campaigns/_components/campaign-library.tsx` — enriched rows, preview, partitioned awaiting section, momentum strip, empty-group affordances; remove redundant "Drafted by Arc" chip.
 
 ---
 
@@ -77,10 +77,10 @@ Create `src/domain/campaign-kind.ts`:
 ```typescript
 export type CampaignKind = "outbound" | "internal";
 
-/** Substrings that mark a real, partner/customer-facing outbound deliverable. */
+/** Substrings that arc a real, partner/customer-facing outbound deliverable. */
 const OUTBOUND_HINTS = ["email", "social", "landing", "sms", "letter", "newsletter"];
 
-/** Substrings that mark internal CRM / list-building / enrichment work. */
+/** Substrings that arc internal CRM / list-building / enrichment work. */
 const INTERNAL_HINTS = ["population", "crm lead list", "partner lead list", "lead list", "enrich", "discovery"];
 
 /**
@@ -479,7 +479,7 @@ export function CollapsedBatchGroup({ items, nowMs }: { items: CampaignWorkspace
         <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
         <span className="min-w-0 flex-1 text-sm text-[var(--text-secondary)]">
           <span className="font-medium text-[var(--text-primary)]">CRM Population — {items.length} batches</span>
-          <span className="text-[var(--text-muted)]"> · enrich {items.length} records from Mark&apos;s discovery crawl</span>
+          <span className="text-[var(--text-muted)]"> · enrich {items.length} records from Arc&apos;s discovery crawl</span>
           {oldestWait ? <span className="text-[var(--accent)]"> · oldest waiting {oldestWait}</span> : null}
         </span>
         <span className="shrink-0 text-xs font-semibold text-[var(--text-muted)]">{open ? "Collapse ▴" : "Expand ▾"}</span>
@@ -533,7 +533,7 @@ git commit -m "feat(campaigns): CollapsedBatchGroup fold for internal CRM batche
 **Files:**
 - Modify (full rewrite): `src/app/campaigns/_components/campaign-library.tsx`
 
-Replaces the row body with the enriched layout (why line + wait-time, no "Drafted by Mark" chip), adds the content preview for outbound rows, partitions the *In review* group into outbound rows + internal fold, renders the momentum strip, and gives empty lifecycle groups a one-line affordance in the "All" view.
+Replaces the row body with the enriched layout (why line + wait-time, no "Drafted by Arc" chip), adds the content preview for outbound rows, partitions the *In review* group into outbound rows + internal fold, renders the momentum strip, and gives empty lifecycle groups a one-line affordance in the "All" view.
 
 - [ ] **Step 1: Rewrite the file**
 
@@ -552,7 +552,7 @@ type Lifecycle = CampaignWorkspaceListItem["lifecycle"];
 
 /**
  * The Campaigns library: an editorial list grouped by approval lifecycle. Work
- * awaiting the operator floats to the top, glows gold, and shows Mark's reasoning
+ * awaiting the operator floats to the top, glows gold, and shows Arc's reasoning
  * plus a content preview so each row is decidable without opening it. Outbound
  * campaigns get the full treatment; internal CRM batches collapse into one fold.
  */
@@ -615,7 +615,7 @@ const FILTERS: Array<{ key: "All" | Lifecycle; label: string }> = [
 ];
 
 const EMPTY_NOTE: Record<Lifecycle, string> = {
-  "In review": "Nothing awaiting you — Mark's drafts will land here.",
+  "In review": "Nothing awaiting you — Arc's drafts will land here.",
   Ready: "Nothing ready yet — approved campaigns land here.",
   Live: "Nothing live yet — launched campaigns land here.",
   Drafting: "No drafts in progress.",
@@ -920,7 +920,7 @@ Run: `pnpm dev`, open `/campaigns`. Confirm: each awaiting row shows a "why" lin
 ## Self-Review
 
 - **Spec coverage:**
-  - §1 Enriched row (why + meta + wait-time, drop Mark chip) → Task 7 (`CampaignRow`, `whyLine`, `formatWaitTime`).
+  - §1 Enriched row (why + meta + wait-time, drop Arc chip) → Task 7 (`CampaignRow`, `whyLine`, `formatWaitTime`).
   - §2 Content preview, outbound-only → Task 7 (`CampaignPreview`, `showPreview` gating).
   - §3 Internal/outbound split + fold (+ single-batch-as-row) → Tasks 1, 4, 6, 7 (`classifyCampaignKind`, `partitionAwaiting`, `CollapsedBatchGroup`, `AwaitingSection`).
   - §4 Momentum header (lifecycle counts only; engagement deferred) → Tasks 4, 5, 7 (`momentumCounts`, `MomentumStrip`).

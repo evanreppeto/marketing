@@ -134,7 +134,7 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
     // Wake Arc (push). Best-effort — never blocks or fails the send. On a
     // delivered wake we claim the task (queued -> running) so the inbox poll
     // won't hand the same message out again; a missed wake stays queued for it.
-    logArcChatStatus("waking_mark", { agentTaskId, conversationId });
+    logArcChatStatus("waking_arc", { agentTaskId, conversationId });
     const delivered = await notifyArcWebhook({
       messageId,
       conversationId,

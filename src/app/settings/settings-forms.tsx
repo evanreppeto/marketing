@@ -300,7 +300,7 @@ export function ArcDefaultsForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Default {agentName} stance</span>
-          <select className={inputClass} defaultValue={initialMode} name="markDefaultMode">
+          <select className={inputClass} defaultValue={initialMode} name="arcDefaultMode">
             <option value="ask">Ask - answer only</option>
             <option value="act">Act - work inside the app</option>
             <option value="draft">Draft - bias toward campaign assets</option>
@@ -312,7 +312,7 @@ export function ArcDefaultsForm({
 
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Default model route</span>
-          <select className={inputClass} defaultValue={initialRoute} name="markDefaultRoute">
+          <select className={inputClass} defaultValue={initialRoute} name="arcDefaultRoute">
             <option value="fast">Fast - routine chat and lookup</option>
             <option value="standard">Standard - deeper drafting/reasoning</option>
           </select>
@@ -554,7 +554,7 @@ export function AgentBehaviorSettingsForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Default chat stance</span>
-          <select className={inputClass} defaultValue={initialMode} name="markDefaultMode">
+          <select className={inputClass} defaultValue={initialMode} name="arcDefaultMode">
             <option value="ask">Ask - answer only</option>
             <option value="act">Act - work inside the app</option>
             <option value="draft">Draft - bias toward campaign assets</option>
@@ -563,7 +563,7 @@ export function AgentBehaviorSettingsForm({
 
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Default model route</span>
-          <select className={inputClass} defaultValue={initialRoute} name="markDefaultRoute">
+          <select className={inputClass} defaultValue={initialRoute} name="arcDefaultRoute">
             <option value="fast">Fast - routine chat and lookup</option>
             <option value="standard">Standard - deeper drafting/reasoning</option>
           </select>

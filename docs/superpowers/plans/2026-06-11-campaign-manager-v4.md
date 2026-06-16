@@ -12,7 +12,7 @@
 
 ## Scope Check
 
-This plan covers one product surface: Campaigns. It includes the main campaign manager page and the individual campaign page because they share the same concepts and existing read-model. It does not build new external sending integrations, custom saved views, bulk sending, or a replacement Mark chat.
+This plan covers one product surface: Campaigns. It includes the main campaign manager page and the individual campaign page because they share the same concepts and existing read-model. It does not build new external sending integrations, custom saved views, bulk sending, or a replacement Arc chat.
 
 Before writing code in this repo, follow `AGENTS.md`: read the relevant guide in `node_modules/next/dist/docs/` for the Next.js APIs touched by the task. This implementation touches App Router pages, server components, client components, server actions, and `searchParams`, so read the App Router/server-components/server-actions docs that exist in this installed Next version before editing.
 
@@ -65,7 +65,7 @@ Before writing code in this repo, follow `AGENTS.md`: read the relevant guide in
   Presentational checklist component for review, approve, send/export, results.
 
 - `src/app/campaigns/_components/campaign-right-rail.tsx`
-  Presentational right rail for campaign summary, send/export readiness, Mark actions, and results.
+  Presentational right rail for campaign summary, send/export readiness, Arc actions, and results.
 
 ### Existing Files To Leave Alone Unless Needed
 
@@ -73,7 +73,7 @@ Before writing code in this repo, follow `AGENTS.md`: read the relevant guide in
   First pass should reuse existing fields. Modify only if a field is truly missing from the UI and cannot be derived safely.
 
 - `src/app/campaigns/actions.ts`
-  Existing approval, launch, deploy, and Mark actions should be reused. Avoid adding send/export actions in this phase.
+  Existing approval, launch, deploy, and Arc actions should be reused. Avoid adding send/export actions in this phase.
 
 - Existing tab components (`creative-tab.tsx`, `media-board.tsx`, `approvals-tab.tsx`, etc.)
   Do not delete in the first pass. They can remain unused until the new design proves out.
@@ -126,7 +126,7 @@ function campaign(overrides: Partial<CampaignWorkspaceListItem> = {}): CampaignW
     objective: overrides.objective ?? "Build partner-facing email and one-pager",
     audienceSummary: overrides.audienceSummary ?? "Plumbing partners who find water damage.",
     offerSummary: overrides.offerSummary ?? "Fast documentation and mitigation handoff.",
-    whyBuilt: overrides.whyBuilt ?? "Mark found strong referral-fit partners.",
+    whyBuilt: overrides.whyBuilt ?? "Arc found strong referral-fit partners.",
     assetCount: overrides.assetCount ?? 3,
     approvalCount: overrides.approvalCount ?? 2,
     mediaCount: overrides.mediaCount ?? 0,
@@ -153,7 +153,7 @@ describe("campaign manager helpers", () => {
     ["In review", 0, { label: "Ready", tone: "blue" }],
     ["Ready", 0, { label: "Ready", tone: "blue" }],
     ["Live", 0, { label: "Live", tone: "green" }],
-    ["Drafting", 0, { label: "Mark drafting", tone: "gray" }],
+    ["Drafting", 0, { label: "Arc drafting", tone: "gray" }],
   ])("maps lifecycle %s and pending %s to plain status", (lifecycle, pendingCount, expected) => {
     expect(campaignManagerStatus(campaign({ lifecycle, pendingCount }))).toEqual(expected);
   });
@@ -185,7 +185,7 @@ describe("campaign manager helpers", () => {
     expect(campaignNextStep(campaign({ lifecycle: "In review", pendingCount: 2 }))).toBe("Review 2 pieces");
     expect(campaignNextStep(campaign({ lifecycle: "Ready", pendingCount: 0 }))).toBe("Send or export");
     expect(campaignNextStep(campaign({ lifecycle: "Live", pendingCount: 0 }))).toBe("Check results");
-    expect(campaignNextStep(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe("Wait for Mark");
+    expect(campaignNextStep(campaign({ lifecycle: "Drafting", pendingCount: 0 }))).toBe("Wait for Arc");
   });
 
   it("filters saved views", () => {
@@ -198,7 +198,7 @@ describe("campaign manager helpers", () => {
 
     expect(filterCampaignManagerItems(items, "needs-attention").map((item) => item.id)).toEqual(["review"]);
     expect(filterCampaignManagerItems(items, "ready-to-send").map((item) => item.id)).toEqual(["ready"]);
-    expect(filterCampaignManagerItems(items, "mark-working").map((item) => item.id)).toEqual(["draft"]);
+    expect(filterCampaignManagerItems(items, "arc-working").map((item) => item.id)).toEqual(["draft"]);
     expect(filterCampaignManagerItems(items, "live").map((item) => item.id)).toEqual(["live"]);
     expect(filterCampaignManagerItems(items, "all").map((item) => item.id)).toEqual(["review", "ready", "live", "draft"]);
   });
@@ -225,7 +225,7 @@ describe("campaign manager helpers", () => {
       "needs-attention": 1,
       all: 4,
       "ready-to-send": 1,
-      "mark-working": 1,
+      "arc-working": 1,
       live: 1,
       archived: 0,
     });
@@ -248,7 +248,7 @@ Expected: FAIL because `campaignManagerSummary`, `campaignManagerStatus`, `campa
 Add the following to `src/app/campaigns/_components/library-model.ts` after the existing exports:
 
 ```ts
-export type CampaignManagerView = "needs-attention" | "all" | "ready-to-send" | "mark-working" | "live" | "archived";
+export type CampaignManagerView = "needs-attention" | "all" | "ready-to-send" | "arc-working" | "live" | "archived";
 
 export type CampaignManagerTone = "amber" | "blue" | "green" | "gray" | "red";
 
@@ -279,7 +279,7 @@ const WHERE_LABELS: Record<string, string> = {
 
 export function campaignManagerStatus(campaign: CampaignWorkspaceListItem): CampaignManagerStatus {
   if (campaign.lifecycle === "Live") return { label: "Live", tone: "green" };
-  if (campaign.lifecycle === "Drafting") return { label: "Mark drafting", tone: "gray" };
+  if (campaign.lifecycle === "Drafting") return { label: "Arc drafting", tone: "gray" };
   if (campaign.lifecycle === "Ready") return { label: "Ready", tone: "blue" };
   if (campaign.pendingCount > 0) return { label: "Review needed", tone: "amber" };
   return { label: "Ready", tone: "blue" };
@@ -287,7 +287,7 @@ export function campaignManagerStatus(campaign: CampaignWorkspaceListItem): Camp
 
 export function campaignManagerSummary(campaign: CampaignWorkspaceListItem): CampaignManagerSummary {
   const primary = `${campaign.assetCount} piece${campaign.assetCount === 1 ? "" : "s"}`;
-  if (campaign.assetCount === 0) return { primary: "No content yet", secondary: "Mark is building" };
+  if (campaign.assetCount === 0) return { primary: "No content yet", secondary: "Arc is building" };
   if (campaign.pendingCount > 0) {
     return {
       primary,
@@ -311,7 +311,7 @@ export function campaignNextStep(campaign: CampaignWorkspaceListItem): string {
   }
   if (campaign.lifecycle === "Ready") return "Send or export";
   if (campaign.lifecycle === "Live") return "Check results";
-  if (campaign.lifecycle === "Drafting") return "Wait for Mark";
+  if (campaign.lifecycle === "Drafting") return "Wait for Arc";
   if (campaign.assetCount === 0) return "Add content";
   return "Open campaign";
 }
@@ -334,7 +334,7 @@ export function managerViewCounts(campaigns: CampaignWorkspaceListItem[]): Recor
     "needs-attention": campaigns.filter((campaign) => matchesManagerView(campaign, "needs-attention")).length,
     all: campaigns.length,
     "ready-to-send": campaigns.filter((campaign) => matchesManagerView(campaign, "ready-to-send")).length,
-    "mark-working": campaigns.filter((campaign) => matchesManagerView(campaign, "mark-working")).length,
+    "arc-working": campaigns.filter((campaign) => matchesManagerView(campaign, "arc-working")).length,
     live: campaigns.filter((campaign) => matchesManagerView(campaign, "live")).length,
     archived: campaigns.filter((campaign) => matchesManagerView(campaign, "archived")).length,
   };
@@ -344,7 +344,7 @@ function matchesManagerView(campaign: CampaignWorkspaceListItem, view: CampaignM
   if (view === "all") return true;
   if (view === "needs-attention") return campaign.pendingCount > 0 || campaign.lifecycle === "In review";
   if (view === "ready-to-send") return campaign.lifecycle === "Ready";
-  if (view === "mark-working") return campaign.lifecycle === "Drafting";
+  if (view === "arc-working") return campaign.lifecycle === "Drafting";
   if (view === "live") return campaign.lifecycle === "Live";
   return /archived/i.test(campaign.status);
 }
@@ -451,7 +451,7 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
       ) : (
         <EmptyState
           title="No campaigns yet"
-          detail="Create one yourself or ask Mark to build a campaign package. Campaigns will show their content, review status, and send/export options here."
+          detail="Create one yourself or ask Arc to build a campaign package. Campaigns will show their content, review status, and send/export options here."
         />
       )}
     </>
@@ -464,7 +464,7 @@ function getParam(value: string | string[] | undefined) {
 
 function getViewParam(value: string | string[] | undefined): CampaignManagerView {
   const raw = getParam(value);
-  if (raw === "all" || raw === "ready-to-send" || raw === "mark-working" || raw === "live" || raw === "archived") return raw;
+  if (raw === "all" || raw === "ready-to-send" || raw === "arc-working" || raw === "live" || raw === "archived") return raw;
   return "needs-attention";
 }
 
@@ -480,8 +480,8 @@ function CampaignsHeader({ pendingCount }: { pendingCount: number }) {
           <Link href="/campaigns/new" className={buttonClasses({ variant: "ghost", size: "sm" })}>
             Create campaign
           </Link>
-          <Link href="/campaigns/new?mode=mark" className={buttonClasses({ size: "sm" })}>
-            Ask Mark
+          <Link href="/campaigns/new?mode=arc" className={buttonClasses({ size: "sm" })}>
+            Ask Arc
           </Link>
         </div>
       }
@@ -516,8 +516,8 @@ export function CampaignManagerPreview({ campaign }: { campaign: CampaignWorkspa
             <Link href={campaign.href} className={buttonClasses({ size: "sm" })}>
               Open full page
             </Link>
-            <Link href={`${campaign.href}?focus=mark`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Ask Mark
+            <Link href={`${campaign.href}?focus=arc`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+              Ask Arc
             </Link>
           </div>
         </section>
@@ -534,7 +534,7 @@ export function CampaignManagerPreview({ campaign }: { campaign: CampaignWorkspa
               ))
             ) : (
               <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-2.5 py-2 text-xs text-[var(--text-muted)]">
-                Mark is still building the content.
+                Arc is still building the content.
               </div>
             )}
           </div>
@@ -668,7 +668,7 @@ const VIEWS: Array<{ key: CampaignManagerView; label: string }> = [
   { key: "needs-attention", label: "Needs attention" },
   { key: "all", label: "All campaigns" },
   { key: "ready-to-send", label: "Ready to send" },
-  { key: "mark-working", label: "Mark is working" },
+  { key: "arc-working", label: "Arc is working" },
   { key: "live", label: "Live" },
   { key: "archived", label: "Archived" },
 ];
@@ -833,7 +833,7 @@ function asset(overrides: Partial<CampaignWorkspaceAsset> = {}): CampaignWorkspa
     preview: overrides.preview ?? "Subject: Hello",
     complianceNotes: overrides.complianceNotes ?? "No issues",
     dispatchLocked: overrides.dispatchLocked ?? true,
-    toolSource: overrides.toolSource ?? "mark",
+    toolSource: overrides.toolSource ?? "arc",
     updatedAt: overrides.updatedAt ?? "Jun 11, 2026",
     media: overrides.media ?? [],
     revision: overrides.revision ?? null,
@@ -896,7 +896,7 @@ describe("campaign detail model", () => {
 
   it("builds content rows with next actions", () => {
     expect(buildCampaignContentRows(detail()).map((row) => ({ title: row.title, status: row.status.label, where: row.where, nextAction: row.nextAction }))).toEqual([
-      { title: "Email draft", status: "Review", where: "Email", nextAction: "Approve or ask Mark to revise" },
+      { title: "Email draft", status: "Review", where: "Email", nextAction: "Approve or ask Arc to revise" },
       { title: "One-pager", status: "Ready", where: "Export", nextAction: "Can be sent or exported" },
     ]);
   });
@@ -1047,11 +1047,11 @@ function describeAsset(asset: CampaignWorkspaceAsset): string {
 }
 
 function nextActionForStatus(status: PlainStatus): string {
-  if (status.label === "Review") return "Approve or ask Mark to revise";
+  if (status.label === "Review") return "Approve or ask Arc to revise";
   if (status.label === "Ready") return "Can be sent or exported";
   if (status.label === "Live") return "Check results";
-  if (status.label === "Blocked") return "Ask Mark to revise";
-  return "Wait for Mark";
+  if (status.label === "Blocked") return "Ask Arc to revise";
+  return "Wait for Arc";
 }
 ```
 
@@ -1153,7 +1153,7 @@ export function CampaignContentTable({ detail }: { detail: LiveCampaignWorkspace
     return (
       <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-6 text-center">
         <h2 className="text-lg font-bold text-[var(--text-primary)]">No content yet</h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">Mark is still building this campaign. Content will appear here for review.</p>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">Arc is still building this campaign. Content will appear here for review.</p>
       </section>
     );
   }
@@ -1218,7 +1218,7 @@ function ContentPreview({ row }: { row: CampaignContentRow }) {
             Approve
           </Button>
           <Button type="button" variant="ghost" size="sm">
-            Ask Mark to revise
+            Ask Arc to revise
           </Button>
         </div>
       </div>
@@ -1258,11 +1258,11 @@ export function CampaignRightRail({ detail }: { detail: LiveCampaignWorkspace })
         {facts.length > 0 ? facts.map((fact) => <Fact key={fact.label} label={fact.label} value={fact.value} />) : <p className="text-sm text-[var(--text-secondary)]">No send or export options yet.</p>}
       </Panel>
 
-      <Panel title="Mark">
-        <p className="text-sm leading-5 text-[var(--text-secondary)]">Ask Mark to revise selected content, add missing pieces, summarize this campaign, or create a new version.</p>
+      <Panel title="Arc">
+        <p className="text-sm leading-5 text-[var(--text-secondary)]">Ask Arc to revise selected content, add missing pieces, summarize this campaign, or create a new version.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href={`/campaigns/${campaign.id}?focus=mark`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-            Ask Mark
+          <Link href={`/campaigns/${campaign.id}?focus=arc`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+            Ask Arc
           </Link>
         </div>
       </Panel>
@@ -1332,8 +1332,8 @@ export function CampaignHeader({ campaign, launchState }: { campaign: CampaignWo
             <a href="#content" className={buttonClasses({ size: "sm" })}>
               {primaryLabel}
             </a>
-            <Link href={`/campaigns/${campaign.id}?focus=mark`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Ask Mark to revise
+            <Link href={`/campaigns/${campaign.id}?focus=arc`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+              Ask Arc to revise
             </Link>
           </div>
         </div>
@@ -1457,7 +1457,7 @@ Expected: Dev server starts, usually at `http://localhost:3000`. If port 3000 is
 Open `/campaigns` in the browser and verify:
 
 - Header copy is plain and functional.
-- `Ask Mark` and `Create campaign` are visible.
+- `Ask Arc` and `Create campaign` are visible.
 - Search input is visible.
 - Saved views are visible.
 - Campaign table columns are readable on desktop.
@@ -1479,7 +1479,7 @@ Open any `/campaigns/[campaignId]` and verify:
 - Four checklist steps appear above the workspace.
 - Content table lists every asset/content piece.
 - Selecting a row updates the preview.
-- Right rail shows Campaign summary, Send / export, Mark, and Results.
+- Right rail shows Campaign summary, Send / export, Arc, and Results.
 - History is collapsed and not dominant.
 
 If the content preview pushes the right rail too far down, keep the layout at:
@@ -1511,7 +1511,7 @@ git status --short
 git diff -- src/app/campaigns src/lib/campaigns
 ```
 
-Expected: Only campaign UI/helper/test files from this plan are changed for this feature slice. Do not stage unrelated Hermes API, settings, or auth changes that are already in the worktree.
+Expected: Only campaign UI/helper/test files from this plan are changed for this feature slice. Do not stage unrelated Arc API, settings, or auth changes that are already in the worktree.
 
 - [ ] **Step 6: Commit final polish**
 
@@ -1537,7 +1537,7 @@ Expected staged files are only the final campaign UI files. If `[campaignId]/pag
 - Plain-language statuses and destinations: Task 1 and Task 3.
 - Detail checklist: Task 3 helpers, Task 4 UI.
 - Content table and preview: Task 3 helpers, Task 4 UI.
-- Right rail with summary, send/export, Mark, results: Task 4.
+- Right rail with summary, send/export, Arc, results: Task 4.
 - Approval-safe behavior: Tasks reuse existing actions; Task 5 verifies no new send path.
 - New integrations and bulk send: explicitly out of scope.
 

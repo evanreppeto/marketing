@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add editing, photo add/remove, one-step create-&-deploy, and a Send-to-Mark hand-off to operator-authored draft campaigns.
+**Goal:** Add editing, photo add/remove, one-step create-&-deploy, and a Send-to-Arc hand-off to operator-authored draft campaigns.
 
 **Architecture:** Pure edit validation in `domain/`; a shared `insertPhotoAsset` helper extracted from the existing create flow; new `lib/campaigns/manage.ts` for add/remove/update (all guarded to operator-authored drafts); new server actions; a small `operatorPhotos` slice + `sourceSystem` on the detail read-model; and UI (two create buttons, an edit page, a detail-page operator panel).
 
@@ -16,7 +16,7 @@
 
 - `createOperatorCampaign` (`src/lib/campaigns/create.ts`) writes, per photo: a `campaign_assets` row (`status='approved'`, `dispatch_locked=true`, `audit_payload.media_assets=[{url}]`), an `approved` `approval_items` row, and an `approval_decisions` row. It has local `insertOne`/`insertNoReturn` helpers and `defaultUploader`.
 - `launchCampaign({campaignId, operator})` (`src/lib/campaigns/launch.ts`) gates on `launch_locked=true` + at least one `approved` approval_item; it sets the campaign `active`, unlocks approved assets, enqueues Outbox dispatches.
-- `sendMarkDirective({campaignId, message, operator}, client)` (`src/lib/campaigns/mark-conversation.ts`) records a directive to Mark. `sendMarkMessageAction` in `actions.ts` is the existing caller pattern.
+- `sendArcDirective({campaignId, message, operator}, client)` (`src/lib/campaigns/arc-conversation.ts`) records a directive to Arc. `sendMarkMessageAction` in `actions.ts` is the existing caller pattern.
 - `actions.ts` already imports: `requireOperator`, `getOperatorActor` (`@/lib/auth/operator`), `isSupabaseAdminConfigured`, `getSupabaseAdminClient` (`@/lib/supabase/server`), `revalidatePath`, `redirect`, `parseCampaignDraft`, `createOperatorCampaign`, `type CampaignPhoto`. It has a `readPhotos(formData)` helper and `createCampaignAction`.
 - Detail read-model `getCampaignWorkspaceDetail` (`src/lib/campaigns/read-model.ts`): selects the campaign via a `CAMPAIGN_SELECT` constant into `CampaignRow`, builds `campaign: CampaignWorkspaceMeta` inline, and fetches `assets: CampaignAssetRow[]` (which include `id`, `dispatch_locked`, `audit_payload`). `CampaignWorkspaceMeta` has no `sourceSystem`; there is no `operatorPhotos` slice. `CampaignRow` does not currently include `source_system`.
 - `campaign_event_type` valid values include `created`, `asset_generated`, `archived`, `planned`.
@@ -40,7 +40,7 @@
 | `src/app/campaigns/_components/campaign-create-form.tsx` | two submit buttons | Modify |
 | `src/app/campaigns/_components/campaign-edit-form.tsx` | edit form (client) | Create |
 | `src/app/campaigns/[campaignId]/edit/page.tsx` | edit page | Create |
-| `src/app/campaigns/_components/campaign-operator-panel.tsx` | add/remove/send-to-mark panel | Create |
+| `src/app/campaigns/_components/campaign-operator-panel.tsx` | add/remove/send-to-arc panel | Create |
 | `src/app/campaigns/[campaignId]/page.tsx` | render the operator panel | Modify |
 
 ---
@@ -638,10 +638,10 @@ git commit -m "feat(campaigns): expose sourceSystem + operatorPhotos on the camp
 ```ts
 import { addCampaignPhotos, removeCampaignAsset, updateOperatorCampaign } from "@/lib/campaigns/manage";
 import { launchCampaign } from "@/lib/campaigns/launch";
-import { sendMarkDirective } from "@/lib/campaigns/mark-conversation";
+import { sendArcDirective } from "@/lib/campaigns/arc-conversation";
 ```
 
-(If `launchCampaign` / `sendMarkDirective` are already imported in this file, don't duplicate — check the existing import block first.)
+(If `launchCampaign` / `sendArcDirective` are already imported in this file, don't duplicate — check the existing import block first.)
 
 - [ ] **Step 2: Add the `intent` branch to `createCampaignAction`.** Immediately after `parseCampaignDraft(...)` succeeds and before persisting, read intent and validate the deploy precondition:
 
@@ -785,16 +785,16 @@ export async function sendCampaignToMarkAction(_previous: ManageCampaignActionSt
   if (!campaignId) return { ok: false, message: "Missing campaign." };
 
   try {
-    await sendMarkDirective(
+    await sendArcDirective(
       { campaignId, message: "Operator handed off this campaign — please review the photos and draft or refine the creative.", operator: getOperatorActor() },
       getSupabaseAdminClient(),
     );
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Couldn't reach Mark." };
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't reach Arc." };
   }
 
   revalidatePath(`/campaigns/${campaignId}`);
-  return { ok: true, message: "Sent to Mark — he'll pick it up from here." };
+  return { ok: true, message: "Sent to Arc — he'll pick it up from here." };
 }
 ```
 
@@ -804,7 +804,7 @@ export async function sendCampaignToMarkAction(_previous: ManageCampaignActionSt
 
 ```bash
 git add src/app/campaigns/actions.ts
-git commit -m "feat(campaigns): create-intent deploy + update/add-photos/remove/send-to-mark actions"
+git commit -m "feat(campaigns): create-intent deploy + update/add-photos/remove/send-to-arc actions"
 ```
 
 ---
@@ -1011,7 +1011,7 @@ export function CampaignOperatorPanel({
           ) : null}
           <form action={markAction}>
             <input type="hidden" name="campaignId" value={campaignId} />
-            <Button type="submit" size="sm" variant="ghost" disabled={sending}>{sending ? "Sending…" : "Send to Mark"}</Button>
+            <Button type="submit" size="sm" variant="ghost" disabled={sending}>{sending ? "Sending…" : "Send to Arc"}</Button>
           </form>
         </div>
       </div>
@@ -1084,13 +1084,13 @@ In the `detail.status === "live"` return, replace the fragment body so it includ
 
 - [ ] **Step 3: Verify** `pnpm build` + `pnpm lint`.
 
-- [ ] **Step 4: Visual check (recommended).** With the dev server: open an operator draft campaign → confirm the panel shows, add a photo, remove it, click Send to Mark, and use Edit details. (Requires Supabase + the `campaign-media` bucket.)
+- [ ] **Step 4: Visual check (recommended).** With the dev server: open an operator draft campaign → confirm the panel shows, add a photo, remove it, click Send to Arc, and use Edit details. (Requires Supabase + the `campaign-media` bucket.)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/app/campaigns/_components/campaign-operator-panel.tsx "src/app/campaigns/[campaignId]/page.tsx"
-git commit -m "feat(campaigns): operator panel — add/remove photos, edit link, send to Mark"
+git commit -m "feat(campaigns): operator panel — add/remove photos, edit link, send to Arc"
 ```
 
 ---
@@ -1108,7 +1108,7 @@ git commit -m "feat(campaigns): operator panel — add/remove photos, edit link,
 - **Create & deploy in one step** → Task 6 (`intent` + `launchCampaign`) + Task 7 (buttons). ✓
 - **Add/remove photos later** → Task 3 (`addCampaignPhotos`), Task 4 (`removeCampaignAsset`), Task 6 (actions), Task 9 (UI). ✓
 - **Edit campaign fields** → Task 1 (`parseCampaignEdit`), Task 3 (`updateOperatorCampaign`), Task 6 (action), Task 8 (edit page/form). ✓
-- **Send to Mark** → Task 6 (`sendCampaignToMarkAction`) + Task 9 (button). ✓
+- **Send to Arc** → Task 6 (`sendCampaignToMarkAction`) + Task 9 (button). ✓
 - **Guard: operator-authored draft** → `assertOperatorDraft` (Task 3) used by all manage ops; UI gated by `sourceSystem`/`launchLocked` (Tasks 8, 9). ✓
 - **Remove = delete + best-effort storage + not-deployed guard** → Task 4. ✓
 - **`{url, path}` media entries + read-model `operatorPhotos`/`sourceSystem`** → Tasks 2 and 5. ✓

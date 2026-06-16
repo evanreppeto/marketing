@@ -6,7 +6,7 @@
 
 ## Summary
 
-A property-graph overlay that serves as Hermes/Mark's durable **marketing brain**: a
+A property-graph overlay that serves as Arc's durable **marketing brain**: a
 store where *anything* is a node (brand fact, persona, segment, proof point, asset,
 learning, signal) and *any* relationship is a typed edge. It holds brand knowledge,
 marketing information, and the relationships connecting everything — and it links to,
@@ -21,8 +21,8 @@ brand/marketing knowledge and cross-cutting relationships that have no home toda
 The app already has many typed tables with foreign-key links (6-object CRM,
 `persona_snapshots`, `engagement_events`, `persona_knowledge_entries`, campaigns). What's
 missing is a single, writable, "anything links to anything" memory with one clean
-read/write surface for Hermes and native support for a trust/approval lifecycle. A generic
-`knowledge_nodes` + `knowledge_edges` overlay gives exactly that, keeps the Hermes write
+read/write surface for Arc and native support for a trust/approval lifecycle. A generic
+`knowledge_nodes` + `knowledge_edges` overlay gives exactly that, keeps the Arc write
 API from fragmenting across many types, and makes a future graph-view UI trivial. Nodes
 reference existing typed rows via `ref_table` + `ref_id`, so we get linkage without
 copying or losing the typed tables' integrity.
@@ -30,7 +30,7 @@ copying or losing the typed tables' integrity.
 ## Core principle alignment
 
 Honors the non-negotiable "agent does the work, human approves decisions" rule via a
-**tiered trust model**. Mark thinks and records freely; knowledge that governs *outbound*
+**tiered trust model**. Arc thinks and records freely; knowledge that governs *outbound*
 voice is gated behind operator approval before it is "trusted." Nothing here sends,
 publishes, or contacts anyone — it is internal memory.
 
@@ -42,16 +42,16 @@ publishes, or contacts anyone — it is internal memory.
 - The domain owns `GATED_NODE_KINDS`. **v1 set:** `brand_fact`, `messaging_angle`, `cta`,
   `proof_point` — the kinds whose content can govern outbound copy.
 - **Operator-created** nodes/edges enter at `trusted`.
-- **Mark + non-gated kind** (e.g. `persona`, `segment`, `service`, `learning`, `signal`,
-  CRM-link edges) enters at `observed` — usable internally, flagged as Mark-asserted and
+- **Arc + non-gated kind** (e.g. `persona`, `segment`, `service`, `learning`, `signal`,
+  CRM-link edges) enters at `observed` — usable internally, flagged as Arc-asserted and
   not operator-verified.
-- **Mark + gated kind** enters at `proposed` — lands in the operator approval queue. The
-  **server forces this tier**; Mark cannot self-approve a gated node.
+- **Arc + gated kind** enters at `proposed` — lands in the operator approval queue. The
+  **server forces this tier**; Arc cannot self-approve a gated node.
 - **Approve**: `proposed` → `trusted`, stamps `approved_by` / `approved_at`.
   **Reject**: `proposed` → `rejected`.
 
 Only `trusted` gated nodes should be surfaced to outbound-governing contexts (campaign
-briefs, approval cards). `observed`/`proposed` are visible to Mark's internal reasoning but
+briefs, approval cards). `observed`/`proposed` are visible to Arc's internal reasoning but
 must be labeled as unverified.
 
 ## Schema (new timestamped migration under `supabase/migrations/`)
@@ -72,9 +72,9 @@ must be labeled as unverified.
 | `confidence` | integer null | `between 0 and 100` |
 | `ref_table` | text null | e.g. `companies`, `contacts`, `leads`, `campaigns`, `campaign_assets`; allowlisted in app |
 | `ref_id` | uuid null | the referenced typed row |
-| `source` | text null | `mark` / `operator` / `import` / `performance` |
+| `source` | text null | `arc` / `operator` / `import` / `performance` |
 | `source_reference` | text null | url / run id / event id |
-| `created_by` | text null | `mark` / `operator` |
+| `created_by` | text null | `arc` / `operator` |
 | `approved_by` | text null | |
 | `approved_at` | timestamptz null | |
 | `tags` | text[] not null default `'{}'` | |
@@ -121,7 +121,7 @@ Constraints: `from_node_id <> to_node_id`; unique `(from_node_id, relation, to_n
 **Decision — `kind` and `relation` are text + app-layer allowlists, not DB enums.** This
 matches the codebase philosophy that deterministic, vocabulary-defining logic is
 app-owned and unit-testable rather than pushed into Postgres (cf. routing/scoring), and
-lets Mark's vocabulary grow without an `ALTER TYPE` migration each time. `trust_tier` *is*
+lets Arc's vocabulary grow without an `ALTER TYPE` migration each time. `trust_tier` *is*
 a DB enum: it is a small, stable lifecycle that earns the check-constraint integrity.
 
 ## Domain module — `src/domain/knowledge-graph.ts` (pure, no I/O)
@@ -133,7 +133,7 @@ Exports (re-exported through `src/domain/index.ts`):
   `GATED_NODE_KINDS`, `REFERENCEABLE_TABLES`.
 - `isGatedKind(kind): boolean`.
 - `resolveInitialTrustTier({ kind, createdBy }): TrustTier` — operator ⇒ `trusted`;
-  mark + gated ⇒ `proposed`; mark + non-gated ⇒ `observed`.
+  arc + gated ⇒ `proposed`; arc + non-gated ⇒ `observed`.
 - `validateNodeInput(input): { ok: true; value } | { ok: false; code; message }` — kind in
   allowlist, label non-empty, `ref_table`/`ref_id` both-or-neither and table allowlisted,
   persona present-or-absent as the kind requires, confidence in range.
@@ -162,28 +162,28 @@ unreachable Supabase degrades to an "unavailable" result instead of hanging
 (per the known slow-load fix).
 
 - `persistence.ts`: `createNode`, `upsertNodeByKey`, `updateNode`, `approveNode`,
-  `rejectNode`, `archiveNode`, `createEdge`, `approveEdge`, `archiveEdge`. The Mark-facing
+  `rejectNode`, `archiveNode`, `createEdge`, `approveEdge`, `archiveEdge`. The Arc-facing
   create paths set the initial tier via `resolveInitialTrustTier` and never accept a
   caller-supplied `trusted` for gated kinds.
 - `read-model.ts`: `listNodes(filters: { kind?, trustTier?, persona?, refTable?, refId?, search? })`,
   `getNode(id)` returning the node plus its edges and neighbor nodes, `listProposed()`
   (the approval queue), `brainSummary()` (counts by kind and by tier), and
   `graphForNode(id, depth)` (neighbor expansion — used now for the node-detail view and
-  later for the visual graph / Hermes context payloads).
+  later for the visual graph / Arc context payloads).
 
-## Hermes API (bearer-gated)
+## Arc API (bearer-gated)
 
-New routes under `src/app/api/v1/hermes/brain/`, mirroring the existing
-`src/lib/hermes-api/` (`drafts.ts`, `approvals.ts`) + route pattern. Logic lives in
-`src/lib/hermes-api/brain.ts`, contract-tested in `src/lib/hermes-api/__tests__/brain.test.ts`.
+New routes under `src/app/api/v1/arc/brain/`, mirroring the existing
+`src/lib/arc-api/` (`drafts.ts`, `approvals.ts`) + route pattern. Logic lives in
+`src/lib/arc-api/brain.ts`, contract-tested in `src/lib/arc-api/__tests__/brain.test.ts`.
 
-- `POST /api/v1/hermes/brain/nodes` — create/upsert a node. Gated kinds are forced to
-  `proposed`; Mark cannot self-approve.
-- `POST /api/v1/hermes/brain/edges` — link two nodes.
-- `POST /api/v1/hermes/brain/query` — read the brain by kind/persona/ref/search for
+- `POST /api/v1/arc/brain/nodes` — create/upsert a node. Gated kinds are forced to
+  `proposed`; Arc cannot self-approve.
+- `POST /api/v1/arc/brain/edges` — link two nodes.
+- `POST /api/v1/arc/brain/query` — read the brain by kind/persona/ref/search for
   reasoning context (returns nodes + edges; can filter by tier).
 
-All gated by `checkBearerToken(request, "HERMES_AGENT_API_TOKEN")`. Response codes:
+All gated by `checkBearerToken(request, "ARC_AGENT_API_TOKEN")`. Response codes:
 `503 not_configured` when Supabase admin is unset, `400` on validation failure, `201` on
 persisted, `200` on query. Writes use the server-side admin client, so no PostgREST data-API
 role grant is required.
@@ -191,13 +191,13 @@ role grant is required.
 ## Operator UI — `/brain` (v1: curation list + approval; no visual graph)
 
 - Add a top-level nav entry **Brain → `/brain`** in `src/app/_data/growth-engine.ts`
-  `navItems`. (Mark stays at `/agent-operations`.)
+  `navItems`. (Arc stays at `/agent-operations`.)
 - Server component page built from existing primitives in
   `src/app/_components/page-header.tsx` (`PageHeader`, `Panel`, `StatusPill`,
   `EmptyState`, `OperatorBar`), DESIGN.md-compliant (Command Charcoal / Canvas White /
   Restoration Red; no emojis; no equal 3-column rows).
 - Sections:
-  1. **Approval queue** — Mark's `proposed` nodes/edges. Each card shows kind, label, body,
+  1. **Approval queue** — Arc's `proposed` nodes/edges. Each card shows kind, label, body,
      persona, source, and any linked CRM/campaign refs, with **Approve** / **Reject**
      (and edit-body-before-approve) controls.
   2. **Brain browser** — filter nodes by kind / trust tier / persona / free-text search;
@@ -213,10 +213,10 @@ role grant is required.
 
 ## Seed — `pnpm seed:brain`
 
-A script (registered in `package.json`, matching `seed:hermes-demo` / `seed:test-campaign`)
+A script (registered in `package.json`, matching `seed:arc-demo` / `seed:test-campaign`)
 that loads the 12 official personas as `persona` nodes plus a small starter set of BSR
 `brand_fact` nodes at `trusted`, and a few illustrative edges (e.g. a brand fact
-`governs` a persona's `cta`). Keeps the page and Mark's memory non-empty for first run.
+`governs` a persona's `cta`). Keeps the page and Arc's memory non-empty for first run.
 
 ## Testing
 
@@ -238,5 +238,5 @@ that loads the 12 official personas as `persona` nodes plus a small starter set 
 
 - New migration is timestamped and additive; it must be applied to the production Supabase
   DB manually (prod migrations are not auto-applied by the Vercel deploy).
-- No data-API role grant needed: Hermes writes go through the bearer-gated route using the
+- No data-API role grant needed: Arc writes go through the bearer-gated route using the
   service-role admin client.

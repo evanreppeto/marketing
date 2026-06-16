@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the Vault tab feel live and color-differentiated — a Mark activity rail, live record/persona signals, live collection counts + freshness, and periodic auto-refresh — all within the DESIGN.md palette.
+**Goal:** Make the Vault tab feel live and color-differentiated — a Arc activity rail, live record/persona signals, live collection counts + freshness, and periodic auto-refresh — all within the DESIGN.md palette.
 
 **Architecture:** One isolated live-signals read-model (`src/lib/vault/live-signals.ts`) with pure, unit-tested shaping helpers and graceful `live | fallback | error` degradation; small presentational components; one `"use client"` auto-refresh component; and redesigned home + note pages that consume them. The pure `src/domain/notebook.ts` and the `agent-operations` read-model are untouched.
 
@@ -13,7 +13,7 @@
 ## Conventions reused (read these first)
 - `src/lib/supabase/server.ts`: `isSupabaseAdminConfigured()`, `getSupabaseAdminClient()`.
 - `src/lib/vault/read-model.ts`: the `live | fallback | error` shape + env save/restore test pattern (`read-model.test.ts`).
-- `src/lib/agent-operations/read-model.ts`: how Mark's `metadata` fields are read (`last_heartbeat_at` / `runner_last_seen_at`, `kill_switch`) and `titleize`.
+- `src/lib/agent-operations/read-model.ts`: how Arc's `metadata` fields are read (`last_heartbeat_at` / `runner_last_seen_at`, `kill_switch`) and `titleize`.
 - `src/app/_components/page-header.tsx`: `StatusPill` tones are `amber|green|red|gray|blue|dark`. Reuse `Panel`, `PageHeader`, `OperatorBar`, `ActionFeedback`, `StatusPill`, `EmptyState`, `buttonClasses`.
 - DESIGN.md: no emojis, no side-stripe accent borders, no equal 3-col rows, no fake round metrics. Color = dots/chips/ticks/icons in sanctioned tones only.
 
@@ -23,7 +23,7 @@
 - Modify: `src/app/vault/_data/notebook.ts` — add `StatusTone`, `collectionThemes`, `collectionFreshness` helper.
 - Create: `src/app/vault/_data/notebook.test.ts` — theme-coverage guard.
 - Create: `src/app/vault/_components/collection-icon.tsx` — inline SVG glyphs.
-- Create: `src/app/vault/_components/mark-activity-rail.tsx`.
+- Create: `src/app/vault/_components/arc-activity-rail.tsx`.
 - Create: `src/app/vault/_components/record-signal-chip.tsx`.
 - Create: `src/app/vault/_components/auto-refresh.tsx` — `"use client"`.
 - Modify: `src/app/vault/page.tsx` — redesigned home.
@@ -134,14 +134,14 @@ describe("personaSignalLabel", () => {
 describe("toMarkActivity", () => {
   it("shapes agent rows, tasks, outputs, and review count into MarkActivity", () => {
     const activity = toMarkActivity(
-      { name: "Mark", status: "ready", metadata: { last_heartbeat_at: "2026-06-02T11:50:00.000Z", kill_switch: "Outbound locked" } },
+      { name: "Arc", status: "ready", metadata: { last_heartbeat_at: "2026-06-02T11:50:00.000Z", kill_switch: "Outbound locked" } },
       [{ objective: "Draft partner note", task_type: "note_draft", status: "running", updated_at: "2026-06-02T11:58:00.000Z" }],
       [{ title: "Partner intel draft", approval_status: "pending_approval", created_at: "2026-06-02T11:40:00.000Z" }],
       2,
       NOW,
     );
     expect(activity).toEqual({
-      name: "Mark",
+      name: "Arc",
       status: "Ready",
       killSwitch: "Outbound locked",
       lastHeartbeat: "10m ago",
@@ -223,7 +223,7 @@ export function toMarkActivity(
   const killSwitch = typeof metadata.kill_switch === "string" ? metadata.kill_switch : "Outbound locked";
 
   return {
-    name: agent?.name ?? "Mark",
+    name: agent?.name ?? "Arc",
     status: agent?.status ? titleize(agent.status) : "Offline",
     killSwitch,
     lastHeartbeat: shortTime(heartbeatIso, now),
@@ -269,7 +269,7 @@ Append to `src/lib/vault/live-signals.test.ts`:
 import { getVaultLiveSignals } from "./live-signals";
 
 describe("getVaultLiveSignals (no Supabase configured)", () => {
-  it("returns fallback with an Offline Mark when env vars are unset", async () => {
+  it("returns fallback with an Offline Arc when env vars are unset", async () => {
     const prevUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -277,7 +277,7 @@ describe("getVaultLiveSignals (no Supabase configured)", () => {
     try {
       const model = await getVaultLiveSignals();
       expect(model.status).toBe("fallback");
-      expect(model.activity.name).toBe("Mark");
+      expect(model.activity.name).toBe("Arc");
       expect(model.activity.status).toBe("Offline");
       expect(model.activity.drafting).toEqual([]);
     } finally {
@@ -299,7 +299,7 @@ Expected: FAIL — `getVaultLiveSignals` not exported.
 import { seedVaultNotes } from "./seed-notes";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
-const NOT_CONFIGURED = "Supabase is not configured — Mark activity is offline. Showing static counts.";
+const NOT_CONFIGURED = "Supabase is not configured — Arc activity is offline. Showing static counts.";
 
 export type VaultLiveSignals =
   | { status: "live"; activity: MarkActivity; generatedAt: string }
@@ -311,7 +311,7 @@ function seedReviewCount(): number {
 }
 
 function offlineActivity(now: number): MarkActivity {
-  return toMarkActivity({ name: "Mark", status: "offline", metadata: {} }, [], [], seedReviewCount(), now);
+  return toMarkActivity({ name: "Arc", status: "offline", metadata: {} }, [], [], seedReviewCount(), now);
 }
 
 export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
@@ -322,7 +322,7 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
   try {
     const supabase = getSupabaseAdminClient();
     const [agentResult, tasksResult, outputsResult, reviewResult] = await Promise.all([
-      supabase.from("agents").select("name,status,metadata").eq("key", "mark").maybeSingle(),
+      supabase.from("agents").select("name,status,metadata").eq("key", "arc").maybeSingle(),
       supabase
         .from("agent_tasks")
         .select("objective,task_type,status,updated_at")
@@ -350,7 +350,7 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
     return {
       status: "error",
       activity: offlineActivity(now),
-      message: error instanceof Error ? error.message : "Mark activity is unavailable.",
+      message: error instanceof Error ? error.message : "Arc activity is unavailable.",
     };
   }
 }
@@ -580,14 +580,14 @@ git commit -m "feat: add collection icon glyphs"
 
 ---
 
-## Task 6: Mark activity rail
+## Task 6: Arc activity rail
 
 **Files:**
-- Create: `src/app/vault/_components/mark-activity-rail.tsx`
+- Create: `src/app/vault/_components/arc-activity-rail.tsx`
 
 - [ ] **Step 1: Implement**
 
-Create `src/app/vault/_components/mark-activity-rail.tsx`:
+Create `src/app/vault/_components/arc-activity-rail.tsx`:
 ```tsx
 import Link from "next/link";
 
@@ -606,7 +606,7 @@ export function MarkActivityRail({
   return (
     <Panel>
       <div className="flex items-center justify-between gap-3">
-        <div className="signal-eyebrow">Mark — live</div>
+        <div className="signal-eyebrow">Arc — live</div>
         <StatusPill tone={isLive ? "green" : "gray"}>{isLive ? activity.status : "Offline"}</StatusPill>
       </div>
 
@@ -668,8 +668,8 @@ Expected: no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/app/vault/_components/mark-activity-rail.tsx
-git commit -m "feat: add Mark activity rail component"
+git add src/app/vault/_components/arc-activity-rail.tsx
+git commit -m "feat: add Arc activity rail component"
 ```
 
 ---
@@ -800,7 +800,7 @@ import { AppShell } from "../_components/app-shell";
 import { ActionFeedback, buttonClasses, OperatorBar, PageHeader, Panel, StatusPill } from "../_components/page-header";
 import { AutoRefresh } from "./_components/auto-refresh";
 import { CollectionIcon } from "./_components/collection-icon";
-import { MarkActivityRail } from "./_components/mark-activity-rail";
+import { MarkActivityRail } from "./_components/arc-activity-rail";
 import { NoteCard } from "./_components/note-card";
 import { NoteGraph } from "./_components/note-graph";
 import { buildLinkContext, collectionTheme, vaultCollections } from "./_data/notebook";
@@ -813,7 +813,7 @@ type VaultHomeProps = {
 };
 
 const actionMessages: Record<string, string> = {
-  sync: "Preview: Mark would read the markdown files from your Obsidian vault and queue each as a Needs-review note. No files were read.",
+  sync: "Preview: Arc would read the markdown files from your Obsidian vault and queue each as a Needs-review note. No files were read.",
   "not-configured": "Saving needs Supabase env vars. Set them and apply the vault_notes migration to edit notes.",
   saved: "Note saved.",
   published: "Note published.",
@@ -857,8 +857,8 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
     <AppShell active="/vault">
       <PageHeader
         eyebrow="Vault"
-        title="The shared brain for Mark and the team"
-        description="Linked notes, playbooks, and partner intel. Wiki-links connect notes to live CRM records and personas. Mark drafts land in review before they publish."
+        title="The shared brain for Arc and the team"
+        description="Linked notes, playbooks, and partner intel. Wiki-links connect notes to live CRM records and personas. Arc drafts land in review before they publish."
         aside={
           <div className="flex flex-col items-end gap-2">
             <StatusPill tone={model.status === "live" ? "green" : "amber"}>{model.status === "live" ? "Live" : "Read-only"}</StatusPill>
@@ -958,7 +958,7 @@ Expected: succeeds; `/vault` present.
 
 ```bash
 git add src/app/vault/page.tsx
-git commit -m "feat: redesign vault home with live Mark rail and color-coded collections"
+git commit -m "feat: redesign vault home with live Arc rail and color-coded collections"
 ```
 
 ---
@@ -991,7 +991,7 @@ Replace the `aside={...}` block of the `<PageHeader>` with:
         aside={
           <div className="flex flex-col items-end gap-1.5">
             <StatusPill tone={note.status === "Published" ? "green" : note.status === "Needs review" ? "amber" : "gray"}>{note.status}</StatusPill>
-            {note.author === "Mark" ? <StatusPill tone="blue">Mark</StatusPill> : null}
+            {note.author === "Arc" ? <StatusPill tone="blue">Arc</StatusPill> : null}
             <AutoRefresh />
           </div>
         }
@@ -1046,12 +1046,12 @@ Expected: succeeds with `/vault` and `/vault/[noteSlug]`.
 
 - [ ] **Step 4: Manual smoke (report run-or-not honestly)**
 
-- Without Supabase env: home shows the read-only banner, the Mark rail shows "Offline", collections show color-coded counts + freshness, the "Live" auto-refresh indicator renders, and the detail page shows persona links with a "ref" chip. No crash.
-- With Supabase env + migration applied + some `agents`/`agent_tasks`/`leads` rows: the Mark rail shows real status/drafting/outputs/heartbeat, "Awaiting review" reflects `vault_notes` needs-review count, and persona links on a note show live lead counts with a "live" marker. Explicitly state whether this configured path was exercised or only the fallback path.
+- Without Supabase env: home shows the read-only banner, the Arc rail shows "Offline", collections show color-coded counts + freshness, the "Live" auto-refresh indicator renders, and the detail page shows persona links with a "ref" chip. No crash.
+- With Supabase env + migration applied + some `agents`/`agent_tasks`/`leads` rows: the Arc rail shows real status/drafting/outputs/heartbeat, "Awaiting review" reflects `vault_notes` needs-review count, and persona links on a note show live lead counts with a "live" marker. Explicitly state whether this configured path was exercised or only the fallback path.
 
 ---
 
 ## Self-review notes
-- **Spec coverage:** Mark activity feed (Tasks 1,2,6,9), live record signals (Tasks 3,7,10), live collection counts + freshness (Tasks 4,5,9), auto-refresh (Tasks 8,9,10), color system on-palette (Tasks 4,5,9), graceful degradation (Tasks 2,3,9), tests (Tasks 1,2,4). All spec sections map to tasks.
+- **Spec coverage:** Arc activity feed (Tasks 1,2,6,9), live record signals (Tasks 3,7,10), live collection counts + freshness (Tasks 4,5,9), auto-refresh (Tasks 8,9,10), color system on-palette (Tasks 4,5,9), graceful degradation (Tasks 2,3,9), tests (Tasks 1,2,4). All spec sections map to tasks.
 - **Minor spec deviation:** unconfigured persona signals show a "reference" marker with the persona label rather than a fabricated count, to honor DESIGN.md's "no fake metrics." Live persona counts are real. Flagged for visibility.
 - **Type consistency:** `StatusTone`, `MarkActivity`, `RecordSignal`, `getVaultLiveSignals`, `getRecordSignals`, `collectionTheme`, `collectionThemes`, `CollectionIcon`, `personaSignalLabel`, `shortTime`, `toMarkActivity` are used identically across files. `StatusTone` is defined in BOTH `live-signals.ts` and `_data/notebook.ts` as the same union — acceptable (no import cycle) since each is consumed locally; the chip/icon import the tone type from `_data/notebook.ts`, the rail uses string tones via `StatusPill`.

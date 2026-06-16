@@ -6,9 +6,9 @@
 
 ## Summary
 
-Give the Hermes agent (surfaced as **Mark**, a Claude computer-use agent running on a
+Give the Arc agent (surfaced as **Arc**, a Claude computer-use agent running on a
 Mac mini) a structured, approval-light way to **analyze competitors' marketing
-campaigns** and file the findings back into the Growth Engine. Mark browses public
+campaigns** and file the findings back into the Growth Engine. Arc browses public
 ad libraries, SimilarWeb, and competitor landing pages via computer use, then POSTs
 structured findings to a new bearer-gated backend endpoint. The backend normalizes
 and persists them as a typed `competitor_campaigns` record **and** an auto-generated
@@ -24,8 +24,8 @@ that will build on the same "agent findings intake" foundation.
   mix, estimated spend, keywords, positioning).
 - A human-readable vault note per finding for browsable reference (the "Obsidian
   vault for reference" ask).
-- A repeatable procedure (Claude **skill**) that tells Mark exactly how to scrape
-  each source and where to POST results — this is the "prompt" that steers Mark.
+- A repeatable procedure (Claude **skill**) that tells Arc exactly how to scrape
+  each source and where to POST results — this is the "prompt" that steers Arc.
 - Human-in-the-loop: nothing scraped is auto-trusted; intel lands as `needs_review`.
 
 ## Non-goals (v1 — YAGNI)
@@ -35,7 +35,7 @@ that will build on the same "agent findings intake" foundation.
   consumption is out of scope).
 - Auto-publishing notes, scheduled/recurring scrapes, dashboards/charts.
 - Seeded "Competitor Intel SOP" vault note (deferred to a later iteration).
-- A new auth token (we reuse `HERMES_AGENT_API_TOKEN`).
+- A new auth token (we reuse `ARC_AGENT_API_TOKEN`).
 - Any outbound action — this feature is read-only intel and never triggers outbound.
 
 ## Decisions (from brainstorming)
@@ -47,9 +47,9 @@ that will build on the same "agent findings intake" foundation.
 | Intel destination | Structured `competitor_campaigns` table **+** auto-generated vault note |
 | v1 sources | Meta Ad Library, Google Ads Transparency, SimilarWeb, competitor landing pages |
 | Review model | Light status review (`needs_review` → `confirmed`/`archived`); no `approval_items`, no dispatch locks |
-| Integration | Dedicated bearer-gated API endpoint, mirroring `POST /api/v1/hermes/runs` |
-| Auth token | Reuse `HERMES_AGENT_API_TOKEN` |
-| Operator UI | A section under Mark / agent-operations (not a new top-level nav item) |
+| Integration | Dedicated bearer-gated API endpoint, mirroring `POST /api/v1/arc/runs` |
+| Auth token | Reuse `ARC_AGENT_API_TOKEN` |
+| Operator UI | A section under Arc / agent-operations (not a new top-level nav item) |
 
 ## Architecture
 
@@ -60,7 +60,7 @@ access.
 ### Domain — `src/domain/competitor-intel.ts` (pure, no I/O)
 
 - `parseCompetitorIntelPayload(input: unknown): CompetitorIntelRequest` — Zod schema,
-  validates + applies defaults (mirrors `hermes/contracts.ts` style).
+  validates + applies defaults (mirrors `arc/contracts.ts` style).
 - `competitorIntelDedupeKey(record): string` — stable key from
   `source + competitorName + capturedDate` for idempotency / dedupe.
 - `scoreCompetitorActivity(record): { activityLevel, signals }` — simple
@@ -75,10 +75,10 @@ access.
 
 - `persistCompetitorIntel(request, client?)` — guarded by `isSupabaseAdminConfigured()`.
   In one logical run:
-  1. Upsert/lookup the `agents` row for Mark (reuse existing helper pattern).
+  1. Upsert/lookup the `agents` row for Arc (reuse existing helper pattern).
   2. Insert a `competitor_campaigns` row with `status='needs_review'`.
   3. Insert a `vault_notes` row from `renderIntelNoteMarkdown` (folder
-     `Competitor Intel`, `author='Mark'`, `status='needs_review'`).
+     `Competitor Intel`, `author='Arc'`, `status='needs_review'`).
   4. Link them via `competitor_campaigns.vault_note_slug`.
 - Returns `{ competitorCampaignId, vaultNoteSlug, status }`.
 
@@ -87,11 +87,11 @@ access.
 Thin typed access (list, getById, updateStatus) mirroring `src/lib/repos/leads`.
 Used by the operator review UI.
 
-### API — `POST /api/v1/hermes/competitor-intel/route.ts`
+### API — `POST /api/v1/arc/competitor-intel/route.ts`
 
-Mirrors `src/app/api/v1/hermes/runs/route.ts` exactly:
+Mirrors `src/app/api/v1/arc/runs/route.ts` exactly:
 
-- `checkBearerToken(request, "HERMES_AGENT_API_TOKEN")` → `401`/`not_configured`.
+- `checkBearerToken(request, "ARC_AGENT_API_TOKEN")` → `401`/`not_configured`.
 - `isSupabaseAdminConfigured()` guard → `503 not_configured`.
 - Parse JSON body → `400` on invalid JSON.
 - `parseCompetitorIntelPayload` → `400` on Zod error (with structured issues).
@@ -100,7 +100,7 @@ Mirrors `src/app/api/v1/hermes/runs/route.ts` exactly:
 Response codes are load-bearing, matching the house style: `400` validation,
 `503` not_configured, `201` persisted, `502` persistence error.
 
-### Operator UI — section under Mark / agent-operations
+### Operator UI — section under Arc / agent-operations
 
 A "Competitor Intel" panel inside the existing agent-operations route (reusing
 `PageHeader`/`Panel`/`StatusPill` from `src/app/_components/page-header.tsx`). Lists
@@ -156,16 +156,16 @@ for each row execute function public.set_updated_at();
 ```
 
 The human-readable note reuses the existing `vault_notes` table (no schema change):
-folder `Competitor Intel`, `author='Mark'`, `status='needs_review'`.
+folder `Competitor Intel`, `author='Arc'`, `status='needs_review'`.
 
 ## Data flow
 
-1. Mark (Mac mini, computer use) scrapes a source per the skill procedure.
-2. Mark POSTs structured JSON to `/api/v1/hermes/competitor-intel` with the bearer token.
+1. Arc (Mac mini, computer use) scrapes a source per the skill procedure.
+2. Arc POSTs structured JSON to `/api/v1/arc/competitor-intel` with the bearer token.
 3. Route validates token + config + payload.
 4. `persistCompetitorIntel` writes the `competitor_campaigns` row (`needs_review`) and
    a linked `vault_notes` row, returns ids.
-5. Operator opens the Competitor Intel section under Mark/agent-operations, reviews,
+5. Operator opens the Competitor Intel section under Arc/agent-operations, reviews,
    and confirms or archives.
 6. Confirmed intel is queryable (repo) and available to future features (draft engine
    consumption is out of v1 scope).
@@ -173,11 +173,11 @@ folder `Competitor Intel`, `author='Mark'`, `status='needs_review'`.
 ## The Claude skill + vault reference
 
 - **Skill** (e.g. `competitor-intel-scout`): a repeatable procedure document that tells
-  Mark which sources to use, how to navigate each (Meta Ad Library, Google Ads
+  Arc which sources to use, how to navigate each (Meta Ad Library, Google Ads
   Transparency, SimilarWeb, landing pages), exactly what fields to extract, and the
   **exact POST endpoint + payload shape**. Includes a ToS caution for SimilarWeb:
   prefer spot-checks, respect rate limits / robots, and treat output as `needs_review`.
-  This is the "prompt" that steers Mark.
+  This is the "prompt" that steers Arc.
 - **Deferred — seeded vault note** ("Competitor Intel SOP"): durable domain context
   (target competitors, priority ZIPs, what "good signal" looks like). Deferred to a
   later iteration; not built in v1.

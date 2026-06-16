@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Stamp each lead with the campaign that produced it at ingest, then roll that lead's won outcome revenue up to the campaign so the campaign page shows CRM-proven ROAS beside Mark's self-reported numbers.
+**Goal:** Stamp each lead with the campaign that produced it at ingest, then roll that lead's won outcome revenue up to the campaign so the campaign page shows CRM-proven ROAS beside Arc's self-reported numbers.
 
 **Architecture:** Pure domain helpers (`buildCampaignLink`, `resolveAttribution`, `computeCampaignEconomics`) own all logic and are unit-tested with no I/O. The lead ingest contract gains an optional, best-effort `attribution` block. A migration adds nullable attribution columns to `leads`; persistence writes them. A new read-model joins attributed leads → jobs/outcomes and feeds the pure economics function. The campaign detail page renders the result.
 
@@ -65,9 +65,9 @@ describe("buildCampaignLink", () => {
     expect(new URL(link).searchParams.get("ref")).toBe("abc");
   });
 
-  it("defaults utm_source to 'mark' when no channel is given", () => {
+  it("defaults utm_source to 'arc' when no channel is given", () => {
     const link = buildCampaignLink({ destinationUrl: "https://bigshoulders.com/q", campaignId: CAMPAIGN, assetId: ASSET });
-    expect(new URL(link).searchParams.get("utm_source")).toBe("mark");
+    expect(new URL(link).searchParams.get("utm_source")).toBe("arc");
   });
 
   it("throws when campaignId is not a UUID", () => {
@@ -108,7 +108,7 @@ export function buildCampaignLink({ destinationUrl, campaignId, assetId, channel
   const token = toBase64Url(
     JSON.stringify({ c: campaignId, ...(assetId ? { a: assetId } : {}), ...(channel ? { ch: channel } : {}) }),
   );
-  url.searchParams.set("utm_source", channel ?? "mark");
+  url.searchParams.set("utm_source", channel ?? "arc");
   url.searchParams.set("utm_medium", "campaign");
   url.searchParams.set("utm_campaign", campaignId);
   url.searchParams.set("bsg_at", token);

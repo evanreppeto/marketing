@@ -20,7 +20,7 @@ The campaign approval workflow is confusing. Investigation found three root caus
 
 ## Mental model (agreed)
 
-> **A campaign is the goal + timeframe. Deliverables are the pieces Mark builds for
+> **A campaign is the goal + timeframe. Deliverables are the pieces Arc builds for
 > it. You approve the pieces. You launch the campaign.** Approval ≠ deployment.
 
 - **Approval** happens per-deliverable — one gate per piece (email, ad, SMS, media,
@@ -32,7 +32,7 @@ The campaign approval workflow is confusing. Investigation found three root caus
 - **Launch** is the single deploy action, enabled only when Ready.
 
 ### Deliverable lifecycle
-`Draft → Needs approval → Approved` (or `Rework requested` → back to Mark).
+`Draft → Needs approval → Approved` (or `Rework requested` → back to Arc).
 
 ## Deploy semantics (chosen)
 
@@ -40,7 +40,7 @@ Launch is a **real backend state transition + handoff**, not in-app sending:
 
 - Set campaign `launch_locked = false`, `status = 'live'`.
 - Unlock every approved deliverable (`dispatch_locked = false`).
-- Record a `campaign_event` (`campaign_launched`) as the handoff signal Mark/Hermes
+- Record a `campaign_event` (`campaign_launched`) as the handoff signal Arc
   consumes to perform the actual sends/publishes.
 - No email/SMS/ad provider integration in this pass (wire later). Optionally support
   launching a single approved deliverable early.

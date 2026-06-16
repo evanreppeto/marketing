@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let an operator manually create a campaign (title, photos, who-it's-for, audience, objective/offer), persisted as a draft that reuses the existing campaigns machinery, deployable via the existing Launch → Outbox flow, and visible to Mark.
+**Goal:** Let an operator manually create a campaign (title, photos, who-it's-for, audience, objective/offer), persisted as a draft that reuses the existing campaigns machinery, deployable via the existing Launch → Outbox flow, and visible to Arc.
 
 **Architecture:** `domain/` (pure draft validation) → `lib/campaigns/create.ts` (persistence: campaign + per-photo asset + an already-`approved` approval_item so the existing Launch can deploy it) → `app/campaigns/` (a `/campaigns/new` form + a `createCampaignAction`). Photos upload to the existing `campaign-media` Storage bucket via an injectable uploader. No new dispatch/approval subsystem.
 
@@ -21,9 +21,9 @@
 - `approval_decisions`: `approval_item_id`, `decision`, `decided_by`, `decision_notes`, `previous_status`, `next_status`, `metadata`.
 - `campaign_events`: `campaign_id` (NOT-NULL), `campaign_asset_id?`, `event_type` (`campaign_event_type` enum — `created` is a valid value), `actor`, `detail`, `payload`.
 - Operator identity: `getOperatorActor()` from `@/lib/auth/operator` (returns email or "Operator"). Gate with `requireOperator()` + `isSupabaseAdminConfigured()`.
-- Storage upload pattern: `client.storage.from("campaign-media").upload(path, bytes, {contentType, upsert:true})` then `.getPublicUrl(path).data.publicUrl` (see `src/lib/hermes/social-ad-orchestrator.ts`). The bucket is NOT created by any migration yet.
+- Storage upload pattern: `client.storage.from("campaign-media").upload(path, bytes, {contentType, upsert:true})` then `.getPublicUrl(path).data.publicUrl` (see `src/lib/arc/social-ad-orchestrator.ts`). The bucket is NOT created by any migration yet.
 - UI primitives: `Button` from `_components/page-header`; `theme.control.input` + `cx` from `_components/theme`. Persona list: `OFFICIAL_PERSONA_MAPPINGS` from `@/domain`.
-- Mark handoff: the campaign detail page already has a Mark conversation tab (`sendMarkMessageAction`), and operator campaigns appear in Mark's read-models automatically. **No new "Send to Mark" button is built this round** (YAGNI — use the existing Mark conversation); pointing Mark to it is the existing affordance.
+- Arc handoff: the campaign detail page already has a Arc conversation tab (`sendMarkMessageAction`), and operator campaigns appear in Arc's read-models automatically. **No new "Send to Arc" button is built this round** (YAGNI — use the existing Arc conversation); pointing Arc to it is the existing affordance.
 
 ## File Structure
 
@@ -473,7 +473,7 @@ git commit -m "feat(campaigns): createOperatorCampaign persistence (campaign + a
 Create `supabase/migrations/20260609120000_campaign_media_bucket.sql`:
 
 ```sql
--- Ensure the public Storage bucket operator-authored campaign photos (and Mark's
+-- Ensure the public Storage bucket operator-authored campaign photos (and Arc's
 -- social-ad images) upload to exists. Idempotent — safe if the bucket was already
 -- created manually in the Supabase project.
 insert into storage.buckets (id, name, public)
@@ -729,7 +729,7 @@ export default async function NewCampaignPage() {
       <PageHeader
         eyebrow="Campaign command"
         title="New campaign"
-        description="Author a campaign by hand: a title, who it's for, the audience and offer, and any reference photos. Save it as a draft, deploy it yourself, or point Mark at it later."
+        description="Author a campaign by hand: a title, who it's for, the audience and offer, and any reference photos. Save it as a draft, deploy it yourself, or point Arc at it later."
         backHref="/campaigns"
         backLabel="campaigns"
       />
@@ -810,7 +810,7 @@ git commit -m "feat(campaigns): operator create-campaign form, page, and entry p
 - **Photos as `social_ad` assets, URL in `audit_payload.media_assets[]`** → Task 2. ✓
 - **Deploy via existing Launch** → Task 2 creates an `approved` `approval_items` row + sets asset `approved` + `dispatch_locked` true, satisfying `launchCampaign`'s gate. ✓
 - **Operator assets auto-approved + decision recorded (audit trail)** → Task 2 (approval_items + approval_decisions + campaign_events 'created'). ✓
-- **Mark handoff opt-in / Mark sees them** → no new code; existing Mark conversation tab + shared tables (documented in Key facts). ✓
+- **Arc handoff opt-in / Arc sees them** → no new code; existing Arc conversation tab + shared tables (documented in Key facts). ✓
 - **Create form (title, persona, restoration_focus, audience, objective, offer, channel, photos)** → Task 5. ✓
 - **Entry point on /campaigns** → Task 5 Step 3. ✓
 - **Domain validation + persistence tests** → Tasks 1 and 2. ✓

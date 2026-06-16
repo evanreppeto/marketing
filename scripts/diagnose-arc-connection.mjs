@@ -1,4 +1,4 @@
-// Read-only diagnostic for the live Arc/Arc connection state.
+// Read-only diagnostic for the live Arc connection state.
 // Usage: pnpm diagnose:arc  (reads .env.local for Supabase URL + service key)
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

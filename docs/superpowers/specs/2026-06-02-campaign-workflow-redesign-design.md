@@ -15,7 +15,7 @@ The app has two surfaces that overlap and compete:
 The standalone Approvals page is half "my to-do list" and half "what already
 happened." That blend is the core problem. Operators don't know which surface is
 authoritative, and there is no clean, immutable record of decisions that the
-Hermes agent (surfaced as **Mark**) can cite when planning.
+Arc agent (surfaced as **Arc**) can cite when planning.
 
 Separately, no single campaign is fully populated across all tabs, so the
 individual view is hard to evaluate and demo.
@@ -32,7 +32,7 @@ and provide a fully-filled test campaign to evaluate the individual view.
 | **History / ledger** | `/approvals` → renamed **Activity**, plus a read API | reference (read-only) |
 
 `/approvals` stops being an action queue and becomes the immutable record of every
-decision. Mark gains a programmatic way to reference that record.
+decision. Arc gains a programmatic way to reference that record.
 
 ## Non-goals
 
@@ -77,9 +77,9 @@ item · campaign · notes*. Filterable by campaign, decision kind, and date. No
 action buttons. Nav label "Approvals" → **"Activity"** in
 `src/app/_data/growth-engine.ts`.
 
-### 4. Read API for Mark — `GET /api/v1/approvals/history`
+### 4. Read API for Arc — `GET /api/v1/approvals/history`
 
-Bearer-gated via existing `checkBearerToken(request, "HERMES_AGENT_API_TOKEN")`.
+Bearer-gated via existing `checkBearerToken(request, "ARC_AGENT_API_TOKEN")`.
 Returns `503 not_configured` if Supabase admin is not configured. Response is an
 array of decisions:
 
@@ -130,7 +130,7 @@ property-manager partner, restoration focus = water backup / flood. Writes:
 - **Approvals**: several `approval_items` of mixed risk, with **one already
   decided** (so the Activity ledger and history API are not empty).
 
-Follows the existing `scripts/seed-hermes-demo.mjs` conventions (manual
+Follows the existing `scripts/seed-arc-demo.mjs` conventions (manual
 `.env.local` load, service-role client, deterministic suffix, draft/pending
 states, outbound blocked).
 

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the Mark Studio's **Assets** tab show every asset Mark generated across all chats in the same Mark Project, not just the current chat.
+**Goal:** Make the Arc Studio's **Assets** tab show every asset Arc generated across all chats in the same Arc Project, not just the current chat.
 
-**Architecture:** Approach A from the design — assets are already derived from message `actions`, so we load the asset-bearing Mark messages from sibling conversations in the project (`listProjectAssetMessages`), thread them as a `projectMessages` prop into the Studio, and merge them through the existing `collectAssets` pipeline (deduped, current chat wins). A small "from &lt;chat&gt;" chip marks cross-chat tiles. `Now`/`Building`/`Audience` stay scoped to the current chat.
+**Architecture:** Approach A from the design — assets are already derived from message `actions`, so we load the asset-bearing Arc messages from sibling conversations in the project (`listProjectAssetMessages`), thread them as a `projectMessages` prop into the Studio, and merge them through the existing `collectAssets` pipeline (deduped, current chat wins). A small "from &lt;chat&gt;" chip marks cross-chat tiles. `Now`/`Building`/`Audience` stay scoped to the current chat.
 
 **Tech Stack:** Next.js 16 (server components), React 19, TypeScript, Supabase (admin client), Vitest.
 
@@ -14,14 +14,14 @@
 
 ## File Structure
 
-- **Create** `src/app/mark/_components/asset-collect.ts` — pure (non-`"use client"`) module holding the `StudioAsset` type and `collectAssets`, moved out of `asset-library.tsx` so it is unit-testable without React/client imports.
-- **Create** `src/app/mark/_components/asset-collect.test.ts` — unit tests for `collectAssets` (dedup / current-wins / provenance).
-- **Create** `src/lib/mark-chat/persistence.assets.test.ts` — unit tests for `listProjectAssetMessages`.
-- **Modify** `src/app/mark/_components/asset-library.tsx` — drop the local `StudioAsset`/`collectAssets`, re-export them from `asset-collect`, add the source chip.
-- **Modify** `src/lib/mark-chat/persistence.ts` — add `listProjectAssetMessages`.
-- **Modify** `src/app/mark/page.tsx` — load `projectMessages` server-side.
-- **Modify** `src/app/mark/_components/mark-chat.tsx` — thread `projectMessages`, `currentConversationId`, `conversationTitles` into both `WorkCanvas` instances.
-- **Modify** `src/app/mark/_components/work-canvas.tsx` — accept the new props, merge for the Assets tab.
+- **Create** `src/app/arc/_components/asset-collect.ts` — pure (non-`"use client"`) module holding the `StudioAsset` type and `collectAssets`, moved out of `asset-library.tsx` so it is unit-testable without React/client imports.
+- **Create** `src/app/arc/_components/asset-collect.test.ts` — unit tests for `collectAssets` (dedup / current-wins / provenance).
+- **Create** `src/lib/arc-chat/persistence.assets.test.ts` — unit tests for `listProjectAssetMessages`.
+- **Modify** `src/app/arc/_components/asset-library.tsx` — drop the local `StudioAsset`/`collectAssets`, re-export them from `asset-collect`, add the source chip.
+- **Modify** `src/lib/arc-chat/persistence.ts` — add `listProjectAssetMessages`.
+- **Modify** `src/app/arc/page.tsx` — load `projectMessages` server-side.
+- **Modify** `src/app/arc/_components/arc-chat.tsx` — thread `projectMessages`, `currentConversationId`, `conversationTitles` into both `WorkCanvas` instances.
+- **Modify** `src/app/arc/_components/work-canvas.tsx` — accept the new props, merge for the Assets tab.
 
 `campaign-cover.tsx` and `audience-panel.tsx` import `StudioAsset` from `./asset-library`; the re-export keeps those imports valid with no change.
 
@@ -30,18 +30,18 @@
 ## Task 1: Extract `collectAssets` into a pure, testable module
 
 **Files:**
-- Create: `src/app/mark/_components/asset-collect.ts`
-- Modify: `src/app/mark/_components/asset-library.tsx:1-36`
+- Create: `src/app/arc/_components/asset-collect.ts`
+- Modify: `src/app/arc/_components/asset-library.tsx:1-36`
 
 Pure refactor — no behavior change. This isolates the collection logic so it can be unit-tested without pulling in client-only component imports.
 
 - [ ] **Step 1: Create the pure module**
 
-Create `src/app/mark/_components/asset-collect.ts`:
+Create `src/app/arc/_components/asset-collect.ts`:
 
 ```ts
 import type { MarkActionCard, MarkMedia } from "@/domain";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkMessage } from "@/lib/arc-chat/persistence";
 
 export type StudioAsset = {
   id: string;
@@ -52,7 +52,7 @@ export type StudioAsset = {
   messageId: string;
 };
 
-/** Gather every asset Mark generated across the given messages — the Studio's
+/** Gather every asset Arc generated across the given messages — the Studio's
  *  library source. Dedupes by asset id; the FIRST occurrence wins, so callers
  *  that want current-chat assets to take precedence must list them first. */
 export function collectAssets(messages: MarkMessage[]): StudioAsset[] {
@@ -74,7 +74,7 @@ export function collectAssets(messages: MarkMessage[]): StudioAsset[] {
 
 - [ ] **Step 2: Update `asset-library.tsx` to re-export from the new module**
 
-Replace the top of `src/app/mark/_components/asset-library.tsx` (lines 1-36 — the imports, the `StudioAsset` type, and the `collectAssets` function) with:
+Replace the top of `src/app/arc/_components/asset-library.tsx` (lines 1-36 — the imports, the `StudioAsset` type, and the `collectAssets` function) with:
 
 ```tsx
 "use client";
@@ -102,8 +102,8 @@ Expected: build succeeds (no type errors). `work-canvas.tsx`, `campaign-cover.ts
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/app/mark/_components/asset-collect.ts src/app/mark/_components/asset-library.tsx
-git commit -m "refactor(mark): extract collectAssets into pure asset-collect module"
+git add src/app/arc/_components/asset-collect.ts src/app/arc/_components/asset-library.tsx
+git commit -m "refactor(arc): extract collectAssets into pure asset-collect module"
 ```
 
 ---
@@ -111,17 +111,17 @@ git commit -m "refactor(mark): extract collectAssets into pure asset-collect mod
 ## Task 2: Test `collectAssets` dedup + provenance
 
 **Files:**
-- Test: `src/app/mark/_components/asset-collect.test.ts`
+- Test: `src/app/arc/_components/asset-collect.test.ts`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `src/app/mark/_components/asset-collect.test.ts`:
+Create `src/app/arc/_components/asset-collect.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
 
 import type { MarkActionCard } from "@/domain";
-import type { MarkMessage } from "@/lib/mark-chat/persistence";
+import type { MarkMessage } from "@/lib/arc-chat/persistence";
 
 import { collectAssets } from "./asset-collect";
 
@@ -133,7 +133,7 @@ function msg(over: Partial<MarkMessage> = {}): MarkMessage {
   return {
     id: "m1",
     conversationId: "c1",
-    role: "mark",
+    role: "arc",
     body: "",
     status: "complete",
     agentTaskId: null,
@@ -187,14 +187,14 @@ describe("collectAssets", () => {
 
 - [ ] **Step 2: Run the tests to verify they pass**
 
-Run: `pnpm test src/app/mark/_components/asset-collect.test.ts`
+Run: `pnpm test src/app/arc/_components/asset-collect.test.ts`
 Expected: PASS (3 tests). The logic moved verbatim in Task 1, so these confirm the contract — especially first-wins dedup, which is what makes the current chat take precedence over siblings in the merge.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/app/mark/_components/asset-collect.test.ts
-git commit -m "test(mark): cover collectAssets dedup and provenance"
+git add src/app/arc/_components/asset-collect.test.ts
+git commit -m "test(arc): cover collectAssets dedup and provenance"
 ```
 
 ---
@@ -202,12 +202,12 @@ git commit -m "test(mark): cover collectAssets dedup and provenance"
 ## Task 3: Add `listProjectAssetMessages` persistence query
 
 **Files:**
-- Modify: `src/lib/mark-chat/persistence.ts` (insert after `listMessages`, ~line 250)
-- Test: `src/lib/mark-chat/persistence.assets.test.ts`
+- Modify: `src/lib/arc-chat/persistence.ts` (insert after `listMessages`, ~line 250)
+- Test: `src/lib/arc-chat/persistence.assets.test.ts`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `src/lib/mark-chat/persistence.assets.test.ts`:
+Create `src/lib/arc-chat/persistence.assets.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -224,7 +224,7 @@ function messageRow(over: Record<string, unknown> = {}) {
   return {
     id: "m1",
     conversation_id: "c2",
-    role: "mark",
+    role: "arc",
     body: "",
     status: "complete",
     agent_task_id: null,
@@ -238,16 +238,16 @@ function messageRow(over: Record<string, unknown> = {}) {
 describe("listProjectAssetMessages", () => {
   it("returns [] when the project has no other active conversations", async () => {
     const supabase = createSupabaseQueryMock({
-      mark_conversations: { data: [{ id: "cur" }], error: null },
+      arc_conversations: { data: [{ id: "cur" }], error: null },
     });
     const out = await listProjectAssetMessages("p1", "Evan", { excludeConversationId: "cur" }, supabase);
     expect(out).toEqual([]);
   });
 
-  it("loads asset-bearing mark messages from sibling conversations", async () => {
+  it("loads asset-bearing arc messages from sibling conversations", async () => {
     const supabase = createSupabaseQueryMock({
-      mark_conversations: { data: [{ id: "cur" }, { id: "c2" }], error: null },
-      mark_messages: {
+      arc_conversations: { data: [{ id: "cur" }, { id: "c2" }], error: null },
+      arc_messages: {
         data: [
           messageRow({ id: "m1", conversation_id: "c2" }),
           messageRow({ id: "m2", conversation_id: "c2", metadata: {} }), // no actions -> filtered out
@@ -262,7 +262,7 @@ describe("listProjectAssetMessages", () => {
         ["operator", "Evan"],
         ["project_id", "p1"],
         ["status", "active"],
-        ["role", "mark"],
+        ["role", "arc"],
       ]),
     );
     // the active conversation is dropped from the IN list
@@ -272,8 +272,8 @@ describe("listProjectAssetMessages", () => {
 
   it("respects a custom limit", async () => {
     const supabase = createSupabaseQueryMock({
-      mark_conversations: { data: [{ id: "c2" }], error: null },
-      mark_messages: { data: [], error: null },
+      arc_conversations: { data: [{ id: "c2" }], error: null },
+      arc_messages: { data: [], error: null },
     });
     await listProjectAssetMessages("p1", "Evan", { limit: 25 }, supabase);
     expect(calls(supabase, "limit")[0]).toEqual([25]);
@@ -283,16 +283,16 @@ describe("listProjectAssetMessages", () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm test src/lib/mark-chat/persistence.assets.test.ts`
+Run: `pnpm test src/lib/arc-chat/persistence.assets.test.ts`
 Expected: FAIL — `listProjectAssetMessages` is not exported yet (import error / not a function).
 
 - [ ] **Step 3: Implement the function**
 
-In `src/lib/mark-chat/persistence.ts`, immediately after the `listMessages` function (ends ~line 250) insert:
+In `src/lib/arc-chat/persistence.ts`, immediately after the `listMessages` function (ends ~line 250) insert:
 
 ```ts
 /**
- * Every asset-bearing Mark message from the OTHER active conversations in a
+ * Every asset-bearing Arc message from the OTHER active conversations in a
  * project — the source for the Studio's project-wide Assets library. The active
  * conversation is excluded (its messages already arrive live), and messages
  * without action cards are dropped so the payload stays small.
@@ -304,12 +304,12 @@ export async function listProjectAssetMessages(
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<MarkMessage[]> {
   const { data: convRows, error: convErr } = await client
-    .from("mark_conversations")
+    .from("arc_conversations")
     .select("id")
     .eq("operator", operator)
     .eq("project_id", projectId)
     .eq("status", "active");
-  assertOk("mark_conversations project list", convErr);
+  assertOk("arc_conversations project list", convErr);
 
   const ids = ((convRows ?? []) as { id: string }[])
     .map((r) => r.id)
@@ -317,13 +317,13 @@ export async function listProjectAssetMessages(
   if (ids.length === 0) return [];
 
   const { data, error } = await client
-    .from("mark_messages")
+    .from("arc_messages")
     .select(MESSAGE_COLUMNS)
     .in("conversation_id", ids)
-    .eq("role", "mark")
+    .eq("role", "arc")
     .order("created_at", { ascending: false })
     .limit(options.limit ?? 100);
-  assertOk("mark_messages project assets list", error);
+  assertOk("arc_messages project assets list", error);
 
   return ((data ?? []) as MessageRow[]).map(toMessage).filter((m) => m.actions.length > 0);
 }
@@ -331,26 +331,26 @@ export async function listProjectAssetMessages(
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `pnpm test src/lib/mark-chat/persistence.assets.test.ts`
+Run: `pnpm test src/lib/arc-chat/persistence.assets.test.ts`
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/mark-chat/persistence.ts src/lib/mark-chat/persistence.assets.test.ts
-git commit -m "feat(mark): add listProjectAssetMessages for project-wide assets"
+git add src/lib/arc-chat/persistence.ts src/lib/arc-chat/persistence.assets.test.ts
+git commit -m "feat(arc): add listProjectAssetMessages for project-wide assets"
 ```
 
 ---
 
-## Task 4: Load `projectMessages` on the Mark page
+## Task 4: Load `projectMessages` on the Arc page
 
 **Files:**
-- Modify: `src/app/mark/page.tsx:7` (import) and `src/app/mark/page.tsx:46-93` (`loadLiveMarkChatProps`)
+- Modify: `src/app/arc/page.tsx:7` (import) and `src/app/arc/page.tsx:46-93` (`loadLiveMarkChatProps`)
 
 - [ ] **Step 1: Import the new query and the message type**
 
-In `src/app/mark/page.tsx`, change the persistence import (line 7) to add `listProjectAssetMessages` and the `MarkMessage` type:
+In `src/app/arc/page.tsx`, change the persistence import (line 7) to add `listProjectAssetMessages` and the `MarkMessage` type:
 
 ```ts
 import {
@@ -361,7 +361,7 @@ import {
   listArchivedConversations,
   listProjectAssetMessages,
   type MarkMessage,
-} from "@/lib/mark-chat/persistence";
+} from "@/lib/arc-chat/persistence";
 ```
 
 - [ ] **Step 2: Load project messages and add them to the returned props**
@@ -399,8 +399,8 @@ Expected: FAIL with a type error — `MarkChat` does not yet accept `projectMess
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/app/mark/page.tsx
-git commit -m "feat(mark): load project-wide asset messages on the Mark page"
+git add src/app/arc/page.tsx
+git commit -m "feat(arc): load project-wide asset messages on the Arc page"
 ```
 
 ---
@@ -408,7 +408,7 @@ git commit -m "feat(mark): load project-wide asset messages on the Mark page"
 ## Task 5: Thread the props through `MarkChat`
 
 **Files:**
-- Modify: `src/app/mark/_components/mark-chat.tsx` (props ~109-148; body ~330-334; both `WorkCanvas` usages ~523-532 and ~555-562)
+- Modify: `src/app/arc/_components/arc-chat.tsx` (props ~109-148; body ~330-334; both `WorkCanvas` usages ~523-532 and ~555-562)
 
 - [ ] **Step 1: Add the prop to the signature and type**
 
@@ -482,8 +482,8 @@ Replace the drawer usage (~line 555-562):
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/mark/_components/mark-chat.tsx
-git commit -m "feat(mark): thread project messages + titles into the Studio"
+git add src/app/arc/_components/arc-chat.tsx
+git commit -m "feat(arc): thread project messages + titles into the Studio"
 ```
 
 ---
@@ -491,7 +491,7 @@ git commit -m "feat(mark): thread project messages + titles into the Studio"
 ## Task 6: Merge project messages in `WorkCanvas` (Assets tab only)
 
 **Files:**
-- Modify: `src/app/mark/_components/work-canvas.tsx` (props ~339-360; `assets` memo ~364; `AssetLibrary` usage ~407-408)
+- Modify: `src/app/arc/_components/work-canvas.tsx` (props ~339-360; `assets` memo ~364; `AssetLibrary` usage ~407-408)
 
 - [ ] **Step 1: Add the new props**
 
@@ -556,8 +556,8 @@ to:
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/app/mark/_components/work-canvas.tsx
-git commit -m "feat(mark): Studio Assets tab aggregates across the project"
+git add src/app/arc/_components/work-canvas.tsx
+git commit -m "feat(arc): Studio Assets tab aggregates across the project"
 ```
 
 ---
@@ -565,7 +565,7 @@ git commit -m "feat(mark): Studio Assets tab aggregates across the project"
 ## Task 7: Render the "from &lt;chat&gt;" source chip
 
 **Files:**
-- Modify: `src/app/mark/_components/asset-library.tsx` (`AssetTile` ~48-67; `AssetLibrary` ~69 + grid map ~108-112)
+- Modify: `src/app/arc/_components/asset-library.tsx` (`AssetTile` ~48-67; `AssetLibrary` ~69 + grid map ~108-112)
 
 - [ ] **Step 1: Accept `sourceTitle` on `AssetTile` and render the chip**
 
@@ -622,8 +622,8 @@ Expected: PASS — `page.tsx` → `MarkChat` → `WorkCanvas` → `AssetLibrary`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/app/mark/_components/asset-library.tsx
-git commit -m "feat(mark): mark cross-chat Studio assets with a source chip"
+git add src/app/arc/_components/asset-library.tsx
+git commit -m "feat(arc): arc cross-chat Studio assets with a source chip"
 ```
 
 ---
@@ -632,9 +632,9 @@ git commit -m "feat(mark): mark cross-chat Studio assets with a source chip"
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Run the new + existing mark tests**
+- [ ] **Step 1: Run the new + existing arc tests**
 
-Run: `pnpm test src/app/mark/_components/asset-collect.test.ts src/lib/mark-chat/persistence.assets.test.ts src/lib/mark-chat/persistence.test.ts src/lib/mark-chat/persistence.projects.test.ts`
+Run: `pnpm test src/app/arc/_components/asset-collect.test.ts src/lib/arc-chat/persistence.assets.test.ts src/lib/arc-chat/persistence.test.ts src/lib/arc-chat/persistence.projects.test.ts`
 Expected: all PASS.
 
 - [ ] **Step 2: Type-check the build**
@@ -646,13 +646,13 @@ Expected: PASS, no type errors. (`pnpm lint` does not type-check — the build i
 
 Run:
 ```bash
-pnpm exec eslint src/app/mark/_components/asset-collect.ts src/app/mark/_components/asset-library.tsx src/app/mark/_components/work-canvas.tsx src/app/mark/_components/mark-chat.tsx src/lib/mark-chat/persistence.ts src/app/mark/page.tsx
+pnpm exec eslint src/app/arc/_components/asset-collect.ts src/app/arc/_components/asset-library.tsx src/app/arc/_components/work-canvas.tsx src/app/arc/_components/arc-chat.tsx src/lib/arc-chat/persistence.ts src/app/arc/page.tsx
 ```
 Expected: no errors on these files. (Repo-wide `pnpm lint` reports ~31k pre-existing problems from vendored/generated files — scope to changed files to read your own results.)
 
 - [ ] **Step 4: Manual check (requires Supabase configured locally)**
 
-Run `pnpm dev`, then in the Mark chat:
+Run `pnpm dev`, then in the Arc chat:
 1. Create two chats, assign both to the same Project, generate an asset in chat A.
 2. Open chat B → Studio → **Assets**: the asset from A appears with a "from &lt;A's title&gt;" chip and can be approved/declined in place.
 3. Confirm **Now** and **Audience** still reflect only chat B.

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make Mark's standalone social image ads appear as their own campaigns in the growth-engine app's Campaigns + Approvals screens, image and all, locked pending human approval.
+**Goal:** Make Arc's standalone social image ads appear as their own campaigns in the growth-engine app's Campaigns + Approvals screens, image and all, locked pending human approval.
 
-**Architecture:** The **classifier** (Python, Cloud Run) gains a permanent public image URL for a stored ad. The **app** (Next.js, Supabase project `fpjvgqrfqncnudqeudee`) gains a CRM-less `POST /api/v1/hermes/social-ads` endpoint that creates one campaign + one `social_ad` asset (image in `audit_payload.media_assets`) + one locked approval item. Mark calls the classifier to store the image, then the app to register the campaign.
+**Architecture:** The **classifier** (Python, Cloud Run) gains a permanent public image URL for a stored ad. The **app** (Next.js, Supabase project `fpjvgqrfqncnudqeudee`) gains a CRM-less `POST /api/v1/arc/social-ads` endpoint that creates one campaign + one `social_ad` asset (image in `audit_payload.media_assets`) + one locked approval item. Arc calls the classifier to store the image, then the app to register the campaign.
 
 **Tech Stack:** Python/FastAPI + pytest (classifier); Next.js 16 + TypeScript + zod + vitest (app); Supabase.
 
@@ -23,14 +23,14 @@
 - Modify `tests/test_campaigns.py` — tests for the two new functions.
 
 **App repo (`C:\Users\evanr\marketing`):**
-- Create `src/lib/hermes/social-ad-contract.ts` — zod request schema + parser.
-- Create `src/lib/hermes/social-ad-contract.test.ts` — contract tests.
-- Create `src/lib/hermes/social-ad-orchestrator.ts` — `runHermesSocialAd()`.
-- Create `src/lib/hermes/social-ad-orchestrator.test.ts` — orchestrator tests.
-- Create `src/app/api/v1/hermes/social-ads/route.ts` — thin HTTP wrapper (no test, matches the existing `/runs` route convention).
+- Create `src/lib/arc/social-ad-contract.ts` — zod request schema + parser.
+- Create `src/lib/arc/social-ad-contract.test.ts` — contract tests.
+- Create `src/lib/arc/social-ad-orchestrator.ts` — `runHermesSocialAd()`.
+- Create `src/lib/arc/social-ad-orchestrator.test.ts` — orchestrator tests.
+- Create `src/app/api/v1/arc/social-ads/route.ts` — thin HTTP wrapper (no test, matches the existing `/runs` route convention).
 
-**Mark skill (deliverable file):**
-- Create `C:\Users\evanr\marketing-classifier-agent\mark-skills\submit-social-ad-to-app\SKILL.md`.
+**Arc skill (deliverable file):**
+- Create `C:\Users\evanr\marketing-classifier-agent\arc-skills\submit-social-ad-to-app\SKILL.md`.
 
 ---
 
@@ -193,10 +193,10 @@ Expected: all pass, ruff clean. (Deploy happens in Task 8 — no git commit; cla
 ### Task 4: Social-ad request contract (zod)
 
 **Files:**
-- Create: `src/lib/hermes/social-ad-contract.ts`
-- Test: `src/lib/hermes/social-ad-contract.test.ts`
+- Create: `src/lib/arc/social-ad-contract.ts`
+- Test: `src/lib/arc/social-ad-contract.test.ts`
 
-- [ ] **Step 1: Write the failing test** (`src/lib/hermes/social-ad-contract.test.ts`)
+- [ ] **Step 1: Write the failing test** (`src/lib/arc/social-ad-contract.test.ts`)
 
 ```typescript
 import { describe, expect, it } from "vitest";
@@ -212,7 +212,7 @@ describe("parseHermesSocialAdRequest", () => {
       restorationFocus: "storm_surge",
       imageUrl: "https://svc.example/campaigns/abc/image",
       headline: "Tree on the roof?",
-      operator: "Mark",
+      operator: "Arc",
     });
     expect(req.name).toBe("Storm Damage Safety");
     expect(req.imageUrl).toBe("https://svc.example/campaigns/abc/image");
@@ -237,10 +237,10 @@ describe("parseHermesSocialAdRequest", () => {
 
 - [ ] **Step 2: Run to verify fail**
 
-Run: `pnpm vitest run src/lib/hermes/social-ad-contract.test.ts`
+Run: `pnpm vitest run src/lib/arc/social-ad-contract.test.ts`
 Expected: FAIL — cannot find module `./social-ad-contract`
 
-- [ ] **Step 3: Implement** (`src/lib/hermes/social-ad-contract.ts`)
+- [ ] **Step 3: Implement** (`src/lib/arc/social-ad-contract.ts`)
 
 ```typescript
 import { z } from "zod";
@@ -264,7 +264,7 @@ export const hermesSocialAdRequestSchema = z.object({
   ctaLabel: optionalText,
   ctaPhone: optionalText,
   sourceCampaignId: optionalText,
-  operator: z.string().trim().min(1).default("Mark"),
+  operator: z.string().trim().min(1).default("Arc"),
 });
 
 export type HermesSocialAdRequest = z.output<typeof hermesSocialAdRequestSchema>;
@@ -276,23 +276,23 @@ export function parseHermesSocialAdRequest(input: unknown): HermesSocialAdReques
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `pnpm vitest run src/lib/hermes/social-ad-contract.test.ts`
+Run: `pnpm vitest run src/lib/arc/social-ad-contract.test.ts`
 Expected: PASS (3 passed)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/hermes/social-ad-contract.ts src/lib/hermes/social-ad-contract.test.ts
-git commit -m "feat(hermes): add social-ad request contract"
+git add src/lib/arc/social-ad-contract.ts src/lib/arc/social-ad-contract.test.ts
+git commit -m "feat(arc): add social-ad request contract"
 ```
 
 ### Task 5: Social-ad orchestrator
 
 **Files:**
-- Create: `src/lib/hermes/social-ad-orchestrator.ts`
-- Test: `src/lib/hermes/social-ad-orchestrator.test.ts`
+- Create: `src/lib/arc/social-ad-orchestrator.ts`
+- Test: `src/lib/arc/social-ad-orchestrator.test.ts`
 
-- [ ] **Step 1: Write the failing test** (`src/lib/hermes/social-ad-orchestrator.test.ts`)
+- [ ] **Step 1: Write the failing test** (`src/lib/arc/social-ad-orchestrator.test.ts`)
 
 ```typescript
 import { describe, expect, it } from "vitest";
@@ -318,7 +318,7 @@ const validRequest = {
   restorationFocus: "storm_surge",
   imageUrl: "https://svc.example/campaigns/abc/image",
   headline: "Tree on the roof?",
-  operator: "Mark",
+  operator: "Arc",
 };
 
 describe("runHermesSocialAd", () => {
@@ -360,10 +360,10 @@ NOTE: the existing `createSupabaseQueryMock` records calls as `[method, arg, tab
 
 - [ ] **Step 2: Run to verify fail**
 
-Run: `pnpm vitest run src/lib/hermes/social-ad-orchestrator.test.ts`
+Run: `pnpm vitest run src/lib/arc/social-ad-orchestrator.test.ts`
 Expected: FAIL — cannot find module `./social-ad-orchestrator`
 
-- [ ] **Step 3: Implement** (`src/lib/hermes/social-ad-orchestrator.ts`)
+- [ ] **Step 3: Implement** (`src/lib/arc/social-ad-orchestrator.ts`)
 
 ```typescript
 import { type SupabaseClient } from "@supabase/supabase-js";
@@ -399,7 +399,7 @@ export async function runHermesSocialAd(
     owner: req.operator,
     objective: req.objective,
     source_system: sourceSystem,
-    external_campaign_id: `hermes-agent-socialad-${runId}`,
+    external_campaign_id: `arc-agent-socialad-${runId}`,
     launch_locked: true,
     campaign_phase: "social_ad",
     source_signal: { run_id: runId, image_url: req.imageUrl, source_campaign_id: req.sourceCampaignId ?? null },
@@ -414,8 +414,8 @@ export async function runHermesSocialAd(
     title: req.name,
     status: "pending_owner_approval",
     source_system: sourceSystem,
-    external_asset_id: `hermes-agent-socialad-${runId}`,
-    tool_source: "Hermes Social Ad Ingest",
+    external_asset_id: `arc-agent-socialad-${runId}`,
+    tool_source: "Arc Social Ad Ingest",
     prompt_inputs: {
       format: req.format ?? null,
       headline: req.headline ?? null,
@@ -447,7 +447,7 @@ export async function runHermesSocialAd(
     locked_until_approved: true,
     prompt_inputs: {},
     draft_output: req.body ?? req.name,
-    requested_by: "Hermes Social Ad Ingest",
+    requested_by: "Arc Social Ad Ingest",
     risk_level: "medium",
     reasoning_payload: {},
     audit_payload: { run_id: runId, outbound_locked: true },
@@ -460,8 +460,8 @@ export async function runHermesSocialAd(
     campaign_asset_id: campaignAssetId,
     approval_item_id: approvalItemId,
     event_type: "approval_submitted",
-    actor: "Hermes Social Ad Ingest",
-    detail: "Hermes submitted a social ad for human approval.",
+    actor: "Arc Social Ad Ingest",
+    detail: "Arc submitted a social ad for human approval.",
     payload: { run_id: runId, outbound_locked: true },
   });
 
@@ -486,45 +486,45 @@ async function updateById(client: SupabaseClient, table: string, id: string, val
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `pnpm vitest run src/lib/hermes/social-ad-orchestrator.test.ts`
+Run: `pnpm vitest run src/lib/arc/social-ad-orchestrator.test.ts`
 Expected: PASS (1 passed). If the mock tuple shape differs, fix the test's destructuring per the note in Step 1, not the implementation.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/hermes/social-ad-orchestrator.ts src/lib/hermes/social-ad-orchestrator.test.ts
-git commit -m "feat(hermes): add CRM-less social-ad orchestrator"
+git add src/lib/arc/social-ad-orchestrator.ts src/lib/arc/social-ad-orchestrator.test.ts
+git commit -m "feat(arc): add CRM-less social-ad orchestrator"
 ```
 
-### Task 6: HTTP route `POST /api/v1/hermes/social-ads`
+### Task 6: HTTP route `POST /api/v1/arc/social-ads`
 
 **Files:**
-- Create: `src/app/api/v1/hermes/social-ads/route.ts`
+- Create: `src/app/api/v1/arc/social-ads/route.ts`
 
-- [ ] **Step 1: Implement** (`src/app/api/v1/hermes/social-ads/route.ts`) — mirrors the existing `runs/route.ts`
+- [ ] **Step 1: Implement** (`src/app/api/v1/arc/social-ads/route.ts`) — mirrors the existing `runs/route.ts`
 
 ```typescript
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { checkBearerToken } from "@/lib/auth/api-token";
-import { runHermesSocialAd } from "@/lib/hermes/social-ad-orchestrator";
+import { runHermesSocialAd } from "@/lib/arc/social-ad-orchestrator";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = checkBearerToken(request, "ARC_AGENT_API_TOKEN");
   if (!auth.ok) {
     return NextResponse.json(
       auth.reason === "not_configured"
-        ? { ok: false, status: "not_configured", message: "Set HERMES_AGENT_API_TOKEN before enabling Hermes API runs." }
-        : { ok: false, status: "unauthorized", message: "Hermes API runs require a valid bearer token." },
+        ? { ok: false, status: "not_configured", message: "Set ARC_AGENT_API_TOKEN before enabling Arc API runs." }
+        : { ok: false, status: "unauthorized", message: "Arc API runs require a valid bearer token." },
       { status: auth.status },
     );
   }
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { ok: false, status: "not_configured", message: "Supabase admin env vars are required before Hermes can persist work." },
+      { ok: false, status: "not_configured", message: "Supabase admin env vars are required before Arc can persist work." },
       { status: 503 },
     );
   }
@@ -547,7 +547,7 @@ export async function POST(request: Request) {
       );
     }
     return NextResponse.json(
-      { ok: false, status: "failed", message: error instanceof Error ? error.message : "Hermes social-ad run failed." },
+      { ok: false, status: "failed", message: error instanceof Error ? error.message : "Arc social-ad run failed." },
       { status: 502 },
     );
   }
@@ -556,41 +556,41 @@ export async function POST(request: Request) {
 
 - [ ] **Step 2: Verify it builds / typechecks**
 
-Run: `pnpm lint` then `pnpm vitest run src/lib/hermes`
-Expected: lint clean; all hermes tests pass.
+Run: `pnpm lint` then `pnpm vitest run src/lib/arc`
+Expected: lint clean; all arc tests pass.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/app/api/v1/hermes/social-ads/route.ts
-git commit -m "feat(api): add POST /api/v1/hermes/social-ads endpoint"
+git add src/app/api/v1/arc/social-ads/route.ts
+git commit -m "feat(api): add POST /api/v1/arc/social-ads endpoint"
 ```
 
 ---
 
-## Part C — Mark skill
+## Part C — Arc skill
 
 ### Task 7: "Submit social ad to the app" skill
 
 **Files:**
-- Create: `C:\Users\evanr\marketing-classifier-agent\mark-skills\submit-social-ad-to-app\SKILL.md`
+- Create: `C:\Users\evanr\marketing-classifier-agent\arc-skills\submit-social-ad-to-app\SKILL.md`
 
 - [ ] **Step 1: Write the skill file**
 
 ```markdown
 ---
 name: submit-social-ad-to-app
-description: Use after Mark renders a finished, on-brand SOCIAL IMAGE AD and passes the pre-ship checklist - stores the image in the classifier, then registers it as its own campaign in the growth-engine app so a human can approve it. Mark never publishes.
+description: Use after Arc renders a finished, on-brand SOCIAL IMAGE AD and passes the pre-ship checklist - stores the image in the classifier, then registers it as its own campaign in the growth-engine app so a human can approve it. Arc never publishes.
 ---
 
 # Submit a Social Image Ad to the App
 
 Two steps. Step 1 stores the image and gives a permanent link. Step 2 registers the
-ad as its own campaign in the app, where a human approves it. Mark never launches/sends.
+ad as its own campaign in the app, where a human approves it. Arc never launches/sends.
 
-## Prerequisites (in Mark's `.env`)
+## Prerequisites (in Arc's `.env`)
 - `CLASSIFIER_URL` + `CLASSIFIER_API_TOKEN` (48-char classifier token)
-- `APP_URL` (the growth-engine app base, e.g. https://<app-host>) + `HERMES_AGENT_API_TOKEN`
+- `APP_URL` (the growth-engine app base, e.g. https://<app-host>) + `ARC_AGENT_API_TOKEN`
 
 ## Step 1 — store the image in the classifier
 `POST {CLASSIFIER_URL}/campaigns` (bearer `CLASSIFIER_API_TOKEN`) with `campaign_name`,
@@ -598,7 +598,7 @@ ad as its own campaign in the app, where a human approves it. Mark never launche
 link to the PNG). Keep the `image_url`.
 
 ## Step 2 — register the campaign in the app
-`POST {APP_URL}/api/v1/hermes/social-ads` (bearer `HERMES_AGENT_API_TOKEN`):
+`POST {APP_URL}/api/v1/arc/social-ads` (bearer `ARC_AGENT_API_TOKEN`):
 ```
 {
   "workflow": "social_ad",
@@ -611,7 +611,7 @@ link to the PNG). Keep the `image_url`.
   "body": "Stay safely inside. Chicago crews are ready 24/7 ...",
   "ctaLabel": "24/7 Emergency",
   "ctaPhone": "(773) 839-7852",
-  "operator": "Mark"
+  "operator": "Arc"
 }
 ```
 - `persona` MUST be one of the 12 official personas; `restorationFocus` one of
@@ -626,7 +626,7 @@ make one call per image (each becomes its own campaign asset). Never claim it wa
 posted/launched — a human approves and launches downstream.
 ```
 
-(No commit — the classifier repo is not under git. This file is a deliverable for Evan to drop into Mark's profile at `/Users/reppeto/.hermes/profiles/mark/`.)
+(No commit — the classifier repo is not under git. This file is a deliverable for Evan to drop into Arc's profile at `/Users/reppeto/.arc/profiles/arc/`.)
 
 ---
 
@@ -656,7 +656,7 @@ Expected: `200 image/png`
 
 - [ ] **Step 3: Run the app locally with admin env + the agent token**
 
-Confirm `.env.local` has the Supabase admin vars + `HERMES_AGENT_API_TOKEN`, then:
+Confirm `.env.local` has the Supabase admin vars + `ARC_AGENT_API_TOKEN`, then:
 ```
 pnpm dev
 ```
@@ -666,9 +666,9 @@ pnpm dev
 
 For each of the two classifier ads, build its `imageUrl`
 (`https://marketing-classifier-1018264991787.us-central1.run.app/campaigns/<id>/image`)
-and POST to `{APP_URL}/api/v1/hermes/social-ads` with persona `persona_homeowner_emergency`,
+and POST to `{APP_URL}/api/v1/arc/social-ads` with persona `persona_homeowner_emergency`,
 restorationFocus `storm_surge`, name "Storm Damage Safety (square|vertical)", the caption
-fields, operator "Mark". Expected: `201 needs_approval` with `campaignId`.
+fields, operator "Arc". Expected: `201 needs_approval` with `campaignId`.
 
 - [ ] **Step 5: Verify in the database + UI**
 
@@ -688,7 +688,7 @@ the image rendering and an approval action available.
 
 ## Self-Review (completed during planning)
 
-- **Spec coverage:** classifier image URL (Tasks 1–3) ✓; CRM-less app ingest endpoint (Tasks 4–6) ✓; Mark skill (Task 7) ✓; re-submit the two storm ads as the live test (Task 8) ✓; same locked/human-gated model ✓.
+- **Spec coverage:** classifier image URL (Tasks 1–3) ✓; CRM-less app ingest endpoint (Tasks 4–6) ✓; Arc skill (Task 7) ✓; re-submit the two storm ads as the live test (Task 8) ✓; same locked/human-gated model ✓.
 - **NOT NULL / enum safety (the earlier-500 lesson):** verified `campaign_assets` requires campaign_id/asset_type/title (all provided); `approval_items` requires item_type (provided), risk_level is text default 'medium' (set); enums `social_ad`, `pending_owner_approval`, `pending_approval`, `approval_submitted` all confirmed valid.
 - **Type consistency:** `parseHermesSocialAdRequest` / `runHermesSocialAd` / `HermesSocialAdRequest` names match across contract, orchestrator, route, and tests.
 - **Known assumption to verify at execution:** the exact tuple shape returned by `createSupabaseQueryMock(...).calls` (read `src/lib/repos/__tests__/test-helpers.ts` before Task 5 and adjust the test's destructuring if needed — implementation stays as written).

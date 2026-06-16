@@ -6,8 +6,8 @@
 
 ## 1. Overview
 
-Linear-style **labels** for the Mark task board: a reusable, colored label
-catalog the operator curates, attached to task cards. Mark (Hermes) can
+Linear-style **labels** for the Arc task board: a reusable, colored label
+catalog the operator curates, attached to task cards. Arc can
 **suggest** labels — both existing ones and brand-new proposals — but nothing is
 applied without operator acceptance.
 
@@ -16,19 +16,19 @@ effort. **Phase B** (custom statuses/columns mapped to fixed agent categories)
 is explicitly out of scope here and gets its own spec later. The key principle
 that makes both phases safe for the agent: separate **human presentation**
 (labels, custom names) from the **machine lifecycle** (the five
-`agent_task_status` categories Mark's automation operates on). Labels are pure
-human/agent metadata — they never change Mark's lifecycle behavior.
+`agent_task_status` categories Arc's automation operates on). Labels are pure
+human/agent metadata — they never change Arc's lifecycle behavior.
 
 ## 2. Locked decisions
 
 | # | Decision | Choice |
 |---|----------|--------|
 | 1 | Label granularity | **Reusable catalog** — labels are definitions (name + color) reused across cards |
-| 2 | Mark's suggestion power | **Suggest existing AND propose new** labels; new ones stay `proposed` until the operator accepts |
+| 2 | Arc's suggestion power | **Suggest existing AND propose new** labels; new ones stay `proposed` until the operator accepts |
 | 3 | Management UI | **Inline only** — create/recolor/rename/delete from the board; no settings page |
 | 4 | Color palette | Fixed 8: `gold, green, red, amber, blue, teal, slate, clay` (palette keys, not raw hex) |
 | 5 | Filtering | Filter on **applied** labels only; suggestions are triage, not filter data |
-| 6 | Control model | Operator-authored; Mark proposes, operator is always the gate |
+| 6 | Control model | Operator-authored; Arc proposes, operator is always the gate |
 
 ## 3. Data model
 
@@ -48,7 +48,7 @@ task_labels
   unique (workspace_id, lower(name))      -- case-insensitive uniqueness per workspace
   index on (workspace_id)
 ```
-Operator-created labels are `active`. Mark-proposed new labels are `proposed`
+Operator-created labels are `active`. Arc-proposed new labels are `proposed`
 until accepted (then flipped to `active`).
 
 ### 3.2 `agent_task_label_assignments` (catalog ↔ card)
@@ -58,15 +58,15 @@ agent_task_label_assignments
   task_id      uuid not null references agent_tasks(id) on delete cascade
   label_id     uuid not null references task_labels(id) on delete cascade
   state        text not null default 'applied'  -- 'applied' | 'suggested'
-  suggested_by text null                          -- 'mark' when state='suggested'
+  suggested_by text null                          -- 'arc' when state='suggested'
   created_at   timestamptz not null default now()
 
   unique (task_id, label_id)
 ```
 The four cases this one model covers:
 - **Operator applies an existing label:** assignment `state='applied'`.
-- **Mark suggests an existing label:** assignment `state='suggested', suggested_by='mark'`.
-- **Mark proposes a NEW label:** `task_labels` row `status='proposed'` + assignment `state='suggested', suggested_by='mark'`.
+- **Arc suggests an existing label:** assignment `state='suggested', suggested_by='arc'`.
+- **Arc proposes a NEW label:** `task_labels` row `status='proposed'` + assignment `state='suggested', suggested_by='arc'`.
 - **Operator accepts a suggestion:** label → `status='active'` (if it was proposed), assignment → `state='applied'`.
 
 ### 3.3 Color palette (DESIGN.md-compliant)
@@ -98,7 +98,7 @@ gold | green | red | amber | blue | teal | slate | clay
   `labels: Array<{ id; name; color; state: "applied" | "suggested"; suggestedBy: string | null }>`. Batch-loaded with `getLabelsForTasks` for the visible cards.
 - **Card chips** (in the existing card meta row):
   - Applied = solid colored chip (palette token).
-  - **Suggested = dashed outline chip** with a small Mark glyph and, on hover, **✓ accept / × dismiss**.
+  - **Suggested = dashed outline chip** with a small Arc glyph and, on hover, **✓ accept / × dismiss**.
 - **Label picker** (a `+` affordance on the card → popover): search existing
   `active` labels; or **"Create '<typed>'"** with a color swatch row → creates the
   catalog label and applies it in one step.
@@ -110,17 +110,17 @@ gold | green | red | amber | blue | teal | slate | clay
 
 ## 6. Agent API (bearer-gated, lifecycle-safe)
 
-- **`GET /api/v1/hermes/labels`** → the `active` catalog (id, name, color). Lets
-  Mark suggest *from your vocabulary*.
-- **`POST /api/v1/hermes/tasks/:id/labels/suggest`** → body `{ labelId }` (existing)
+- **`GET /api/v1/arc/labels`** → the `active` catalog (id, name, color). Lets
+  Arc suggest *from your vocabulary*.
+- **`POST /api/v1/arc/tasks/:id/labels/suggest`** → body `{ labelId }` (existing)
   or `{ name, color }` (propose new). Creates a **suggestion** only — never an
   applied label, never auto-creates an `active` label. Returns the resulting
   assignment. Outbound/approval state is untouched (consistent with the rest of
-  the `/api/v1/hermes/tasks` surface).
+  the `/api/v1/arc/tasks` surface).
 
 ## 7. Suggestion flow (end to end)
 
-1. Mark calls `GET /labels`, picks the best fit, calls `POST …/labels/suggest`
+1. Arc calls `GET /labels`, picks the best fit, calls `POST …/labels/suggest`
    (existing `labelId`) — or proposes `{ name, color }` for something new.
 2. The card shows a **dashed suggested chip** (new proposals also create a
    `proposed` catalog label, invisible in pickers until accepted).
@@ -131,7 +131,7 @@ gold | green | red | amber | blue | teal | slate | clay
 ## 8. Multi-tenant readiness (per the productization principle)
 
 - `task_labels.workspace_id` ships nullable from day one (NULL = single tenant).
-- No new hardcoded "Mark"/"Big Shoulders": the agent is just the `suggested_by`
+- No new hardcoded "Arc"/"Big Shoulders": the agent is just the `suggested_by`
   value; the catalog is workspace-scoped so each future customer curates their own.
 - Domain functions are tenant-agnostic (operate on passed-in data).
 

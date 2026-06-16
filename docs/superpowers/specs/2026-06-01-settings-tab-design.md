@@ -6,13 +6,13 @@
 ## Problem
 
 The "Settings" nav item points to `/score-rules`, which is not a settings page — it is
-a scoring/guardrails *explainer* (Mark autonomy, approval requirements, guardrail scope,
+a scoring/guardrails *explainer* (Arc autonomy, approval requirements, guardrail scope,
 a lead-score example, signal weights, and routing rules). An operator clicking "Settings"
 expects controls for the system, not a read-only scoring writeup.
 
 ## Goal
 
-Make Settings an actual settings surface: the operator's control panel for the Mark agent,
+Make Settings an actual settings surface: the operator's control panel for the Arc agent,
 integrations, workspace/access, scoring/routing configuration, and data/system housekeeping.
 Stay within the app's scaffold-mode posture (preview-only; no real writes).
 
@@ -25,7 +25,7 @@ Stay within the app's scaffold-mode posture (preview-only; no real writes).
 - **Structure (Option A):** sectioned settings with a sticky left section rail. The content
   panel renders the active section, switched via a `?section=` query param. This matches the
   existing scaffold-mode pattern (async server component reading `searchParams`). Default
-  section = `mark`. Unknown/missing section falls back to the default.
+  section = `arc`. Unknown/missing section falls back to the default.
 - **Scaffold-mode preserved:** level selectors / toggles set a query param and surface an
   `ActionFeedback`-style preview banner. No persistence, no mutations.
 - **Reuse primitives** from `src/app/_components/page-header.tsx` (`PageHeader`, `Panel`,
@@ -33,7 +33,7 @@ Stay within the app's scaffold-mode posture (preview-only; no real writes).
 
 ## Sections
 
-1. **Mark agent** — autonomy level selector (L1/L2/L3, scaffold), capability matrix
+1. **Arc agent** — autonomy level selector (L1/L2/L3, scaffold), capability matrix
    (internal enrichment ✓ / draft generation ✓ / outbound execution ✗), approval
    requirements, guardrail scope. Reuses today's legitimate control content, reframed as
    controls instead of an explainer.
@@ -65,7 +65,7 @@ existing exports (`workspaceTools`, `scoreRules`, `routingRules`, `customerTypes
 ## Acceptance
 
 - Sidebar/console/Today "Settings" all navigate to `/settings`.
-- `/settings` renders the section rail + the default Mark-agent section.
+- `/settings` renders the section rail + the default Arc-agent section.
 - `?section=integrations|access|scoring|data` switches the rendered section.
 - No scoring-explainer content is lost — it moves into the Scoring & routing section.
 - `pnpm lint` and `pnpm build` pass.

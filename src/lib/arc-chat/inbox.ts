@@ -11,7 +11,7 @@ const STALE_RUNNING_MS = 3 * 60_000;
 const MAX_CHAT_RETRIES = 3;
 
 /**
- * The agent-facing side of Arc chat: the external Arc/Arc agent pulls
+ * The agent-facing side of Arc chat: the external Arc agent pulls
  * queued operator messages here (GET /api/v1/arc/messages), does its work,
  * then delivers a reply (POST /api/v1/arc/messages). Outbound stays locked.
  */

@@ -14,9 +14,9 @@ export async function AgentBehaviorSettings() {
       <AgentBehaviorSettingsForm
         assistantName={settings.assistantName}
         initialApprovalStrictness={settings.approvalStrictness}
-        initialMode={settings.markDefaultMode}
+        initialMode={settings.arcDefaultMode}
         initialResponseStyle={settings.assistantResponseStyle}
-        initialRoute={settings.markDefaultRoute}
+        initialRoute={settings.arcDefaultRoute}
         initialTone={settings.assistantTone}
       />
     </SettingsSection>

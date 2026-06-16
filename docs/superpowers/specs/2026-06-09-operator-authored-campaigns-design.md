@@ -2,21 +2,21 @@
 
 **Date:** 2026-06-09
 **Status:** Approved (design); pending implementation plan
-**Topic:** Manual, operator-initiated campaign creation (title, photos, audience, etc.), deployable by the operator and optionally handed to Mark
+**Topic:** Manual, operator-initiated campaign creation (title, photos, audience, etc.), deployable by the operator and optionally handed to Arc
 
 ## Problem
 
-Today every campaign is created by Mark/Hermes (the orchestrator) or by seeds —
+Today every campaign is created by Arc (the orchestrator) or by seeds —
 there is **no operator-facing way to author a campaign by hand**. The operator
 wants to create a campaign themselves (a title, reference photos, who it's for, an
 audience, an objective/offer), own it end-to-end (including deploy), and *optionally*
-point Mark at it. Mark should be able to see operator-authored campaigns regardless.
+point Arc at it. Arc should be able to see operator-authored campaigns regardless.
 
 ## Goal
 
 Add an operator create flow that reuses the existing campaigns machinery:
 **create a draft → (optionally) add photos → deploy it yourself via the existing
-Launch/Outbox path → optionally notify Mark.** No new dispatch or approval
+Launch/Outbox path → optionally notify Arc.** No new dispatch or approval
 subsystem; reuse what is already wired.
 
 ## Decisions
@@ -24,10 +24,10 @@ subsystem; reuse what is already wired.
 | Decision | Choice | Rationale |
 |---|---|---|
 | Data model | **Reuse `campaigns` + `campaign_assets`** tagged `source_system='operator'` | Schema already fits (name, persona, audience_summary, objective, offer_summary, draft status). Operator campaigns flow into the existing list/detail/media-board/economics/Outbox surfaces for free. |
-| Photo input | **Upload from device** → `campaign-media` Storage bucket | Matches "photos we want to use"; reuses the exact injectable-uploader pattern Mark's social ads use. |
-| Photo asset model | **`campaign_assets` rows, `asset_type='social_ad'`, URL in `audit_payload.media_assets[]`** | Identical shape to Mark's assets, so the existing media board renders them with no new code. |
+| Photo input | **Upload from device** → `campaign-media` Storage bucket | Matches "photos we want to use"; reuses the exact injectable-uploader pattern Arc's social ads use. |
+| Photo asset model | **`campaign_assets` rows, `asset_type='social_ad'`, URL in `audit_payload.media_assets[]`** | Identical shape to Arc's assets, so the existing media board renders them with no new code. |
 | Deploy | **Reuse the existing Launch action → Outbox**; operator assets created **already `approved`** + an `approval_decision` recorded | The operator is the approving authority for their own campaign, so deploy needs no separate approval dance. Audit trail preserved. The app stages dispatches; it never sends. |
-| Mark handoff | **Opt-in "Send to Mark" button** → existing `notify.ts` webhook push | Pointing to Mark is optional. Mark already sees these campaigns (same tables) without any handoff. |
+| Arc handoff | **Opt-in "Send to Arc" button** → existing `notify.ts` webhook push | Pointing to Arc is optional. Arc already sees these campaigns (same tables) without any handoff. |
 
 ## Architecture
 
@@ -47,8 +47,8 @@ campaign reuses wired surfaces.
 4. Operator lands on the campaign detail page, sees the photos in the media board.
 5. Operator clicks the existing **Launch** action → dispatches are staged into the
    **Outbox** (app hands off; never sends).
-6. Optionally, operator clicks **Send to Mark** → `notify.ts` webhook push with the
-   campaign link. Mark can also see the campaign passively at any time.
+6. Optionally, operator clicks **Send to Arc** → `notify.ts` webhook push with the
+   campaign link. Arc can also see the campaign passively at any time.
 
 ## Components
 
@@ -103,14 +103,14 @@ campaign reuses wired surfaces.
   text inputs, persona/restoration_focus/channel selects, a multi-file photo
   picker with previews, submit + inline validation feedback.
 - **"New campaign" button** on the `/campaigns` list page linking to `/campaigns/new`.
-- **"Send to Mark" button** on the campaign detail page (opt-in) wired to a
-  `notifyMarkAction` that calls `notify.ts`. (If a Mark-notify affordance already
+- **"Send to Arc" button** on the campaign detail page (opt-in) wired to a
+  `notifyMarkAction` that calls `notify.ts`. (If a Arc-notify affordance already
   exists on the detail page, reuse it instead of adding a duplicate.)
 
 ### 5. Storage
 
 - Photos go to the existing `campaign-media` bucket. The plan must verify the bucket
-  exists (Mark's social ads already use it) and, if a migration is the right place to
+  exists (Arc's social ads already use it) and, if a migration is the right place to
   ensure it, create it idempotently; otherwise document the manual bucket setup.
 
 ## Error Handling
@@ -140,9 +140,9 @@ campaign reuses wired surfaces.
 
 - New dispatch/approval machinery — deploy reuses the existing Launch → Outbox flow.
 - A dedicated "reference photo" asset type — photos are modeled as `social_ad`
-  assets (matches Mark's pattern).
+  assets (matches Arc's pattern).
 - Editing an existing campaign's core fields via this form (create-only for now;
   the existing detail page handles post-create management).
 - Paste-image-URL input (upload-from-device only this round).
-- Defining new Mark behavior on handoff — "Send to Mark" is a notification; what Mark
+- Defining new Arc behavior on handoff — "Send to Arc" is a notification; what Arc
   does is conversation-driven and out of scope here.

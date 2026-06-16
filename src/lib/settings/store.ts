@@ -20,8 +20,8 @@ export type AppSettings = {
   brandLogoUrl: string;
   brandFaviconUrl: string;
   supportEmail: string;
-  markDefaultMode: ArcMode;
-  markDefaultRoute: ArcRoute;
+  arcDefaultMode: ArcMode;
+  arcDefaultRoute: ArcRoute;
   appearanceAccent: AppearanceAccent;
   appearanceDensity: AppearanceDensity;
   appearanceMotion: AppearanceMotion;
@@ -47,8 +47,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   brandLogoUrl: "/brand/arc-logo.png",
   brandFaviconUrl: "/icon.png",
   supportEmail: "",
-  markDefaultMode: "act",
-  markDefaultRoute: "fast",
+  arcDefaultMode: "act",
+  arcDefaultRoute: "fast",
   appearanceAccent: "gold",
   appearanceDensity: "comfortable",
   appearanceMotion: "standard",
@@ -108,11 +108,11 @@ function logAppSettingsFallback(message: string): void {
 }
 
 function appArcMode(value: unknown): ArcMode {
-  return value === "ask" || value === "act" || value === "draft" ? value : DEFAULT_APP_SETTINGS.markDefaultMode;
+  return value === "ask" || value === "act" || value === "draft" ? value : DEFAULT_APP_SETTINGS.arcDefaultMode;
 }
 
 function appArcRoute(value: unknown): ArcRoute {
-  return value === "fast" || value === "standard" ? value : DEFAULT_APP_SETTINGS.markDefaultRoute;
+  return value === "fast" || value === "standard" ? value : DEFAULT_APP_SETTINGS.arcDefaultRoute;
 }
 
 export function appAppearanceAccent(value: unknown): AppearanceAccent {
@@ -168,8 +168,8 @@ export function mergeAppSettingsRows(rows: SettingRow[]): AppSettings {
     brandLogoUrl: normalizeBrandUrl(str("brand_logo_url", DEFAULT_APP_SETTINGS.brandLogoUrl)),
     brandFaviconUrl: normalizeBrandUrl(str("brand_favicon_url", DEFAULT_APP_SETTINGS.brandFaviconUrl)) || DEFAULT_APP_SETTINGS.brandFaviconUrl,
     supportEmail: str("support_email", DEFAULT_APP_SETTINGS.supportEmail),
-    markDefaultMode: appArcMode(map.get("arc_default_mode")),
-    markDefaultRoute: appArcRoute(map.get("arc_default_route")),
+    arcDefaultMode: appArcMode(map.get("arc_default_mode")),
+    arcDefaultRoute: appArcRoute(map.get("arc_default_route")),
     appearanceAccent: appAppearanceAccent(map.get("appearance_accent")),
     appearanceDensity: appAppearanceDensity(map.get("appearance_density")),
     appearanceMotion: appAppearanceMotion(map.get("appearance_motion")),

@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
  * Verify the app's wake signature. The app signs the raw request body with
- * HMAC-SHA256 keyed by MARK_WEBHOOK_SECRET and sends the hex digest in the
+ * HMAC-SHA256 keyed by ARC_WEBHOOK_SECRET and sends the hex digest in the
  * `x-webhook-signature` header. Hash the exact bytes received.
  */
 export function verifySignature(rawBody: string, signature: string | undefined, secret: string): boolean {

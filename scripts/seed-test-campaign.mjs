@@ -94,7 +94,7 @@ async function seedTestCampaign() {
     company_id: companyId,
     contact_id: contactId,
     lead_id: leadId,
-    owner: "Arc (Arc)",
+    owner: "Arc",
     objective: "Pre-approve Big Shoulders as the priority water-loss vendor for North Shore managed buildings before spring thaw.",
     audience_summary: "Property managers and operations directors overseeing multifamily portfolios in 60091/60093/60201.",
     offer_summary: "Documented, insurance-ready water-loss response with a managed-building SLA and a vendor pre-approval packet.",

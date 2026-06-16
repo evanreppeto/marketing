@@ -6,7 +6,7 @@
 
 ## Goal
 
-The individual campaign page (`/campaigns/[campaignId]`) is overloaded: a sticky bar, a header, an executive-overview panel, a dispatch panel, **7 tabs**, and an economics panel stacked down the page. Rebuild it as one calm **Decision Cockpit**: the operator sees what Mark made, why, and decides — everything secondary is one click away in a drawer, not stacked in their face. **Nothing is removed; it's re-composed.**
+The individual campaign page (`/campaigns/[campaignId]`) is overloaded: a sticky bar, a header, an executive-overview panel, a dispatch panel, **7 tabs**, and an economics panel stacked down the page. Rebuild it as one calm **Decision Cockpit**: the operator sees what Arc made, why, and decides — everything secondary is one click away in a drawer, not stacked in their face. **Nothing is removed; it's re-composed.**
 
 ## The real decision model (must preserve)
 
@@ -23,14 +23,14 @@ A single screen, no tab bar:
 3. **Two-column body:**
    - **Left (wide) — the creative.** `CreativeTab` (the deliverables, each with its `DecisionControls`). This is the thing being approved; it dominates. Media folds in as a secondary drawer, not a peer.
    - **Right (narrow) — the "why / who / risk" rail.** A new compact `CockpitRail`: Why (`executiveOverview.why`), Who (`campaign.persona` + linked-source count), Risk (guardrail flags, green "No flags" when none), plus a couple of key facts (timeframe, how success is measured). Condensed from the existing `ExecutiveOverview`/`FullBrief` data — no new data.
-4. **Secondary drawers (quiet triggers, not tabs).** A single right slide-over (`WorkspaceDrawer`) that renders one existing panel at a time. Triggers sit in a thin row under the header (a labeled button group). Drawers: **Talk to Mark** (`MarkConversation`), **Decision log** (`ApprovalsTab`), **Measurement** (`PerformanceTab`), **Audit** (`AuditLog`), **Dispatch** (`DispatchPanel`), **Media** (`CampaignMediaBoard`), **Economics** (`CampaignEconomicsPanel`), **Full brief** (the `FullBrief` details + audience/sources). Each shows its count where one exists.
+4. **Secondary drawers (quiet triggers, not tabs).** A single right slide-over (`WorkspaceDrawer`) that renders one existing panel at a time. Triggers sit in a thin row under the header (a labeled button group). Drawers: **Talk to Arc** (`MarkConversation`), **Decision log** (`ApprovalsTab`), **Measurement** (`PerformanceTab`), **Audit** (`AuditLog`), **Dispatch** (`DispatchPanel`), **Media** (`CampaignMediaBoard`), **Economics** (`CampaignEconomicsPanel`), **Full brief** (the `FullBrief` details + audience/sources). Each shows its count where one exists.
 
 The deep-link behavior (URL `?item=` opening the Decision log to a record) is preserved by mapping it onto the Decision-log drawer being open.
 
 ## Components
 
 **New:**
-- `src/app/campaigns/_components/workspace-drawer.tsx` — a generic right slide-over (same interaction contract as the Mark `AgentSettingsDrawer`: `role=dialog`, `aria-modal`, Escape + backdrop close, focus on open, CSS-only). Props: `{ open, title, onClose, children }`. One drawer, content swapped by the cockpit.
+- `src/app/campaigns/_components/workspace-drawer.tsx` — a generic right slide-over (same interaction contract as the Arc `AgentSettingsDrawer`: `role=dialog`, `aria-modal`, Escape + backdrop close, focus on open, CSS-only). Props: `{ open, title, onClose, children }`. One drawer, content swapped by the cockpit.
 - `src/app/campaigns/_components/cockpit-rail.tsx` — the why/who/risk + key-facts rail (pure presentational, fed from `detail`).
 - `src/app/campaigns/_components/campaign-cockpit.tsx` — the new client orchestrator: header + launch tracker + drawer-trigger row + two-column (creative | rail) + the `WorkspaceDrawer`. Manages which drawer is open (URL-synced, preserving `?item=` and deep-linkability).
 
@@ -42,7 +42,7 @@ The deep-link behavior (URL `?item=` opening the Decision log to a record) is pr
 
 ## What we explicitly keep (in drawers)
 
-Talk to Mark, Decision log (+ history + `?item=` deep-link), Measurement, Audit, Dispatch, Media, Economics, full brief/audience/sources. None deleted — all reachable in one click.
+Talk to Arc, Decision log (+ history + `?item=` deep-link), Measurement, Audit, Dispatch, Media, Economics, full brief/audience/sources. None deleted — all reachable in one click.
 
 ## Non-goals
 

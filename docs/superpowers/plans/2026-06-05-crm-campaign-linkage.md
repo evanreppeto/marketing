@@ -114,7 +114,7 @@ describe("getCampaignsForRecord", () => {
             company_id: "co-1",
             contact_id: null,
             lead_id: null,
-            owner: "Mark",
+            owner: "Arc",
             objective: null,
             audience_summary: null,
             offer_summary: null,
@@ -466,7 +466,7 @@ And in the evidence-URL push later in `buildSources`, add `recordHref: null`:
     sources.push({
       id: `url-${stableId(url)}`,
       label: getHostLabel(url),
-      detail: "Evidence or source URL captured by Mark.",
+      detail: "Evidence or source URL captured by Arc.",
       url,
       recordHref: null,
       kind: "web",

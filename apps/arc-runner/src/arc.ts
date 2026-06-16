@@ -1,7 +1,7 @@
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 
-import type { HermesClient } from "./hermes-client";
+import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 
 /**
@@ -16,7 +16,7 @@ import { ARC_SYSTEM_PROMPT } from "./prompt";
  */
 export async function runArc(
   opts: { agentTaskId: string; userMessage: string; model: string },
-  client: HermesClient,
+  client: ArcClient,
 ): Promise<string> {
   const step = (label: string, status: "running" | "done") =>
     client.postStep(opts.agentTaskId, label, status);

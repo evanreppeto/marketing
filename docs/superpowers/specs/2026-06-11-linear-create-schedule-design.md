@@ -6,7 +6,7 @@
 
 ## Goal
 
-Make the board's task-creation experience feel like Linear, tailored to a **non-technical** BSR operator, while keeping Mark/Hermes the named doer and the human the approver. Three concrete asks from the user:
+Make the board's task-creation experience feel like Linear, tailored to a **non-technical** BSR operator, while keeping Arc the named doer and the human the approver. Three concrete asks from the user:
 
 1. Linear-grade polish on the create flow (the "New task" button "looks awful").
 2. Make the **Schedule** button actually work (it is currently disabled).
@@ -21,7 +21,7 @@ Make the board's task-creation experience feel like Linear, tailored to a **non-
 ## Decisions (from brainstorming)
 
 - **Scope:** "Create + Schedule flow" — tightest, highest-impact pass.
-- **Schedule meaning:** "Both" — build one-time *"when Mark starts"* now; model data so recurrence can be added later with no rework.
+- **Schedule meaning:** "Both" — build one-time *"when Arc starts"* now; model data so recurrence can be added later with no rework.
 - Scheduling is **folded into the create dialog** as a "When" control; the standalone **Schedule** button opens the same dialog with the When menu pre-opened.
 - Keep a **`C` hotkey** to open New task (Linear signature; cheap, removable).
 
@@ -49,7 +49,7 @@ Unit tests in `src/domain/__tests__/task-schedule.test.ts`.
 - **Migration** `supabase/migrations/<ts>_agent_task_scheduled_for.sql`:
   - `alter table public.agent_tasks add column scheduled_for timestamptz;`
   - `create index agent_tasks_scheduled_for_idx on public.agent_tasks (scheduled_for) where scheduled_for is not null;`
-  - SQL `comment on column` documenting the runner rule: *Mark only claims queued tasks where `scheduled_for` is null or `<= now()`. This gates start time only; it never authorizes outbound.*
+  - SQL `comment on column` documenting the runner rule: *Arc only claims queued tasks where `scheduled_for` is null or `<= now()`. This gates start time only; it never authorizes outbound.*
 - **`createTaskAction`** (`src/app/agent-operations/actions.ts`): accept a new optional `scheduledFor` form field (ISO string or empty). If present and parseable, write `scheduled_for`; add a run-log note ("Scheduled for <label>"). Empty/invalid → `null` (immediate queue). All other behavior (guardrails metadata, approval-required, no outbound) unchanged.
 
 ### 3. Read-model — `src/lib/agent-operations/read-model.ts`
@@ -64,7 +64,7 @@ Unit tests in `src/domain/__tests__/task-schedule.test.ts`.
   - `open` + `mode` (`"task" | "schedule"`) state; `mode === "schedule"` auto-opens the When menu.
   - Priority state (pill menu: Urgent/High/Medium/Low + color dots, default Medium) → hidden input `priority`.
   - When state (pill menu of presets + a `datetime-local` for "Pick date & time…") → resolves via `resolveScheduledFor` into hidden input `scheduledFor`.
-  - Header with Mark's sphere avatar + reassurance line; friendly textarea label "What should Mark work on?"; footer with `⌘↵ to create` hint.
+  - Header with Arc's sphere avatar + reassurance line; friendly textarea label "What should Arc work on?"; footer with `⌘↵ to create` hint.
   - Keyboard: Esc closes, ⌘/Ctrl+↵ submits, autofocus textarea.
   - Global `C` hotkey (ignored while typing in an input/textarea) opens the dialog in task mode.
   - Submits the existing `createTaskAction` via `<form action=…>` (hidden inputs carry priority + scheduledFor).
@@ -77,7 +77,7 @@ Unit tests in `src/domain/__tests__/task-schedule.test.ts`.
 `Create dialog (client state)` → hidden inputs (`objective`, `priority`, `scheduledFor`) → `createTaskAction` (server, operator-gated) → `agent_tasks` row (`status=queued`, `scheduled_for`) + input + run-log → `revalidatePath` → read-model surfaces `scheduledFor` → board card renders the Scheduled chip.
 
 ## Error handling
-- Empty objective → existing redirect to `?action=mark-task-error`.
+- Empty objective → existing redirect to `?action=arc-task-error`.
 - Unparseable/invalid `scheduledFor` → treated as immediate (`null`), never throws.
 - Supabase not configured → existing `?action=not-configured` path.
 - Past `customIso` → allowed but normalized to immediate (`null`) by `resolveScheduledFor` (a scheduled-in-the-past task should just run now).

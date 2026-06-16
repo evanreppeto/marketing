@@ -146,7 +146,7 @@ insert into public.vault_notes (slug, title, folder, tags, author, status, body)
     'Insurance Agent Handoff',
     'Playbooks',
     array['partner', 'coverage-neutral'],
-    'Mark',
+    'Arc',
     'needs_review',
     E'# Insurance Agent Handoff\n\nGive the [[persona_insurance_agent|insurance agent]] a coverage-neutral path to refer a client.\n\nNever promise coverage. Lead with documentation.\n\nPartner record: [[north-branch-insurance]].'
   ),
@@ -155,7 +155,7 @@ insert into public.vault_notes (slug, title, folder, tags, author, status, body)
     'Apex Plumbing Co. — Partner Intel',
     'Partner Intel',
     array['partner', 'plumbing'],
-    'Mark',
+    'Arc',
     'draft',
     E'# Apex Plumbing Co. — Partner Intel\n\n[[apex-plumbing-co]] stops the source and hands off property damage.\n\nBest channel: email then phone. Tie referrals to the [[emergency-homeowner-playbook]].\n\nTODO: confirm the owner''s after-hours contact (link target [[apex-after-hours]] not imported yet).'
   ),
@@ -203,7 +203,7 @@ const ROW: VaultNoteRow = {
   title: "X",
   folder: "Playbooks",
   tags: ["a", "b"],
-  author: "Mark",
+  author: "Arc",
   status: "needs_review",
   body: "# X",
   updated_at: "2026-06-01T12:00:00.000Z",
@@ -216,7 +216,7 @@ describe("rowToVaultNote", () => {
       title: "X",
       folder: "Playbooks",
       tags: ["a", "b"],
-      author: "Mark",
+      author: "Arc",
       status: "Needs review",
       updated: "2026-06-01",
       body: "# X",
@@ -233,11 +233,11 @@ describe("rowToVaultNote", () => {
 describe("vaultNoteToRow", () => {
   it("maps a VaultNote to a db row with enum status", () => {
     const note: VaultNote = {
-      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Mark",
+      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Arc",
       status: "Published", updated: "Today", body: "# X",
     };
     expect(vaultNoteToRow(note)).toEqual({
-      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Mark",
+      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Arc",
       status: "published", body: "# X",
     });
   });
@@ -770,8 +770,8 @@ Same as base plan Task 12, with these differences:
   - `Edit` → `<Link href={`/notebook/${note.slug}/edit`}>` styled as ghost button.
   - `Publish` → a `<form action={publishNoteAction}>` with a hidden `slug` input and a primary submit button. Only show it when `note.status !== "Published"`.
   - `Archive` → a `<form action={archiveNoteAction}>` with a hidden `slug` input and a ghost submit button.
-  - Drop the preview-only `Ask Mark to expand` button (out of scope for editing; can return later).
-- Keep the Mark "Needs review" banner with the `/approvals?item=…` deep-link.
+  - Drop the preview-only `Ask Arc to expand` button (out of scope for editing; can return later).
+- Keep the Arc "Needs review" banner with the `/approvals?item=…` deep-link.
 - `actionMessages` includes `saved` and `published` confirmations (the page is redirected to with `?action=saved` / `?action=published`).
 
 - [ ] **Step 1: Implement per above**
@@ -785,7 +785,7 @@ Same as base plan Task 12, with these differences:
 - **Task 13** — add the Vault entry to `console-frame.tsx` navItems + `vault-icon.png`. Unchanged.
 - **Task 14 (REVISED final verification)** — in addition to `pnpm test` / `pnpm lint` / `pnpm build`, the manual smoke check now covers editing:
   - Without Supabase env: `/notebook` shows the read-only fallback banner; `New note`/`Save`/`Publish` redirect to `?action=not-configured` (no crash).
-  - With Supabase env + migration applied: create a note via `/notebook/new` → it appears on the home page and its detail page; edit it via `…/edit` → changes persist; `Publish` a Mark draft → status flips to Published; `Archive` → it disappears from listings.
+  - With Supabase env + migration applied: create a note via `/notebook/new` → it appears on the home page and its detail page; edit it via `…/edit` → changes persist; `Publish` a Arc draft → status flips to Published; `Archive` → it disappears from listings.
   - Note explicitly in the report whether the configured-Supabase round-trip was actually exercised or only the fallback path (do not claim the DB path works if it was not run).
 
 ## Self-review notes (addendum)

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a new top-level **Vault** tab — an Obsidian-style linked knowledge base shared by the team and the Mark agent, in scaffold-mode.
+**Goal:** Add a new top-level **Vault** tab — an Obsidian-style linked knowledge base shared by the team and the Arc agent, in scaffold-mode.
 
 **Architecture:** Pure, deterministic notebook logic (frontmatter parsing, wiki-link resolution, backlinks, graph layout) lives in `src/domain/notebook.ts` and is unit-tested. Notes are stored as raw Obsidian-format markdown in `src/app/notebook/_data/notebook.ts`. Thin server-component views under `src/app/notebook/` render them with `react-markdown`, with `[[wiki-links]]` resolved (by our domain logic) to other notes, live CRM records, or personas. The tab is preview-only (`OperatorBar` + `ActionFeedback`), like every other page.
 
@@ -14,7 +14,7 @@
 
 - **Tab label** is "Vault"; **route/folder** stays `/notebook` (display name vs. URL slug — confirmed acceptable with the user).
 - **Wiki-link resolution is our own deterministic domain code**, not a third-party remark plugin. `react-markdown` (+ `remark-gfm` for tables) handles general markdown fidelity; a pure domain function pre-substitutes `[[target|alias]]` into standard markdown links pointing at resolved hrefs (or an `unresolved:` sentinel). This keeps resolution unit-testable and avoids a fragile remark dependency, while preserving the spec's react-markdown fidelity goal.
-- **Notes are raw markdown** (YAML frontmatter + `[[links]]` + `#tags`) so Mark's future real-vault import is a drop-in.
+- **Notes are raw markdown** (YAML frontmatter + `[[links]]` + `#tags`) so Arc's future real-vault import is a drop-in.
 
 ## File structure
 
@@ -86,7 +86,7 @@ describe("parseFrontmatter", () => {
     const raw = [
       "---",
       "title: Apex Plumbing Intel",
-      "author: Mark",
+      "author: Arc",
       "status: Needs review",
       "tags: [partner, plumbing]",
       "---",
@@ -99,7 +99,7 @@ describe("parseFrontmatter", () => {
 
     expect(result.frontmatter).toEqual({
       title: "Apex Plumbing Intel",
-      author: "Mark",
+      author: "Arc",
       status: "Needs review",
       tags: ["partner", "plumbing"],
     });
@@ -133,7 +133,7 @@ export type VaultNote = {
   title: string;
   folder: string;
   tags: string[];
-  author: string; // "Mark" or an operator name
+  author: string; // "Arc" or an operator name
   status: NoteStatus;
   updated: string;
   body: string; // raw markdown body (no frontmatter)
@@ -338,7 +338,7 @@ import { computeBacklinks, toRenderableMarkdown, type VaultNote } from "../noteb
 
 const NOTES: VaultNote[] = [
   { slug: "a", title: "A", folder: "Playbooks", tags: [], author: "Evan", status: "Published", updated: "Today", body: "Links to [[b]]." },
-  { slug: "b", title: "B", folder: "Playbooks", tags: [], author: "Mark", status: "Published", updated: "Today", body: "No links." },
+  { slug: "b", title: "B", folder: "Playbooks", tags: [], author: "Arc", status: "Published", updated: "Today", body: "No links." },
   { slug: "c", title: "C", folder: "SOPs", tags: [], author: "Evan", status: "Published", updated: "Today", body: "Also links to [[b|Bee]]." },
 ];
 
@@ -573,7 +573,7 @@ export const vaultCollections = [
 ];
 
 // Hand-written examples in the SAME raw format real Obsidian files use, so
-// Mark's eventual vault import is a drop-in. Bodies use [[wiki-links]] that
+// Arc's eventual vault import is a drop-in. Bodies use [[wiki-links]] that
 // resolve to other notes, CRM records, and personas.
 export const vaultNotes: VaultNote[] = [
   {
@@ -601,7 +601,7 @@ export const vaultNotes: VaultNote[] = [
     title: "Insurance Agent Handoff",
     folder: "Playbooks",
     tags: ["partner", "coverage-neutral"],
-    author: "Mark",
+    author: "Arc",
     status: "Needs review",
     updated: "Today",
     body: [
@@ -619,7 +619,7 @@ export const vaultNotes: VaultNote[] = [
     title: "Apex Plumbing Co. — Partner Intel",
     folder: "Partner Intel",
     tags: ["partner", "plumbing"],
-    author: "Mark",
+    author: "Arc",
     status: "Draft",
     updated: "Yesterday",
     body: [
@@ -807,7 +807,7 @@ export function NoteCard({ note }: { note: VaultNote }) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <StatusPill tone={statusTone(note.status)}>{note.status}</StatusPill>
-          {note.author === "Mark" ? <StatusPill tone="blue">Mark</StatusPill> : null}
+          {note.author === "Arc" ? <StatusPill tone="blue">Arc</StatusPill> : null}
         </div>
       </div>
       {note.tags.length > 0 ? (
@@ -995,7 +995,7 @@ type VaultHomeProps = {
 };
 
 const actionMessages: Record<string, string> = {
-  sync: "Preview: Mark would read the markdown files from your Obsidian vault and queue each as a Needs-review note. No files were read.",
+  sync: "Preview: Arc would read the markdown files from your Obsidian vault and queue each as a Needs-review note. No files were read.",
   new: "Preview: a blank note would open for editing. Saving is not wired yet.",
 };
 
@@ -1008,7 +1008,7 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
   const allLinks = vaultNotes.flatMap((note) => extractLinks(note.body, ctx));
   const resolved = allLinks.filter((l) => l.kind !== "unresolved").length;
   const unresolved = allLinks.length - resolved;
-  const markDrafts = vaultNotes.filter((n) => n.author === "Mark" && n.status === "Needs review").length;
+  const markDrafts = vaultNotes.filter((n) => n.author === "Arc" && n.status === "Needs review").length;
 
   // Whole-vault graph: one node per note, edges for note-to-note links.
   const slugs = new Set(vaultNotes.map((n) => n.slug));
@@ -1024,15 +1024,15 @@ export default async function VaultHome({ searchParams }: VaultHomeProps) {
     { label: "Collections", value: String(vaultCollections.length) },
     { label: "Links resolved", value: String(resolved) },
     { label: "Unresolved", value: String(unresolved) },
-    { label: "Mark drafts", value: String(markDrafts) },
+    { label: "Arc drafts", value: String(markDrafts) },
   ];
 
   return (
     <AppShell active="/notebook">
       <PageHeader
         eyebrow="Vault"
-        title="The shared brain for Mark and the team"
-        description="Linked notes, playbooks, and partner intel. Wiki-links connect notes to live CRM records and personas. Mark drafts land in review before they publish."
+        title="The shared brain for Arc and the team"
+        description="Linked notes, playbooks, and partner intel. Wiki-links connect notes to live CRM records and personas. Arc drafts land in review before they publish."
         aside={<StatusPill tone="gray">Preview</StatusPill>}
       />
 
@@ -1136,7 +1136,7 @@ export function generateStaticParams() {
 const actionMessages: Record<string, string> = {
   edit: "Preview: the note would open in an editor. Saving is not wired yet.",
   publish: "Preview: publishing would move this note to Published after review. No state changed.",
-  expand: "Preview: Mark would draft an expanded version and queue it for review.",
+  expand: "Preview: Arc would draft an expanded version and queue it for review.",
   archive: "Preview: the note would be archived out of the active vault.",
 };
 
@@ -1151,7 +1151,7 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
   const ctx = buildLinkContext();
   const outgoing = extractLinks(note.body, ctx);
   const backlinks = computeBacklinks(vaultNotes, note.slug);
-  const needsReview = note.author === "Mark" && note.status === "Needs review";
+  const needsReview = note.author === "Arc" && note.status === "Needs review";
 
   // Local neighborhood graph: this note + its outgoing link targets.
   const nodes: GraphNode[] = [
@@ -1172,11 +1172,11 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
       <PageHeader
         eyebrow={note.folder}
         title={note.title}
-        description={`${note.author === "Mark" ? "Drafted by Mark" : `By ${note.author}`} · Updated ${note.updated}`}
+        description={`${note.author === "Arc" ? "Drafted by Arc" : `By ${note.author}`} · Updated ${note.updated}`}
         aside={
           <div className="flex flex-col items-end gap-1.5">
             <StatusPill tone={note.status === "Published" ? "green" : note.status === "Needs review" ? "amber" : "gray"}>{note.status}</StatusPill>
-            {note.author === "Mark" ? <StatusPill tone="blue">Mark</StatusPill> : null}
+            {note.author === "Arc" ? <StatusPill tone="blue">Arc</StatusPill> : null}
           </div>
         }
       />
@@ -1187,7 +1187,7 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
 
       {needsReview ? (
         <div className="mb-4 rounded-md border border-[oklch(0.82_0.13_85/0.4)] bg-[oklch(0.82_0.13_85/0.14)] px-4 py-3 text-sm text-[oklch(0.9_0.09_85)]">
-          <span className="font-semibold">Mark drafted this note. </span>
+          <span className="font-semibold">Arc drafted this note. </span>
           It needs human review before it publishes.{" "}
           <Link className="font-semibold underline underline-offset-2" href={`/approvals?item=${note.slug}`}>Open review</Link>.
         </div>
@@ -1195,13 +1195,13 @@ export default async function NotePage({ params, searchParams }: NotePageProps) 
 
       <OperatorBar
         task="Work this note"
-        detail="Edit, publish, ask Mark to expand it, or archive. These are previews — nothing is saved."
+        detail="Edit, publish, ask Arc to expand it, or archive. These are previews — nothing is saved."
         status="Preview"
         primary={<Link className={buttonClasses({ variant: "primary" })} href="?action=publish">Publish</Link>}
         secondary={
           <>
             <Link className={buttonClasses({ variant: "ghost" })} href="?action=edit">Edit</Link>
-            <Link className={buttonClasses({ variant: "ghost" })} href="?action=expand">Ask Mark to expand</Link>
+            <Link className={buttonClasses({ variant: "ghost" })} href="?action=expand">Ask Arc to expand</Link>
           </>
         }
       />
@@ -1302,7 +1302,7 @@ Expected: `vault-icon.png` now exists so the nav `Image` resolves. (Replace with
 
 - [ ] **Step 2: Add the nav entry**
 
-In `src/app/_components/console-frame.tsx`, add a Vault entry to the `navItems` array, between the Mark and Settings entries:
+In `src/app/_components/console-frame.tsx`, add a Vault entry to the `navItems` array, between the Arc and Settings entries:
 ```tsx
   { label: "Vault", href: "/notebook", iconSrc: "/brand/nav-icons/vault-icon.png", matches: ["/notebook"] },
 ```
@@ -1356,7 +1356,7 @@ Expected: build succeeds with `/notebook` and `/notebook/[noteSlug]` in the rout
 
 Run `pnpm dev` and verify:
 - The Vault tab appears in the sidebar and highlights on `/notebook`.
-- Collections list seeded notes; Mark-authored notes show the "Mark" pill.
+- Collections list seeded notes; Arc-authored notes show the "Arc" pill.
 - Opening a note renders markdown; `[[links]]` resolve to notes/records/personas; unresolved links (e.g. `apex-after-hours`) render muted.
 - The backlinks panel shows reverse links; the graph renders.
 - `?action=sync` on the home page and `?action=publish` on a note show the preview banner; no data is written.
@@ -1365,6 +1365,6 @@ Run `pnpm dev` and verify:
 
 ## Self-review notes
 
-- **Spec coverage:** new tab + nav (Task 13), notes-as-raw-Obsidian-markdown + data model (Tasks 2, 7), wiki-link resolution to notes/records/personas/unresolved (Task 3), backlinks (Task 4), markdown rendering via react-markdown (Tasks 1, 8), graph view (Tasks 5, 10), vault home with Sync-vault preview action (Task 11), note detail with Mark approval deep-link (Task 12), tests (Tasks 2–5), DESIGN.md primitives reused throughout. All spec sections map to tasks.
+- **Spec coverage:** new tab + nav (Task 13), notes-as-raw-Obsidian-markdown + data model (Tasks 2, 7), wiki-link resolution to notes/records/personas/unresolved (Task 3), backlinks (Task 4), markdown rendering via react-markdown (Tasks 1, 8), graph view (Tasks 5, 10), vault home with Sync-vault preview action (Task 11), note detail with Arc approval deep-link (Task 12), tests (Tasks 2–5), DESIGN.md primitives reused throughout. All spec sections map to tasks.
 - **Wiki-link plugin deviation:** the spec said "react-markdown + remark wiki-link plugin." Implemented as react-markdown + remark-gfm with our own deterministic pre-substitution (`toRenderableMarkdown`) instead of a third-party remark plugin — keeps resolution unit-testable and dependency-light. Functionally equivalent for the user (react-markdown fidelity + resolved wiki-links). Flagged here for visibility.
 - **Type consistency:** `LinkResolutionContext`, `ResolvedLink`, `VaultNote`, `GraphNode`, `GraphEdge`, `computeGraphLayout`, `extractLinks`, `computeBacklinks`, `toRenderableMarkdown` names are used identically across domain, data, and components.

@@ -6,7 +6,7 @@
 
 ## Product Decision
 
-V2 starts fresh. No fake CRM records, fake campaigns, fake approvals, fake Mark
+V2 starts fresh. No fake CRM records, fake campaigns, fake approvals, fake Arc
 threads, fake analytics, or demo history should be inserted.
 
 The database is BSR-first operationally and SaaS-ready structurally:
@@ -37,7 +37,7 @@ Allowed seed data:
 - One `organizations` row: Big Shoulders Restoration.
 - The official BSR persona taxonomy.
 - Connection registry rows used by the Settings UI.
-- The default Mark agent connection row.
+- The default Arc agent connection row.
 - Minimal default app settings required for a real empty workspace.
 
 Not allowed:
@@ -50,7 +50,7 @@ Not allowed:
 - Fake outcomes.
 - Fake campaigns.
 - Fake approvals.
-- Fake Mark chat history.
+- Fake Arc chat history.
 - Fake agent runs.
 - Fake campaign results.
 
@@ -85,7 +85,7 @@ strings, so existing pages can reconnect without a full rewrite. They also gain
 - `crm_activities`
 - `engagement_events`
 
-This is the activity and follow-up layer for human operators and Mark/Hermes.
+This is the activity and follow-up layer for human operators and Arc.
 
 ### Campaigns And Review
 
@@ -100,15 +100,15 @@ This is the activity and follow-up layer for human operators and Mark/Hermes.
 Approvals remain stateful backend records. Approval never means dispatch by
 itself.
 
-### Mark And Agent Operations
+### Arc And Agent Operations
 
 - `agents`
 - `agent_tasks`
 - `agent_task_inputs`
 - `agent_outputs`
 - `agent_run_logs`
-- `mark_conversations`
-- `mark_messages`
+- `arc_conversations`
+- `arc_messages`
 
 These tables store visible agent work, messages, outputs, and audit metadata.
 
@@ -163,7 +163,7 @@ These should not be in the baseline until a workflow proves the need:
 4. Regenerate `src/lib/supabase/database.types.ts` from the V2 project.
 5. Update local `.env.local` and deployment env vars to point at V2.
 6. Reconnect and test app modules in this order: settings, CRM, campaigns,
-   approvals, Mark, reports.
+   approvals, Arc, reports.
 
 ## Success Criteria
 
@@ -171,5 +171,5 @@ These should not be in the baseline until a workflow proves the need:
 - App settings and connection status can render.
 - CRM tables are empty and ready for real BSR records.
 - Campaign and approval tables are empty and ready for operator-created work.
-- Mark has no fake conversations but can create a real first thread.
+- Arc has no fake conversations but can create a real first thread.
 - All product tables have an org boundary from day one.

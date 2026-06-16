@@ -4,7 +4,7 @@
 
 **Goal:** Make lead-ingestion persona validation read each organization's own persona set (from the `persona_definitions` table) instead of a hardcoded enum + code constant, and give operators a Settings surface to manage their org's personas — the first productization slice.
 
-**Architecture:** The V2 baseline SQL drops the `persona_mapping` enum so persona columns become free text. The pure domain validator gains an injected `allowedKeys` parameter (defaulting to the retained BSR seed list for backward compatibility). A new `src/lib/personas/` read-model + persistence layer does the org-scoped I/O the domain can't, the ingest route feeds the org's keys into validation, and a minimal Settings → Personas panel manages the rows. Broad list-consumers (CRM forms, Hermes contracts) deliberately stay on the BSR default this slice.
+**Architecture:** The V2 baseline SQL drops the `persona_mapping` enum so persona columns become free text. The pure domain validator gains an injected `allowedKeys` parameter (defaulting to the retained BSR seed list for backward compatibility). A new `src/lib/personas/` read-model + persistence layer does the org-scoped I/O the domain can't, the ingest route feeds the org's keys into validation, and a minimal Settings → Personas panel manages the rows. Broad list-consumers (CRM forms, Arc contracts) deliberately stay on the BSR default this slice.
 
 **Tech Stack:** Supabase Postgres (SQL migration), Next.js 16 server components + server actions, `@supabase/supabase-js`, TypeScript, Vitest, Zod.
 
@@ -1237,5 +1237,5 @@ git commit -m "chore(personas): verification fixes for per-org taxonomy slice"
 ## Self-Review Notes
 
 - **Spec coverage:** schema enum removal (Task 1) ✓; domain injected validator (Task 2) ✓; read-model (Task 4) ✓; persistence/CRUD (Task 5) ✓; ingestion contract with preserved response codes (Tasks 3, 6) ✓; management UI (Task 7) ✓; generated-types follow-up (Task 8 Step 3) ✓.
-- **Deliberately out of scope** (per amended spec): the ~20 `OFFICIAL_PERSONA_MAPPINGS` consumers in CRM forms, Hermes contracts, mark promote, vault, and competitor-intel stay on the BSR default; per-org settings/connections; real tenant auth/token→org; the vault knowledge layer.
+- **Deliberately out of scope** (per amended spec): the ~20 `OFFICIAL_PERSONA_MAPPINGS` consumers in CRM forms, Arc contracts, arc promote, vault, and competitor-intel stay on the BSR default; per-org settings/connections; real tenant auth/token→org; the vault knowledge layer.
 - **Type-name consistency:** `getOrgPersonaKeys`, `listOrgPersonas`, `PersonaDefinition`, `createPersona`, `updatePersona`, `setPersonaActive`, `PersonaInput`, `PersonaUpdate`, `PersistResult`, `createPersonaAction`, `updatePersonaAction`, `togglePersonaActiveAction`, `PersonaActionState`, `PersonaManager`, `PersonasSettings` are used consistently across tasks.

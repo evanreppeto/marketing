@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship Phase 1 of the Campaigns × Mark redesign — a single plain-English "who's driving" status vocabulary (used here and reused by the board/detail later), an expandable quick-peek on every campaign row, and a gentle "New campaign" choice screen — without any backend churn beyond one read-model field.
+**Goal:** Ship Phase 1 of the Campaigns × Arc redesign — a single plain-English "who's driving" status vocabulary (used here and reused by the board/detail later), an expandable quick-peek on every campaign row, and a gentle "New campaign" choice screen — without any backend churn beyond one read-model field.
 
 **Architecture:** The vocabulary lives as a pure, unit-tested domain helper (`campaignDrivingState`) so the list, the board, and the campaign detail all render the same words from one source. The read model gains a small `previewThumbnails` field (pass-through, build-verified). The list row becomes a thin `"use client"` component with a chevron-driven inline peek; `campaign-library.tsx` is updated to derive all section/tag/action labels from the domain vocabulary. The "New campaign" page becomes a two-option chooser; the existing manual form moves to a sub-route. This matches the existing codebase convention: pure logic is unit-tested; presentational/client components are verified by lint + typecheck/build (the only existing campaigns component test covers a pure helper, not a render).
 
 **Tech Stack:** Next.js 16 (server components + client components), React 19, TypeScript, Tailwind (CSS-var tokens from `DESIGN.md`), Vitest.
 
-**Builds on:** `docs/superpowers/specs/2026-06-11-campaigns-mark-workspace-design.md` (full design) and the already-merged `2026-06-10-campaigns-view-redesign` (the grouped triage list this enhances).
+**Builds on:** `docs/superpowers/specs/2026-06-11-campaigns-arc-workspace-design.md` (full design) and the already-merged `2026-06-10-campaigns-view-redesign` (the grouped triage list this enhances).
 
-> **Coordination note:** Active git worktrees (`.claude/worktrees/mark-kanban`, `reusable-product-shell`, `task-labels`) may touch `campaign-library.tsx`, `read-model.ts`, and `src/domain/index.ts`. Before starting, rebase/merge so you're on the latest `main`; if any of these files differ from the snippets here, reconcile by hand rather than blind-pasting the full-file rewrites.
+> **Coordination note:** Active git worktrees (`.claude/worktrees/arc-kanban`, `reusable-product-shell`, `task-labels`) may touch `campaign-library.tsx`, `read-model.ts`, and `src/domain/index.ts`. Before starting, rebase/merge so you're on the latest `main`; if any of these files differ from the snippets here, reconcile by hand rather than blind-pasting the full-file rewrites.
 
 ---
 
@@ -46,13 +46,13 @@ import { describe, expect, it } from "vitest";
 import { campaignDrivingState, type CampaignLifecycle } from "@/domain";
 
 describe("campaignDrivingState", () => {
-  it("maps Drafting → Mark building (blue, Open)", () => {
+  it("maps Drafting → Arc building (blue, Open)", () => {
     const state = campaignDrivingState("Drafting");
     expect(state.key).toBe("building");
-    expect(state.label).toBe("Mark building");
+    expect(state.label).toBe("Arc building");
     expect(state.tone).toBe("blue");
     expect(state.action).toBe("Open");
-    expect(state.groupLabel).toBe("Mark is working on these");
+    expect(state.groupLabel).toBe("Arc is working on these");
   });
 
   it("maps In review → Needs you (amber, Review)", () => {
@@ -128,7 +128,7 @@ export type CampaignDrivingState = {
 };
 
 const STATES: Record<CampaignLifecycle, CampaignDrivingState> = {
-  Drafting: { key: "building", label: "Mark building", tone: "blue", action: "Open", groupLabel: "Mark is working on these" },
+  Drafting: { key: "building", label: "Arc building", tone: "blue", action: "Open", groupLabel: "Arc is working on these" },
   "In review": { key: "needs-you", label: "Needs you", tone: "amber", action: "Review", groupLabel: "Waiting for your approval" },
   Ready: { key: "ready", label: "Ready to launch", tone: "green", action: "Launch", groupLabel: "Ready to launch" },
   Live: { key: "live", label: "Live", tone: "green", action: "Open", groupLabel: "Live right now" },
@@ -359,7 +359,7 @@ export function CampaignRow({
             {campaign.previewThumbnails.length > 0 ? (
               <div className="flex shrink-0 gap-2">
                 {campaign.previewThumbnails.map((src, index) => (
-                  // eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no Next image-optimizer domain config
+                  // eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no Next image-optimizer domain config
                   <img
                     key={`${index}-${src}`}
                     src={src}
@@ -380,7 +380,7 @@ export function CampaignRow({
                   ? campaign.audienceSummary
                   : targetLabel(campaign.persona)}
               </PeekFact>
-              {why ? <PeekFact label="Why Mark built it">{why}</PeekFact> : null}
+              {why ? <PeekFact label="Why Arc built it">{why}</PeekFact> : null}
             </dl>
           </div>
 
@@ -487,7 +487,7 @@ type Lifecycle = CampaignLifecycle;
 const LIFECYCLE_ORDER: Lifecycle[] = ["In review", "Ready", "Live", "Drafting"];
 
 const GROUP_STYLE: Record<Lifecycle, { flag: boolean; emptyNote: string }> = {
-  "In review": { flag: true, emptyNote: "Nothing awaiting you — Mark's drafts will land here." },
+  "In review": { flag: true, emptyNote: "Nothing awaiting you — Arc's drafts will land here." },
   Ready: { flag: false, emptyNote: "Nothing ready yet — approved campaigns land here." },
   Live: { flag: false, emptyNote: "Nothing live yet — launched campaigns land here." },
   Drafting: { flag: false, emptyNote: "No drafts in progress." },
@@ -498,7 +498,7 @@ const FILTERS: Array<{ key: "All" | Lifecycle; label: string }> = [
   { key: "In review", label: "Needs you" },
   { key: "Ready", label: "Ready" },
   { key: "Live", label: "Live" },
-  { key: "Drafting", label: "Mark building" },
+  { key: "Drafting", label: "Arc building" },
 ];
 
 export function CampaignLibrary({
@@ -525,7 +525,7 @@ export function CampaignLibrary({
     items: campaigns.filter((campaign) => campaign.lifecycle === key),
   }));
   // In a specific-status view we hide empty groups; in "All" we keep them so the
-  // pipeline shape (Needs you → Ready → Live → Mark building) stays legible.
+  // pipeline shape (Needs you → Ready → Live → Arc building) stays legible.
   const rendered = showAll ? visibleGroups : visibleGroups.filter((entry) => entry.items.length > 0);
 
   return (
@@ -673,7 +673,7 @@ git commit -m "feat(campaigns): portfolio list uses shared vocabulary + expandab
 - Modify: `src/app/campaigns/new/page.tsx`
 - Create: `src/app/campaigns/new/manual/page.tsx`
 
-Instead of dropping a form on the operator, `/campaigns/new` offers two plain choices: **Tell Mark what you need** (→ opens the Mark chat) or **Set it up myself** (→ the existing manual form, now at `/campaigns/new/manual`). Full "Tell Mark creates a shell campaign + thread" wiring is Phase 2; for now "Tell Mark" routes to `/mark` so the path exists end-to-end.
+Instead of dropping a form on the operator, `/campaigns/new` offers two plain choices: **Tell Arc what you need** (→ opens the Arc chat) or **Set it up myself** (→ the existing manual form, now at `/campaigns/new/manual`). Full "Tell Arc creates a shell campaign + thread" wiring is Phase 2; for now "Tell Arc" routes to `/arc` so the path exists end-to-end.
 
 - [ ] **Step 1: Create the manual-form sub-route**
 
@@ -693,7 +693,7 @@ export default async function NewCampaignManualPage() {
       <PageHeader
         eyebrow="New campaign"
         title="Set it up yourself"
-        description="Give it a title, who it's for, the audience and offer, and any reference photos. Save it as a draft, then hand it to Mark whenever you're ready."
+        description="Give it a title, who it's for, the audience and offer, and any reference photos. Save it as a draft, then hand it to Arc whenever you're ready."
         backHref="/campaigns/new"
         backLabel="campaign options"
       />
@@ -722,23 +722,23 @@ export default async function NewCampaignPage() {
       <PageHeader
         eyebrow="New campaign"
         title="How do you want to start?"
-        description="Tell Mark what you need and he'll draft the first pieces, or set it up yourself. You can hand it to Mark — or take it back — at any time."
+        description="Tell Arc what you need and he'll draft the first pieces, or set it up yourself. You can hand it to Arc — or take it back — at any time."
         backHref="/campaigns"
         backLabel="campaigns"
       />
 
       <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
         <ChoiceCard
-          href="/mark"
-          title="Tell Mark what you need"
-          body="Describe the campaign in plain words. Mark drafts the first pieces for you to review — nothing goes out without your approval."
-          cta="Talk to Mark"
+          href="/arc"
+          title="Tell Arc what you need"
+          body="Describe the campaign in plain words. Arc drafts the first pieces for you to review — nothing goes out without your approval."
+          cta="Talk to Arc"
           primary
         />
         <ChoiceCard
           href="/campaigns/new/manual"
           title="Set it up myself"
-          body="Fill in a few details — title, who it's for, the offer. Save it as a draft and hand it to Mark whenever you like."
+          body="Fill in a few details — title, who it's for, the offer. Save it as a draft and hand it to Arc whenever you like."
           cta="Open the form"
         />
       </div>
@@ -796,7 +796,7 @@ Expected: build succeeds; `/campaigns/new` and `/campaigns/new/manual` both comp
 
 ```bash
 git add src/app/campaigns/new/page.tsx src/app/campaigns/new/manual/page.tsx
-git commit -m "feat(campaigns): New campaign chooser (Tell Mark / Set it up myself)"
+git commit -m "feat(campaigns): New campaign chooser (Tell Arc / Set it up myself)"
 ```
 
 ---
@@ -823,11 +823,11 @@ Expected: PASS.
 - [ ] **Step 4: Manual smoke (recommended)**
 
 Run: `pnpm dev`, open `/campaigns`. Confirm:
-- Section headings read in plain words: **Waiting for your approval · Ready to launch · Live right now · Mark is working on these**.
-- Each row shows a **"who's driving" tag** (Needs you / Ready to launch / Live / Mark building) and a matching action button (Review / Launch / Open / Open).
-- A **chevron** on each row opens an inline peek with thumbnails (when present) and a plain **Pieces / Who it reaches / Why Mark built it**, plus **Open campaign** and **See full preview** buttons. Tapping the chevron again closes it.
-- The filter pills read **All / Needs you / Ready / Live / Mark building** and filter correctly.
-- `/campaigns/new` shows the two-option chooser; **Set it up myself** opens the manual form at `/campaigns/new/manual`; **Tell Mark** opens `/mark`.
+- Section headings read in plain words: **Waiting for your approval · Ready to launch · Live right now · Arc is working on these**.
+- Each row shows a **"who's driving" tag** (Needs you / Ready to launch / Live / Arc building) and a matching action button (Review / Launch / Open / Open).
+- A **chevron** on each row opens an inline peek with thumbnails (when present) and a plain **Pieces / Who it reaches / Why Arc built it**, plus **Open campaign** and **See full preview** buttons. Tapping the chevron again closes it.
+- The filter pills read **All / Needs you / Ready / Live / Arc building** and filter correctly.
+- `/campaigns/new` shows the two-option chooser; **Set it up myself** opens the manual form at `/campaigns/new/manual`; **Tell Arc** opens `/arc`.
 
 ---
 
@@ -837,10 +837,10 @@ Run: `pnpm dev`, open `/campaigns`. Confirm:
   - Shared "who's driving" vocabulary → Task 1 (`campaignDrivingState`), consumed in Tasks 3–4. Reused by board/detail in later phases (exported from `@/domain`).
   - Portfolio relabel & grouping in plain language → Task 4 (`LIFECYCLE_ORDER`, `groupLabel`, filter labels).
   - Expandable quick peek (chevron, inline, thumbnails + what/who/why, Open / See preview) → Tasks 2 (`previewThumbnails`) + 3 (`CampaignRow`).
-  - New-campaign choice (Tell Mark / Set it up myself) → Task 5.
+  - New-campaign choice (Tell Arc / Set it up myself) → Task 5.
   - "Ready to launch" as its own group under "Needs you" (resolved decision #1) → Task 4 (`LIFECYCLE_ORDER` puts `Ready` second).
   - "See full preview" deep-links `?tab=preview` (the Preview section ships in Phase 3; the link is harmless until then) → Task 3.
-- **Deferred (other phases, intentionally not here):** detail-page restructure + Mark side pane + thread consolidation (Phase 2); true-to-life Preview section, go-live confirm, "Mark suggests", portfolio analytics strip (Phase 3); board↔campaign links + handoff control + "Done/Finished" group, which needs archive-state read-model work (Phase 4). Noted so reviewers don't read these absences as gaps.
+- **Deferred (other phases, intentionally not here):** detail-page restructure + Arc side pane + thread consolidation (Phase 2); true-to-life Preview section, go-live confirm, "Arc suggests", portfolio analytics strip (Phase 3); board↔campaign links + handoff control + "Done/Finished" group, which needs archive-state read-model work (Phase 4). Noted so reviewers don't read these absences as gaps.
 - **Placeholder scan:** none — every code step has complete content; every command lists expected output.
 - **Type consistency:** `CampaignLifecycle` (Task 1) is the single lifecycle type, re-sourced into `read-model.ts` (Task 2) and imported by `campaign-library.tsx` (Task 4); `campaignDrivingState(lifecycle)` returns `{ key, label, tone, action, groupLabel }` and is destructured identically in Tasks 3 (`state.label`/`state.tone`/`state.action`) and 4 (`state.groupLabel`/`state.action`). `previewThumbnails: string[]` (Task 2) is read by `CampaignRow` (Task 3). `CampaignRow` props `{ campaign, flag, nowMs }` (Task 3) are passed identically in Task 4. `MomentumCounts`/`partitionAwaiting`/`CollapsedBatchGroup`/`MomentumStrip` keep their existing signatures.
 - **Convention adherence:** pure logic (vocabulary) is unit-tested in `domain/__tests__`; components are verified by lint + build (matching the existing campaigns convention); commits are per-task with `feat(campaigns): …` messages.

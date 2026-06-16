@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Split campaign approvals into three homes — a risk-gated "Needs your approval" inbox on Today, the already-existing decide-in-context banner in the campaign workspace, and a read-only Activity ledger (`/approvals`) plus a bearer-gated history API Mark can query — and ship a fully-populated seeded test campaign.
+**Goal:** Split campaign approvals into three homes — a risk-gated "Needs your approval" inbox on Today, the already-existing decide-in-context banner in the campaign workspace, and a read-only Activity ledger (`/approvals`) plus a bearer-gated history API Arc can query — and ship a fully-populated seeded test campaign.
 
-**Architecture:** Reuse the existing decision engine (`decideApprovalItem` in `src/lib/campaigns/decisions.ts`) for inbox quick-approve. Add an append-only `undoDecision` (requires one additive enum value). Add a read-model `listApprovalHistory` sourced from `approval_decisions`, expose it as `GET /api/v1/approvals/history`, and rewrite `/approvals` from an action queue into a read-only ledger. A new seed script mirrors `scripts/seed-hermes-demo.mjs`.
+**Architecture:** Reuse the existing decision engine (`decideApprovalItem` in `src/lib/campaigns/decisions.ts`) for inbox quick-approve. Add an append-only `undoDecision` (requires one additive enum value). Add a read-model `listApprovalHistory` sourced from `approval_decisions`, expose it as `GET /api/v1/approvals/history`, and rewrite `/approvals` from an action queue into a read-only ledger. A new seed script mirrors `scripts/seed-arc-demo.mjs`.
 
 **Tech Stack:** Next.js 16 (App Router, server components + server actions), React 19 (`useActionState`), Supabase (`@supabase/supabase-js` admin client), Vitest, pnpm. Path alias `@/*` → `./src/*`.
 
@@ -34,7 +34,7 @@
 | `scripts/seed-test-campaign.mjs` (new) | Fully-filled test campaign seed | 9 |
 | `package.json` (modify) | `seed:test-campaign` script | 9 |
 
-Convention reminders: `requireOperator()` then `isSupabaseAdminConfigured()` guard in every server action; read-model functions take an injectable `client: SupabaseClient = getSupabaseAdminClient()` last param (matches `listApprovalCards`); API routes use `checkBearerToken(request, "HERMES_AGENT_API_TOKEN")` and return `503 not_configured` / `401 unauthorized`.
+Convention reminders: `requireOperator()` then `isSupabaseAdminConfigured()` guard in every server action; read-model functions take an injectable `client: SupabaseClient = getSupabaseAdminClient()` last param (matches `listApprovalCards`); API routes use `checkBearerToken(request, "ARC_AGENT_API_TOKEN")` and return `503 not_configured` / `401 unauthorized`.
 
 ---
 
@@ -502,7 +502,7 @@ git commit -m "feat(approvals): listApprovalHistory read-model for the activity 
 - Create: `src/app/api/v1/approvals/history/route.ts`
 - Test: `src/app/api/v1/approvals/history/route.test.ts`
 
-Bearer-gated with `HERMES_AGENT_API_TOKEN` (same token Mark already uses), `503` when Supabase admin is unconfigured, supports `?campaign_id=` and `?limit=`.
+Bearer-gated with `ARC_AGENT_API_TOKEN` (same token Arc already uses), `503` when Supabase admin is unconfigured, supports `?campaign_id=` and `?limit=`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -520,22 +520,22 @@ function historyRequest(authorization?: string, query = "") {
 }
 
 describe("GET /api/v1/approvals/history", () => {
-  const original = process.env.HERMES_AGENT_API_TOKEN;
+  const original = process.env.ARC_AGENT_API_TOKEN;
 
   afterEach(() => {
-    if (original === undefined) delete process.env.HERMES_AGENT_API_TOKEN;
-    else process.env.HERMES_AGENT_API_TOKEN = original;
+    if (original === undefined) delete process.env.ARC_AGENT_API_TOKEN;
+    else process.env.ARC_AGENT_API_TOKEN = original;
   });
 
   it("returns 503 when no token is configured", async () => {
-    delete process.env.HERMES_AGENT_API_TOKEN;
+    delete process.env.ARC_AGENT_API_TOKEN;
     const res = await GET(historyRequest("Bearer whatever"));
     expect(res.status).toBe(503);
     expect((await res.json()).status).toBe("not_configured");
   });
 
   it("returns 401 on a bad token", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "secret";
+    process.env.ARC_AGENT_API_TOKEN = "secret";
     const res = await GET(historyRequest("Bearer wrong"));
     expect(res.status).toBe(401);
   });
@@ -559,23 +559,23 @@ import { listApprovalHistory } from "@/lib/approvals/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
- * Read-only ledger of human approval decisions, newest first. Mark calls this to
+ * Read-only ledger of human approval decisions, newest first. Arc calls this to
  * reference what has already been approved/declined/reverted when planning.
  *
  *   GET /api/v1/approvals/history?campaign_id=<uuid>&limit=<n>
- *   Authorization: Bearer <HERMES_AGENT_API_TOKEN>
+ *   Authorization: Bearer <ARC_AGENT_API_TOKEN>
  *
  *   200 -> { ok: true, count, decisions: [...] }
  *   401 -> bad/missing token
  *   503 -> token or Supabase admin not configured
  */
 export async function GET(request: Request) {
-  const auth = checkBearerToken(request, "HERMES_AGENT_API_TOKEN");
+  const auth = checkBearerToken(request, "ARC_AGENT_API_TOKEN");
 
   if (!auth.ok) {
     return NextResponse.json(
       auth.reason === "not_configured"
-        ? { ok: false, status: "not_configured", message: "Set HERMES_AGENT_API_TOKEN on this deployment to read approval history." }
+        ? { ok: false, status: "not_configured", message: "Set ARC_AGENT_API_TOKEN on this deployment to read approval history." }
         : { ok: false, status: "unauthorized", message: "Approval history requires a valid bearer token." },
       { status: auth.status },
     );
@@ -608,7 +608,7 @@ Expected: PASS (2 tests). (The 401/503 paths return before any Supabase call, ma
 
 ```bash
 git add src/app/api/v1/approvals/history/route.ts src/app/api/v1/approvals/history/route.test.ts
-git commit -m "feat(api): GET /api/v1/approvals/history bearer-gated ledger for Mark"
+git commit -m "feat(api): GET /api/v1/approvals/history bearer-gated ledger for Arc"
 ```
 
 ---
@@ -793,7 +793,7 @@ export function ApprovalInbox({ items }: { items: InboxItem[] }) {
   }
 
   if (visible.length === 0) {
-    return <p className="px-5 py-6 text-sm text-[var(--text-secondary)]">Nothing waiting on your approval. Mark will surface new work here.</p>;
+    return <p className="px-5 py-6 text-sm text-[var(--text-secondary)]">Nothing waiting on your approval. Arc will surface new work here.</p>;
   }
 
   return (
@@ -939,7 +939,7 @@ export default async function ActivityPage() {
       <PageHeader
         eyebrow="Activity"
         title="Decision history"
-        description="A read-only record of every approval, decline, revision, and undo. Mark references this when planning. Decisions are made on Today or inside a campaign."
+        description="A read-only record of every approval, decline, revision, and undo. Arc references this when planning. Decisions are made on Today or inside a campaign."
       />
 
       {decisions.length > 0 ? (
@@ -1059,7 +1059,7 @@ git commit -m "feat(campaigns): show awaiting-approval badge on gallery cards"
 - Create: `scripts/seed-test-campaign.mjs`
 - Modify: `package.json`
 
-Mirrors `scripts/seed-hermes-demo.mjs` conventions (manual `.env.local` load, service-role client, `runId` suffix, `insertOne` helper). Produces one campaign with every tab populated: Brief (overview fields), Deliverables (8 assets across types), Targets & sources (company/contacts/leads + evidence), Mark notes (reasoning payload), Approval gate (3 approval items, one already decided so the ledger isn't empty).
+Mirrors `scripts/seed-arc-demo.mjs` conventions (manual `.env.local` load, service-role client, `runId` suffix, `insertOne` helper). Produces one campaign with every tab populated: Brief (overview fields), Deliverables (8 assets across types), Targets & sources (company/contacts/leads + evidence), Arc notes (reasoning payload), Approval gate (3 approval items, one already decided so the ledger isn't empty).
 
 - [ ] **Step 1: Write the seed script**
 
@@ -1140,7 +1140,7 @@ async function seedTestCampaign() {
     company_id: companyId,
     contact_id: contactId,
     lead_id: leadId,
-    owner: "Mark (Hermes)",
+    owner: "Arc",
     objective: "Pre-approve Big Shoulders as the priority water-loss vendor for North Shore managed buildings before spring thaw.",
     audience_summary: "Property managers and operations directors overseeing multifamily portfolios in 60091/60093/60201.",
     offer_summary: "Documented, insurance-ready water-loss response with a managed-building SLA and a vendor pre-approval packet.",
@@ -1198,7 +1198,7 @@ async function seedTestCampaign() {
     status: "approved",
     risk_level: "low",
     draft_output: ASSETS[3].draft_body,
-    requested_by: "hermes",
+    requested_by: "arc",
     reviewed_by: "Evan",
     reviewed_at: new Date().toISOString(),
     reasoning_payload: { demo_seed: true, run_id: runId },
@@ -1223,7 +1223,7 @@ async function seedTestCampaign() {
     status: "pending_approval",
     risk_level: "medium",
     draft_output: ASSETS[0].draft_body,
-    requested_by: "hermes",
+    requested_by: "arc",
     reasoning_payload: { demo_seed: true, run_id: runId },
     audit_payload: { demo_seed: true, run_id: runId },
   });
@@ -1236,7 +1236,7 @@ async function seedTestCampaign() {
     status: "pending_approval",
     risk_level: "high",
     draft_output: ASSETS[1].draft_body,
-    requested_by: "hermes",
+    requested_by: "arc",
     compliance_notes: "Paid spend — requires budget sign-off before launch.",
     reasoning_payload: { demo_seed: true, run_id: runId },
     audit_payload: { demo_seed: true, run_id: runId },
@@ -1257,7 +1257,7 @@ seedTestCampaign()
 
 - [ ] **Step 2: Add the package.json script**
 
-In `package.json` `scripts`, add after `seed:hermes-demo`:
+In `package.json` `scripts`, add after `seed:arc-demo`:
 
 ```json
     "seed:test-campaign": "node scripts/seed-test-campaign.mjs",
@@ -1270,7 +1270,7 @@ Expected: prints `{ "ok": true, "campaignId": "…", … }`. If it errors on a m
 
 - [ ] **Step 4: Verify in the app**
 
-Run: `pnpm dev`, open `/campaigns`, find "Spring Flood Recovery — North Shore Property Managers", and confirm every tab is populated: Deliverables (8), Media, Brief (all fields), Targets & sources (company/contacts/leads/evidence), Mark notes (reasoning), Approval gate (2 pending + history). Open `/approvals` and confirm the approved-email row appears. Confirm Today shows the two pending items in the inbox.
+Run: `pnpm dev`, open `/campaigns`, find "Spring Flood Recovery — North Shore Property Managers", and confirm every tab is populated: Deliverables (8), Media, Brief (all fields), Targets & sources (company/contacts/leads/evidence), Arc notes (reasoning), Approval gate (2 pending + history). Open `/approvals` and confirm the approved-email row appears. Confirm Today shows the two pending items in the inbox.
 
 - [ ] **Step 5: Commit**
 
@@ -1304,7 +1304,7 @@ Expected: build succeeds; `/`, `/approvals`, `/campaigns`, and `/api/v1/approval
 
 - Today inbox: approve a low/medium item → row disappears, undo toast appears → click Undo → item returns; high-risk item shows "Open →".
 - `/approvals`: shows the decision (and the undo) as ledger rows, newest first; no action buttons.
-- API: `curl -s -H "Authorization: Bearer $HERMES_AGENT_API_TOKEN" "http://localhost:3000/api/v1/approvals/history?limit=5"` returns `{ ok: true, decisions: [...] }`.
+- API: `curl -s -H "Authorization: Bearer $ARC_AGENT_API_TOKEN" "http://localhost:3000/api/v1/approvals/history?limit=5"` returns `{ ok: true, decisions: [...] }`.
 
 - [ ] **Step 5: Final commit (if any fixups)**
 

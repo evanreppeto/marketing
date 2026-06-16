@@ -1,10 +1,10 @@
-# Configurable Agent Name (De-brand "Mark") Implementation Plan
+# Configurable Agent Name (De-brand "Arc") Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make every user-facing "Mark" string render the operator-configured agent name (default "Agent"), with zero changes to internal identifiers, routes, the "Hermes" worker, or env vars.
+**Goal:** Make every user-facing "Arc" string render the operator-configured agent name (default "Agent"), with zero changes to internal identifiers, routes, the "Arc" worker, or env vars.
 
-**Architecture:** The `assistantName` setting + `getAgentDisplayName()`/`agentProfile()` resolvers already exist. We add two distribution mechanisms — a `useAgentName()` client hook (provider hosted in the persistent `ConsoleFrame`) and a `cache()`-wrapped `getAgentName()` server helper — then migrate rendered copy surface-by-surface to use them. Default fallbacks flip `"Mark"` → `"Agent"`.
+**Architecture:** The `assistantName` setting + `getAgentDisplayName()`/`agentProfile()` resolvers already exist. We add two distribution mechanisms — a `useAgentName()` client hook (provider hosted in the persistent `ConsoleFrame`) and a `cache()`-wrapped `getAgentName()` server helper — then migrate rendered copy surface-by-surface to use them. Default fallbacks flip `"Arc"` → `"Agent"`.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Vitest, Supabase, pnpm.
 
@@ -12,25 +12,25 @@
 
 ## Swap convention (read once; every migration task references this)
 
-For each **rendered** "Mark" literal:
+For each **rendered** "Arc" literal:
 
 - **Static literal in JSX** → interpolate the resolved name.
-  - Before: `title="What Mark created"`
+  - Before: `title="What Arc created"`
   - After (client): `` title={`What ${agentName} created`} `` where `const agentName = useAgentName();`
   - After (server): `` title={`What ${agentName} created`} `` where `const agentName = await getAgentName();`
-- **`assistantName = "Mark"` default parameter** → change the default to `"Agent"`.
+- **`assistantName = "Arc"` default parameter** → change the default to `"Agent"`.
 - **Gendered pronouns referring to the agent** → neutralize:
   - "what data **he** touched" → "what data **the agent** touched"
   - "**his** reply" / "when **he**'s done" → "**its** reply" / "when **it**'s done"
   - "as **he** claims" → "as **it** claims"
 
 **Do NOT change (these are data or non-rendered):**
-- Code **comments** containing "Mark" (e.g. `// the Mark surface`, JSDoc). Out of scope.
-- **Data comparisons / stored values**: `source === "Mark"`, map **keys** like `mark: {...}`, and any value persisted as a record field used for matching. Only the *displayed* part changes (see campaigns task for the one map-label case).
-- File names, module names, `/mark` route, `import` paths, function names (`getMarkDisplayName`, `MarkChat`), CSS classes (`.mark-orb`), env vars.
+- Code **comments** containing "Arc" (e.g. `// the Arc surface`, JSDoc). Out of scope.
+- **Data comparisons / stored values**: `source === "Arc"`, map **keys** like `arc: {...}`, and any value persisted as a record field used for matching. Only the *displayed* part changes (see campaigns task for the one map-label case).
+- File names, module names, `/arc` route, `import` paths, function names (`getMarkDisplayName`, `MarkChat`), CSS classes (`.arc-orb`), env vars.
 
 **Per-file mechanical sweep:** after handling the explicit lines a task calls out, run
-`pnpm exec grep -rn "Mark" <files>` (or the Grep tool with `\bMark\b`) over the task's files and confirm every remaining hit is a comment, identifier, or data value — not rendered copy.
+`pnpm exec grep -rn "Arc" <files>` (or the Grep tool with `\bMark\b`) over the task's files and confirm every remaining hit is a comment, identifier, or data value — not rendered copy.
 
 **Per-task verification:** scope eslint to changed files (lint scans vendored code — see project memory):
 `pnpm exec eslint <changed files>`. Full `pnpm test` + `pnpm build` run only in the final task.
@@ -41,15 +41,15 @@ For each **rendered** "Mark" literal:
 
 **Files:**
 - Modify: `src/lib/settings/store.ts` (line 42)
-- Modify: `src/lib/mark-chat/agent-config.ts` (lines 22, 30)
-- Test: `src/lib/settings/store.test.ts`, `src/lib/mark-chat/agent-config.test.ts`
+- Modify: `src/lib/arc-chat/agent-config.ts` (lines 22, 30)
+- Test: `src/lib/settings/store.test.ts`, `src/lib/arc-chat/agent-config.test.ts`
 - Create: `src/lib/settings/agent-name.ts`
 - Create: `src/app/_components/agent-name-context.tsx`
 - Modify: `src/app/_components/console-frame.tsx`
 
 - [ ] **Step 1: Update the failing tests for the default flip**
 
-Open `src/lib/mark-chat/agent-config.test.ts`. Find the assertions that expect `"Mark"` as the empty/fallback result of `agentProfile("")` and `getAgentDisplayName(undefined)` and change them to expect `"Agent"`. Example:
+Open `src/lib/arc-chat/agent-config.test.ts`. Find the assertions that expect `"Arc"` as the empty/fallback result of `agentProfile("")` and `getAgentDisplayName(undefined)` and change them to expect `"Agent"`. Example:
 
 ```ts
 // agentProfile fallback
@@ -62,12 +62,12 @@ expect(getAgentDisplayName(undefined)).toBe("Agent");
 expect(getAgentDisplayName("  ")).toBe("Agent");
 ```
 
-Open `src/lib/settings/store.test.ts`. Find any assertion that `DEFAULT_APP_SETTINGS.assistantName` (or merged-default assistantName) is `"Mark"` and change it to `"Agent"`.
+Open `src/lib/settings/store.test.ts`. Find any assertion that `DEFAULT_APP_SETTINGS.assistantName` (or merged-default assistantName) is `"Arc"` and change it to `"Agent"`.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm test src/lib/mark-chat/agent-config.test.ts src/lib/settings/store.test.ts`
-Expected: FAIL — assertions still see `"Mark"`.
+Run: `pnpm test src/lib/arc-chat/agent-config.test.ts src/lib/settings/store.test.ts`
+Expected: FAIL — assertions still see `"Arc"`.
 
 - [ ] **Step 3: Flip the three default sites**
 
@@ -76,21 +76,21 @@ Expected: FAIL — assertions still see `"Mark"`.
   assistantName: "Agent",
 ```
 
-`src/lib/mark-chat/agent-config.ts` line 22 (inside `agentProfile`):
+`src/lib/arc-chat/agent-config.ts` line 22 (inside `agentProfile`):
 ```ts
   const name = (rawName ?? "").trim() || "Agent";
 ```
 
-`src/lib/mark-chat/agent-config.ts` line 30 (inside `getAgentDisplayName`):
+`src/lib/arc-chat/agent-config.ts` line 30 (inside `getAgentDisplayName`):
 ```ts
-  return override?.trim() || process.env.MARK_DISPLAY_NAME?.trim() || "Agent";
+  return override?.trim() || process.env.ARC_DISPLAY_NAME?.trim() || "Agent";
 ```
 
-(Leave the env var name `MARK_DISPLAY_NAME` and the function name `getAgentDisplayName` unchanged — internal identifiers.)
+(Leave the env var name `ARC_DISPLAY_NAME` and the function name `getAgentDisplayName` unchanged — internal identifiers.)
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `pnpm test src/lib/mark-chat/agent-config.test.ts src/lib/settings/store.test.ts`
+Run: `pnpm test src/lib/arc-chat/agent-config.test.ts src/lib/settings/store.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Create the cached server helper**
@@ -99,7 +99,7 @@ Create `src/lib/settings/agent-name.ts`:
 ```ts
 import { cache } from "react";
 
-import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 
 import { getAppSettings } from "./store";
 
@@ -187,11 +187,11 @@ describe("useAgentName", () => {
 
   it("returns the provider value", () => {
     render(
-      <AgentNameProvider value="Hermes">
+      <AgentNameProvider value="Arc">
         <Probe />
       </AgentNameProvider>,
     );
-    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(screen.getByText("Arc")).toBeInTheDocument();
   });
 });
 ```
@@ -200,7 +200,7 @@ describe("useAgentName", () => {
 
 - [ ] **Step 9: Run infra tests + lint**
 
-Run: `pnpm test src/lib/settings/store.test.ts src/lib/mark-chat/agent-config.test.ts src/app/_components/agent-name-context.test.tsx`
+Run: `pnpm test src/lib/settings/store.test.ts src/lib/arc-chat/agent-config.test.ts src/app/_components/agent-name-context.test.tsx`
 Expected: PASS.
 Run: `pnpm exec eslint src/lib/settings/agent-name.ts src/app/_components/agent-name-context.tsx src/app/_components/console-frame.tsx`
 Expected: no errors.
@@ -208,7 +208,7 @@ Expected: no errors.
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/lib/settings/agent-name.ts src/app/_components/agent-name-context.tsx src/app/_components/console-frame.tsx src/lib/settings/store.ts src/lib/mark-chat/agent-config.ts src/lib/settings/store.test.ts src/lib/mark-chat/agent-config.test.ts src/app/_components/agent-name-context.test.tsx
+git add src/lib/settings/agent-name.ts src/app/_components/agent-name-context.tsx src/app/_components/console-frame.tsx src/lib/settings/store.ts src/lib/arc-chat/agent-config.ts src/lib/settings/store.test.ts src/lib/arc-chat/agent-config.test.ts src/app/_components/agent-name-context.test.tsx
 git commit -m "feat: agent-name context + cached helper; default name -> Agent"
 ```
 
@@ -254,18 +254,18 @@ detail={query ? "Clear the search or try another term." : `${agentName} writes r
   if (/running|processing/i.test(log.runStatus)) return `${agentName} is working on this step`;
   return `${agentName} recorded a runner step`;
 ```
-`task-record-panels.tsx:534` ("Mark's runner" → possessive): `` `This is one recorded step from ${agentName}'s runner: ...` ``
+`task-record-panels.tsx:534` ("Arc's runner" → possessive): `` `This is one recorded step from ${agentName}'s runner: ...` ``
 `ticket-editable-header.tsx:188`: `` {needsApproval ? `Review ${agentName}'s draft.` : `${agentName} has a draft ready.`} ``
 `ticket-editable-header.tsx:243`: `` setContinueMessage(result.ok ? `${agentName} was asked for the next step.` : result.message); ``
 
-All other listed lines are mechanical `Mark` → `${agentName}` interpolations (titles, placeholders, aria-labels, EmptyState detail/title, eyebrow, descriptions, `description="Ready for Mark"` → `` description={`Ready for ${agentName}`} ``).
+All other listed lines are mechanical `Arc` → `${agentName}` interpolations (titles, placeholders, aria-labels, EmptyState detail/title, eyebrow, descriptions, `description="Ready for Arc"` → `` description={`Ready for ${agentName}`} ``).
 
-`ticket-activity-timeline.tsx:39` — **leave unchanged**: `if (source === "Mark") return "blue";` matches a stored source value, not display.
+`ticket-activity-timeline.tsx:39` — **leave unchanged**: `if (source === "Arc") return "blue";` matches a stored source value, not display.
 
 - [ ] **Step 3: Update affected tests**
 
 Run: `pnpm test src/lib/agent-operations/read-model.test.ts`
-For each failure, inspect: if the assertion checks **rendered copy** (a label/title/description string), update `"Mark"` → `"Agent"`. If "Mark" is **fixture data** (e.g. a sample task actor/source value), leave it. Re-run until green.
+For each failure, inspect: if the assertion checks **rendered copy** (a label/title/description string), update `"Arc"` → `"Agent"`. If "Arc" is **fixture data** (e.g. a sample task actor/source value), leave it. Re-run until green.
 
 - [ ] **Step 4: Sweep + lint**
 
@@ -282,18 +282,18 @@ git commit -m "feat(agent-operations): render configurable agent name"
 
 ---
 
-## Task 3: Migrate the /mark surface
+## Task 3: Migrate the /arc surface
 
 **Files (all Modify):**
-- Default-param flips (`assistantName = "Mark"` → `assistantName = "Agent"`):
-  - `src/app/mark/_components/composer.tsx:114`
-  - `src/app/mark/_components/mark-chat.tsx:126`
-  - `src/app/mark/_components/message-list.tsx:514`
-  - `src/app/mark/_components/thread-sidebar.tsx:240`
-  - `src/app/mark/_components/work-canvas.tsx:345`
+- Default-param flips (`assistantName = "Arc"` → `assistantName = "Agent"`):
+  - `src/app/arc/_components/composer.tsx:114`
+  - `src/app/arc/_components/arc-chat.tsx:126`
+  - `src/app/arc/_components/message-list.tsx:514`
+  - `src/app/arc/_components/thread-sidebar.tsx:240`
+  - `src/app/arc/_components/work-canvas.tsx:345`
 - Rendered copy:
-  - `src/app/mark/saved/page.tsx` (server) — lines 19, 51 (`eyebrow="Mark"`)
-- Test: `src/app/mark/_data/demo.ts` handled in Task 7; check `src/domain/__tests__/mark-chat.test.ts` / `mark-mode.test.ts` only if they assert the default string.
+  - `src/app/arc/saved/page.tsx` (server) — lines 19, 51 (`eyebrow="Arc"`)
+- Test: `src/app/arc/_data/demo.ts` handled in Task 7; check `src/domain/__tests__/arc-chat.test.ts` / `arc-mode.test.ts` only if they assert the default string.
 
 - [ ] **Step 1: Flip the default params**
 
@@ -301,11 +301,11 @@ In each of the five `_components` files, change the default parameter value:
 ```tsx
   assistantName = "Agent",
 ```
-These already thread `assistantName` from `/mark/page.tsx` (which passes `settings.assistantName`); only the fallback default changes. The page sources the real value from settings, so configured names already flow — this just fixes the unconfigured fallback.
+These already thread `assistantName` from `/arc/page.tsx` (which passes `settings.assistantName`); only the fallback default changes. The page sources the real value from settings, so configured names already flow — this just fixes the unconfigured fallback.
 
 - [ ] **Step 2: Make saved/page.tsx dynamic**
 
-`src/app/mark/saved/page.tsx` is a server component. Add `import { getAgentName } from "@/lib/settings/agent-name";` and `const agentName = await getAgentName();`, then:
+`src/app/arc/saved/page.tsx` is a server component. Add `import { getAgentName } from "@/lib/settings/agent-name";` and `const agentName = await getAgentName();`, then:
 ```tsx
         eyebrow={agentName}
 ```
@@ -313,15 +313,15 @@ on both lines 19 and 51. (Per project memory, PageHeader ignores `eyebrow` visua
 
 - [ ] **Step 3: Sweep + lint**
 
-Grep `src/app/mark` for `\bMark\b`; confirm remaining hits are comments, CSS class names (`.mark-orb`), component/file names, or import paths — not rendered copy.
-Run: `pnpm exec eslint src/app/mark`
+Grep `src/app/arc` for `\bMark\b`; confirm remaining hits are comments, CSS class names (`.arc-orb`), component/file names, or import paths — not rendered copy.
+Run: `pnpm exec eslint src/app/arc`
 Expected: no errors.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/app/mark
-git commit -m "feat(mark): default assistant fallback -> Agent; dynamic saved header"
+git add src/app/arc
+git commit -m "feat(arc): default assistant fallback -> Agent; dynamic saved header"
 ```
 
 ---
@@ -330,9 +330,9 @@ git commit -m "feat(mark): default assistant fallback -> Agent; dynamic saved he
 
 **Files (all Modify):**
 - `src/app/campaigns/actions.ts` (server actions) — lines 243 (rendered message + pronouns), 515 (author name DATA)
-- `src/app/campaigns/_components/mark-conversation.tsx` (client) — line 51 (rendered copy + pronouns)
+- `src/app/campaigns/_components/arc-conversation.tsx` (client) — line 51 (rendered copy + pronouns)
 - `src/app/campaigns/_components/audit-log.tsx` (client) — line 13 (label inside a const map)
-- `src/app/campaigns/_components/campaign-detail-model.ts` (model builder) — line 269 (`title: "Mark"`)
+- `src/app/campaigns/_components/campaign-detail-model.ts` (model builder) — line 269 (`title: "Arc"`)
 - Other campaigns files flagged by sweep (creative-tab, reasoning-tab, approval-context, campaign-content-table, etc.) — apply Swap convention
 - Test: `src/lib/campaigns/__tests__/read-model.test.ts`, `src/app/campaigns/_components/__tests__/*`
 
@@ -345,12 +345,12 @@ This server action already can read settings. Add `const agentName = await getAg
 
 - [ ] **Step 2: actions.ts:515 — author name (DATA used as display)**
 
-Line 515 sets `name: "Mark"` on a conversation message author. This value is rendered as the author label, so make it dynamic. Reuse `agentName` (add `const agentName = await getAgentName();` to this action if not already present):
+Line 515 sets `name: "Arc"` on a conversation message author. This value is rendered as the author label, so make it dynamic. Reuse `agentName` (add `const agentName = await getAgentName();` to this action if not already present):
 ```ts
         name: agentName,
 ```
 
-- [ ] **Step 3: mark-conversation.tsx:51 — copy + pronouns**
+- [ ] **Step 3: arc-conversation.tsx:51 — copy + pronouns**
 
 Client component. Add `const agentName = useAgentName();` and rewrite:
 ```tsx
@@ -359,24 +359,24 @@ Client component. Add `const agentName = useAgentName();` and rewrite:
 
 - [ ] **Step 4: audit-log.tsx:13 — label inside a module-level const map**
 
-The map key `mark` is DATA (matches a source type) and must stay; only its `label` is display. A module-level const can't call the hook, so move the label resolution into the component. Keep the key, drop the static label, and resolve at render:
+The map key `arc` is DATA (matches a source type) and must stay; only its `label` is display. A module-level const can't call the hook, so move the label resolution into the component. Keep the key, drop the static label, and resolve at render:
 ```tsx
-// keep the key `mark` and its styling; render the label via useAgentName()
+// keep the key `arc` and its styling; render the label via useAgentName()
 ```
-Concretely: where the component renders `entry.label` for the `mark` source, replace the displayed label with `useAgentName()` when the source key is `mark`. If the map currently provides `label` directly to JSX, change the JSX to `source === "mark" ? agentName : config.label`. Keep the `mark:` map entry (styling/dot) intact; only the displayed text becomes dynamic.
+Concretely: where the component renders `entry.label` for the `arc` source, replace the displayed label with `useAgentName()` when the source key is `arc`. If the map currently provides `label` directly to JSX, change the JSX to `source === "arc" ? agentName : config.label`. Keep the `arc:` map entry (styling/dot) intact; only the displayed text becomes dynamic.
 
 - [ ] **Step 5: campaign-detail-model.ts:269 — model builder title**
 
-This `.ts` builder runs server-side (no hook). Thread the name in: add an `agentName: string` parameter to the builder function that sets `title: "Mark"`, set `title: agentName`, and pass `await getAgentName()` from the server component that calls it. (Find the call site with `grep -rn "campaign-detail-model" src/app/campaigns` and pass the resolved name through.)
+This `.ts` builder runs server-side (no hook). Thread the name in: add an `agentName: string` parameter to the builder function that sets `title: "Arc"`, set `title: agentName`, and pass `await getAgentName()` from the server component that calls it. (Find the call site with `grep -rn "campaign-detail-model" src/app/campaigns` and pass the resolved name through.)
 
 - [ ] **Step 6: Sweep remaining campaigns files**
 
-Grep `src/app/campaigns` for `\bMark\b`. For each rendered hit in the other components (creative-tab, reasoning-tab, approval-context, campaign-content-table, campaign-package-panel, campaign-right-rail, library-model, etc.), apply the Swap convention (client → `useAgentName()`, server/model → threaded `getAgentName()`). Leave comments, `mark:`/`"mark"` data keys, and module/file names.
+Grep `src/app/campaigns` for `\bMark\b`. For each rendered hit in the other components (creative-tab, reasoning-tab, approval-context, campaign-content-table, campaign-package-panel, campaign-right-rail, library-model, etc.), apply the Swap convention (client → `useAgentName()`, server/model → threaded `getAgentName()`). Leave comments, `arc:`/`"arc"` data keys, and module/file names.
 
 - [ ] **Step 7: Update tests + lint**
 
 Run: `pnpm test src/lib/campaigns src/app/campaigns`
-Update rendered-copy assertions `"Mark"` → `"Agent"`; leave fixture/source-key data. Re-run until green.
+Update rendered-copy assertions `"Arc"` → `"Agent"`; leave fixture/source-key data. Re-run until green.
 Run: `pnpm exec eslint src/app/campaigns src/lib/campaigns`
 Expected: no errors.
 
@@ -405,7 +405,7 @@ git commit -m "feat(campaigns): render configurable agent name across workspace"
 
 - [ ] **Step 1: Apply the Swap convention per file**
 
-For each file: client components get `const agentName = useAgentName();`; server components get `const agentName = await getAgentName();`. Replace rendered "Mark" literals with `${agentName}` interpolation. Neutralize any pronouns. Leave comments and data keys/values.
+For each file: client components get `const agentName = useAgentName();`; server components get `const agentName = await getAgentName();`. Replace rendered "Arc" literals with `${agentName}` interpolation. Neutralize any pronouns. Leave comments and data keys/values.
 
 Explicit:
 - `approval-inbox.tsx:80`: `` detail={`When ${agentName} prepares new work that needs a decision, it shows up here.`} ``
@@ -445,7 +445,7 @@ git commit -m "feat: render configurable agent name across approvals/board/crm/s
 
 - [ ] **Step 1: Apply the Swap convention**
 
-Per file: server → `await getAgentName()`, client → `useAgentName()`. Replace rendered "Mark" literals; neutralize pronouns; leave comments/data/identifiers.
+Per file: server → `await getAgentName()`, client → `useAgentName()`. Replace rendered "Arc" literals; neutralize pronouns; leave comments/data/identifiers.
 
 - [ ] **Step 2: Sweep + lint**
 
@@ -465,28 +465,28 @@ git commit -m "feat: render configurable agent name across remaining pages"
 ## Task 7: Demo/preview data, global sweep, full verification
 
 **Files:**
-- Modify: `src/app/mark/_data/demo.ts` (framing copy → "Agent")
+- Modify: `src/app/arc/_data/demo.ts` (framing copy → "Agent")
 - Modify: any straggler flagged by the global sweep
 
 - [ ] **Step 1: Update demo framing copy**
 
-`src/app/mark/_data/demo.ts` renders in preview mode (no settings). Replace rendered "Mark" framing copy with the literal `"Agent"` (preview has no operator config). Leave any field that is matched as data (e.g. a `source`/author key compared elsewhere) — but since demo author labels are displayed, set displayed author names to `"Agent"`. Use judgment: displayed → "Agent"; matched-as-key → unchanged.
+`src/app/arc/_data/demo.ts` renders in preview mode (no settings). Replace rendered "Arc" framing copy with the literal `"Agent"` (preview has no operator config). Leave any field that is matched as data (e.g. a `source`/author key compared elsewhere) — but since demo author labels are displayed, set displayed author names to `"Agent"`. Use judgment: displayed → "Agent"; matched-as-key → unchanged.
 
 - [ ] **Step 2: Global rendered-copy sweep**
 
-Run a repo-wide search for standalone "Mark" in app + rendered-string libs:
+Run a repo-wide search for standalone "Arc" in app + rendered-string libs:
 `Grep \bMark\b in src/app/**/*.tsx and src/app/**/*.ts`
 For every remaining hit, classify: comment / identifier / data value → leave; rendered copy → apply Swap convention and fold into the nearest committed surface (or fix here).
 
 Also confirm NOT touched (must still match):
-- `=== "Mark"` / `source === "Mark"` comparisons
-- `mark:` map keys and `"mark"` route/source string values
-- env vars `MARK_*`, function names, file/module names, `/api/v1/hermes`, "Hermes"
+- `=== "Arc"` / `source === "Arc"` comparisons
+- `arc:` map keys and `"arc"` route/source string values
+- env vars `ARC_*`, function names, file/module names, `/api/v1/arc`, "Arc"
 
 - [ ] **Step 3: Full test suite**
 
 Run: `pnpm test`
-Expected: PASS. For any failure asserting on rendered "Mark" copy, update to "Agent"; for fixture/data, restore. Re-run until green.
+Expected: PASS. For any failure asserting on rendered "Arc" copy, update to "Agent"; for fixture/data, restore. Re-run until green.
 
 - [ ] **Step 4: Type-check via build (lint does NOT type-check — project memory)**
 
@@ -495,12 +495,12 @@ Expected: compiles with no type errors. Fix any (e.g. a builder that now needs a
 
 - [ ] **Step 5: Manual smoke (optional but recommended)**
 
-Run: `pnpm dev`, open `/`, `/mark`, `/agent-operations`, `/campaigns`. Confirm copy reads "Agent" (default). In Settings, change the assistant name and confirm it propagates to nav + copy after reload.
+Run: `pnpm dev`, open `/`, `/arc`, `/agent-operations`, `/campaigns`. Confirm copy reads "Agent" (default). In Settings, change the assistant name and confirm it propagates to nav + copy after reload.
 
 - [ ] **Step 6: Final commit**
 
 ```bash
-git add src/app/mark/_data/demo.ts
+git add src/app/arc/_data/demo.ts
 git commit -m "feat: de-brand demo copy to Agent; finalize configurable agent name"
 ```
 
@@ -511,9 +511,9 @@ git commit -m "feat: de-brand demo copy to Agent; finalize configurable agent na
 - Default flip (3 sites) → Task 1. ✓
 - Client distribution (provider/hook in ConsoleFrame) → Task 1. ✓
 - Server distribution (cached `getAgentName`) → Task 1. ✓
-- Copy migration across agent-operations / mark / campaigns / shared / pages → Tasks 2–6. ✓
+- Copy migration across agent-operations / arc / campaigns / shared / pages → Tasks 2–6. ✓
 - Pronoun neutralization → called out per surface (Tasks 2, 4, 5). ✓
-- Data-vs-display nuance (`source === "Mark"`, map keys, author-name data) → Tasks 2, 4, 7. ✓
+- Data-vs-display nuance (`source === "Arc"`, map keys, author-name data) → Tasks 2, 4, 7. ✓
 - Demo/preview copy → Task 7. ✓
-- Out-of-scope preserved (Hermes, routes, modules, env, comments) → Swap convention + Task 7 Step 2. ✓
+- Out-of-scope preserved (Arc, routes, modules, env, comments) → Swap convention + Task 7 Step 2. ✓
 - Testing (`pnpm test` + `pnpm build`, scoped eslint) → per-task + Task 7. ✓

@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-09
 **Status:** Approved (brainstorming) → implementation
-**Scope:** Spec 1 of 2. Spec 2 (social posting via OAuth + Hermes) is deferred to its own spec.
+**Scope:** Spec 1 of 2. Spec 2 (social posting via OAuth + Arc) is deferred to its own spec.
 
 ## Goal
 
@@ -17,7 +17,7 @@ transport yet.
   unapproved content; the only real send is an operator-triggered, approval-gated
   dispatch.* (We update the older "the app never sends anything" doc-comments to this.)
 - **Secrets live in env vars**, never in the DB — matching every existing secret
-  (`SUPABASE_SERVICE_ROLE_KEY`, `HERMES_AGENT_API_TOKEN`). No encryption-at-rest layer
+  (`SUPABASE_SERVICE_ROLE_KEY`, `ARC_AGENT_API_TOKEN`). No encryption-at-rest layer
   is built in Spec 1. (Social OAuth tokens in Spec 2 will need encrypted storage —
   designed then.)
 - Layering: `src/domain/` (pure) → `src/lib/<feature>/` (I/O) → `src/app/<route>/`.
@@ -29,7 +29,7 @@ transport yet.
 | Channel | Who executes the real call | Rationale |
 |---|---|---|
 | Resend (email) | **The Next app** (server action → `fetch` to Resend) | One authenticated POST; self-contained, testable, no external worker needed. |
-| Social | **Hermes** (app only connects + enqueues) | OAuth per platform + token refresh + media + per-platform payloads belong in the executor. Deferred to Spec 2. |
+| Social | **Arc** (app only connects + enqueues) | OAuth per platform + token refresh + media + per-platform payloads belong in the executor. Deferred to Spec 2. |
 
 ## Data model
 
@@ -158,5 +158,5 @@ degradation like the rest of the app.
 
 ## Out of scope (Spec 2)
 
-Social OAuth flows, encrypted token storage, per-platform Hermes-executed posting,
+Social OAuth flows, encrypted token storage, per-platform Arc-executed posting,
 reconciliation of `campaign_dispatches` onto `outbound_dispatches`.

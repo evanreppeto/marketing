@@ -166,7 +166,7 @@ async function seedMediaCampaign() {
     company_id: companyId,
     contact_id: contactId,
     lead_id: leadId,
-    owner: "Arc (Arc)",
+    owner: "Arc",
     objective: "Review the full creative set — images, video, documents, and links — before approving the Spring Launch.",
     audience_summary: "Property managers and operations directors overseeing multifamily portfolios in 60091/60093/60201.",
     offer_summary: "Documented, insurance-ready water-loss response with a managed-building SLA and a vendor pre-approval packet.",

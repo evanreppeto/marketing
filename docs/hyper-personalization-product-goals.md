@@ -178,7 +178,7 @@ Needed:
 
 - Track competitor apps, category, target user, features, screenshots, pricing notes, integrations, demo status, and takeaways.
 - Add a feature matrix for HubSpot, ServiceTitan, CallRail, Podium, Hatch, Birdeye, HighLevel, ActiveCampaign, and other researched tools.
-- Mark each feature as adapt, ignore, later, or already covered.
+- Label each feature as adapt, ignore, later, or already covered.
 - Store demo notes and product screenshots as reference artifacts.
 
 ### Integration Registry

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MCP server exposing the BSR "Arc Operations API" as tools for the Arc/Arc
+MCP server exposing the BSR "Arc Operations API" as tools for the Arc
 agent, so Arc calls native tools instead of hand-crafting HTTP requests.
 
 Every tool is a thin wrapper over a bearer-gated endpoint on the deployed app

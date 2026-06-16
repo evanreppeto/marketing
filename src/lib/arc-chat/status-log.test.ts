@@ -29,8 +29,8 @@ describe("logArcChatStatus", () => {
   it("omits the conversation segment when not provided", () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
 
-    logArcChatStatus("waking_mark", { agentTaskId: "t3" });
+    logArcChatStatus("waking_arc", { agentTaskId: "t3" });
 
-    expect(info.mock.calls[0][0]).toBe("[arc-chat] waking_mark task=t3");
+    expect(info.mock.calls[0][0]).toBe("[arc-chat] waking_arc task=t3");
   });
 });

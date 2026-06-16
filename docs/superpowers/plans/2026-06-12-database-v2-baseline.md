@@ -87,7 +87,7 @@ Create the SQL file with these sections in order:
 5. CRM tables.
 6. Activity tables.
 7. Campaign and approval tables.
-8. Agent, Mark, and Vault tables.
+8. Agent, Arc, and Vault tables.
 9. Persona/guardrail tables.
 10. Indexes.
 11. RLS enablement.
@@ -164,7 +164,7 @@ select provider from public.connections order by provider;
 select count(*) as companies from public.companies;
 select count(*) as campaigns from public.campaigns;
 select count(*) as approvals from public.approval_items;
-select count(*) as mark_messages from public.mark_messages;
+select count(*) as arc_messages from public.arc_messages;
 ```
 
 Expected:
@@ -172,7 +172,7 @@ Expected:
 - One organization: `big-shoulders-restoration`.
 - Twelve persona rows.
 - Five connection registry rows.
-- Counts for companies, campaigns, approvals, and Mark messages are all `0`.
+- Counts for companies, campaigns, approvals, and Arc messages are all `0`.
 
 ## Task 4: Point The App At V2 And Regenerate Types
 
@@ -243,9 +243,9 @@ Create one real operator campaign only if you are ready for a real BSR record.
 Expected: campaign, assets, approval rows, and campaign events are created under
 the BSR organization.
 
-- [ ] **Step 4: Test Mark first thread**
+- [ ] **Step 4: Test Arc first thread**
 
-Send one real Mark message only if the new project is meant to store it.
+Send one real Arc message only if the new project is meant to store it.
 Expected: one conversation and one operator message are created under BSR.
 
 ## Task 6: Decide Legacy Migration Replacement

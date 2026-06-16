@@ -14,7 +14,7 @@ component — recolored to the brand palette and adapted to this codebase.
 ## Decisions (from brainstorming)
 
 - **Target:** the global app nav rail only (`<aside>` in `src/app/_components/console-frame.tsx`,
-  styled by `theme.shell.sidebar`). Not the Mark thread sidebar.
+  styled by `theme.shell.sidebar`). Not the Arc thread sidebar.
 - **Palette:** recolor to the brand palette (Command Charcoal base + antique gold + a muted
   Restoration Red), **fixed** — not driven by the active theme accent. This respects
   `DESIGN.md` ("no purple/neon AI aesthetic"); the component's neon-purple defaults are NOT used.
@@ -25,7 +25,7 @@ component — recolored to the brand palette and adapted to this codebase.
 
 - **Tailwind v4, CSS-first.** No `tailwind.config.js`. Keyframes/animations are registered in
   `src/app/globals.css` (it already defines `@keyframes` + `@theme inline` and custom animation
-  classes like `.msg-rise`, `.mark-aurora`). The instructions' `tailwind.config.js` block is
+  classes like `.msg-rise`, `.arc-aurora`). The instructions' `tailwind.config.js` block is
   translated into v4 CSS, NOT added as a JS config.
 - **No `@/lib/utils` `cn`.** The project uses `cx` from `@/app/_components/theme`. The component
   must import `cx`.
@@ -172,6 +172,6 @@ ConsoleFrame <aside> (relative isolate overflow-hidden, bg --surface-sidebar)
 
 ## Out of scope
 
-- The Mark thread sidebar and any other surface.
+- The Arc thread sidebar and any other surface.
 - Theme-accent-driven coloring (fixed brand palette chosen).
 - Interactive pointer-follow (kept in the component but off by default).

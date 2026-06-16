@@ -9,30 +9,30 @@
 A UI/quality pass on the shared Kanban board (`/board`, rendered by
 `src/app/agent-operations/task-kanban-board.tsx`). The board already works
 server-side (5 lifecycle columns, drag-to-transition with guardrails, agent
-filter, free-form task creation, and Mark's `/api/v1/hermes/tasks` claim/log/
+filter, free-form task creation, and Arc's `/api/v1/arc/tasks` claim/log/
 complete/block API). What's thin is the **card itself** — today it is near-flat
 text — and the board's sense of being a *live, shared* surface between the
-operator (Evan) and the agent (Mark).
+operator (Evan) and the agent (Arc).
 
 This design does three things:
 
 1. **Redesign the task card** into a scannable unit with progress, priority,
    risk grammar, owner avatar, linked record, and due/age.
 2. **Add an "alive" layer** — agent presence, status-change motion, and a draft
-   shimmer — so you can watch Mark work.
-3. **Add a client-side demo toggle** so the live feel is visible *before* Mark
+   shimmer — so you can watch Arc work.
+3. **Add a client-side demo toggle** so the live feel is visible *before* Arc
    is wired into the app, using the same animation hooks that fire for real once
    he connects.
 
-It is **not** a backend protocol change. Mark's task API, the move guardrails,
+It is **not** a backend protocol change. Arc's task API, the move guardrails,
 and the approval gate are untouched.
 
 ## 2. Goals / non-goals
 
 **Goals**
 - Higher-quality, more legible cards that read at a glance.
-- The board feels alive: presence, motion, and an obvious "Mark is working" cue.
-- Mark's identity on the board is the **same** as in the chat (single source of
+- The board feels alive: presence, motion, and an obvious "Arc is working" cue.
+- Arc's identity on the board is the **same** as in the chat (single source of
   truth), and the human avatar slot is profile-picture-ready.
 - Everything degrades gracefully: no fake data, motion respects
   `prefers-reduced-motion`, and nothing breaks when Supabase is unconfigured.
@@ -41,14 +41,14 @@ and the approval gate are untouched.
 - No inline intervention controls (approve/answer/reassign on the card) — later.
 - No activity-feed rail — later.
 - No Supabase Realtime push — interval polling is sufficient for v1.
-- No changes to Mark's agent API or the move/approval guardrails.
+- No changes to Arc's agent API or the move/approval guardrails.
 
 ## 3. Locked decisions
 
 | # | Decision | Choice |
 |---|----------|--------|
 | 1 | Direction | **Elevated, alive task card** (directions C/D deferred) |
-| 2 | Mark's avatar | **Reuse the chat's `<MarkSphere>` + presence dot** — promoted to a shared component |
+| 2 | Arc's avatar | **Reuse the chat's `<MarkSphere>` + presence dot** — promoted to a shared component |
 | 3 | Human avatar | **Same circular slot**, `profilePictureUrl` with initials fallback (photos later) |
 | 4 | Demo mode | **Toggle, off by default**; client-side only, writes no data |
 | 5 | Blast radius | **Card + light board polish** (WIP counts, better empty states) |
@@ -63,13 +63,13 @@ Follows the app's `domain → lib → app` convention. No I/O moves into `domain
   `dueAt` on `AgentOperationsTask` (both already on `agent_tasks`; `due_at` must
   be added to the `select`). Add an optional `progress` field derived from
   `metadata.progress` when present.
-- `src/app/mark/_components/mark-avatar.tsx` (new) — promote the `MarkAvatar`
+- `src/app/arc/_components/arc-avatar.tsx` (new) — promote the `MarkAvatar`
   currently inline in `message-list.tsx` (sphere + teal presence dot + thinking
   ring) into a shared, reusable component. `message-list.tsx` imports it instead
   of defining it locally — **no visual change to the chat.**
 - `src/app/_components/entity-avatar.tsx` (new) — a thin chooser: given an owner
   (`{ kind: "agent" } | { kind: "human", profilePictureUrl?, name }`), renders
-  Mark's `MarkAvatar` for the agent or a circular human avatar (photo →
+  Arc's `MarkAvatar` for the agent or a circular human avatar (photo →
   initials). The board and any future surface use this one component.
 - `src/app/agent-operations/task-kanban-board.tsx` (rewrite the `Card` fn) — new
   card anatomy, presence/motion, and a `demo` toggle in the board toolbar.
@@ -80,7 +80,7 @@ Follows the app's `domain → lib → app` convention. No I/O moves into `domain
 
 Top to bottom (left bar = risk color, as today):
 
-- **Header row:** owner avatar (Mark sphere / human photo) + objective (2-line
+- **Header row:** owner avatar (Arc sphere / human photo) + objective (2-line
   clamp) + a muted subtitle (`task type · #shortId`).
 - **Progress** (optional): a thin bar + "12 of 20" label, only when
   `metadata.progress = { done, total }` is present. Hidden otherwise.
@@ -88,7 +88,7 @@ Top to bottom (left bar = risk color, as today):
   chip (campaign / lead), and the "Outbound locked" marker when an approval is
   attached.
 - **Foot row:** due/age (`⧖ due in 2d`) and, when the agent is actively on the
-  card, a live presence cue (`● Mark · live`).
+  card, a live presence cue (`● Arc · live`).
 
 Status grammar (unchanged from the kanban design doc): **gold = needs you,
 green = ok, red = genuinely high/destructive.**
@@ -112,7 +112,7 @@ In `getAgentOperationsDashboard` → `mapTask`:
 The chat's `MarkAvatar` (in `message-list.tsx`) is the source of truth: a
 `<MarkSphere size>` with a teal presence dot and an optional thinking ring. We:
 
-1. Move it to `mark-avatar.tsx`, export `MarkAvatar({ size, pending, online })`.
+1. Move it to `arc-avatar.tsx`, export `MarkAvatar({ size, pending, online })`.
    `message-list.tsx` imports it — pixel-identical chat behavior.
 2. `EntityAvatar` renders `MarkAvatar` for agent owners and a circular human
    avatar (CSS `object-cover` photo, initials fallback) for human owners.
@@ -123,7 +123,7 @@ CSS `<MarkOrb>` fallback applies when WebGL is unavailable.
 
 ## 8. Alive layer
 
-- **Presence:** the teal dot + `● Mark · live` show only while the agent is on
+- **Presence:** the teal dot + `● Arc · live` show only while the agent is on
   the card (status `running`, or `metadata.active === true`).
 - **Status-change motion:** when a card's status changes between renders, it
   slides into its new column. Reuses the motion vocabulary already in the file's
@@ -138,7 +138,7 @@ CSS `<MarkOrb>` fallback applies when WebGL is unavailable.
 - A **"Demo"** toggle in the board toolbar (next to the agent filter), **off by
   default**, client-state only.
 - When on, a single simulated card advances Queued → Running (draft shimmer +
-  "Mark working…") → Needs approval → Completed on a loop, driven by the pure
+  "Arc working…") → Needs approval → Completed on a loop, driven by the pure
   `nextDemoFrame` domain function.
 - **Writes no data.** It is layered over the real board purely in the client and
   vanishes when toggled off. Fully reversible, demo-safe (honors the
@@ -149,7 +149,7 @@ CSS `<MarkOrb>` fallback applies when WebGL is unavailable.
 
 A lightweight interval that calls `router.refresh()` while the board is mounted
 and the tab is visible (pauses on `visibilitychange` hidden). This reuses the
-board's existing `revalidatePath` server model — when Mark moves a task or
+board's existing `revalidatePath` server model — when Arc moves a task or
 reports progress via his API, the next refresh reflects it, and the
 status-change motion plays. Supabase Realtime (true push) is explicitly a later,
 separate upgrade.
@@ -185,10 +185,10 @@ Follows the wired-feature shape:
 - Supabase Realtime push updates.
 - Per-user profile-picture upload/storage (the slot is built; the upload flow is
   a separate project). Until then humans render initials.
-- Any change to Mark's agent API, move guardrails, or the approval gate.
+- Any change to Arc's agent API, move guardrails, or the approval gate.
 
 ## 14. Open questions
 
 None blocking. The shape of `metadata.progress` is defined here
-(`{ done, total }`); if Mark later reports progress differently, `parseProgress`
+(`{ done, total }`); if Arc later reports progress differently, `parseProgress`
 is the single adapter point.
