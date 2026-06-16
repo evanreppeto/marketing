@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type MarkMode, type MarkRoute } from "@/domain";
+import { parseMarkRoute, type MarkMode, type MarkRoute } from "@/domain";
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
@@ -48,7 +48,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   brandFaviconUrl: "/icon.png",
   supportEmail: "",
   markDefaultMode: "act",
-  markDefaultRoute: "fast",
+  markDefaultRoute: "claude-sonnet-4-6",
   appearanceAccent: "gold",
   appearanceDensity: "comfortable",
   appearanceMotion: "standard",
@@ -112,7 +112,7 @@ function appMarkMode(value: unknown): MarkMode {
 }
 
 function appMarkRoute(value: unknown): MarkRoute {
-  return value === "fast" || value === "standard" ? value : DEFAULT_APP_SETTINGS.markDefaultRoute;
+  return parseMarkRoute(value);
 }
 
 export function appAppearanceAccent(value: unknown): AppearanceAccent {

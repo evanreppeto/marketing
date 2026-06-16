@@ -2,6 +2,8 @@
 
 import { useActionState, useRef, useState } from "react";
 
+import type { MarkMode, MarkRoute } from "@/domain";
+
 import { useAgentName } from "../_components/agent-name-context";
 import { Button } from "../_components/page-header";
 import {
@@ -18,6 +20,13 @@ const inputClass =
 
 const radioCardClass =
   "flex min-h-12 cursor-pointer items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-secondary)] transition has-[:checked]:border-[var(--accent-border-strong)] has-[:checked]:bg-[var(--accent-soft)] has-[:checked]:text-[var(--text-primary)]";
+
+const modelRouteOptions: { value: MarkRoute; label: string; hint: string }[] = [
+  { value: "claude-fable-5", label: "Claude Fable 5", hint: "Highest capability" },
+  { value: "claude-opus-4-8", label: "Claude Opus 4.8", hint: "Deep reasoning" },
+  { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", hint: "Balanced default" },
+  { value: "claude-haiku-4-5", label: "Claude Haiku 4.5", hint: "Fastest" },
+];
 
 function Feedback({ state }: { state: SettingsActionState }) {
   if (!state) return null;
@@ -289,8 +298,8 @@ export function MarkDefaultsForm({
   initialMode,
   initialRoute,
 }: {
-  initialMode: "ask" | "act" | "draft";
-  initialRoute: "fast" | "standard";
+  initialMode: MarkMode;
+  initialRoute: MarkRoute;
 }) {
   const agentName = useAgentName();
   const [state, action, pending] = useActionState(saveMarkDefaultsAction, null);
@@ -313,8 +322,11 @@ export function MarkDefaultsForm({
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Default model route</span>
           <select className={inputClass} defaultValue={initialRoute} name="markDefaultRoute">
-            <option value="fast">Fast - routine chat and lookup</option>
-            <option value="standard">Standard - deeper drafting/reasoning</option>
+            {modelRouteOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} - {option.hint}
+              </option>
+            ))}
           </select>
           <span className="text-xs text-[var(--text-muted)]">
             Sent to the agent as metadata so Hermes can choose the right runner path.
@@ -455,8 +467,8 @@ export function AgentBehaviorSettingsForm({
   initialTone: "direct" | "friendly" | "formal" | "sales";
   initialResponseStyle: "brief" | "balanced" | "detailed";
   initialApprovalStrictness: "light" | "standard" | "strict";
-  initialMode: "ask" | "act" | "draft";
-  initialRoute: "fast" | "standard";
+  initialMode: MarkMode;
+  initialRoute: MarkRoute;
 }) {
   const [state, action, pending] = useActionState(saveAgentBehaviorSettingsAction, null);
   const [tone, setTone] = useState(initialTone);
@@ -564,8 +576,11 @@ export function AgentBehaviorSettingsForm({
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Default model route</span>
           <select className={inputClass} defaultValue={initialRoute} name="markDefaultRoute">
-            <option value="fast">Fast - routine chat and lookup</option>
-            <option value="standard">Standard - deeper drafting/reasoning</option>
+            {modelRouteOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} - {option.hint}
+              </option>
+            ))}
           </select>
         </label>
       </div>

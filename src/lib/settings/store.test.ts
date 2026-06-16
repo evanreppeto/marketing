@@ -70,7 +70,7 @@ describe("settings store helpers", () => {
       brandFaviconUrl: "/brand/custom-icon.png",
       supportEmail: "help@example.com",
       markDefaultMode: "draft",
-      markDefaultRoute: "standard",
+      markDefaultRoute: "claude-sonnet-4-6",
       appearanceAccent: "emerald",
       appearanceDensity: "compact",
       appearanceMotion: "reduced",
@@ -97,7 +97,7 @@ describe("settings store helpers", () => {
     ]);
 
     expect(settings.markDefaultMode).toBe("act");
-    expect(settings.markDefaultRoute).toBe("fast");
+    expect(settings.markDefaultRoute).toBe("claude-sonnet-4-6");
     expect(settings.appearanceAccent).toBe("gold");
     expect(settings.appearanceDensity).toBe("comfortable");
     expect(settings.appearanceMotion).toBe("standard");

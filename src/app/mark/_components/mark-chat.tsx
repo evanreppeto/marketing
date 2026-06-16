@@ -124,7 +124,7 @@ export function MarkChat({
   operatorName,
   pendingApprovals,
   defaultMode = "act",
-  defaultRoute = "fast",
+  defaultRoute = "claude-sonnet-4-6",
   assistantName = "Agent",
   demo = false,
 }: {

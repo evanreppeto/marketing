@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-import { type MarkMention } from "@/domain";
+import { type MarkMention, type MarkRoute } from "@/domain";
 import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTone } from "@/lib/settings/store";
 
 import { resolveAgentConnection } from "@/lib/agent/connection";
@@ -22,7 +22,7 @@ export type MarkNotifyPayload = {
    * path ("fast"); reserve "standard" for heavier work. The app holds no model
    * keys — this is only advisory metadata for Mark's own router.
    */
-  route: "fast" | "standard";
+  route: MarkRoute;
   /** Operator stance (ask/act/draft); advisory for Mark's worker. */
   mode: "ask" | "act" | "draft";
   /** Operator-selected behavior hints from Settings -> Agent behavior. */

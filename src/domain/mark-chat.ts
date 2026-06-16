@@ -165,10 +165,19 @@ export function validateMarkMessageInput(input: { body: string; mentions: MarkMe
 }
 
 export type MarkMode = "ask" | "act" | "draft";
-export type MarkRoute = "fast" | "standard";
+export type MarkRoute =
+  | "claude-fable-5"
+  | "claude-opus-4-8"
+  | "claude-sonnet-4-6"
+  | "claude-haiku-4-5";
 
 const MARK_MODES: readonly MarkMode[] = ["ask", "act", "draft"];
-const MARK_ROUTES: readonly MarkRoute[] = ["fast", "standard"];
+const MARK_ROUTES: readonly MarkRoute[] = [
+  "claude-fable-5",
+  "claude-opus-4-8",
+  "claude-sonnet-4-6",
+  "claude-haiku-4-5",
+];
 
 /** Parse the composer's stance; anything unrecognized falls back to read-only "ask". */
 export function parseMarkMode(value: unknown): MarkMode {
@@ -177,11 +186,13 @@ export function parseMarkMode(value: unknown): MarkMode {
     : "ask";
 }
 
-/** Parse the model routing hint; anything unrecognized stays on the cheap/fast lane. */
+/** Parse the model routing hint; legacy routes map to current Claude model IDs. */
 export function parseMarkRoute(value: unknown): MarkRoute {
+  if (value === "fast") return "claude-haiku-4-5";
+  if (value === "standard") return "claude-sonnet-4-6";
   return typeof value === "string" && (MARK_ROUTES as readonly string[]).includes(value)
     ? (value as MarkRoute)
-    : "fast";
+    : "claude-sonnet-4-6";
 }
 
 export type MarkActionFlag = { tone: "ok" | "warn" | "risk"; label: string };

@@ -17,15 +17,22 @@ describe("parseMarkMode", () => {
 });
 
 describe("parseMarkRoute", () => {
-  it("accepts the two valid model routes", () => {
-    expect(parseMarkRoute("fast")).toBe("fast");
-    expect(parseMarkRoute("standard")).toBe("standard");
+  it("accepts the current Claude model routes", () => {
+    expect(parseMarkRoute("claude-fable-5")).toBe("claude-fable-5");
+    expect(parseMarkRoute("claude-opus-4-8")).toBe("claude-opus-4-8");
+    expect(parseMarkRoute("claude-sonnet-4-6")).toBe("claude-sonnet-4-6");
+    expect(parseMarkRoute("claude-haiku-4-5")).toBe("claude-haiku-4-5");
   });
 
-  it("defaults unknown / empty / non-string routes to fast", () => {
-    expect(parseMarkRoute("expensive")).toBe("fast");
-    expect(parseMarkRoute("")).toBe("fast");
-    expect(parseMarkRoute(undefined)).toBe("fast");
-    expect(parseMarkRoute(42)).toBe("fast");
+  it("maps legacy route names to current Claude model routes", () => {
+    expect(parseMarkRoute("fast")).toBe("claude-haiku-4-5");
+    expect(parseMarkRoute("standard")).toBe("claude-sonnet-4-6");
+  });
+
+  it("defaults unknown / empty / non-string routes to Sonnet", () => {
+    expect(parseMarkRoute("expensive")).toBe("claude-sonnet-4-6");
+    expect(parseMarkRoute("")).toBe("claude-sonnet-4-6");
+    expect(parseMarkRoute(undefined)).toBe("claude-sonnet-4-6");
+    expect(parseMarkRoute(42)).toBe("claude-sonnet-4-6");
   });
 });

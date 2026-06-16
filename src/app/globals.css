@@ -73,6 +73,7 @@
   --neutral-hover: #3a3a42;
   --neutral-on: #e7e7ea;
   --neutral-border: rgba(120, 120, 130, 0.52);
+  --radius: 0.5rem;
 
   /* Elevation — neutral shadows */
   --elev-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset,
