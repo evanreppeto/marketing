@@ -82,7 +82,7 @@ export function CampaignCover({
             href={`/campaigns/${campaign.id}`}
             className="shrink-0 text-[11px] font-semibold text-[var(--accent-contrast)] transition hover:underline"
           >
-            Open ▸
+            Open
           </Link>
         ) : null}
       </div>

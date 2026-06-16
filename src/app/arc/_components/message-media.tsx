@@ -96,7 +96,7 @@ export function MessageMedia({ media, conversationId, messageId }: { media: ArcM
                     href={item.href}
                     className="shrink-0 text-xs font-semibold text-[var(--accent)] transition hover:text-[var(--accent-contrast)]"
                   >
-                    Open ▸
+                    Open
                   </Link>
                 ) : null}
               </figcaption>

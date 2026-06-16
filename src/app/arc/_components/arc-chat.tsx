@@ -297,7 +297,7 @@ export function ArcChat({
     setMessages((prev) => [
       ...prev,
       {
-        id: `temp-pending-${markMessageId}`,
+        id: `temp-pending-${markMessageId}-${Date.now()}`,
         conversationId: activeId,
         role: "arc",
         body: "",
@@ -336,7 +336,7 @@ export function ArcChat({
       return [
         ...updated,
         {
-          id: `temp-pending-edit-${messageId}`,
+          id: `temp-pending-edit-${messageId}-${Date.now()}`,
           conversationId: activeId,
           role: "arc",
           body: "",
@@ -577,7 +577,7 @@ export function ArcChat({
                 </svg>
                 <span className="hidden sm:inline">Runs</span>
                 {runningConversationIds.size > 0 ? (
-                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold tabular-nums text-[var(--on-accent)]">
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold tabular-nums text-[var(--on-accent)]">
                     {runningConversationIds.size}
                   </span>
                 ) : null}

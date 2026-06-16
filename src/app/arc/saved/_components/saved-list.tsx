@@ -39,7 +39,7 @@ export function SavedList({ items, campaigns }: { items: SavedItem[]; campaigns:
                 <div className="mt-1 flex items-center gap-2">
                   {item.promotedCampaignId ? (
                     <Link href={`/campaigns/${item.promotedCampaignId}`} className="text-xs font-semibold text-[var(--ok-text)]">
-                      Promoted ▸
+                      Promoted
                     </Link>
                   ) : (
                     <button

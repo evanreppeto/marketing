@@ -168,7 +168,7 @@ function ChainOfThoughtTrace({
             status={s.status === "done" ? "complete" : "active"}
           >
             {s.detail && s.detail.length > 0 ? (
-              <div className="space-y-0.5 text-muted-foreground text-xs">
+              <div className="space-y-0.5 text-[var(--text-muted)] text-xs">
                 {s.detail.map((d, j) => (
                   <div key={`${j}-${d}`}>– {d}</div>
                 ))}
@@ -442,7 +442,9 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: string[]; onPic
           onClick={() => onPick(s)}
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
         >
-          <span aria-hidden className="text-[var(--accent)]">→</span>
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 10h11M11 6l4 4-4 4" />
+          </svg>
           {s}
         </button>
       ))}
