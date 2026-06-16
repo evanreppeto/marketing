@@ -9,7 +9,7 @@ import type { ArcMode, ArcRoute } from "@/domain";
 
 import { cx } from "@/app/_components/theme";
 
-import { cancelReplyAction, editAndResendArcMessageAction, regenerateArcReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
+import { cancelReplyAction, editAndResendArcMessageAction, getActiveArcRunsAction, regenerateArcReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
 import Link from "next/link";
 
 import { ChatSettings } from "./chat-settings";
@@ -394,6 +394,38 @@ export function ArcChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replyPending]);
 
+  // Cross-thread run visibility: poll which conversations have an Arc run in
+  // flight so the sidebar can show live "working…" pulses on threads other than
+  // the one in view. Skipped in demo (no backend). The active thread reflects
+  // its own pending state immediately via replyPending below.
+  const [runningIds, setRunningIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    if (demo) return;
+    let alive = true;
+    async function tick() {
+      try {
+        const ids = await getActiveArcRunsAction();
+        if (alive) setRunningIds(new Set(ids));
+      } catch {
+        /* best-effort; keep the last known set */
+      }
+    }
+    void tick();
+    const id = setInterval(tick, 4000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [demo]);
+
+  // Merge the live server set with the active thread's optimistic pending state
+  // so the dot appears the instant you send, before the next poll.
+  const runningConversationIds = useMemo(() => {
+    const set = new Set(runningIds);
+    if (replyPending && activeId) set.add(activeId);
+    return set;
+  }, [runningIds, replyPending, activeId]);
+
   // The campaign this thread is producing — drives the Studio Assets-tab cover.
   const activeCampaign = activeCampaignId
     ? { id: activeCampaignId, name: campaigns.find((c) => c.id === activeCampaignId)?.name ?? "Campaign" }
@@ -460,6 +492,7 @@ export function ArcChat({
           showArchived={showArchived}
           activeId={activeId}
           assistantName={assistantName}
+          runningIds={runningConversationIds}
         />
         <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
           {/* Ambient silk backdrop — the 21st.dev MeshGradient shader, obsidian+gold. */}
@@ -698,6 +731,7 @@ export function ArcChat({
               activeId={activeId}
               variant="overlay"
               assistantName={assistantName}
+              runningIds={runningConversationIds}
             />
           </div>
         </div>

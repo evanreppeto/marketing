@@ -196,6 +196,28 @@ export async function listConversations(
   return ((data ?? []) as ConversationRow[]).map(toConversation);
 }
 
+/**
+ * Conversation ids that currently have an Arc run in flight (queued or running)
+ * — powers the cross-thread "Arc is working…" indicators in the sidebar. Reads
+ * the agent_tasks queue by the arc-chat source link; cheap distinct scan.
+ */
+export async function listActiveArcRunConversationIds(
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<string[]> {
+  const { data, error } = await client
+    .from("agent_tasks")
+    .select("source_id")
+    .eq("task_type", "arc_chat_message")
+    .eq("source_type", "arc_conversation")
+    .in("status", ["queued", "running"]);
+  assertOk("agent_tasks active arc runs", error);
+  const ids = new Set<string>();
+  for (const row of (data ?? []) as { source_id: string | null }[]) {
+    if (row.source_id) ids.add(row.source_id);
+  }
+  return [...ids];
+}
+
 export async function getConversation(
   id: string,
   client: SupabaseClient = getSupabaseAdminClient(),
