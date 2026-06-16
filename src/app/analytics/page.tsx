@@ -28,15 +28,21 @@ const SEGMENT_DOT: Record<DonutSegment["toneVar"], string> = {
   muted: "bg-[var(--border-strong)]",
 };
 
-export default async function AnalyticsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[]>> }) {
+export default async function AnalyticsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   await connection();
 
-  // searchParams kept in signature for Next.js compatibility; tabs are gone.
-  void searchParams;
+  const params = searchParams ? await searchParams : {};
+  const rawRange = Array.isArray(params.range) ? params.range[0] : params.range;
+  const RANGES = [
+    { v: 30, label: "30 days", short: "30d" },
+    { v: 90, label: "90 days", short: "90d" },
+    { v: 365, label: "1 year", short: "1y" },
+  ] as const;
+  const activeRange = RANGES.find((r) => String(r.v) === rawRange) ?? RANGES[0];
 
   const [list, performance, settings] = await Promise.all([
     getCampaignWorkspaceList(),
-    getPerformanceReadModel(),
+    getPerformanceReadModel(undefined, activeRange.v),
     getAppSettings(),
   ]);
   const brand = { workspaceName: settings.workspaceName, logoUrl: settings.brandLogoUrl };
@@ -73,8 +79,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
   const kpis: Kpi[] = [
     { label: "Waiting on you", value: String(waitingOnYou), caption: waitingOnYou > 0 ? "need approval" : "all clear", toneVar: "warn", href: waitingOnYou > 0 ? "/campaigns" : undefined },
     { label: "Approved & ready", value: String(readyCount), caption: "signed off", toneVar: "ok" },
-    { label: "Leads (30d)", value: perf ? String(perf.leadsRecent.count) : "—", delta: perf ? perf.leadsRecent.delta : null, toneVar: "accent" },
-    { label: "Revenue linked (30d)", value: perf ? fmtMoney(perf.revenueRecent.cents) : "—", delta: perf ? perf.revenueRecent.delta : null, toneVar: "accent" },
+    { label: `Leads (${activeRange.short})`, value: perf ? String(perf.leadsRecent.count) : "—", delta: perf ? perf.leadsRecent.delta : null, toneVar: "accent" },
+    { label: `Revenue linked (${activeRange.short})`, value: perf ? fmtMoney(perf.revenueRecent.cents) : "—", delta: perf ? perf.revenueRecent.delta : null, toneVar: "accent" },
   ];
   const takeaway = buildTakeaway(split, waitingOnYou);
   // Only link to detail sections that actually render — they exist only when performance is live.
@@ -95,11 +101,26 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
       <AnalyticsHeader brand={brand} />
       <SectionNav links={sectionLinks} />
 
+      <div className="mb-5 flex items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Range</span>
+        <div className="inline-flex overflow-hidden rounded-lg border border-[var(--border-panel)]">
+          {RANGES.map((r) => (
+            <Link
+              key={r.v}
+              href={`/analytics?range=${r.v}`}
+              className={`px-3 py-1 text-xs font-semibold transition ${activeRange.v === r.v ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"}`}
+            >
+              {r.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
       <section id="overview" aria-label="Overview" className="scroll-mt-20">
         <KpiBand kpis={kpis} />
         <TakeawayBanner text={takeaway} />
         <div className="mb-5 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
-          <WorkspacePanel eyebrow="Trend" title="Leads & booked work" description="New leads vs. booked jobs over the last 8 weeks.">
+          <WorkspacePanel eyebrow="Trend" title="Leads & booked work" description="New leads vs. booked jobs over the selected range.">
             {perf ? <TrendChart data={perf.trend} /> : <EmptyState title="Trend unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />}
           </WorkspacePanel>
           <WorkspacePanel eyebrow="Readiness" title="Portfolio approval">
