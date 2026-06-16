@@ -41,6 +41,20 @@ export type BuildDeployLaunchpadInput = {
   connections: ConnectionView[];
 };
 
+/** Assemble the clipboard text for a piece — Subject-prefixed for email, body otherwise. */
+export function assembleCopyText(asset: CampaignWorkspaceAsset): string {
+  const body = asset.body.trim() || asset.preview.trim() || "No content yet.";
+  return contentWhere(asset) === "Email" ? `Subject: ${asset.title}\n\n${body}` : body;
+}
+
+/** Whether a channel can be deployed (its send connection is live). Email→any connected
+ *  email connection; Social→any connected social connection; everything else is share-only. */
+export function isChannelDeployable(channel: string, connections: ConnectionView[]): boolean {
+  if (channel === "Email") return connections.some((c) => c.kind === "email" && c.status === "connected");
+  if (channel === "Social") return connections.some((c) => c.kind === "social" && c.status === "connected");
+  return false;
+}
+
 function copyLabelFor(channel: string): string {
   if (channel === "Social") return "Copy caption";
   return "Copy text";
@@ -74,8 +88,7 @@ function buildPiece(asset: CampaignWorkspaceAsset, launchState: CampaignLaunchSt
     lockReason = statusLabel === "Blocked" ? "Needs rework" : "Approve first";
   }
 
-  const body = asset.body.trim() || asset.preview.trim() || "No content yet.";
-  const copyText = channel === "Email" ? `Subject: ${asset.title}\n\n${body}` : body;
+  const copyText = assembleCopyText(asset);
 
   return {
     id: asset.id,
@@ -86,7 +99,7 @@ function buildPiece(asset: CampaignWorkspaceAsset, launchState: CampaignLaunchSt
     connectable,
     connectionReady,
     connectionLabel,
-    previewText: asset.preview.trim() || body,
+    previewText: asset.preview.trim() || asset.body.trim() || "No content yet.",
     mediaUrls: asset.media.filter((m) => m.type === "image" || m.type === "video" || m.type === "file").map((m) => m.url),
     copyText,
     copyLabel: copyLabelFor(channel),

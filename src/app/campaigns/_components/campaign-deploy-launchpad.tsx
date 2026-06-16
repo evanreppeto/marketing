@@ -31,8 +31,7 @@ export function CampaignDeployLaunchpad({
     >
       <header className="flex flex-col gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <div className="signal-eyebrow">Deploy &amp; share</div>
-          <h2 className="mt-1 text-xl font-bold text-[var(--text-primary)]">
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">
             {launchpad.readyCount} of {launchpad.totalShippable} piece{launchpad.totalShippable === 1 ? "" : "s"} ready to ship
           </h2>
           <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
@@ -108,7 +107,7 @@ function PieceActions({ piece, campaignId }: { piece: DeployPiece; campaignId: s
       <CopyTextButton text={piece.copyText} label={piece.copyLabel} />
       {piece.mediaUrls.map((url, i) => (
         <a
-          key={url}
+          key={`${url}-${i}`}
           href={url}
           target="_blank"
           rel="noreferrer"

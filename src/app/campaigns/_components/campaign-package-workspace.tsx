@@ -4,8 +4,10 @@ import { useActionState, useMemo, useState } from "react";
 
 import { Button, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
+import type { ConnectionView } from "@/lib/connections/read-model";
 
 import { AssetPreview } from "./asset-preview";
+import { assembleCopyText, isChannelDeployable } from "./campaign-deploy-model";
 import { contentStatusForLaunch, contentWhere, type CampaignPackageSummary, type PlainTone } from "./campaign-detail-model";
 import { CopyTextButton } from "./copy-text-button";
 import { DecisionControls } from "./decision-controls";
@@ -17,12 +19,14 @@ export function CampaignPackageWorkspace({
   agentName,
   assets,
   campaignId,
+  connections,
   launchState,
   summary,
 }: {
   agentName: string;
   assets: CampaignWorkspaceAsset[];
   campaignId: string;
+  connections: ConnectionView[];
   launchState: LiveCampaignWorkspace["launchState"];
   summary: CampaignPackageSummary;
 }) {
@@ -80,7 +84,7 @@ export function CampaignPackageWorkspace({
       {selectedAsset ? (
         <div className="grid min-h-[28rem] lg:grid-cols-[18rem_minmax(0,1fr)]">
           <PieceSelector assets={visibleAssets} launchState={launchState} selectedAssetId={selectedAsset.id} onSelect={selectAsset} />
-          <CampaignPiece asset={selectedAsset} campaignId={campaignId} launchState={launchState} agentName={agentName} />
+          <CampaignPiece asset={selectedAsset} campaignId={campaignId} connections={connections} launchState={launchState} agentName={agentName} />
         </div>
       ) : (
         <div className="p-5">
@@ -144,11 +148,13 @@ function PieceSelector({
 function CampaignPiece({
   asset,
   campaignId,
+  connections,
   launchState,
   agentName,
 }: {
   asset: CampaignWorkspaceAsset;
   campaignId: string;
+  connections: ConnectionView[];
   launchState: LiveCampaignWorkspace["launchState"];
   agentName: string;
 }) {
@@ -185,7 +191,7 @@ function CampaignPiece({
             <DecisionControls campaignId={campaignId} assetId={asset.id} labels={decisionLabelsForTarget()} />
           </div>
         ) : (
-          <InlineDeployShortcut asset={asset} campaignId={campaignId} status={status} />
+          <InlineDeployShortcut asset={asset} campaignId={campaignId} status={status} connections={connections} />
         )}
       </div>
     </article>
@@ -347,16 +353,18 @@ function InlineDeployShortcut({
   asset,
   campaignId,
   status,
+  connections,
 }: {
   asset: CampaignWorkspaceAsset;
   campaignId: string;
   status: { label: string };
+  connections: ConnectionView[];
 }) {
   const [state, formAction, isPending] = useActionState(deployAssetAction, null);
   const isLive = status.label === "Live";
   const channel = contentWhere(asset);
-  const body = asset.body.trim() || asset.preview.trim();
-  const copyText = channel === "Email" ? `Subject: ${asset.title}\n\n${body}` : body;
+  const deployable = isChannelDeployable(channel, connections);
+  const copyText = assembleCopyText(asset);
 
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
@@ -369,13 +377,15 @@ function InlineDeployShortcut({
         </p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <form action={formAction} className="flex items-center gap-2">
-            <input type="hidden" name="assetId" value={asset.id} />
-            <input type="hidden" name="campaignId" value={campaignId} />
-            <Button type="submit" variant="primary" size="sm" disabled={isPending}>
-              {isPending ? "Deploying…" : "Deploy this piece"}
-            </Button>
-          </form>
+          {deployable ? (
+            <form action={formAction} className="flex items-center gap-2">
+              <input type="hidden" name="assetId" value={asset.id} />
+              <input type="hidden" name="campaignId" value={campaignId} />
+              <Button type="submit" variant="primary" size="sm" disabled={isPending}>
+                {isPending ? "Deploying…" : "Deploy this piece"}
+              </Button>
+            </form>
+          ) : null}
           <CopyTextButton text={copyText} label={channel === "Social" ? "Copy caption" : "Copy text"} />
           {state ? (
             <span className={`text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--warn-text)]"}`}>

@@ -87,6 +87,7 @@ export function CampaignSimpleDetail({
           agentName={agentName}
           assets={detail.assets}
           campaignId={campaign.id}
+          connections={connections}
           launchState={detail.launchState}
           summary={packageSummary}
         />
