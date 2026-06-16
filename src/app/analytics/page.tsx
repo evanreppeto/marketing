@@ -77,12 +77,17 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
     { label: "Revenue linked (30d)", value: perf ? fmtMoney(perf.revenueRecent.cents) : "—", delta: perf ? perf.revenueRecent.delta : null, toneVar: "accent" },
   ];
   const takeaway = buildTakeaway(split, waitingOnYou);
+  // Only link to detail sections that actually render — they exist only when performance is live.
   const sectionLinks = [
     { id: "overview", label: "Overview" },
-    { id: "leads", label: "Leads" },
-    { id: "conversion", label: "Conversion" },
-    { id: "revenue", label: "Revenue" },
-    { id: "partners", label: "Partners" },
+    ...(perf
+      ? [
+          { id: "leads", label: "Leads" },
+          { id: "conversion", label: "Conversion" },
+          { id: "revenue", label: "Revenue" },
+          { id: "partners", label: "Partners" },
+        ]
+      : []),
   ];
 
   return (

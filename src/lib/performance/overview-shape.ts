@@ -41,6 +41,7 @@ export function buildTrendBuckets(
   for (let i = weeks - 1; i >= 0; i--) {
     const end = nowMs - i * 7 * DAY_MS;
     const start = end - 7 * DAY_MS;
+    // +DAY_MS nudges off midnight so the label doesn't render as the prior local day in US timezones.
     const label = new Date(start + DAY_MS).toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
     buckets.push({ week: label, leads: 0, bookings: 0 });
   }

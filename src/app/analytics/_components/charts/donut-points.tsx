@@ -15,7 +15,19 @@ export function DonutPoints({ points, formatter }: { points: ChartPoint[]; forma
   const theme = useChartTheme();
   const reduced = useReducedMotion();
   const colors = palette(theme);
-  const data = points.map((point) => ({ ...point, displayValue: formatter ? formatter(point.value) : String(point.value) }));
+
+  // The calm palette only has as many distinct colors as `colors.length`. Points arrive
+  // sorted desc, so keep the top (colors.length - 1) and roll the rest into one honest
+  // "Other" slice — every wedge gets a unique color instead of repeating.
+  const maxSlices = colors.length;
+  const sliced =
+    points.length > maxSlices
+      ? [
+          ...points.slice(0, maxSlices - 1),
+          { label: "Other", value: points.slice(maxSlices - 1).reduce((sum, point) => sum + point.value, 0), tone: "gray" as const },
+        ]
+      : points;
+  const data = sliced.map((point) => ({ ...point, displayValue: formatter ? formatter(point.value) : String(point.value) }));
 
   return (
     <div className="flex items-center gap-5 p-4">
