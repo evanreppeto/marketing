@@ -11,7 +11,7 @@ describe("getVaultNotes (no Supabase configured)", () => {
     try {
       const model = await getVaultNotes();
       expect(model.status).toBe("fallback");
-      // The vault ships empty — no placeholder notes; Mark writes the real ones.
+      // The vault ships empty — no placeholder notes; Arc writes the real ones.
       expect(model.notes).toEqual([]);
     } finally {
       if (prevUrl) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;

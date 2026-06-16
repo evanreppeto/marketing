@@ -10,7 +10,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/s
  */
 export type ActivityKind = "decision" | "run" | "draft" | "campaign" | "event";
 export type ActivityTone = "green" | "red" | "amber" | "blue" | "gray";
-export type ActivityActorType = "human" | "hermes" | "sub_agent" | "integration" | "system";
+export type ActivityActorType = "human" | "arc" | "sub_agent" | "integration" | "system";
 export type ActivityCategory = "approval" | "campaign" | "crm" | "asset" | "agent" | "integration" | "risk" | "system";
 export type ActivityInsightLabel =
   | "Needs review"
@@ -48,7 +48,7 @@ export type ActivityQuery = {
 
 export type ActivitySummary = {
   needsReview: number;
-  hermesActions: number;
+  arcActions: number;
   campaignProgress: number;
   blockedOrRisky: number;
 };
@@ -189,7 +189,7 @@ export function applyActivityFilters(entries: ActivityEntry[], query: ActivityQu
 export function buildActivitySummary(entries: ActivityEntry[]): ActivitySummary {
   return {
     needsReview: entries.filter(isNeedsReviewEntry).length,
-    hermesActions: entries.filter((entry) => entry.actorType === "hermes" || entry.actorType === "sub_agent").length,
+    arcActions: entries.filter((entry) => entry.actorType === "arc" || entry.actorType === "sub_agent").length,
     campaignProgress: entries.filter(
       (entry) => entry.category === "campaign" || entry.insightLabel === "Marketing progress",
     ).length,
@@ -271,8 +271,8 @@ function mapOutput(row: Record<string, unknown>): ActivityEntry {
     tone,
     title: str(row.title) ?? "Agent draft created",
     detail: `${titleize(str(row.output_type) ?? "draft")} - ${titleize(approval || compliance || "pending approval")}`,
-    actor: "Hermes",
-    actorType: "hermes",
+    actor: "Arc",
+    actorType: "arc",
     category: tone === "red" ? "risk" : "asset",
     insightLabel: insightForOutput(approval, compliance, tone),
     relatedLabel: str(row.title) ?? titleize(str(row.output_type) ?? "Draft"),
@@ -491,7 +491,7 @@ function displayActor(actor: string | null): string {
 function actorTypeFromActor(actor: string | null): ActivityActorType {
   const value = (actor ?? "").toLowerCase();
   if (!value || value === "system" || value.startsWith("system.")) return "system";
-  if (value.includes("hermes") || value === "mark" || value.includes("marketing hermes")) return "hermes";
+  if (/\barc\b/.test(value) || value === "arc") return "arc";
   if (value.includes("sub-agent") || value.includes("sub_agent") || value.includes("agent")) return "sub_agent";
   if (
     value.includes("integration") ||

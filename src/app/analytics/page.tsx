@@ -143,7 +143,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
               {rows.map((row) => (<ComparisonRow key={row.id} row={row} />))}
             </ul>
           ) : (
-            <EmptyState title="No campaigns yet" detail="When Mark drafts a campaign or you create one, it will appear here with its progress." />
+            <EmptyState title="No campaigns yet" detail="When Arc drafts a campaign or you create one, it will appear here with its progress." />
           )}
         </WorkspacePanel>
       </section>

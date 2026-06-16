@@ -6,7 +6,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/s
 
 export type StatusTone = "amber" | "green" | "red" | "gray" | "blue" | "dark";
 
-export type MarkActivity = {
+export type ArcActivity = {
   name: string;
   status: string;
   killSwitch: string;
@@ -50,13 +50,13 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-export function toMarkActivity(
+export function toArcActivity(
   agent: AgentRowLike,
   tasks: TaskRowLike[],
   outputs: OutputRowLike[],
   awaitingReview: number,
   now: number,
-): MarkActivity {
+): ArcActivity {
   const metadata = asRecord(agent?.metadata);
   const heartbeatIso =
     (typeof metadata.last_heartbeat_at === "string" && metadata.last_heartbeat_at) ||
@@ -86,16 +86,16 @@ export function toMarkActivity(
 const NOT_CONFIGURED = "Supabase is not configured — agent activity is offline. Showing static counts.";
 
 export type VaultLiveSignals =
-  | { status: "live"; activity: MarkActivity; generatedAt: string }
-  | { status: "fallback"; activity: MarkActivity; message: string }
-  | { status: "error"; activity: MarkActivity; message: string };
+  | { status: "live"; activity: ArcActivity; generatedAt: string }
+  | { status: "fallback"; activity: ArcActivity; message: string }
+  | { status: "error"; activity: ArcActivity; message: string };
 
 function seedReviewCount(): number {
   return seedVaultNotes.filter((n) => n.status === "Needs review").length;
 }
 
-function offlineActivity(now: number): MarkActivity {
-  return toMarkActivity({ name: "Agent", status: "offline", metadata: {} }, [], [], seedReviewCount(), now);
+function offlineActivity(now: number): ArcActivity {
+  return toArcActivity({ name: "Agent", status: "offline", metadata: {} }, [], [], seedReviewCount(), now);
 }
 
 export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
@@ -106,7 +106,7 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
   try {
     const supabase = getSupabaseAdminClient();
     const [agentResult, tasksResult, outputsResult, reviewResult] = await Promise.all([
-      supabase.from("agents").select("name,status,metadata").eq("key", "mark").maybeSingle(),
+      supabase.from("agents").select("name,status,metadata").eq("key", "arc").maybeSingle(),
       supabase
         .from("agent_tasks")
         .select("objective,task_type,status,updated_at")
@@ -122,7 +122,7 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
     ]);
 
     const reviewCount = reviewResult.count ?? 0;
-    const activity = toMarkActivity(
+    const activity = toArcActivity(
       agentResult.data ?? null,
       tasksResult.data ?? [],
       outputsResult.data ?? [],

@@ -41,8 +41,8 @@ function entry(
     tone: "blue",
     title: id,
     detail: "",
-    actor: "Hermes",
-    actorType: "hermes",
+    actor: "Arc",
+    actorType: "arc",
     category: "agent",
     insightLabel: "Agent work",
     relatedLabel: null,
@@ -108,8 +108,8 @@ describe("applyActivityFilters", () => {
       insightLabel: "Needs review",
     }),
     entry("risk", "2026-06-11T14:00:00Z", {
-      actor: "Hermes",
-      actorType: "hermes",
+      actor: "Arc",
+      actorType: "arc",
       category: "risk",
       tone: "red",
       title: "Compliance blocked one SMS draft",
@@ -147,7 +147,7 @@ describe("applyActivityFilters", () => {
 
   it("searches title, detail, actor, related label, category, and insight label", () => {
     expect(applyActivityFilters(entries, { search: "launch" }).map((item) => item.id)).toEqual(["approval"]);
-    expect(applyActivityFilters(entries, { search: "hermes" }).map((item) => item.id)).toEqual(["risk"]);
+    expect(applyActivityFilters(entries, { search: "arc" }).map((item) => item.id)).toEqual(["risk"]);
     expect(applyActivityFilters(entries, { search: "spring" }).map((item) => item.id)).toEqual(["campaign"]);
     expect(applyActivityFilters(entries, { search: "marketing progress" }).map((item) => item.id)).toEqual(["campaign"]);
     expect(applyActivityFilters(entries, { search: "approval" }).map((item) => item.id)).toEqual(["approval"]);
@@ -208,9 +208,9 @@ describe("buildActivitySummary", () => {
         insightLabel: "Needs review",
         actorType: "human",
       }),
-      entry("hermes", "2026-06-12T13:00:00Z", {
+      entry("arc", "2026-06-12T13:00:00Z", {
         category: "agent",
-        actorType: "hermes",
+        actorType: "arc",
         insightLabel: "Agent work",
       }),
       entry("campaign", "2026-06-12T12:00:00Z", {
@@ -228,7 +228,7 @@ describe("buildActivitySummary", () => {
 
     expect(summary).toEqual({
       needsReview: 1,
-      hermesActions: 1,
+      arcActions: 1,
       campaignProgress: 1,
       blockedOrRisky: 1,
     });
@@ -386,7 +386,7 @@ describe("mapCampaignEvent", () => {
       campaign_id: "camp_1",
       approval_item_id: "approval_4",
       event_type: "approval_submitted",
-      actor: "Hermes",
+      actor: "Arc",
       detail: "Draft is ready for review.",
       payload: {},
       occurred_at: "2026-06-12T14:00:00Z",

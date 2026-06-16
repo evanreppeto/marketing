@@ -15,7 +15,7 @@ function webhookHost(url: string | null): string | null {
 export async function NotificationSettings() {
   const connection = await resolveAgentConnection();
   const host = webhookHost(connection.webhookUrl);
-  const signed = Boolean(process.env.MARK_WEBHOOK_SECRET?.trim() || connection.webhookSecretRef);
+  const signed = Boolean(process.env.ARC_WEBHOOK_SECRET?.trim() || connection.webhookSecretRef);
   const live = Boolean(host) && connection.enabled;
 
   return (

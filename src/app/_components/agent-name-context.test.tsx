@@ -14,11 +14,11 @@ describe("useAgentName", () => {
 
   it("returns the provider value", () => {
     const html = renderToStaticMarkup(
-      <AgentNameProvider value="Hermes">
+      <AgentNameProvider value="Nova">
         <Probe />
       </AgentNameProvider>,
     );
-    expect(html).toContain("Hermes");
+    expect(html).toContain("Nova");
     expect(html).not.toContain("Arc");
   });
 });

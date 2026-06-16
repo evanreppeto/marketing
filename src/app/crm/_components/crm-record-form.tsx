@@ -30,7 +30,7 @@ const ENTITY_FIELDS: Record<CrmEntityKey, Field[]> = {
     { name: "company_id", label: "Company ID (optional)", placeholder: "Link to an existing company" },
   ],
   properties: [
-    { name: "street_line_1", label: "Address / location", required: true, placeholder: "1234 Market St" },
+    { name: "street_line_1", label: "Address / location", required: true, placeholder: "1234 Arcet St" },
     { name: "street_line_2", label: "Street line 2" },
     { name: "city", label: "City", required: true },
     { name: "state", label: "State", required: true, placeholder: "IL" },

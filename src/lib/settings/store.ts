@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type MarkMode, type MarkRoute } from "@/domain";
+import { type ArcMode, type ArcRoute } from "@/domain";
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
@@ -20,8 +20,8 @@ export type AppSettings = {
   brandLogoUrl: string;
   brandFaviconUrl: string;
   supportEmail: string;
-  markDefaultMode: MarkMode;
-  markDefaultRoute: MarkRoute;
+  markDefaultMode: ArcMode;
+  markDefaultRoute: ArcRoute;
   appearanceAccent: AppearanceAccent;
   appearanceDensity: AppearanceDensity;
   appearanceMotion: AppearanceMotion;
@@ -107,11 +107,11 @@ function logAppSettingsFallback(message: string): void {
   console.warn(`app_settings lookup failed, using defaults: ${message}`);
 }
 
-function appMarkMode(value: unknown): MarkMode {
+function appArcMode(value: unknown): ArcMode {
   return value === "ask" || value === "act" || value === "draft" ? value : DEFAULT_APP_SETTINGS.markDefaultMode;
 }
 
-function appMarkRoute(value: unknown): MarkRoute {
+function appArcRoute(value: unknown): ArcRoute {
   return value === "fast" || value === "standard" ? value : DEFAULT_APP_SETTINGS.markDefaultRoute;
 }
 
@@ -168,8 +168,8 @@ export function mergeAppSettingsRows(rows: SettingRow[]): AppSettings {
     brandLogoUrl: normalizeBrandUrl(str("brand_logo_url", DEFAULT_APP_SETTINGS.brandLogoUrl)),
     brandFaviconUrl: normalizeBrandUrl(str("brand_favicon_url", DEFAULT_APP_SETTINGS.brandFaviconUrl)) || DEFAULT_APP_SETTINGS.brandFaviconUrl,
     supportEmail: str("support_email", DEFAULT_APP_SETTINGS.supportEmail),
-    markDefaultMode: appMarkMode(map.get("mark_default_mode")),
-    markDefaultRoute: appMarkRoute(map.get("mark_default_route")),
+    markDefaultMode: appArcMode(map.get("arc_default_mode")),
+    markDefaultRoute: appArcRoute(map.get("arc_default_route")),
     appearanceAccent: appAppearanceAccent(map.get("appearance_accent")),
     appearanceDensity: appAppearanceDensity(map.get("appearance_density")),
     appearanceMotion: appAppearanceMotion(map.get("appearance_motion")),

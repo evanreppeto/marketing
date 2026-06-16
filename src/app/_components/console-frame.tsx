@@ -19,7 +19,7 @@ type ConsoleBrand = {
   logoUrl: string;
 };
 
-function BrandMark({ brand }: { brand: ConsoleBrand }) {
+function BrandArc({ brand }: { brand: ConsoleBrand }) {
   return (
     <span
       className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-sm font-semibold text-[var(--accent)]"
@@ -68,7 +68,7 @@ export function ConsoleFrame({
   const [focusWithin, setFocusWithin] = useState(false);
 
   const navItems: ShellNavItem[] = [
-    { label: agentName, href: "/mark", icon: "mark", matches: ["/mark", "/"] },
+    { label: agentName, href: "/arc", icon: "arc", matches: ["/arc", "/"] },
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
@@ -119,7 +119,7 @@ export function ConsoleFrame({
           </div>
           <div className="flex min-w-0 flex-1 items-center gap-1 lg:min-h-0 lg:flex-col lg:items-stretch lg:gap-3 lg:overflow-y-auto">
             <Link
-              href="/mark"
+              href="/arc"
               className={cx(
                 "group flex shrink-0 items-center gap-3 px-0.5 leading-none transition hover:opacity-90 lg:mb-2 lg:px-1.5",
                 collapsed && "lg:justify-center lg:gap-0 lg:px-0",
@@ -127,7 +127,7 @@ export function ConsoleFrame({
               aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
               title={`${brand.workspaceName} ${brand.productLabel}`}
             >
-              <BrandMark brand={brand} />
+              <BrandArc brand={brand} />
               <span
                 className={cx(
                   "hidden min-w-0 max-w-[130px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none lg:flex",
@@ -148,12 +148,12 @@ export function ConsoleFrame({
           <OperatorProfile collapsed={collapsed} />
         </aside>
 
-        {pathname.startsWith("/mark") ? (
+        {pathname.startsWith("/arc") ? (
           <section className="min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
             <ShellContent>{children}</ShellContent>
           </section>
         ) : (
-          // Ambient dotted backdrop sits behind the content column (not the Mark
+          // Ambient dotted backdrop sits behind the content column (not the Arc
           // surface, which keeps its own visuals). `relative isolate` keeps the
           // -z-10 field above the page canvas but below content; the inner div
           // owns the scroll so the backdrop stays put as the page scrolls.

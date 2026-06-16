@@ -24,7 +24,7 @@ export default async function AgentOperationsPage() {
     );
   }
 
-  const runner = dashboard.markRunner;
+  const runner = dashboard.arcRunner;
   const activeTask = dashboard.tasks[0] ?? null;
   const blockedTasks = dashboard.tasks.filter((task) => /blocked/i.test(task.status));
 

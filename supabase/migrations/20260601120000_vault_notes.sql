@@ -47,7 +47,7 @@ insert into public.vault_notes (slug, title, folder, tags, author, status, body)
     'Insurance Agent Handoff',
     'Playbooks',
     array['partner', 'coverage-neutral'],
-    'Mark',
+    'Arc',
     'needs_review',
     E'# Insurance Agent Handoff\n\nGive the [[persona_insurance_agent|insurance agent]] a coverage-neutral path to refer a client.\n\nNever promise coverage. Lead with documentation.\n\nPartner record: [[north-branch-insurance]].'
   ),
@@ -56,7 +56,7 @@ insert into public.vault_notes (slug, title, folder, tags, author, status, body)
     'Apex Plumbing Co. — Partner Intel',
     'Partner Intel',
     array['partner', 'plumbing'],
-    'Mark',
+    'Arc',
     'draft',
     E'# Apex Plumbing Co. — Partner Intel\n\n[[apex-plumbing-co]] stops the source and hands off property damage.\n\nBest channel: email then phone. Tie referrals to the [[emergency-homeowner-playbook]].\n\nTODO: confirm the owner''s after-hours contact (link target [[apex-after-hours]] not imported yet).'
   ),

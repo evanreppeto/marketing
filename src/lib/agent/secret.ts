@@ -6,7 +6,7 @@ import { DEFAULT_WORKSPACE_ID } from "./connection";
 type SecretRow = { decrypted_secret: string | null };
 
 export async function resolveWebhookSecret(ref: string | null, client?: SupabaseClient): Promise<string | null> {
-  const envSecret = process.env.MARK_WEBHOOK_SECRET;
+  const envSecret = process.env.ARC_WEBHOOK_SECRET;
   if (envSecret) return envSecret;
   if (!ref) return null;
 

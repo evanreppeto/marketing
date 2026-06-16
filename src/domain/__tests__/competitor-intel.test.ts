@@ -10,7 +10,7 @@ const valid = {
   topKeywords: ["water damage", "storm cleanup"],
   adCreatives: [{ headline: "Flooded?", body: "24/7", mediaUrl: "https://x.test/a.png" }],
   capturedAt: "2026-06-08T00:00:00.000Z",
-  operator: "Mark",
+  operator: "Arc",
 };
 
 describe("parseCompetitorIntelPayload", () => {

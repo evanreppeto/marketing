@@ -50,7 +50,7 @@ export type CampaignActionHub = {
 };
 
 export type CampaignActionCard = {
-  key: "review" | "ready" | "mark" | "results";
+  key: "review" | "ready" | "arc" | "results";
   title: string;
   value: string;
   detail: string;
@@ -225,7 +225,7 @@ export function buildCampaignActionHub(detail: LiveCampaignWorkspace, agentName:
       primaryLabel: "See results",
       primaryHref: "#results",
       secondaryLabel: `Ask ${agentName}`,
-      secondaryHref: "#mark",
+      secondaryHref: "#arc",
       cards: actionCards({ detail, destinations, approvedOrLive, dispatchCount, agentName }),
     };
   }
@@ -237,7 +237,7 @@ export function buildCampaignActionHub(detail: LiveCampaignWorkspace, agentName:
       primaryLabel: "Start reviewing",
       primaryHref: "#content",
       secondaryLabel: `Ask ${agentName}`,
-      secondaryHref: "#mark",
+      secondaryHref: "#arc",
       cards: actionCards({ detail, destinations, approvedOrLive, dispatchCount, agentName }),
     };
   }
@@ -258,7 +258,7 @@ export function buildCampaignActionHub(detail: LiveCampaignWorkspace, agentName:
     title: `${agentName} is building this campaign`,
     detail: `This page will become the review and send workspace as soon as ${agentName} adds campaign pieces.`,
     primaryLabel: `Ask ${agentName} for an update`,
-    primaryHref: "#mark",
+    primaryHref: "#arc",
     secondaryLabel: "See campaign basics",
     secondaryHref: "#summary",
     cards: actionCards({ detail, destinations, approvedOrLive, dispatchCount, agentName }),
@@ -306,11 +306,11 @@ function actionCards({
       tone: launchState.live || launchState.ready ? "green" : "blue",
     },
     {
-      key: "mark",
+      key: "arc",
       title: agentName,
       value: reasoning.recommendedAction ? "Available" : "Ask for help",
       detail: reasoning.recommendedAction || reasoning.whyBuilt || "Ask for edits, additions, or a quick explanation.",
-      href: "#mark",
+      href: "#arc",
       tone: "blue",
     },
     {

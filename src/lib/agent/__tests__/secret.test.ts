@@ -4,11 +4,11 @@ import { resolveWebhookSecret } from "../secret";
 
 describe("resolveWebhookSecret", () => {
   beforeEach(() => {
-    delete process.env.MARK_WEBHOOK_SECRET;
+    delete process.env.ARC_WEBHOOK_SECRET;
   });
 
   it("prefers the env secret over vault", async () => {
-    process.env.MARK_WEBHOOK_SECRET = "env-secret";
+    process.env.ARC_WEBHOOK_SECRET = "env-secret";
     const client = { from: vi.fn() } as never;
 
     await expect(resolveWebhookSecret("vault-ref", client)).resolves.toBe("env-secret");

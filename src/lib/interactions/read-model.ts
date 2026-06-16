@@ -78,7 +78,7 @@ const ACTIVITY_TONE: Record<CrmActivityType, ActivityTone> = {
 
 function actorLabel(kind: ActorKind, name: string | null): string {
   if (name && name.trim()) return name.trim();
-  if (kind === "agent") return "Hermes";
+  if (kind === "agent") return "Arc";
   if (kind === "system") return "System";
   return "Operator";
 }

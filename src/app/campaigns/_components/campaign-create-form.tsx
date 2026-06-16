@@ -6,7 +6,7 @@ import { OFFICIAL_PERSONA_MAPPINGS, RESTORATION_FOCUS_VALUES } from "@/domain";
 
 import { Button } from "../../_components/page-header";
 import { cx, theme } from "../../_components/theme";
-import { askMarkToBuildCampaignAction, createCampaignAction, type CreateCampaignActionState } from "../actions";
+import { askArcToBuildCampaignAction, createCampaignAction, type CreateCampaignActionState } from "../actions";
 
 function titleize(value: string) {
   return value.replace(/^persona_/, "").replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -97,14 +97,14 @@ export function CampaignCreateForm({ assistantName, businessName }: { assistantN
       </section>
 
       <aside className="space-y-3">
-        <section id="ask-mark" className="scroll-mt-6 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
+        <section id="ask-arc" className="scroll-mt-6 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
           <span className="signal-eyebrow">Optional helper</span>
           <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">Ask {assistantName} to draft it</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
             Use this if you know what {businessName} needs, but not exactly what campaign pieces to make.
           </p>
 
-          <form action={askMarkToBuildCampaignAction} className="mt-3 space-y-3">
+          <form action={askArcToBuildCampaignAction} className="mt-3 space-y-3">
             <label className="block">
               <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Tell {assistantName} what you want</span>
               <textarea

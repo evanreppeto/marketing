@@ -494,7 +494,7 @@ h4, .font-display {
   animation: bar-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Mark chat motion */
+/* Arc chat motion */
 @keyframes msg-rise {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
@@ -520,73 +520,73 @@ h4, .font-display {
   50% { transform: scale(1.08); opacity: 0.82; }
 }
 
-/* Mark's single calm presence ring (gold pulse while working) */
+/* Arc's single calm presence ring (gold pulse while working) */
 @keyframes mark-ring {
   0%, 100% { box-shadow: inset 0 0 0 1px var(--border-strong), 0 0 0 0 var(--accent-soft); }
   50% { box-shadow: inset 0 0 0 1px var(--border-strong), 0 0 0 5px transparent; }
 }
 
-  /* Mark persona bubble: use the AI Elements obsidian animation with app-token color. */
-  .mark-persona {
-    --mark-persona-accent: var(--accent);
-    --mark-persona-glow: var(--accent-soft);
+  /* Arc persona bubble: use the AI Elements obsidian animation with app-token color. */
+  .arc-persona {
+    --arc-persona-accent: var(--accent);
+    --arc-persona-glow: var(--accent-soft);
     position: relative;
     isolation: isolate;
     overflow: visible;
     border-radius: 9999px;
     background: transparent;
   }
-  .mark-persona[data-state="listening"] {
-    --mark-persona-accent: var(--ok);
-    --mark-persona-glow: var(--ok-soft);
+  .arc-persona[data-state="listening"] {
+    --arc-persona-accent: var(--ok);
+    --arc-persona-glow: var(--ok-soft);
   }
-  .mark-persona[data-state="thinking"] {
-    --mark-persona-accent: var(--accent-strong);
-    --mark-persona-glow: rgba(216, 182, 94, 0.18);
+  .arc-persona[data-state="thinking"] {
+    --arc-persona-accent: var(--accent-strong);
+    --arc-persona-glow: rgba(216, 182, 94, 0.18);
   }
-  .mark-persona[data-state="speaking"] {
-    --mark-persona-accent: var(--accent-strong);
-    --mark-persona-glow: rgba(216, 182, 94, 0.2);
+  .arc-persona[data-state="speaking"] {
+    --arc-persona-accent: var(--accent-strong);
+    --arc-persona-glow: rgba(216, 182, 94, 0.2);
   }
-  .mark-persona[data-state="asleep"] {
-    --mark-persona-accent: var(--text-muted);
-    --mark-persona-glow: rgba(174, 181, 194, 0.08);
+  .arc-persona[data-state="asleep"] {
+    --arc-persona-accent: var(--text-muted);
+    --arc-persona-glow: rgba(174, 181, 194, 0.08);
     opacity: 0.72;
   }
-  .mark-persona-rive {
+  .arc-persona-rive {
     position: absolute;
     inset: 0;
     z-index: 1;
     width: 100% !important;
     height: 100% !important;
     opacity: 0.98;
-    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--mark-persona-accent) 18%, transparent));
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--arc-persona-accent) 18%, transparent));
     pointer-events: none;
     transform: translateZ(0);
   }
 
   /* Static placeholder shown until the remote Rive orb finishes streaming/initialising,
      so the avatar never renders as an empty hole on first open. Fades out on load. */
-  .mark-persona-fallback {
+  .arc-persona-fallback {
     position: absolute;
     inset: 6%;
     z-index: 0;
     border-radius: 9999px;
     background: radial-gradient(
       circle at 50% 42%,
-      color-mix(in srgb, var(--mark-persona-accent) 72%, transparent) 0%,
-      color-mix(in srgb, var(--mark-persona-accent) 34%, transparent) 52%,
+      color-mix(in srgb, var(--arc-persona-accent) 72%, transparent) 0%,
+      color-mix(in srgb, var(--arc-persona-accent) 34%, transparent) 52%,
       transparent 72%
     );
     opacity: 1;
     transition: opacity 420ms ease;
     pointer-events: none;
-    animation: mark-persona-fallback-pulse 2.4s ease-in-out infinite;
+    animation: arc-persona-fallback-pulse 2.4s ease-in-out infinite;
   }
-  .mark-persona-fallback[data-loaded="true"] {
+  .arc-persona-fallback[data-loaded="true"] {
     opacity: 0;
   }
-  @keyframes mark-persona-fallback-pulse {
+  @keyframes arc-persona-fallback-pulse {
     0%,
     100% {
       transform: scale(0.94);
@@ -596,7 +596,7 @@ h4, .font-display {
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .mark-persona-fallback {
+    .arc-persona-fallback {
       animation: none;
     }
   }
@@ -604,7 +604,7 @@ h4, .font-display {
   /* Hero persona (empty-state) — ambient halo + slow breathing so the orb reads
      as alive and premium, not a flat marble. Scoped to the hero modifier so the
      small message-list avatars stay crisp and glow-free. */
-  .mark-persona--hero::before {
+  .arc-persona--hero::before {
     content: "";
     position: absolute;
     inset: -42%;
@@ -612,18 +612,18 @@ h4, .font-display {
     border-radius: 9999px;
     background: radial-gradient(
       circle at 50% 46%,
-      color-mix(in srgb, var(--mark-persona-accent) 26%, transparent) 0%,
-      var(--mark-persona-glow) 34%,
+      color-mix(in srgb, var(--arc-persona-accent) 26%, transparent) 0%,
+      var(--arc-persona-glow) 34%,
       transparent 70%
     );
     filter: blur(7px);
     pointer-events: none;
-    animation: mark-persona-breathe 5.6s ease-in-out infinite;
+    animation: arc-persona-breathe 5.6s ease-in-out infinite;
   }
-  .mark-persona--hero .mark-persona-rive {
-    filter: drop-shadow(0 0 16px color-mix(in srgb, var(--mark-persona-accent) 32%, transparent));
+  .arc-persona--hero .arc-persona-rive {
+    filter: drop-shadow(0 0 16px color-mix(in srgb, var(--arc-persona-accent) 32%, transparent));
   }
-  @keyframes mark-persona-breathe {
+  @keyframes arc-persona-breathe {
     0%,
     100% {
       transform: scale(0.95);
@@ -635,7 +635,7 @@ h4, .font-display {
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .mark-persona--hero::before {
+    .arc-persona--hero::before {
       animation: none;
       opacity: 0.85;
     }
@@ -663,29 +663,29 @@ h4, .font-display {
   }
 
 /* Non-gradient skeleton for not-yet-streamed content (replaces gradient-text shimmer) */
-.mark-skel {
+.arc-skel {
   height: 11px;
   border-radius: 5px;
   background: var(--surface-inset);
   position: relative;
   overflow: hidden;
 }
-.mark-skel::after {
+.arc-skel::after {
   content: "";
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-  animation: mark-skel-slide 1.5s ease-in-out infinite;
+  animation: arc-skel-slide 1.5s ease-in-out infinite;
 }
-@keyframes mark-skel-slide { 100% { transform: translateX(100%); } }
-@media (prefers-reduced-motion: reduce) { .mark-skel::after { animation: none; } }
+@keyframes arc-skel-slide { 100% { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .arc-skel::after { animation: none; } }
 
 @keyframes text-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
-.mark-shimmer {
+.arc-shimmer {
   background: linear-gradient(
     90deg,
     var(--text-muted) 0%,
@@ -702,13 +702,13 @@ h4, .font-display {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(320%); }
 }
-.mark-progress {
+.arc-progress {
   height: 3px;
   border-radius: 3px;
   background: var(--surface-inset);
   overflow: hidden;
 }
-.mark-progress > span {
+.arc-progress > span {
   display: block;
   height: 100%;
   width: 32%;
@@ -716,7 +716,7 @@ h4, .font-display {
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
   animation: progress-sweep 1.4s ease-in-out infinite;
 }
-.mark-shimmer-bar {
+.arc-shimmer-bar {
   height: 11px;
   border-radius: 6px;
   background: linear-gradient(90deg, var(--surface-inset) 0%, var(--surface-raised) 50%, var(--surface-inset) 100%);
@@ -724,19 +724,19 @@ h4, .font-display {
   animation: text-shimmer 1.6s linear infinite;
 }
 
-/* Streaming reveal: soft bottom fade on Mark's in-progress reply, so chunked
+/* Streaming reveal: soft bottom fade on Arc's in-progress reply, so chunked
    poll updates read as continuous text emerging rather than hard jumps. */
-.mark-streaming {
+.arc-streaming {
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 1.6em), transparent 100%);
   mask-image: linear-gradient(180deg, #000 calc(100% - 1.6em), transparent 100%);
 }
 @media (prefers-reduced-motion: reduce) {
-  .mark-streaming { -webkit-mask-image: none; mask-image: none; }
+  .arc-streaming { -webkit-mask-image: none; mask-image: none; }
 }
 
 /* Writing caret at the tail of a streaming reply. */
-@keyframes mark-caret-blink { 0%, 45% { opacity: 1; } 55%, 100% { opacity: 0.15; } }
-.mark-caret {
+@keyframes arc-caret-blink { 0%, 45% { opacity: 1; } 55%, 100% { opacity: 0.15; } }
+.arc-caret {
   display: inline-block;
   width: 2px;
   height: 1.05em;
@@ -744,15 +744,15 @@ h4, .font-display {
   border-radius: 1px;
   background: var(--accent);
   margin-left: 1px;
-  animation: mark-caret-blink 1.1s steps(1, end) infinite;
+  animation: arc-caret-blink 1.1s steps(1, end) infinite;
 }
-@media (prefers-reduced-motion: reduce) { .mark-caret { animation: none; opacity: 0.8; } }
+@media (prefers-reduced-motion: reduce) { .arc-caret { animation: none; opacity: 0.8; } }
 
 /* Whisper ambient background — two heavily-blurred, very-low-opacity gold blooms
-   that drift slowly behind Mark's chat. Premium and calm, NOT neon. Mark-only. */
-.mark-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-.mark-aurora::before,
-.mark-aurora::after {
+   that drift slowly behind Arc's chat. Premium and calm, NOT neon. Arc-only. */
+.arc-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.arc-aurora::before,
+.arc-aurora::after {
   content: "";
   position: absolute;
   width: 46rem;
@@ -763,37 +763,37 @@ h4, .font-display {
   opacity: 0.05;
   will-change: transform;
 }
-.mark-aurora::before { top: -22rem; left: -14rem; animation: mark-aurora-a 34s ease-in-out infinite; }
-.mark-aurora::after  { bottom: -26rem; right: -16rem; opacity: 0.035; animation: mark-aurora-b 42s ease-in-out infinite; }
-@keyframes mark-aurora-a {
+.arc-aurora::before { top: -22rem; left: -14rem; animation: arc-aurora-a 34s ease-in-out infinite; }
+.arc-aurora::after  { bottom: -26rem; right: -16rem; opacity: 0.035; animation: arc-aurora-b 42s ease-in-out infinite; }
+@keyframes arc-aurora-a {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(6rem, 4rem, 0) scale(1.08); }
 }
-@keyframes mark-aurora-b {
+@keyframes arc-aurora-b {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
   50% { transform: translate3d(-5rem, -3rem, 0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mark-aurora::before, .mark-aurora::after { animation: none; }
+  .arc-aurora::before, .arc-aurora::after { animation: none; }
 }
 
-/* Thinking orbital — a small gold-arc ring that spins while Mark generates.
+/* Thinking orbital — a small gold-arc ring that spins while Arc generates.
    Replaces the neon loader rings from generic AI kits with one calm token-gold arc. */
-/* Mark's living orb avatar — a swirling molten-gold orb (CSS conic gradients +
+/* Arc's living orb avatar — a swirling molten-gold orb (CSS conic gradients +
    blur + rotation). Cheap enough to render on every message (no WebGL contexts).
    Adapted from the 21st.dev "Siri Orb", recolored to Signal gold. */
 /* Luma spinner — two rounded squares orbiting the corners (21st.dev "luma-spin"),
    recolored to Signal gold and made size-independent (percent insets instead of
-   the original fixed 35px/65px). Used for Mark's "thinking" loader. */
-.mark-luma { position: relative; display: inline-block; aspect-ratio: 1; }
-.mark-luma > span {
+   the original fixed 35px/65px). Used for Arc's "thinking" loader. */
+.arc-luma { position: relative; display: inline-block; aspect-ratio: 1; }
+.arc-luma > span {
   position: absolute;
   border-radius: 50px;
   box-shadow: inset 0 0 0 2px var(--accent);
-  animation: mark-luma 2.5s infinite;
+  animation: arc-luma 2.5s infinite;
 }
-.mark-luma > span:nth-child(2) { animation-delay: -1.25s; }
-@keyframes mark-luma {
+.arc-luma > span:nth-child(2) { animation-delay: -1.25s; }
+@keyframes arc-luma {
   0%    { inset: 0 54% 54% 0; }
   12.5% { inset: 0 54% 0 0; }
   25%   { inset: 54% 54% 0 0; }
@@ -805,7 +805,7 @@ h4, .font-display {
   100%  { inset: 0 54% 54% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mark-luma > span { animation: none; inset: 0 54% 54% 0; }
+  .arc-luma > span { animation: none; inset: 0 54% 54% 0; }
 }
 
 /* ============================================================================
@@ -852,7 +852,7 @@ h4, .font-display {
   opacity: 0.72;
 }
 
-.chicago-flag-mark {
+.chicago-flag-arc {
   display: grid;
   grid-template-columns: repeat(4, 0.72rem);
   gap: 0.38rem;
@@ -862,7 +862,7 @@ h4, .font-display {
   padding: 0.26rem 0.15rem;
 }
 
-.chicago-flag-mark span {
+.chicago-flag-arc span {
   display: block;
   width: 0.58rem;
   height: 0.58rem;
@@ -878,23 +878,23 @@ h4, .font-display {
   .media-rise,
   .lightbox-backdrop,
   .lightbox-panel,
-  .mark-shimmer {
+  .arc-shimmer {
     animation: none;
   }
 
-  .mark-shimmer {
+  .arc-shimmer {
     background: none;
     -webkit-background-clip: border-box;
     background-clip: border-box;
     color: var(--text-secondary);
   }
 
-  .mark-shimmer-bar,
-  .mark-progress > span {
+  .arc-shimmer-bar,
+  .arc-progress > span {
     animation: none;
   }
 
-  .mark-progress > span {
+  .arc-progress > span {
     width: 100%;
     opacity: 0.4;
   }

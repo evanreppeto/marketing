@@ -22,12 +22,12 @@ type ActivityPageProps = {
 
 const categoryFilters: Array<{
   label: string;
-  value: ActivityCategory | "all" | "needs-review" | "humans" | "hermes";
+  value: ActivityCategory | "all" | "needs-review" | "humans" | "arc";
 }> = [
   { label: "All", value: "all" },
   { label: "Needs review", value: "needs-review" },
   { label: "Humans", value: "humans" },
-  { label: "Hermes", value: "hermes" },
+  { label: "Arc", value: "arc" },
   { label: "Approvals", value: "approval" },
   { label: "Campaigns", value: "campaign" },
   { label: "CRM", value: "crm" },
@@ -82,14 +82,14 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
             href: activity.summary.needsReview > 0 ? "/activity?filter=needs-review" : undefined,
           },
           {
-            label: "Hermes actions",
-            value: activity.summary.hermesActions,
+            label: "Arc actions",
+            value: activity.summary.arcActions,
             detail:
-              activity.summary.hermesActions > 0
-                ? `${activity.summary.hermesActions} ${plural(activity.summary.hermesActions, "agent action")} in this view.`
-                : "No Hermes work in this range.",
-            tone: activity.summary.hermesActions > 0 ? "blue" : "gray",
-            href: activity.summary.hermesActions > 0 ? "/activity?filter=hermes" : undefined,
+              activity.summary.arcActions > 0
+                ? `${activity.summary.arcActions} ${plural(activity.summary.arcActions, "agent action")} in this view.`
+                : "No Arc work in this range.",
+            tone: activity.summary.arcActions > 0 ? "blue" : "gray",
+            href: activity.summary.arcActions > 0 ? "/activity?filter=arc" : undefined,
           },
           {
             label: "Campaign progress",
@@ -116,7 +116,7 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
 
       <WorkspacePanel
         title="Workspace log"
-        description="A plain-English record of what people, Hermes, integrations, and the system have done across the workspace."
+        description="A plain-English record of what people, Arc, integrations, and the system have done across the workspace."
         aside={<ResultCount count={activity.entries.length} />}
       >
         <ActivityFilters selectedFilter={selectedFilter} selectedRange={selectedRange} search={search} />
@@ -157,7 +157,7 @@ function ActivityHeader() {
       <PageHeader
         eyebrow="Workspace log"
         title="Activity"
-        description="A clear record of human actions, Hermes work, approvals, risks, and marketing progress."
+        description="A clear record of human actions, Arc work, approvals, risks, and marketing progress."
       />
     </div>
   );
@@ -282,7 +282,7 @@ function buildActivityQuery(filter: string, range: string, search: string): Acti
 
   if (filter === "needs-review") query.needsReview = true;
   else if (filter === "humans") query.actorTypes = ["human"];
-  else if (filter === "hermes") query.actorTypes = ["hermes", "sub_agent"];
+  else if (filter === "arc") query.actorTypes = ["arc", "sub_agent"];
   else if (isCategory(filter)) query.categories = [filter];
 
   const bounds = rangeBounds(range);
@@ -310,8 +310,8 @@ function isCategory(value: string): value is ActivityCategory {
   return ["approval", "campaign", "crm", "asset", "agent", "integration", "risk", "system"].includes(value);
 }
 
-function normalizeFilter(value: string): ActivityCategory | "all" | "needs-review" | "humans" | "hermes" {
-  if (value === "needs-review" || value === "humans" || value === "hermes") return value;
+function normalizeFilter(value: string): ActivityCategory | "all" | "needs-review" | "humans" | "arc" {
+  if (value === "needs-review" || value === "humans" || value === "arc") return value;
   if (isCategory(value)) return value;
   return "all";
 }
@@ -335,7 +335,7 @@ function activityHref({ filter, range, q }: { filter: string; range: string; q: 
 
 function actorLabel(actorType: ActivityActorType) {
   if (actorType === "human") return "Human";
-  if (actorType === "hermes") return "Hermes";
+  if (actorType === "arc") return "Arc";
   if (actorType === "sub_agent") return "Sub-agent";
   if (actorType === "integration") return "Integration";
   return "System";

@@ -46,7 +46,7 @@ export function NoteEditor({ note }: { note?: VaultNote }) {
       </div>
 
       <div>
-        <label className={LABEL} htmlFor="body">Markdown</label>
+        <label className={LABEL} htmlFor="body">Arcdown</label>
         <textarea className={`${FIELD} mt-1 min-h-[320px] font-mono`} defaultValue={note?.body ?? ""} id="body" name="body" />
         <p className="mt-1 text-xs text-[var(--text-muted)]">Use Obsidian-style <code>[[wiki-links]]</code> to link notes, CRM records, or personas.</p>
       </div>

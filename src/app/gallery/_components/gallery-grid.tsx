@@ -22,7 +22,7 @@ function GalleryCard({ campaign }: { campaign: GalleryCampaign }) {
     >
       <div className="flex h-40 items-center justify-center overflow-hidden bg-[oklch(0.14_0.025_246)]">
         {campaign.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config
+          // eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config
           <img src={campaign.thumbnailUrl} alt={campaign.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
         ) : (
           <span className="px-4 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">

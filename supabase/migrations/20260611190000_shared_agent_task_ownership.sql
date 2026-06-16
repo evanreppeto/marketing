@@ -7,7 +7,7 @@ alter table public.agent_tasks
   add column if not exists driver_kind text not null default 'agent'
     check (driver_kind in ('human', 'agent', 'system')),
   add column if not exists driver_agent_id uuid references public.agents(id) on delete set null,
-  add column if not exists driver_label text not null default 'Mark'
+  add column if not exists driver_label text not null default 'Arc'
     check (length(btrim(driver_label)) > 0),
   add column if not exists approver_label text not null default 'Owner'
     check (length(btrim(approver_label)) > 0);

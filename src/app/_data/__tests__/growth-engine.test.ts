@@ -9,13 +9,13 @@ describe("navItems", () => {
     expect(campaigns?.label).toBe("Campaigns");
   });
 
-  it("includes a Mark entry pointing at /mark", () => {
-    const mark = navItems.find((item) => item.href === "/mark");
-    expect(mark?.label).toBe("Mark");
+  it("includes an Arc entry pointing at /arc", () => {
+    const arc = navItems.find((item) => item.href === "/arc");
+    expect(arc?.label).toBe("Arc");
   });
 
-  it("exposes Mark first, then Campaigns, and nothing else", () => {
+  it("exposes Arc first, then Campaigns, and nothing else", () => {
     const labels = navItems.map((item) => item.label);
-    expect(labels).toEqual(["Mark", "Campaigns"]);
+    expect(labels).toEqual(["Arc", "Campaigns"]);
   });
 });

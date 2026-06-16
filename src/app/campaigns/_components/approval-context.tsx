@@ -1,7 +1,7 @@
 import type { CampaignMediaAsset, CampaignWorkspaceApproval } from "@/lib/campaigns/read-model";
 
 /**
- * Presentational decision context for one approval: the draft Mark produced,
+ * Presentational decision context for one approval: the draft Arc produced,
  * the prompt inputs behind it, and compliance notes. Shared by the overview
  * stepper and the Approvals tab so "why am I approving this" reads the same
  * everywhere. Pure — no state, no actions.
@@ -76,7 +76,7 @@ function ApprovalMediaTile({ media }: { media: CampaignMediaAsset }) {
         className="group block overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]"
         title={media.description ?? media.title}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
         <img src={media.thumbnailUrl ?? media.url} alt={media.title} className="h-24 w-full object-cover transition group-hover:scale-[1.02]" />
       </a>
     );

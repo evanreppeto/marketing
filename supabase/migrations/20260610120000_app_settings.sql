@@ -1,5 +1,5 @@
 -- App settings: a small key/value store for operator-editable app preferences
--- (workspace name, support email, Mark webhook on/off). Extensible — new settings
+-- (workspace name, support email, Arc webhook on/off). Extensible — new settings
 -- are new keys, no schema change.
 --
 -- NEVER stores secrets. Deployment secrets (API tokens, Supabase keys, operator
@@ -22,5 +22,5 @@ for each row execute function public.set_updated_at();
 insert into public.app_settings (key, value) values
   ('workspace_name',      '"Big Shoulders Restoration M&P"'::jsonb),
   ('support_email',       '""'::jsonb),
-  ('mark_webhook_enabled', 'true'::jsonb)
+  ('arc_webhook_enabled', 'true'::jsonb)
 on conflict (key) do nothing;

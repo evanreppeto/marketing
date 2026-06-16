@@ -334,7 +334,7 @@ begin
     'email',
     'Property manager storm follow-up email',
     'pending_approval',
-    'mark',
+    'arc',
     'demo_seed',
     'Draft a short partner follow-up for property managers after storm leak calls.',
     jsonb_build_object('persona', 'property_manager', 'loss_focus', 'water', 'seed_source', seed_source),
@@ -378,7 +378,7 @@ begin
     true,
     jsonb_build_object('seed_source', seed_source, 'channel', 'email'),
     'Hi Maya, checking in after the storm calls this week. If any units are still showing moisture, we can help document the issue and coordinate mitigation quickly.',
-    'Mark',
+    'Arc',
     'low',
     'Ready for human review before any outbound send.',
     jsonb_build_object('recommendation', 'approve_after_operator_review'),
@@ -410,7 +410,7 @@ begin
     bsr_org,
     approval_id,
     'submitted',
-    'Mark',
+    'Arc',
     'Demo item submitted for operator review.',
     'draft',
     'pending_approval',
@@ -445,8 +445,8 @@ begin
       campaign_id,
       asset_id,
       'asset_generated',
-      'Mark',
-      'Mark drafted a review-gated follow-up email.',
+      'Arc',
+      'Arc drafted a review-gated follow-up email.',
       jsonb_build_object('seed_source', seed_source),
       now() - interval '2 hours'
     )
@@ -521,7 +521,7 @@ begin
     'human',
     'Demo Operator',
     'agent',
-    'Mark'
+    'Arc'
   )
   on conflict (id) do update set
     entity_type = excluded.entity_type,
@@ -545,9 +545,9 @@ begin
     lakeside_company,
     'task_created',
     'Follow-up task created for Lakeside Property Management.',
-    'Mark suggested a call after the scheduled walk-through.',
+    'Arc suggested a call after the scheduled walk-through.',
     'agent',
-    'Mark',
+    'Arc',
     jsonb_build_object('seed_source', seed_source, 'task_id', crm_task_id)
   )
   on conflict (id) do update set
@@ -716,7 +716,7 @@ begin
     completed_at = excluded.completed_at,
     metadata = excluded.metadata;
 
-  insert into public.mark_conversations (
+  insert into public.arc_conversations (
     id, org_id, operator, title, status, campaign_id, last_message_at
   ) values (
     conversation_id,
@@ -734,7 +734,7 @@ begin
     campaign_id = excluded.campaign_id,
     last_message_at = excluded.last_message_at;
 
-  insert into public.mark_messages (
+  insert into public.arc_messages (
     id, org_id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at
   ) values
     (
@@ -742,7 +742,7 @@ begin
       bsr_org,
       conversation_id,
       'operator',
-      'Mark, help me turn the Lakeside water-loss lead into a safe property manager follow-up.',
+      'Arc, help me turn the Lakeside water-loss lead into a safe property manager follow-up.',
       'sent',
       task_id,
       '[]'::jsonb,
@@ -753,7 +753,7 @@ begin
       mark_message_id,
       bsr_org,
       conversation_id,
-      'mark',
+      'arc',
       'I drafted a review-gated email asset and linked it to the Lakeside campaign. It is blocked from dispatch until approval.',
       'complete',
       task_id,

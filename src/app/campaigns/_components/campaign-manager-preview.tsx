@@ -25,7 +25,7 @@ export function CampaignManagerPreview({ campaign, id }: { campaign: CampaignWor
             <Link href={campaign.href} className={buttonClasses({ size: "sm" })}>
               Review full campaign
             </Link>
-            <Link href={`${campaign.href}#mark`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+            <Link href={`${campaign.href}#arc`} className={buttonClasses({ variant: "ghost", size: "sm" })}>
               Ask {agentName}
             </Link>
           </div>

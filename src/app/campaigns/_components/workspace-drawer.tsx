@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { cx } from "@/app/_components/theme";
 
 /** Generic right-anchored slide-over. role=dialog, Escape + backdrop close,
- *  focus moves to the panel on open. CSS-only; mirrors the Mark agent drawer. */
+ *  focus moves to the panel on open. CSS-only; mirrors the Arc agent drawer. */
 export function WorkspaceDrawer({
   open,
   title,

@@ -16,11 +16,11 @@ export type RevisionRequestResult = {
 };
 
 /**
- * Record an operator's request for Mark to revise a specific campaign asset.
+ * Record an operator's request for Arc to revise a specific campaign asset.
  *
  * This is a real backend state transition, not a send: it logs an approval
  * decision (revision_requested), flips the asset + approval item to
- * revision_requested, writes a campaign event, and queues a task for Mark.
+ * revision_requested, writes a campaign event, and queues a task for Arc.
  * Outbound dispatch is never unlocked here; `dispatch_locked` is left intact.
  */
 export async function requestAssetRevision(
@@ -86,25 +86,25 @@ export async function requestAssetRevision(
   });
   assertOk("campaign_events insert", eventError);
 
-  // 6. Queue Mark to act on the revision.
-  const agentTaskId = await queueMarkRevision(client, { campaignId, assetId, approvalItemId, instruction, operator });
+  // 6. Queue Arc to act on the revision.
+  const agentTaskId = await queueArcRevision(client, { campaignId, assetId, approvalItemId, instruction, operator });
 
   return { approvalItemId, agentTaskId };
 }
 
-async function queueMarkRevision(
+async function queueArcRevision(
   client: SupabaseClient,
   input: { campaignId: string; assetId: string; approvalItemId: string | null; instruction: string; operator: string },
 ): Promise<string | null> {
   const { data: agent, error: agentError } = await client
     .from("agents")
     .select("id")
-    .eq("key", "hermes")
+    .eq("key", "arc")
     .limit(1)
     .maybeSingle<{ id: string }>();
   assertOk("agents lookup", agentError);
 
-  // No Mark agent registered yet (campaign predates an orchestrator run): the
+  // No Arc agent registered yet (campaign predates an orchestrator run): the
   // approval/asset state transition above still stands; just skip the queue.
   if (!agent) return null;
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createMarketingOperatorPrompt, getCreativeToolRecommendations, getMarketingSkillPacks } from "./marketing-guidance";
 
 describe("createMarketingOperatorPrompt", () => {
-  it("orients Hermes toward marketing work with approval-safe boundaries", () => {
+  it("orients Arc toward marketing work with approval-safe boundaries", () => {
     const prompt = createMarketingOperatorPrompt();
 
     expect(prompt).toContain("Marketing Operator");
@@ -53,7 +53,7 @@ describe("getMarketingSkillPacks", () => {
 });
 
 describe("getCreativeToolRecommendations", () => {
-  it("returns image and design tools with copyable Hermes instructions", () => {
+  it("returns image and design tools with copyable Arc instructions", () => {
     const tools = getCreativeToolRecommendations();
 
     expect(tools.map((tool) => tool.id)).toEqual(["openai-images", "canva", "figma", "runway"]);
