@@ -11,6 +11,7 @@ const stubClient = {
   postStep: vi.fn(),
 } as unknown as ArcClient;
 const step = vi.fn(async () => {});
+const collect = () => {};
 
 const READ = [
   "search_companies",
@@ -24,23 +25,24 @@ const READ = [
   "list_campaigns",
   "get_campaign",
   "list_approvals",
+  "emit_card",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
 
 describe("toolsForMode", () => {
   it("ask mode exposes only read tools (no writes)", () => {
-    const names = toolsForMode("ask", stubClient, step).map((t) => t.name).sort();
+    const names = toolsForMode("ask", stubClient, step, collect).map((t) => t.name).sort();
     expect(names).toEqual([...READ].sort());
   });
 
   it("act mode adds the write tools", () => {
-    const names = toolsForMode("act", stubClient, step).map((t) => t.name).sort();
+    const names = toolsForMode("act", stubClient, step, collect).map((t) => t.name).sort();
     expect(names).toEqual([...READ, ...WRITE].sort());
   });
 
   it("draft mode (this plan) has the same tools as act", () => {
-    const act = toolsForMode("act", stubClient, step).map((t) => t.name).sort();
-    const draft = toolsForMode("draft", stubClient, step).map((t) => t.name).sort();
+    const act = toolsForMode("act", stubClient, step, collect).map((t) => t.name).sort();
+    const draft = toolsForMode("draft", stubClient, step, collect).map((t) => t.name).sort();
     expect(draft).toEqual(act);
   });
 });
