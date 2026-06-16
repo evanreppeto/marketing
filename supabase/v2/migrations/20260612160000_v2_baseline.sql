@@ -163,6 +163,43 @@ create trigger persona_definitions_set_updated_at
 before update on public.persona_definitions
 for each row execute function public.set_updated_at();
 
+-- ---------- Brand Kit ----------
+
+create table public.business_profiles (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null default public.default_organization_id() references public.organizations(id) on delete cascade,
+  display_name text not null default '',
+  legal_name text,
+  tagline text,
+  description text,
+  industry text,
+  website_url text,
+  logo_url text,
+  favicon_url text,
+  short_mark text,
+  service_areas jsonb not null default '[]'::jsonb,
+  time_zone text,
+  accent text not null default '#C8A24B',
+  density text not null default 'comfortable' check (density in ('comfortable', 'compact')),
+  motion text not null default 'standard' check (motion in ('standard', 'reduced')),
+  tone text not null default 'balanced',
+  voice_guidance text,
+  preferred_phrases jsonb not null default '[]'::jsonb,
+  banned_phrases jsonb not null default '[]'::jsonb,
+  services jsonb not null default '[]'::jsonb,
+  proof_points jsonb not null default '[]'::jsonb,
+  guardrails jsonb not null default '{}'::jsonb,
+  status text not null default 'draft' check (status in ('draft', 'active')),
+  onboarding_completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (org_id)
+);
+
+create trigger business_profiles_set_updated_at
+before update on public.business_profiles
+for each row execute function public.set_updated_at();
+
 -- ---------- CRM core ----------
 
 create table public.companies (
@@ -796,6 +833,7 @@ begin
     'agent_connections',
     'agent_api_tokens',
     'persona_definitions',
+    'business_profiles',
     'companies',
     'contacts',
     'properties',
