@@ -67,11 +67,11 @@ const MODE_OPTIONS: PillOption<MarkMode>[] = [
 ];
 const ROUTE_OPTIONS: PillOption<MarkRoute>[] = [
   // Fast = lightning bolt, Standard = steady arrow (more thorough).
-  { id: "fast", label: "Fast", hint: "Quick, lower-cost model route", icon: <Glyph><path d="M11 2.5 4.5 11H9l-1 6.5 7.5-9H11z" /></Glyph> },
-  { id: "standard", label: "Standard", hint: "Slower, more thorough route", icon: <Glyph><path d="M3 10h14M10 3l7 7-7 7" /></Glyph> },
+  { id: "fast", label: "Claude Fast", hint: "Anthropic Claude route for quick replies", icon: <Glyph><path d="M11 2.5 4.5 11H9l-1 6.5 7.5-9H11z" /></Glyph> },
+  { id: "standard", label: "Claude Standard", hint: "Anthropic Claude route for deeper work", icon: <Glyph><path d="M3 10h14M10 3l7 7-7 7" /></Glyph> },
 ];
 
-/** Footer pill with a labelled dropdown — used for the per-message mode + route
+/** Footer pill with a labelled dropdown - used for the per-message mode + model route
  *  selectors. Manages its own open state and outside-click/Escape dismissal. */
 function PillSelect<T extends string>({
   value,
@@ -675,7 +675,34 @@ export function Composer({
             </div>
           ) : null}
 
-          <div className="flex items-end gap-1.5">
+          <textarea
+            ref={textareaRef}
+            name="body-display"
+            value={draft}
+            onChange={(e) => onTextChange(e.target.value)}
+            onPaste={(e) => {
+              // Pasted screenshots/images upload like the file picker; text paste
+              // falls through to the default textarea behaviour.
+              const files = e.clipboardData?.files;
+              if (files && files.length > 0 && Array.from(files).some((f) => f.type.startsWith("image/"))) {
+                e.preventDefault();
+                void handleFiles(files);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
+                e.preventDefault();
+                if (!disabled) formRef.current?.requestSubmit();
+              }
+            }}
+            rows={1}
+            placeholder={`Message ${assistantName}...`}
+            style={{ outline: "none" }}
+            className="max-h-[200px] min-h-12 w-full resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+          />
+
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -729,31 +756,8 @@ export function Composer({
                 <path d="M7.5 16.5h5" />
               </svg>
             </button>
-            <textarea
-              ref={textareaRef}
-              name="body-display"
-              value={draft}
-              onChange={(e) => onTextChange(e.target.value)}
-              onPaste={(e) => {
-                // Pasted screenshots/images upload like the file picker; text paste
-                // falls through to the default textarea behaviour.
-                const files = e.clipboardData?.files;
-                if (files && files.length > 0 && Array.from(files).some((f) => f.type.startsWith("image/"))) {
-                  e.preventDefault();
-                  void handleFiles(files);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
-                  e.preventDefault();
-                  if (!disabled) formRef.current?.requestSubmit();
-                }
-              }}
-              rows={1}
-              placeholder={`Message ${assistantName}...`}
-              style={{ outline: "none" }}
-              className="max-h-[200px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
-            />
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
             {replyPending ? (
               <button
                 type="button"
@@ -779,6 +783,7 @@ export function Composer({
                 {isPending ? <Spinner /> : <SendIcon />}
               </button>
             )}
+            </div>
           </div>
         </div>
 
@@ -834,7 +839,7 @@ export function Composer({
             onChange={onModeChange}
           />
           <PillSelect
-            ariaLabel="Route"
+            ariaLabel="Model"
             value={route}
             options={ROUTE_OPTIONS}
             onChange={onRouteChange}

@@ -14,6 +14,11 @@ import { CampaignDeck } from "./campaign-deck";
 import { MarkAvatar } from "./mark-avatar";
 import { MessageMedia } from "./message-media";
 import { SaveStar } from "./save-star";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -108,24 +113,55 @@ function StepRow({ step, active, last }: { step: MarkStep; active?: boolean; las
   );
 }
 
+function reasoningText(steps: MarkStep[], fallback: string): string {
+  if (steps.length === 0) return fallback;
+  return steps
+    .map((step, index) => {
+      const details = (step.detail ?? []).map((detail) => `   - ${detail}`).join("\n");
+      return `${index + 1}. ${step.label}${details ? `\n${details}` : ""}`;
+    })
+    .join("\n");
+}
+
+function ReasoningTrace({
+  assistantName,
+  steps,
+  isStreaming,
+  fallback,
+}: {
+  assistantName: string;
+  steps: MarkStep[];
+  isStreaming: boolean;
+  fallback: string;
+}) {
+  return (
+    <Reasoning className="mb-0" isStreaming={isStreaming}>
+      <ReasoningTrigger
+        className="gap-2 py-1 text-[13px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        getThinkingMessage={(streaming, duration) => {
+          if (streaming || duration === 0) return <span>{assistantName} is reasoning...</span>;
+          if (duration === undefined) return <span>{assistantName} reasoned for a few seconds</span>;
+          return <span>{assistantName} reasoned for {duration} seconds</span>;
+        }}
+      />
+      <ReasoningContent className="mt-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-[13px] leading-6 text-[var(--text-secondary)]">
+        {reasoningText(steps, fallback)}
+      </ReasoningContent>
+    </Reasoning>
+  );
+}
+
 function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: string; steps: MarkStep[]; body: string; onStop: () => void }) {
   const elapsed = useElapsed(true);
-  const hasSteps = steps.length > 0;
   const hasBody = body.trim().length > 0;
   return (
     <div className="flex flex-col gap-2">
-      {hasSteps ? (
-        <div className="flex flex-col" aria-label={`What ${assistantName} is doing`}>
-          {steps.map((s, i) => (
-            <StepRow
-              key={`${i}-${s.label}`}
-              step={s}
-              active={s.status !== "done" && i === steps.length - 1}
-              last={i === steps.length - 1}
-            />
-          ))}
-        </div>
-      ) : null}
+      <ReasoningTrace
+        assistantName={assistantName}
+        fallback="Getting the thread context ready."
+        isStreaming
+        steps={steps}
+      />
       {hasBody ? (
         // Staged reply: the worker streams partial body text into the message
         // row; render it live with a bottom-fade mask + writing caret so chunked
@@ -133,21 +169,6 @@ function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: s
         <div aria-label={`${assistantName} is writing`} className="mark-streaming">
           <MarkBody body={body} />
           <span aria-hidden className="mark-caret" />
-        </div>
-      ) : !hasSteps ? (
-        <div className="flex flex-col gap-2.5" aria-label={`${assistantName} is thinking`}>
-          <span className="flex items-center gap-2.5">
-            <span aria-hidden className="mark-luma h-4 w-4">
-              <span />
-              <span />
-            </span>
-            <span className="mark-shimmer text-sm font-medium">{assistantName} is thinking...</span>
-          </span>
-          <div className="flex flex-col gap-2 pt-0.5">
-            <div className="mark-skel" style={{ width: "92%" }} />
-            <div className="mark-skel" style={{ width: "78%" }} />
-            <div className="mark-skel" style={{ width: "85%" }} />
-          </div>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
@@ -171,7 +192,7 @@ function StepTrace({ steps }: { steps: MarkStep[] }) {
         <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6z" />
         </svg>
-        Chain of thought
+        Reasoning
         <span className="text-[var(--text-muted)]">· {steps.length} step{steps.length === 1 ? "" : "s"}</span>
         <svg viewBox="0 0 20 20" aria-hidden className="ml-0.5 h-3 w-3 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8l4 4 4-4" /></svg>
       </summary>
