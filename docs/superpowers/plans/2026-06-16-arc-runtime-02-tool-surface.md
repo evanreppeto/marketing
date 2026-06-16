@@ -765,9 +765,11 @@ function writeTools(client: ArcClient, step: StepFn) {
  * Outbound has no tool in any mode.
  */
 export function toolsForMode(mode: ArcMode, client: ArcClient, step: StepFn) {
-  const tools = readTools(client, step);
-  if (mode === "act" || mode === "draft") tools.push(...writeTools(client, step));
-  return tools;
+  const read = readTools(client, step);
+  // Fresh array via spread (not push) so the element type widens to the union of
+  // read+write tool definitions — the SDK tool types are invariant in their Zod
+  // schema, so pushing write tools into a read-typed array won't compile.
+  return mode === "ask" ? [...read] : [...read, ...writeTools(client, step)];
 }
 
 /** The `allowedTools` list the SDK expects — each tool namespaced under the `arc` MCP server. */
