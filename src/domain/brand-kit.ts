@@ -187,3 +187,120 @@ export function validateBusinessProfile(profile: BusinessProfile): ProfileValida
   if (!HEX_COLOR.test(profile.accent)) errors.push("accent_invalid");
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }
+
+export type IndustryTemplate = {
+  id: string;
+  label: string;
+  /** Partial overrides applied on top of NEUTRAL_DEFAULTS. */
+  profile: Partial<BusinessProfile>;
+  personas: PersonaDefinition[];
+};
+
+function persona(
+  key: string,
+  label: string,
+  audienceType: string,
+  sortOrder: number,
+  description: string,
+): PersonaDefinition {
+  return { key, label, audienceType, sortOrder, isActive: true, metadata: { description } };
+}
+
+export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
+  {
+    id: "neutral",
+    label: "Start neutral / from scratch",
+    profile: {},
+    personas: NEUTRAL_PERSONAS,
+  },
+  {
+    id: "home_property_services",
+    label: "Home & Property Services",
+    profile: {
+      tone: "reassuring",
+      services: ["Repairs", "Maintenance", "Emergency response", "Inspections"],
+    },
+    personas: [
+      persona("homeowner", "Homeowner", "customer", 0, "Owner-occupant needing service at their home."),
+      persona("property_manager", "Property manager", "customer", 1, "Manages multiple properties and recurring work."),
+      persona("trade_partner", "Trade partner", "partner", 2, "Adjacent trade that can refer overflow work."),
+    ],
+  },
+  {
+    id: "professional_services",
+    label: "Professional & B2B Services",
+    profile: {
+      tone: "professional",
+      services: ["Consulting", "Advisory", "Managed services", "Project delivery"],
+    },
+    personas: [
+      persona("buyer", "Economic buyer", "customer", 0, "Holds budget authority for the engagement."),
+      persona("champion", "Internal champion", "customer", 1, "Advocates for the solution inside the account."),
+      persona("referral_partner", "Referral partner", "partner", 2, "Sends qualified introductions."),
+    ],
+  },
+  {
+    id: "health_wellness",
+    label: "Health & Wellness",
+    profile: {
+      tone: "warm",
+      services: ["Appointments", "Programs", "Memberships", "Consultations"],
+    },
+    personas: [
+      persona("new_patient", "New patient/client", "customer", 0, "First-time visitor evaluating the practice."),
+      persona("returning_client", "Returning client", "customer", 1, "Existing client booking again."),
+      persona("referring_provider", "Referring provider", "partner", 2, "Provider who refers patients."),
+    ],
+  },
+  {
+    id: "retail_ecommerce",
+    label: "Retail & E-commerce",
+    profile: {
+      tone: "friendly",
+      services: ["Products", "Collections", "Subscriptions", "Promotions"],
+    },
+    personas: [
+      persona("first_time_shopper", "First-time shopper", "customer", 0, "Has not purchased before."),
+      persona("loyal_customer", "Loyal customer", "customer", 1, "Repeat buyer eligible for loyalty offers."),
+      persona("cart_abandoner", "Cart abandoner", "customer", 2, "Added to cart but did not check out."),
+    ],
+  },
+  {
+    id: "real_estate_property",
+    label: "Real Estate & Property",
+    profile: {
+      tone: "professional",
+      services: ["Listings", "Buyer representation", "Leasing", "Property management"],
+    },
+    personas: [
+      persona("seller", "Seller", "customer", 0, "Owner looking to list or sell."),
+      persona("buyer", "Buyer", "customer", 1, "Prospective purchaser."),
+      persona("investor", "Investor", "customer", 2, "Acquires property for return."),
+    ],
+  },
+  {
+    id: "hospitality_local",
+    label: "Hospitality & Local",
+    profile: {
+      tone: "friendly",
+      services: ["Reservations", "Events", "Catering", "Local offers"],
+    },
+    personas: [
+      persona("first_time_guest", "First-time guest", "customer", 0, "Trying the venue for the first time."),
+      persona("regular", "Regular", "customer", 1, "Frequent visitor."),
+      persona("event_planner", "Event planner", "customer", 2, "Books group or private events."),
+    ],
+  },
+];
+
+const NEUTRAL_TEMPLATE = INDUSTRY_TEMPLATES[0];
+
+export function getIndustryTemplate(id: string): IndustryTemplate {
+  return INDUSTRY_TEMPLATES.find((t) => t.id === id) ?? NEUTRAL_TEMPLATE;
+}
+
+/** Apply a template's partial overrides on top of NEUTRAL_DEFAULTS. */
+export function applyIndustryTemplate(id: string): BusinessProfile {
+  const tpl = getIndustryTemplate(id);
+  return { ...NEUTRAL_DEFAULTS, ...tpl.profile, industry: tpl.id === "neutral" ? null : tpl.id };
+}

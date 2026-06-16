@@ -77,3 +77,30 @@ describe("validateBusinessProfile", () => {
     expect(result.ok).toBe(true);
   });
 });
+
+import { INDUSTRY_TEMPLATES, getIndustryTemplate } from "@/domain/brand-kit";
+
+describe("INDUSTRY_TEMPLATES", () => {
+  it("includes broad buckets and a neutral start, all equal citizens", () => {
+    const ids = INDUSTRY_TEMPLATES.map((t) => t.id);
+    expect(ids).toContain("neutral");
+    expect(ids).toContain("home_property_services");
+    expect(ids).toContain("professional_services");
+    // restoration is NOT a top-level bucket; it is only a flavor under home/property
+    expect(ids).not.toContain("restoration");
+    expect(INDUSTRY_TEMPLATES.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("every non-neutral template pre-fills personas and services", () => {
+    for (const tpl of INDUSTRY_TEMPLATES) {
+      if (tpl.id === "neutral") continue;
+      expect(tpl.personas.length).toBeGreaterThan(0);
+      expect(tpl.profile.services && tpl.profile.services.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("getIndustryTemplate returns the neutral template for an unknown id", () => {
+    expect(getIndustryTemplate("does_not_exist").id).toBe("neutral");
+    expect(getIndustryTemplate("professional_services").id).toBe("professional_services");
+  });
+});
