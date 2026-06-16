@@ -16,35 +16,35 @@ pnpm lint           # eslint (flat config in eslint.config.mjs)
 
 ## Architecture
 
-- Product posture: this app is primarily a backend/control plane for the **Hermes** agent (surfaced in the UI as **Mark**). Build durable APIs, records, queues, approvals, logs, and state transitions first. UI pages are detailed operator views for humans and agent debugging, not the main source of product value.
+- Product posture: this app is primarily a backend/control plane for the **Arc** agent. Build durable APIs, records, queues, approvals, logs, and state transitions first. UI pages are detailed operator views for humans and agent debugging, not the main source of product value.
 - Layering convention: `src/domain/` (pure logic) → `src/lib/<feature>/` (I/O, persistence, read-models, repos) → `src/app/<route>/` (server-component views + colocated `_components/`/`_data/`). Don't put I/O in `domain/`; don't put business rules in `app/`.
 - `src/domain/` — pure, deterministic business logic. No I/O. Heavily unit-tested in `src/domain/__tests__/`. Modules: `personas`, `scoring`, `lead-ingestion`, `leads`, `loss-classification`, `routing-decisions`, `events`, `integrity-findings`, `notebook`, `campaign-revisions`. Everything re-exports through `src/domain/index.ts` — import from `@/domain`.
 - Live API surfaces (each carries its own auth — see Operator Auth & API Tokens):
   - `POST /api/v1/leads/ingest` — calls `parseLeadIngestionPayload` from `@/domain`, then `persistLeadIngestion` from `@/lib/lead-ingestion/persistence` only if Supabase env vars are set.
-  - `POST /api/v1/hermes/runs` — bearer-gated (`HERMES_AGENT_API_TOKEN`); runs `runHermesPartnerCampaign` from `@/lib/hermes/orchestrator`. Returns `503 not_configured` if Supabase admin isn't set up. `POST /api/v1/hermes/ping` is the bearer-gated health/connectivity check.
+  - `POST /api/v1/arc/runs` — bearer-gated (`ARC_AGENT_API_TOKEN`); runs `runArcPartnerCampaign` from `@/lib/arc/orchestrator`. Returns `503 not_configured` if Supabase admin isn't set up. `POST /api/v1/arc/ping` is the bearer-gated health/connectivity check.
   - `POST /api/v1/approvals` and `POST /api/v1/approvals/history` — programmatic approval surface (bearer-gated like the other `/api/v1` routes).
   - `/api/auth/sign-in`, `/api/auth/sign-in/passkey`, `/api/auth/sign-out` — operator session cookie management.
 - `src/lib/supabase/server.ts` — admin client, lazily created from `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. Guard every persistence call with `isSupabaseAdminConfigured()`; without env vars the app degrades gracefully instead of throwing.
 - `src/lib/repos/` — thin repository layer over Supabase (currently `leads`). Use/extend this for new typed table access rather than hand-rolling queries in routes.
 - `src/app/_components/page-header.tsx` is the shared UI primitives module — exports `PageHeader`, `Panel`, `StatusPill`, `OperatorBar`, `ActionFeedback`, `EmptyState`. Reuse these before adding new layout components.
-- `src/app/_components/app-shell.tsx` reads `navItems` from `src/app/_data/growth-engine.ts` (current top-level nav: Today `/`, Activity `/approvals`, CRM `/crm`, Personas `/persona-intelligence`, Mark `/agent-operations`, Settings `/settings`). Adding a top-level page = add an entry to `navItems`. Note: the wired Campaigns feature lives at `/campaigns` but is **not** yet in `navItems`.
+- `src/app/_components/app-shell.tsx` reads `navItems` from `src/app/_data/growth-engine.ts` (current top-level nav: Today `/`, Activity `/approvals`, CRM `/crm`, Personas `/persona-intelligence`, Arc `/arc`, Settings `/settings`). Adding a top-level page = add an entry to `navItems`.
 - `src/app/crm/_components/{crm-command-header,crm-object-page,crm-record-page}.tsx` are shared across all six CRM subroutes (companies, contacts, properties, leads, jobs, outcomes). `[recordId]` pages are dynamic; list pages are static.
-- `supabase/migrations/` — ordered, timestamp-prefixed migrations applied in sequence (initial 6-object CRM + `persona_mapping` enum, then phase-1 activity/routing/integrity, hyper-personalization, agent-operations scaffold, Hermes backend foundation, data-API role grants, vault notes, approval-decision `reverted` state). Add a new timestamped file; don't edit shipped ones.
+- `supabase/migrations/` — ordered, timestamp-prefixed migrations applied in sequence (initial 6-object CRM + `persona_mapping` enum, then phase-1 activity/routing/integrity, hyper-personalization, agent-operations scaffold, Arc backend foundation, data-API role grants, vault notes, approval-decision `reverted` state). Add a new timestamped file; don't edit shipped ones.
 
 ## Operator Auth & API Tokens
 
 Two independent auth mechanisms — don't conflate them:
 
 - **Operator gate (human UI).** Opt-in via `OPERATOR_ACCESS_TOKEN`: when unset (local dev) everything is open; when set, page routes require a `signal_operator` cookie. Enforced at the edge by `src/proxy.ts` — this is **Next.js 16's renamed middleware** (`middleware` → `proxy`), not a custom file. Its `config.matcher` skips API routes, Next internals, the auth pages, and brand assets. Because `proxy.ts` runs on the edge it can only import `src/lib/auth/operator-shared.ts` (no `next/headers`); the cookie/redirect helpers live there. Server actions and mutating server components call `requireOperator()` from `src/lib/auth/operator.ts` for defense-in-depth.
-- **API bearer tokens (programmatic callers).** API routes are *not* covered by the operator gate. They validate their own bearer tokens via `checkBearerToken(request, "ENV_VAR")` in `src/lib/auth/api-token.ts` (e.g. `HERMES_AGENT_API_TOKEN`).
+- **API bearer tokens (programmatic callers).** API routes are *not* covered by the operator gate. They validate their own bearer tokens via `checkBearerToken(request, "ENV_VAR")` in `src/lib/auth/api-token.ts` (e.g. `ARC_AGENT_API_TOKEN`).
 
 ## Wired Persistence vs. Scaffold-Mode
 
 Two features are now fully wired and serve as reference implementations of the same shape — real `"use server"` actions gated by `requireOperator()` + `isSupabaseAdminConfigured()`, persisting through a `src/lib/<feature>/` layer + `revalidatePath`:
 
-- **Vault notebook** (`src/app/vault/`, `src/lib/vault/`, `src/domain/notebook.ts`) — actions in `vault/actions.ts`, persistence in `src/lib/vault/persistence.ts`. Models the Obsidian-style vault (frontmatter parsing, backlinks, collections, live Mark/record signals).
-- **Campaigns** (`src/app/campaigns/`, `src/lib/campaigns/`, `src/domain/campaign-revisions.ts`) — actions in `campaigns/actions.ts`; persistence split across `src/lib/campaigns/{read-model,decisions,revisions}.ts`. This is the ContentEngine-style approval flow in practice: Mark drafts assets, the operator approves / declines / archives or requests a revision, and outbound stays locked until approved.
-- **CRM interactions** (`src/app/crm/_components/record-interactions/`, `src/lib/interactions/`, `src/domain/interactions.ts`) — record-attached notes, follow-up tasks, and activity timeline. Org-scoped via `getCurrentOrgId()` (`src/lib/auth/org.ts`); the same persistence path serves humans (server actions) and Hermes (`POST /api/v1/hermes/crm/interactions`).
+- **Vault notebook** (`src/app/vault/`, `src/lib/vault/`, `src/domain/notebook.ts`) — actions in `vault/actions.ts`, persistence in `src/lib/vault/persistence.ts`. Models the Obsidian-style vault (frontmatter parsing, backlinks, collections, live Arc/record signals).
+- **Campaigns** (`src/app/campaigns/`, `src/lib/campaigns/`, `src/domain/campaign-revisions.ts`) — actions in `campaigns/actions.ts`; persistence split across `src/lib/campaigns/{read-model,decisions,revisions}.ts`. This is the ContentEngine-style approval flow in practice: Arc drafts assets, the operator approves / declines / archives or requests a revision, and outbound stays locked until approved.
+- **CRM interactions** (`src/app/crm/_components/record-interactions/`, `src/lib/interactions/`, `src/domain/interactions.ts`) — record-attached notes, follow-up tasks, and activity timeline. Org-scoped via `getCurrentOrgId()` (`src/lib/auth/org.ts`); the same persistence path serves humans (server actions) and Arc (`POST /api/v1/arc/crm/interactions`).
 
 Follow this shape when wiring other features. The remaining `src/lib/<feature>/` dirs (e.g. `activity`, `approvals`, `partners`, `performance`, `persona-intelligence`, `loss-routing`, `agent-operations`) are mostly read-models feeding still-scaffold pages.
 
@@ -54,27 +54,27 @@ Follow this shape when wiring other features. The remaining `src/lib/<feature>/`
 
 These write no data, intentionally, until each feature is wired. Don't convert scaffold links to mutations casually — wire the persistence layer + auth gate (as the vault does) first.
 
-When wiring approval actions, make them real backend state transitions. Use the ContentEngine-style pattern for campaigns and ads: Hermes/Mark creates a draft, the item enters approval with prompt inputs/source records/output/risk flags, and the human can approve, decline, request revision, or archive. Approved items unlock the next backend step; declined or blocked items stay unavailable.
+When wiring approval actions, make them real backend state transitions. Use the ContentEngine-style pattern for campaigns and ads: Arc creates a draft, the item enters approval with prompt inputs/source records/output/risk flags, and the human can approve, decline, request revision, or archive. Approved items unlock the next backend step; declined or blocked items stay unavailable.
 
-## Mark as BSR Lead Marketing Agent
+## Arc as BSR Lead Marketing Agent
 
-Mark is **not** a generic chatbot. Mark operates as Big Shoulders Restoration's (BSR) lead marketing operator/orchestrator. This app is Mark's command center for finding source-backed opportunities, mapping them to personas, generating approval-gated campaign packages, organizing creative assets, and learning from performance. Build BSR-specific marketing workflows over generic SaaS/CRM patterns.
+Arc is **not** a generic chatbot. Arc operates as Big Shoulders Restoration's (BSR) lead marketing operator/orchestrator. This app is Arc's command center for finding source-backed opportunities, mapping them to personas, generating approval-gated campaign packages, organizing creative assets, and learning from performance. Build BSR-specific marketing workflows over generic SaaS/CRM patterns.
 
 ### Core operating principle (non-negotiable)
 
 - **Agent does the work. Human approves decisions. Database remembers everything.**
 - **No outbound send/publish/launch/spend/contact action happens without explicit human approval.** Never add automatic outbound behavior. Keep every change approval-safe.
-- Mark may draft, recommend, score, prepare assets, and create approval-ready records — nothing that reaches the outside world without a human gate.
+- Arc may draft, recommend, score, prepare assets, and create approval-ready records — nothing that reaches the outside world without a human gate.
 - Prefer **approved real BSR media** wherever possible. AI creative should enhance/package/resize/test authentic BSR proof, not replace it.
 - **Higgsfield** (ad production, reframing, UGC-style variants, background removal, upscaling, virality analysis) stays **operationally off** until Evan confirms the subscription is active. Wire behind a flag; do not enable.
 
 ### Product direction: a marketing operating system
 
-The durable architecture is a shared **Persona Revenue Intelligence Layer** that powers CRM, campaigns, landing pages, approval cards, personalization, reporting, and Mark/subagent decisions — not just a CRM or campaign list. Mark should become proactive: finding leads, identifying persona groups, watching signals, drafting campaigns, preparing creative, and learning what works.
+The durable architecture is a shared **Persona Revenue Intelligence Layer** that powers CRM, campaigns, landing pages, approval cards, personalization, reporting, and Arc/subagent decisions — not just a CRM or campaign list. Arc should become proactive: finding leads, identifying persona groups, watching signals, drafting campaigns, preparing creative, and learning what works.
 
 ### Frontend priorities
 
-1. **Mark Marketing Command Center** — surface waiting Mark tasks, blocked tasks, opportunity recommendations, campaign packages needing approval, recent assets, competitor/weather signals, and run logs.
+1. **Arc Marketing Command Center** — surface waiting Arc tasks, blocked tasks, opportunity recommendations, campaign packages needing approval, recent assets, competitor/weather signals, and run logs.
 
 2. **Persona Revenue Intelligence fields** — expose on companies, contacts, leads, campaigns, and approval cards where relevant: primary persona, secondary personas, persona confidence, relationship stage, urgency, service need, lead score, revenue opportunity score, relationship score, next best action, recommended CTA, recommended message angle, recommended proof points, recommended nurture/follow-up. (Note the existing 12-persona contract in `src/domain/personas.ts`.)
 
@@ -84,12 +84,12 @@ The durable architecture is a shared **Persona Revenue Intelligence Layer** that
 
 5. **Opportunity Intelligence Inbox** — an inbox for source-backed opportunities from CRM inactivity, new lead/company discovery, weather events, competitor activity, newly approved media, performance anomalies, and persona segment gaps. Each opportunity shows: evidence/source links, confidence, recommended action, suggested campaign type, required approval path.
 
-6. **Performance Learning Loop** — track outcomes so Mark can learn: campaign/channel/persona/asset attribution; impressions/clicks/replies/booked jobs/referrals where available; cost/spend if applicable; message angle used; proof/media used; conversion/business outcome; Mark's recommendation for next iteration.
+6. **Performance Learning Loop** — track outcomes so Arc can learn: campaign/channel/persona/asset attribution; impressions/clicks/replies/booked jobs/referrals where available; cost/spend if applicable; message angle used; proof/media used; conversion/business outcome; Arc's recommendation for next iteration.
 
 ### Design + implementation expectations
 
 - The UI must make **evidence, approval state, media, and next actions obvious**. Campaign cards should not look empty when assets exist.
-- Mark-created work must be **reviewable by humans before anything goes outbound** — visible, auditable, easy to approve/reject/revise.
+- Arc-created work must be **reviewable by humans before anything goes outbound** — visible, auditable, easy to approve/reject/revise.
 - Before modifying the frontend: inspect existing app structure; reuse existing components and styling patterns (`page-header.tsx` primitives, `DESIGN.md`).
 - If backend fields/routes are missing, **document the required schema/API additions** (new `supabase/migrations/` file, `src/lib/<feature>/` layer, route) instead of faking frontend-only data. Wire persistence + the `requireOperator()` gate following the vault/campaigns reference shape above.
 
@@ -108,4 +108,4 @@ UI work must follow `DESIGN.md` (Command Charcoal / Canvas White / Restoration R
 
 Copy `.env.example` → `.env.local`. Without Supabase vars, the ingest route still validates and scores but returns `202` with `persistence.status: "not_configured"` — useful for local dev.
 
-Key vars: `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (persistence); `OPERATOR_ACCESS_TOKEN` / `OPERATOR_EMAIL` / `OPERATOR_PASSWORD` (operator UI gate — leave unset locally to stay open); `HERMES_AGENT_API_TOKEN` (bearer for `POST /api/v1/hermes/runs`). `pnpm seed:hermes-demo` seeds demo data; `pnpm seed:test-campaign` seeds a campaign for the wired campaigns flow.
+Key vars: `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (persistence); `OPERATOR_ACCESS_TOKEN` / `OPERATOR_EMAIL` / `OPERATOR_PASSWORD` (operator UI gate — leave unset locally to stay open); `ARC_AGENT_API_TOKEN` (bearer for `POST /api/v1/arc/runs`). `pnpm seed:arc-demo` seeds demo data; `pnpm seed:test-campaign` seeds a campaign for the wired campaigns flow.
