@@ -28,6 +28,7 @@ const READ = [
   "emit_card",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
+const DRAFT = ["create_campaign_draft"];
 
 describe("toolsForMode", () => {
   it("ask mode exposes only read tools (no writes)", () => {
@@ -40,10 +41,14 @@ describe("toolsForMode", () => {
     expect(names).toEqual([...READ, ...WRITE].sort());
   });
 
-  it("draft mode (this plan) has the same tools as act", () => {
-    const act = toolsForMode("act", stubClient, step, collect).map((t) => t.name).sort();
-    const draft = toolsForMode("draft", stubClient, step, collect).map((t) => t.name).sort();
-    expect(draft).toEqual(act);
+  it("act mode does not include draft work products", () => {
+    const names = toolsForMode("act", stubClient, step, collect).map((t) => t.name);
+    expect(names).not.toContain("create_campaign_draft");
+  });
+
+  it("draft mode adds draft work products on top of act", () => {
+    const names = toolsForMode("draft", stubClient, step, collect).map((t) => t.name).sort();
+    expect(names).toEqual([...READ, ...WRITE, ...DRAFT].sort());
   });
 });
 

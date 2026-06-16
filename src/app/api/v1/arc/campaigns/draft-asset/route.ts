@@ -1,0 +1,75 @@
+import { NextResponse } from "next/server";
+
+import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+
+/**
+ * Lets Arc create an approval-gated campaign draft asset. If `campaign_id` is
+ * given, the asset is attached to that campaign; otherwise a draft campaign
+ * shell is created first (requires name/persona/restoration_focus). Reuses the
+ * same persistence as the operator promote flow, so the asset gets a
+ * campaign_assets row + an approval_items gate and is inline-approvable in chat.
+ * Author is always "Arc". No outbound — the asset is pending_approval + locked.
+ *
+ *   POST /api/v1/arc/campaigns/draft-asset
+ *   { campaign_id?, name?, persona?, restoration_focus?,
+ *     asset_type, title, body?, media_url? }
+ *   -> 201 { ok, status:"created", campaignId, assetId }
+ */
+export async function POST(request: Request) {
+  const denied = await guard(request);
+  if (denied) return denied;
+
+  const payload = await readJson(request);
+  if (payload === INVALID_JSON || typeof payload !== "object" || payload === null) {
+    return fail("rejected", "Request body must be valid JSON.", 400);
+  }
+  const body = payload as Record<string, unknown>;
+
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const campaignIdIn = str(body.campaign_id);
+  const assetType = str(body.asset_type);
+  const title = str(body.title);
+  const draftBody = str(body.body) || null;
+  const mediaUrl = str(body.media_url) || null;
+
+  if (!assetType) return fail("rejected", "asset_type is required.", 400);
+  if (!title) return fail("rejected", "title is required.", 400);
+
+  const operator = "Arc";
+
+  try {
+    let campaignId = campaignIdIn;
+    if (!campaignId) {
+      const name = str(body.name);
+      const persona = str(body.persona);
+      const restorationFocus = str(body.restoration_focus);
+      if (!name || !persona || !restorationFocus) {
+        return fail(
+          "rejected",
+          "To create a new campaign, name, persona, and restoration_focus are required (or pass campaign_id to attach to an existing campaign).",
+          400,
+        );
+      }
+      const shell = await createCampaignShell({ operator, name, persona, restorationFocus, agentName: "Arc" });
+      campaignId = shell.campaignId;
+    }
+
+    const asset = await promoteAssetToCampaign({
+      operator,
+      campaignId,
+      assetType,
+      title,
+      body: draftBody,
+      mediaUrl,
+      agentName: "Arc",
+    });
+
+    return NextResponse.json(
+      { ok: true, status: "created", campaignId, assetId: asset.assetId },
+      { status: 201 },
+    );
+  } catch (error) {
+    return fail("failed", error instanceof Error ? error.message : "Failed to create campaign draft.", 502);
+  }
+}
