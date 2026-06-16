@@ -36,3 +36,22 @@ export type MarkChatMessagePayload = {
 export type MarkPingPayload = { type: "ping"; workspaceId?: string; nonce?: string; at?: string };
 
 export type WakePayload = MarkChatMessagePayload | MarkPingPayload | { type?: string };
+
+/** Structured cards Arc attaches to a reply (rendered by the app from metadata.actions). */
+export type ArcActionRow = { name: string; meta?: string; badge?: string; href?: string };
+export type ArcActionFlag = { tone: "ok" | "warn" | "risk"; label: string };
+/** Inline approval reference — ONLY valid for an existing campaign asset. */
+export type ArcActionApproval = { kind: "campaign"; campaignId: string; assetId: string };
+
+export type ArcActionCard = {
+  kind: "result" | "draft";
+  title: string;
+  href?: string;
+  rows: ArcActionRow[];
+  flags: ArcActionFlag[];
+  preview?: string;
+  approval?: ArcActionApproval;
+  channel?: string;
+  format?: string;
+  status?: "draft" | "revision" | "approved" | "rejected";
+};
