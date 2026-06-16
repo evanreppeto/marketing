@@ -4,6 +4,7 @@ import { EmptyState, PageHeader } from "../../_components/page-header";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getConnections } from "@/lib/connections/read-model";
 import { getCampaignDispatches } from "@/lib/dispatch/read-model";
+import { getCampaignPerformance } from "@/lib/performance/campaign-performance";
 import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
@@ -19,10 +20,11 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
   const { campaignId } = await params;
   const { assistantName } = await getAppSettings();
   const agentName = getAgentDisplayName(assistantName);
-  const [detail, connections, dispatches] = await Promise.all([
+  const [detail, connections, dispatches, performance] = await Promise.all([
     getCampaignWorkspaceDetail(campaignId, undefined, agentName),
     getConnections(),
     getCampaignDispatches(campaignId),
+    getCampaignPerformance(campaignId),
   ]);
 
   if (detail.status !== "live") {
@@ -47,5 +49,13 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
     );
   }
 
-  return <CampaignSimpleDetail detail={detail} agentName={agentName} connections={connections} dispatches={dispatches} />;
+  return (
+    <CampaignSimpleDetail
+      detail={detail}
+      agentName={agentName}
+      connections={connections}
+      dispatches={dispatches}
+      performance={performance}
+    />
+  );
 }

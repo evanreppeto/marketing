@@ -4,11 +4,14 @@ import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import type { ConnectionView } from "@/lib/connections/read-model";
 import type { DispatchView } from "@/lib/dispatch/status";
+import type { CampaignPerformance } from "@/lib/performance/campaign-performance";
 
 import { CampaignBriefTabs } from "./campaign-brief-tabs";
 import { CampaignDeployLaunchpad } from "./campaign-deploy-launchpad";
 import { buildDeployLaunchpad } from "./campaign-deploy-model";
 import { CampaignPackageWorkspace } from "./campaign-package-workspace";
+import { CampaignResults } from "./campaign-results";
+import { buildCampaignResults } from "./campaign-results-model";
 import {
   buildCampaignChecklist,
   buildCampaignPackageSummary,
@@ -23,11 +26,13 @@ export function CampaignSimpleDetail({
   agentName,
   connections,
   dispatches,
+  performance,
 }: {
   detail: LiveCampaignWorkspace;
   agentName: string;
   connections: ConnectionView[];
   dispatches: DispatchView[];
+  performance: CampaignPerformance;
 }) {
   const { campaign, executiveOverview, launchState, reasoning } = detail;
   const checklist = buildCampaignChecklist(detail, agentName);
@@ -39,6 +44,7 @@ export function CampaignSimpleDetail({
     launchLocked: detail.campaign.launchLocked,
     connections,
   });
+  const results = buildCampaignResults({ dispatches, performance });
   const statusTone = lifecycleTone(launchState.lifecycle);
   const decisionTargetId = detail.assets.find((asset) => contentStatusForLaunch(asset, detail.launchState).label === "Review")?.id;
 
@@ -101,6 +107,8 @@ export function CampaignSimpleDetail({
           audienceWhy={plainOrFallback(executiveOverview.why, reasoning.whyBuilt)}
         />
       </div>
+
+      <CampaignResults results={results} />
     </div>
   );
 }
