@@ -14,6 +14,12 @@ import { CampaignDeck } from "./campaign-deck";
 import { MarkAvatar } from "./mark-avatar";
 import { MessageMedia } from "./message-media";
 import { SaveStar } from "./save-star";
+import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtHeader,
+  ChainOfThoughtStep,
+} from "@/components/ai-elements/chain-of-thought";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -72,39 +78,42 @@ function useElapsed(active: boolean): string {
 }
 
 
-function StepRow({ step, active, last }: { step: MarkStep; active?: boolean; last?: boolean }) {
-  const done = step.status === "done";
+/**
+ * Renders Arc's step trace using the AI Elements ChainOfThought component.
+ * Maps our MarkStep data: status "done" -> complete, "running" -> active.
+ * `detail` lines render as sub-text under the step.
+ */
+function ChainOfThoughtTrace({
+  steps,
+  title,
+  defaultOpen,
+}: {
+  steps: MarkStep[];
+  title: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  if (steps.length === 0) return null;
   return (
-    <div className="relative grid grid-cols-[1rem_1fr] items-start gap-3 pb-3.5 last:pb-0 motion-safe:[animation:msg-rise_.25s_ease-out]">
-      {last ? null : <span aria-hidden className="absolute bottom-0 left-[0.45rem] top-4 w-px bg-[var(--border-hairline)]" />}
-      <span
-        aria-hidden
-        className={cx(
-          "z-[1] mt-0.5 flex h-[15px] w-[15px] items-center justify-center rounded-full bg-[var(--canvas)] shadow-[inset_0_0_0_1px_var(--border-strong)]",
-          done ? "text-[var(--ok)] shadow-[inset_0_0_0_1px_var(--ok-border)]" : "",
-          active ? "shadow-[inset_0_0_0_1px_var(--accent)]" : "",
-        )}
-      >
-        {done ? (
-          <svg viewBox="0 0 20 20" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10.5l4 4 8-9" /></svg>
-        ) : active ? (
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
-        ) : null}
-      </span>
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className={cx("pt-px text-sm leading-snug", active ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]")}>{step.label}</span>
-        {step.detail && step.detail.length > 0 ? (
-          <ul className="flex flex-col gap-0.5">
-            {step.detail.map((d, i) => (
-              <li key={`${i}-${d}`} className="flex gap-1.5 text-[12px] leading-snug text-[var(--text-muted)]">
-                <span aria-hidden className="select-none text-[var(--border-strong)]">–</span>
-                <span className="min-w-0">{d}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </div>
+    <ChainOfThought defaultOpen={defaultOpen}>
+      <ChainOfThoughtHeader>{title}</ChainOfThoughtHeader>
+      <ChainOfThoughtContent>
+        {steps.map((s, i) => (
+          <ChainOfThoughtStep
+            key={`${i}-${s.label}`}
+            label={s.label}
+            status={s.status === "done" ? "complete" : "active"}
+          >
+            {s.detail && s.detail.length > 0 ? (
+              <div className="space-y-0.5 text-muted-foreground text-xs">
+                {s.detail.map((d, j) => (
+                  <div key={`${j}-${d}`}>– {d}</div>
+                ))}
+              </div>
+            ) : null}
+          </ChainOfThoughtStep>
+        ))}
+      </ChainOfThoughtContent>
+    </ChainOfThought>
   );
 }
 
@@ -115,16 +124,7 @@ function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: s
   return (
     <div className="flex flex-col gap-2">
       {hasSteps ? (
-        <div className="flex flex-col" aria-label={`What ${assistantName} is doing`}>
-          {steps.map((s, i) => (
-            <StepRow
-              key={`${i}-${s.label}`}
-              step={s}
-              active={s.status !== "done" && i === steps.length - 1}
-              last={i === steps.length - 1}
-            />
-          ))}
-        </div>
+        <ChainOfThoughtTrace steps={steps} title={`${assistantName} is thinking…`} defaultOpen />
       ) : null}
       {hasBody ? (
         // Staged reply: the worker streams partial body text into the message
@@ -160,22 +160,14 @@ function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: s
 }
 
 function StepTrace({ steps }: { steps: MarkStep[] }) {
+  if (steps.length === 0) return null;
   return (
-    <details className="group mt-3">
-      <summary className="flex cursor-pointer select-none items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:text-[var(--text-secondary)]">
-        <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6z" />
-        </svg>
-        Chain of thought
-        <span className="text-[var(--text-muted)]">· {steps.length} step{steps.length === 1 ? "" : "s"}</span>
-        <svg viewBox="0 0 20 20" aria-hidden className="ml-0.5 h-3 w-3 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8l4 4 4-4" /></svg>
-      </summary>
-      <div className="mt-2.5 flex flex-col pl-0.5">
-        {steps.map((s, i) => (
-          <StepRow key={`${i}-${s.label}`} step={{ ...s, status: "done" }} last={i === steps.length - 1} />
-        ))}
-      </div>
-    </details>
+    <div className="mt-3">
+      <ChainOfThoughtTrace
+        steps={steps.map((s) => ({ ...s, status: "done" as const }))}
+        title={`Chain of thought · ${steps.length} step${steps.length === 1 ? "" : "s"}`}
+      />
+    </div>
   );
 }
 
