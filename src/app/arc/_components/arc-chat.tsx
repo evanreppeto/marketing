@@ -16,6 +16,7 @@ import { ChatSettings } from "./chat-settings";
 import { CommandPalette } from "./command-palette";
 import { AgentSettingsDrawer } from "./agent-settings-drawer";
 import { RunsDrawer } from "./runs-drawer";
+import { ContextMeter } from "./context-meter";
 import { ArcBackdrop } from "./arc-backdrop";
 import type { SlashCommand } from "./slash-commands";
 import { Composer } from "./composer";
@@ -517,6 +518,7 @@ export function ArcChat({
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {hasMessages ? <ContextMeter messages={messages} /> : null}
               <button
                 type="button"
                 onClick={() => setRunsOpen(true)}
