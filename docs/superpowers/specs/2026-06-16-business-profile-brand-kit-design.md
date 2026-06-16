@@ -71,11 +71,12 @@ Rationale for a dedicated table over the `organizations.branding` JSONB blob: qu
 - Unique on (`org_id`, `key`).
 - The 12 `OFFICIAL_PERSONA_MAPPINGS` are **demoted** to seed data for the restoration template flavor — no longer the global validation authority.
 
-### 3.3 Persona enum relaxation (flagged migration risk)
-- `leads.persona` currently constrained by the `persona_mapping` Postgres enum + `leads_persona_not_unassigned_check`, hard-enforcing the 12.
-- **Change:** relax `leads.persona` from enum to `text`; move validity to per-org `persona_definitions`, validated at the app layer (`src/domain`). **Preserve** the `unassigned_persona` rejection (internal-only; ingest still returns 400; keep an app-layer + check-constraint guard against the literal `unassigned_persona`).
-- **Scoring/routing stays deterministic and app-owned** (per the Lead Ingestion Contract). What becomes data is (a) the persona *set* and (b) per-persona `scoring_weight`. No scoring logic moves into Postgres.
-- Migration must preserve existing lead rows (enum values are valid text after relaxation).
+### 3.3 Persona enum — DEFERRED (do not relax on legacy/prod in this project)
+- **Discovery during planning:** the `persona_mapping` Postgres enum is used by **~15+ columns across many tables** (companies, contacts, properties, leads, campaigns, jobs, outcomes, hyper-personalization, Arc foundation, knowledge-graph) — not just `leads.persona` as this spec originally assumed. Postgres cannot drop an enum while any column uses it, so a true relaxation means altering every one of those columns to `text` on the live prod DB. That is far more invasive than stated.
+- **Decision (approved 2026-06-16):** **defer enum relaxation.** Plan 1 adds `persona_definitions` (per-org labels/metadata for the *existing* persona keys) + `business_profiles` **without touching the enum on legacy/prod.** Truly custom, arbitrary per-org persona keys arrive with the **v2 baseline cutover** (the v2 schema is already `text` from the start — see §3.2). The v2 baseline therefore needs no enum change; only the legacy migrations leave the enum intact.
+- **Preserve** the `unassigned_persona` rejection unchanged (internal-only; ingest still returns 400; `leads_persona_not_unassigned_check` stays).
+- **Scoring/routing stays deterministic and app-owned** (per the Lead Ingestion Contract). `persona_definitions` carries per-org `metadata` (label, recommended CTA / message angle / proof points). No scoring logic moves into Postgres.
+- On legacy/prod, `persona_definitions` rows describe the existing 12 enum keys; v2 allows arbitrary keys. The app layer (`src/domain/personas.ts`, already accepting `allowedKeys`) validates against the org's `persona_definitions` either way.
 
 ### 3.4 `industry_templates`
 - **Code constant / seed data, not a user table.** Lives as pure data in `src/domain/brand-kit.ts`.
@@ -150,8 +151,16 @@ The wizard writes only the org's own config record. No outbound anything.
 
 ## 8. Scope Boundaries (Section D — approved)
 
+### Implementation decomposition (approved 2026-06-16)
+This sub-project is built as **three sequential plans**, each independently testable:
+- **Plan 1 — Brand Kit foundation:** migrations (dual-write: legacy + v2 baseline) + `src/domain/brand-kit.ts` + `src/lib/brand-kit/` + BSR seed. No UI, no Arc rewiring.
+- **Plan 2 — Arc business-context wiring:** de-restoration the runtime (`draft-engine`, `guardrails`, orchestrators, `RESTORATION_FOCUS` consumers) to read the context bundle.
+- **Plan 3 — Onboarding wizard + per-org branding in Settings.**
+
+**Schema home (approved):** dual-write — `business_profiles` + `persona_definitions` land in **both** `supabase/migrations/` (new timestamped legacy migration) **and** `supabase/v2/migrations/20260612160000_v2_baseline.sql`. The `persona_definitions` shape matches v2 (`key`, `label`, `audience_type`, `sort_order`, `is_active`, `metadata`); Persona Revenue Intelligence fields live in `metadata`.
+
 ### In scope (this project)
-- `business_profiles` + `persona_definitions` tables + persona-enum relaxation migration
+- `business_profiles` + `persona_definitions` tables (dual-write; **no** persona-enum relaxation — see §3.3)
 - `src/domain/brand-kit.ts` (templates + neutral defaults + Arc-context assembly, unit-tested)
 - `src/lib/brand-kit/` persistence + read-model
 - Arc wiring: `draft-engine`, `guardrails`, orchestrators read from the bundle (restoration removed from code)
@@ -160,6 +169,7 @@ The wizard writes only the org's own config record. No outbound anything.
 - One-time seed of the existing BSR org so prod doesn't regress
 
 ### Deferred (separate sub-projects)
+- **Persona enum relaxation on legacy/prod** (arbitrary per-org persona keys everywhere) — arrives with the v2 baseline cutover, which is already `text`. See §3.3.
 - **Real self-serve signup/auth + hard data isolation (RLS enforcement).** Onboarding assumes an org already exists. Multi-account signup, subdomains, and `service_role`→RLS hardening are the next (big) project. The wizard works, but true "anyone signs up" tenancy is separate.
 - **Billing/plans.**
 - **Per-org scoring-rule tuning** beyond the simple `scoring_weight` field (deep scoring stays deterministic/app-owned).
