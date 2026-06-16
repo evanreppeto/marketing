@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type SupabaseClient } from "@supabase/supabase-js";
 
 import {
   applyActivityFilters,
   buildActivitySummary,
+  getRecentActivity,
   groupActivityEntriesByDay,
   mapCampaignEvent,
   mapEvent,
@@ -10,6 +12,23 @@ import {
   sourceLimitForQuery,
   type ActivityEntry,
 } from "./read-model";
+
+type FakeSource = { data?: Array<Record<string, unknown>>; error?: { message: string } };
+
+/** Minimal Supabase stub: from(table).select().order().limit() -> { data, error }. */
+function fakeClient(perTable: Record<string, FakeSource>): SupabaseClient {
+  return {
+    from(table: string) {
+      const source = perTable[table] ?? { data: [] };
+      const builder = {
+        select: () => builder,
+        order: () => builder,
+        limit: () => Promise.resolve({ data: source.data ?? null, error: source.error ?? null }),
+      };
+      return builder;
+    },
+  } as unknown as SupabaseClient;
+}
 
 function entry(
   id: string,
@@ -255,6 +274,56 @@ describe("groupActivityEntriesByDay", () => {
     const groups = groupActivityEntriesByDay([entry("late-yesterday", lateYesterday)], now);
 
     expect(groups.map((group) => group.label)).toEqual(["Yesterday"]);
+  });
+});
+
+describe("getRecentActivity source resilience", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("keeps rendering other sources when one source's query fails (schema drift)", async () => {
+    const client = fakeClient({
+      events: {
+        data: [
+          {
+            id: "e1",
+            actor: "Evan",
+            subject_type: "lead",
+            subject_id: "lead_1",
+            type: "lead.created",
+            payload: { title: "New lead", detail: "Ada entered the workspace." },
+            occurred_at: "2026-06-12T14:00:00Z",
+          },
+        ],
+      },
+      agent_run_logs: { error: { message: 'column "created_at" does not exist' } },
+    });
+
+    const result = await getRecentActivity({}, client);
+
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.entries.some((entry) => entry.id === "event:e1")).toBe(true);
+    expect(result.entries.some((entry) => entry.kind === "run")).toBe(false);
+  });
+
+  it("returns unavailable only when every source fails", async () => {
+    const client = fakeClient({
+      approval_decisions: { error: { message: "boom" } },
+      agent_run_logs: { error: { message: "boom" } },
+      agent_outputs: { error: { message: "boom" } },
+      campaign_events: { error: { message: "boom" } },
+      events: { error: { message: "boom" } },
+    });
+
+    const result = await getRecentActivity({}, client);
+
+    expect(result.status).toBe("unavailable");
   });
 });
 

@@ -117,9 +117,46 @@ function ChainOfThoughtTrace({
   );
 }
 
+function reasoningText(steps: MarkStep[], fallback: string): string {
+  if (steps.length === 0) return fallback;
+  return steps
+    .map((step, index) => {
+      const details = (step.detail ?? []).map((detail) => `   - ${detail}`).join("\n");
+      return `${index + 1}. ${step.label}${details ? `\n${details}` : ""}`;
+    })
+    .join("\n");
+}
+
+function ReasoningTrace({
+  assistantName,
+  steps,
+  isStreaming,
+  fallback,
+}: {
+  assistantName: string;
+  steps: MarkStep[];
+  isStreaming: boolean;
+  fallback: string;
+}) {
+  return (
+    <Reasoning className="mb-0" isStreaming={isStreaming}>
+      <ReasoningTrigger
+        className="gap-2 py-1 text-[13px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        getThinkingMessage={(streaming, duration) => {
+          if (streaming || duration === 0) return <span>{assistantName} is reasoning...</span>;
+          if (duration === undefined) return <span>{assistantName} reasoned for a few seconds</span>;
+          return <span>{assistantName} reasoned for {duration} seconds</span>;
+        }}
+      />
+      <ReasoningContent className="mt-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-[13px] leading-6 text-[var(--text-secondary)]">
+        {reasoningText(steps, fallback)}
+      </ReasoningContent>
+    </Reasoning>
+  );
+}
+
 function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: string; steps: MarkStep[]; body: string; onStop: () => void }) {
   const elapsed = useElapsed(true);
-  const hasSteps = steps.length > 0;
   const hasBody = body.trim().length > 0;
   return (
     <div className="flex flex-col gap-2">
