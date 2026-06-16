@@ -10,13 +10,29 @@ import { createProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
 import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
 
-/** Stable empty set so the default prop doesn't allocate per render. */
+/** Stable empty set so the default props don't allocate per render. */
 const NO_RUNNING_IDS: Set<string> = new Set();
 
-/** Small gold pulse shown on a thread that has an Arc run in flight. */
-function WorkingDot() {
+/** Per-thread run indicator: spinner while Arc is working, a pulse when a reply
+ *  has landed but the thread hasn't been opened yet (Codex-style). */
+type RunState = "working" | "done" | "idle";
+
+/** Spinning ring shown while Arc is actively working a thread. */
+function WorkingSpinner() {
   return (
-    <span className="relative flex h-2 w-2 shrink-0" aria-label="Arc is working" title="Arc is working…">
+    <span className="flex shrink-0" aria-label="Arc is working" title="Arc is working…">
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[var(--accent)] motion-safe:animate-spin" fill="none" aria-hidden>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+        <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
+/** Gold pulse marking a finished reply you haven't opened yet. Clears on open. */
+function DonePulse() {
+  return (
+    <span className="relative flex h-2 w-2 shrink-0" aria-label="New reply from Arc" title="New reply — open to view">
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
       <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
     </span>
@@ -102,15 +118,17 @@ function ChatRow({
   projects,
   activeId,
   nowMs,
-  running = false,
+  state = "idle",
 }: {
   c: ArcConversation;
   projects: ArcProject[];
   activeId: string;
   nowMs: number;
-  running?: boolean;
+  state?: RunState;
 }) {
   const active = c.id === activeId;
+  const titleText =
+    state === "working" ? `${c.title} — Arc is working…` : state === "done" ? `${c.title} — new reply` : c.title;
   return (
     <ThreadContextMenu
       className="group relative flex items-center gap-1"
@@ -130,12 +148,14 @@ function ChatRow({
             ? "bg-[var(--accent-soft)] font-medium text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
             : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
         )}
-        title={running ? `${c.title} — Arc is working…` : c.title}
+        title={titleText}
       >
         {c.pinnedAt ? <PinGlyph /> : null}
-        <span className="min-w-0 flex-1 truncate">{c.title}</span>
-        {running ? (
-          <WorkingDot />
+        <span className={cx("min-w-0 flex-1 truncate", state === "done" ? "font-semibold text-[var(--text-primary)]" : "")}>{c.title}</span>
+        {state === "working" ? (
+          <WorkingSpinner />
+        ) : state === "done" ? (
+          <DonePulse />
         ) : (
           <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] transition-opacity duration-150 group-hover:opacity-0">
             {relativeTime(c.lastMessageAt, nowMs)}
@@ -163,6 +183,7 @@ function ProjectGroup({
   activeId,
   nowMs,
   runningIds = NO_RUNNING_IDS,
+  doneIds = NO_RUNNING_IDS,
 }: {
   project: ArcProject;
   rows: ArcConversation[];
@@ -170,6 +191,7 @@ function ProjectGroup({
   activeId: string;
   nowMs: number;
   runningIds?: Set<string>;
+  doneIds?: Set<string>;
 }) {
   // Groups holding the active thread start open; everything else starts open
   // too — collapse is a per-session reading aid, not persisted state.
@@ -239,7 +261,7 @@ function ProjectGroup({
             <p className="px-2 py-1 text-xs text-[var(--text-muted)]">No chats yet.</p>
           ) : (
             rows.map((c) => (
-              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} running={runningIds.has(c.id)} />
+              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
             ))
           )}
         </div>
@@ -284,6 +306,7 @@ export function ThreadSidebar({
   variant = "rail",
   assistantName = "Arc",
   runningIds = NO_RUNNING_IDS,
+  doneIds = NO_RUNNING_IDS,
 }: {
   conversations: ArcConversation[];
   projects: ArcProject[];
@@ -292,8 +315,10 @@ export function ThreadSidebar({
   activeId: string;
   variant?: "rail" | "overlay";
   assistantName?: string;
-  /** Conversation ids with an Arc run in flight — drives the "working…" dot. */
+  /** Conversation ids with an Arc run in flight — drives the working spinner. */
   runningIds?: Set<string>;
+  /** Conversation ids with a finished-but-unopened reply — drives the pulse. */
+  doneIds?: Set<string>;
 }) {
   const [query, setQuery] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
@@ -404,7 +429,7 @@ export function ThreadSidebar({
         <div className="flex flex-col gap-0.5">
           <SectionLabel>Pinned</SectionLabel>
           {pinned.map((c) => (
-            <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} running={runningIds.has(c.id)} />
+            <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
           ))}
         </div>
       ) : null}
@@ -440,6 +465,7 @@ export function ThreadSidebar({
           activeId={activeId}
           nowMs={nowMs}
           runningIds={runningIds}
+          doneIds={doneIds}
         />
       ))}
 
@@ -454,7 +480,7 @@ export function ThreadSidebar({
             <div key={bucket.label} className="flex flex-col gap-0.5">
               <DateLabel>{bucket.label}</DateLabel>
               {bucket.rows.map((c) => (
-                <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} running={runningIds.has(c.id)} />
+                <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
               ))}
             </div>
           ))

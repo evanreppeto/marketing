@@ -397,18 +397,40 @@ export function ArcChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replyPending]);
 
-  // Cross-thread run visibility: poll which conversations have an Arc run in
-  // flight so the sidebar can show live "working…" pulses on threads other than
-  // the one in view. Skipped in demo (no backend). The active thread reflects
-  // its own pending state immediately via replyPending below.
+  // Cross-thread run visibility (Codex-style): the sidebar shows a spinner while
+  // Arc works a thread, then a pulse once the reply lands on a thread you're not
+  // viewing, which clears when you open it. `runningIds` is the live server set;
+  // `doneIds` accumulates threads that finished while you were elsewhere.
   const [runningIds, setRunningIds] = useState<Set<string>>(() => new Set());
+  const [doneIds, setDoneIds] = useState<Set<string>>(() => new Set());
+  const prevRunningRef = useRef<Set<string>>(new Set());
+  const activeIdRef = useRef(activeId);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
   useEffect(() => {
     if (demo) return;
     let alive = true;
     async function tick() {
       try {
         const ids = await getActiveArcRunsAction();
-        if (alive) setRunningIds(new Set(ids));
+        if (!alive) return;
+        const next = new Set(ids);
+        // A thread that was running last tick but isn't now just finished — mark
+        // it unread unless it's the one you're already looking at.
+        const finished: string[] = [];
+        prevRunningRef.current.forEach((id) => {
+          if (!next.has(id) && id !== activeIdRef.current) finished.push(id);
+        });
+        if (finished.length > 0) {
+          setDoneIds((prev) => {
+            const merged = new Set(prev);
+            for (const id of finished) merged.add(id);
+            return merged;
+          });
+        }
+        prevRunningRef.current = next;
+        setRunningIds(next);
       } catch {
         /* best-effort; keep the last known set */
       }
@@ -421,13 +443,35 @@ export function ArcChat({
     };
   }, [demo]);
 
+  // Opening a thread clears its unread pulse. Deferred to dodge the
+  // set-state-in-effect lint rule (same pattern as elsewhere in this file).
+  useEffect(() => {
+    if (!doneIds.has(activeId)) return;
+    void Promise.resolve().then(() =>
+      setDoneIds((prev) => {
+        if (!prev.has(activeId)) return prev;
+        const next = new Set(prev);
+        next.delete(activeId);
+        return next;
+      }),
+    );
+  }, [activeId, doneIds]);
+
   // Merge the live server set with the active thread's optimistic pending state
-  // so the dot appears the instant you send, before the next poll.
+  // so the spinner appears the instant you send, before the next poll.
   const runningConversationIds = useMemo(() => {
     const set = new Set(runningIds);
     if (replyPending && activeId) set.add(activeId);
     return set;
   }, [runningIds, replyPending, activeId]);
+
+  // Never show a "done" pulse on a thread that's currently working or in view.
+  const doneConversationIds = useMemo(() => {
+    const set = new Set(doneIds);
+    set.delete(activeId);
+    runningConversationIds.forEach((id) => set.delete(id));
+    return set;
+  }, [doneIds, activeId, runningConversationIds]);
 
   // The campaign this thread is producing — drives the Studio Assets-tab cover.
   const activeCampaign = activeCampaignId
@@ -496,6 +540,7 @@ export function ArcChat({
           activeId={activeId}
           assistantName={assistantName}
           runningIds={runningConversationIds}
+          doneIds={doneConversationIds}
         />
         <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
           {/* Ambient silk backdrop — the 21st.dev MeshGradient shader, obsidian+gold. */}
@@ -754,6 +799,7 @@ export function ArcChat({
               variant="overlay"
               assistantName={assistantName}
               runningIds={runningConversationIds}
+              doneIds={doneConversationIds}
             />
           </div>
         </div>
