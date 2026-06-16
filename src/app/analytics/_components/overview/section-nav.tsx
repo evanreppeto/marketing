@@ -25,7 +25,7 @@ export function SectionNav({ links }: { links: SectionLink[] }) {
   }, [links]);
 
   return (
-    <nav className="sticky top-2 z-10 mb-5 flex flex-wrap gap-1 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]/95 p-1.5 backdrop-blur">
+    <nav aria-label="Analytics sections" className="sticky top-2 z-10 mb-5 flex flex-wrap gap-1 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]/95 p-1.5 backdrop-blur">
       {links.map((link) => (
         <a
           key={link.id}
