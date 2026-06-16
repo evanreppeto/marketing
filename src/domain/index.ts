@@ -30,3 +30,4 @@ export * from "./campaign-presentation";
 export * from "./interactions";
 export * from "./knowledge-graph";
 export * from "./campaign-performance";
+export * from "./brand-kit";

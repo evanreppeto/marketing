@@ -12,6 +12,7 @@
     "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
     "seed:campaign-results": "node scripts/seed-campaign-results.mjs",
     "seed:brain": "node scripts/seed-brain.mjs",
+    "seed:brand-kit-bsr": "node scripts/seed-bsr-brand-kit.mjs",
     "diagnose:arc": "node scripts/diagnose-arc-connection.mjs",
     "test": "vitest run"
   },
