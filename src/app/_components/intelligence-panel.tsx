@@ -32,7 +32,7 @@ export type IntelligencePanelModel = {
 export function IntelligencePanel({
   model,
   className = "",
-  agentName = "Agent",
+  agentName = "Arc",
 }: {
   model: IntelligencePanelModel;
   className?: string;

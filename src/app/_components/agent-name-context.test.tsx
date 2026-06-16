@@ -8,8 +8,8 @@ function Probe() {
 }
 
 describe("useAgentName", () => {
-  it("returns 'Agent' when used with no provider", () => {
-    expect(renderToStaticMarkup(<Probe />)).toContain("Agent");
+  it("returns 'Arc' when used with no provider", () => {
+    expect(renderToStaticMarkup(<Probe />)).toContain("Arc");
   });
 
   it("returns the provider value", () => {
@@ -19,6 +19,6 @@ describe("useAgentName", () => {
       </AgentNameProvider>,
     );
     expect(html).toContain("Hermes");
-    expect(html).not.toContain("Agent");
+    expect(html).not.toContain("Arc");
   });
 });

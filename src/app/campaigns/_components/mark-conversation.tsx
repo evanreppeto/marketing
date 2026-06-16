@@ -3,8 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { useAgentName } from "@/app/_components/agent-name-context";
-import { Button, StatusPill } from "@/app/_components/page-header";
 import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import { Button, StatusPill } from "@/app/_components/page-header";
 import type { PersonaState } from "@/components/ai-elements/persona";
 import type { CampaignWorkspaceReasoning, MarkMessage } from "@/lib/campaigns/read-model";
 
@@ -102,11 +102,14 @@ function MessageBubble({ message }: { message: MarkMessage }) {
     </div>
   );
 }
-function campaignAvatarState(status: string | null): PersonaState {
-  if (!status) return "speaking";
-  const normalized = status.toLowerCase();
-  if (normalized.includes("queued") || normalized.includes("running") || normalized.includes("pending")) return "thinking";
-  if (normalized.includes("failed") || normalized.includes("blocked")) return "asleep";
+
+function campaignAvatarState(status: MarkMessage["status"]): PersonaState {
+  if (status === "queued" || status === "running" || status === "pending") {
+    return "thinking";
+  }
+  if (status === "failed" || status === "blocked") {
+    return "asleep";
+  }
   return "speaking";
 }
 
@@ -217,4 +220,3 @@ function MarkPlan({ reasoning }: { reasoning: CampaignWorkspaceReasoning }) {
     </aside>
   );
 }
-

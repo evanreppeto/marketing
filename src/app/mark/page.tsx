@@ -136,9 +136,11 @@ export default async function MarkPage({ searchParams }: MarkPageProps) {
   try {
     markChatProps = await withTimeout(loadLiveMarkChatProps(params), MARK_PAGE_DATA_TIMEOUT_MS);
   } catch (err) {
-    console.error("[MARK_DEMO_FALLBACK]", err);
     // Supabase may be paused, unreachable, or missing migrations. Keep the app
     // open with the full preview instead of making Vercel wait on backend reads.
+    // Log it — a silent fallback here is what made a slow-load regression look
+    // like "every chat feature is broken" instead of a visible error.
+    console.error("[mark] live data load failed; falling back to demo preview:", err);
     markChatProps = getDemoChat();
     demo = true;
   }

@@ -40,7 +40,7 @@ export function MarkPersona({
   );
 }
 
-/** Mark's identity avatar, rendered as the stateful obsidian persona bubble. */
+/** Mark's identity avatar, backed by the official AI Elements obsidian persona bubble. */
 export function MarkAvatar({
   size = 32,
   pending = false,

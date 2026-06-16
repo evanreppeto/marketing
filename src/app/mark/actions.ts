@@ -13,7 +13,7 @@ import { resolveWebhookSecret } from "@/lib/agent/secret";
 import { hasActiveAgentTokens } from "@/lib/agent/tokens";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
-import { isMarkRunnerConfigured, markAgentKeys } from "@/lib/mark-chat/agent-config";
+import { getMarkDisplayName, isAgentLive } from "@/lib/mark-chat/agent-config";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
@@ -178,45 +178,25 @@ export type MarkAgentStatus = {
 };
 
 /**
- * Connection signal for the Mark header: is an agent actually attached to this
- * workspace (a runner endpoint is configured AND an agent is registered)? When
- * false, sends still queue for inbox pickup — the UI says so plainly rather than
- * leaving the operator guessing.
+ * Connection signal for the Mark header: is an agent actually attached and live?
+ * Judged by a recent ok heartbeat — recordAgentSeen() stamps last_seen_at on every
+ * authenticated /api/v1/hermes call (the poller's poll, a realtime reply, a webhook
+ * test), so this is true whether the agent is wired via realtime, polling, or a
+ * webhook, and does not depend on a configured runner URL or agent-key naming. When
+ * false, sends still queue for pickup — the UI says so plainly.
  */
 export async function getMarkAgentStatusAction(): Promise<MarkAgentStatus> {
   const connection = await resolveAgentConnection();
-  // Name the agent from the same source as the rest of the UI (operator's Settings
-  // value), not the connection/env display name — so the pill never says "Hermes"
-  // while the chat says "Arc".
-  const name = await getAgentName();
-  const base = {
+  const name = await getMarkDisplayName();
+  const attached =
+    isSupabaseAdminConfigured() &&
+    isAgentLive(connection.health.lastStatus, connection.health.lastSeenAt, Date.now());
+  return {
+    attached,
     name,
     lastSeenAt: connection.health.lastSeenAt,
     lastStatus: connection.health.lastStatus,
   };
-
-  if (!isSupabaseAdminConfigured() || !(await isMarkRunnerConfigured())) {
-    return { attached: false, ...base };
-  }
-  // A runner is configured, but the most recent contact attempt failed — be honest
-  // and show "not attached" instead of a green light the operator can't trust. The
-  // wake (notifyMarkWebhook) records this on every send, so it self-heals once the
-  // runner answers again.
-  if (connection.health.lastStatus === "error" || connection.health.lastStatus === "unreachable") {
-    return { attached: false, ...base };
-  }
-  try {
-    const client = getSupabaseAdminClient();
-    const { data } = await client
-      .from("agents")
-      .select("id")
-      .in("key", await markAgentKeys())
-      .limit(1)
-      .maybeSingle<{ id: string }>();
-    return { attached: Boolean(data), ...base };
-  } catch {
-    return { attached: false, ...base };
-  }
 }
 
 export type AgentConnectionInfo = MarkAgentStatus & {

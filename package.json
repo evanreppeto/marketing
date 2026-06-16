@@ -12,6 +12,7 @@
     "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
     "seed:campaign-results": "node scripts/seed-campaign-results.mjs",
     "seed:brain": "node scripts/seed-brain.mjs",
+    "diagnose:hermes": "node scripts/diagnose-hermes-connection.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "react-dom": "19.2.4",
     "react-force-graph-2d": "^1.29.1",
     "react-markdown": "^9.1.0",
+    "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1",
     "three": "^0.184.0",
     "zod": "^4.4.3"

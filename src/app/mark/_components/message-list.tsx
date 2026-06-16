@@ -353,6 +353,13 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: string[]; onPic
   );
 }
 
+function markAvatarStateForMessageStatus(status: MarkMessage["status"]) {
+  if (status === "pending") return "thinking";
+  if (status === "failed") return "asleep";
+  if (status === "complete") return "speaking";
+  return "idle";
+}
+
 function Message({
   message,
   compact,
@@ -505,16 +512,9 @@ function Message({
   );
 }
 
-function markAvatarStateForMessageStatus(status: MarkMessage["status"]) {
-  if (status === "pending") return "thinking";
-  if (status === "failed") return "asleep";
-  if (status === "complete") return "speaking";
-  return "idle";
-}
-
 export function MessageList({
   messages,
-  assistantName = "Agent",
+  assistantName = "Arc",
   onRetry,
   onStop,
   onRegenerate,

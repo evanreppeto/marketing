@@ -2,8 +2,8 @@
 
 import { createContext, useContext } from "react";
 
-/** Falls back to "Agent" so isolated component previews/tests don't crash. */
-const AgentNameContext = createContext<string>("Agent");
+/** Falls back to "Arc" so isolated component previews/tests don't crash. */
+const AgentNameContext = createContext<string>("Arc");
 
 export function AgentNameProvider({
   value,
@@ -15,7 +15,7 @@ export function AgentNameProvider({
   return <AgentNameContext.Provider value={value}>{children}</AgentNameContext.Provider>;
 }
 
-/** The operator-configured agent display name (default "Agent"). */
+/** The operator-configured agent display name (default "Arc"). */
 export function useAgentName(): string {
   return useContext(AgentNameContext);
 }

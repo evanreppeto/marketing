@@ -40,6 +40,7 @@ type PersonaModelColor = readonly [number, number, number];
 
 interface PersonaProps {
   state: PersonaState;
+  modelColor?: PersonaModelColor;
   onLoad?: RiveParameters["onLoad"];
   onLoadError?: RiveParameters["onLoadError"];
   onReady?: () => void;
@@ -47,7 +48,6 @@ interface PersonaProps {
   onPlay?: RiveParameters["onPlay"];
   onStop?: RiveParameters["onStop"];
   className?: string;
-  modelColor?: PersonaModelColor;
   variant?: keyof typeof sources;
 }
 
@@ -186,7 +186,8 @@ const PersonaWithModel = memo(
         return;
       }
 
-      const [r, g, b] = modelColor ?? (theme === "dark" ? [255, 255, 255] : [0, 0, 0]);
+      const [r, g, b] =
+        modelColor ?? (theme === "dark" ? [255, 255, 255] : [0, 0, 0]);
       viewModelInstanceColor.setRgb(r, g, b);
     }, [viewModelInstanceColor, theme, source.dynamicColor, modelColor]);
 
