@@ -428,6 +428,19 @@ export function MarkChat({
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {demo ? (
+                <button
+                  type="button"
+                  onClick={() => setAgentSettingsOpen(true)}
+                  title="Preview mode — Arc is showing sample data because it isn't connected to the database. Sends, approvals, and other actions are simulated and won't be saved. Click to see connection settings."
+                  aria-label="Preview mode — Arc is not connected to the database. Actions are simulated. Open connection settings."
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--warn)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                >
+                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--warn)]" />
+                  <span className="hidden sm:inline">Preview mode</span>
+                  <span className="sm:hidden">Preview</span>
+                </button>
+              ) : null}
               {activeId && activeCampaignId ? (
                 <Link
                   href={`/campaigns/${activeCampaignId}`}
