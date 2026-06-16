@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 
-import { StatusPill } from "@/app/_components/page-header";
+import { Button, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 
 import { AssetPreview } from "./asset-preview";
 import { contentStatusForLaunch, contentWhere, type CampaignPackageSummary, type PlainTone } from "./campaign-detail-model";
+import { CopyTextButton } from "./copy-text-button";
 import { DecisionControls } from "./decision-controls";
+import { deployAssetAction } from "../actions";
 
 type PackageView = "Email" | "SMS" | "Media" | "Drafts" | "Other";
 
@@ -183,9 +185,7 @@ function CampaignPiece({
             <DecisionControls campaignId={campaignId} assetId={asset.id} labels={decisionLabelsForTarget()} />
           </div>
         ) : (
-          <p className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-semibold text-[var(--text-muted)]">
-            This piece has already moved past review.
-          </p>
+          <InlineDeployShortcut asset={asset} campaignId={campaignId} status={status} />
         )}
       </div>
     </article>
@@ -341,6 +341,51 @@ function metricToneClass(tone: PlainTone) {
   if (tone === "blue") return "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]";
   if (tone === "red") return "border-[var(--priority-border-soft)] bg-[var(--priority-soft)] text-[var(--priority-text)]";
   return "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)]";
+}
+
+function InlineDeployShortcut({
+  asset,
+  campaignId,
+  status,
+}: {
+  asset: CampaignWorkspaceAsset;
+  campaignId: string;
+  status: { label: string };
+}) {
+  const [state, formAction, isPending] = useActionState(deployAssetAction, null);
+  const isLive = status.label === "Live";
+  const channel = contentWhere(asset);
+  const body = asset.body.trim() || asset.preview.trim();
+  const copyText = channel === "Email" ? `Subject: ${asset.title}\n\n${body}` : body;
+
+  return (
+    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
+      <div className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+        {isLive ? "Deployed" : "Ready to ship"}
+      </div>
+      {isLive ? (
+        <p className="text-xs font-semibold text-[var(--text-muted)]">
+          This piece is queued in the Outbox. Manage it from the Deploy &amp; share section above.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <form action={formAction} className="flex items-center gap-2">
+            <input type="hidden" name="assetId" value={asset.id} />
+            <input type="hidden" name="campaignId" value={campaignId} />
+            <Button type="submit" variant="primary" size="sm" disabled={isPending}>
+              {isPending ? "Deploying…" : "Deploy this piece"}
+            </Button>
+          </form>
+          <CopyTextButton text={copyText} label={channel === "Social" ? "Copy caption" : "Copy text"} />
+          {state ? (
+            <span className={`text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--warn-text)]"}`}>
+              {state.message}
+            </span>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function pieceDescription(asset: CampaignWorkspaceAsset, agentName: string) {
