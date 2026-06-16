@@ -1,13 +1,50 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { cx } from "@/app/_components/theme";
+import {
+  Attachment,
+  AttachmentPreview,
+  AttachmentRemove,
+  Attachments,
+} from "@/components/ai-elements/attachments";
+import {
+  ModelSelector,
+  ModelSelectorContent,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorInput,
+  ModelSelectorItem,
+  ModelSelectorList,
+  ModelSelectorLogo,
+  ModelSelectorLogoGroup,
+  ModelSelectorName,
+  ModelSelectorTrigger,
+} from "@/components/ai-elements/model-selector";
+import {
+  PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionAddScreenshot,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuItem,
+  PromptInputActionMenuTrigger,
+  PromptInputBody,
+  PromptInputButton,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+  usePromptInputAttachments,
+  type PromptInputMessage,
+} from "@/components/ai-elements/prompt-input";
 import type { MarkMention, MarkMode, MarkRoute } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
 import type { MarkAttachment, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
+import { CheckIcon, MicIcon } from "lucide-react";
 
 import { createMarkUploadUrlAction, moveConversationForm, sendMarkMessageAction, type SendMessageState } from "../actions";
 
@@ -28,15 +65,6 @@ function tempMessage(conversationId: string, body: string, mentions: MarkMention
     attachments,
     createdAt: new Date().toISOString(),
   };
-}
-
-function SendIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10 16V5" />
-      <path d="M5 10l5-5 5 5" />
-    </svg>
-  );
 }
 
 function Spinner() {
@@ -61,17 +89,40 @@ function Glyph({ children }: { children: React.ReactNode }) {
 
 const MODE_OPTIONS: PillOption<MarkMode>[] = [
   // Act = checkmark (decisive), Ask = speech bubble (answer only), Draft = pencil.
-  { id: "act", label: "Act", hint: "Do the work — create approval-ready records", icon: <Glyph><path d="M4 10.5l3.5 3.5L16 5.5" /></Glyph> },
-  { id: "ask", label: "Ask", hint: "Answer only — produce no work", icon: <Glyph><path d="M4 5.5h12v7H8l-3 2.5V12.5H4z" /></Glyph> },
+  { id: "act", label: "Act", hint: "Do the work - create approval-ready records", icon: <Glyph><path d="M4 10.5l3.5 3.5L16 5.5" /></Glyph> },
+  { id: "ask", label: "Ask", hint: "Answer only - produce no work", icon: <Glyph><path d="M4 5.5h12v7H8l-3 2.5V12.5H4z" /></Glyph> },
   { id: "draft", label: "Draft", hint: "Draft content for your review", icon: <Glyph><path d="M4 13.5V16h2.5l8-8L12 5.5l-8 8z" /><path d="M11 6.5l2.5 2.5" /></Glyph> },
 ];
-const ROUTE_OPTIONS: PillOption<MarkRoute>[] = [
-  // Fast = lightning bolt, Standard = steady arrow (more thorough).
-  { id: "fast", label: "Fast", hint: "Quick, lower-cost model route", icon: <Glyph><path d="M11 2.5 4.5 11H9l-1 6.5 7.5-9H11z" /></Glyph> },
-  { id: "standard", label: "Standard", hint: "Slower, more thorough route", icon: <Glyph><path d="M3 10h14M10 3l7 7-7 7" /></Glyph> },
+
+type ComposerModelOption = {
+  chef: "Anthropic";
+  chefSlug: "anthropic";
+  id: MarkRoute;
+  name: string;
+  hint: string;
+  providers: ["anthropic"];
+};
+
+const MODEL_OPTIONS: ComposerModelOption[] = [
+  {
+    chef: "Anthropic",
+    chefSlug: "anthropic",
+    id: "fast",
+    name: "Claude Fast",
+    hint: "Quick replies and lighter edits",
+    providers: ["anthropic"],
+  },
+  {
+    chef: "Anthropic",
+    chefSlug: "anthropic",
+    id: "standard",
+    name: "Claude Standard",
+    hint: "Deeper reasoning and production work",
+    providers: ["anthropic"],
+  },
 ];
 
-/** Footer pill with a labelled dropdown — used for the per-message mode + route
+/** Footer pill with a labelled dropdown - used for the per-message mode + model route
  *  selectors. Manages its own open state and outside-click/Escape dismissal. */
 function PillSelect<T extends string>({
   value,
@@ -145,6 +196,70 @@ function PillSelect<T extends string>({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function PromptInputAttachmentsDisplay({
+  uploading,
+  onCountChange,
+}: {
+  uploading: boolean;
+  onCountChange: (count: number) => void;
+}) {
+  const promptAttachments = usePromptInputAttachments();
+
+  useEffect(() => {
+    onCountChange(promptAttachments.files.length);
+  }, [promptAttachments.files.length, onCountChange]);
+
+  if (promptAttachments.files.length === 0 && !uploading) return null;
+
+  return (
+    <Attachments className="px-3 pt-3" variant="inline">
+      {promptAttachments.files.map((attachment) => (
+        <Attachment
+          key={attachment.id}
+          data={attachment}
+          onRemove={() => promptAttachments.remove(attachment.id)}
+        >
+          <AttachmentPreview />
+          <span className="max-w-28 truncate text-xs">{attachment.filename ?? "Image"}</span>
+          <AttachmentRemove />
+        </Attachment>
+      ))}
+      {uploading ? (
+        <span className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--border-hairline)] px-2 text-xs font-medium text-[var(--text-muted)]">
+          <Spinner />
+          Uploading
+        </span>
+      ) : null}
+    </Attachments>
+  );
+}
+
+function ModelOptionItem({
+  model,
+  selectedRoute,
+  onSelect,
+}: {
+  model: ComposerModelOption;
+  selectedRoute: MarkRoute;
+  onSelect: (route: MarkRoute) => void;
+}) {
+  return (
+    <ModelSelectorItem onSelect={() => onSelect(model.id)} value={model.id}>
+      <ModelSelectorLogo provider={model.chefSlug} />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <ModelSelectorName className="text-sm font-medium">{model.name}</ModelSelectorName>
+        <span className="truncate text-xs text-[var(--text-muted)]">{model.hint}</span>
+      </span>
+      <ModelSelectorLogoGroup>
+        {model.providers.map((provider) => (
+          <ModelSelectorLogo key={provider} provider={provider} />
+        ))}
+      </ModelSelectorLogoGroup>
+      {selectedRoute === model.id ? <CheckIcon className="ml-auto size-4" /> : <span className="ml-auto size-4" />}
+    </ModelSelectorItem>
   );
 }
 
@@ -301,9 +416,9 @@ export function Composer({
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
-  const [attachments, setAttachments] = useState<MarkAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
+  const [promptAttachmentCount, setPromptAttachmentCount] = useState(0);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceInputState>("checking");
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const voiceBaseDraftRef = useRef("");
@@ -311,8 +426,8 @@ export function Composer({
   const voiceShouldListenRef = useRef(false);
   const voiceRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
+  const selectedModel = MODEL_OPTIONS.find((model) => model.id === route) ?? MODEL_OPTIONS[0];
 
   useEffect(() => {
     let cancelled = false;
@@ -328,37 +443,40 @@ export function Composer({
     };
   }, []);
 
-  async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+  async function uploadPromptAttachments(files: PromptInputMessage["files"]): Promise<MarkAttachment[]> {
+    if (files.length === 0) return [];
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) continue;
-        const ticket = await createMarkUploadUrlAction(file.name, file.type);
+      const uploaded: MarkAttachment[] = [];
+      for (const file of files) {
+        const contentType = file.mediaType ?? "application/octet-stream";
+        if (!contentType.startsWith("image/") || !file.url) continue;
+        const name = file.filename ?? "reference-image";
+        const source = await fetch(file.url);
+        if (!source.ok) continue;
+        const blob = await source.blob();
+        const ticket = await createMarkUploadUrlAction(name, contentType);
         if (!ticket.ok) continue;
-        const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+        const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body: blob });
         if (!put.ok) continue;
-        setAttachments((prev) => [
-          ...prev,
-          { url: ticket.readUrl, objectPath: ticket.objectPath, contentType: file.type, name: file.name },
-        ]);
+        uploaded.push({ url: ticket.readUrl, objectPath: ticket.objectPath, contentType, name });
       }
+      return uploaded;
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
   // Let the parent trigger a send (used by Retry). Submits the current draft.
   useEffect(() => {
     registerSubmit?.(() => {
-      if (!draft.trim()) return;
-      formRef.current?.requestSubmit();
+      if (!draft.trim() && promptAttachmentCount === 0) return;
+      submitButtonRef.current?.click();
     });
-  }, [registerSubmit, draft]);
+  }, [registerSubmit, draft, promptAttachmentCount]);
 
   // Let the parent (command palette) apply a slash command through the same path
-  // the inline popover uses — presets prompt text, structured command id, mode, focus.
+  // the inline popover uses â€” presets prompt text, structured command id, mode, focus.
   useEffect(() => {
     registerApplyCommand?.((c: SlashCommand) => applySlash(c));
     // applySlash closes over stable setters/refs; re-register only if the registrar changes.
@@ -374,7 +492,7 @@ export function Composer({
   }, [draft, textareaRef]);
 
   // Surface the command-menu open state so the empty-state quick cards can step
-  // aside — the cards and the slash list are the same actions; never show both.
+  // aside â€” the cards and the slash list are the same actions; never show both.
   const slashOpen = slash !== null && slash.length > 0;
   useEffect(() => {
     onSlashOpenChange?.(slashOpen);
@@ -393,7 +511,6 @@ export function Composer({
           setPicked([]);
           setSlash(null);
           setCommand(null);
-          setAttachments([]);
           onSent(newId);
         });
       }
@@ -523,37 +640,11 @@ export function Composer({
     });
   }
 
-  const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
+  const disabled = isPending || uploading || (!draft.trim() && promptAttachmentCount === 0);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
-      <form
-        ref={formRef}
-        action={demo ? undefined : formAction}
-        className="relative"
-        onSubmit={(e) => {
-          if (!draft.trim() && attachments.length === 0) return;
-          if (voiceState === "listening") stopVoiceInput();
-          if (demo) {
-            // Preview mode: no server action — echo locally so the flow is testable.
-            e.preventDefault();
-            onDemoSend?.(draft.trim());
-            return;
-          }
-          onOptimistic(tempMessage(conversationId, draft.trim() || "Shared an image for reference.", picked, attachments));
-        }}
-      >
-        <input type="hidden" name="conversationId" value={conversationId} />
-        <input type="hidden" name="body" value={draft} />
-        <input type="hidden" name="mentions" value={serializeMentions(picked)} />
-        {/* Per-message mode/route from the footer selectors; gates still enforce limits. */}
-        <input type="hidden" name="mode" value={mode} />
-        <input type="hidden" name="route" value={route} />
-        <input type="hidden" name="command" value={command ?? ""} />
-        <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
-        {/* Project chosen in the footer selector — assigned when this send creates a new thread. */}
-        <input type="hidden" name="projectId" value={newChatProjectId ?? ""} />
-
+      <div className="relative">
         {query !== null && suggestions.length > 0 ? (
           <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
             {suggestions.map((m) => (
@@ -589,60 +680,48 @@ export function Composer({
           </div>
         ) : null}
 
-        <div
-          onDragOver={(e) => {
-            if (Array.from(e.dataTransfer.types).includes("Files")) {
-              e.preventDefault();
-              setDragActive(true);
+        <PromptInput
+          accept="image/*"
+          className="rounded-[1.25rem] border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-primary)] shadow-[var(--elev-panel)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]"
+          maxFiles={6}
+          multiple
+          onSubmit={async (message, event) => {
+            const text = message.text.trim();
+            if (!text && message.files.length === 0) return;
+            if (voiceState === "listening") stopVoiceInput();
+            if (demo) {
+              onDemoSend?.(text);
+              return;
             }
+            const uploadedAttachments = await uploadPromptAttachments(message.files);
+            const body = text || (uploadedAttachments.length > 0 ? "Shared an image for reference." : "");
+            if (!body && uploadedAttachments.length === 0) return;
+            const formData = new FormData(event.currentTarget);
+            formData.set("conversationId", conversationId);
+            formData.set("body", body);
+            formData.set("mentions", serializeMentions(picked));
+            formData.set("mode", mode);
+            formData.set("route", route);
+            formData.set("command", command ?? "");
+            formData.set("attachments", JSON.stringify(uploadedAttachments));
+            formData.set("projectId", newChatProjectId ?? "");
+            onOptimistic(tempMessage(conversationId, body, picked, uploadedAttachments));
+            startTransition(() => formAction(formData));
           }}
-          onDragLeave={(e) => {
-            // Only clear when the cursor actually leaves the box, not on child enter.
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragActive(false);
-          }}
-          onDrop={(e) => {
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-              e.preventDefault();
-              void handleFiles(files);
-            }
-            setDragActive(false);
-          }}
-          className={cx(
-            "relative flex flex-col gap-2 rounded-[1.75rem] border bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]",
-            dragActive ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent-soft)]" : "border-[var(--border-hairline)]",
-          )}
         >
-          {dragActive ? (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[1.75rem] bg-[var(--surface-panel)]/85 text-xs font-semibold text-[var(--accent-contrast)] backdrop-blur-sm">
-              Drop image to attach
-            </div>
-          ) : null}
-          {attachments.length > 0 || uploading ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {attachments.map((a) => (
-                <span key={a.objectPath} className="group relative h-14 w-14 overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
-                  <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    aria-label={`Remove ${a.name}`}
-                    onClick={() => setAttachments((prev) => prev.filter((p) => p.objectPath !== a.objectPath))}
-                    className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised)] text-xs text-[var(--text-secondary)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--priority-bright)]"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {uploading ? (
-                <span className="flex h-14 w-14 items-center justify-center rounded-lg text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
-                  <Spinner />
-                </span>
-              ) : null}
-            </div>
-          ) : null}
+          <input type="hidden" name="conversationId" value={conversationId} />
+          <input type="hidden" name="body" value={draft} />
+          <input type="hidden" name="mentions" value={serializeMentions(picked)} />
+          <input type="hidden" name="mode" value={mode} />
+          <input type="hidden" name="route" value={route} />
+          <input type="hidden" name="command" value={command ?? ""} />
+          <input type="hidden" name="attachments" value="[]" />
+          <input type="hidden" name="projectId" value={newChatProjectId ?? ""} />
+          <button ref={submitButtonRef} type="submit" className="hidden" aria-hidden tabIndex={-1} />
+
+          <PromptInputAttachmentsDisplay uploading={uploading} onCountChange={setPromptAttachmentCount} />
           {command || picked.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 px-3 pt-3">
               {command ? (
                 <span className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-soft)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--accent-strong)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
                   /{command}
@@ -652,7 +731,7 @@ export function Composer({
                     onClick={() => setCommand(null)}
                     className="text-[var(--text-muted)] transition hover:text-[var(--priority-bright)]"
                   >
-                    ×
+                    x
                   </button>
                 </span>
               ) : null}
@@ -668,119 +747,127 @@ export function Composer({
                     onClick={() => setPicked((prev) => prev.filter((p) => !(p.type === m.type && p.id === m.id)))}
                     className="text-[var(--text-muted)] transition hover:text-[var(--priority-bright)]"
                   >
-                    ×
+                    x
                   </button>
                 </span>
               ))}
             </div>
           ) : null}
 
-          <div className="flex items-end gap-1.5">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              aria-label="Attach image"
-              title="Attach a reference image"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-50"
-            >
-              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 5v10M5 10h10" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSlash((s) => (s && s.length ? null : SLASH_COMMANDS));
-                textareaRef.current?.focus();
-              }}
-              aria-label="Tools and commands"
-              title="Tools — run a command"
-              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 7h-9" />
-                <path d="M14 17H5" />
-                <circle cx="17" cy="17" r="3" />
-                <circle cx="7" cy="7" r="3" />
-              </svg>
-              Tools
-            </button>
-            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
-            <button
-              type="button"
-              onClick={toggleVoiceInput}
-              disabled={voiceState === "checking" || voiceState === "unsupported" || isPending}
-              aria-label={voiceState === "listening" ? "Stop voice input" : "Start voice input"}
-              aria-pressed={voiceState === "listening"}
-              title={voiceState === "unsupported" ? "Voice input is not available in this browser" : voiceState === "listening" ? "Stop voice input" : "Speak a message"}
-              className={cx(
-                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-[inset_0_0_0_1px_var(--border-strong)] transition active:scale-95 after:hidden",
-                voiceState === "listening"
-                  ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[0_0_22px_var(--accent-soft),inset_0_0_0_1px_var(--accent-border-strong)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
-                voiceState === "checking" || voiceState === "unsupported" || isPending ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--text-muted)]" : "",
-              )}
-            >
-              <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M10 3.5a2.5 2.5 0 0 0-2.5 2.5v3.5a2.5 2.5 0 0 0 5 0V6A2.5 2.5 0 0 0 10 3.5Z" />
-                <path d="M5.5 9.5a4.5 4.5 0 0 0 9 0" />
-                <path d="M10 14v2.5" />
-                <path d="M7.5 16.5h5" />
-              </svg>
-            </button>
-            <textarea
+          <PromptInputBody>
+            <PromptInputTextarea
               ref={textareaRef}
               name="body-display"
               value={draft}
-              onChange={(e) => onTextChange(e.target.value)}
-              onPaste={(e) => {
-                // Pasted screenshots/images upload like the file picker; text paste
-                // falls through to the default textarea behaviour.
-                const files = e.clipboardData?.files;
-                if (files && files.length > 0 && Array.from(files).some((f) => f.type.startsWith("image/"))) {
-                  e.preventDefault();
-                  void handleFiles(files);
-                }
-              }}
+              onChange={(e) => onTextChange(e.currentTarget.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
+                if (e.key === "Enter" && !e.shiftKey && query === null && slash === null && disabled) {
                   e.preventDefault();
-                  if (!disabled) formRef.current?.requestSubmit();
                 }
               }}
-              rows={1}
               placeholder={`Message ${assistantName}...`}
-              style={{ outline: "none" }}
-              className="max-h-[200px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              rows={1}
+              className="max-h-[200px] min-h-14 px-3 py-3 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
-            {replyPending ? (
-              <button
-                type="button"
-                onClick={() => onStopReply?.()}
-                aria-label={`Stop ${assistantName}`}
-                title="Stop"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--priority-bright)] active:scale-95"
-              >
-                <span aria-hidden className="h-3 w-3 rounded-[2px] bg-current" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={disabled}
-                aria-label="Send message"
+          </PromptInputBody>
+
+          <PromptInputFooter className="border-t border-[var(--border-hairline)] px-3 pb-2.5 pt-2">
+            <PromptInputTools className="flex-wrap gap-1.5">
+              <PromptInputActionMenu>
+                <PromptInputActionMenuTrigger tooltip="Add attachment or command" />
+                <PromptInputActionMenuContent>
+                  <PromptInputActionAddAttachments label="Attach image" />
+                  <PromptInputActionAddScreenshot label="Take screenshot" />
+                  <PromptInputActionMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      setSlash((s) => (s && s.length ? null : SLASH_COMMANDS));
+                      textareaRef.current?.focus();
+                    }}
+                  >
+                    <Glyph><path d="M20 7h-9" /><path d="M14 17H5" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></Glyph>
+                    Commands
+                  </PromptInputActionMenuItem>
+                </PromptInputActionMenuContent>
+              </PromptInputActionMenu>
+              <PromptInputButton
+                aria-label={voiceState === "listening" ? "Stop voice input" : "Start voice input"}
+                aria-pressed={voiceState === "listening"}
+                disabled={voiceState === "checking" || voiceState === "unsupported" || isPending}
+                onClick={toggleVoiceInput}
+                tooltip={voiceState === "unsupported" ? "Voice input is not available in this browser" : voiceState === "listening" ? "Stop voice input" : "Speak a message"}
                 className={cx(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
-                  disabled
-                    ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
-                    : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)] active:scale-95",
+                  voiceState === "listening"
+                    ? "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]"
+                    : "text-[var(--text-muted)]",
                 )}
               >
-                {isPending ? <Spinner /> : <SendIcon />}
-              </button>
-            )}
-          </div>
-        </div>
+                <MicIcon className="size-4" />
+              </PromptInputButton>
+              <div ref={projectWrapRef} className="relative">
+                <PromptInputButton
+                  aria-expanded={projectMenuOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setProjectMenuOpen((v) => !v)}
+                  tooltip="Project"
+                >
+                  <Glyph><path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" /></Glyph>
+                  <span className="max-w-28 truncate">{selectedProjectName ?? "No project"}</span>
+                </PromptInputButton>
+                {projectMenuOpen ? (
+                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 max-h-56 w-52 overflow-y-auto rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+                    <button type="button" role="menuitem" onClick={() => chooseProject(null)} className={projectItemCls(selectedProjectId === null)}>
+                      No project
+                    </button>
+                    {projects.map((p) => (
+                      <button key={p.id} type="button" role="menuitem" onClick={() => chooseProject(p.id)} className={projectItemCls(selectedProjectId === p.id)}>
+                        {p.name}
+                      </button>
+                    ))}
+                    {projects.length === 0 ? (
+                      <p className="px-2.5 py-2 text-xs text-[var(--text-muted)]">No projects yet. Create one in the sidebar.</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <PillSelect ariaLabel="Mode" value={mode} options={MODE_OPTIONS} onChange={onModeChange} />
+              <ModelSelector open={modelSelectorOpen} onOpenChange={setModelSelectorOpen}>
+                <ModelSelectorTrigger asChild>
+                  <PromptInputButton tooltip="Model">
+                    <ModelSelectorLogo provider={selectedModel.chefSlug} />
+                    <ModelSelectorName className="max-w-28 text-xs font-medium">
+                      {selectedModel.name}
+                    </ModelSelectorName>
+                  </PromptInputButton>
+                </ModelSelectorTrigger>
+                <ModelSelectorContent title="Choose a Claude model">
+                  <ModelSelectorInput placeholder="Search Claude models..." />
+                  <ModelSelectorList>
+                    <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                    <ModelSelectorGroup heading="Anthropic">
+                      {MODEL_OPTIONS.map((model) => (
+                        <ModelOptionItem
+                          key={model.id}
+                          model={model}
+                          selectedRoute={route}
+                          onSelect={(nextRoute) => {
+                            onRouteChange(nextRoute);
+                            setModelSelectorOpen(false);
+                          }}
+                        />
+                      ))}
+                    </ModelSelectorGroup>
+                  </ModelSelectorList>
+                </ModelSelectorContent>
+              </ModelSelector>
+            </PromptInputTools>
+            <PromptInputSubmit
+              disabled={!replyPending && disabled}
+              onStop={replyPending ? onStopReply : undefined}
+              status={replyPending ? "streaming" : isPending || uploading ? "submitted" : "ready"}
+            />
+          </PromptInputFooter>
+        </PromptInput>
 
         {state && !state.ok ? (
           <p className="mt-2 text-xs font-medium text-[var(--priority-bright)]">{state.message}</p>
@@ -789,58 +876,8 @@ export function Composer({
           <p className="mt-2 text-xs font-medium text-[var(--text-muted)]">{voiceError}</p>
         ) : null}
 
-        {/* Visible context selectors below the box (project picker), like the reference composer. */}
-        <div className="mt-2 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[var(--text-muted)]">
-          <div ref={projectWrapRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setProjectMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={projectMenuOpen}
-              className={cx(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
-                selectedProjectName ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
-              )}
-            >
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
-              </svg>
-              {selectedProjectName ?? "No project"}
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m6 8 4 4 4-4" />
-              </svg>
-            </button>
-            {projectMenuOpen ? (
-              <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 max-h-56 w-52 overflow-y-auto rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-                <button type="button" role="menuitem" onClick={() => chooseProject(null)} className={projectItemCls(selectedProjectId === null)}>
-                  No project
-                </button>
-                {projects.map((p) => (
-                  <button key={p.id} type="button" role="menuitem" onClick={() => chooseProject(p.id)} className={projectItemCls(selectedProjectId === p.id)}>
-                    {p.name}
-                  </button>
-                ))}
-                {projects.length === 0 ? (
-                  <p className="px-2.5 py-2 text-xs text-[var(--text-muted)]">No projects yet. Create one in the sidebar.</p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          <PillSelect
-            ariaLabel="Mode"
-            value={mode}
-            options={MODE_OPTIONS}
-            onChange={onModeChange}
-          />
-          <PillSelect
-            ariaLabel="Route"
-            value={route}
-            options={ROUTE_OPTIONS}
-            onChange={onRouteChange}
-          />
-
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
+        <div className="mt-2 flex justify-end px-1 text-[11px] text-[var(--text-muted)]">
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 shadow-[inset_0_0_0_1px_var(--border-hairline)]">
             <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
               <rect x="5" y="9" width="10" height="7" rx="1.5" />
               <path d="M7 9V7a3 3 0 0 1 6 0v2" />
@@ -848,7 +885,7 @@ export function Composer({
             outbound stays locked
           </span>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
