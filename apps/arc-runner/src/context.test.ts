@@ -46,6 +46,12 @@ describe("buildSystemPrompt", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "ask" });
     expect(out.toLowerCase()).toContain("read-only");
   });
+  it("describes act mode: CRM interactions allowed, core CRM and drafts not", () => {
+    const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "act" });
+    expect(out).toContain("MODE: act");
+    expect(out.toLowerCase()).toContain("interactions");
+    expect(out.toLowerCase()).toContain("may not");
+  });
   it("permits drafts in draft mode and never outbound", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "draft" });
     expect(out.toLowerCase()).toContain("draft");
