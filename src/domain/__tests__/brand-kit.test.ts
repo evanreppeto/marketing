@@ -5,6 +5,7 @@ import {
   parseBusinessProfile,
   validateBusinessProfile,
   type BusinessProfile,
+  type PersonaDefinition,
 } from "@/domain/brand-kit";
 
 describe("NEUTRAL_DEFAULTS", () => {
@@ -79,6 +80,7 @@ describe("validateBusinessProfile", () => {
 });
 
 import { INDUSTRY_TEMPLATES, getIndustryTemplate } from "@/domain/brand-kit";
+import { assembleArcContext, type ArcBusinessContext } from "@/domain/brand-kit";
 
 describe("INDUSTRY_TEMPLATES", () => {
   it("includes broad buckets and a neutral start, all equal citizens", () => {
@@ -102,5 +104,33 @@ describe("INDUSTRY_TEMPLATES", () => {
   it("getIndustryTemplate returns the neutral template for an unknown id", () => {
     expect(getIndustryTemplate("does_not_exist").id).toBe("neutral");
     expect(getIndustryTemplate("professional_services").id).toBe("professional_services");
+  });
+});
+
+describe("assembleArcContext", () => {
+  it("derives the business name and carries voice, services, and guardrails", () => {
+    const profile: BusinessProfile = { ...NEUTRAL_DEFAULTS, displayName: "Acme Co", services: ["consulting"], tone: "professional" };
+    const ctx: ArcBusinessContext = assembleArcContext(profile, NEUTRAL_PERSONAS);
+    expect(ctx.businessName).toBe("Acme Co");
+    expect(ctx.services).toEqual(["consulting"]);
+    expect(ctx.tone).toBe("professional");
+    expect(ctx.guardrails.disallowedClaims.length).toBeGreaterThan(0);
+    expect(ctx.personas.map((p) => p.key)).toContain("decision_maker");
+  });
+
+  it("uses a safe placeholder name when displayName is blank", () => {
+    const ctx = assembleArcContext(NEUTRAL_DEFAULTS, []);
+    expect(ctx.businessName).toBe("the business");
+    expect(ctx.personas).toEqual([]);
+  });
+
+  it("only includes active personas, sorted by sortOrder", () => {
+    const personas: PersonaDefinition[] = [
+      { key: "b", label: "B", audienceType: "customer", sortOrder: 2, isActive: true, metadata: {} },
+      { key: "a", label: "A", audienceType: "customer", sortOrder: 1, isActive: true, metadata: {} },
+      { key: "x", label: "X", audienceType: "customer", sortOrder: 0, isActive: false, metadata: {} },
+    ];
+    const ctx = assembleArcContext({ ...NEUTRAL_DEFAULTS, displayName: "Acme" }, personas);
+    expect(ctx.personas.map((p) => p.key)).toEqual(["a", "b"]);
   });
 });

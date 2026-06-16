@@ -304,3 +304,40 @@ export function applyIndustryTemplate(id: string): BusinessProfile {
   const tpl = getIndustryTemplate(id);
   return { ...NEUTRAL_DEFAULTS, ...tpl.profile, industry: tpl.id === "neutral" ? null : tpl.id };
 }
+
+export type ArcBusinessContext = {
+  businessName: string;
+  industry: string | null;
+  services: string[];
+  tone: string;
+  voiceGuidance: string | null;
+  preferredPhrases: string[];
+  bannedPhrases: string[];
+  proofPoints: ProofPoint[];
+  personas: PersonaDefinition[];
+  guardrails: BrandKitGuardrails;
+};
+
+/**
+ * Assemble the read-only context bundle Arc and the UI consume. Pure: callers
+ * pass a profile + persona rows; this never reaches I/O. Inactive personas are
+ * dropped and the rest are sorted by sortOrder.
+ */
+export function assembleArcContext(
+  profile: BusinessProfile,
+  personas: PersonaDefinition[],
+): ArcBusinessContext {
+  const businessName = profile.displayName.trim().length > 0 ? profile.displayName.trim() : "the business";
+  return {
+    businessName,
+    industry: profile.industry,
+    services: profile.services,
+    tone: profile.tone,
+    voiceGuidance: profile.voiceGuidance,
+    preferredPhrases: profile.preferredPhrases,
+    bannedPhrases: profile.bannedPhrases,
+    proofPoints: profile.proofPoints,
+    personas: personas.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
+    guardrails: profile.guardrails,
+  };
+}
