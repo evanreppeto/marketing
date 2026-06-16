@@ -1,0 +1,61 @@
+import { tool } from "@anthropic-ai/claude-agent-sdk";
+import { z } from "zod";
+
+import type { ArcActionCard } from "../types";
+import { textResult } from "./helpers";
+
+/**
+ * `emit_card` lets Arc attach a structured card to its reply. Available in every
+ * mode — surfacing a card is safe; the operator still makes any approval decision.
+ * Cards are collected per-turn and posted as `metadata.actions`. The app
+ * re-validates them with parseActions on read.
+ *
+ * IMPORTANT: only include an `approval` block when referencing an EXISTING
+ * campaign asset (campaignId + assetId from get_campaign) — Arc cannot mint
+ * assets yet, and the inline Approve/Decline resolves a real campaign_assets.id.
+ */
+export function emitCardTool(collectCard: (card: ArcActionCard) => void) {
+  return tool(
+    "emit_card",
+    "Attach a structured card to your reply (renders below your text). Use kind 'result' to present records you found (rows = clickable record lines: name + optional meta/badge/href). Use kind 'draft' to present a proposed asset for review (preview + flags). Only add an `approval` block { kind:'campaign', campaignId, assetId } when referencing an EXISTING campaign asset you read via get_campaign — never invent ids. Call alongside your text reply.",
+    {
+      kind: z.enum(["result", "draft"]),
+      title: z.string(),
+      href: z.string().optional(),
+      rows: z
+        .array(
+          z.object({
+            name: z.string(),
+            meta: z.string().optional(),
+            badge: z.string().optional(),
+            href: z.string().optional(),
+          }),
+        )
+        .optional(),
+      flags: z.array(z.object({ tone: z.enum(["ok", "warn", "risk"]), label: z.string() })).optional(),
+      preview: z.string().optional(),
+      approval: z
+        .object({ kind: z.literal("campaign"), campaignId: z.string(), assetId: z.string() })
+        .optional(),
+      channel: z.string().optional(),
+      format: z.string().optional(),
+      status: z.enum(["draft", "revision", "approved", "rejected"]).optional(),
+    },
+    async (args) => {
+      const card: ArcActionCard = {
+        kind: args.kind,
+        title: args.title,
+        rows: args.rows ?? [],
+        flags: args.flags ?? [],
+        ...(args.href ? { href: args.href } : {}),
+        ...(args.preview ? { preview: args.preview } : {}),
+        ...(args.approval ? { approval: args.approval } : {}),
+        ...(args.channel ? { channel: args.channel } : {}),
+        ...(args.format ? { format: args.format } : {}),
+        ...(args.status ? { status: args.status } : {}),
+      };
+      collectCard(card);
+      return textResult(`Attached ${args.kind} card: ${args.title}`);
+    },
+  );
+}
