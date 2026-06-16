@@ -2,8 +2,12 @@ import Link from "next/link";
 
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
+import type { ConnectionView } from "@/lib/connections/read-model";
+import type { DispatchView } from "@/lib/dispatch/status";
 
 import { CampaignBriefTabs } from "./campaign-brief-tabs";
+import { CampaignDeployLaunchpad } from "./campaign-deploy-launchpad";
+import { buildDeployLaunchpad } from "./campaign-deploy-model";
 import { CampaignPackageWorkspace } from "./campaign-package-workspace";
 import {
   buildCampaignChecklist,
@@ -14,11 +18,27 @@ import {
   type PlainTone,
 } from "./campaign-detail-model";
 
-export function CampaignSimpleDetail({ detail, agentName }: { detail: LiveCampaignWorkspace; agentName: string }) {
+export function CampaignSimpleDetail({
+  detail,
+  agentName,
+  connections,
+  dispatches,
+}: {
+  detail: LiveCampaignWorkspace;
+  agentName: string;
+  connections: ConnectionView[];
+  dispatches: DispatchView[];
+}) {
   const { campaign, executiveOverview, launchState, reasoning } = detail;
   const checklist = buildCampaignChecklist(detail, agentName);
   const facts = buildSendExportFacts(detail);
   const packageSummary = buildCampaignPackageSummary(detail);
+  const launchpad = buildDeployLaunchpad({
+    assets: detail.assets,
+    launchState: detail.launchState,
+    launchLocked: detail.campaign.launchLocked,
+    connections,
+  });
   const statusTone = lifecycleTone(launchState.lifecycle);
   const decisionTargetId = detail.assets.find((asset) => contentStatusForLaunch(asset, detail.launchState).label === "Review")?.id;
 
@@ -60,11 +80,14 @@ export function CampaignSimpleDetail({ detail, agentName }: { detail: LiveCampai
 
       <CampaignProgressBar checklist={checklist} />
 
+      <CampaignDeployLaunchpad launchpad={launchpad} dispatches={dispatches} campaignId={campaign.id} agentName={agentName} />
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_23rem] xl:items-start">
         <CampaignPackageWorkspace
           agentName={agentName}
           assets={detail.assets}
           campaignId={campaign.id}
+          connections={connections}
           launchState={detail.launchState}
           summary={packageSummary}
         />
