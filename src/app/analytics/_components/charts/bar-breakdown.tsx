@@ -4,7 +4,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 
 import { EmptyState } from "@/app/_components/page-header";
 import type { ChartPoint } from "../campaign-analytics-model";
-import { ChartTooltip, NeedsDataChip, useReducedMotion } from "./chart-kit";
+import { ChartTooltip, NeedsDataChip, formatValue, useReducedMotion, type ValueFormat } from "./chart-kit";
 import { useChartTheme, type ChartTheme } from "./use-chart-theme";
 
 function toneColor(tone: ChartPoint["tone"], theme: ChartTheme): string {
@@ -25,13 +25,13 @@ export function BarBreakdown({
   missing = [],
   emptyTitle,
   emptyDetail,
-  formatter,
+  valueFormat,
 }: {
   points: ChartPoint[];
   missing?: string[];
   emptyTitle: string;
   emptyDetail: string;
-  formatter?: (value: number) => string;
+  valueFormat?: ValueFormat;
 }) {
   const theme = useChartTheme();
   const reduced = useReducedMotion();
@@ -55,7 +55,7 @@ export function BarBreakdown({
   const height = Math.max(points.length * 44, 120);
   const data = points.map((point) => ({
     ...point,
-    displayValue: formatter ? formatter(point.value) : String(point.value),
+    displayValue: formatValue(point.value, valueFormat),
   }));
 
   return (
@@ -71,7 +71,7 @@ export function BarBreakdown({
             axisLine={false}
             tick={{ fill: theme.textMuted, fontSize: 12 }}
           />
-          <Tooltip cursor={{ fill: theme.surface }} content={<ChartTooltip formatter={formatter} />} />
+          <Tooltip cursor={{ fill: theme.surface }} content={<ChartTooltip valueFormat={valueFormat} />} />
           <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={!reduced} animationDuration={420}>
             {data.map((point) => (
               <Cell key={point.label} fill={toneColor(point.tone, theme)} />
