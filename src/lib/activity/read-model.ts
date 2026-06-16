@@ -106,19 +106,24 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
         .limit(sourceLimit),
     ]);
 
-    assertOk("approval_decisions", decisions.error);
-    assertOk("agent_run_logs", runs.error);
-    assertOk("agent_outputs", outputs.error);
-    assertOk("campaign_events", campaignEvents.error);
-    assertOk("events", events.error);
-
-    const entries: ActivityEntry[] = [
-      ...rows(decisions.data).map(mapDecision),
-      ...rows(runs.data).map(mapRun),
-      ...rows(outputs.data).map(mapOutput),
-      ...rows(campaignEvents.data).map(mapCampaignEvent),
-      ...rows(events.data).map(mapEvent),
+    const sources = [
+      collectSource("approval_decisions", decisions, mapDecision),
+      collectSource("agent_run_logs", runs, mapRun),
+      collectSource("agent_outputs", outputs, mapOutput),
+      collectSource("campaign_events", campaignEvents, mapCampaignEvent),
+      collectSource("events", events, mapEvent),
     ];
+
+    // One drifted column or failing table must not blank the entire feed: each
+    // source degrades to zero rows (logged) while the others still render. Only
+    // a total failure (every source errored — e.g. the DB is unreachable) falls
+    // back to the unavailable state.
+    if (sources.every((source) => !source.ok)) {
+      const firstError = sources.find((source) => source.error)?.error;
+      return { status: "unavailable", message: firstError ?? "Activity is unavailable." };
+    }
+
+    const entries: ActivityEntry[] = sources.flatMap((source) => source.entries);
 
     const filtered = applyActivityFilters(entries, query);
     const merged = mergeActivityEntries(filtered, limit);
@@ -581,8 +586,23 @@ function titleize(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function assertOk(table: string, error: { message?: string } | null) {
-  if (error) {
-    throw new Error(`${table} lookup failed: ${error.message ?? "Unknown Supabase error"}`);
+type ActivitySource = { ok: boolean; entries: ActivityEntry[]; error: string | null };
+
+/**
+ * Map one Supabase source into activity entries, tolerating per-source failure.
+ * A drifted/missing column or RLS error on a single table degrades that source
+ * to zero rows (logged) instead of throwing and blanking the whole feed.
+ */
+function collectSource(
+  table: string,
+  result: { data: unknown; error: { message?: string } | null },
+  map: (row: Record<string, unknown>) => ActivityEntry,
+): ActivitySource {
+  if (result.error) {
+    const message = result.error.message ?? "Unknown Supabase error";
+    console.error(`[activity] ${table} lookup failed: ${message}`);
+    return { ok: false, entries: [], error: `${table} lookup failed: ${message}` };
   }
+
+  return { ok: true, entries: rows(result.data).map(map), error: null };
 }
