@@ -6,7 +6,7 @@ import ReactArcdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { cx } from "@/app/_components/theme";
-import type { ArcMessage, ArcStep } from "@/lib/arc-chat/persistence";
+import type { ArcMessage, ArcStep, ArcToolCall } from "@/lib/arc-chat/persistence";
 
 import { setArcMessageFeedbackAction } from "../actions";
 import { ActionCard } from "./action-card";
@@ -21,6 +21,8 @@ import {
   ChainOfThoughtStep,
 } from "@/components/ai-elements/chain-of-thought";
 import { Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
+import { ToolTraces } from "./tool-trace";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -179,7 +181,34 @@ function ChainOfThoughtTrace({
   );
 }
 
-function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: string; steps: ArcStep[]; body: string; onStop: () => void }) {
+/** Arc's narrative thinking, via the AI Elements Reasoning component (collapsible
+ *  "Thought for Ns", matching the chain-of-thought treatment already in use). */
+function ArcReasoning({ text, streaming = false }: { text: string; streaming?: boolean }) {
+  return (
+    <div className="mt-3">
+      <Reasoning isStreaming={streaming}>
+        <ReasoningTrigger />
+        <ReasoningContent>{text}</ReasoningContent>
+      </Reasoning>
+    </div>
+  );
+}
+
+function PendingBlock({
+  assistantName,
+  steps,
+  body,
+  reasoning,
+  toolCalls,
+  onStop,
+}: {
+  assistantName: string;
+  steps: ArcStep[];
+  body: string;
+  reasoning: string | null;
+  toolCalls: ArcToolCall[];
+  onStop: () => void;
+}) {
   const elapsed = useElapsed(true);
   // Reveal streamed text character-by-character so chunked poll updates read as
   // continuous typing rather than hard jumps.
@@ -191,6 +220,8 @@ function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: s
       {hasSteps ? (
         <ChainOfThoughtTrace steps={steps} title={`${assistantName} is thinking…`} defaultOpen />
       ) : null}
+      {reasoning ? <ArcReasoning text={reasoning} streaming /> : null}
+      {toolCalls.length > 0 ? <ToolTraces tools={toolCalls} /> : null}
       {hasBody ? (
         // Staged reply: the worker streams partial body text into the message
         // row; the typewriter reveal + bottom-fade mask + writing caret make
@@ -590,12 +621,21 @@ function Message({
           </div>
         )}
         {pending ? (
-          <PendingBlock assistantName={assistantName} steps={message.steps} body={message.body} onStop={onStop} />
+          <PendingBlock
+            assistantName={assistantName}
+            steps={message.steps}
+            body={message.body}
+            reasoning={message.reasoning ?? null}
+            toolCalls={message.toolCalls ?? []}
+            onStop={onStop}
+          />
         ) : failed ? (
           <div className="whitespace-pre-wrap text-sm leading-7 text-[var(--priority-bright)]">{message.body}</div>
         ) : (
           <ArcBody body={message.body} />
         )}
+        {!pending && message.reasoning ? <ArcReasoning text={message.reasoning} /> : null}
+        {!pending && message.toolCalls && message.toolCalls.length > 0 ? <ToolTraces tools={message.toolCalls} /> : null}
         {!pending && message.steps.length > 0 ? <StepTrace steps={message.steps} /> : null}
         {!pending && message.actions.length > 0 ? (
           isPackage ? (

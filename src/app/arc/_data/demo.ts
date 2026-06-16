@@ -268,6 +268,29 @@ const MESSAGES: ArcMessage[] = [
       },
       { label: "Drafted ad / email / SMS copy + a leave-behind one-pager", status: "done", at: ago(7 * MIN) },
     ],
+    reasoning:
+      "Flood-zone landlords decide on speed and certainty, not price, so I led the package with response-time proof rather than discounts. " +
+      "I preferred approved BSR media over stock to keep claims defensible, and kept all outbound locked behind approval since this segment is relationship-driven and a misfire is costly.",
+    toolCalls: [
+      {
+        name: "find_leads",
+        status: "complete",
+        input: '{ "persona": "landlord_flood_zone", "radius_min": 90, "signal": "active_flood_watch" }',
+        output: "3 matches — 2 inbound (last flood watch), 1 reactivated dormant company. All within the 90-minute service radius.",
+      },
+      {
+        name: "score_lead",
+        status: "complete",
+        input: '{ "lead_id": "demo-lead-1", "model": "persona_revenue_v2" }',
+        output: '{ "persona": "landlord_flood_zone", "confidence": 0.86, "revenue_opportunity": "high", "next_best_action": "priority_slot_offer" }',
+      },
+      {
+        name: "weather_signal",
+        status: "complete",
+        input: '{ "region": "harbor_point", "horizon_days": 7 }',
+        output: "Coastal flood watch issued for the next 48h — elevated urgency for the target ZIP cluster.",
+      },
+    ],
     feedback: null,
     actions: CAMPAIGN_ASSETS,
     suggestions: ["Make 3 more ad variants", "Find landlords in recent flood-zone leads", "Tighten the email subject line"],

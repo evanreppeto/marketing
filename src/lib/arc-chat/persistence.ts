@@ -22,6 +22,20 @@ export type ArcMessageStatus = "sent" | "pending" | "complete" | "failed";
 
 export type ArcStep = { label: string; status: "running" | "done"; at: string; detail?: string[] };
 
+/**
+ * A structured tool invocation Arc ran while producing a reply (e.g. find_leads,
+ * score_lead, weather_lookup). RUNNER CONTRACT: the agent writes these to
+ * `arc_messages.metadata.toolCalls` as `[{ name, status, input?, output? }]`.
+ * `input`/`output` are pre-rendered strings (JSON or text) so the app stays
+ * agnostic to each tool's shape. Absent on rows the runner hasn't populated.
+ */
+export type ArcToolCall = {
+  name: string;
+  status: "running" | "complete" | "error";
+  input?: string;
+  output?: string;
+};
+
 /** An operator-uploaded reference image (lives in GCS; `url` is a signed read URL). */
 export type ArcAttachment = { url: string; objectPath: string; contentType: string; name: string };
 
@@ -35,6 +49,11 @@ export type ArcMessage = {
   mentions: ArcMention[];
   media: ArcMedia[];
   steps: ArcStep[];
+  /** Arc's narrative thinking for this reply (agent-provided). Optional: absent
+   *  on rows/optimistic messages the runner hasn't populated. */
+  reasoning?: string | null;
+  /** Structured tool runs Arc executed for this reply (agent-provided). */
+  toolCalls?: ArcToolCall[];
   feedback: "up" | "down" | null;
   actions: ArcActionCard[];
   /** Proactive follow-up prompts Arc offers after a reply (agent-provided). */
@@ -110,6 +129,28 @@ function parseSteps(value: unknown): ArcStep[] {
   return out;
 }
 
+function parseReasoning(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function parseToolCalls(value: unknown): ArcToolCall[] {
+  if (!Array.isArray(value)) return [];
+  const out: ArcToolCall[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    if (typeof o.name !== "string" || !o.name.trim()) continue;
+    const status = o.status === "complete" ? "complete" : o.status === "error" ? "error" : "running";
+    out.push({
+      name: o.name,
+      status,
+      input: typeof o.input === "string" ? o.input : undefined,
+      output: typeof o.output === "string" ? o.output : undefined,
+    });
+  }
+  return out.slice(0, 12);
+}
+
 function parseSuggestions(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((s): s is string => typeof s === "string" && s.trim().length > 0).slice(0, 4);
@@ -153,6 +194,8 @@ function toMessage(row: MessageRow): ArcMessage {
     mentions: parseMentions(row.mentions),
     media: parseMedia((row.metadata as { media?: unknown } | null)?.media),
     steps: parseSteps((row.metadata as { steps?: unknown } | null)?.steps),
+    reasoning: parseReasoning((row.metadata as { reasoning?: unknown } | null)?.reasoning),
+    toolCalls: parseToolCalls((row.metadata as { toolCalls?: unknown } | null)?.toolCalls),
     feedback:
       (row.metadata as { feedback?: unknown } | null)?.feedback === "up"
         ? "up"
