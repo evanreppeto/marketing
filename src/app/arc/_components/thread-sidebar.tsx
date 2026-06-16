@@ -119,7 +119,7 @@ function ChatRow({
       >
         {c.pinnedAt ? <PinGlyph /> : null}
         <span className="min-w-0 flex-1 truncate">{c.title}</span>
-        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] group-hover:hidden">
+        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] transition-opacity duration-150 group-hover:opacity-0">
           {relativeTime(c.lastMessageAt, nowMs)}
         </span>
       </Link>

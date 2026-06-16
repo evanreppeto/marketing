@@ -213,6 +213,7 @@ export function Composer({
   demo = false,
   onDemoSend,
   onSlashOpenChange,
+  recallText = null,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -241,6 +242,9 @@ export function Composer({
   /** Notifies the parent when the slash/command menu opens or closes, so the
    *  empty-state quick cards can hide and never stack under a duplicate list. */
   onSlashOpenChange?: (open: boolean) => void;
+  /** Body of the last operator message; ArrowUp in an empty composer recalls it
+   *  for a quick re-send/edit (shell-history muscle memory). */
+  recallText?: string | null;
 }) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   // For a new chat the picked project rides along as a hidden input (assigned on
@@ -688,6 +692,16 @@ export function Composer({
               if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
                 e.preventDefault();
                 if (!disabled) formRef.current?.requestSubmit();
+              } else if (
+                e.key === "ArrowUp" &&
+                query === null &&
+                slash === null &&
+                draft.length === 0 &&
+                recallText
+              ) {
+                // Empty composer: recall the last message to re-send or tweak.
+                e.preventDefault();
+                onDraftChange(recallText);
               }
             }}
             rows={1}
