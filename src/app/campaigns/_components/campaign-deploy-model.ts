@@ -24,7 +24,7 @@ export type DeployPiece = {
 };
 
 export type DeployLaunchpad = {
-  readyCount: number; // approved pieces (deploy + share + deployed)
+  readyCount: number; // pieces past review — deploy + share + already-deployed (everything except locked)
   totalShippable: number; // total pieces
   canDeployCampaign: boolean;
   deployCampaignBlockedReason: string | null;
@@ -41,14 +41,6 @@ export type BuildDeployLaunchpadInput = {
   connections: ConnectionView[];
 };
 
-function emailReady(connections: ConnectionView[]): boolean {
-  return connections.some((c) => c.kind === "email" && c.status === "connected");
-}
-
-function socialReady(connections: ConnectionView[]): boolean {
-  return connections.some((c) => c.kind === "social" && c.status === "connected");
-}
-
 function copyLabelFor(channel: string): string {
   if (channel === "Social") return "Copy caption";
   return "Copy text";
@@ -59,11 +51,15 @@ function buildPiece(asset: CampaignWorkspaceAsset, launchState: CampaignLaunchSt
   const statusLabel = contentStatusForLaunch(asset, launchState).label;
 
   const connectable = channel === "Email" || channel === "Social";
-  const connectionReady = channel === "Email" ? emailReady(connections) : channel === "Social" ? socialReady(connections) : false;
+
+  const emailConn = connections.find((c) => c.kind === "email" && c.status === "connected");
+  const socialConn = connections.find((c) => c.kind === "social" && c.status === "connected");
+
+  const connectionReady = channel === "Email" ? !!emailConn : channel === "Social" ? !!socialConn : false;
 
   let connectionLabel: string;
-  if (channel === "Email") connectionLabel = connectionReady ? "Resend connected" : "Email not connected";
-  else if (channel === "Social") connectionLabel = connectionReady ? "Social connected" : "Social not connected";
+  if (channel === "Email") connectionLabel = emailConn ? `${emailConn.label} connected` : "Email not connected";
+  else if (channel === "Social") connectionLabel = socialConn ? `${socialConn.label} connected` : "Social not connected";
   else if (channel === "SMS") connectionLabel = "No SMS connection";
   else connectionLabel = "Copy or download";
 
@@ -78,7 +74,7 @@ function buildPiece(asset: CampaignWorkspaceAsset, launchState: CampaignLaunchSt
     lockReason = statusLabel === "Blocked" ? "Needs rework" : "Approve first";
   }
 
-  const body = asset.body.trim() || asset.preview.trim();
+  const body = asset.body.trim() || asset.preview.trim() || "No content yet.";
   const copyText = channel === "Email" ? `Subject: ${asset.title}\n\n${body}` : body;
 
   return {
@@ -110,6 +106,8 @@ export function buildDeployLaunchpad(input: BuildDeployLaunchpadInput): DeployLa
 
   const readyCount = pieces.filter((p) => p.mode !== "locked").length;
 
+  // Declined/archived pieces do NOT block campaign deploy — only still-pending pieces do
+  // (mirrors the launchCampaign backend, which deploys only the approved pieces).
   let deployCampaignBlockedReason: string | null = null;
   if (!launchLocked) {
     deployCampaignBlockedReason = "Campaign is already live";

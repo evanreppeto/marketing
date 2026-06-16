@@ -58,7 +58,7 @@ function connection(partial: Partial<ConnectionView>): ConnectionView {
 }
 
 const emailConnected = [connection({ provider: "resend", kind: "email", status: "connected" })];
-const nothingConnected = [connection({ provider: "resend", kind: "email", status: "not_configured" as ConnectionView["status"] })];
+const resendNotConfigured = [connection({ provider: "resend", kind: "email", status: "not_configured" as ConnectionView["status"] })];
 
 describe("buildDeployLaunchpad", () => {
   it("approved email with Resend connected is deployable (mode 'deploy')", () => {
@@ -78,7 +78,7 @@ describe("buildDeployLaunchpad", () => {
       assets: [makeAsset({ channel: "email", dispatchLocked: true, status: "approved" })],
       launchState: makeLaunchState(),
       launchLocked: true,
-      connections: nothingConnected,
+      connections: resendNotConfigured,
     });
     expect(result.pieces[0].mode).toBe("share");
     expect(result.pieces[0].connectable).toBe(true);
@@ -126,6 +126,16 @@ describe("buildDeployLaunchpad", () => {
       connections: emailConnected,
     });
     expect(result.pieces[0].copyText).toBe("Subject: Storm follow-up\n\nHi there");
+  });
+
+  it("copyText falls back to preview when body is empty", () => {
+    const result = buildDeployLaunchpad({
+      assets: [makeAsset({ body: "", preview: "Preview only", channel: "sms", assetType: "SMS" })],
+      launchState: makeLaunchState(),
+      launchLocked: true,
+      connections: emailConnected,
+    });
+    expect(result.pieces[0].copyText).toBe("Preview only");
   });
 
   it("blocks campaign deploy while a piece is pending", () => {
