@@ -227,6 +227,11 @@ export const Persona: FC<PersonaProps> = memo(
       throw new Error(`Invalid variant: ${variant}`);
     }
 
+    // Drives the static placeholder: the .riv asset streams from a remote CDN, so
+    // the orb is briefly empty on first paint. We show a fallback disc until Rive's
+    // onLoad fires, then fade it out.
+    const [loaded, setLoaded] = useState(false);
+
     // Stabilize callbacks to prevent useRive from reinitializing
     const callbacksRef = useRef({
       onLoad,
@@ -250,10 +255,10 @@ export const Persona: FC<PersonaProps> = memo(
 
     const stableCallbacks = useMemo(
       () => ({
-        onLoad: ((loadedRive) =>
-          callbacksRef.current.onLoad?.(
-            loadedRive
-          )) as RiveParameters["onLoad"],
+        onLoad: ((loadedRive) => {
+          setLoaded(true);
+          callbacksRef.current.onLoad?.(loadedRive);
+        }) as RiveParameters["onLoad"],
         onLoadError: ((err) =>
           callbacksRef.current.onLoadError?.(
             err
@@ -311,6 +316,7 @@ export const Persona: FC<PersonaProps> = memo(
 
     return (
       <Component rive={rive} source={source} modelColor={modelColor}>
+        <span aria-hidden data-loaded={loaded} className="mark-persona-fallback" />
         <RiveComponent className={cn("size-16 shrink-0", className)} />
       </Component>
     );

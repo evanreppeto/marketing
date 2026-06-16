@@ -77,11 +77,11 @@ export function IntelligencePanel({
           </div>
 
           {model.scores && model.scores.length > 0 ? (
-            <div className="grid gap-2 border-b border-[var(--border-hairline)] p-4 sm:grid-cols-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 border-b border-[var(--border-hairline)] p-4">
               {model.scores.map((score) => (
-                <div key={score.label} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{score.label}</div>
+                <div key={score.label} className="min-w-0 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                    <div className="min-w-0 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{score.label}</div>
                     <ToneBadge tone={score.tone ?? scoreTone(score.value)} />
                   </div>
                   <div className="mt-2 break-words font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">

@@ -25,22 +25,22 @@ const ENTITY_FIELDS: Record<CrmEntityKey, Field[]> = {
     { name: "full_name", label: "Full name", placeholder: "Marlene Vega" },
     { name: "email", label: "Email", type: "email" },
     { name: "phone", label: "Phone", type: "tel" },
-    { name: "title", label: "Title", placeholder: "Property manager" },
+    { name: "title", label: "Title", placeholder: "Marketing manager" },
     { name: "persona", label: "Persona", type: "select", options: PERSONA_OPTIONS },
     { name: "company_id", label: "Company ID (optional)", placeholder: "Link to an existing company" },
   ],
   properties: [
-    { name: "street_line_1", label: "Street", required: true, placeholder: "1234 W Addison St" },
+    { name: "street_line_1", label: "Address / location", required: true, placeholder: "1234 Market St" },
     { name: "street_line_2", label: "Street line 2" },
     { name: "city", label: "City", required: true },
     { name: "state", label: "State", required: true, placeholder: "IL" },
     { name: "postal_code", label: "Postal code", required: true },
-    { name: "property_type", label: "Property type", placeholder: "Single family / multi-unit" },
+    { name: "property_type", label: "Asset type", placeholder: "Office / venue / portfolio" },
     { name: "persona", label: "Persona", type: "select", options: PERSONA_OPTIONS },
   ],
 };
 
-const SINGULAR: Record<CrmEntityKey, string> = { companies: "company", contacts: "contact", properties: "property" };
+const SINGULAR: Record<CrmEntityKey, string> = { companies: "company", contacts: "contact", properties: "asset" };
 
 export function CrmRecordForm({
   objectKey,

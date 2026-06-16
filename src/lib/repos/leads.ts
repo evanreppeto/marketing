@@ -1,7 +1,11 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type Lead, LeadSchema, type LeadStatus } from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+
+type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListLeadsFilter = {
   status?: LeadStatus;
@@ -17,15 +21,20 @@ export type ListLeadsFilter = {
 
 export async function listLeads(
   filter: ListLeadsFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Lead[]> {
-  let query = client.from("leads").select("*");
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("leads").select("*");
 
+  if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
   if (filter.status) {
     query = query.eq("status", filter.status);
   }
   if (filter.persona) {
-    query = query.eq("persona", filter.persona);
+    query = query.eq("persona", filter.persona as PersonaMapping);
   }
   if (filter.source) {
     query = query.eq("source", filter.source);
@@ -55,13 +64,18 @@ export async function listLeads(
 
 export async function getLead(
   id: string,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Lead | null> {
-  const { data, error } = await client
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase
     .from("leads")
     .select("*")
-    .eq("id", id)
-    .maybeSingle();
+    .eq("id", id);
+  if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     throw new Error(`getLead failed: ${error.message}`);
@@ -76,15 +90,20 @@ export async function getLead(
 
 export async function countLeads(
   filter: ListLeadsFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<number> {
-  let query = client.from("leads").select("*", { count: "exact", head: true });
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("leads").select("*", { count: "exact", head: true });
 
+  if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
   if (filter.status) {
     query = query.eq("status", filter.status);
   }
   if (filter.persona) {
-    query = query.eq("persona", filter.persona);
+    query = query.eq("persona", filter.persona as PersonaMapping);
   }
   if (filter.source) {
     query = query.eq("source", filter.source);

@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 
-import { resolveAgentConnection, type FieldSource } from "@/lib/agent/connection";
+import { resolveAgentConnection, type EffectiveAgentConnection, type FieldSource } from "@/lib/agent/connection";
 import { getCreativeToolRecommendations, getMarketingPromptTemplates } from "@/lib/agent/marketing-guidance";
 import { listAgentTokens, type AgentTokenSummary } from "@/lib/agent/tokens";
 import { resolveAppBaseUrl } from "@/lib/deployment/app-url";
@@ -131,6 +131,72 @@ function SetupGuide({
   );
 }
 
+/**
+ * Always-visible connectivity hint at the top of the Agent panel. Surfaces the
+ * configured runner endpoint (so the operator can actually see the tunnel), flags
+ * when it's unreachable/stale, and explains that Cloudflare Quick Tunnel URLs
+ * rotate — the most common reason the agent silently stops responding.
+ */
+function RunnerConnectivityHint({ connection }: { connection: EffectiveAgentConnection }) {
+  const url = connection.webhookUrl;
+  const status = connection.health.lastStatus;
+  const failing = status === "error" || status === "unreachable";
+  const disabled = !connection.enabled;
+  const isQuickTunnel = !!url && url.includes("trycloudflare.com");
+  const fromEnv = connection.source.webhookUrl === "env";
+  const needsAttention = !url || disabled || failing;
+
+  const box = needsAttention
+    ? "border-[var(--warn-border-soft)] bg-[var(--warn-soft)]"
+    : "border-[var(--border-hairline)] bg-[var(--surface-inset)]";
+
+  return (
+    <div className="px-5 py-4">
+      <div className={`grid gap-3 rounded-md border ${box} p-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm font-bold text-[var(--text-primary)]">Agent runner endpoint</div>
+          <AgentTestButton action={testAgentConnectionAction} />
+        </div>
+
+        {url ? (
+          <div className="grid gap-1">
+            <div className="break-all font-mono text-[11px] text-[var(--text-secondary)]">{url}</div>
+            <div className="text-xs leading-5 text-[var(--text-muted)]">
+              {failing
+                ? `Unreachable — the last wake to this URL failed${connection.health.lastError ? ` (${connection.health.lastError})` : ""}.`
+                : disabled
+                  ? "Waking is turned off, so new messages won't reach the agent."
+                  : status === "ok"
+                    ? `Last reached ${fmt(connection.health.lastSeenAt)}.`
+                    : "Not verified yet — run Test to confirm it answers."}
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs leading-5 text-[var(--text-muted)]">
+            No runner URL is set, so messages queue until an agent connects.
+          </div>
+        )}
+
+        {isQuickTunnel ? (
+          <p className="text-xs leading-5 text-[var(--warn-text)]">
+            This is a Cloudflare Quick Tunnel (<code className="font-mono">trycloudflare.com</code>) URL. These are
+            temporary and change every time <code className="font-mono">cloudflared</code> restarts — when the agent stops
+            responding, this saved URL is usually stale.
+          </p>
+        ) : null}
+
+        {url && fromEnv ? (
+          <p className="text-xs leading-5 text-[var(--text-muted)]">
+            This URL comes from the <code className="font-mono">MARK_RUNNER_URL</code> environment variable, so update it
+            there (e.g. <code className="font-mono">.env.local</code>) and restart the app. The Webhook URL field in
+            Advanced connection controls is ignored while the env override is set.
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function TokenRow({ token }: { token: AgentTokenSummary }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
@@ -202,6 +268,7 @@ export async function AgentPanel() {
       }
     >
       <div className="grid gap-0 divide-y divide-[var(--border-hairline)]">
+        <RunnerConnectivityHint connection={connection} />
         <SetupGuide
           agentName={connection.displayName}
           appBaseUrl={appBaseUrl}

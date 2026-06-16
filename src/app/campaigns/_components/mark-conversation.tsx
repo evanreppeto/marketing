@@ -66,7 +66,6 @@ export function MarkConversation({
     </div>
   );
 }
-
 function MessageBubble({ message }: { message: MarkMessage }) {
   if (message.role === "operator") {
     return (

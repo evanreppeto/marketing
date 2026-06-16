@@ -41,6 +41,15 @@ export type CrmObjectRow = {
   status: string;
   owner: string;
   updated: string;
+  objectKey: CrmObjectKey;
+  href: string;
+  personaTag: string;
+  sourceLabel: string;
+  score: number | null;
+  valueLabel: string;
+  nextStep: string;
+  relationships: CrmRecordRelationship[];
+  missingFields: string[];
 };
 
 export type CrmObjectData = {
@@ -255,25 +264,25 @@ export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOv
           label: "Leads found",
           value: data.leads.length,
           delta: `${data.leads.filter((lead) => ["new", "needs_review", "validated"].includes(lead.status ?? "")).length} need review`,
-          forecast: "Hermes-created lead records appear here before approval.",
+          forecast: "New lead records appear here before routing or approval.",
         },
         {
           label: "Companies",
           value: data.companies.length,
           delta: `${data.companies.filter((company) => company.partner_tier).length} partner-tiered`,
-          forecast: "Partners, referral sources, and target companies stay separate from ops data.",
+          forecast: "Partners, referral sources, customers, and targets stay organized by object.",
         },
         {
-          label: "Jobs tracked",
+          label: "Projects tracked",
           value: data.jobs.length,
           delta: `${data.jobs.filter((job) => job.status === "completed").length} completed`,
-          forecast: "Later this becomes the bridge back to BSR Manager outcomes.",
+          forecast: "Projects connect qualified demand to downstream outcomes.",
         },
         {
           label: "Revenue linked",
           value: formatMoney(data.outcomes.reduce((sum, outcome) => sum + (outcome.gross_revenue_cents ?? 0), 0)),
           delta: `${data.outcomes.filter((outcome) => outcome.status === "won").length} won outcomes`,
-          forecast: "Attribution will connect campaigns and partners to revenue.",
+          forecast: "Attribution connects campaigns, relationships, and work back to revenue.",
         },
       ],
       rows,
@@ -529,20 +538,20 @@ function buildPipelineRows(data: Awaited<ReturnType<typeof getCrmTableBundle>>):
 
     return {
       id: job.id,
-      record: job.job_number ?? `Job ${shortId(job.id)}`,
-      account: company?.name ?? contactName(contact) ?? "Linked job",
-      type: titleize(job.persona ?? "Job"),
+      record: job.job_number ?? `Project ${shortId(job.id)}`,
+      account: company?.name ?? contactName(contact) ?? "Linked project",
+      type: titleize(job.persona ?? "Project"),
       objectType: "job",
       stage: titleize(job.status ?? "pending"),
       owner: getString(metadata.owner) ?? "Ops",
       value: formatMoney(revenueCents),
-      nextStep: job.status === "completed" ? "Review outcome" : "Coordinate job step",
+      nextStep: job.status === "completed" ? "Review outcome" : "Coordinate project step",
       updated: job.updated_at ?? job.created_at ?? "Now",
       score,
       personaTag: normalizeTag(job.persona ?? getString(metadata.persona) ?? "unassigned_persona"),
       serviceTags: getStringArray(metadata.service_tags).map(normalizeTag),
       urgencyTag: getString(metadata.urgency_tag) ?? (revenueCents >= 1000000 ? "high_value" : "standard"),
-      sourceTag: normalizeTag(getString(metadata.source) ?? "job_record"),
+      sourceTag: normalizeTag(getString(metadata.source) ?? "project_record"),
       lifecycleTag: normalizeTag(job.status ?? "pending"),
       missingTags: missingTagsForPipelineRow({
         persona: job.persona,
@@ -565,13 +574,13 @@ function buildPipelineRows(data: Awaited<ReturnType<typeof getCrmTableBundle>>):
       return {
         id: company.id,
         record: company.name ?? `Company ${shortId(company.id)}`,
-        account: company.partner_tier ? `Tier ${company.partner_tier} partner` : "Company",
+        account: company.partner_tier ? `Tier ${company.partner_tier} relationship` : "Company",
         type: titleize(company.persona ?? "Company"),
         objectType: "partner",
         stage: titleize(company.status ?? "active"),
-        owner: getString(metadata.owner) ?? "Robby",
-        value: "Partner",
-        nextStep: "Review partner follow-up",
+        owner: getString(metadata.owner) ?? "Team",
+        value: "Relationship",
+        nextStep: "Review relationship follow-up",
         updated: company.updated_at ?? company.created_at ?? "Now",
         score,
         personaTag: normalizeTag(company.persona ?? getString(metadata.persona) ?? "unassigned_persona"),
@@ -595,80 +604,86 @@ function buildPipelineRows(data: Awaited<ReturnType<typeof getCrmTableBundle>>):
 }
 
 function mapObjectRows(key: CrmObjectKey, data: Awaited<ReturnType<typeof getCrmTableBundle>>): CrmObjectRow[] {
-  const companyById = new Map(data.companies.map((company) => [company.id, company]));
-  const contactById = new Map(data.contacts.map((contact) => [contact.id, contact]));
-
   if (key === "companies") {
-    return data.companies.map((company) => ({
-      id: company.id,
-      name: company.name ?? `Company ${shortId(company.id)}`,
-      detail: [titleize(company.persona ?? "company"), company.partner_tier ? `Tier ${company.partner_tier}` : null].filter(Boolean).join(" / "),
-      status: titleize(company.status ?? "active"),
-      owner: getString(asRecord(company.metadata).owner) ?? "Robby",
-      updated: company.updated_at ?? company.created_at ?? "Now",
-    }));
+    return data.companies.map((company) => decorateObjectRow(key, company, data, "Robby", company.updated_at ?? company.created_at ?? "Now"));
   }
 
   if (key === "contacts") {
-    return data.contacts.map((contact) => ({
-      id: contact.id,
-      name: contactName(contact) ?? `Contact ${shortId(contact.id)}`,
-      detail: [contact.title, contact.email, contact.phone].filter(Boolean).join(" / ") || titleize(contact.persona ?? "contact"),
-      status: titleize(contact.status ?? "active"),
-      owner: getString(asRecord(contact.metadata).owner) ?? "Robby",
-      updated: contact.updated_at ?? contact.created_at ?? "Now",
-    }));
+    return data.contacts.map((contact) => decorateObjectRow(key, contact, data, "Robby", contact.updated_at ?? contact.created_at ?? "Now"));
   }
 
   if (key === "properties") {
-    return data.properties.map((property) => ({
-      id: property.id,
-      name: propertyAddress(property),
-      detail: [titleize(property.property_type ?? "property"), property.city].filter(Boolean).join(" / "),
-      status: titleize(property.persona ?? "unassigned"),
-      owner: getString(asRecord(property.metadata).owner) ?? "Ops",
-      updated: property.updated_at ?? property.created_at ?? "Now",
-    }));
+    return data.properties.map((property) => decorateObjectRow(key, property, data, "Ops", property.updated_at ?? property.created_at ?? "Now"));
   }
 
   if (key === "leads") {
-    return data.leads.map((lead) => {
-      const company = lead.company_id ? companyById.get(lead.company_id) : undefined;
-      const contact = lead.contact_id ? contactById.get(lead.contact_id) : undefined;
-      return {
-        id: lead.id,
-        name: lead.loss_summary ?? titleize(lead.source ?? "Lead"),
-        detail: company?.name ?? contactName(contact) ?? titleize(lead.persona ?? "Lead"),
-        status: titleize(lead.status ?? "new"),
-        owner: getString(asRecord(lead.metadata).owner) ?? "Hermes",
-        updated: lead.updated_at ?? lead.received_at ?? "Now",
-      };
-    });
+    return data.leads.map((lead) => decorateObjectRow(key, lead, data, "Hermes", lead.updated_at ?? lead.received_at ?? "Now"));
   }
 
   if (key === "jobs") {
-    return data.jobs.map((job) => ({
-      id: job.id,
-      name: job.job_number ?? `Job ${shortId(job.id)}`,
-      detail: formatMoney(job.estimated_revenue_cents ?? 0),
-      status: titleize(job.status ?? "pending"),
-      owner: getString(asRecord(job.metadata).owner) ?? "Ops",
-      updated: job.updated_at ?? job.created_at ?? "Now",
-    }));
+    return data.jobs.map((job) => decorateObjectRow(key, job, data, "Ops", job.updated_at ?? job.created_at ?? "Now"));
   }
 
-  return data.outcomes.map((outcome) => ({
-    id: outcome.id,
-    name: `${titleize(outcome.status ?? "outcome")} ${shortId(outcome.id)}`,
-    detail: formatMoney(outcome.gross_revenue_cents ?? 0),
-    status: titleize(outcome.status ?? "pending"),
-    owner: getString(asRecord(outcome.metadata).owner) ?? "Finance",
-    updated: outcome.updated_at ?? outcome.closed_at ?? "Now",
-  }));
+  return data.outcomes.map((outcome) => decorateObjectRow(key, outcome, data, "Finance", outcome.updated_at ?? outcome.closed_at ?? "Now"));
 }
 
 type CrmBundle = Awaited<ReturnType<typeof getCrmTableBundle>>;
 type AnyCrmRecord = CompanyRow | ContactRow | PropertyRow | LeadRow | JobRow | OutcomeRow;
+
+function decorateObjectRow(
+  key: CrmObjectKey,
+  record: AnyCrmRecord,
+  data: CrmBundle,
+  fallbackOwner: string,
+  updated: string,
+): CrmObjectRow {
+  const metadata = asRecord(record.metadata);
+  const evidence = buildRecordEvidence(metadata);
+  const scores = getScores(key, record, metadata);
+  const score = scores.leadScore ?? scores.partnerScore;
+
+  return {
+    id: record.id,
+    name: recordName(key, record),
+    detail: recordDetail(key, record, data),
+    status: titleize(recordStatus(key, record)),
+    owner: getString(metadata.owner) ?? fallbackOwner,
+    updated,
+    objectKey: key,
+    href: `/crm/${key}/${record.id}`,
+    personaTag: normalizeTag(record.persona ?? getString(metadata.persona) ?? "unassigned_persona"),
+    sourceLabel: sourceLabelForObjectRow(key, record, metadata),
+    score,
+    valueLabel: valueLabelForObjectRow(key, record, scores),
+    nextStep: nextBestActionForRecord(key, record, metadata),
+    relationships: relationshipsForRecord(key, record, data).slice(0, 5),
+    missingFields: missingFieldsForRecord(key, record, evidence),
+  };
+}
+
+function sourceLabelForObjectRow(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>) {
+  const source = getString(metadata.source) ?? getString(metadata.source_label);
+  if (source) return titleize(source);
+  if (key === "leads") return titleize((record as LeadRow).source ?? "Lead intake");
+  if (key === "companies") return "Company account";
+  if (key === "contacts") return "Relationship graph";
+  if (key === "properties") return "Asset record";
+  if (key === "jobs") return "Project record";
+  return "Outcome loop";
+}
+
+function valueLabelForObjectRow(
+  key: CrmObjectKey,
+  record: AnyCrmRecord,
+  scores: ReturnType<typeof getScores>,
+) {
+  if (key === "companies") return typeof scores.partnerScore === "number" ? `Relationship fit ${scores.partnerScore}` : "Relationship fit missing";
+  if (key === "leads") return typeof scores.leadScore === "number" ? `Lead score ${scores.leadScore}` : "Lead score missing";
+  if (key === "jobs") return formatMoney((record as JobRow).estimated_revenue_cents ?? 0);
+  if (key === "outcomes") return formatMoney((record as OutcomeRow).gross_revenue_cents ?? 0);
+  if (key === "contacts") return "Contact context";
+  return "Asset context";
+}
 
 function findRecord(key: CrmObjectKey, recordId: string, data: CrmBundle): AnyCrmRecord | null {
   if (key === "companies") return data.companies.find((row) => row.id === recordId) ?? null;
@@ -684,14 +699,14 @@ function recordName(key: CrmObjectKey, record: AnyCrmRecord) {
   if (key === "contacts") return contactName(record as ContactRow) ?? `Contact ${shortId(record.id)}`;
   if (key === "properties") return propertyAddress(record as PropertyRow);
   if (key === "leads") return (record as LeadRow).loss_summary ?? titleize((record as LeadRow).source ?? "Lead");
-  if (key === "jobs") return (record as JobRow).job_number ?? `Job ${shortId(record.id)}`;
+  if (key === "jobs") return (record as JobRow).job_number ?? `Project ${shortId(record.id)}`;
   return `${titleize((record as OutcomeRow).status ?? "Outcome")} ${shortId(record.id)}`;
 }
 
 function recordDetail(key: CrmObjectKey, record: AnyCrmRecord, data: CrmBundle) {
   if (key === "companies") {
     const company = record as CompanyRow;
-    return [titleize(company.persona ?? "company"), company.partner_tier ? `Tier ${company.partner_tier} partner` : null, company.website_url].filter(Boolean).join(" / ");
+    return [titleize(company.persona ?? "company"), company.partner_tier ? `Tier ${company.partner_tier} relationship` : null, company.website_url].filter(Boolean).join(" / ");
   }
   if (key === "contacts") {
     const contact = record as ContactRow;
@@ -708,7 +723,7 @@ function recordDetail(key: CrmObjectKey, record: AnyCrmRecord, data: CrmBundle) 
   }
   if (key === "jobs") {
     const job = record as JobRow;
-    return [titleize(job.status ?? "job"), formatMoney(job.estimated_revenue_cents ?? 0), job.scheduled_at ? `Scheduled ${formatDateOnly(job.scheduled_at)}` : null].filter(Boolean).join(" / ");
+    return [titleize(job.status ?? "project"), formatMoney(job.estimated_revenue_cents ?? 0), job.scheduled_at ? `Scheduled ${formatDateOnly(job.scheduled_at)}` : null].filter(Boolean).join(" / ");
   }
   const outcome = record as OutcomeRow;
   return [titleize(outcome.status ?? "outcome"), formatMoney(outcome.gross_revenue_cents ?? 0), outcome.closed_at ? `Closed ${formatDateOnly(outcome.closed_at)}` : null].filter(Boolean).join(" / ");
@@ -771,34 +786,35 @@ function attentionReasonForRecord(key: CrmObjectKey, record: AnyCrmRecord, metad
   if (key === "companies") return "Company may support referral, partner, or campaign development workflows.";
   if (key === "contacts") return "Contact record can connect persona, company, lead, and approval history.";
   if (key === "outcomes") return "Outcome record can close the loop between marketing activity and revenue.";
-  return `Record is available for ${agentName} review and human inspection.`;
+  return `Record is available for ${agentName} review and enrichment.`;
 }
 
 function nextBestActionForRecord(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>, agentName: string = "Agent") {
+  void agentName;
   const explicit = getString(metadata.next_best_action) ?? getString(metadata.recommended_action);
   if (explicit) return explicit;
   if (key === "leads") return nextStepForLead((record as LeadRow).status);
-  if (key === "companies") return `Review partner fit, missing evidence, and next touch before asking ${agentName} to draft outreach.`;
+  if (key === "companies") return `Review fit, missing context, and next touch before drafting outreach.`;
   if (key === "contacts") return "Confirm role, persona, consent, and company relationship before campaign use.";
-  if (key === "jobs") return "Connect job status and revenue context back to originating lead or campaign.";
+  if (key === "jobs") return "Connect project status and revenue context back to the originating lead or campaign.";
   if (key === "outcomes") return "Review attribution and feed performance learning back into scoring.";
   return "Enrich missing record context before campaign or approval work.";
 }
 
 function ctaForPersona(persona: string) {
   const lower = persona.toLowerCase();
-  if (lower.includes("property manager")) return "Request Vendor Packet";
+  if (lower.includes("property manager")) return "Request Partner Packet";
   if (lower.includes("insurance")) return "Refer a Client";
   if (lower.includes("plumb") || lower.includes("sewer") || lower.includes("trade") || lower.includes("contractor")) return "Become a Partner";
-  return "Call Now / Upload Photos";
+  return "Review Next Step";
 }
 
 function messageAngleForPersona(persona: string) {
   const lower = persona.toLowerCase();
-  if (lower.includes("property manager")) return "Fast mitigation documentation, tenant-safe coordination, and vendor packet readiness.";
-  if (lower.includes("insurance")) return "Clean documentation, claim-neutral restoration support, and easy referral handoff.";
-  if (lower.includes("plumb") || lower.includes("sewer")) return "Water-loss handoff after the source is stopped, with mitigation and rebuild documentation.";
-  return "Restoration, mitigation, documentation, rebuild coordination, and approval-safe next steps.";
+  if (lower.includes("property manager")) return "Clear coordination, simple documentation, and partner-ready next steps.";
+  if (lower.includes("insurance")) return "Reliable client handoff, clear status, and easy referral tracking.";
+  if (lower.includes("plumb") || lower.includes("sewer") || lower.includes("trade")) return "Partner handoff, shared context, and fast follow-up.";
+  return "Clear value, relevant proof, simple next step, and approval-safe follow-up.";
 }
 
 function proofPointsForRecord(key: CrmObjectKey, record: AnyCrmRecord, metadata: Record<string, unknown>) {
@@ -858,7 +874,7 @@ function fieldsForRecord(key: CrmObjectKey, record: AnyCrmRecord): CrmRecordFiel
   if (key === "leads") {
     const lead = record as LeadRow;
     return compactFields([
-      ["Loss summary", lead.loss_summary],
+      ["Lead summary", lead.loss_summary],
       ["Persona", titleize(lead.persona ?? "unassigned")],
       ["Status", titleize(lead.status ?? "new")],
       ["Source", lead.source],
@@ -869,7 +885,7 @@ function fieldsForRecord(key: CrmObjectKey, record: AnyCrmRecord): CrmRecordFiel
   if (key === "jobs") {
     const job = record as JobRow;
     return compactFields([
-      ["Job number", job.job_number],
+      ["Project number", job.job_number],
       ["Status", titleize(job.status ?? "pending")],
       ["Estimated revenue", formatMoney(job.estimated_revenue_cents ?? 0)],
       ["Scheduled", job.scheduled_at ? formatDateOnly(job.scheduled_at) : null],
@@ -882,7 +898,7 @@ function fieldsForRecord(key: CrmObjectKey, record: AnyCrmRecord): CrmRecordFiel
     ["Revenue", formatMoney(outcome.gross_revenue_cents ?? 0)],
     ["Margin", formatMoney(outcome.gross_margin_cents ?? 0)],
     ["Closed", outcome.closed_at ? formatDateOnly(outcome.closed_at) : null],
-    ["Job id", outcome.job_id],
+    ["Project id", outcome.job_id],
   ]);
 }
 
@@ -902,11 +918,11 @@ function relationshipsForRecord(key: CrmObjectKey, record: AnyCrmRecord, data: C
   };
   const pushProperty = (propertyId: string | null | undefined) => {
     const property = propertyId ? data.properties.find((item) => item.id === propertyId) : null;
-    if (property) relationships.push({ label: "Property", value: propertyAddress(property), href: `/crm/properties/${property.id}` });
+    if (property) relationships.push({ label: "Asset", value: propertyAddress(property), href: `/crm/properties/${property.id}` });
   };
   const pushJob = (jobId: string | null | undefined) => {
     const job = jobId ? data.jobs.find((item) => item.id === jobId) : null;
-    if (job) relationships.push({ label: "Job", value: job.job_number ?? `Job ${shortId(job.id)}`, href: `/crm/jobs/${job.id}` });
+    if (job) relationships.push({ label: "Project", value: job.job_number ?? `Project ${shortId(job.id)}`, href: `/crm/jobs/${job.id}` });
   };
 
   if (key === "companies") {
@@ -965,7 +981,7 @@ function missingFieldsForRecord(key: CrmObjectKey, record: AnyCrmRecord, evidenc
     const lead = record as LeadRow;
     if (typeof lead.lead_score !== "number") missing.push("lead_score");
     if (!lead.routing_recommendation) missing.push("routing_recommendation");
-    if (!lead.loss_summary) missing.push("loss_summary");
+    if (!lead.loss_summary) missing.push("lead_summary");
   }
   return missing;
 }
@@ -975,12 +991,12 @@ function compactFields(items: Array<[string, string | null | undefined]>): CrmRe
 }
 
 function buildRelationships(key: CrmObjectKey, data: Awaited<ReturnType<typeof getCrmTableBundle>>) {
-  if (key === "companies") return `${data.contacts.length} contacts / ${data.leads.length} leads / ${data.jobs.length} jobs`;
+  if (key === "companies") return `${data.contacts.length} contacts / ${data.leads.length} leads / ${data.jobs.length} projects`;
   if (key === "contacts") return `${data.companies.length} companies / ${data.leads.length} leads / ${data.outcomes.length} outcomes`;
-  if (key === "properties") return `${data.contacts.length} contacts / ${data.jobs.length} jobs / ${data.leads.length} leads`;
-  if (key === "leads") return `${data.contacts.length} contacts / ${data.companies.length} companies / ${data.jobs.length} jobs`;
+  if (key === "properties") return `${data.contacts.length} contacts / ${data.jobs.length} projects / ${data.leads.length} leads`;
+  if (key === "leads") return `${data.contacts.length} contacts / ${data.companies.length} companies / ${data.jobs.length} projects`;
   if (key === "jobs") return `${data.leads.length} leads / ${data.outcomes.length} outcomes / ${data.companies.length} companies`;
-  return `${data.jobs.length} jobs / ${data.leads.length} leads / ${formatMoney(data.outcomes.reduce((sum, row) => sum + (row.gross_revenue_cents ?? 0), 0))} linked`;
+  return `${data.jobs.length} projects / ${data.leads.length} leads / ${formatMoney(data.outcomes.reduce((sum, row) => sum + (row.gross_revenue_cents ?? 0), 0))} linked`;
 }
 
 const objectMetaByKey: Record<
@@ -989,32 +1005,32 @@ const objectMetaByKey: Record<
 > = {
   companies: {
     label: "Companies",
-    description: "Referral partners, agencies, managers, and organizations.",
+    description: "Organizations, accounts, partners, vendors, and target companies.",
     primaryField: "Company",
     secondaryField: "Type",
   },
   contacts: {
     label: "Contacts",
-    description: "Owners, agents, managers, vendors, and decision-makers.",
+    description: "People, decision-makers, influencers, customers, and collaborators.",
     primaryField: "Contact",
     secondaryField: "Relationship",
   },
   properties: {
-    label: "Properties",
-    description: "Homes, buildings, portfolios, and loss locations.",
-    primaryField: "Property",
+    label: "Assets",
+    description: "Places, accounts, assets, portfolios, or any record tied to a location.",
+    primaryField: "Asset",
     secondaryField: "Owner / contact",
   },
   leads: {
     label: "Leads",
-    description: "Validated opportunities, scores, source, and routing decision.",
+    description: "Incoming demand, referrals, prospects, scores, source, and routing.",
     primaryField: "Lead",
     secondaryField: "Signal",
   },
   jobs: {
-    label: "Jobs",
-    description: "Scheduled, active, and completed restoration work.",
-    primaryField: "Job",
+    label: "Projects",
+    description: "Opportunities, projects, work items, and downstream delivery records.",
+    primaryField: "Project",
     secondaryField: "Stage",
   },
   outcomes: {
@@ -1059,7 +1075,7 @@ function serviceTagsForLead(lead: LeadRow, metadata: Record<string, unknown>) {
   if (/rebuild|reconstruction|drywall|floor/i.test(summary)) inferred.push("rebuild");
 
   const tags = uniqueStrings([...explicit, ...signals, ...inferred]).map(normalizeTag);
-  return tags.length > 0 ? tags : ["service_unknown"];
+  return tags.length > 0 ? tags : ["interest_unknown"];
 }
 
 function urgencyTagForScore(score: number, metadata: Record<string, unknown>) {
@@ -1081,7 +1097,7 @@ function missingTagsForPipelineRow(input: {
   if (!input.persona) missing.push("missing_persona");
   if (input.evidenceCount === 0) missing.push("missing_evidence");
   if (typeof input.score !== "number") missing.push("missing_score");
-  if (!input.serviceTags || input.serviceTags.length === 0) missing.push("missing_service_tag");
+  if (!input.serviceTags || input.serviceTags.length === 0) missing.push("missing_interest_tag");
   if (!input.source) missing.push("missing_source");
   return missing;
 }

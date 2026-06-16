@@ -25,6 +25,19 @@ describe("listNodes", () => {
     const result = await listNodes({}, supabase as never, "org-1");
     expect(result.status).toBe("unavailable");
   });
+
+  it("hides archived nodes from a default read", async () => {
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: NODES, error: null } });
+    await listNodes({}, supabase as never, "org-1");
+    expect(supabase.calls).toContainEqual(["neq", "trust_tier", "archived"]);
+  });
+
+  it("does not add the archived filter when an explicit tier is requested", async () => {
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: NODES, error: null } });
+    await listNodes({ trustTier: "trusted" }, supabase as never, "org-1");
+    expect(supabase.calls).toContainEqual(["eq", "trust_tier", "trusted"]);
+    expect(supabase.calls.some((c) => c[0] === "neq" && c[1] === "trust_tier")).toBe(false);
+  });
 });
 
 describe("listProposed", () => {

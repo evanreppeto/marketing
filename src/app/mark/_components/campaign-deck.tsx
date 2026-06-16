@@ -47,7 +47,7 @@ function DeckCard({
         aria-label={`Open ${card.title} in Studio`}
         className="group relative block aspect-[4/3] w-full overflow-hidden bg-[var(--media-void)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
       >
-        <AssetThumb card={card} media={card.media} />
+        <AssetThumb card={card} media={card.media} eager={assetIndex === 0} />
         {card.status ? (
           <span className="absolute left-1.5 top-1.5">
             <StatusPill status={card.status} />

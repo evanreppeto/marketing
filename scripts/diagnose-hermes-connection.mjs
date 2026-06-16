@@ -69,4 +69,6 @@ for (const r of results) show(r);
 console.log("\nEnv flags (.env.local):");
 console.log("  HERMES_AGENT_API_TOKEN set?", Boolean(env.HERMES_AGENT_API_TOKEN));
 console.log("  SUPABASE_SERVICE_ROLE_KEY set?", Boolean(key));
+console.log("  MARK_RUNNER_URL:", env.MARK_RUNNER_URL || "(unset)");
+console.log("  MARK_WEBHOOK_SECRET set?", Boolean(env.MARK_WEBHOOK_SECRET));
 console.log("  MARK_AGENT_KEY:", env.MARK_AGENT_KEY || "(unset)");

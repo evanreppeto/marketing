@@ -1,0 +1,77 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+
+import type { Config } from "./config";
+import { createHermesClient } from "./hermes-client";
+import { handleChatMessage } from "./handler";
+import { verifySignature } from "./verify";
+import type { MarkChatMessagePayload, WakePayload } from "./types";
+
+function readRawBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
+}
+
+function sendJson(res: ServerResponse, status: number, body: Record<string, unknown>): void {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
+export function createRunnerServer(config: Config) {
+  const client = createHermesClient(config);
+
+  return createServer(async (req, res) => {
+    const url = (req.url ?? "/").split("?")[0];
+    const method = req.method ?? "GET";
+
+    if (method === "GET" && (url === "/health" || url === "/")) {
+      sendJson(res, 200, { ok: true, service: "arc-runner" });
+      return;
+    }
+
+    if (method === "POST" && url === config.webhookPath) {
+      console.log(`[arc-runner] POST ${url} received`);
+      const rawBody = await readRawBody(req).catch(() => "");
+
+      if (config.webhookSecret) {
+        const header = req.headers["x-webhook-signature"];
+        const signature = Array.isArray(header) ? header[0] : header;
+        if (!verifySignature(rawBody, signature, config.webhookSecret)) {
+          console.warn("[arc-runner] wake REJECTED: bad/missing signature (app's MARK_WEBHOOK_SECRET must match the bridge's)");
+          sendJson(res, 401, { ok: false, error: "invalid_signature" });
+          return;
+        }
+      }
+
+      let payload: WakePayload;
+      try {
+        payload = JSON.parse(rawBody) as WakePayload;
+      } catch {
+        sendJson(res, 400, { ok: false, error: "invalid_json" });
+        return;
+      }
+
+      if (payload.type === "ping") {
+        sendJson(res, 200, { ok: true, status: "pong" });
+        return;
+      }
+
+      if (payload.type === "mark_chat_message") {
+        // Ack the wake instantly (the app times out at ~6s), then run Arc and
+        // post the reply out-of-band. The /mark UI poll surfaces the reply when
+        // it lands.
+        sendJson(res, 200, { ok: true, status: "accepted" });
+        void handleChatMessage(client, config, payload as MarkChatMessagePayload);
+        return;
+      }
+
+      sendJson(res, 200, { ok: true, status: "ignored" });
+      return;
+    }
+
+    sendJson(res, 404, { ok: false, error: "not_found" });
+  });
+}

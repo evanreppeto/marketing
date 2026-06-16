@@ -30,7 +30,7 @@ export function NotesPanel({
           name="body"
           required
           rows={3}
-          placeholder={`Add context for the team and ${agentName}…`}
+          placeholder={`Add context for the team and ${agentName}...`}
           className={inputClass}
         />
         <div className="flex items-center justify-between gap-3">

@@ -1,7 +1,11 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type Property, PropertySchema } from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+
+type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListPropertiesFilter = {
   persona?: string;
@@ -17,11 +21,14 @@ export type ListPropertiesFilter = {
 
 export async function listProperties(
   filter: ListPropertiesFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Property[]> {
-  let query = client.from("properties").select("*");
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("properties").select("*");
 
-  if (filter.persona) query = query.eq("persona", filter.persona);
+  if (orgId) query = query.eq("org_id", orgId);
+  if (filter.persona) query = query.eq("persona", filter.persona as PersonaMapping);
   if (filter.city) query = query.ilike("city", filter.city);
   if (filter.state) query = query.eq("state", filter.state);
   if (filter.postalCode) query = query.eq("postal_code", filter.postalCode);
@@ -39,9 +46,13 @@ export async function listProperties(
 
 export async function getProperty(
   id: string,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Property | null> {
-  const { data, error } = await client.from("properties").select("*").eq("id", id).maybeSingle();
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("properties").select("*").eq("id", id);
+  if (orgId) query = query.eq("org_id", orgId);
+  const { data, error } = await query.maybeSingle();
   if (error) {
     throw new Error(`getProperty failed: ${error.message}`);
   }

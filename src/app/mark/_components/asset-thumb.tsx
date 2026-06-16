@@ -10,7 +10,7 @@ import type { MarkActionCard, MarkMedia } from "@/domain";
  * (email / SMS / doc copy), a channel-appropriate *content preview* so text assets
  * read as real creative instead of a blank tile. Fills its (relative) parent.
  */
-export function AssetThumb({ card, media }: { card: MarkActionCard; media?: MarkMedia }) {
+export function AssetThumb({ card, media, eager = false }: { card: MarkActionCard; media?: MarkMedia; eager?: boolean }) {
   if (media) {
     return (
       <Image
@@ -18,6 +18,7 @@ export function AssetThumb({ card, media }: { card: MarkActionCard; media?: Mark
         alt={media.alt ?? card.title}
         fill
         unoptimized
+        loading={eager ? "eager" : "lazy"}
         sizes="16rem"
         className="object-cover transition duration-300 group-hover:scale-[1.03]"
       />

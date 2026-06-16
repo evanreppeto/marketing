@@ -1,7 +1,11 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type Outcome, type OutcomeStatus, OutcomeSchema } from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+
+type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListOutcomesFilter = {
   status?: OutcomeStatus;
@@ -12,12 +16,15 @@ export type ListOutcomesFilter = {
 
 export async function listOutcomes(
   filter: ListOutcomesFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Outcome[]> {
-  let query = client.from("outcomes").select("*");
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("outcomes").select("*");
 
+  if (orgId) query = query.eq("org_id", orgId);
   if (filter.status) query = query.eq("status", filter.status);
-  if (filter.persona) query = query.eq("persona", filter.persona);
+  if (filter.persona) query = query.eq("persona", filter.persona as PersonaMapping);
   if (filter.companyId) query = query.eq("company_id", filter.companyId);
   if (typeof filter.limit === "number") query = query.limit(filter.limit);
 

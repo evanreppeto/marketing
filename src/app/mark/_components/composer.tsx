@@ -722,7 +722,7 @@ export function Composer({
                 textareaRef.current?.focus();
               }}
               aria-label="Tools and commands"
-              title="Tools — run a command"
+              title="Tools - run a command"
               className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

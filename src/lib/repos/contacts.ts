@@ -1,7 +1,11 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type Contact, ContactSchema, type ContactStatus } from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { type Database } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+
+type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListContactsFilter = {
   status?: ContactStatus;
@@ -14,15 +18,20 @@ export type ListContactsFilter = {
 
 export async function listContacts(
   filter: ListContactsFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Contact[]> {
-  let query = client.from("contacts").select("*");
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("contacts").select("*");
 
+  if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
   if (filter.status) {
     query = query.eq("status", filter.status);
   }
   if (filter.persona) {
-    query = query.eq("persona", filter.persona);
+    query = query.eq("persona", filter.persona as PersonaMapping);
   }
   if (filter.companyId) {
     query = query.eq("company_id", filter.companyId);
@@ -46,9 +55,15 @@ export async function listContacts(
 
 export async function getContact(
   id: string,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<Contact | null> {
-  const { data, error } = await client.from("contacts").select("*").eq("id", id).maybeSingle();
+  const orgId = client ? null : await getCurrentOrgId();
+  const supabase = client ?? getSupabaseAdminClient();
+  let query = supabase.from("contacts").select("*").eq("id", id);
+  if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     throw new Error(`getContact failed: ${error.message}`);

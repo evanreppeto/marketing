@@ -62,7 +62,12 @@ export async function updateCrmRecordAction(formData: FormData) {
     redirect(`/crm/${objectKey}/${recordId}?action=crm-error&message=${encodeURIComponent(result.error)}`);
   }
 
-  const { error } = await supabase.from(objectKey).update(result.insert as TablesUpdate<CrmEntityKey>).eq("id", recordId);
+  const orgId = await getCurrentOrgId();
+  const { error } = await supabase
+    .from(objectKey)
+    .update(result.insert as TablesUpdate<CrmEntityKey>)
+    .eq("id", recordId)
+    .eq("org_id", orgId);
   if (error) {
     redirect(`/crm/${objectKey}/${recordId}?action=crm-error&message=${encodeURIComponent(error.message)}`);
   }
