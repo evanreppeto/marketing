@@ -16,11 +16,13 @@ export async function handleChatMessage(
   console.log(`[arc-runner] wake received → running Arc for task ${payload.agentTaskId} (route=${payload.route}, mode=${payload.mode})`);
   const started = Date.now();
   try {
-    const reply = await runArcTurn(payload, client);
+    const result = await runArcTurn(payload, client);
+    const reply = result.body;
     await client.postChatReply({
       agentTaskId: payload.agentTaskId,
       body: reply || "(Arc returned an empty reply.)",
       status: reply ? "complete" : "failed",
+      metadata: result.actions.length > 0 ? { actions: result.actions } : {},
     });
     console.log(`[arc-runner] replied to task ${payload.agentTaskId} in ${Date.now() - started}ms`);
   } catch (error) {
