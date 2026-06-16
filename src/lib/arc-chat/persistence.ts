@@ -601,3 +601,32 @@ export async function setArcMessageFeedback(
     .eq("id", messageId);
   assertOk("arc_messages feedback update", upErr);
 }
+
+/**
+ * Update the body of an operator message in place (for the edit-and-resend
+ * flow). Guarded to `role = "operator"` so an arc/system row can never be
+ * rewritten, and records a light edit audit in metadata. Returns false when no
+ * matching operator row exists.
+ */
+export async function updateOperatorMessageBody(
+  messageId: string,
+  body: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<boolean> {
+  const { data, error } = await client
+    .from("arc_messages")
+    .select("id, role, metadata")
+    .eq("id", messageId)
+    .maybeSingle<{ id: string; role: string; metadata: Record<string, unknown> | null }>();
+  assertOk("arc_messages edit lookup", error);
+  if (!data || data.role !== "operator") return false;
+  const meta = (data.metadata ?? {}) as Record<string, unknown>;
+  const editCount = typeof meta.editCount === "number" ? meta.editCount : 0;
+  const { error: upErr } = await client
+    .from("arc_messages")
+    .update({ body, metadata: { ...meta, editedAt: new Date().toISOString(), editCount: editCount + 1 } })
+    .eq("id", messageId)
+    .eq("role", "operator");
+  assertOk("arc_messages edit update", upErr);
+  return true;
+}

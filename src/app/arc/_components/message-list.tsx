@@ -433,6 +433,7 @@ function Message({
   onRetry,
   onStop,
   onRegenerate,
+  onEditResend,
   onSuggestion,
   onOpenAsset,
   onDecision,
@@ -443,12 +444,89 @@ function Message({
   onRetry: () => void;
   onStop: () => void;
   onRegenerate: (markMessageId: string) => void;
+  onEditResend?: (messageId: string, newBody: string) => void;
   onSuggestion: (prompt: string) => void;
   onOpenAsset?: (assetId?: string) => void;
   onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void;
 }) {
-  // Operator: right-aligned bubble (ChatGPT-style), timestamp on hover.
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(message.body);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  // Focus + size the editor and drop the caret at the end when it opens.
+  useEffect(() => {
+    if (!editing) return;
+    const el = editRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+  }, [editing]);
+
+  function openEditor() {
+    setEditText(message.body);
+    setEditing(true);
+  }
+  function saveEdit() {
+    const next = editText.trim();
+    if (!next || next === message.body.trim()) {
+      setEditing(false);
+      return;
+    }
+    onEditResend?.(message.id, next);
+    setEditing(false);
+  }
+
+  // Operator: right-aligned bubble (ChatGPT-style), edit + timestamp on hover.
   if (message.role === "operator") {
+    const canEdit = Boolean(onEditResend);
+    if (editing) {
+      return (
+        <div className="flex flex-col items-end">
+          <div className="w-full max-w-[82%] rounded-2xl rounded-br-md bg-[var(--surface-panel)] p-2 shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
+            <textarea
+              ref={editRef}
+              value={editText}
+              onChange={(e) => {
+                setEditText(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 320)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setEditing(false);
+                } else if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  saveEdit();
+                }
+              }}
+              rows={1}
+              aria-label="Edit your message"
+              className="max-h-[320px] w-full resize-none bg-transparent px-2 py-1 text-sm leading-6 text-[var(--text-primary)] outline-none"
+            />
+            <div className="mt-1 flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="rounded-md px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={!editText.trim() || editText.trim() === message.body.trim()}
+                className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Save &amp; resend
+              </button>
+            </div>
+          </div>
+          <span className="mt-1 pr-1 text-[10px] text-[var(--text-muted)]">Enter to resend · Esc to cancel</span>
+        </div>
+      );
+    }
     return (
       <div className="group flex flex-col items-end">
         <div className="max-w-[82%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
@@ -465,9 +543,20 @@ function Message({
           </div>
         ) : null}
         <MentionChips mentions={message.mentions} align="end" />
-        <span className="mt-1 pr-1 text-[10px] tabular-nums text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100" suppressHydrationWarning>
-          {formatTime(message.createdAt)}
-        </span>
+        <div className="mt-1 flex items-center gap-1 pr-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={openEditor}
+              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+            >
+              Edit
+            </button>
+          ) : null}
+          <span className="text-[10px] tabular-nums text-[var(--text-muted)]" suppressHydrationWarning>
+            {formatTime(message.createdAt)}
+          </span>
+        </div>
       </div>
     );
   }
@@ -584,6 +673,7 @@ export function MessageList({
   onRetry,
   onStop,
   onRegenerate,
+  onEditResend,
   onSuggestion,
   onOpenAsset,
   onDecision,
@@ -593,6 +683,7 @@ export function MessageList({
   onRetry: () => void;
   onStop: () => void;
   onRegenerate: (markMessageId: string) => void;
+  onEditResend?: (messageId: string, newBody: string) => void;
   onSuggestion: (prompt: string) => void;
   onOpenAsset?: (assetId?: string) => void;
   onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void;
@@ -663,6 +754,7 @@ export function MessageList({
                 onRetry={onRetry}
                 onStop={onStop}
                 onRegenerate={onRegenerate}
+                onEditResend={onEditResend}
                 onSuggestion={onSuggestion}
                 onOpenAsset={onOpenAsset}
                 onDecision={onDecision}
