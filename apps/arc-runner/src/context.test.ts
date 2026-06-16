@@ -46,6 +46,11 @@ describe("buildSystemPrompt", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "ask" });
     expect(out.toLowerCase()).toContain("read-only");
   });
+  it("includes the persona taxonomy", () => {
+    const out = buildSystemPrompt("BASE", baseCtx);
+    expect(out).toContain("persona_homeowner_emergency");
+    expect(out).toContain("Emergency Homeowner");
+  });
   it("describes act mode: CRM interactions allowed, core CRM and drafts not", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "act" });
     expect(out).toContain("MODE: act");
