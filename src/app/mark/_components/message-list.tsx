@@ -20,6 +20,7 @@ import {
   ChainOfThoughtHeader,
   ChainOfThoughtStep,
 } from "@/components/ai-elements/chain-of-thought";
+import { Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -190,10 +191,19 @@ function MentionChips({ mentions, align }: { mentions: MarkMessage["mentions"]; 
 
 function References({ assistantName, mentions }: { assistantName: string; mentions: MarkMessage["mentions"] }) {
   if (mentions.length === 0) return null;
+  // AI Elements Sources (rethemed): a collapsible citation list — reinforces
+  // that Mark's replies are source-backed records. Open by default so the
+  // evidence stays obvious, collapsible to reclaim space on long threads.
   return (
-    <div className="mt-3">
-      <p className="signal-eyebrow mb-1.5">Sources {assistantName} used</p>
-      <div className="flex flex-wrap gap-1.5">
+    <Sources defaultOpen className="mt-3">
+      <SourcesTrigger count={mentions.length} aria-label={`Sources ${assistantName} used`}>
+        <span>Sources {assistantName} used</span>
+        <span className="text-[var(--text-muted)]">· {mentions.length}</span>
+        <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)] transition-transform group-data-[state=open]:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 8 4 4 4-4" />
+        </svg>
+      </SourcesTrigger>
+      <SourcesContent>
         {mentions.map((m) => (
           <Link
             key={`${m.type}:${m.id}`}
@@ -203,8 +213,8 @@ function References({ assistantName, mentions }: { assistantName: string; mentio
             @{m.label}
           </Link>
         ))}
-      </div>
-    </div>
+      </SourcesContent>
+    </Sources>
   );
 }
 
