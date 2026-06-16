@@ -1,15 +1,15 @@
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
+import ReactArcdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { toRenderableMarkdown, type LinkResolutionContext } from "@/domain";
+import { toRenderableArcdown, type LinkResolutionContext } from "@/domain";
 
 export function NoteBody({ body, ctx }: { body: string; ctx: LinkResolutionContext }) {
-  const markdown = toRenderableMarkdown(body, ctx);
+  const markdown = toRenderableArcdown(body, ctx);
 
   return (
     <div className="prose-vault max-w-none text-sm leading-7 text-[var(--text-secondary)]">
-      <ReactMarkdown
+      <ReactArcdown
         remarkPlugins={[remarkGfm]}
         components={{
           a({ href, children }) {
@@ -46,7 +46,7 @@ export function NoteBody({ body, ctx }: { body: string; ctx: LinkResolutionConte
         }}
       >
         {markdown}
-      </ReactMarkdown>
+      </ReactArcdown>
     </div>
   );
 }

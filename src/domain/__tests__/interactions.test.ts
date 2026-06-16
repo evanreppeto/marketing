@@ -80,7 +80,7 @@ describe("parseTaskInput", () => {
       entityId: "22222222-2222-2222-2222-222222222222",
       title: "Follow up on water damage estimate",
       authorKind: "agent",
-      authorName: "Hermes",
+      authorName: "Arc",
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;

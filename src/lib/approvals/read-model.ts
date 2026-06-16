@@ -65,7 +65,7 @@ export type ApprovalStructuredDraft =
   | {
       kind: "partner_lead_list";
       leadListType: string;
-      targetMarket: string;
+      targetArcet: string;
       targetZips: string[];
       suggestedOwnerAction: string;
       candidates: ApprovalLeadCandidate[];
@@ -349,7 +349,7 @@ function mapApprovalCard(input: {
     riskLevel: item.risk_level,
     persona: campaign?.persona ?? company?.persona ?? getString(promptInputs.persona) ?? "unassigned",
     channel: asset?.channel ?? getString(promptInputs.channel) ?? "review",
-    sourceAgent: (item.requested_by ?? getString(item.audit_payload?.created_by_agent_id) ?? agentName).replace(/hermes/gi, agentName),
+    sourceAgent: item.requested_by ?? getString(item.audit_payload?.created_by_agent_id) ?? agentName,
     submittedAt: item.submitted_at,
     campaign: {
       id: campaign?.id ?? null,
@@ -506,7 +506,7 @@ function buildStructuredDraft(input: {
     leadListType:
       getString(candidateSource.lead_list_type) ??
       (getString(candidateSource.bucket) ? `${getString(candidateSource.bucket)} recommendations` : "Partner lead recommendations"),
-    targetMarket:
+    targetArcet:
       getString(candidateSource.target_market) ??
       (getString(candidateSource.bucket) ? `Review ${humanize(getString(candidateSource.bucket) ?? "partner")} candidates before any external use.` : "Review partner lead recommendations before any external use."),
     targetZips: getArray(candidateSource.target_zips_used).filter(isString),

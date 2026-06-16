@@ -91,7 +91,7 @@ describe("decideApprovalItem", () => {
     ]);
   });
 
-  it("queues a revision task when revision is requested and Hermes demo agent exists", async () => {
+  it("queues a revision task when revision is requested and Arc demo agent exists", async () => {
     const supabase = createSupabaseQueryMock({
       approval_items: { data: approvalItemRow, error: null },
       campaign_assets: { data: campaignAssetRow, error: null },
@@ -112,7 +112,7 @@ describe("decideApprovalItem", () => {
       supabase,
     );
 
-    expect(supabase.calls).toContainEqual(["eq", "key", "hermes-demo"]);
+    expect(supabase.calls).toContainEqual(["eq", "key", "arc-demo"]);
     expect(supabase.calls).toContainEqual([
       "insert",
       expect.objectContaining({

@@ -38,7 +38,7 @@ describe("mergeConnection", () => {
 
   it("lets env override the db row", () => {
     const connection = mergeConnection(
-      { MARK_DISPLAY_NAME: "EnvName", MARK_RUNNER_URL: "https://env.example/hook", MARK_AGENT_KEY: "envkey" },
+      { ARC_DISPLAY_NAME: "EnvName", ARC_RUNNER_URL: "https://env.example/hook", ARC_AGENT_KEY: "envkey" },
       {
         workspace_id: "default",
         display_name: "Atlas",
@@ -59,8 +59,8 @@ describe("mergeConnection", () => {
     expect(connection.source.webhookUrl).toBe("env");
   });
 
-  it("honors MARK_WEBHOOK_URL as a webhook fallback alias", () => {
-    const connection = mergeConnection({ MARK_WEBHOOK_URL: "https://legacy.example/hook" }, null);
+  it("honors ARC_WEBHOOK_URL as a webhook fallback alias", () => {
+    const connection = mergeConnection({ ARC_WEBHOOK_URL: "https://legacy.example/hook" }, null);
 
     expect(connection.webhookUrl).toBe("https://legacy.example/hook");
     expect(connection.source.webhookUrl).toBe("env");

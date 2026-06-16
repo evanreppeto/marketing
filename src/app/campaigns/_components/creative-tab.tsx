@@ -311,7 +311,7 @@ function DeliverableCover({ asset, kind }: { asset: CampaignWorkspaceAsset; kind
     if (primaryMedia.type === "image") {
       return (
         <div className="flex h-40 items-center justify-center overflow-hidden bg-[oklch(0.14_0.025_246)]">
-          {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
           <img src={primaryMedia.thumbnailUrl ?? primaryMedia.url} alt={primaryMedia.title} className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.02]" />
         </div>
       );
@@ -640,7 +640,7 @@ function MediaHero({ media }: { media: CampaignMediaAsset }) {
   if (media.type === "image") {
     return (
       <a href={media.url} target="_blank" rel="noreferrer" className="group block overflow-hidden bg-[oklch(0.14_0.025_246)]">
-        {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
         <img src={media.thumbnailUrl ?? media.url} alt={media.title} className="max-h-80 w-full object-contain transition group-hover:scale-[1.01]" />
       </a>
     );
@@ -678,7 +678,7 @@ function assetKind(asset: CampaignWorkspaceAsset) {
 
 /**
  * Every deliverable is a piece that needs a decision. Derive the stage from its
- * approval gate if present, else its own status — so an asset Mark created
+ * approval gate if present, else its own status — so an asset Arc created
  * without a gate still reads as "Needs approval", never a dead-end draft.
  * Approved pieces split into Approved (still dispatch-locked) vs Deployed.
  */

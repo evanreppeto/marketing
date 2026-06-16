@@ -11,7 +11,7 @@ export async function persistCompetitorIntel(
 ): Promise<CompetitorIntelResult> {
   const req = parseCompetitorIntelPayload(input);
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
-  const agentId = await upsertMarkAgent(client);
+  const agentId = await upsertArcAgent(client);
 
   const competitorCampaignId = await insertOne(client, "competitor_campaigns", {
     source: req.source,
@@ -33,10 +33,10 @@ export async function persistCompetitorIntel(
   return { competitorCampaignId, status: "needs_review", runId };
 }
 
-async function upsertMarkAgent(client: SupabaseClient): Promise<string> {
+async function upsertArcAgent(client: SupabaseClient): Promise<string> {
   const { data, error } = await client
     .from("agents")
-    .upsert({ key: "hermes", name: "Hermes Orchestrator", status: "ready" }, { onConflict: "key" })
+    .upsert({ key: "arc", name: "Arc Orchestrator", status: "ready" }, { onConflict: "key" })
     .select("id")
     .single<{ id: string }>();
   if (error) {

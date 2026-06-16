@@ -10,9 +10,9 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 export type DispatchActionState = { ok: boolean; message: string } | null;
 
 const SUCCESS: Partial<Record<DispatchStatus, string>> = {
-  sent: "Marked sent.",
-  delivered: "Marked delivered.",
-  failed: "Marked failed — left in the Outbox for follow-up.",
+  sent: "Arced sent.",
+  delivered: "Arced delivered.",
+  failed: "Arced failed — left in the Outbox for follow-up.",
   canceled: "Dispatch canceled.",
   scheduled: "Scheduled.",
 };

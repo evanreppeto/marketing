@@ -1,0 +1,26 @@
+{
+  "name": "@growth-engine/arc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Connector helpers for attaching a Arc agent to a hosted Growth Engine workspace.",
+  "main": "./index.js",
+  "files": [
+    "README.md",
+    "index.js",
+    "cli-core.js",
+    "cli.js"
+  ],
+  "exports": {
+    ".": "./index.js"
+  },
+  "bin": {
+    "growth-arc": "./cli.js"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -15,19 +15,19 @@ function asset(toolSource: string | null, promptInputs: unknown = {}) {
 }
 
 describe("buildReasoning", () => {
-  it("distills why/action/flags/tools/prompt-inputs from Mark's payloads", () => {
+  it("distills why/action/flags/tools/prompt-inputs from Arc's payloads", () => {
     const result = buildReasoning(
       campaign(
         {
-          why_hermes_created_it: "Referral persona with water-loss signals.",
+          why_arc_created_it: "Referral persona with water-loss signals.",
           recommended_action: "Approve the first-touch outreach asset.",
           guardrail_flags: ["Human review required", "Outbound locked until approved"],
         },
         { provider: "local_deterministic" },
       ),
       [
-        asset("Hermes Orchestrator", { persona: "persona_plumbing_partner", channel: "email", target_id: "x" }),
-        asset("Hermes Orchestrator"),
+        asset("Arc Orchestrator", { persona: "persona_plumbing_partner", channel: "email", target_id: "x" }),
+        asset("Arc Orchestrator"),
       ],
     );
 
@@ -35,7 +35,7 @@ describe("buildReasoning", () => {
     expect(result.recommendedAction).toContain("Approve");
     expect(result.guardrailFlags).toHaveLength(2);
     // tool_source dedupes; audit provider is humanized and included
-    expect(result.toolsUsed).toEqual(["Hermes Orchestrator", "Local Deterministic"]);
+    expect(result.toolsUsed).toEqual(["Arc Orchestrator", "Local Deterministic"]);
     // readable scalar prompt inputs only, *_id keys filtered out
     expect(result.promptInputs.map((p) => p.label)).toEqual(["Persona", "Channel"]);
   });
@@ -62,7 +62,7 @@ describe("getCampaignWorkspaceDetail creative media", () => {
           company_id: null,
           contact_id: null,
           lead_id: null,
-          owner: "Mark",
+          owner: "Arc",
           objective: "Referral campaign",
           audience_summary: null,
           offer_summary: null,
@@ -85,7 +85,7 @@ describe("getCampaignWorkspaceDetail creative media", () => {
             channel: "image",
             title: "Hero image",
             status: "pending_owner_approval",
-            tool_source: "Hermes Orchestrator",
+            tool_source: "Arc Orchestrator",
             prompt_input: null,
             prompt_inputs: {},
             draft_body: null,
@@ -126,7 +126,7 @@ describe("getCampaignWorkspaceDetail creative media", () => {
           company_id: null,
           contact_id: null,
           lead_id: null,
-          owner: "Mark",
+          owner: "Arc",
           objective: "Referral campaign",
           audience_summary: null,
           offer_summary: null,
@@ -149,7 +149,7 @@ describe("getCampaignWorkspaceDetail creative media", () => {
             channel: "review",
             title: "Insurance partner candidates",
             status: "pending_owner_approval",
-            tool_source: "Mark",
+            tool_source: "Arc",
             prompt_input: null,
             prompt_inputs: {},
             draft_body: JSON.stringify({
@@ -205,7 +205,7 @@ const ROLLUP_CAMPAIGN = {
   company_id: null,
   contact_id: null,
   lead_id: null,
-  owner: "Mark",
+  owner: "Arc",
   objective: "Pre-approve vendor",
   audience_summary: null,
   offer_summary: null,
@@ -255,7 +255,7 @@ function rollupApproval(id: string, assetId: string, status: string) {
     prompt_inputs: {},
     draft_output: "Draft body",
     edited_output: null,
-    requested_by: "hermes",
+    requested_by: "arc",
     submitted_at: "2026-06-02T12:00:00.000Z",
     risk_level: "low",
     compliance_notes: null,
@@ -268,7 +268,7 @@ function rollupApproval(id: string, assetId: string, status: string) {
 }
 
 // One approved asset, one with a real pending approval decision, and one with
-// no approval item (Mark drafted it but never submitted it for a decision).
+// no approval item (Arc drafted it but never submitted it for a decision).
 const ROLLUP_ASSETS = [
   rollupAsset("asset-email", "email"),
   rollupAsset("asset-landing", "landing_page"),

@@ -7,7 +7,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/agent/connection";
 import { type MarketingAgentProfile } from "@/lib/agent/marketing-guidance";
 import { writeWebhookSecret } from "@/lib/agent/secret";
-import { createHermesSetupBundle, generateWebhookSecret, type HermesSetupBundle } from "@/lib/agent/setup-bundle";
+import { createArcSetupBundle, generateWebhookSecret, type ArcSetupBundle } from "@/lib/agent/setup-bundle";
 import { issueAgentToken, revokeAgentToken } from "@/lib/agent/tokens";
 import { requireOperator } from "@/lib/auth/operator";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -15,7 +15,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 export type AgentActionState = { ok: boolean; message: string } | null;
 export type IssueTokenResult = { ok: true; plaintext: string; message: string } | { ok: false; message: string };
 export type GenerateSetupBundleResult =
-  | ({ ok: true; message: string } & HermesSetupBundle)
+  | ({ ok: true; message: string } & ArcSetupBundle)
   | { ok: false; message: string };
 
 async function requireAgentAdmin(): Promise<void> {
@@ -73,7 +73,7 @@ export async function generateAgentSetupBundleAction(formData: FormData): Promis
     const appBaseUrl = String(formData.get("app_base_url") ?? "").trim();
     if (!appBaseUrl) throw new Error("The hosted app URL is required before generating a setup bundle.");
 
-    const agentName = String(formData.get("agent_name") ?? "").trim() || "Hermes";
+    const agentName = String(formData.get("agent_name") ?? "").trim() || "Arc";
     const marketingProfile: MarketingAgentProfile = {
       companyName: String(formData.get("marketing_company_name") ?? "").trim(),
       serviceArea: String(formData.get("marketing_service_area") ?? "").trim(),
@@ -93,13 +93,13 @@ export async function generateAgentSetupBundleAction(formData: FormData): Promis
 
     const webhookSecret = generateWebhookSecret();
     await writeWebhookSecret(webhookSecret, client);
-    const { plaintext } = await issueAgentToken("Hermes setup bundle", client);
+    const { plaintext } = await issueAgentToken("Arc setup bundle", client);
 
     revalidatePath("/settings");
     return {
       ok: true,
       message: "Setup bundle generated. Copy these values now; the token is only shown once.",
-      ...createHermesSetupBundle({
+      ...createArcSetupBundle({
         agentName,
         appBaseUrl,
         token: plaintext,

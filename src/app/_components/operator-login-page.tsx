@@ -63,7 +63,7 @@ export function OperatorLoginPage({ from, error }: { from: string; error?: strin
 
   return (
     <OperatorAuthSurface>
-      <LogoMark widthClassName="w-40" />
+      <LogoArc widthClassName="w-40" />
 
       <div className="mt-7 text-center">
         <h1 className="font-display text-[1.8rem] font-bold leading-tight tracking-[-0.04em] text-[var(--text-primary)]">
@@ -141,7 +141,7 @@ export function OperatorForgotPasswordPage({ supportEmail }: { supportEmail: str
 
   return (
     <OperatorAuthSurface>
-      <LogoMark widthClassName="w-36" />
+      <LogoArc widthClassName="w-36" />
 
       <div className="mt-7 text-center">
         <h1 className="font-display text-[1.8rem] font-bold leading-tight tracking-[-0.04em] text-[var(--text-primary)]">
@@ -169,7 +169,7 @@ export function OperatorForgotPasswordPage({ supportEmail }: { supportEmail: str
   );
 }
 
-function LogoMark({ widthClassName }: { widthClassName: string }) {
+function LogoArc({ widthClassName }: { widthClassName: string }) {
   return (
     <div className="flex justify-center">
       {/* eslint-disable-next-line @next/next/no-img-element -- brand mark served from /public. */}

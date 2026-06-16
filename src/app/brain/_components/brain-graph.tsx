@@ -672,7 +672,7 @@ export function BrainGraph({ nodes, edges }: { nodes: BrainNode[]; edges: BrainE
           <code className="rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-xs text-[var(--text-primary)]">
             pnpm seed:brain
           </code>{" "}
-          or let Mark populate it.
+          or let Arc populate it.
         </p>
       </Panel>
     );

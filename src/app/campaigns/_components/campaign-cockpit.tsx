@@ -20,7 +20,7 @@ import { CockpitRail } from "./cockpit-rail";
 import { DRAWER_KEYS, type DrawerKey, drawerForUrl } from "./cockpit-drawers";
 import { CreativeTab } from "./creative-tab";
 import { DispatchPanel } from "./dispatch-panel";
-import { MarkConversation } from "./mark-conversation";
+import { ArcConversation } from "./arc-conversation";
 import { PerformanceTab } from "./performance-tab";
 import { WorkspaceDrawer } from "./workspace-drawer";
 
@@ -141,7 +141,7 @@ export function CampaignCockpit({
 
       <WorkspaceDrawer key={drawer} open={drawer != null} title={drawer != null ? DRAWER_META[drawer].title : ""} onClose={closeDrawer}>
         {drawer === "reasoning" ? (
-          <MarkConversation campaignId={detail.campaign.id} conversation={detail.markConversation} reasoning={detail.reasoning} />
+          <ArcConversation campaignId={detail.campaign.id} conversation={detail.markConversation} reasoning={detail.reasoning} />
         ) : null}
         {drawer === "approvals" ? (
           <ApprovalsTab approvals={detail.approvals} history={detail.approvalHistory} focus={focus} />

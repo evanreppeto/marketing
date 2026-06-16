@@ -28,7 +28,7 @@ export async function SystemStatus() {
   const socialConnected = social.filter((connection) => connection.status === "connected").length;
   const webhookLive = Boolean(agentConnection.webhookUrl) && agentConnection.enabled;
   const dbTokenConfigured = isSupabaseAdminConfigured() ? await hasActiveAgentTokens(getSupabaseAdminClient()).catch(() => false) : false;
-  const agentApiConfigured = isSet("HERMES_AGENT_API_TOKEN") || dbTokenConfigured;
+  const agentApiConfigured = isSet("ARC_AGENT_API_TOKEN") || dbTokenConfigured;
 
   return (
     <SettingsSection
@@ -43,7 +43,7 @@ export async function SystemStatus() {
           pill={pill(isSupabaseAdminConfigured(), "Configured")}
         />
         <SettingRow
-          detail={`Bearer token ${agentName} uses to reach the /api/v1/hermes/* control-plane API.`}
+          detail={`Bearer token ${agentName} uses to reach the /api/v1/arc/* control-plane API.`}
           label={`${agentName} agent API`}
           pill={pill(agentApiConfigured, "Configured")}
         />

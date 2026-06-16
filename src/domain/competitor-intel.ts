@@ -17,7 +17,7 @@ export const competitorIntelRequestSchema = z.object({
   topKeywords: z.array(z.string().trim().min(1)).default([]),
   adCreatives: z.array(z.record(z.string(), z.unknown())).default([]),
   rawPayload: z.record(z.string(), z.unknown()).default({}),
-  operator: z.string().trim().min(1).default("Mark"),
+  operator: z.string().trim().min(1).default("Arc"),
 });
 
 export type CompetitorIntelRequest = z.output<typeof competitorIntelRequestSchema>;

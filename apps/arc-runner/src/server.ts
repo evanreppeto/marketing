@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import type { Config } from "./config";
-import { createHermesClient } from "./hermes-client";
+import { createArcClient } from "./arc-client";
 import { handleChatMessage } from "./handler";
 import { verifySignature } from "./verify";
 import type { MarkChatMessagePayload, WakePayload } from "./types";
@@ -21,7 +21,7 @@ function sendJson(res: ServerResponse, status: number, body: Record<string, unkn
 }
 
 export function createRunnerServer(config: Config) {
-  const client = createHermesClient(config);
+  const client = createArcClient(config);
 
   return createServer(async (req, res) => {
     const url = (req.url ?? "/").split("?")[0];
@@ -40,7 +40,7 @@ export function createRunnerServer(config: Config) {
         const header = req.headers["x-webhook-signature"];
         const signature = Array.isArray(header) ? header[0] : header;
         if (!verifySignature(rawBody, signature, config.webhookSecret)) {
-          console.warn("[arc-runner] wake REJECTED: bad/missing signature (app's MARK_WEBHOOK_SECRET must match the bridge's)");
+          console.warn("[arc-runner] wake REJECTED: bad/missing signature (app's webhook secret must match the runner's ARC_WEBHOOK_SECRET)");
           sendJson(res, 401, { ok: false, error: "invalid_signature" });
           return;
         }
@@ -59,9 +59,9 @@ export function createRunnerServer(config: Config) {
         return;
       }
 
-      if (payload.type === "mark_chat_message") {
+      if (payload.type === "arc_chat_message") {
         // Ack the wake instantly (the app times out at ~6s), then run Arc and
-        // post the reply out-of-band. The /mark UI poll surfaces the reply when
+        // post the reply out-of-band. The /arc UI poll surfaces the reply when
         // it lands.
         sendJson(res, 200, { ok: true, status: "accepted" });
         void handleChatMessage(client, config, payload as MarkChatMessagePayload);

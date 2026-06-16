@@ -15,7 +15,7 @@ function buildViews(agentName: string): Array<{ key: CampaignManagerView; label:
   return [
     { key: "needs-attention", label: "Needs review" },
     { key: "all", label: "All" },
-    { key: "mark-working", label: `${agentName} drafting` },
+    { key: "arc-working", label: `${agentName} drafting` },
     { key: "ready-to-send", label: "Ready" },
     { key: "live", label: "Live" },
     { key: "archived", label: "Archived" },
@@ -357,7 +357,7 @@ function summarizeLibrary(campaigns: CampaignWorkspaceListItem[]) {
 function viewLabel(view: CampaignManagerView) {
   if (view === "needs-attention") return "Campaigns needing review";
   if (view === "ready-to-send") return "Campaigns ready to hand off";
-  if (view === "mark-working") return "Campaigns being drafted";
+  if (view === "arc-working") return "Campaigns being drafted";
   if (view === "live") return "Live campaigns";
   if (view === "archived") return "Archived campaigns";
   return "All campaigns";

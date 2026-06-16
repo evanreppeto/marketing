@@ -149,7 +149,7 @@ function ImageTile({ media, onZoom }: { media: CampaignMediaAsset; onZoom: () =>
         title={media.description ?? media.title}
       >
         <div className="aspect-[4/3] overflow-hidden bg-[oklch(0.15_0.03_250)]">
-          {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
           <img
             src={media.thumbnailUrl ?? media.url}
             alt={media.title}
@@ -281,7 +281,7 @@ function Lightbox({ media, onClose }: { media: CampaignMediaAsset; onClose: () =
           Close (Esc)
         </button>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
       <img
         src={media.url}
         alt={media.title}

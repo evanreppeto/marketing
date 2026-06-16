@@ -6,7 +6,7 @@ import Link from "next/link";
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import type { CampaignWorkspaceSource } from "@/lib/campaigns/read-model";
 
-import { handToMarkAction } from "../actions";
+import { handToArcAction } from "../actions";
 import type { ChecklistStep, SendExportFact } from "./campaign-detail-model";
 
 type BriefTab = "brief" | "leads" | "handoff";
@@ -107,7 +107,7 @@ export function CampaignBriefTabs({
             <div className="rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] p-3">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Ask {agentName}</h3>
               <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--accent-contrast)]">{recommendedAction}</p>
-              <form action={handToMarkAction} className="mt-3">
+              <form action={handToArcAction} className="mt-3">
                 <input type="hidden" name="campaignId" value={campaignId} />
                 <button type="submit" className={buttonClasses({ size: "sm", className: "w-full justify-center" })}>
                   Ask {agentName} to keep building

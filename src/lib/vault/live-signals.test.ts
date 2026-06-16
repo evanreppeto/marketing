@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getVaultLiveSignals, personaSignalLabel, shortTime, toMarkActivity } from "./live-signals";
+import { getVaultLiveSignals, personaSignalLabel, shortTime, toArcActivity } from "./live-signals";
 
 const NOW = Date.parse("2026-06-02T12:00:00.000Z");
 
@@ -22,17 +22,17 @@ describe("personaSignalLabel", () => {
   });
 });
 
-describe("toMarkActivity", () => {
-  it("shapes agent rows, tasks, outputs, and review count into MarkActivity", () => {
-    const activity = toMarkActivity(
-      { name: "Mark", status: "ready", metadata: { last_heartbeat_at: "2026-06-02T11:50:00.000Z", kill_switch: "Outbound locked" } },
+describe("toArcActivity", () => {
+  it("shapes agent rows, tasks, outputs, and review count into ArcActivity", () => {
+    const activity = toArcActivity(
+      { name: "Arc", status: "ready", metadata: { last_heartbeat_at: "2026-06-02T11:50:00.000Z", kill_switch: "Outbound locked" } },
       [{ objective: "Draft partner note", task_type: "note_draft", status: "running", updated_at: "2026-06-02T11:58:00.000Z" }],
       [{ title: "Partner intel draft", approval_status: "pending_approval", created_at: "2026-06-02T11:40:00.000Z" }],
       2,
       NOW,
     );
     expect(activity).toEqual({
-      name: "Mark",
+      name: "Arc",
       status: "Ready",
       killSwitch: "Outbound locked",
       lastHeartbeat: "10m ago",

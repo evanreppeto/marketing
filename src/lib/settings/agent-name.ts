@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 
 import { getAppSettings } from "./store";
 

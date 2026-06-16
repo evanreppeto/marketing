@@ -1,4 +1,4 @@
-/** Pure scheduling math for the board's "When should Mark start?" control.
+/** Pure scheduling math for the board's "When should Arc start?" control.
  *  `now` is injected so the logic stays deterministic and unit-tested. Times are
  *  computed in UTC for determinism; the external runner only gates on the value
  *  — it never authorizes outbound. */

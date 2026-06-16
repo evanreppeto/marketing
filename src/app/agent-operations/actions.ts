@@ -6,9 +6,9 @@ import { redirect } from "next/navigation";
 import { type OperatorDropTarget, OPERATOR_DROP_TARGETS } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getAgentName } from "@/lib/settings/agent-name";
-import { moveAgentTask } from "@/lib/hermes-api";
-import { runHermesDemoWorkflow } from "@/lib/hermes/demo-workflow";
-import { runHermesPartnerCampaign } from "@/lib/hermes/orchestrator";
+import { moveAgentTask } from "@/lib/arc-api";
+import { runArcDemoWorkflow } from "@/lib/arc/demo-workflow";
+import { runArcPartnerCampaign } from "@/lib/arc/orchestrator";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 const markTaskTemplates = {
@@ -32,16 +32,16 @@ const markTaskTemplates = {
   },
 } as const;
 
-type MarkTaskTemplateKey = keyof typeof markTaskTemplates;
+type ArcTaskTemplateKey = keyof typeof markTaskTemplates;
 
-export async function runHermesDemoWorkflowAction() {
+export async function runArcDemoWorkflowAction() {
   await requireOperator();
 
   if (!isSupabaseAdminConfigured()) {
     redirect("/agent-operations?action=not-configured");
   }
 
-  const result = await runHermesDemoWorkflow();
+  const result = await runArcDemoWorkflow();
 
   revalidatePath("/");
   revalidatePath("/agent-operations");
@@ -49,17 +49,17 @@ export async function runHermesDemoWorkflowAction() {
   revalidatePath("/crm");
   revalidatePath("/persona-intelligence");
 
-  redirect(`/agent-operations?action=hermes-demo-run&approval=${result.approvalItemId}`);
+  redirect(`/agent-operations?action=arc-demo-run&approval=${result.approvalItemId}`);
 }
 
-export async function runHermesPartnerCampaignAction() {
+export async function runArcPartnerCampaignAction() {
   await requireOperator();
 
   if (!isSupabaseAdminConfigured()) {
     redirect("/agent-operations?action=not-configured");
   }
 
-  const result = await runHermesPartnerCampaign();
+  const result = await runArcPartnerCampaign();
 
   revalidatePath("/");
   revalidatePath("/agent-operations");
@@ -67,16 +67,16 @@ export async function runHermesPartnerCampaignAction() {
   revalidatePath("/crm");
   revalidatePath("/persona-intelligence");
 
-  redirect(`/agent-operations?action=hermes-run&approval=${result.approvalItemId}`);
+  redirect(`/agent-operations?action=arc-run&approval=${result.approvalItemId}`);
 }
 
-export async function createMarkTaskAction(formData: FormData) {
+export async function createArcTaskAction(formData: FormData) {
   await requireOperator();
 
   const taskKey = String(formData.get("taskKey") ?? "");
 
-  if (!isMarkTaskTemplateKey(taskKey)) {
-    redirect("/agent-operations?action=mark-task-error");
+  if (!isArcTaskTemplateKey(taskKey)) {
+    redirect("/agent-operations?action=arc-task-error");
   }
 
   if (!isSupabaseAdminConfigured()) {
@@ -84,7 +84,7 @@ export async function createMarkTaskAction(formData: FormData) {
   }
 
   const supabase = getSupabaseAdminClient();
-  const agentId = await ensureMarkAgent();
+  const agentId = await ensureArcAgent();
   const template = markTaskTemplates[taskKey];
   const agentName = await getAgentName();
   const now = new Date().toISOString();
@@ -99,7 +99,7 @@ export async function createMarkTaskAction(formData: FormData) {
       task_type: template.taskType,
       source_type: "operator_request",
       metadata: {
-        runner_name: "Mark",
+        runner_name: "Arc",
         requested_from: "agent_operations",
         requested_at: now,
         task_key: taskKey,
@@ -135,12 +135,12 @@ export async function createMarkTaskAction(formData: FormData) {
     agent_id: agentId,
     run_status: "queued",
     model_provider: "external_cli",
-    model_name: "mark-mac-mini",
+    model_name: "arc-claude-agent",
     reasoning_summary: `Task queued for ${agentName}. External CLI runner has not picked it up yet.`,
     started_at: null,
     completed_at: null,
     metadata: {
-      runner_name: "Mark",
+      runner_name: "Arc",
       runner_location: "Mac mini",
       task_key: taskKey,
     },
@@ -149,7 +149,7 @@ export async function createMarkTaskAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/agent-operations");
 
-  redirect(`/agent-operations?action=mark-task-created&task=${data.id}`);
+  redirect(`/agent-operations?action=arc-task-created&task=${data.id}`);
 }
 
 type TaskPriority = "low" | "medium" | "high" | "urgent";
@@ -186,14 +186,14 @@ export async function createTaskAction(formData: FormData): Promise<void> {
   const campaignId = String(formData.get("campaignId") ?? "").trim() || null;
 
   if (objective.length === 0) {
-    redirect("/agent-operations?action=mark-task-error");
+    redirect("/agent-operations?action=arc-task-error");
   }
   if (!isSupabaseAdminConfigured()) {
     redirect("/agent-operations?action=not-configured");
   }
 
   const supabase = getSupabaseAdminClient();
-  const agentId = await ensureMarkAgent();
+  const agentId = await ensureArcAgent();
   const now = new Date().toISOString();
 
   const { data, error } = await supabase
@@ -212,11 +212,11 @@ export async function createTaskAction(formData: FormData): Promise<void> {
       owner_label: "Operator",
       driver_kind: "agent",
       driver_agent_id: agentId,
-      driver_label: "Mark",
+      driver_label: "Arc",
       approver_label: "Owner",
       source_type: "operator_request",
       metadata: {
-        runner_name: "Mark",
+        runner_name: "Arc",
         requested_from: "agent_operations_board",
         requested_at: now,
         initial_status: status,
@@ -252,13 +252,13 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     agent_id: agentId,
     run_status: status === "running" ? "running" : status === "blocked" ? "failed" : "queued",
     model_provider: "external_cli",
-    model_name: "mark-mac-mini",
+    model_name: "arc-claude-agent",
     reasoning_summary: scheduledFor
       ? `Task created from the board with status ${status}, scheduled to start ${scheduledFor}. External runner has not picked it up yet.`
       : `Task created from the board with status ${status}. External runner has not picked it up yet.`,
     started_at: status === "running" ? now : null,
     completed_at: null,
-    metadata: { runner_name: "Mark", source: "operator_board_create", initial_status: status },
+    metadata: { runner_name: "Arc", source: "operator_board_create", initial_status: status },
   });
 
   await supabase.from("agent_task_events").insert({
@@ -268,26 +268,26 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     event_type: "system_event",
     title: "Ticket created",
     body: objective,
-    metadata: { source: "board_create", driver: "Mark", initial_status: status, priority },
+    metadata: { source: "board_create", driver: "Arc", initial_status: status, priority },
   });
 
   if (campaignId) revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/agent-operations");
   revalidatePath("/board");
   revalidatePath("/");
-  redirect(`/agent-operations?action=mark-task-created&task=${data.id}`);
+  redirect(`/agent-operations?action=arc-task-created&task=${data.id}`);
 }
 
-async function ensureMarkAgent() {
+async function ensureArcAgent() {
   const supabase = getSupabaseAdminClient();
 
   const { data, error } = await supabase
     .from("agents")
     .upsert(
       {
-        key: "mark",
-        name: "Mark",
-        description: "External Hermes marketing runner for the Growth Engine, intended to run from the Mac mini via Codex OAuth or Claude Code CLI.",
+        key: "arc",
+        name: "Arc",
+        description: "External Arc marketing runner for the Growth Engine, intended to run from the Mac mini via Codex OAuth or Claude Code CLI.",
         status: "ready",
         allowed_actions: [
           "read_queued_agent_tasks",
@@ -299,9 +299,9 @@ async function ensureMarkAgent() {
         blocked_actions: ["send_email", "send_sms", "publish_social_post", "launch_ads", "change_ad_spend"],
         default_approval_policy: "human_required_before_outbound",
         system_instructions:
-          "Mark creates structured marketing work, guardrail results, and approval items. Mark never sends, publishes, launches, or spends without human approval.",
+          "Arc creates structured marketing work, guardrail results, and approval items. Arc never sends, publishes, launches, or spends without human approval.",
         metadata: {
-          runner_name: "Mark",
+          runner_name: "Arc",
           runner_mode: "Mac mini CLI bridge pending",
           runner: "Codex OAuth or Claude Code CLI",
           autonomy_level: 2,
@@ -320,7 +320,7 @@ async function ensureMarkAgent() {
   return data.id;
 }
 
-function isMarkTaskTemplateKey(value: string): value is MarkTaskTemplateKey {
+function isArcTaskTemplateKey(value: string): value is ArcTaskTemplateKey {
   return value in markTaskTemplates;
 }
 

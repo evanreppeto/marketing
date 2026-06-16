@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { useAgentName } from "@/app/_components/agent-name-context";
-import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import { ArcAvatar } from "@/app/arc/_components/arc-avatar";
 import { priorityIcon, statusIcon } from "@/app/_components/ticket-icons";
 import { formatScheduleLabel, resolveScheduledFor, type SchedulePreset } from "@/domain";
 
@@ -139,7 +139,7 @@ export function NewTaskDialog() {
             <input type="hidden" name="scheduledFor" value={scheduledForValue} />
 
             <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] px-5 py-4">
-              <MarkAvatar size={28} />
+              <ArcAvatar size={28} />
               <div>
                 <h2 className="text-sm font-bold text-[var(--text-primary)]">New ticket</h2>
                 <p className="text-xs text-[var(--text-muted)]">{`Assign status, priority, and timing before ${agentName} picks it up.`}</p>

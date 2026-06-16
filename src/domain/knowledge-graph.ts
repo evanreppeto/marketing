@@ -59,7 +59,7 @@ export const REFERENCEABLE_TABLES = [
 ] as const;
 export type ReferenceableTable = (typeof REFERENCEABLE_TABLES)[number];
 
-export type NodeAuthor = "mark" | "operator";
+export type NodeAuthor = "arc" | "operator";
 export type ApprovalDecision = "approve" | "reject";
 
 export type KnowledgeNodeInput = {
@@ -130,13 +130,13 @@ export function normalizeKind(raw: unknown): string {
 
 /**
  * Initial trust tier for a new node. Operator writes are trusted immediately;
- * Mark's gated kinds enter the approval queue (proposed); Mark's other kinds are
+ * Arc's gated kinds enter the approval queue (proposed); Arc's other kinds are
  * recorded as observed (usable internally, flagged as not operator-verified).
  */
 export function resolveInitialTrustTier(args: { kind: string; createdBy: NodeAuthor }): TrustTier {
   if (args.createdBy === "operator") return "trusted";
   // Only the built-in gated kinds force the approval queue; a custom kind is
-  // never auto-gated, so Mark's custom-kind writes stay "observed" (internal,
+  // never auto-gated, so Arc's custom-kind writes stay "observed" (internal,
   // never auto-trusted). Custom kinds can't smuggle outbound copy past approval.
   return isGatedKind(args.kind) ? "proposed" : "observed";
 }

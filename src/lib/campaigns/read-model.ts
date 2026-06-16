@@ -100,7 +100,7 @@ export type CampaignWorkspaceAsset = {
   toolSource: string | null;
   updatedAt: string;
   media: CampaignMediaAsset[];
-  /** Original draft vs current text, present only when Mark revised the piece.
+  /** Original draft vs current text, present only when Arc revised the piece.
    *  Drives the "What changed" diff in the review drawer. */
   revision: { draft: string; current: string } | null;
   /** The approval item gating this deliverable, if one exists — drives the
@@ -205,22 +205,22 @@ export type CampaignDecisionEvent = {
 };
 
 /** One entry in the campaign audit trail — a unified, chronological log of what
- *  the operator and Mark did, tagged by actor so it can be filtered. */
+ *  the operator and Arc did, tagged by actor so it can be filtered. */
 export type AuditEntry = {
   id: string;
   actor: string;
-  actorKind: "user" | "mark" | "system";
+  actorKind: "user" | "arc" | "system";
   action: string;
   detail: string;
   at: string;
 };
 
-/** One turn in the campaign's conversation with Mark. Operator turns are the
- *  durable directives we queue (agent_tasks); Mark's turns are the work he
+/** One turn in the campaign's conversation with Arc. Operator turns are the
+ *  durable directives we queue (agent_tasks); Arc's turns are the work he
  *  produces (agent_outputs). Both are real records, sorted chronologically. */
-export type MarkMessage = {
+export type ArcMessage = {
   id: string;
-  role: "operator" | "mark";
+  role: "operator" | "arc";
   author: string;
   kind: string;
   title: string | null;
@@ -257,7 +257,7 @@ export type LiveCampaignWorkspace = {
   executiveOverview: CampaignExecutiveOverview;
   metrics: CampaignWorkspaceMetrics;
   launchState: CampaignLaunchState;
-  markConversation: MarkMessage[];
+  markConversation: ArcMessage[];
   approvalHistory: CampaignDecisionEvent[];
   auditLog: AuditEntry[];
 };
@@ -597,7 +597,7 @@ export async function getCampaignWorkspaceDetail(
         sources: sources.length,
       },
       launchState: buildLaunchState(assetsView, campaign.launch_locked),
-      markConversation: buildMarkConversation(agentTasks, outputs, agentName),
+      markConversation: buildArcConversation(agentTasks, outputs, agentName),
       approvalHistory: buildApprovalHistory(decisions, approvals),
       auditLog: buildAuditLog(events, outputs, agentName),
     };
@@ -610,9 +610,9 @@ export async function getCampaignWorkspaceDetail(
 }
 
 /**
- * Assemble the two-way conversation with Mark, chronological. Operator turns are
+ * Assemble the two-way conversation with Arc, chronological. Operator turns are
  * the human-initiated directives we queue (agent_tasks with a recorded
- * requester); Mark's turns are the work he produced (agent_outputs). Both are
+ * requester); Arc's turns are the work he produced (agent_outputs). Both are
  * durable records — no live chat, just the real handoff trail rendered as a
  * thread.
  */
@@ -651,13 +651,13 @@ export function buildApprovalHistory(decisions: ApprovalDecisionRow[], approvals
 /** Classify who an event's actor is, for audit filtering. */
 function classifyActor(actor: string | null): AuditEntry["actorKind"] {
   if (!actor || /^system$/i.test(actor)) return "system";
-  if (/mark|hermes/i.test(actor)) return "mark";
+  if (/arc|arc/i.test(actor)) return "arc";
   return "user";
 }
 
 /** Unified, newest-first campaign audit trail: every recorded event plus the
- *  concrete work Mark produced, tagged by actor so the UI can filter to user or
- *  Mark activity. */
+ *  concrete work Arc produced, tagged by actor so the UI can filter to user or
+ *  Arc activity. */
 export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRow[], agentName = "Arc"): AuditEntry[] {
   const items: Array<AuditEntry & { sortAt: string }> = [];
 
@@ -677,7 +677,7 @@ export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRo
     items.push({
       id: `out-${output.id}`,
       actor: agentName,
-      actorKind: "mark",
+      actorKind: "arc",
       action: `Produced ${humanize(output.output_type)}`,
       detail: output.title,
       at: formatDate(output.created_at),
@@ -697,9 +697,9 @@ export function buildAuditLog(events: CampaignEventRow[], outputs: AgentOutputRo
     }));
 }
 
-export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[], agentName = "Arc"): MarkMessage[] {
+export function buildArcConversation(tasks: AgentTaskRow[], outputs: AgentOutputRow[], agentName = "Arc"): ArcMessage[] {
   // Raw `at` holds the ISO timestamp for sorting; formatted on the way out.
-  const items: MarkMessage[] = [];
+  const items: ArcMessage[] = [];
 
   for (const task of tasks) {
     const metadata = asObject(task.metadata);
@@ -723,7 +723,7 @@ export function buildMarkConversation(tasks: AgentTaskRow[], outputs: AgentOutpu
   for (const output of outputs) {
     items.push({
       id: `output-${output.id}`,
-      role: "mark",
+      role: "arc",
       author: agentName,
       kind: humanize(output.output_type),
       title: output.title,
@@ -1166,7 +1166,7 @@ function mapApprovalAsAsset(approval: ApprovalItemRow, agentName: string): Campa
 }
 
 /**
- * Pure: distill the "thinking behind it" for the Reasoning tab from Mark's
+ * Pure: distill the "thinking behind it" for the Reasoning tab from Arc's
  * stored reasoning/audit payloads and the tools each asset was built with.
  */
 export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[], agentName = "Arc"): CampaignWorkspaceReasoning {
@@ -1180,7 +1180,7 @@ export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[]
 
   return {
     whyBuilt:
-      getString(reasoning.why_hermes_created_it) ??
+      getString(reasoning.why_arc_created_it) ??
       campaign.objective ??
       campaign.offer_summary ??
       `${agentName} has not recorded reasoning for this campaign yet.`,
@@ -1251,7 +1251,7 @@ function asStringArray(value: unknown): string[] {
 
 const JOURNEY_OVERVIEW_KEYS = /^(client_journey_overview|customer_journey_overview|journey_overview|executive_overview|journey_summary)$/i;
 const WHAT_KEYS = /^(what|campaign_what|campaign_summary|business_goal|goal|objective|summary)$/i;
-const WHY_KEYS = /^(why|why_built|why_mark_built_it|why_hermes_created_it|rationale|reason|business_reason)$/i;
+const WHY_KEYS = /^(why|why_built|why_arc_built_it|why_arc_created_it|rationale|reason|business_reason)$/i;
 const TIMEFRAME_KEYS = /^(timeframe|timeline|campaign_window|launch_window|date_range|flight_dates|schedule|start_date|end_date|launch_date|due_date)$/i;
 const LOCATION_KEYS =
   /^(where|market|markets|geography|geographies|service_area|service_areas|zip_codes|zips|location|locations|city|cities|county|counties|territory)$/i;
@@ -1976,7 +1976,7 @@ function humanize(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-/** Strip machine-generated run-id / date suffixes Mark appends to campaign
+/** Strip machine-generated run-id / date suffixes Arc appends to campaign
  *  names (e.g. " 20260529203258", " - 2026-06-01") for cleaner display. */
 function cleanCampaignName(name: string) {
   return name

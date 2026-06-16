@@ -1,7 +1,7 @@
 /**
  * Secret redaction for agent-supplied content before it is stored or logged.
  *
- * The Mark Operations API accepts free text + metadata from the agent (run-log
+ * The Arc Operations API accepts free text + metadata from the agent (run-log
  * messages, recommendations, block reasons). Per the security requirement,
  * anything that looks like a credential is scrubbed before it touches the DB or
  * logs. Pure + deterministic so it can be unit-tested.

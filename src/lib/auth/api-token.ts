@@ -1,7 +1,7 @@
 /**
  * Shared bearer-token auth for the v1 API surface.
  *
- * The agent endpoints (e.g. Hermes runs) are `required: true` — they refuse with
+ * The agent endpoints (e.g. Arc runs) are `required: true` — they refuse with
  * 503 until a token is configured, then 401 on mismatch. The lead-intake endpoint
  * is `required: false` so it stays open in dev / when no token is set, but is
  * enforced the moment a token IS configured (so configured deployments are closed).
@@ -52,7 +52,7 @@ function bearerValue(request: HeaderCarrier): string | null {
 }
 
 async function anyAgentTokenConfigured(): Promise<boolean> {
-  if (process.env.HERMES_AGENT_API_TOKEN) return true;
+  if (process.env.ARC_AGENT_API_TOKEN) return true;
   if (!isSupabaseAdminConfigured()) return false;
   try {
     return await hasActiveAgentTokens(getSupabaseAdminClient());
@@ -71,12 +71,12 @@ async function verifyConfiguredAgentToken(plaintext: string): Promise<VerifyAgen
 }
 
 /**
- * Agent bearer gate for /api/v1/hermes. Back-compat env token wins, then
+ * Agent bearer gate for /api/v1/arc. Back-compat env token wins, then
  * app-issued hashed DB tokens are accepted when configured.
  */
 export async function checkAgentBearer(request: HeaderCarrier, deps: AgentBearerDeps = {}): Promise<BearerTokenResult> {
   const token = bearerValue(request);
-  const envToken = process.env.HERMES_AGENT_API_TOKEN;
+  const envToken = process.env.ARC_AGENT_API_TOKEN;
   const verify = deps.verify ?? verifyConfiguredAgentToken;
   const anyConfigured = deps.anyConfigured ?? anyAgentTokenConfigured;
   const recordSeen = deps.recordSeen ?? recordAgentSeen;

@@ -1,6 +1,6 @@
 /**
  * Pure display helpers for the campaigns surface. No I/O. Maps campaign data to
- * theme tones, the driving avatar (Mark vs operator), and the "needs you" count.
+ * theme tones, the driving avatar (Arc vs operator), and the "needs you" count.
  */
 
 export type CampaignLifecycle = "Drafting" | "In review" | "Ready" | "Live";
@@ -26,7 +26,7 @@ export function campaignLifecycleTone(lifecycle: CampaignLifecycle): CampaignTon
 export type CampaignDriver = "agent" | "operator";
 
 /** Who is currently driving the campaign — drives the EntityAvatar. A Drafting
- *  campaign is always agent-driven (Mark is actively building it). */
+ *  campaign is always agent-driven (Arc is actively building it). */
 export function campaignDriver(input: { sourceSystem: string | null; lifecycle: CampaignLifecycle }): CampaignDriver {
   if (input.lifecycle === "Drafting") return "agent";
   return input.sourceSystem === "operator" ? "operator" : "agent";

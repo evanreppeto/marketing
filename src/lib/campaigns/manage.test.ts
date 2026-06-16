@@ -51,7 +51,7 @@ describe("addCampaignPhotos", () => {
   });
 
   it("rejects a non-operator campaign", async () => {
-    const supabase = createSupabaseQueryMock({ campaigns: { data: { id: "c", source_system: "hermes_agent_orchestrator", launch_locked: true }, error: null } });
+    const supabase = createSupabaseQueryMock({ campaigns: { data: { id: "c", source_system: "arc_agent_orchestrator", launch_locked: true }, error: null } });
     await expect(addCampaignPhotos({ campaignId: "c", operator: "e", photos: [], client: supabase, uploader: vi.fn() })).rejects.toThrow(/operator/i);
   });
 });

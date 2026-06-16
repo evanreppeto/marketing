@@ -36,7 +36,7 @@ export function momentumCounts(items: CampaignWorkspaceListItem[]): MomentumCoun
   return { live: tally("Live"), awaiting: tally("In review"), drafts: tally("Drafting"), ready: tally("Ready") };
 }
 
-export type CampaignManagerView = "needs-attention" | "all" | "ready-to-send" | "mark-working" | "live" | "archived";
+export type CampaignManagerView = "needs-attention" | "all" | "ready-to-send" | "arc-working" | "live" | "archived";
 
 export type CampaignManagerTone = "amber" | "blue" | "green" | "gray" | "red";
 
@@ -184,14 +184,14 @@ export function buildCampaignStartActions(campaigns: CampaignWorkspaceListItem[]
       tone: counts["ready-to-send"] > 0 ? "blue" : "gray",
     },
     {
-      key: "mark-working",
+      key: "arc-working",
       title: `${agentName} is drafting`,
-      count: counts["mark-working"],
-      countLabel: `${counts["mark-working"]} campaign${counts["mark-working"] === 1 ? "" : "s"}`,
-      detail: counts["mark-working"] > 0 ? "Drafts are still being prepared." : `${agentName} is not drafting campaigns right now.`,
+      count: counts["arc-working"],
+      countLabel: `${counts["arc-working"]} campaign${counts["arc-working"] === 1 ? "" : "s"}`,
+      detail: counts["arc-working"] > 0 ? "Drafts are still being prepared." : `${agentName} is not drafting campaigns right now.`,
       cta: "Check drafts",
-      href: "/campaigns?view=mark-working",
-      tone: counts["mark-working"] > 0 ? "blue" : "gray",
+      href: "/campaigns?view=arc-working",
+      tone: counts["arc-working"] > 0 ? "blue" : "gray",
     },
     {
       key: "live",
@@ -224,7 +224,7 @@ export function managerViewCounts(campaigns: CampaignWorkspaceListItem[]): Recor
     "needs-attention": campaigns.filter((campaign) => matchesManagerView(campaign, "needs-attention")).length,
     all: campaigns.length,
     "ready-to-send": campaigns.filter((campaign) => matchesManagerView(campaign, "ready-to-send")).length,
-    "mark-working": campaigns.filter((campaign) => matchesManagerView(campaign, "mark-working")).length,
+    "arc-working": campaigns.filter((campaign) => matchesManagerView(campaign, "arc-working")).length,
     live: campaigns.filter((campaign) => matchesManagerView(campaign, "live")).length,
     archived: campaigns.filter((campaign) => matchesManagerView(campaign, "archived")).length,
   };
@@ -241,7 +241,7 @@ function matchesManagerView(campaign: CampaignWorkspaceListItem, view: CampaignM
   if (archived) return false;
   if (view === "needs-attention") return campaign.pendingCount > 0 || campaign.lifecycle === "In review";
   if (view === "ready-to-send") return campaign.lifecycle === "Ready";
-  if (view === "mark-working") return campaign.lifecycle === "Drafting";
+  if (view === "arc-working") return campaign.lifecycle === "Drafting";
   if (view === "live") return campaign.lifecycle === "Live";
   return false;
 }

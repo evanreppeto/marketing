@@ -22,7 +22,7 @@ export function NoteCard({ note }: { note: VaultNote }) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <StatusPill tone={statusTone(note.status)}>{note.status}</StatusPill>
-          {note.author === "Mark" ? <StatusPill tone="blue">{note.author}</StatusPill> : null}
+          {note.author === "Arc" ? <StatusPill tone="blue">{note.author}</StatusPill> : null}
         </div>
       </div>
       {note.tags.length > 0 ? (

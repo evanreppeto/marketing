@@ -449,7 +449,7 @@ function CardCover({ campaign }: { campaign: CampaignWorkspaceListItem }) {
     <div className="relative h-40 overflow-hidden bg-[radial-gradient(circle_at_22%_18%,oklch(0.74_0.115_232/0.3),transparent_62%),linear-gradient(135deg,var(--surface-raised),var(--surface-inset))]">
       {campaign.thumbnailUrl ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
           <img
             src={campaign.thumbnailUrl}
             alt={`${campaign.name} creative`}

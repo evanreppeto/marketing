@@ -57,7 +57,7 @@ export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveC
           <BarBreakdown
             points={composition.map((row): ChartPoint => ({ label: row.label, value: row.value, tone: "blue" }))}
             emptyTitle="Nothing attached yet"
-            emptyDetail="Once Mark drafts pieces, the package composition appears here."
+            emptyDetail="Once Arc drafts pieces, the package composition appears here."
           />
         </div>
       </WorkspacePanel>
@@ -120,7 +120,7 @@ export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveC
         <BarBreakdown
           points={channels.map((row): ChartPoint => ({ label: row.channel, value: row.count, tone: "blue" }))}
           emptyTitle="No deliverables yet"
-          emptyDetail="Once Mark drafts pieces for this campaign, their channels appear here."
+          emptyDetail="Once Arc drafts pieces for this campaign, their channels appear here."
         />
       </WorkspacePanel>
 

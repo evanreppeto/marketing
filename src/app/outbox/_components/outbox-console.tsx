@@ -72,7 +72,7 @@ function DispatchControls({ dispatch }: { dispatch: DispatchView }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
       {dispatch.status === "queued" || dispatch.status === "scheduled" ? (
-        <TransitionButton action={markDispatchSentAction} dispatch={dispatch} label="Mark sent" variant="primary" />
+        <TransitionButton action={markDispatchSentAction} dispatch={dispatch} label="Arc sent" variant="primary" />
       ) : null}
       {dispatch.status === "sent" ? (
         <>

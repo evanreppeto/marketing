@@ -6,16 +6,16 @@ function req(token?: string): Request {
 }
 
 describe("checkAgentBearer", () => {
-  beforeEach(() => { delete process.env.HERMES_AGENT_API_TOKEN; });
+  beforeEach(() => { delete process.env.ARC_AGENT_API_TOKEN; });
 
   it("accepts the env token (back-compat)", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "env-secret";
+    process.env.ARC_AGENT_API_TOKEN = "env-secret";
     const res = await checkAgentBearer(req("env-secret"));
     expect(res.ok).toBe(true);
   });
 
   it("accepts a DB token when env token does not match", async () => {
-    process.env.HERMES_AGENT_API_TOKEN = "env-secret";
+    process.env.ARC_AGENT_API_TOKEN = "env-secret";
     const verify = vi.fn().mockResolvedValue({ ok: true, workspaceId: "default" });
     const res = await checkAgentBearer(req("sk_live_db"), { verify, anyConfigured: async () => true });
     expect(res.ok).toBe(true);

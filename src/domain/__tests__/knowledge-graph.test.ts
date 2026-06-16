@@ -27,12 +27,12 @@ describe("normalizeKind", () => {
 });
 
 describe("custom kinds and gating safety", () => {
-  it("never auto-gates a custom kind Mark creates", () => {
-    expect(resolveInitialTrustTier({ kind: "weather_signal", createdBy: "mark" })).toBe("observed");
+  it("never auto-gates a custom kind Arc creates", () => {
+    expect(resolveInitialTrustTier({ kind: "weather_signal", createdBy: "arc" })).toBe("observed");
     expect(isGatedKind("weather_signal")).toBe(false);
   });
   it("still gates the built-in outbound-governing kinds", () => {
-    expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "mark" })).toBe("proposed");
+    expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "arc" })).toBe("proposed");
   });
   it("accepts a custom kind through validateNodeInput", () => {
     const result = validateNodeInput({ kind: "Weather Signal", label: "Hailstorm in Evanston" });
@@ -73,13 +73,13 @@ describe("resolveInitialTrustTier", () => {
     expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "operator" })).toBe("trusted");
     expect(resolveInitialTrustTier({ kind: "learning", createdBy: "operator" })).toBe("trusted");
   });
-  it("proposes gated kinds Mark creates", () => {
-    expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "mark" })).toBe("proposed");
-    expect(resolveInitialTrustTier({ kind: "cta", createdBy: "mark" })).toBe("proposed");
+  it("proposes gated kinds Arc creates", () => {
+    expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "arc" })).toBe("proposed");
+    expect(resolveInitialTrustTier({ kind: "cta", createdBy: "arc" })).toBe("proposed");
   });
-  it("lets Mark observe non-gated kinds freely", () => {
-    expect(resolveInitialTrustTier({ kind: "learning", createdBy: "mark" })).toBe("observed");
-    expect(resolveInitialTrustTier({ kind: "signal", createdBy: "mark" })).toBe("observed");
+  it("lets Arc observe non-gated kinds freely", () => {
+    expect(resolveInitialTrustTier({ kind: "learning", createdBy: "arc" })).toBe("observed");
+    expect(resolveInitialTrustTier({ kind: "signal", createdBy: "arc" })).toBe("observed");
   });
 });
 

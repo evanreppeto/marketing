@@ -1,7 +1,7 @@
 import { type OfficialPersonaMapping } from "@/domain";
 
 export const navItems = [
-  { label: "Mark", href: "/mark", icon: "agents" },
+  { label: "Arc", href: "/arc", icon: "agents" },
   { label: "Campaigns", href: "/campaigns", icon: "approval" },
 ];
 

@@ -359,7 +359,7 @@ function buildPersonaRows(snapshots: PersonaSnapshotRow[], knowledge: PersonaKno
       persona: titleize(persona),
       segment: segmentForPersona(persona),
       stage: titleize(snapshot?.relationship_stage ?? "profile building"),
-      intent: snapshot?.hyper_persona_summary ?? messaging?.body ?? "Persona knowledge ready for Hermes.",
+      intent: snapshot?.hyper_persona_summary ?? messaging?.body ?? "Persona knowledge ready for Arc.",
       accelerator: messaging?.title ?? snapshot?.message_posture ?? "Use approved persona memory and guardrails.",
       nextAction: cta?.title ?? titleize(snapshot?.next_best_action ?? "Create next action"),
       contentNeed: contentNeedFor(personaKnowledge),

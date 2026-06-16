@@ -38,7 +38,7 @@ export type EffectiveAgentConnection = {
 };
 
 export const DEFAULT_WORKSPACE_ID = "default";
-export const DEFAULT_CONNECTION = { displayName: "Agent", agentKey: "mark" };
+export const DEFAULT_CONNECTION = { displayName: "Agent", agentKey: "arc" };
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -50,19 +50,19 @@ function pick<T>(envVal: T | undefined, dbVal: T | null | undefined, fallback: T
 
 /** Pure precedence: env overrides DB, DB overrides default. */
 export function mergeConnection(env: EnvLike, row: AgentConnectionRow | null): EffectiveAgentConnection {
-  const envWebhook = env.MARK_RUNNER_URL?.trim() || env.MARK_WEBHOOK_URL?.trim() || undefined;
+  const envWebhook = env.ARC_RUNNER_URL?.trim() || env.ARC_WEBHOOK_URL?.trim() || undefined;
   const [displayName, displayNameSource] = pick(
-    env.MARK_DISPLAY_NAME?.trim() || undefined,
+    env.ARC_DISPLAY_NAME?.trim() || undefined,
     row?.display_name,
     DEFAULT_CONNECTION.displayName,
   );
   const [agentKey, agentKeySource] = pick(
-    env.MARK_AGENT_KEY?.trim() || undefined,
+    env.ARC_AGENT_KEY?.trim() || undefined,
     row?.agent_key,
     DEFAULT_CONNECTION.agentKey,
   );
   const [webhookUrl, webhookUrlSource] = pick<string | null>(envWebhook, row?.webhook_url ?? null, null);
-  const envEnabled = env.MARK_WEBHOOK_DISABLED === "1" ? false : undefined;
+  const envEnabled = env.ARC_WEBHOOK_DISABLED === "1" ? false : undefined;
   const [enabled, enabledSource] = pick<boolean>(envEnabled, row?.enabled, true);
 
   return {

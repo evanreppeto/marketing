@@ -41,7 +41,7 @@ describe("getCampaignsForRecord", () => {
             company_id: "co-1",
             contact_id: null,
             lead_id: null,
-            owner: "Mark",
+            owner: "Arc",
             objective: null,
             audience_summary: null,
             offer_summary: null,

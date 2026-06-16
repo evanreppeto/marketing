@@ -31,7 +31,7 @@ function titleize(raw: string | null, fallback: string): string {
 }
 
 /** Pure: map an agent_tasks row to the campaign Work-lane card shape. A task in
- *  `needs_approval` is the operator's to act on; everything else is Mark's. */
+ *  `needs_approval` is the operator's to act on; everything else is Arc's. */
 export function toCampaignTask(row: AgentTaskRow): CampaignTask {
   const status = row.status ?? "queued";
   return {
@@ -68,15 +68,15 @@ export async function getCampaignTasks(
   return (data ?? []).map(toCampaignTask);
 }
 
-/** I/O: Mark conversations linked to this campaign, newest first.
- *  The /mark page opens a conversation via the `?c=` query param. */
+/** I/O: Arc conversations linked to this campaign, newest first.
+ *  The /arc page opens a conversation via the `?c=` query param. */
 export async function getCampaignThreads(
   campaignId: string,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<CampaignThread[]> {
   if (!isSupabaseAdminConfigured()) return [];
   const { data, error } = await client
-    .from("mark_conversations")
+    .from("arc_conversations")
     .select("id, title, updated_at")
     .eq("campaign_id", campaignId)
     .order("updated_at", { ascending: false })
@@ -86,6 +86,6 @@ export async function getCampaignThreads(
     id: r.id,
     title: r.title ?? "Untitled thread",
     updatedAt: r.updated_at,
-    href: `/mark?c=${r.id}`,
+    href: `/arc?c=${r.id}`,
   }));
 }
