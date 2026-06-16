@@ -15,6 +15,7 @@ import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import { getArcDisplayName, isAgentLive } from "@/lib/arc-chat/agent-config";
 import { claimChatTask } from "@/lib/arc-chat/inbox";
+import { loadWakeContext } from "@/lib/arc-chat/history";
 import { notifyArcWebhook } from "@/lib/arc-chat/notify";
 import { logArcChatStatus } from "@/lib/arc-chat/status-log";
 import { getAppSettings } from "@/lib/settings/store";
@@ -135,9 +136,12 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
     // delivered wake we claim the task (queued -> running) so the inbox poll
     // won't hand the same message out again; a missed wake stays queued for it.
     logArcChatStatus("waking_mark", { agentTaskId, conversationId });
+    const wakeContext = await loadWakeContext(conversationId, { excludeId: messageId }, client);
     const delivered = await notifyArcWebhook({
       messageId,
       conversationId,
+      projectId: wakeContext.projectId,
+      campaignId: wakeContext.campaignId,
       agentTaskId,
       message: body,
       mentions: cleanMentions,
@@ -149,6 +153,7 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
       approvalStrictness: settings.approvalStrictness,
       command,
       attachments,
+      history: wakeContext.history,
     });
     if (delivered) {
       const claimed = await claimChatTask(agentTaskId, client).catch(() => false);
@@ -504,9 +509,12 @@ export async function regenerateArcReplyAction(
       client,
     );
     await insertPendingArcMessage({ conversationId: convId, agentTaskId }, client);
+    const regenWakeContext = await loadWakeContext(convId, { excludeId: lastOperator.id }, client);
     const delivered = await notifyArcWebhook({
       messageId: lastOperator.id,
       conversationId: convId,
+      projectId: regenWakeContext.projectId,
+      campaignId: regenWakeContext.campaignId,
       agentTaskId,
       message: lastOperator.body,
       mentions: lastOperator.mentions,
@@ -516,6 +524,7 @@ export async function regenerateArcReplyAction(
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,
+      history: regenWakeContext.history,
     });
     if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
   } catch {

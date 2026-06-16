@@ -1,25 +1,42 @@
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 
+import { BSR_CONTEXT } from "./business-context";
+import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
 import type { HermesClient } from "./hermes-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
+import type { MarkChatMessagePayload } from "./types";
 
 /**
- * Run Arc once via the Claude Agent SDK and return the final reply text.
+ * Run one Arc turn via the Claude Agent SDK and return the final reply text.
  *
- * Auth: CLAUDE_CODE_OAUTH_TOKEN (subscription) — read by the SDK automatically.
+ * Stateless per call: all scope/context comes from `payload`, nothing is held in
+ * module state, so concurrent chats are independent runs. Memory is the bounded
+ * `payload.history` injected as a prompt preamble. The model is chosen by
+ * `payload.route`; the system prompt is composed from the business context, the
+ * operator's mode, behavior hints, conversation scope, and any @-mentions.
  *
- * Tools: Arc gets in-process tools that call the app's API. As Arc works, each
- * tool reports a running -> done step to the chat bubble, producing the live
- * chain-of-thought trace. Add more tools to the `tools` array below; each new
- * tool automatically shows up as a step when Arc uses it.
+ * Tools: Arc gets in-process tools that call the app's API. Each tool reports a
+ * running -> done step to the chat bubble, producing the live trace. (Richer
+ * tools and action cards arrive in later plans; find_leads is the seed.)
  */
-export async function runArc(
-  opts: { agentTaskId: string; userMessage: string; model: string },
-  client: HermesClient,
-): Promise<string> {
-  const step = (label: string, status: "running" | "done") =>
-    client.postStep(opts.agentTaskId, label, status);
+export async function runArcTurn(payload: MarkChatMessagePayload, client: HermesClient): Promise<string> {
+  const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
+
+  const ctx: ArcTurnContext = {
+    business: BSR_CONTEXT,
+    mode: payload.mode,
+    scope: {
+      conversationId: payload.conversationId,
+      projectId: payload.projectId,
+      campaignId: payload.campaignId,
+      operator: payload.operator,
+    },
+    mentions: payload.mentions,
+    assistantTone: payload.assistantTone,
+    assistantResponseStyle: payload.assistantResponseStyle,
+    approvalStrictness: payload.approvalStrictness,
+  };
 
   const findLeads = tool(
     "find_leads",
@@ -48,14 +65,18 @@ export async function runArc(
 
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools: [findLeads] });
 
+  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, ctx);
+  const preamble = formatHistory(payload.history);
+  const prompt = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
+
   let assistantText = "";
   let resultText = "";
 
   for await (const message of query({
-    prompt: opts.userMessage,
+    prompt,
     options: {
-      systemPrompt: ARC_SYSTEM_PROMPT,
-      model: opts.model,
+      systemPrompt: system,
+      model: modelForRoute(payload.route),
       mcpServers: { arc: arcServer },
       allowedTools: ["mcp__arc__find_leads"],
       permissionMode: "bypassPermissions",
@@ -66,7 +87,6 @@ export async function runArc(
         if (block.type === "text") assistantText += block.text;
       }
     } else if (message.type === "result" && message.subtype === "success") {
-      // The final synthesized answer — preferred over concatenated chunks.
       resultText = message.result;
     }
   }

@@ -7,11 +7,16 @@ import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
 import { type ArcAttachment } from "./persistence";
+import { type WakeHistoryTurn } from "./history";
 
 export type ArcNotifyPayload = {
   /** The operator message row that triggered this wake (arc_messages.id). */
   messageId: string;
   conversationId: string;
+  /** The conversation's project, if any — enables project-scoped context for Arc. */
+  projectId: string | null;
+  /** The conversation's linked campaign, if any — grounds the chat. */
+  campaignId: string | null;
   /** The queued agent_task Arc settles when it posts its reply back. */
   agentTaskId: string;
   message: string;
@@ -33,6 +38,8 @@ export type ArcNotifyPayload = {
   command?: string | null;
   /** Operator-uploaded reference images (GCS signed read URLs) for Arc to use. */
   attachments?: ArcAttachment[];
+  /** Bounded prior turns (oldest → newest), excluding the current message. */
+  history?: WakeHistoryTurn[];
 };
 
 /**

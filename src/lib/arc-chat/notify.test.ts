@@ -16,6 +16,8 @@ const basePayload = {
   type: "arc_chat_message" as const,
   messageId: "m1",
   conversationId: "c1",
+  projectId: null,
+  campaignId: null,
   agentTaskId: "t1",
   message: "hi mark",
   mentions: [],

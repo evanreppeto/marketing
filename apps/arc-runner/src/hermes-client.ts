@@ -1,7 +1,7 @@
 import type { Config } from "./config";
 
 /**
- * Thin client over the app's Mark Operations API (/api/v1/hermes/*). The bridge
+ * Thin client over the app's Arc Operations API (/api/v1/arc/*). The runner
  * never touches Supabase directly — this is its only seam into app state.
  */
 
@@ -19,7 +19,7 @@ export function createHermesClient(config: Config) {
   };
 
   async function postChatReply(input: ChatReplyInput): Promise<void> {
-    const res = await fetch(`${config.appApiBaseUrl}/api/v1/hermes/messages`, {
+    const res = await fetch(`${config.appApiBaseUrl}/api/v1/arc/messages`, {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -31,7 +31,7 @@ export function createHermesClient(config: Config) {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`POST /api/v1/hermes/messages -> ${res.status} ${detail}`.trim());
+      throw new Error(`POST /api/v1/arc/messages -> ${res.status} ${detail}`.trim());
     }
   }
 
@@ -41,7 +41,7 @@ export function createHermesClient(config: Config) {
    */
   async function postStep(agentTaskId: string, label: string, status: "running" | "done"): Promise<void> {
     try {
-      await fetch(`${config.appApiBaseUrl}/api/v1/hermes/messages/${agentTaskId}/steps`, {
+      await fetch(`${config.appApiBaseUrl}/api/v1/arc/messages/${agentTaskId}/steps`, {
         method: "POST",
         headers,
         body: JSON.stringify({ label, status }),
@@ -51,7 +51,7 @@ export function createHermesClient(config: Config) {
     }
   }
 
-  /** Read-only CRM lead search (GET /api/v1/hermes/crm/leads). Powers the find_leads tool. */
+  /** Read-only CRM lead search (GET /api/v1/arc/crm/leads). Powers the find_leads tool. */
   async function getLeads(params: {
     status?: string;
     persona?: string;
@@ -66,10 +66,10 @@ export function createHermesClient(config: Config) {
     if (params.q) qs.set("q", params.q);
     qs.set("limit", String(params.limit ?? 25));
 
-    const res = await fetch(`${config.appApiBaseUrl}/api/v1/hermes/crm/leads?${qs.toString()}`, { headers });
+    const res = await fetch(`${config.appApiBaseUrl}/api/v1/arc/crm/leads?${qs.toString()}`, { headers });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`GET /api/v1/hermes/crm/leads -> ${res.status} ${detail}`.trim());
+      throw new Error(`GET /api/v1/arc/crm/leads -> ${res.status} ${detail}`.trim());
     }
     const data = (await res.json()) as { leads?: unknown[] };
     return data.leads ?? [];
