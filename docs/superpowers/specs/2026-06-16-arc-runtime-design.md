@@ -91,11 +91,20 @@ Every `ArcTask` carries `scope = { conversationId, projectId, campaignId, operat
 
 Grow from 1 tool to a tiered surface wrapping the **existing** Operations API endpoints. Each tool emits a `running → done` step (the live trace), exactly as `find_leads` does, so new tools auto-appear in the chain-of-thought.
 
+**Data-layer principle.** All of Arc's data lives in Supabase, through the app — Arc has no private store. There are two stores with distinct jobs, and they govern what Arc may write:
+
+- **CRM tables = the facts** (`companies`, `contacts`, `properties`, `leads`, `jobs`, `outcomes`). System of record; the `/crm` pages are a frontend *view* over these. **Read-mostly for Arc.** Arc never silently creates or edits a core CRM row (the operating model hard-blocks "modify core CRM records without preview + explicit user action"; the API exposes only reads for core rows). A proposed entity change is surfaced as an approval-gated draft, not a direct write.
+- **Marketing Brain (knowledge graph) = the understanding.** Nodes (`persona`, `segment`, `proof_point`, `messaging_angle`, `cta`, `learning`, `signal`, `brand_fact`, …) + typed edges, with brain nodes *referencing* CRM rows via `refTable`/`refId` rather than copying them. This is **Arc's knowledge-write surface**, and it already carries the right trust gating ([src/domain/knowledge-graph.ts](../../../src/domain/knowledge-graph.ts) `resolveInitialTrustTier`): Arc's `learning`/`signal`/observation writes land as `observed` (internal, flagged unverified); Arc's writes to outbound-governing kinds (`brand_fact`, `messaging_angle`, `cta`, `proof_point`) land as `proposed` (auto-routed to approval).
+
+Tool tiers:
+
 - **Read tools (all modes):** search CRM (companies/contacts/leads/jobs/outcomes/properties), get one record, `brain/query` + graph, list campaigns + status, list personas, recent assets/approvals, project assets (`listProjectAssetMessages`).
-- **Draft/write tools (`act` / `draft` only):** create draft campaign, add CRM interaction (note/follow-up), draft asset — all landing **approval-gated** via the existing `drafts` / `campaigns` / `crm/interactions` / `approvals` endpoints.
+- **CRM-interaction write (`act` / `draft`):** add a note / follow-up task / timeline activity to an existing record via `POST /api/v1/hermes/crm/interactions` — append-only annotations through the *same* persistence path as the human UI, always `author_kind = "agent"`, no outbound side effects. This is the **only** direct CRM write Arc has — breadcrumbs of its work, never core-row mutation.
+- **Brain write (`act` / `draft`):** record learnings/signals/insights as graph nodes/edges, subject to the observed/proposed trust gating above. This is where Arc's *understanding* accrues — not the CRM.
+- **Draft work products (`draft`):** create draft campaigns / assets — approval-gated via the existing `drafts` / `campaigns` / `approvals` endpoints. Proposed core-CRM changes also land here as drafts.
 - **Outbound tools:** **none, ever.** Enforced in code (the tool does not exist), not just the prompt.
 
-Mode gating: `ask` = read-only; `act` = read + CRM writes/interactions; `draft` = read + create approval-gated drafts. Outbound stays locked in every mode.
+Mode gating: `ask` = read-only; `act` = read + CRM-interaction writes + brain observations; `draft` = all of `act` plus creating approval-gated draft work products. Core CRM entity rows are never written directly in any mode; outbound stays locked in every mode.
 
 ### 5. Action cards (structured output)
 
@@ -131,9 +140,11 @@ Project assets stay a **read tool** (larger, discretionary). Campaign package lo
 
 1. **Scoped chat + project isolation.** Operator asks Arc to find leads in a project chat → Arc calls the live CRM tool, cites real rows, reply renders with a result card. A *second* chat in the same project does **not** see this thread's history, but **can** read its assets via the project-assets tool.
 2. **Draft → approval, real state.** In `draft` mode, "draft a campaign for X" → Arc creates a real draft that appears in `/campaigns` and `/approvals`, with an inline Approve/Decline card in chat. Approving it moves real backend state (not a preview).
-3. **Mode + outbound guarantees.** `ask` mode cannot write (no write tool available). No outbound tool exists in any mode.
+3. **Mode + outbound guarantees.** `ask` mode cannot write (no write tool available). No outbound tool exists in any mode. No tool can create or edit a core CRM entity row (companies/contacts/leads/jobs/outcomes) in any mode.
 4. **Memory.** Within one conversation, Arc references earlier turns correctly across multiple messages.
 5. **Live trace.** Every tool call shows a `running → done` step in the pending bubble.
+6. **CRM-interaction write.** In `act` mode, "log a follow-up on lead X" → Arc writes a real note/task/activity via `crm/interactions` (`author_kind = "agent"`) that appears on the record's timeline — no core-row change.
+7. **Brain gating.** Arc recording a `learning`/`signal` persists as `observed`; Arc recording a `messaging_angle`/`cta`/`proof_point`/`brand_fact` persists as `proposed` and shows up in the brain approval queue.
 
 ---
 
