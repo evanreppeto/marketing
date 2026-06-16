@@ -3,6 +3,7 @@ import type { PerformanceBreakdown, PerformanceReadModel, PerformanceTone } from
 
 import { toChartPoints } from "./campaign-analytics-model";
 import { BarBreakdown } from "./charts/bar-breakdown";
+import { ToggleChart } from "./charts/toggle-chart";
 import { FunnelFlow } from "./charts/funnel-flow";
 
 type LivePerformance = Extract<PerformanceReadModel, { status: "live" }>;
@@ -17,10 +18,10 @@ export function LeadVolumeTab({ performance }: { performance: LivePerformance })
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <WorkspacePanel eyebrow="Lead volume" title="By persona" description="Current lead records grouped by persona.">
-        <BarBreakdown points={byPersona.points} missing={byPersona.missing} emptyTitle="No persona data yet" emptyDetail="Lead records do not have persona data yet." />
+        <ToggleChart points={byPersona.points} missing={byPersona.missing} emptyTitle="No persona data yet" emptyDetail="Lead records do not have persona data yet." />
       </WorkspacePanel>
       <WorkspacePanel eyebrow="Lead volume" title="By source" description="Where current lead records came from.">
-        <BarBreakdown points={bySource.points} missing={bySource.missing} emptyTitle="No source data yet" emptyDetail="No lead source values are available yet." />
+        <ToggleChart points={bySource.points} missing={bySource.missing} emptyTitle="No source data yet" emptyDetail="No lead source values are available yet." />
       </WorkspacePanel>
     </div>
   );
@@ -58,7 +59,7 @@ export function RevenueTab({ performance }: { performance: LivePerformance }) {
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <WorkspacePanel eyebrow="Revenue intelligence" title="Revenue by persona" description="Outcome revenue grouped by persona when present.">
-        <BarBreakdown points={revenue.points} missing={revenue.missing} formatter={formatDollars} emptyTitle="No revenue attributed yet" emptyDetail="No outcome revenue by persona exists yet." />
+        <ToggleChart points={revenue.points} missing={revenue.missing} formatter={formatDollars} initial="bars" emptyTitle="No revenue attributed yet" emptyDetail="No outcome revenue by persona exists yet." />
       </WorkspacePanel>
       <WorkspacePanel eyebrow="CTA events" title="Form, photo-upload, and landing conversion" description="Internal reporting only.">
         <BarBreakdown points={cta.points} missing={cta.missing} emptyTitle="No CTA events yet" emptyDetail="No CTA/form/photo-upload events are tracked yet." />
