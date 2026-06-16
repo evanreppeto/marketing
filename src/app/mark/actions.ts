@@ -15,6 +15,7 @@ import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueMarkChatTask } from "@/lib/mark-chat/enqueue";
 import { getMarkDisplayName, isAgentLive } from "@/lib/mark-chat/agent-config";
 import { claimChatTask } from "@/lib/mark-chat/inbox";
+import { loadWakeContext } from "@/lib/mark-chat/history";
 import { notifyMarkWebhook } from "@/lib/mark-chat/notify";
 import { logMarkChatStatus } from "@/lib/mark-chat/status-log";
 import { getAppSettings } from "@/lib/settings/store";
@@ -135,9 +136,12 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
     // delivered wake we claim the task (queued -> running) so the inbox poll
     // won't hand the same message out again; a missed wake stays queued for it.
     logMarkChatStatus("waking_mark", { agentTaskId, conversationId });
+    const wakeContext = await loadWakeContext(conversationId, { excludeId: messageId }, client);
     const delivered = await notifyMarkWebhook({
       messageId,
       conversationId,
+      projectId: wakeContext.projectId,
+      campaignId: wakeContext.campaignId,
       agentTaskId,
       message: body,
       mentions: cleanMentions,
@@ -149,6 +153,7 @@ export async function sendMarkMessageAction(_previous: SendMessageState, formDat
       approvalStrictness: settings.approvalStrictness,
       command,
       attachments,
+      history: wakeContext.history,
     });
     if (delivered) {
       const claimed = await claimChatTask(agentTaskId, client).catch(() => false);
@@ -504,9 +509,12 @@ export async function regenerateMarkReplyAction(
       client,
     );
     await insertPendingMarkMessage({ conversationId: convId, agentTaskId }, client);
+    const regenWakeContext = await loadWakeContext(convId, { excludeId: lastOperator.id }, client);
     const delivered = await notifyMarkWebhook({
       messageId: lastOperator.id,
       conversationId: convId,
+      projectId: regenWakeContext.projectId,
+      campaignId: regenWakeContext.campaignId,
       agentTaskId,
       message: lastOperator.body,
       mentions: lastOperator.mentions,
@@ -516,6 +524,7 @@ export async function regenerateMarkReplyAction(
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,
+      history: regenWakeContext.history,
     });
     if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
   } catch {
