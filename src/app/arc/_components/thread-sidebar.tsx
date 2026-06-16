@@ -10,6 +10,19 @@ import { createProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
 import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
 
+/** Stable empty set so the default prop doesn't allocate per render. */
+const NO_RUNNING_IDS: Set<string> = new Set();
+
+/** Small gold pulse shown on a thread that has an Arc run in flight. */
+function WorkingDot() {
+  return (
+    <span className="relative flex h-2 w-2 shrink-0" aria-label="Arc is working" title="Arc is working…">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
+    </span>
+  );
+}
+
 function SectionLabel({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2 px-2 pt-3.5">
@@ -89,11 +102,13 @@ function ChatRow({
   projects,
   activeId,
   nowMs,
+  running = false,
 }: {
   c: ArcConversation;
   projects: ArcProject[];
   activeId: string;
   nowMs: number;
+  running?: boolean;
 }) {
   const active = c.id === activeId;
   return (
@@ -115,13 +130,17 @@ function ChatRow({
             ? "bg-[var(--accent-soft)] font-medium text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
             : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
         )}
-        title={c.title}
+        title={running ? `${c.title} — Arc is working…` : c.title}
       >
         {c.pinnedAt ? <PinGlyph /> : null}
         <span className="min-w-0 flex-1 truncate">{c.title}</span>
-        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] transition-opacity duration-150 group-hover:opacity-0">
-          {relativeTime(c.lastMessageAt, nowMs)}
-        </span>
+        {running ? (
+          <WorkingDot />
+        ) : (
+          <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] transition-opacity duration-150 group-hover:opacity-0">
+            {relativeTime(c.lastMessageAt, nowMs)}
+          </span>
+        )}
       </Link>
       <div className="absolute right-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
         <ThreadMenu
@@ -143,12 +162,14 @@ function ProjectGroup({
   projects,
   activeId,
   nowMs,
+  runningIds = NO_RUNNING_IDS,
 }: {
   project: ArcProject;
   rows: ArcConversation[];
   projects: ArcProject[];
   activeId: string;
   nowMs: number;
+  runningIds?: Set<string>;
 }) {
   // Groups holding the active thread start open; everything else starts open
   // too — collapse is a per-session reading aid, not persisted state.
@@ -218,7 +239,7 @@ function ProjectGroup({
             <p className="px-2 py-1 text-xs text-[var(--text-muted)]">No chats yet.</p>
           ) : (
             rows.map((c) => (
-              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
+              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} running={runningIds.has(c.id)} />
             ))
           )}
         </div>
@@ -262,6 +283,7 @@ export function ThreadSidebar({
   activeId,
   variant = "rail",
   assistantName = "Arc",
+  runningIds = NO_RUNNING_IDS,
 }: {
   conversations: ArcConversation[];
   projects: ArcProject[];
@@ -270,6 +292,8 @@ export function ThreadSidebar({
   activeId: string;
   variant?: "rail" | "overlay";
   assistantName?: string;
+  /** Conversation ids with an Arc run in flight — drives the "working…" dot. */
+  runningIds?: Set<string>;
 }) {
   const [query, setQuery] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
@@ -380,7 +404,7 @@ export function ThreadSidebar({
         <div className="flex flex-col gap-0.5">
           <SectionLabel>Pinned</SectionLabel>
           {pinned.map((c) => (
-            <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
+            <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} running={runningIds.has(c.id)} />
           ))}
         </div>
       ) : null}
@@ -415,6 +439,7 @@ export function ThreadSidebar({
           projects={projects}
           activeId={activeId}
           nowMs={nowMs}
+          runningIds={runningIds}
         />
       ))}
 
@@ -429,7 +454,7 @@ export function ThreadSidebar({
             <div key={bucket.label} className="flex flex-col gap-0.5">
               <DateLabel>{bucket.label}</DateLabel>
               {bucket.rows.map((c) => (
-                <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} />
+                <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} running={runningIds.has(c.id)} />
               ))}
             </div>
           ))

@@ -31,6 +31,7 @@ import {
   insertFailedArcMessage,
   insertOperatorMessage,
   insertPendingArcMessage,
+  listActiveArcRunConversationIds,
   listMessages,
   parseArcAttachmentsJson,
   renameConversation,
@@ -458,6 +459,14 @@ export async function setArcMessageFeedbackAction(
   if (!id) return;
   await setArcMessageFeedback(id, value).catch(() => undefined);
   revalidatePath("/arc");
+}
+
+/** Conversation ids with an Arc run in flight — polled by the sidebar to show
+ *  cross-thread "working…" indicators. Empty when Supabase isn't configured. */
+export async function getActiveArcRunsAction(): Promise<string[]> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return [];
+  return listActiveArcRunConversationIds().catch(() => []);
 }
 
 /** Re-run the operator turn that produced `markMessageId`: enqueue a fresh task
