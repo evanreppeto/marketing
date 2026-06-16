@@ -2,7 +2,7 @@
 -- Industry-agnostic. Does NOT relax the persona_mapping enum (see spec §3.3);
 -- arbitrary per-org persona keys arrive with the v2 baseline cutover.
 
-create table if not exists public.business_profiles (
+create table public.business_profiles (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null unique references public.organizations(id) on delete cascade,
   display_name text not null default '',
@@ -38,7 +38,7 @@ create trigger business_profiles_set_updated_at
 
 -- Mirrors the v2 baseline persona_definitions shape. On legacy/prod these rows
 -- describe the existing 12 enum persona keys; the enum itself is unchanged.
-create table if not exists public.persona_definitions (
+create table public.persona_definitions (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations(id) on delete cascade,
   key text not null,
@@ -63,3 +63,4 @@ alter table public.persona_definitions enable row level security;
 
 grant select, insert, update, delete on public.business_profiles to service_role;
 grant select, insert, update, delete on public.persona_definitions to service_role;
+grant select on public.business_profiles, public.persona_definitions to anon, authenticated;
