@@ -1,6 +1,6 @@
 import { runArcTurn } from "./arc";
 import type { Config } from "./config";
-import type { HermesClient } from "./hermes-client";
+import type { ArcClient } from "./arc-client";
 import type { MarkChatMessagePayload } from "./types";
 
 /**
@@ -9,7 +9,7 @@ import type { MarkChatMessagePayload } from "./types";
  * Outbound stays locked — this only records a chat reply.
  */
 export async function handleChatMessage(
-  client: HermesClient,
+  client: ArcClient,
   _config: Config,
   payload: MarkChatMessagePayload,
 ): Promise<void> {

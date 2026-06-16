@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { BSR_CONTEXT } from "./business-context";
 import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
-import type { HermesClient } from "./hermes-client";
+import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import type { MarkChatMessagePayload } from "./types";
 
@@ -20,7 +20,7 @@ import type { MarkChatMessagePayload } from "./types";
  * running -> done step to the chat bubble, producing the live trace. (Richer
  * tools and action cards arrive in later plans; find_leads is the seed.)
  */
-export async function runArcTurn(payload: MarkChatMessagePayload, client: HermesClient): Promise<string> {
+export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcClient): Promise<string> {
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const ctx: ArcTurnContext = {
@@ -52,7 +52,9 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: Hermes
       const label = "Searching CRM leads";
       await step(label, "running");
       try {
-        const leads = await client.getLeads(args);
+        const leads = await client
+          .apiGet<{ leads?: unknown[] }>("/api/v1/arc/crm/leads", args)
+          .then((r) => r.leads ?? []);
         await step(label, "done");
         return { content: [{ type: "text" as const, text: JSON.stringify(leads).slice(0, 8000) }] };
       } catch (error) {

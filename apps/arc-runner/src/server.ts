@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import type { Config } from "./config";
-import { createHermesClient } from "./hermes-client";
+import { createArcClient } from "./arc-client";
 import { handleChatMessage } from "./handler";
 import { verifySignature } from "./verify";
 import type { MarkChatMessagePayload, WakePayload } from "./types";
@@ -21,7 +21,7 @@ function sendJson(res: ServerResponse, status: number, body: Record<string, unkn
 }
 
 export function createRunnerServer(config: Config) {
-  const client = createHermesClient(config);
+  const client = createArcClient(config);
 
   return createServer(async (req, res) => {
     const url = (req.url ?? "/").split("?")[0];
