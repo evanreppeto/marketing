@@ -1,7 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getConversation, listMessages, type MarkMessage } from "./persistence";
-import { getSupabaseAdminClient } from "../supabase/server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 /** One prior turn handed to the runner so Arc has memory. */
 export type WakeHistoryTurn = { role: "operator" | "arc"; body: string };
@@ -33,17 +33,21 @@ export function buildWakeHistory(
 
 /**
  * I/O: load the project/campaign scope + bounded history for a conversation,
- * ready to merge into the wake payload. Best-effort caller decides what to do on
- * throw; this surfaces errors so the caller can fall back to a bare wake.
+ * ready to merge into the wake payload. Degrades to a bare wake (empty scope +
+ * no history) when Supabase isn't configured, so the caller can still send.
  */
 export async function loadWakeContext(
   conversationId: string,
   options: { excludeId?: string } = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<{ projectId: string | null; campaignId: string | null; history: WakeHistoryTurn[] }> {
+  if (!isSupabaseAdminConfigured()) {
+    return { projectId: null, campaignId: null, history: [] };
+  }
+  const db = client ?? getSupabaseAdminClient();
   const [conversation, messages] = await Promise.all([
-    getConversation(conversationId, client),
-    listMessages(conversationId, client),
+    getConversation(conversationId, db),
+    listMessages(conversationId, db),
   ]);
   return {
     projectId: conversation?.projectId ?? null,
