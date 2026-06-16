@@ -3,6 +3,7 @@ import { Archivo, Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/goo
 
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
@@ -63,17 +64,19 @@ export default async function RootLayout({
       data-motion={settings.appearanceMotion}
     >
       <body className="min-h-full flex flex-col">
-        <ConsoleFrame
-          agentName={getAgentDisplayName(settings.assistantName)}
-          brand={{
-            workspaceName: settings.workspaceName,
-            productLabel: settings.productLabel,
-            shortName: settings.brandShortName,
-            logoUrl: settings.brandLogoUrl,
-          }}
-        >
-          {children}
-        </ConsoleFrame>
+        <TooltipProvider>
+          <ConsoleFrame
+            agentName={getAgentDisplayName(settings.assistantName)}
+            brand={{
+              workspaceName: settings.workspaceName,
+              productLabel: settings.productLabel,
+              shortName: settings.brandShortName,
+              logoUrl: settings.brandLogoUrl,
+            }}
+          >
+            {children}
+          </ConsoleFrame>
+        </TooltipProvider>
       </body>
     </html>
   );
