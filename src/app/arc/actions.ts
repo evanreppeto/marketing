@@ -590,9 +590,12 @@ export async function editAndResendArcMessageAction(
       client,
     );
     await insertPendingArcMessage({ conversationId: convId, agentTaskId }, client);
+    const wakeContext = await loadWakeContext(convId, { excludeId: target.id }, client);
     const delivered = await notifyArcWebhook({
       messageId: target.id,
       conversationId: convId,
+      projectId: wakeContext.projectId,
+      campaignId: wakeContext.campaignId,
       agentTaskId,
       message: body,
       mentions: target.mentions,
@@ -602,6 +605,7 @@ export async function editAndResendArcMessageAction(
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,
+      history: wakeContext.history,
     });
     if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
   } catch {
