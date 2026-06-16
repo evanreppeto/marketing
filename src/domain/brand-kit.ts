@@ -120,3 +120,70 @@ export const NEUTRAL_DEFAULTS: BusinessProfile = {
   },
   status: "draft",
 };
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function asString(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/** Map a raw `business_profiles` row (snake_case, jsonb) into a BusinessProfile. */
+export function parseBusinessProfile(row: Record<string, unknown>): BusinessProfile {
+  const guardrailsRaw = (row.guardrails ?? {}) as Record<string, unknown>;
+  const density = row.density === "compact" ? "compact" : "comfortable";
+  const motion = row.motion === "reduced" ? "reduced" : "standard";
+  const status = row.status === "active" ? "active" : "draft";
+  return {
+    displayName: asString(row.display_name, NEUTRAL_DEFAULTS.displayName),
+    legalName: asNullableString(row.legal_name),
+    tagline: asNullableString(row.tagline),
+    description: asNullableString(row.description),
+    industry: asNullableString(row.industry),
+    websiteUrl: asNullableString(row.website_url),
+    logoUrl: asNullableString(row.logo_url),
+    faviconUrl: asNullableString(row.favicon_url),
+    shortMark: asNullableString(row.short_mark),
+    serviceAreas: asStringArray(row.service_areas),
+    timeZone: asNullableString(row.time_zone),
+    accent: asString(row.accent, NEUTRAL_DEFAULTS.accent),
+    density,
+    motion,
+    tone: asString(row.tone, NEUTRAL_DEFAULTS.tone),
+    voiceGuidance: asNullableString(row.voice_guidance),
+    preferredPhrases: asStringArray(row.preferred_phrases),
+    bannedPhrases: asStringArray(row.banned_phrases),
+    services: asStringArray(row.services),
+    proofPoints: Array.isArray(row.proof_points) ? (row.proof_points as ProofPoint[]) : [],
+    guardrails: {
+      disallowedClaims:
+        asStringArray(guardrailsRaw.disallowedClaims).length > 0
+          ? asStringArray(guardrailsRaw.disallowedClaims)
+          : NEUTRAL_DEFAULTS.guardrails.disallowedClaims,
+      complianceNotes: asString(
+        guardrailsRaw.complianceNotes,
+        NEUTRAL_DEFAULTS.guardrails.complianceNotes,
+      ),
+    },
+    status,
+  };
+}
+
+export type ProfileValidationResult =
+  | { ok: true }
+  | { ok: false; errors: string[] };
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+/** Validate a BusinessProfile prior to persistence. */
+export function validateBusinessProfile(profile: BusinessProfile): ProfileValidationResult {
+  const errors: string[] = [];
+  if (profile.displayName.trim().length === 0) errors.push("display_name_required");
+  if (!HEX_COLOR.test(profile.accent)) errors.push("accent_invalid");
+  return errors.length === 0 ? { ok: true } : { ok: false, errors };
+}

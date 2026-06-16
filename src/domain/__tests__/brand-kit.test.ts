@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   NEUTRAL_DEFAULTS,
   NEUTRAL_PERSONAS,
+  parseBusinessProfile,
+  validateBusinessProfile,
   type BusinessProfile,
 } from "@/domain/brand-kit";
 
@@ -26,5 +28,52 @@ describe("NEUTRAL_DEFAULTS", () => {
     const keys = NEUTRAL_PERSONAS.map((p) => p.key);
     expect(keys).toContain("decision_maker");
     expect(NEUTRAL_PERSONAS.every((p) => p.label.length > 0)).toBe(true);
+  });
+});
+
+describe("parseBusinessProfile", () => {
+  it("maps a snake_case DB row to a BusinessProfile, applying defaults for nulls", () => {
+    const profile = parseBusinessProfile({
+      display_name: "Acme Co",
+      services: ["consulting"],
+      accent: null,
+      density: null,
+      guardrails: { disallowedClaims: ["x"], complianceNotes: "y" },
+      status: "active",
+    });
+    expect(profile.displayName).toBe("Acme Co");
+    expect(profile.services).toEqual(["consulting"]);
+    expect(profile.accent).toBe(NEUTRAL_DEFAULTS.accent);
+    expect(profile.density).toBe("comfortable");
+    expect(profile.guardrails.complianceNotes).toBe("y");
+    expect(profile.status).toBe("active");
+  });
+
+  it("falls back to neutral defaults when given an empty object", () => {
+    const profile = parseBusinessProfile({});
+    expect(profile.status).toBe("draft");
+    expect(profile.services).toEqual([]);
+    expect(profile.guardrails.disallowedClaims).toEqual(
+      NEUTRAL_DEFAULTS.guardrails.disallowedClaims,
+    );
+  });
+});
+
+describe("validateBusinessProfile", () => {
+  it("rejects an empty display name", () => {
+    const result = validateBusinessProfile({ ...NEUTRAL_DEFAULTS, displayName: "  " });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors).toContain("display_name_required");
+  });
+
+  it("rejects a non-hex accent", () => {
+    const result = validateBusinessProfile({ ...NEUTRAL_DEFAULTS, displayName: "Acme", accent: "blue" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors).toContain("accent_invalid");
+  });
+
+  it("accepts a valid profile", () => {
+    const result = validateBusinessProfile({ ...NEUTRAL_DEFAULTS, displayName: "Acme", accent: "#1A2B3C" });
+    expect(result.ok).toBe(true);
   });
 });
