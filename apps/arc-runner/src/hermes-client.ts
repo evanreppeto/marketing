@@ -35,7 +35,47 @@ export function createHermesClient(config: Config) {
     }
   }
 
-  return { postChatReply };
+  /**
+   * Append a live activity step to the pending chat bubble (the chain-of-thought
+   * trace). Best-effort — a failed step must never break the run.
+   */
+  async function postStep(agentTaskId: string, label: string, status: "running" | "done"): Promise<void> {
+    try {
+      await fetch(`${config.appApiBaseUrl}/api/v1/hermes/messages/${agentTaskId}/steps`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ label, status }),
+      });
+    } catch {
+      /* steps are cosmetic; ignore */
+    }
+  }
+
+  /** Read-only CRM lead search (GET /api/v1/hermes/crm/leads). Powers the find_leads tool. */
+  async function getLeads(params: {
+    status?: string;
+    persona?: string;
+    source?: string;
+    q?: string;
+    limit?: number;
+  }): Promise<unknown[]> {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set("status", params.status);
+    if (params.persona) qs.set("persona", params.persona);
+    if (params.source) qs.set("source", params.source);
+    if (params.q) qs.set("q", params.q);
+    qs.set("limit", String(params.limit ?? 25));
+
+    const res = await fetch(`${config.appApiBaseUrl}/api/v1/hermes/crm/leads?${qs.toString()}`, { headers });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`GET /api/v1/hermes/crm/leads -> ${res.status} ${detail}`.trim());
+    }
+    const data = (await res.json()) as { leads?: unknown[] };
+    return data.leads ?? [];
+  }
+
+  return { postChatReply, postStep, getLeads };
 }
 
 export type HermesClient = ReturnType<typeof createHermesClient>;
