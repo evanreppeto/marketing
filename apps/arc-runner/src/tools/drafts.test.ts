@@ -1,0 +1,55 @@
+import { describe, expect, it, vi } from "vitest";
+
+import type { ArcClient } from "../arc-client";
+import type { ArcActionCard } from "../types";
+import { draftWorkProductTools } from "./drafts";
+
+function setup(apiPostImpl: () => Promise<unknown>) {
+  const cards: ArcActionCard[] = [];
+  const client = { apiPost: vi.fn(apiPostImpl) } as unknown as ArcClient;
+  const step = vi.fn(async () => {});
+  const [createDraft] = draftWorkProductTools(client, step, (c) => cards.push(c));
+  const call = (args: Record<string, unknown>) =>
+    (createDraft.handler as (a: Record<string, unknown>, e?: unknown) => Promise<{ content: Array<{ type: string; text: string }> }>)(args);
+  return { cards, client, call, createDraft };
+}
+
+describe("create_campaign_draft", () => {
+  it("is named create_campaign_draft", () => {
+    const { createDraft } = setup(async () => ({ campaignId: "c1", assetId: "a1" }));
+    expect(createDraft.name).toBe("create_campaign_draft");
+  });
+
+  it("posts to the draft-asset endpoint and auto-emits a draft card with the approval block", async () => {
+    const { cards, client, call } = setup(async () => ({ ok: true, campaignId: "c1", assetId: "a1" }));
+    const out = await call({
+      asset_type: "social_ad",
+      title: "Fall ad",
+      body: "Before winter…",
+      name: "Fall",
+      persona: "persona_homeowner_emergency",
+      restoration_focus: "water",
+    });
+
+    expect(client.apiPost).toHaveBeenCalledWith(
+      "/api/v1/arc/campaigns/draft-asset",
+      expect.objectContaining({ asset_type: "social_ad", title: "Fall ad" }),
+    );
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({
+      kind: "draft",
+      title: "Fall ad",
+      approval: { kind: "campaign", campaignId: "c1", assetId: "a1" },
+    });
+    expect(out.content[0].text).toContain("a1");
+  });
+
+  it("does not emit a card when the create fails", async () => {
+    const { cards, call } = setup(async () => {
+      throw new Error("boom");
+    });
+    const out = await call({ asset_type: "social_ad", title: "Fall ad", campaign_id: "c1" });
+    expect(cards).toHaveLength(0);
+    expect(out.content[0].text).toContain("failed");
+  });
+});
