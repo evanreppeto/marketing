@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { EmptyState, PageHeader } from "../_components/page-header";
 import { WorkspacePanel } from "../_components/workspace";
+import { DataTable, type Column } from "../_components/data-table";
 import { buildPortfolioSplit } from "./_components/campaign-analytics-model";
 import { DonutSplit, type DonutSegment } from "./_components/charts/donut-split";
 import { SegmentedBar } from "./_components/charts/segmented-bar";
@@ -13,7 +14,6 @@ import { buildTakeaway } from "@/lib/performance/overview-shape";
 import { KpiBand, type Kpi } from "./_components/overview/kpi-band";
 import { TrendChart } from "./_components/overview/trend-chart";
 import { TakeawayBanner } from "./_components/overview/takeaway-banner";
-import { SectionNav } from "./_components/overview/section-nav";
 import { ConversionTab, ContractTab, LeadVolumeTab, PartnerSignalsTab, RevenueTab } from "./_components/performance-breakdowns";
 
 export const metadata = {
@@ -83,24 +83,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
     { label: `Revenue linked (${activeRange.short})`, value: perf ? fmtMoney(perf.revenueRecent.cents) : "—", delta: perf ? perf.revenueRecent.delta : null, toneVar: "accent" },
   ];
   const takeaway = buildTakeaway(split, waitingOnYou);
-  // Only link to detail sections that actually render — they exist only when performance is live.
-  const sectionLinks = [
-    { id: "overview", label: "Overview" },
-    ...(perf
-      ? [
-          { id: "leads", label: "Leads" },
-          { id: "conversion", label: "Conversion" },
-          { id: "revenue", label: "Revenue" },
-          { id: "partners", label: "Partners" },
-        ]
-      : []),
-  ];
 
   return (
     <>
       <AnalyticsHeader brand={brand} />
-      <SectionNav links={sectionLinks} />
 
+      {/* General analytics + range filter — the at-a-glance read */}
       <div className="mb-5 flex items-center gap-2">
         <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Range</span>
         <div className="inline-flex overflow-hidden rounded-lg border border-[var(--border-panel)]">
@@ -116,53 +104,55 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
         </div>
       </div>
 
-      <section id="overview" aria-label="Overview" className="scroll-mt-20">
-        <KpiBand kpis={kpis} />
-        <TakeawayBanner text={takeaway} />
-        <div className="mb-5 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
-          <WorkspacePanel eyebrow="Trend" title="Leads & booked work" description="New leads vs. booked jobs over the selected range.">
-            {perf ? <TrendChart data={perf.trend} /> : <EmptyState title="Trend unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />}
-          </WorkspacePanel>
-          <WorkspacePanel eyebrow="Readiness" title="Portfolio approval">
-            <div className="grid gap-5 p-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
-              <DonutSplit segments={heroSegments} centerValue={`${split.readiness}%`} centerLabel={split.total > 0 ? "approved" : "nothing drafted yet"} />
-              <dl className="space-y-2 text-sm">
-                {heroSegments.map((seg) => (
-                  <div key={seg.key} className="flex items-center justify-between gap-3">
-                    <dt className="flex items-center gap-2 text-[var(--text-secondary)]"><span className={`h-2 w-2 rounded-sm ${SEGMENT_DOT[seg.toneVar]}`} aria-hidden="true" />{seg.label}</dt>
-                    <dd className="font-mono text-xs font-bold text-[var(--text-primary)]">{seg.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </WorkspacePanel>
-        </div>
-        <WorkspacePanel title="Compare your campaigns" description="Each campaign and how far it has moved from draft to approved. Select one to see its full analytics.">
-          {rows.length > 0 ? (
-            <ul className="divide-y divide-[var(--border-hairline)]">
-              {rows.map((row) => (<ComparisonRow key={row.id} row={row} />))}
-            </ul>
-          ) : (
-            <EmptyState title="No campaigns yet" detail="When Mark drafts a campaign or you create one, it will appear here with its progress." />
-          )}
-        </WorkspacePanel>
-      </section>
+      <KpiBand kpis={kpis} />
+      <TakeawayBanner text={takeaway} />
 
+      <div className="mb-5 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+        <WorkspacePanel eyebrow="Trend" title="Leads & booked work" description="New leads vs. booked jobs over the selected range.">
+          {perf ? <TrendChart data={perf.trend} /> : <EmptyState title="Trend unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />}
+        </WorkspacePanel>
+        <WorkspacePanel eyebrow="Readiness" title="Portfolio approval">
+          <div className="grid gap-5 p-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+            <DonutSplit segments={heroSegments} centerValue={`${split.readiness}%`} centerLabel={split.total > 0 ? "approved" : "nothing drafted yet"} />
+            <dl className="space-y-2 text-sm">
+              {heroSegments.map((seg) => (
+                <div key={seg.key} className="flex items-center justify-between gap-3">
+                  <dt className="flex items-center gap-2 text-[var(--text-secondary)]"><span className={`h-2 w-2 rounded-sm ${SEGMENT_DOT[seg.toneVar]}`} aria-hidden="true" />{seg.label}</dt>
+                  <dd className="font-mono text-xs font-bold text-[var(--text-primary)]">{seg.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </WorkspacePanel>
+      </div>
+
+      {/* The focus: campaigns as a scannable table. Each row opens its own analytics. */}
+      <WorkspacePanel title="Campaigns" description="Every campaign and its progress. Select one to open its full analytics.">
+        <DataTable
+          columns={CAMPAIGN_COLUMNS}
+          rows={rows}
+          rowKey={(row) => row.id}
+          rowHref={(row) => `/analytics/${row.id}`}
+          minWidth="min-w-[760px]"
+          emptyState={<EmptyState title="No campaigns yet" detail="When Mark drafts a campaign or you create one, it will appear here with its progress." />}
+        />
+      </WorkspacePanel>
+
+      {/* Portfolio-wide breakdowns live here, collapsed, so the main view stays calm. */}
       {perf ? (
-        <>
-          <section id="leads" aria-label="Leads" className="mt-8 scroll-mt-20"><SectionHeading title="Leads" /><LeadVolumeTab performance={perf} /></section>
-          <section id="conversion" aria-label="Conversion" className="mt-8 scroll-mt-20"><SectionHeading title="Conversion" /><ConversionTab performance={perf} /></section>
-          <section id="revenue" aria-label="Revenue" className="mt-8 scroll-mt-20"><SectionHeading title="Revenue" /><RevenueTab performance={perf} /></section>
-          <section id="partners" aria-label="Partners" className="mt-8 scroll-mt-20"><SectionHeading title="Partners" /><PartnerSignalsTab rows={perf.partnerSignals} /></section>
-          <details className="mt-8 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
-            <summary className="cursor-pointer text-sm font-semibold text-[var(--text-secondary)]">What we can&apos;t measure yet</summary>
-            <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-muted)]">The fields below are the backend data still needed before deeper performance numbers are trustworthy.</p>
-            <div className="mt-3"><ContractTab contracts={perf.contracts} /></div>
-          </details>
-        </>
-      ) : (
-        <EmptyState title="Performance data unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />
-      )}
+        <details className="mt-5">
+          <summary className="cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)]">
+            More analytics — leads, conversion, revenue &amp; partners
+          </summary>
+          <div className="mt-5 space-y-8">
+            <div><SectionHeading title="Leads" /><LeadVolumeTab performance={perf} /></div>
+            <div><SectionHeading title="Conversion" /><ConversionTab performance={perf} /></div>
+            <div><SectionHeading title="Revenue" /><RevenueTab performance={perf} /></div>
+            <div><SectionHeading title="Partners" /><PartnerSignalsTab rows={perf.partnerSignals} /></div>
+            <div><SectionHeading title="What we can't measure yet" /><ContractTab contracts={perf.contracts} /></div>
+          </div>
+        </details>
+      ) : null}
     </>
   );
 }
@@ -211,44 +201,55 @@ function byMostNeedingAttention(a: ComparisonRowData, b: ComparisonRowData) {
   return b.readiness - a.readiness;
 }
 
-function ComparisonRow({ row }: { row: ComparisonRowData }) {
-  return (
-    <li>
-      <Link
-        className="grid gap-4 px-5 py-4 transition hover:bg-[var(--surface-inset)] sm:grid-cols-[minmax(0,1fr)_200px_150px] sm:items-center"
-        href={`/analytics/${row.id}`}
-      >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="truncate font-semibold text-[var(--text-primary)]">{row.name}</span>
-            <StateBadge row={row} />
-          </div>
-          <div className="mt-1 text-sm text-[var(--text-secondary)]">
-            {row.persona} &middot; {row.assetCount} {row.assetCount === 1 ? "asset" : "assets"} &middot; updated {row.updatedAt}
-          </div>
+const CAMPAIGN_COLUMNS: Column<ComparisonRowData>[] = [
+  {
+    key: "campaign",
+    header: "Campaign",
+    cell: (row) => (
+      <div className="min-w-0">
+        <div className="truncate font-semibold text-[var(--text-primary)]">{row.name}</div>
+        <div className="mt-0.5 text-xs text-[var(--text-secondary)]">
+          {row.persona} &middot; {row.assetCount} {row.assetCount === 1 ? "asset" : "assets"} &middot; updated {row.updatedAt}
         </div>
-
-        <div className="min-w-0">
-          <SegmentedBar
-            segments={[
-              { key: "approved", value: row.approved, toneVar: "ok" },
-              { key: "pending", value: row.pending, toneVar: "warn" },
-              { key: "changes", value: row.changes, toneVar: "priority" },
-              { key: "draft", value: Math.max(row.total - row.approved - row.pending - row.changes, 0), toneVar: "idle" },
-            ]}
-          />
-          <div className="mt-1.5 text-xs font-medium text-[var(--text-muted)]">
-            {row.total > 0 ? `${row.approved} of ${row.total} pieces approved` : "No pieces drafted yet"}
-          </div>
+      </div>
+    ),
+  },
+  {
+    key: "status",
+    header: "Status",
+    width: "w-[180px]",
+    cell: (row) => <StateBadge row={row} />,
+  },
+  {
+    key: "progress",
+    header: "Progress",
+    width: "w-[220px]",
+    cell: (row) => (
+      <div className="min-w-0">
+        <SegmentedBar
+          segments={[
+            { key: "approved", value: row.approved, toneVar: "ok" },
+            { key: "pending", value: row.pending, toneVar: "warn" },
+            { key: "changes", value: row.changes, toneVar: "priority" },
+            { key: "draft", value: Math.max(row.total - row.approved - row.pending - row.changes, 0), toneVar: "idle" },
+          ]}
+        />
+        <div className="mt-1.5 text-xs font-medium text-[var(--text-muted)]">
+          {row.total > 0 ? `${row.approved} of ${row.total} approved` : "No pieces yet"}
         </div>
-
-        <div className="font-display text-2xl font-bold tabular-nums tracking-[-0.04em] text-[var(--text-primary)] sm:text-right">
-          {row.readiness}%
-        </div>
-      </Link>
-    </li>
-  );
-}
+      </div>
+    ),
+  },
+  {
+    key: "readiness",
+    header: "Approved",
+    align: "right",
+    width: "w-[96px]",
+    cell: (row) => (
+      <span className="font-display text-lg font-bold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">{row.readiness}%</span>
+    ),
+  },
+];
 
 function StateBadge({ row }: { row: ComparisonRowData }) {
   const config =
@@ -273,7 +274,7 @@ function StateBadge({ row }: { row: ComparisonRowData }) {
             };
 
   return (
-    <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${config.className}`}>
+    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${config.className}`}>
       {config.label}
     </span>
   );
