@@ -78,6 +78,67 @@ function useElapsed(active: boolean): string {
   return `${mm}:${ss}`;
 }
 
+/**
+ * Typewriter reveal for streamed text. The worker streams `body` into the
+ * message row in ~2–3s poll chunks; this advances the visible substring toward
+ * the latest `body` at a steady rate so it reads as continuous typing rather
+ * than hard jumps. Catches up gently when a big chunk lands so it never lags
+ * more than ~1s behind. Returns the full text immediately when not streaming.
+ */
+const TYPE_CPS = 110; // baseline characters per second
+function useTypewriter(target: string, streaming: boolean): string {
+  const [len, setLen] = useState(streaming ? 0 : target.length);
+  // Refs mirror the latest target/len for the interval; synced in effects (not
+  // during render) so we never read/write refs while rendering.
+  const targetRef = useRef(target);
+  const lenRef = useRef(len);
+  useEffect(() => {
+    targetRef.current = target;
+  }, [target]);
+  useEffect(() => {
+    lenRef.current = len;
+  }, [len]);
+
+  useEffect(() => {
+    if (!streaming) {
+      setLen(targetRef.current.length);
+      return;
+    }
+    let last = Date.now();
+    let carry = 0;
+    const id = setInterval(() => {
+      const full = targetRef.current.length;
+      let cur = lenRef.current;
+      // Target shrank (regenerate / thread switch) — clamp so we resume typing
+      // from the new end rather than waiting for it to catch back up.
+      if (cur > full) {
+        cur = full;
+        lenRef.current = full;
+        setLen(full);
+      }
+      if (cur >= full) {
+        last = Date.now();
+        return;
+      }
+      const now = Date.now();
+      carry += ((now - last) / 1000) * TYPE_CPS;
+      last = now;
+      let add = Math.floor(carry);
+      carry -= add;
+      // Clear a backlog faster so the caret never trails far behind the worker.
+      const remaining = full - cur;
+      if (remaining > 140) add += Math.ceil((remaining - 140) / 12);
+      if (add < 1) add = 1;
+      const next = Math.min(full, cur + add);
+      lenRef.current = next;
+      setLen(next);
+    }, 33);
+    return () => clearInterval(id);
+  }, [streaming]);
+
+  return target.slice(0, len);
+}
+
 
 /**
  * Renders Arc's step trace using the AI Elements ChainOfThought component.
@@ -120,6 +181,9 @@ function ChainOfThoughtTrace({
 
 function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: string; steps: ArcStep[]; body: string; onStop: () => void }) {
   const elapsed = useElapsed(true);
+  // Reveal streamed text character-by-character so chunked poll updates read as
+  // continuous typing rather than hard jumps.
+  const typed = useTypewriter(body, true);
   const hasSteps = steps.length > 0;
   const hasBody = body.trim().length > 0;
   return (
@@ -129,10 +193,10 @@ function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: s
       ) : null}
       {hasBody ? (
         // Staged reply: the worker streams partial body text into the message
-        // row; render it live with a bottom-fade mask + writing caret so chunked
-        // updates read as continuous streaming rather than hard jumps.
+        // row; the typewriter reveal + bottom-fade mask + writing caret make
+        // chunked updates read as continuous streaming.
         <div aria-label={`${assistantName} is writing`} className="arc-streaming">
-          <ArcBody body={body} />
+          <ArcBody body={typed} />
           <span aria-hidden className="arc-caret" />
         </div>
       ) : !hasSteps ? (
