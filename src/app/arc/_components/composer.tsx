@@ -835,14 +835,6 @@ export function Composer({
               </div>
             ) : null}
           </div>
-
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
-            <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <rect x="5" y="9" width="10" height="7" rx="1.5" />
-              <path d="M7 9V7a3 3 0 0 1 6 0v2" />
-            </svg>
-            outbound stays locked
-          </span>
         </div>
       </form>
     </div>
