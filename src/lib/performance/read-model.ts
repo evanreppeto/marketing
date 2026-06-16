@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import { buildTrendBuckets, computeDelta, sumTwoPeriods, type KpiDelta, type TrendPoint } from "./overview-shape";
 
 export type PerformanceTone = "amber" | "green" | "red" | "blue" | "gray";
 
@@ -33,6 +34,9 @@ export type PerformanceReadModel =
       leadVolumeBySource: PerformanceBreakdown[];
       conversionSignals: PerformanceBreakdown[];
       funnelStages: { label: string; count: number }[];
+      trend: TrendPoint[];
+      leadsRecent: { count: number; delta: KpiDelta | null };
+      revenueRecent: { cents: number; delta: KpiDelta | null };
       campaignSignals: PerformanceBreakdown[];
       partnerSignals: PerformanceBreakdown[];
       revenueByPersona: PerformanceBreakdown[];
@@ -156,6 +160,13 @@ export async function getPerformanceReadModel(client?: SupabaseClient): Promise<
 
     const wonOutcomes = outcomeRows.filter((outcome) => ["won", "closed_won", "paid"].includes(outcome.status ?? ""));
     const linkedRevenue = outcomeRows.reduce((sum, outcome) => sum + (outcome.gross_revenue_cents ?? 0), 0);
+    const now = Date.now();
+    const leadPeriods = sumTwoPeriods(leadRows.map((lead) => ({ at: lead.created_at, weight: 1 })), now, 30);
+    const revenuePeriods = sumTwoPeriods(
+      outcomeRows.map((outcome) => ({ at: outcome.closed_at ?? outcome.created_at, weight: outcome.gross_revenue_cents ?? 0 })),
+      now,
+      30,
+    );
     return {
       status: "live",
       metrics: [
@@ -172,6 +183,9 @@ export async function getPerformanceReadModel(client?: SupabaseClient): Promise<
         { label: "Bookings", count: jobRows.length },
         { label: "Won", count: wonOutcomes.length },
       ],
+      trend: buildTrendBuckets(leadRows, jobRows, now, 8),
+      leadsRecent: { count: leadPeriods.current, delta: computeDelta(leadPeriods.current, leadPeriods.prior) },
+      revenueRecent: { cents: revenuePeriods.current, delta: computeDelta(revenuePeriods.current, revenuePeriods.prior) },
       campaignSignals: buildCampaignSignals(campaignRows, assetRows, approvalRows),
       partnerSignals: buildPartnerSignals(companyRows, outcomeRows),
       revenueByPersona: buildRevenueByPersona(outcomeRows),
