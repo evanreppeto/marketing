@@ -33,6 +33,8 @@ import {
   insertPendingArcMessage,
   listActiveArcRunConversationIds,
   listMessages,
+  listRecentArcRuns,
+  type ArcRun,
   parseArcAttachmentsJson,
   renameConversation,
   renameProject,
@@ -467,6 +469,14 @@ export async function getActiveArcRunsAction(): Promise<string[]> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return [];
   return listActiveArcRunConversationIds().catch(() => []);
+}
+
+/** Recent Arc runs across all threads — feeds the global Runs view drawer.
+ *  Empty when Supabase isn't configured. */
+export async function getArcRunsAction(): Promise<ArcRun[]> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return [];
+  return listRecentArcRuns(30).catch(() => []);
 }
 
 /** Re-run the operator turn that produced `markMessageId`: enqueue a fresh task
