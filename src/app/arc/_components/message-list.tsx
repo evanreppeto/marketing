@@ -78,6 +78,67 @@ function useElapsed(active: boolean): string {
   return `${mm}:${ss}`;
 }
 
+/**
+ * Typewriter reveal for streamed text. The worker streams `body` into the
+ * message row in ~2–3s poll chunks; this advances the visible substring toward
+ * the latest `body` at a steady rate so it reads as continuous typing rather
+ * than hard jumps. Catches up gently when a big chunk lands so it never lags
+ * more than ~1s behind. Returns the full text immediately when not streaming.
+ */
+const TYPE_CPS = 110; // baseline characters per second
+function useTypewriter(target: string, streaming: boolean): string {
+  const [len, setLen] = useState(streaming ? 0 : target.length);
+  // Refs mirror the latest target/len for the interval; synced in effects (not
+  // during render) so we never read/write refs while rendering.
+  const targetRef = useRef(target);
+  const lenRef = useRef(len);
+  useEffect(() => {
+    targetRef.current = target;
+  }, [target]);
+  useEffect(() => {
+    lenRef.current = len;
+  }, [len]);
+
+  useEffect(() => {
+    if (!streaming) {
+      setLen(targetRef.current.length);
+      return;
+    }
+    let last = Date.now();
+    let carry = 0;
+    const id = setInterval(() => {
+      const full = targetRef.current.length;
+      let cur = lenRef.current;
+      // Target shrank (regenerate / thread switch) — clamp so we resume typing
+      // from the new end rather than waiting for it to catch back up.
+      if (cur > full) {
+        cur = full;
+        lenRef.current = full;
+        setLen(full);
+      }
+      if (cur >= full) {
+        last = Date.now();
+        return;
+      }
+      const now = Date.now();
+      carry += ((now - last) / 1000) * TYPE_CPS;
+      last = now;
+      let add = Math.floor(carry);
+      carry -= add;
+      // Clear a backlog faster so the caret never trails far behind the worker.
+      const remaining = full - cur;
+      if (remaining > 140) add += Math.ceil((remaining - 140) / 12);
+      if (add < 1) add = 1;
+      const next = Math.min(full, cur + add);
+      lenRef.current = next;
+      setLen(next);
+    }, 33);
+    return () => clearInterval(id);
+  }, [streaming]);
+
+  return target.slice(0, len);
+}
+
 
 /**
  * Renders Arc's step trace using the AI Elements ChainOfThought component.
@@ -120,6 +181,9 @@ function ChainOfThoughtTrace({
 
 function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: string; steps: ArcStep[]; body: string; onStop: () => void }) {
   const elapsed = useElapsed(true);
+  // Reveal streamed text character-by-character so chunked poll updates read as
+  // continuous typing rather than hard jumps.
+  const typed = useTypewriter(body, true);
   const hasSteps = steps.length > 0;
   const hasBody = body.trim().length > 0;
   return (
@@ -129,10 +193,10 @@ function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: s
       ) : null}
       {hasBody ? (
         // Staged reply: the worker streams partial body text into the message
-        // row; render it live with a bottom-fade mask + writing caret so chunked
-        // updates read as continuous streaming rather than hard jumps.
+        // row; the typewriter reveal + bottom-fade mask + writing caret make
+        // chunked updates read as continuous streaming.
         <div aria-label={`${assistantName} is writing`} className="arc-streaming">
-          <ArcBody body={body} />
+          <ArcBody body={typed} />
           <span aria-hidden className="arc-caret" />
         </div>
       ) : !hasSteps ? (
@@ -369,6 +433,7 @@ function Message({
   onRetry,
   onStop,
   onRegenerate,
+  onEditResend,
   onSuggestion,
   onOpenAsset,
   onDecision,
@@ -379,12 +444,89 @@ function Message({
   onRetry: () => void;
   onStop: () => void;
   onRegenerate: (markMessageId: string) => void;
+  onEditResend?: (messageId: string, newBody: string) => void;
   onSuggestion: (prompt: string) => void;
   onOpenAsset?: (assetId?: string) => void;
   onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void;
 }) {
-  // Operator: right-aligned bubble (ChatGPT-style), timestamp on hover.
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(message.body);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  // Focus + size the editor and drop the caret at the end when it opens.
+  useEffect(() => {
+    if (!editing) return;
+    const el = editRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+  }, [editing]);
+
+  function openEditor() {
+    setEditText(message.body);
+    setEditing(true);
+  }
+  function saveEdit() {
+    const next = editText.trim();
+    if (!next || next === message.body.trim()) {
+      setEditing(false);
+      return;
+    }
+    onEditResend?.(message.id, next);
+    setEditing(false);
+  }
+
+  // Operator: right-aligned bubble (ChatGPT-style), edit + timestamp on hover.
   if (message.role === "operator") {
+    const canEdit = Boolean(onEditResend);
+    if (editing) {
+      return (
+        <div className="flex flex-col items-end">
+          <div className="w-full max-w-[82%] rounded-2xl rounded-br-md bg-[var(--surface-panel)] p-2 shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
+            <textarea
+              ref={editRef}
+              value={editText}
+              onChange={(e) => {
+                setEditText(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 320)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setEditing(false);
+                } else if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  saveEdit();
+                }
+              }}
+              rows={1}
+              aria-label="Edit your message"
+              className="max-h-[320px] w-full resize-none bg-transparent px-2 py-1 text-sm leading-6 text-[var(--text-primary)] outline-none"
+            />
+            <div className="mt-1 flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="rounded-md px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={!editText.trim() || editText.trim() === message.body.trim()}
+                className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Save &amp; resend
+              </button>
+            </div>
+          </div>
+          <span className="mt-1 pr-1 text-[10px] text-[var(--text-muted)]">Enter to resend · Esc to cancel</span>
+        </div>
+      );
+    }
     return (
       <div className="group flex flex-col items-end">
         <div className="max-w-[82%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
@@ -401,9 +543,20 @@ function Message({
           </div>
         ) : null}
         <MentionChips mentions={message.mentions} align="end" />
-        <span className="mt-1 pr-1 text-[10px] tabular-nums text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100" suppressHydrationWarning>
-          {formatTime(message.createdAt)}
-        </span>
+        <div className="mt-1 flex items-center gap-1 pr-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={openEditor}
+              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+            >
+              Edit
+            </button>
+          ) : null}
+          <span className="text-[10px] tabular-nums text-[var(--text-muted)]" suppressHydrationWarning>
+            {formatTime(message.createdAt)}
+          </span>
+        </div>
       </div>
     );
   }
@@ -520,6 +673,7 @@ export function MessageList({
   onRetry,
   onStop,
   onRegenerate,
+  onEditResend,
   onSuggestion,
   onOpenAsset,
   onDecision,
@@ -529,6 +683,7 @@ export function MessageList({
   onRetry: () => void;
   onStop: () => void;
   onRegenerate: (markMessageId: string) => void;
+  onEditResend?: (messageId: string, newBody: string) => void;
   onSuggestion: (prompt: string) => void;
   onOpenAsset?: (assetId?: string) => void;
   onDecision?: (assetId: string, decision: "approved" | "declined" | "revision") => void;
@@ -599,6 +754,7 @@ export function MessageList({
                 onRetry={onRetry}
                 onStop={onStop}
                 onRegenerate={onRegenerate}
+                onEditResend={onEditResend}
                 onSuggestion={onSuggestion}
                 onOpenAsset={onOpenAsset}
                 onDecision={onDecision}

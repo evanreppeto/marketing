@@ -39,6 +39,7 @@ import {
   setArcMessageFeedback,
   touchConversation,
   unarchiveConversation,
+  updateOperatorMessageBody,
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
 import { type ApprovalDecision, decideAsset } from "@/lib/campaigns/decisions";
@@ -531,6 +532,83 @@ export async function regenerateArcReplyAction(
     /* best-effort: leave the thread as-is if Arc can't be reached */
   }
   revalidatePath("/arc");
+}
+
+/** Edit an operator message in place and re-run the reply from the edited text
+ *  (ChatGPT-style). Updates the operator row, drops any in-flight reply, then
+ *  enqueues a fresh task + pending bubble. Best-effort beyond the body update. */
+export async function editAndResendArcMessageAction(
+  conversationId: string,
+  operatorMessageId: string,
+  newBody: string,
+  opts?: { mode?: ArcMode; route?: ArcRoute },
+): Promise<{ ok: boolean; message?: string }> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, message: "not_configured" };
+  const convId = conversationId.trim();
+  const msgId = operatorMessageId.trim();
+  const body = newBody.trim();
+  if (!convId || !msgId) return { ok: false };
+  if (!body) return { ok: false, message: "Message can't be empty." };
+
+  const client = getSupabaseAdminClient();
+  let messages;
+  try {
+    messages = await listMessages(convId, client);
+  } catch {
+    return { ok: false };
+  }
+  const target = messages.find((m) => m.id === msgId && m.role === "operator");
+  if (!target) return { ok: false };
+
+  const updated = await updateOperatorMessageBody(msgId, body, client).catch(() => false);
+  if (!updated) return { ok: false, message: "Couldn't save the edit." };
+
+  // Drop any in-flight reply so the edit doesn't leave two pending bubbles.
+  await cancelPendingArcMessage(convId).catch(() => undefined);
+
+  const mode = parseArcMode(target.mode ?? opts?.mode);
+  const route = parseArcRoute(target.route ?? opts?.route);
+  const operator = getOperatorActor();
+  const settings = await getAppSettings();
+  const agentName = await getAgentName();
+  try {
+    const agentTaskId = await enqueueArcChatTask(
+      {
+        conversationId: convId,
+        messageId: target.id,
+        message: body,
+        mentions: target.mentions,
+        operator,
+        route,
+        mode,
+        assistantTone: settings.assistantTone,
+        assistantResponseStyle: settings.assistantResponseStyle,
+        approvalStrictness: settings.approvalStrictness,
+        agentName,
+      },
+      client,
+    );
+    await insertPendingArcMessage({ conversationId: convId, agentTaskId }, client);
+    const delivered = await notifyArcWebhook({
+      messageId: target.id,
+      conversationId: convId,
+      agentTaskId,
+      message: body,
+      mentions: target.mentions,
+      operator,
+      route,
+      mode,
+      assistantTone: settings.assistantTone,
+      assistantResponseStyle: settings.assistantResponseStyle,
+      approvalStrictness: settings.approvalStrictness,
+    });
+    if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
+  } catch {
+    /* best-effort: the edit persisted even if Arc can't be reached right now */
+  }
+  revalidatePath("/arc");
+  return { ok: true };
 }
 
 /** Load the live editable view of a draft asset for the Work Canvas. Operator-gated. */

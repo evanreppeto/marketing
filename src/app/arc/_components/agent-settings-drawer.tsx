@@ -51,10 +51,16 @@ export function AgentSettingsDrawer({ open, onClose }: { open: boolean; onClose:
         tabIndex={-1}
         className="relative h-full w-full max-w-[420px] overflow-y-auto border-l border-[var(--border-panel)] bg-[var(--surface-panel)] p-5 shadow-[var(--elev-panel)] outline-none"
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="-mx-5 -mt-5 mb-5 flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--surface-inset)]/40 px-5 py-3.5">
           <h2 className="font-display text-lg font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Agent settings</h2>
-          <button onClick={onClose} aria-label="Close" className="text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
-            ✕
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m5 5 10 10M15 5 5 15" />
+            </svg>
           </button>
         </div>
 
@@ -107,8 +113,17 @@ export function AgentSettingsDrawer({ open, onClose }: { open: boolean; onClose:
 function ChecklistRow({ ok, label, env, hint }: { ok: boolean; label: string; env: string; hint: string }) {
   return (
     <div className="flex items-start gap-2.5 px-3 py-2.5">
-      <span aria-hidden className={cx("mt-0.5 text-sm", ok ? "text-[var(--ok-text)]" : "text-[var(--text-muted)]")}>
-        {ok ? "✓" : "○"}
+      <span aria-hidden className={cx("mt-0.5 shrink-0", ok ? "text-[var(--ok)]" : "text-[var(--text-muted)]")}>
+        {ok ? (
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="10" cy="10" r="7.5" />
+            <path d="m6.8 10.2 2.2 2.3 4.2-4.8" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="10" cy="10" r="7.5" strokeDasharray="2.5 2.5" />
+          </svg>
+        )}
       </span>
       <div className="min-w-0">
         <div className="text-sm text-[var(--text-primary)]">

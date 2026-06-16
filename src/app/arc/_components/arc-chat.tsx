@@ -9,7 +9,7 @@ import type { ArcMode, ArcRoute } from "@/domain";
 
 import { cx } from "@/app/_components/theme";
 
-import { cancelReplyAction, regenerateArcReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
+import { cancelReplyAction, editAndResendArcMessageAction, regenerateArcReplyAction, renameThreadAction, type SimpleActionState } from "../actions";
 import Link from "next/link";
 
 import { ChatSettings } from "./chat-settings";
@@ -313,6 +313,46 @@ export function ArcChat({
     await regenerateArcReplyAction(activeId, markMessageId, { mode, route });
   }
 
+  // Edit a sent operator message in place and re-run the reply (ChatGPT-style).
+  // Mirrors regenerate's append semantics: the bubble text updates and Arc
+  // responds again at the bottom of the thread.
+  async function handleEditResend(messageId: string, newBody: string) {
+    const body = newBody.trim();
+    if (!body) return;
+    if (demo) {
+      setMessages((prev) => {
+        if (!prev.some((m) => m.id === messageId)) return prev;
+        const updated = prev.map((m) => (m.id === messageId ? { ...m, body } : m));
+        return [...updated, demoReply(body)];
+      });
+      return;
+    }
+    setMessages((prev) => {
+      if (!prev.some((m) => m.id === messageId)) return prev;
+      const updated = prev.map((m) => (m.id === messageId ? { ...m, body } : m));
+      return [
+        ...updated,
+        {
+          id: `temp-pending-edit-${messageId}`,
+          conversationId: activeId,
+          role: "arc",
+          body: "",
+          status: "pending",
+          agentTaskId: null,
+          mentions: [],
+          media: [],
+          steps: [],
+          feedback: null,
+          actions: [],
+          suggestions: [],
+          attachments: [],
+          createdAt: new Date().toISOString(),
+        },
+      ];
+    });
+    await editAndResendArcMessageAction(activeId, messageId, body, { mode, route });
+  }
+
   const hasMessages = messages.length > 0;
   const [threadsOpen, setThreadsOpen] = useState(false);
 
@@ -339,6 +379,20 @@ export function ArcChat({
   }, []);
 
   const replyPending = messages.some((m) => m.role === "arc" && m.status === "pending");
+
+  // Esc stops the in-flight reply (ChatGPT muscle-memory). Skips when an inline
+  // editor / menu already handled Escape (defaultPrevented) so it doesn't fight
+  // the message editor's own cancel.
+  useEffect(() => {
+    if (!replyPending) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !e.defaultPrevented) void handleStop();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // handleStop is stable enough for this lightweight handler.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replyPending]);
 
   // The campaign this thread is producing — drives the Studio Assets-tab cover.
   const activeCampaign = activeCampaignId
@@ -518,6 +572,7 @@ export function ArcChat({
                 onRetry={handleRetry}
                 onStop={handleStop}
                 onRegenerate={handleRegenerate}
+                onEditResend={handleEditResend}
                 onSuggestion={pickSuggestion}
                 onOpenAsset={openStudioAsset}
                 onDecision={demo ? demoDecide : undefined}
@@ -546,6 +601,7 @@ export function ArcChat({
                 }}
                 replyPending={replyPending}
                 onStopReply={handleStop}
+                recallText={[...messages].reverse().find((m) => m.role === "operator")?.body ?? null}
                 projects={projects}
                 activeProjectId={activeProjectId}
                 initialNewChatProjectId={newChatProjectId}
