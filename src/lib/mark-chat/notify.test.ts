@@ -20,7 +20,7 @@ const basePayload = {
   message: "hi mark",
   mentions: [],
   operator: "Evan",
-  route: "fast" as const,
+  route: "claude-haiku-4-5" as const,
   mode: "ask" as const,
 };
 
@@ -98,7 +98,7 @@ describe("notifyMarkWebhook", () => {
       type: "mark_chat_message",
       messageId: "m1",
       conversationId: "c1",
-      route: "fast",
+      route: "claude-haiku-4-5",
     });
   });
 

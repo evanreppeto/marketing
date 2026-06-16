@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type MarkMention } from "@/domain";
+import { type MarkMention, type MarkRoute } from "@/domain";
 import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTone } from "@/lib/settings/store";
 
 import { getSupabaseAdminClient } from "../supabase/server";
@@ -13,8 +13,8 @@ export type EnqueueChatTaskInput = {
   message: string;
   mentions: MarkMention[];
   operator: string;
-  /** Model-routing hint for the external runner; routine chat defaults to "fast". */
-  route?: "fast" | "standard";
+  /** Model-routing hint for the external runner. */
+  route?: MarkRoute;
   /** Operator stance for this message; the worker decides what Mark may do. */
   mode?: "ask" | "act" | "draft";
   /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
@@ -74,7 +74,7 @@ export async function enqueueMarkChatTask(
         command: input.command ?? null,
         attachments: input.attachments ?? [],
         source: "mark_chat",
-        model_route: input.route ?? "fast",
+        model_route: input.route ?? "claude-sonnet-4-6",
         mode: input.mode ?? "act",
         assistant_tone: input.assistantTone ?? "direct",
         response_style: input.assistantResponseStyle ?? "balanced",

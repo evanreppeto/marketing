@@ -1,6 +1,16 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type MarkActionCard, type MarkMedia, type MarkMention, type MarkMode, type MarkRoute, parseActions, parseMedia, parseMentions } from "@/domain";
+import {
+  type MarkActionCard,
+  type MarkMedia,
+  type MarkMention,
+  type MarkMode,
+  type MarkRoute,
+  parseActions,
+  parseMarkRoute,
+  parseMedia,
+  parseMentions,
+} from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 
@@ -174,7 +184,18 @@ function parseOptionalMode(value: unknown): MarkMode | undefined {
   return value === "ask" || value === "act" || value === "draft" ? value : undefined;
 }
 function parseOptionalRoute(value: unknown): MarkRoute | undefined {
-  return value === "fast" || value === "standard" ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  if (
+    value === "fast" ||
+    value === "standard" ||
+    value === "claude-fable-5" ||
+    value === "claude-opus-4-8" ||
+    value === "claude-sonnet-4-6" ||
+    value === "claude-haiku-4-5"
+  ) {
+    return parseMarkRoute(value);
+  }
+  return undefined;
 }
 
 function assertOk(label: string, error: { message: string } | null) {

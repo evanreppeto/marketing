@@ -35,7 +35,7 @@ export async function SettingsHome() {
     settings.assistantResponseStyle !== "balanced" ||
     settings.approvalStrictness !== "standard" ||
     settings.markDefaultMode !== "act" ||
-    settings.markDefaultRoute !== "fast";
+    settings.markDefaultRoute !== "claude-sonnet-4-6";
 
   const cards: HomeCard[] = [
     {

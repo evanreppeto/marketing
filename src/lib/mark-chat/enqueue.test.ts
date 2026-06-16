@@ -25,7 +25,7 @@ describe("enqueueMarkChatTask", () => {
         message: "Draft a partner campaign.",
         mentions: [],
         operator: "Operator",
-        route: "standard",
+        route: "claude-opus-4-8",
         mode: "draft",
         command: "campaign",
         assistantTone: "friendly",
@@ -41,7 +41,7 @@ describe("enqueueMarkChatTask", () => {
 
     expect(taskInsert?.[1]).toMatchObject({
       metadata: {
-        model_route: "standard",
+        model_route: "claude-opus-4-8",
         mode: "draft",
         assistant_tone: "friendly",
         response_style: "detailed",
