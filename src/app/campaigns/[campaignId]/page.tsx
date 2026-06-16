@@ -2,6 +2,8 @@ import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "../../_components/page-header";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
+import { getConnections } from "@/lib/connections/read-model";
+import { getCampaignDispatches } from "@/lib/dispatch/read-model";
 import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
@@ -17,7 +19,11 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
   const { campaignId } = await params;
   const { assistantName } = await getAppSettings();
   const agentName = getAgentDisplayName(assistantName);
-  const detail = await getCampaignWorkspaceDetail(campaignId, undefined, agentName);
+  const [detail, connections, dispatches] = await Promise.all([
+    getCampaignWorkspaceDetail(campaignId, undefined, agentName),
+    getConnections(),
+    getCampaignDispatches(campaignId),
+  ]);
 
   if (detail.status !== "live") {
     const notFound = detail.status === "not_found";
@@ -41,5 +47,5 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
     );
   }
 
-  return <CampaignSimpleDetail detail={detail} agentName={agentName} />;
+  return <CampaignSimpleDetail detail={detail} agentName={agentName} connections={connections} dispatches={dispatches} />;
 }
