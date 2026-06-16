@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import { buildTrendBuckets, computeDelta, sumTwoPeriods, type KpiDelta, type TrendPoint } from "./overview-shape";
 
 export type PerformanceTone = "amber" | "green" | "red" | "blue" | "gray";
 
@@ -33,6 +34,9 @@ export type PerformanceReadModel =
       leadVolumeBySource: PerformanceBreakdown[];
       conversionSignals: PerformanceBreakdown[];
       funnelStages: { label: string; count: number }[];
+      trend: TrendPoint[];
+      leadsRecent: { count: number; delta: KpiDelta | null };
+      revenueRecent: { cents: number; delta: KpiDelta | null };
       campaignSignals: PerformanceBreakdown[];
       partnerSignals: PerformanceBreakdown[];
       revenueByPersona: PerformanceBreakdown[];
@@ -118,7 +122,7 @@ type EngagementEventRow = {
   created_at: string | null;
 };
 
-export async function getPerformanceReadModel(client?: SupabaseClient): Promise<PerformanceReadModel> {
+export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays: number = 30): Promise<PerformanceReadModel> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
@@ -156,8 +160,19 @@ export async function getPerformanceReadModel(client?: SupabaseClient): Promise<
 
     const wonOutcomes = outcomeRows.filter((outcome) => ["won", "closed_won", "paid"].includes(outcome.status ?? ""));
     const linkedRevenue = outcomeRows.reduce((sum, outcome) => sum + (outcome.gross_revenue_cents ?? 0), 0);
+    const now = Date.now();
+    const leadPeriods = sumTwoPeriods(leadRows.map((lead) => ({ at: lead.created_at, weight: 1 })), now, rangeDays);
+    const revenuePeriods = sumTwoPeriods(
+      outcomeRows.map((outcome) => ({ at: outcome.closed_at ?? outcome.created_at, weight: outcome.gross_revenue_cents ?? 0 })),
+      now,
+      rangeDays,
+    );
+    // Trend window tracks the range: ~1 bucket/week, min 8 weeks, capped at 26.
+    const trendWeeks = Math.min(Math.max(Math.ceil(rangeDays / 7), 8), 26);
     return {
       status: "live",
+      // Note: the breakdown lists below (persona/source/revenue/partners/cta) are all-time;
+      // only `trend`, `leadsRecent`, and `revenueRecent` honor `rangeDays` for now.
       metrics: [
         { label: "Lead records", value: leadRows.length, detail: "Current CRM lead volume", tone: leadRows.length > 0 ? "blue" : "gray" },
         { label: "Job records", value: jobRows.length, detail: "Booking proxy until booked_at exists", tone: jobRows.length > 0 ? "green" : "gray" },
@@ -172,6 +187,9 @@ export async function getPerformanceReadModel(client?: SupabaseClient): Promise<
         { label: "Bookings", count: jobRows.length },
         { label: "Won", count: wonOutcomes.length },
       ],
+      trend: buildTrendBuckets(leadRows, jobRows, now, trendWeeks),
+      leadsRecent: { count: leadPeriods.current, delta: computeDelta(leadPeriods.current, leadPeriods.prior) },
+      revenueRecent: { cents: revenuePeriods.current, delta: computeDelta(revenuePeriods.current, revenuePeriods.prior) },
       campaignSignals: buildCampaignSignals(campaignRows, assetRows, approvalRows),
       partnerSignals: buildPartnerSignals(companyRows, outcomeRows),
       revenueByPersona: buildRevenueByPersona(outcomeRows),

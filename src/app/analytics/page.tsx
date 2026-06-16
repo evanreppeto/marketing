@@ -2,7 +2,6 @@ import { connection } from "next/server";
 import Link from "next/link";
 
 import { EmptyState, PageHeader } from "../_components/page-header";
-import { TabNav } from "../_components/tab-nav";
 import { WorkspacePanel } from "../_components/workspace";
 import { buildPortfolioSplit } from "./_components/campaign-analytics-model";
 import { DonutSplit, type DonutSegment } from "./_components/charts/donut-split";
@@ -10,44 +9,40 @@ import { SegmentedBar } from "./_components/charts/segmented-bar";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getPerformanceReadModel } from "@/lib/performance/read-model";
 import { getAppSettings } from "@/lib/settings/store";
-
+import { buildTakeaway } from "@/lib/performance/overview-shape";
+import { KpiBand, type Kpi } from "./_components/overview/kpi-band";
+import { TrendChart } from "./_components/overview/trend-chart";
+import { TakeawayBanner } from "./_components/overview/takeaway-banner";
+import { SectionNav } from "./_components/overview/section-nav";
 import { ConversionTab, ContractTab, LeadVolumeTab, PartnerSignalsTab, RevenueTab } from "./_components/performance-breakdowns";
 
 export const metadata = {
   title: "Analytics",
 };
 
-type AnalyticsTabKey = "campaigns" | "leads" | "conversion" | "revenue" | "partners" | "contract";
-
-const analyticsTabs: Array<{ key: AnalyticsTabKey; label: string; detail: string }> = [
-  { key: "campaigns", label: "Campaigns", detail: "Per-campaign progress and insight." },
-  { key: "leads", label: "Leads", detail: "Persona and source volume." },
-  { key: "conversion", label: "Conversion", detail: "Booking, estimate, and close signals." },
-  { key: "revenue", label: "Revenue", detail: "Persona revenue and CTA events." },
-  { key: "partners", label: "Partners", detail: "Referral and partner attribution." },
-  { key: "contract", label: "Data contract", detail: "Backend fields still needed." },
-];
-
-/** Tone-dot color for a hero stat tile, keyed by tone so adding a tone has one obvious home. */
-const STAT_DOT_CLASS: Record<"ok" | "warn" | "accent", string> = {
+/** Dot color for a readiness-legend segment, keyed by tone so a new tone has one obvious home. */
+const SEGMENT_DOT: Record<DonutSegment["toneVar"], string> = {
   ok: "bg-[var(--ok)]",
   warn: "bg-[var(--warn)]",
-  accent: "bg-[var(--accent)]",
+  priority: "bg-[var(--priority)]",
+  muted: "bg-[var(--border-strong)]",
 };
 
-function normalizeTab(value: string | string[] | undefined): AnalyticsTabKey {
-  const tab = Array.isArray(value) ? value[0] : value;
-  return analyticsTabs.some((item) => item.key === tab) ? (tab as AnalyticsTabKey) : "campaigns";
-}
-
-export default async function AnalyticsPage({ searchParams }: { searchParams?: Promise<{ tab?: string | string[] }> }) {
+export default async function AnalyticsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   await connection();
 
-  const query = searchParams ? await searchParams : {};
-  const activeTab = normalizeTab(query.tab);
+  const params = searchParams ? await searchParams : {};
+  const rawRange = Array.isArray(params.range) ? params.range[0] : params.range;
+  const RANGES = [
+    { v: 30, label: "30 days", short: "30d" },
+    { v: 90, label: "90 days", short: "90d" },
+    { v: 365, label: "1 year", short: "1y" },
+  ] as const;
+  const activeRange = RANGES.find((r) => String(r.v) === rawRange) ?? RANGES[0];
+
   const [list, performance, settings] = await Promise.all([
     getCampaignWorkspaceList(),
-    getPerformanceReadModel(),
+    getPerformanceReadModel(undefined, activeRange.v),
     getAppSettings(),
   ]);
   const brand = { workspaceName: settings.workspaceName, logoUrl: settings.brandLogoUrl };
@@ -77,93 +72,96 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
     { key: "changes", label: "Needs changes", value: split.changes, toneVar: "priority" },
     { key: "draft", label: "In draft", value: split.draft, toneVar: "muted" },
   ];
-  const heroStats = [
-    { label: "Waiting on you", value: waitingOnYou, href: waitingOnYou > 0 ? "/campaigns" : undefined, toneVar: "warn" as const },
-    { label: "Approved & ready", value: readyCount, toneVar: "ok" as const },
-    { label: "Campaigns", value: list.totals.campaigns, toneVar: "accent" as const },
-    { label: "Creative made", value: list.totals.assets, toneVar: "accent" as const },
+
+  const perf = performance.status === "live" ? performance : null;
+  const fmtMoney = (cents: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
+  const kpis: Kpi[] = [
+    { label: "Waiting on you", value: String(waitingOnYou), caption: waitingOnYou > 0 ? "need approval" : "all clear", toneVar: "warn", href: waitingOnYou > 0 ? "/campaigns" : undefined },
+    { label: "Approved & ready", value: String(readyCount), caption: "signed off", toneVar: "ok" },
+    { label: `Leads (${activeRange.short})`, value: perf ? String(perf.leadsRecent.count) : "—", delta: perf ? perf.leadsRecent.delta : null, toneVar: "accent" },
+    { label: `Revenue linked (${activeRange.short})`, value: perf ? fmtMoney(perf.revenueRecent.cents) : "—", delta: perf ? perf.revenueRecent.delta : null, toneVar: "accent" },
+  ];
+  const takeaway = buildTakeaway(split, waitingOnYou);
+  // Only link to detail sections that actually render — they exist only when performance is live.
+  const sectionLinks = [
+    { id: "overview", label: "Overview" },
+    ...(perf
+      ? [
+          { id: "leads", label: "Leads" },
+          { id: "conversion", label: "Conversion" },
+          { id: "revenue", label: "Revenue" },
+          { id: "partners", label: "Partners" },
+        ]
+      : []),
   ];
 
   return (
     <>
       <AnalyticsHeader brand={brand} />
+      <SectionNav links={sectionLinks} />
 
-      <WorkspacePanel className="mb-5">
-        <div className="grid gap-6 p-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
-          <DonutSplit
-            segments={heroSegments}
-            centerValue={`${split.readiness}%`}
-            centerLabel={split.total > 0 ? "of your work is approved" : "nothing drafted yet"}
-          />
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--border-hairline)]">
-            {heroStats.map((stat) => {
-              const dot = STAT_DOT_CLASS[stat.toneVar];
-              const body = (
-                <>
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
-                    {stat.label}
-                  </div>
-                  <div className="mt-2 font-display text-3xl font-bold tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">{stat.value}</div>
-                </>
-              );
-              return stat.href ? (
-                <Link key={stat.label} href={stat.href} className="bg-[var(--surface-panel)] p-4 transition hover:bg-[var(--surface-inset)]">
-                  {body}
-                </Link>
-              ) : (
-                <div key={stat.label} className="bg-[var(--surface-panel)] p-4">
-                  {body}
-                </div>
-              );
-            })}
-          </div>
+      <div className="mb-5 flex items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Range</span>
+        <div className="inline-flex overflow-hidden rounded-lg border border-[var(--border-panel)]">
+          {RANGES.map((r) => (
+            <Link
+              key={r.v}
+              href={`/analytics?range=${r.v}`}
+              className={`px-3 py-1 text-xs font-semibold transition ${activeRange.v === r.v ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"}`}
+            >
+              {r.label}
+            </Link>
+          ))}
         </div>
-      </WorkspacePanel>
+      </div>
 
-      <TabNav
-        ariaLabel="Analytics sections"
-        activeKey={activeTab}
-        columns="sm:grid-cols-2 xl:grid-cols-6"
-        className="mb-5"
-        tabs={analyticsTabs.map((tab) => ({
-          key: tab.key,
-          label: tab.label,
-          detail: tab.detail,
-          href: `/analytics?tab=${tab.key}`,
-        }))}
-      />
-
-      {activeTab === "campaigns" ? (
-        <WorkspacePanel
-          title="Compare your campaigns"
-          description="Each campaign and how far it has moved from draft to approved. Select one to see its full analytics."
-        >
+      <section id="overview" aria-label="Overview" className="scroll-mt-20">
+        <KpiBand kpis={kpis} />
+        <TakeawayBanner text={takeaway} />
+        <div className="mb-5 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+          <WorkspacePanel eyebrow="Trend" title="Leads & booked work" description="New leads vs. booked jobs over the selected range.">
+            {perf ? <TrendChart data={perf.trend} /> : <EmptyState title="Trend unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />}
+          </WorkspacePanel>
+          <WorkspacePanel eyebrow="Readiness" title="Portfolio approval">
+            <div className="grid gap-5 p-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+              <DonutSplit segments={heroSegments} centerValue={`${split.readiness}%`} centerLabel={split.total > 0 ? "approved" : "nothing drafted yet"} />
+              <dl className="space-y-2 text-sm">
+                {heroSegments.map((seg) => (
+                  <div key={seg.key} className="flex items-center justify-between gap-3">
+                    <dt className="flex items-center gap-2 text-[var(--text-secondary)]"><span className={`h-2 w-2 rounded-sm ${SEGMENT_DOT[seg.toneVar]}`} aria-hidden="true" />{seg.label}</dt>
+                    <dd className="font-mono text-xs font-bold text-[var(--text-primary)]">{seg.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </WorkspacePanel>
+        </div>
+        <WorkspacePanel title="Compare your campaigns" description="Each campaign and how far it has moved from draft to approved. Select one to see its full analytics.">
           {rows.length > 0 ? (
             <ul className="divide-y divide-[var(--border-hairline)]">
-              {rows.map((row) => (
-                <ComparisonRow key={row.id} row={row} />
-              ))}
+              {rows.map((row) => (<ComparisonRow key={row.id} row={row} />))}
             </ul>
           ) : (
-            <EmptyState
-              title="No campaigns yet"
-              detail="When Mark drafts a campaign or you create one, it will appear here with its progress."
-            />
+            <EmptyState title="No campaigns yet" detail="When Mark drafts a campaign or you create one, it will appear here with its progress." />
           )}
         </WorkspacePanel>
-      ) : performance.status === "unavailable" ? (
-        <EmptyState title="Performance data unavailable" detail={performance.message} />
-      ) : activeTab === "leads" ? (
-        <LeadVolumeTab performance={performance} />
-      ) : activeTab === "conversion" ? (
-        <ConversionTab performance={performance} />
-      ) : activeTab === "revenue" ? (
-        <RevenueTab performance={performance} />
-      ) : activeTab === "partners" ? (
-        <PartnerSignalsTab rows={performance.partnerSignals} />
+      </section>
+
+      {perf ? (
+        <>
+          <section id="leads" aria-label="Leads" className="mt-8 scroll-mt-20"><SectionHeading title="Leads" /><LeadVolumeTab performance={perf} /></section>
+          <section id="conversion" aria-label="Conversion" className="mt-8 scroll-mt-20"><SectionHeading title="Conversion" /><ConversionTab performance={perf} /></section>
+          <section id="revenue" aria-label="Revenue" className="mt-8 scroll-mt-20"><SectionHeading title="Revenue" /><RevenueTab performance={perf} /></section>
+          <section id="partners" aria-label="Partners" className="mt-8 scroll-mt-20"><SectionHeading title="Partners" /><PartnerSignalsTab rows={perf.partnerSignals} /></section>
+          <details className="mt-8 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-[var(--text-secondary)]">What we can&apos;t measure yet</summary>
+            <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-muted)]">The fields below are the backend data still needed before deeper performance numbers are trustworthy.</p>
+            <div className="mt-3"><ContractTab contracts={perf.contracts} /></div>
+          </details>
+        </>
       ) : (
-        <ContractTab contracts={performance.contracts} />
+        <EmptyState title="Performance data unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />
       )}
     </>
   );
@@ -299,4 +297,8 @@ function AnalyticsHeader({ brand }: { brand: { workspaceName: string; logoUrl: s
       />
     </div>
   );
+}
+
+function SectionHeading({ title }: { title: string }) {
+  return <h2 className="mb-3 font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>;
 }
