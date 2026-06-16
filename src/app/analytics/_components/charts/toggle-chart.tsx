@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { ChartPoint } from "../campaign-analytics-model";
 import { BarBreakdown } from "./bar-breakdown";
 import { DonutPoints } from "./donut-points";
-import { NeedsDataChip } from "./chart-kit";
+import { NeedsDataChip, type ValueFormat } from "./chart-kit";
 
 /** A breakdown that the viewer can flip between a bar chart and a donut. Missing items stay honest chips. */
 export function ToggleChart({
@@ -13,19 +13,19 @@ export function ToggleChart({
   missing = [],
   emptyTitle,
   emptyDetail,
-  formatter,
+  valueFormat,
   initial = "bars",
 }: {
   points: ChartPoint[];
   missing?: string[];
   emptyTitle: string;
   emptyDetail: string;
-  formatter?: (value: number) => string;
+  valueFormat?: ValueFormat;
   initial?: "bars" | "donut";
 }) {
   const [mode, setMode] = useState<"bars" | "donut">(initial);
   if (points.length === 0) {
-    return <BarBreakdown points={points} missing={missing} emptyTitle={emptyTitle} emptyDetail={emptyDetail} formatter={formatter} />;
+    return <BarBreakdown points={points} missing={missing} emptyTitle={emptyTitle} emptyDetail={emptyDetail} valueFormat={valueFormat} />;
   }
   return (
     <div>
@@ -44,9 +44,9 @@ export function ToggleChart({
         </div>
       </div>
       {mode === "bars" ? (
-        <BarBreakdown points={points} missing={[]} emptyTitle={emptyTitle} emptyDetail={emptyDetail} formatter={formatter} />
+        <BarBreakdown points={points} missing={[]} emptyTitle={emptyTitle} emptyDetail={emptyDetail} valueFormat={valueFormat} />
       ) : (
-        <DonutPoints points={points} formatter={formatter} />
+        <DonutPoints points={points} valueFormat={valueFormat} />
       )}
       {missing.length > 0 ? (
         <div className="flex flex-wrap gap-2 px-4 pb-4">

@@ -3,7 +3,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import type { ChartPoint } from "../campaign-analytics-model";
-import { ChartTooltip, useReducedMotion } from "./chart-kit";
+import { ChartTooltip, formatValue, useReducedMotion, type ValueFormat } from "./chart-kit";
 import { useChartTheme } from "./use-chart-theme";
 
 // Gold-forward categorical ramp drawn from theme tokens — calm, no neon.
@@ -11,7 +11,7 @@ function palette(theme: ReturnType<typeof useChartTheme>): string[] {
   return [theme.accent, theme.ok, theme.warn, theme.priority, theme.textMuted];
 }
 
-export function DonutPoints({ points, formatter }: { points: ChartPoint[]; formatter?: (value: number) => string }) {
+export function DonutPoints({ points, valueFormat }: { points: ChartPoint[]; valueFormat?: ValueFormat }) {
   const theme = useChartTheme();
   const reduced = useReducedMotion();
   const colors = palette(theme);
@@ -27,7 +27,7 @@ export function DonutPoints({ points, formatter }: { points: ChartPoint[]; forma
           { label: "Other", value: points.slice(maxSlices - 1).reduce((sum, point) => sum + point.value, 0), tone: "gray" as const },
         ]
       : points;
-  const data = sliced.map((point) => ({ ...point, displayValue: formatter ? formatter(point.value) : String(point.value) }));
+  const data = sliced.map((point) => ({ ...point, displayValue: formatValue(point.value, valueFormat) }));
 
   return (
     <div className="flex items-center gap-5 p-4">
@@ -39,7 +39,7 @@ export function DonutPoints({ points, formatter }: { points: ChartPoint[]; forma
                 <Cell key={point.label} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            <Tooltip content={<ChartTooltip formatter={formatter} />} />
+            <Tooltip content={<ChartTooltip valueFormat={valueFormat} />} />
           </PieChart>
         </ResponsiveContainer>
       </div>

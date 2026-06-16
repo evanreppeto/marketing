@@ -8,10 +8,6 @@ import { FunnelFlow } from "./charts/funnel-flow";
 
 type LivePerformance = Extract<PerformanceReadModel, { status: "live" }>;
 
-/** Whole-dollar currency label for chart values that already carry dollars (not cents). */
-const formatDollars = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
-
 export function LeadVolumeTab({ performance }: { performance: LivePerformance }) {
   const byPersona = toChartPoints(performance.leadVolumeByPersona);
   const bySource = toChartPoints(performance.leadVolumeBySource);
@@ -59,7 +55,7 @@ export function RevenueTab({ performance }: { performance: LivePerformance }) {
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <WorkspacePanel eyebrow="Revenue intelligence" title="Revenue by persona" description="Outcome revenue grouped by persona when present.">
-        <ToggleChart points={revenue.points} missing={revenue.missing} formatter={formatDollars} initial="bars" emptyTitle="No revenue attributed yet" emptyDetail="No outcome revenue by persona exists yet." />
+        <ToggleChart points={revenue.points} missing={revenue.missing} valueFormat="usd" initial="bars" emptyTitle="No revenue attributed yet" emptyDetail="No outcome revenue by persona exists yet." />
       </WorkspacePanel>
       <WorkspacePanel eyebrow="CTA events" title="Form, photo-upload, and landing conversion" description="Internal reporting only.">
         <BarBreakdown points={cta.points} missing={cta.missing} emptyTitle="No CTA events yet" emptyDetail="No CTA/form/photo-upload events are tracked yet." />
