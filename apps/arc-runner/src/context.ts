@@ -1,4 +1,5 @@
 import type { ArcBusinessContext } from "./business-context";
+import { ARC_PERSONAS } from "./personas";
 import type { ArcHistoryTurn, MarkMention } from "./types";
 
 /** Route → model. Fast chat rides Haiku; heavier "standard" work rides Opus. */
@@ -38,6 +39,11 @@ function businessBlock(b: ArcBusinessContext): string {
     `Creative policy: ${b.creativePolicy}`,
     `Compliance: ${b.compliance}`,
   ].join("\n");
+}
+
+function personasBlock(): string {
+  const lines = ARC_PERSONAS.map((p) => `- ${p.key} — ${p.label}`);
+  return ["PERSONA TAXONOMY (use these exact keys when mapping or filtering by persona):", ...lines].join("\n");
 }
 
 function modeBlock(mode: "ask" | "act" | "draft"): string {
@@ -86,6 +92,7 @@ export function buildSystemPrompt(base: string, ctx: ArcTurnContext): string {
   const parts: (string | null)[] = [
     base,
     businessBlock(ctx.business),
+    personasBlock(),
     modeBlock(ctx.mode),
     styleBlock(ctx),
     scopeBlock(ctx.scope),

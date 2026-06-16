@@ -1,10 +1,10 @@
-import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
-import { z } from "zod";
+import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { BSR_CONTEXT } from "./business-context";
 import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
-import type { HermesClient } from "./hermes-client";
+import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
+import { allowedToolNames, toolsForMode } from "./tools";
 import type { MarkChatMessagePayload } from "./types";
 
 /**
@@ -16,11 +16,11 @@ import type { MarkChatMessagePayload } from "./types";
  * `payload.route`; the system prompt is composed from the business context, the
  * operator's mode, behavior hints, conversation scope, and any @-mentions.
  *
- * Tools: Arc gets in-process tools that call the app's API. Each tool reports a
- * running -> done step to the chat bubble, producing the live trace. (Richer
- * tools and action cards arrive in later plans; find_leads is the seed.)
+ * Tools: the tool surface is gated by `payload.mode` (ask = read-only; act/draft
+ * add CRM-interaction + brain writes). Each tool reports a running -> done step
+ * to the chat bubble, producing the live trace. Outbound has no tool in any mode.
  */
-export async function runArcTurn(payload: MarkChatMessagePayload, client: HermesClient): Promise<string> {
+export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcClient): Promise<string> {
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const ctx: ArcTurnContext = {
@@ -38,32 +38,8 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: Hermes
     approvalStrictness: payload.approvalStrictness,
   };
 
-  const findLeads = tool(
-    "find_leads",
-    "Search the connected business's CRM leads. Use when the operator asks about leads, opportunities, or who to target. All filters are optional.",
-    {
-      status: z.string().optional().describe("Lead status, e.g. qualified | new | contacted"),
-      persona: z.string().optional().describe("Persona key to filter by"),
-      source: z.string().optional().describe("Lead source to filter by"),
-      q: z.string().optional().describe("Free-text search across leads"),
-      limit: z.number().optional().describe("Max results (default 25)"),
-    },
-    async (args) => {
-      const label = "Searching CRM leads";
-      await step(label, "running");
-      try {
-        const leads = await client.getLeads(args);
-        await step(label, "done");
-        return { content: [{ type: "text" as const, text: JSON.stringify(leads).slice(0, 8000) }] };
-      } catch (error) {
-        await step(label, "done");
-        const reason = error instanceof Error ? error.message : "unknown error";
-        return { content: [{ type: "text" as const, text: `find_leads failed: ${reason}` }] };
-      }
-    },
-  );
-
-  const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools: [findLeads] });
+  const tools = toolsForMode(payload.mode, client, step);
+  const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
 
   const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, ctx);
   const preamble = formatHistory(payload.history);
@@ -78,7 +54,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: Hermes
       systemPrompt: system,
       model: modelForRoute(payload.route),
       mcpServers: { arc: arcServer },
-      allowedTools: ["mcp__arc__find_leads"],
+      allowedTools: allowedToolNames(payload.mode),
       permissionMode: "bypassPermissions",
     },
   })) {
