@@ -6,6 +6,7 @@ import { cx } from "@/app/_components/theme";
 import type { MarkMention, MarkMode, MarkRoute } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
+import { ModelSelect } from "./model-select";
 import type { MarkAttachment, MarkMessage, MarkProject } from "@/lib/mark-chat/persistence";
 import type { MentionGroup } from "@/lib/mark-chat/mention-search";
 
@@ -65,13 +66,7 @@ const MODE_OPTIONS: PillOption<MarkMode>[] = [
   { id: "ask", label: "Ask", hint: "Answer only — produce no work", icon: <Glyph><path d="M4 5.5h12v7H8l-3 2.5V12.5H4z" /></Glyph> },
   { id: "draft", label: "Draft", hint: "Draft content for your review", icon: <Glyph><path d="M4 13.5V16h2.5l8-8L12 5.5l-8 8z" /><path d="M11 6.5l2.5 2.5" /></Glyph> },
 ];
-const ROUTE_OPTIONS: PillOption<MarkRoute>[] = [
-  // Fast = lightning bolt, Standard = steady arrow (more thorough).
-  { id: "fast", label: "Claude Fast", hint: "Anthropic Claude route for quick replies", icon: <Glyph><path d="M11 2.5 4.5 11H9l-1 6.5 7.5-9H11z" /></Glyph> },
-  { id: "standard", label: "Claude Standard", hint: "Anthropic Claude route for deeper work", icon: <Glyph><path d="M3 10h14M10 3l7 7-7 7" /></Glyph> },
-];
-
-/** Footer pill with a labelled dropdown - used for the per-message mode + model route
+/** Footer pill with a labelled dropdown - used for the per-message mode route
  *  selectors. Manages its own open state and outside-click/Escape dismissal. */
 function PillSelect<T extends string>({
   value,
@@ -794,8 +789,17 @@ export function Composer({
           <p className="mt-2 text-xs font-medium text-[var(--text-muted)]">{voiceError}</p>
         ) : null}
 
-        {/* Visible context selectors below the box (project picker), like the reference composer. */}
+        {/* Visible context selectors below the box: Arc model, mode, project — like the reference composer. */}
         <div className="mt-2 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[var(--text-muted)]">
+          <ModelSelect value={route} onChange={onRouteChange} />
+
+          <PillSelect
+            ariaLabel="Mode"
+            value={mode}
+            options={MODE_OPTIONS}
+            onChange={onModeChange}
+          />
+
           <div ref={projectWrapRef} className="relative">
             <button
               type="button"
@@ -831,19 +835,6 @@ export function Composer({
               </div>
             ) : null}
           </div>
-
-          <PillSelect
-            ariaLabel="Mode"
-            value={mode}
-            options={MODE_OPTIONS}
-            onChange={onModeChange}
-          />
-          <PillSelect
-            ariaLabel="Model"
-            value={route}
-            options={ROUTE_OPTIONS}
-            onChange={onRouteChange}
-          />
 
           <span className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
             <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
