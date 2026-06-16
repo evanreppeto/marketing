@@ -93,7 +93,7 @@ function IoBlock({ label, value }: { label: string; value: string }) {
       <div className="border-b border-[var(--border-hairline)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
         {label}
       </div>
-      <p className="whitespace-pre-wrap px-3 py-2 text-xs leading-6 text-[var(--text-secondary)]">{value}</p>
+      <p className="max-h-48 overflow-y-auto whitespace-pre-wrap px-3 py-2 text-xs leading-6 text-[var(--text-secondary)]">{value}</p>
     </div>
   );
 }

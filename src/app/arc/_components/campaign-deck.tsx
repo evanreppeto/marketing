@@ -56,7 +56,7 @@ function DeckCard({
       </button>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5">
-        <p className="truncate text-[13px] font-bold text-[var(--text-primary)]" title={card.title}>{card.title}</p>
+        <p className="truncate text-[13px] font-semibold text-[var(--text-primary)]" title={card.title}>{card.title}</p>
         <div className="flex flex-wrap items-center gap-1.5">
           {card.channel ? (
             <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
@@ -72,7 +72,7 @@ function DeckCard({
             <>
               <span
                 className={cx(
-                  "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-[11px] font-bold",
+                  "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-[11px] font-semibold",
                   approved ? "bg-[var(--ok-soft)] text-[var(--ok-text)]" : revision ? "bg-[var(--warn-soft)] text-[var(--warn-text)]" : "bg-[var(--surface-inset)] text-[var(--text-muted)]",
                 )}
               >
@@ -82,7 +82,7 @@ function DeckCard({
                 {approved ? "Approved" : revision ? "Needs revision" : "Declined"}
               </span>
               <button type="button" onClick={() => onOpen?.(assetId)} className="rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--text-primary)]">
-                Open ▸
+                Open
               </button>
             </>
           ) : hasRisk ? (
@@ -90,10 +90,10 @@ function DeckCard({
             <button
               type="button"
               onClick={() => onOpen?.(assetId)}
-              className="flex flex-1 items-center justify-center gap-1 rounded-md border border-[var(--priority-soft)] py-1.5 text-[11px] font-bold text-[var(--priority-text)] transition hover:bg-[var(--priority-soft)]"
+              className="flex flex-1 items-center justify-center gap-1 rounded-md border border-[var(--priority-soft)] py-1.5 text-[11px] font-semibold text-[var(--priority-text)] transition hover:bg-[var(--priority-soft)]"
             >
               <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 7v4M10 14h.01M10 3l7 12H3z" /></svg>
-              Review risk ▸
+              Review risk
             </button>
           ) : approval ? (
             <>
@@ -101,7 +101,7 @@ function DeckCard({
                 <button
                   type="button"
                   onClick={() => onDecision(approval.assetId, "approved")}
-                  className="flex-1 rounded-md border border-[var(--ok-border)] bg-[var(--ok-solid)] py-1.5 text-[11px] font-bold text-[var(--on-ok)] transition hover:bg-[var(--ok-hover)]"
+                  className="flex-1 rounded-md border border-[var(--ok-border)] bg-[var(--ok-solid)] py-1.5 text-[11px] font-semibold text-[var(--on-ok)] transition hover:bg-[var(--ok-hover)]"
                 >
                   Approve
                 </button>
@@ -110,18 +110,18 @@ function DeckCard({
                   <input type="hidden" name="assetId" value={approval.assetId} />
                   <input type="hidden" name="campaignId" value={approval.campaignId} />
                   <input type="hidden" name="decision" value="approved" />
-                  <button type="submit" className="w-full rounded-md border border-[var(--ok-border)] bg-[var(--ok-solid)] py-1.5 text-[11px] font-bold text-[var(--on-ok)] transition hover:bg-[var(--ok-hover)]">
+                  <button type="submit" className="w-full rounded-md border border-[var(--ok-border)] bg-[var(--ok-solid)] py-1.5 text-[11px] font-semibold text-[var(--on-ok)] transition hover:bg-[var(--ok-hover)]">
                     Approve
                   </button>
                 </form>
               )}
               <button type="button" onClick={() => onOpen?.(assetId)} className="rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--text-primary)]">
-                Open ▸
+                Open
               </button>
             </>
           ) : (
             <button type="button" onClick={() => onOpen?.(assetId)} className="flex-1 rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--text-primary)]">
-              Open ▸
+              Open
             </button>
           )}
         </div>
@@ -158,7 +158,7 @@ export function CampaignDeck({
         <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="14" height="12" rx="2" /><path d="M3 8h14M8 4v12" />
         </svg>
-        <span className="text-[13px] font-bold text-[var(--text-primary)]">{campaignName ?? "Campaign package"}</span>
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{campaignName ?? "Campaign package"}</span>
         <span className="text-[12px] text-[var(--text-muted)]">
           · {cards.length} assets{pending > 0 ? ` · ${pending} need approval` : ""}
         </span>

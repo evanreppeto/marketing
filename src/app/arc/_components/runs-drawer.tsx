@@ -101,6 +101,7 @@ function Section({ label, runs, nowMs, onClose }: { label: string; runs: ArcRun[
 export function RunsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [runs, setRuns] = useState<ArcRun[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -111,10 +112,14 @@ export function RunsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         const next = await getArcRunsAction();
         if (alive) {
           setRuns(next);
+          setError(false);
           setLoading(false);
         }
       } catch {
-        if (alive) setLoading(false);
+        if (alive) {
+          setError(true);
+          setLoading(false);
+        }
       }
     }
     void tick();
@@ -171,6 +176,13 @@ export function RunsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
           {loading ? (
             <p className="text-xs text-[var(--text-muted)]">Loading runs…</p>
+          ) : error && runs.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-[var(--border-hairline)] p-6 text-center">
+              <p className="text-sm font-medium text-[var(--text-primary)]">Couldn&rsquo;t load runs</p>
+              <p className="mx-auto mt-1.5 max-w-[42ch] text-xs leading-5 text-[var(--text-muted)]">
+                The run list is temporarily unavailable. It&rsquo;ll refresh on the next poll.
+              </p>
+            </div>
           ) : runs.length === 0 ? (
             <div className="rounded-lg border border-dashed border-[var(--border-hairline)] p-6 text-center">
               <p className="text-sm font-medium text-[var(--text-primary)]">No runs yet</p>

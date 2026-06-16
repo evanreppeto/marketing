@@ -753,7 +753,7 @@ export function Composer({
               className={cx(
                 "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-[inset_0_0_0_1px_var(--border-strong)] transition active:scale-95 after:hidden",
                 voiceState === "listening"
-                  ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[0_0_22px_var(--accent-soft),inset_0_0_0_1px_var(--accent-border-strong)]"
+                  ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
                   : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
                 voiceState === "checking" || voiceState === "unsupported" || isPending ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--text-muted)]" : "",
               )}

@@ -148,7 +148,7 @@ export function ChatEmptyShortcuts({
           key={s.label}
           type="button"
           onClick={() => onPick(s.prompt)}
-          className="group flex items-start gap-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-px hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-soft)] hover:shadow-[var(--elev-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-0"
+          className="group flex items-start gap-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 py-3.5 text-left transition-colors duration-200 hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-inset)] text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition-colors group-hover:bg-[var(--surface-raised)] group-hover:text-[var(--accent-strong)]">
             <svg
