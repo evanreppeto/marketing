@@ -8,7 +8,7 @@ const ROW: VaultNoteRow = {
   title: "X",
   folder: "Playbooks",
   tags: ["a", "b"],
-  author: "Mark",
+  author: "Arc",
   status: "needs_review",
   body: "# X",
   updated_at: "2026-06-01T12:00:00.000Z",
@@ -21,7 +21,7 @@ describe("rowToVaultNote", () => {
       title: "X",
       folder: "Playbooks",
       tags: ["a", "b"],
-      author: "Mark",
+      author: "Arc",
       status: "Needs review",
       updated: "2026-06-01",
       body: "# X",
@@ -38,11 +38,11 @@ describe("rowToVaultNote", () => {
 describe("vaultNoteToRow", () => {
   it("maps a VaultNote to a db row with enum status", () => {
     const note: VaultNote = {
-      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Mark",
+      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Arc",
       status: "Published", updated: "Today", body: "# X",
     };
     expect(vaultNoteToRow(note)).toEqual({
-      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Mark",
+      slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Arc",
       status: "published", body: "# X",
     });
   });

@@ -5,7 +5,7 @@ import {
   buildAuditLog,
   buildExecutiveOverview,
   buildLaunchState,
-  buildMarkConversation,
+  buildArcConversation,
   buildReasoning,
   buildSources,
   classifyMediaAsset,
@@ -43,7 +43,7 @@ const baseCampaign = {
   company_id: null,
   contact_id: null,
   lead_id: null,
-  owner: "Mark",
+  owner: "Arc",
   objective: "Pre-approve Big Shoulders as the priority water-loss vendor before spring thaw.",
   audience_summary: "Property managers in 60091/60093/60201.",
   offer_summary: "Insurance-ready water-loss response with a managed-building SLA.",
@@ -62,7 +62,7 @@ describe("buildExecutiveOverview", () => {
       ...baseCampaign,
       reasoning_payload: {
         customer_journey_overview: "A property-manager journey from risk awareness to vendor pre-approval.",
-        why_mark_built_it: "Spring thaw increases managed-building water-loss risk.",
+        why_arc_built_it: "Spring thaw increases managed-building water-loss risk.",
         campaign_window: { start_date: "2026-03-01", end_date: "2026-04-15" },
         markets: ["60091", "60093", "60201"],
         success_metrics: ["approved vendor packets", "booked water-loss referrals"],
@@ -87,7 +87,7 @@ describe("buildExecutiveOverview", () => {
     });
   });
 
-  it("falls back to existing campaign evidence when Mark has not supplied explicit fields yet", () => {
+  it("falls back to existing campaign evidence when Arc has not supplied explicit fields yet", () => {
     const reasoning = buildReasoning(baseCampaign as Parameters<typeof buildReasoning>[0], []);
 
     const overview = buildExecutiveOverview({
@@ -98,7 +98,7 @@ describe("buildExecutiveOverview", () => {
         {
           id: "source-1",
           label: "Property manager directory",
-          detail: "Evidence URL captured by Mark.",
+          detail: "Evidence URL captured by Arc.",
           url: "https://example.com",
           recordHref: null,
           kind: "web",
@@ -173,10 +173,10 @@ describe("buildApprovalHistory", () => {
 });
 
 describe("buildAuditLog", () => {
-  it("tags actors and merges events with Mark outputs, newest first", () => {
+  it("tags actors and merges events with Arc outputs, newest first", () => {
     const events = [
       { id: "e1", event_type: "launched", actor: "ops@bigshoulders.test", detail: "Campaign launched", occurred_at: "2026-06-03T09:00:00.000Z" },
-      { id: "e2", event_type: "asset_generated", actor: "Mark", detail: "Drafted email", occurred_at: "2026-06-01T09:00:00.000Z" },
+      { id: "e2", event_type: "asset_generated", actor: "Arc", detail: "Drafted email", occurred_at: "2026-06-01T09:00:00.000Z" },
     ];
     const outputs = [
       { id: "o1", output_type: "email_draft", title: "Partner intro email", created_at: "2026-06-02T09:00:00.000Z", body: "", edited_body: null, structured_payload: {}, approval_status: "approved" },
@@ -189,13 +189,13 @@ describe("buildAuditLog", () => {
 
     expect(log.map((entry) => entry.id)).toEqual(["evt-e1", "out-o1", "evt-e2"]);
     expect(log[0]).toMatchObject({ actorKind: "user", action: "Launched" });
-    expect(log[1]).toMatchObject({ actorKind: "mark", action: "Produced Email Draft" });
-    expect(log[2]).toMatchObject({ actorKind: "mark" });
+    expect(log[1]).toMatchObject({ actorKind: "arc", action: "Produced Email Draft" });
+    expect(log[2]).toMatchObject({ actorKind: "arc" });
   });
 });
 
-describe("buildMarkConversation", () => {
-  it("includes only human-initiated directives as operator turns, with Mark's outputs, chronological", () => {
+describe("buildArcConversation", () => {
+  it("includes only human-initiated directives as operator turns, with Arc's outputs, chronological", () => {
     const tasks = [
       { id: "t1", objective: "Draft 2 more ads", task_type: "campaign_directive", status: "queued", priority: "high", metadata: { requested_by: "ops@bigshoulders.test", human_instruction: "Draft 2 more ads" }, created_at: "2026-06-02T09:00:00.000Z", updated_at: "" },
       { id: "t2", objective: "autonomous sweep", task_type: "scheduled_scan", status: "queued", priority: "low", metadata: {}, created_at: "2026-06-01T09:00:00.000Z", updated_at: "" },
@@ -204,15 +204,15 @@ describe("buildMarkConversation", () => {
       { id: "o1", output_type: "ad_draft", title: "Search ad", created_at: "2026-06-03T09:00:00.000Z", body: "Body", edited_body: null, structured_payload: {}, approval_status: "pending_approval" },
     ];
 
-    const convo = buildMarkConversation(
-      tasks as Parameters<typeof buildMarkConversation>[0],
-      outputs as Parameters<typeof buildMarkConversation>[1],
+    const convo = buildArcConversation(
+      tasks as Parameters<typeof buildArcConversation>[0],
+      outputs as Parameters<typeof buildArcConversation>[1],
     );
 
     // Autonomous task (no requester) is excluded; ordered oldest→newest.
     expect(convo.map((m) => m.id)).toEqual(["task-t1", "output-o1"]);
     expect(convo[0]).toMatchObject({ role: "operator", author: "ops@bigshoulders.test" });
-    expect(convo[1]).toMatchObject({ role: "mark", title: "Search ad" });
+    expect(convo[1]).toMatchObject({ role: "arc", title: "Search ad" });
   });
 });
 

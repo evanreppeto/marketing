@@ -127,7 +127,7 @@ export async function insertTask(input: TaskInput): Promise<PersistResult> {
   return { ok: true, id: data.id };
 }
 
-/** Mark a task completed (or another terminal status) and log a companion activity. */
+/** Arc a task completed (or another terminal status) and log a companion activity. */
 export async function updateTaskStatus(
   taskId: string,
   status: TaskInput["status"],

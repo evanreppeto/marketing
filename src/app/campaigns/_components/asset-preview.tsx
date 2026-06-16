@@ -95,7 +95,7 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
         className="group block overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]"
         title={media.description ?? media.title}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- Mark emits arbitrary remote creative URLs; no optimizer config */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
         <img src={media.thumbnailUrl ?? media.url} alt={media.title} className="h-36 w-full object-contain transition group-hover:scale-[1.02]" />
       </a>
     );

@@ -106,7 +106,7 @@ function campaign(overrides: Partial<CampaignWorkspaceListItem> = {}): CampaignW
     objective: overrides.objective ?? "Build partner-facing email and one-pager",
     audienceSummary: overrides.audienceSummary ?? "Plumbing partners who find water damage.",
     offerSummary: overrides.offerSummary ?? "Fast documentation and mitigation handoff.",
-    whyBuilt: overrides.whyBuilt ?? "Mark found strong referral-fit partners.",
+    whyBuilt: overrides.whyBuilt ?? "Arc found strong referral-fit partners.",
     assetCount: overrides.assetCount ?? 3,
     approvalCount: overrides.approvalCount ?? 2,
     mediaCount: overrides.mediaCount ?? 0,
@@ -217,10 +217,10 @@ describe("campaign manager helpers", () => {
     });
   });
 
-  it("falls back to why Mark built it when no preview text exists", () => {
-    expect(campaignPreviewText(campaign({ previewText: "", previewLabel: "", whyBuilt: "Mark found a strong partner fit." }), "Agent")).toEqual({
+  it("falls back to why Arc built it when no preview text exists", () => {
+    expect(campaignPreviewText(campaign({ previewText: "", previewLabel: "", whyBuilt: "Arc found a strong partner fit." }), "Agent")).toEqual({
       label: "Why this exists",
-      text: "Mark found a strong partner fit.",
+      text: "Arc found a strong partner fit.",
     });
   });
 
@@ -235,7 +235,7 @@ describe("campaign manager helpers", () => {
     expect(actions.map((action) => ({ key: action.key, count: action.count, cta: action.cta, tone: action.tone }))).toEqual([
       { key: "needs-attention", count: 1, cta: "Start reviewing", tone: "amber" },
       { key: "ready-to-send", count: 1, cta: "View ready", tone: "blue" },
-      { key: "mark-working", count: 1, cta: "Check drafts", tone: "blue" },
+      { key: "arc-working", count: 1, cta: "Check drafts", tone: "blue" },
       { key: "live", count: 1, cta: "View live", tone: "green" },
     ]);
     expect(actions[0].detail).toBe("2 pieces need a yes, a revision note, or a hold.");
@@ -257,7 +257,7 @@ describe("campaign manager helpers", () => {
 
     expect(filterCampaignManagerItems(items, "needs-attention").map((campaignItem) => campaignItem.id)).toEqual(["review"]);
     expect(filterCampaignManagerItems(items, "ready-to-send").map((campaignItem) => campaignItem.id)).toEqual(["ready"]);
-    expect(filterCampaignManagerItems(items, "mark-working").map((campaignItem) => campaignItem.id)).toEqual(["draft"]);
+    expect(filterCampaignManagerItems(items, "arc-working").map((campaignItem) => campaignItem.id)).toEqual(["draft"]);
     expect(filterCampaignManagerItems(items, "live").map((campaignItem) => campaignItem.id)).toEqual(["live"]);
     expect(filterCampaignManagerItems(items, "all").map((campaignItem) => campaignItem.id)).toEqual(["review", "ready", "live", "draft"]);
   });
@@ -294,7 +294,7 @@ describe("campaign manager helpers", () => {
       "needs-attention": 1,
       all: 5,
       "ready-to-send": 1,
-      "mark-working": 1,
+      "arc-working": 1,
       live: 1,
       archived: 1,
     });

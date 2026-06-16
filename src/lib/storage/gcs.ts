@@ -70,7 +70,7 @@ export async function createSignedUploadUrl(
   return { uploadUrl, objectPath };
 }
 
-/** A v4 signed GET URL to read an uploaded object (display / hand to Mark). */
+/** A v4 signed GET URL to read an uploaded object (display / hand to Arc). */
 export async function createSignedReadUrl(objectPath: string, ttlMs = 60 * 60 * 1000): Promise<string> {
   const [url] = await getStorage()
     .bucket(getBucketName())

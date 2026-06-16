@@ -171,7 +171,7 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
     status: "draft",
     launch_locked: true,
     owner: input.operator,
-    source_system: "mark_saved",
+    source_system: "arc_saved",
   });
   await insertNoReturn(client, "campaign_events", {
     campaign_id: campaignId,
@@ -207,7 +207,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     status: "pending_approval",
     draft_body: input.body,
     dispatch_locked: true,
-    tool_source: "mark_saved",
+    tool_source: "arc_saved",
     audit_payload: input.mediaUrl
       ? { media_assets: [{ url: input.mediaUrl }], outbound_locked: true }
       : { outbound_locked: true },

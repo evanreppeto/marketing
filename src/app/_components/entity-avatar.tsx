@@ -1,10 +1,10 @@
 "use client";
 
-import { MarkAvatar } from "@/app/mark/_components/mark-avatar";
+import { ArcAvatar } from "@/app/arc/_components/arc-avatar";
 
 import { resolveHumanAvatar, type AvatarOwner } from "./entity-avatar.helpers";
 
-/** One avatar slot for both kinds of board owner: Mark (sphere) and humans
+/** One avatar slot for both kinds of board owner: Arc (sphere) and humans
  *  (profile photo, with initials fallback until photos exist). */
 export function EntityAvatar({
   owner,
@@ -16,7 +16,7 @@ export function EntityAvatar({
   pending?: boolean;
 }) {
   if (owner.kind === "agent") {
-    return <MarkAvatar size={size} pending={pending} />;
+    return <ArcAvatar size={size} pending={pending} />;
   }
 
   const view = resolveHumanAvatar(owner);

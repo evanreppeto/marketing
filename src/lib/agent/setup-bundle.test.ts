@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createHermesSetupBundle, generateWebhookSecret } from "./setup-bundle";
+import { createArcSetupBundle, generateWebhookSecret } from "./setup-bundle";
 
 describe("generateWebhookSecret", () => {
   it("creates random webhook secrets with a recognizable prefix", () => {
@@ -13,10 +13,10 @@ describe("generateWebhookSecret", () => {
   });
 });
 
-describe("createHermesSetupBundle", () => {
+describe("createArcSetupBundle", () => {
   it("returns a ready-to-paste prompt with generated credentials filled in", () => {
-    const bundle = createHermesSetupBundle({
-      agentName: "Hermes Prime",
+    const bundle = createArcSetupBundle({
+      agentName: "Arc Prime",
       appBaseUrl: "https://acme.growthengine.com/",
       token: "sk_live_test_token",
       webhookSecret: "whsec_test_secret",
@@ -24,16 +24,16 @@ describe("createHermesSetupBundle", () => {
 
     expect(bundle.token).toBe("sk_live_test_token");
     expect(bundle.webhookSecret).toBe("whsec_test_secret");
-    expect(bundle.prompt).toContain("You are Hermes Prime");
+    expect(bundle.prompt).toContain("You are Arc Prime");
     expect(bundle.prompt).toContain("GROWTH_APP_BASE_URL=https://acme.growthengine.com");
     expect(bundle.prompt).toContain("GROWTH_APP_AGENT_TOKEN=sk_live_test_token");
-    expect(bundle.prompt).toContain("HERMES_WEBHOOK_SECRET=whsec_test_secret");
+    expect(bundle.prompt).toContain("ARC_WEBHOOK_SECRET=whsec_test_secret");
     expect(bundle.prompt).not.toContain("PASTE_AGENT_TOKEN_HERE");
     expect(bundle.prompt).not.toContain("PASTE_SHARED_WEBHOOK_SECRET_HERE");
   });
 
   it("returns an env file and verification message for the same workspace", () => {
-    const bundle = createHermesSetupBundle({
+    const bundle = createArcSetupBundle({
       appBaseUrl: "https://acme.growthengine.com/",
       token: "sk_live_test_token",
       webhookSecret: "whsec_test_secret",
@@ -41,13 +41,13 @@ describe("createHermesSetupBundle", () => {
 
     expect(bundle.envFile).toContain("GROWTH_APP_BASE_URL=https://acme.growthengine.com");
     expect(bundle.envFile).toContain("GROWTH_APP_AGENT_TOKEN=sk_live_test_token");
-    expect(bundle.envFile).toContain("HERMES_WEBHOOK_SECRET=whsec_test_secret");
-    expect(bundle.verificationMessage).toContain("GET https://acme.growthengine.com/api/v1/hermes/ping");
-    expect(bundle.verificationMessage).toContain("GET https://acme.growthengine.com/api/v1/hermes/messages?limit=20");
+    expect(bundle.envFile).toContain("ARC_WEBHOOK_SECRET=whsec_test_secret");
+    expect(bundle.verificationMessage).toContain("GET https://acme.growthengine.com/api/v1/arc/ping");
+    expect(bundle.verificationMessage).toContain("GET https://acme.growthengine.com/api/v1/arc/messages?limit=20");
   });
 
   it("carries the agent profile and selected skills into the generated prompt", () => {
-    const bundle = createHermesSetupBundle({
+    const bundle = createArcSetupBundle({
       appBaseUrl: "https://acme.growthengine.com/",
       token: "sk_live_test_token",
       webhookSecret: "whsec_test_secret",

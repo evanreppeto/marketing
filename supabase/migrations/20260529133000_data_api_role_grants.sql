@@ -1,4 +1,4 @@
--- Data API role grants for the standalone Hermes Growth Engine schema.
+-- Data API role grants for the standalone Arc Growth Engine schema.
 -- RLS remains enabled on all public tables; these grants only make the tables
 -- addressable by the API roles. Server-side code uses service_role.
 

@@ -1,5 +1,5 @@
 /**
- * Pure validation for operator-authored revision instructions sent to Mark from
+ * Pure validation for operator-authored revision instructions sent to Arc from
  * the Campaigns workspace. No I/O — the persistence layer and server action
  * import this to guard input before any write.
  */
@@ -20,13 +20,13 @@ export class RevisionInstructionError extends Error {
  */
 export function validateRevisionInstruction(raw: unknown): string {
   if (typeof raw !== "string") {
-    throw new RevisionInstructionError("Tell Mark what to change.");
+    throw new RevisionInstructionError("Tell Arc what to change.");
   }
 
   const value = raw.trim();
 
   if (value.length < MIN_REVISION_INSTRUCTION_LENGTH) {
-    throw new RevisionInstructionError("Tell Mark what to change — a few words at least.");
+    throw new RevisionInstructionError("Tell Arc what to change — a few words at least.");
   }
 
   if (value.length > MAX_REVISION_INSTRUCTION_LENGTH) {

@@ -49,12 +49,11 @@ describe("settings store helpers", () => {
       { key: "brand_logo_url", value: "/brand/custom-logo.png" },
       { key: "brand_favicon_url", value: "/brand/custom-icon.png" },
       { key: "support_email", value: "help@example.com" },
-      { key: "mark_default_mode", value: "draft" },
-      { key: "mark_default_route", value: "standard" },
+      { key: "arc_default_mode", value: "draft" },
+      { key: "arc_default_route", value: "standard" },
       { key: "appearance_accent", value: "emerald" },
       { key: "appearance_density", value: "compact" },
       { key: "appearance_motion", value: "reduced" },
-      { key: "mark_webhook_enabled", value: false },
     ]);
 
     expect(settings).toEqual({
@@ -80,8 +79,8 @@ describe("settings store helpers", () => {
 
   it("falls back to safe Arc defaults when persisted rows are invalid", () => {
     const settings = mergeAppSettingsRows([
-      { key: "mark_default_mode", value: "go-wild" },
-      { key: "mark_default_route", value: "premium" },
+      { key: "arc_default_mode", value: "go-wild" },
+      { key: "arc_default_route", value: "premium" },
       { key: "appearance_accent", value: "rainbow" },
       { key: "appearance_density", value: "tiny" },
       { key: "appearance_motion", value: "spinny" },

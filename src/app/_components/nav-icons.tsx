@@ -3,7 +3,7 @@ export type NavIconName =
   | "crm"
   | "outbox"
   | "gallery"
-  | "mark"
+  | "arc"
   | "settings"
   | "board"
   | "analytics"
@@ -66,8 +66,8 @@ const paths: Record<NavIconName, React.ReactNode> = {
       <path d="m4 16 4.2-4 3.3 3.2 2.7-2.6L20 18" />
     </>
   ),
-  // Message square — the Mark conversation
-  mark: (
+  // Message square — the Arc conversation
+  arc: (
     <>
       <path d="M5.5 4.5h13A1.5 1.5 0 0 1 20 6v9a1.5 1.5 0 0 1-1.5 1.5H10L6 20v-3.5H5.5A1.5 1.5 0 0 1 4 15V6a1.5 1.5 0 0 1 1.5-1.5Z" />
       <path d="M8.5 9h7" />

@@ -196,7 +196,7 @@ export function TicketEditableHeader({
                     Review
                   </Link>
                 ) : null}
-                <a className={buttonClasses({ variant: "ghost", size: "sm" })} href="#mark-instruction">
+                <a className={buttonClasses({ variant: "ghost", size: "sm" })} href="#arc-instruction">
                   Instruct
                 </a>
               </div>
@@ -217,7 +217,7 @@ export function TicketEditableHeader({
             <span className="sr-only">{`Instruction for ${agentName}`}</span>
             <input
               className="min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-              id="mark-instruction"
+              id="arc-instruction"
               onChange={(event) => setInstruction(event.target.value)}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && (event.key === "Enter" || event.key === "NumpadEnter")) {

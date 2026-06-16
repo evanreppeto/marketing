@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { parseMarkMode, parseMarkRoute } from "@/domain";
+import { parseArcMode, parseArcRoute } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getAgentName } from "@/lib/settings/agent-name";
 import {
@@ -97,7 +97,7 @@ export async function saveBrandingSettingsAction(
 
   revalidatePath("/", "layout");
   revalidatePath("/settings");
-  revalidatePath("/mark");
+  revalidatePath("/arc");
   return { ok: true, message: "Branding saved." };
 }
 
@@ -112,49 +112,49 @@ export async function saveAgentBehaviorSettingsAction(
   const assistantTone = appAssistantTone(formData.get("assistantTone"));
   const assistantResponseStyle = appAssistantResponseStyle(formData.get("assistantResponseStyle"));
   const approvalStrictness = appApprovalStrictness(formData.get("approvalStrictness"));
-  const markDefaultMode = parseMarkMode(formData.get("markDefaultMode"));
-  const markDefaultRoute = parseMarkRoute(formData.get("markDefaultRoute"));
+  const markDefaultMode = parseArcMode(formData.get("markDefaultMode"));
+  const markDefaultRoute = parseArcRoute(formData.get("markDefaultRoute"));
 
   try {
     await saveAppSettings(getSupabaseAdminClient(), {
       assistant_tone: assistantTone,
       assistant_response_style: assistantResponseStyle,
       approval_strictness: approvalStrictness,
-      mark_default_mode: markDefaultMode,
-      mark_default_route: markDefaultRoute,
+      arc_default_mode: markDefaultMode,
+      arc_default_route: markDefaultRoute,
     });
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't save agent behavior." };
   }
 
   revalidatePath("/settings");
-  revalidatePath("/mark");
+  revalidatePath("/arc");
   return { ok: true, message: "Agent behavior saved." };
 }
 
-/** Save defaults applied to newly-sent Mark chat messages. */
-export async function saveMarkDefaultsAction(
+/** Save defaults applied to newly-sent Arc chat messages. */
+export async function saveArcDefaultsAction(
   _previous: SettingsActionState,
   formData: FormData,
 ): Promise<SettingsActionState> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
 
-  const markDefaultMode = parseMarkMode(formData.get("markDefaultMode"));
-  const markDefaultRoute = parseMarkRoute(formData.get("markDefaultRoute"));
+  const markDefaultMode = parseArcMode(formData.get("markDefaultMode"));
+  const markDefaultRoute = parseArcRoute(formData.get("markDefaultRoute"));
   const agentName = await getAgentName();
 
   try {
     await saveAppSettings(getSupabaseAdminClient(), {
-      mark_default_mode: markDefaultMode,
-      mark_default_route: markDefaultRoute,
+      arc_default_mode: markDefaultMode,
+      arc_default_route: markDefaultRoute,
     });
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : `Couldn't save ${agentName} defaults.` };
   }
 
   revalidatePath("/settings");
-  revalidatePath("/mark");
+  revalidatePath("/arc");
   return { ok: true, message: `${agentName} defaults saved.` };
 }
 
@@ -202,7 +202,7 @@ export async function saveAgentNameAction(
   }
 
   revalidatePath("/settings");
-  revalidatePath("/mark");
+  revalidatePath("/arc");
   revalidatePath("/", "layout"); // refresh the shell nav label
   return { ok: true, message: "Agent name saved." };
 }

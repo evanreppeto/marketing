@@ -134,7 +134,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
           rowKey={(row) => row.id}
           rowHref={(row) => `/analytics/${row.id}`}
           minWidth="min-w-[760px]"
-          emptyState={<EmptyState title="No campaigns yet" detail="When Mark drafts a campaign or you create one, it will appear here with its progress." />}
+          emptyState={<EmptyState title="No campaigns yet" detail="When Arc drafts a campaign or you create one, it will appear here with its progress." />}
         />
       </WorkspacePanel>
 

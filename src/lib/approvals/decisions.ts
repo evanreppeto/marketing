@@ -264,7 +264,7 @@ async function createRevisionTask(input: {
   const { data: agent, error: agentError } = await input.client
     .from("agents")
     .select("id")
-    .eq("key", "hermes-demo")
+    .eq("key", "arc-demo")
     .maybeSingle<{ id: string }>();
 
   if (agentError) {

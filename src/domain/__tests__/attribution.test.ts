@@ -20,9 +20,9 @@ describe("buildCampaignLink", () => {
     expect(new URL(link).searchParams.get("ref")).toBe("abc");
   });
 
-  it("defaults utm_source to 'mark' when no channel is given", () => {
+  it("defaults utm_source to 'arc' when no channel is given", () => {
     const link = buildCampaignLink({ destinationUrl: "https://bigshoulders.com/q", campaignId: CAMPAIGN, assetId: ASSET });
-    expect(new URL(link).searchParams.get("utm_source")).toBe("mark");
+    expect(new URL(link).searchParams.get("utm_source")).toBe("arc");
   });
 
   it("throws when campaignId is not a UUID", () => {

@@ -5,12 +5,12 @@ do $$
 declare
   seed_source text := 'growth_engine_v2_demo';
 begin
-  delete from public.mark_conversations
+  delete from public.arc_conversations
   where id = '10000000-0000-4000-8000-000000000041'
     or exists (
       select 1
-      from public.mark_messages m
-      where m.conversation_id = mark_conversations.id
+      from public.arc_messages m
+      where m.conversation_id = arc_conversations.id
         and m.metadata ->> 'seed_source' = seed_source
     );
 

@@ -60,7 +60,7 @@ export function buildTrendBuckets(
 
 /** One plain-language sentence summarizing portfolio state for a non-technical reader. */
 export function buildTakeaway(split: SplitLike, waitingOnYou: number): string {
-  if (split.total === 0) return "No campaigns yet. When Mark drafts one or you create one, its progress shows up here.";
+  if (split.total === 0) return "No campaigns yet. When Arc drafts one or you create one, its progress shows up here.";
   if (waitingOnYou === 0 && split.changes === 0) {
     return `You're all caught up — ${split.readiness}% of your campaign work is approved and nothing needs your attention right now.`;
   }

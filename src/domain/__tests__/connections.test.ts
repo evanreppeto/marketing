@@ -85,13 +85,13 @@ describe("computeConnectionStatus", () => {
 describe("buildResendEmailPayload", () => {
   it("normalizes a single recipient to an array and passes through html", () => {
     const payload = buildResendEmailPayload({
-      from: "Mark <mark@bigshoulders.com>",
+      from: "Arc <mark@bigshoulders.com>",
       to: "lead@example.com",
       subject: "Roof inspection",
       html: "<p>Hello</p>",
     });
     expect(payload).toEqual({
-      from: "Mark <mark@bigshoulders.com>",
+      from: "Arc <mark@bigshoulders.com>",
       to: ["lead@example.com"],
       subject: "Roof inspection",
       html: "<p>Hello</p>",

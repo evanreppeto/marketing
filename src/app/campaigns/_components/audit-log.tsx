@@ -7,28 +7,28 @@ import type { AuditEntry } from "@/lib/campaigns/read-model";
 
 import { SectionHeader } from "./section-header";
 
-type FilterKey = "all" | "user" | "mark";
+type FilterKey = "all" | "user" | "arc";
 
 const ACTOR_META: Record<AuditEntry["actorKind"], { label: string; dot: string; chip: string }> = {
   user: { label: "You", dot: "bg-[var(--accent)]", chip: "border-[oklch(0.74_0.115_232/0.4)] bg-[var(--accent-soft)] text-[var(--chicago-blue-soft)]" },
-  mark: { label: "Mark", dot: "bg-[var(--ok)]", chip: "border-[oklch(0.78_0.14_158/0.4)] bg-[oklch(0.78_0.14_158/0.12)] text-[oklch(0.88_0.1_158)]" },
+  arc: { label: "Arc", dot: "bg-[var(--ok)]", chip: "border-[oklch(0.78_0.14_158/0.4)] bg-[oklch(0.78_0.14_158/0.12)] text-[oklch(0.88_0.1_158)]" },
   system: { label: "System", dot: "bg-[var(--border-strong)]", chip: "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-secondary)]" },
 };
 
 /**
  * Campaign audit trail — a unified, filterable log of operator actions and
- * Mark's activity, newest first. Read-only; every line is a real record.
+ * Arc's activity, newest first. Read-only; every line is a real record.
  */
 const AUDIT_PAGE = 40;
 
 export function AuditLog({ entries }: { entries: AuditEntry[] }) {
   const agentName = useAgentName();
-  // The "mark" actorKind is a data key; only its displayed label is dynamic.
-  const actorLabel = (kind: AuditEntry["actorKind"]) => (kind === "mark" ? agentName : ACTOR_META[kind].label);
+  // The "arc" actorKind is a data key; only its displayed label is dynamic.
+  const actorLabel = (kind: AuditEntry["actorKind"]) => (kind === "arc" ? agentName : ACTOR_META[kind].label);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [showAll, setShowAll] = useState(false);
   const userCount = entries.filter((entry) => entry.actorKind === "user").length;
-  const markCount = entries.filter((entry) => entry.actorKind === "mark").length;
+  const markCount = entries.filter((entry) => entry.actorKind === "arc").length;
   const visible = filter === "all" ? entries : entries.filter((entry) => entry.actorKind === filter);
   const shown = showAll ? visible : visible.slice(0, AUDIT_PAGE);
 
@@ -45,7 +45,7 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
         <FilterChip active={filter === "user"} count={userCount} dot="bg-[var(--accent)]" onClick={() => setFilter("user")}>
           Operator
         </FilterChip>
-        <FilterChip active={filter === "mark"} count={markCount} dot="bg-[var(--ok)]" onClick={() => setFilter("mark")}>
+        <FilterChip active={filter === "arc"} count={markCount} dot="bg-[var(--ok)]" onClick={() => setFilter("arc")}>
           {agentName}
         </FilterChip>
       </div>

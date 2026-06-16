@@ -11,8 +11,8 @@ describe("getAgentOperationsDashboard", () => {
         data: [
           {
             id: "agent-1",
-            key: "hermes-demo",
-            name: "Hermes Demo Orchestrator",
+            key: "arc-demo",
+            name: "Arc Demo Orchestrator",
             description: "Coordinates demo lead and campaign work.",
             status: "running",
             allowed_actions: ["Draft"],
@@ -34,7 +34,7 @@ describe("getAgentOperationsDashboard", () => {
             owner_label: "Evan",
             driver_kind: "agent",
             driver_agent_id: "agent-1",
-            driver_label: "Mark",
+            driver_label: "Arc",
             approver_label: "Owner",
             status: "running",
             priority: "high",
@@ -63,7 +63,7 @@ describe("getAgentOperationsDashboard", () => {
             item_type: "email",
             status: "revision_requested",
             risk_level: "medium",
-            requested_by: "hermes-demo",
+            requested_by: "arc-demo",
             submitted_at: "2026-05-29T18:03:00.000Z",
             reviewed_at: null,
             draft_output: { subject: "Partner handoff" },
@@ -109,15 +109,15 @@ describe("getAgentOperationsDashboard", () => {
 
     expect(dashboard.metrics).toContainEqual({ label: "Awaiting approval", value: 1, delta: "Human gate" });
     expect(dashboard.agents[0]).toMatchObject({
-      key: "hermes-demo",
-      name: "Hermes Demo Orchestrator",
+      key: "arc-demo",
+      name: "Arc Demo Orchestrator",
       status: "Running",
       currentTask: "Prepare plumbing partner outreach draft.",
       riskFlags: ["approval required"],
     });
     expect(dashboard.tasks[0]).toMatchObject({
       id: "task-123",
-      agentName: "Hermes Demo Orchestrator",
+      agentName: "Arc Demo Orchestrator",
       task: "Campaign Draft",
       linkedObject: "Campaign: Plumbing Partner Outreach Demo",
       href: "/agent-operations/tasks/task-123456789",
@@ -139,7 +139,7 @@ describe("getAgentOperationsDashboard", () => {
     });
     expect(dashboard.recentOutputs[0]).toMatchObject({
       output: "Plumbing partner email",
-      agent: "Hermes Demo Orchestrator",
+      agent: "Arc Demo Orchestrator",
       status: "Revision Requested",
     });
     expect(supabase.calls).toContainEqual(["from", "agents"]);
@@ -190,8 +190,8 @@ describe("getAgentOperationsDashboard", () => {
         data: [
           {
             id: "agent-1",
-            key: "mark",
-            name: "Mark",
+            key: "arc",
+            name: "Arc",
             description: "Runs marketing tasks.",
             status: "running",
             allowed_actions: [],
@@ -252,7 +252,7 @@ describe("getAgentOperationsDashboard", () => {
 });
 
 describe("getAgentTaskDetail", () => {
-  it("maps shared human and Mark ticket state into task detail data", async () => {
+  it("maps shared human and Arc ticket state into task detail data", async () => {
     const supabase = createSupabaseQueryMock({
       agent_tasks: {
         data: {
@@ -263,7 +263,7 @@ describe("getAgentTaskDetail", () => {
           owner_label: "Evan",
           driver_kind: "agent",
           driver_agent_id: "agent-1",
-          driver_label: "Mark",
+          driver_label: "Arc",
           approver_label: "Owner",
           status: "running",
           priority: "high",
@@ -293,8 +293,8 @@ describe("getAgentTaskDetail", () => {
       agents: {
         data: {
           id: "agent-1",
-          key: "mark",
-          name: "Mark",
+          key: "arc",
+          name: "Arc",
           description: "Runs partner-facing marketing tasks.",
           status: "running",
           allowed_actions: ["Draft"],
@@ -381,9 +381,9 @@ describe("getAgentTaskDetail", () => {
             id: "event-mark",
             task_id: "task-123456789",
             actor_kind: "agent",
-            actor_label: "Mark",
+            actor_label: "Arc",
             event_type: "agent_started",
-            title: "Mark started",
+            title: "Arc started",
             body: null,
             metadata: {},
             created_at: "2026-05-29T18:03:00.000Z",
@@ -415,7 +415,7 @@ describe("getAgentTaskDetail", () => {
       id: "output-new",
       title: "Partner outreach draft v2",
     });
-    expect(detail.timeline.map((item) => item.source)).toEqual(["Approval", "Mark", "Human", "Mark", "Mark"]);
+    expect(detail.timeline.map((item) => item.source)).toEqual(["Approval", "Arc", "Human", "Arc", "Arc"]);
     expect(detail.timeline).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -427,13 +427,13 @@ describe("getAgentTaskDetail", () => {
         }),
         expect.objectContaining({
           id: "event-mark",
-          source: "Mark",
+          source: "Arc",
           eventType: "agent_started",
-          title: "Mark started",
+          title: "Arc started",
         }),
         expect.objectContaining({
           id: "output-new",
-          source: "Mark",
+          source: "Arc",
           eventType: "output_created",
           title: "Partner outreach draft v2",
           body: "Subject: Partner handoff",
@@ -515,8 +515,8 @@ describe("getAgentTaskDetail", () => {
       agents: {
         data: {
           id: "agent-1",
-          key: "mark",
-          name: "Mark",
+          key: "arc",
+          name: "Arc",
           description: "Runs marketing tasks.",
           status: "running",
           allowed_actions: [],

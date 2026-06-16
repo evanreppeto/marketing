@@ -9,7 +9,7 @@ import { Button, StatusPill } from "@/app/_components/page-header";
 import type { LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import { statusLabel, STATUS_TONE, type DispatchView } from "@/lib/dispatch/status";
 
-import { launchCampaignAction, sendMarkMessageAction } from "../actions";
+import { launchCampaignAction, sendArcMessageAction } from "../actions";
 import { buildSendExportFacts } from "./campaign-detail-model";
 
 export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCampaignWorkspace; dispatches?: DispatchView[] }) {
@@ -55,7 +55,7 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
         ) : null}
       </RailPanel>
 
-      <RailPanel id="mark" title={`Ask ${agentName}`}>
+      <RailPanel id="arc" title={`Ask ${agentName}`}>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">{reasoning.recommendedAction || reasoning.whyBuilt}</p>
         {reasoning.guardrailFlags.length > 0 ? (
           <div className="mt-3 rounded-lg border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-3 py-2">
@@ -65,7 +65,7 @@ export function CampaignRightRail({ detail, dispatches = [] }: { detail: LiveCam
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{reasoning.guardrailFlags.join(" / ")}</p>
           </div>
         ) : null}
-        <MarkMessageForm campaignId={campaign.id} />
+        <ArcMessageForm campaignId={campaign.id} />
       </RailPanel>
 
       <RailPanel id="results" title="Results">
@@ -130,9 +130,9 @@ function LaunchCampaignForm({ campaignId }: { campaignId: string }) {
   );
 }
 
-function MarkMessageForm({ campaignId }: { campaignId: string }) {
+function ArcMessageForm({ campaignId }: { campaignId: string }) {
   const agentName = useAgentName();
-  const [state, formAction, isPending] = useActionState(sendMarkMessageAction, null);
+  const [state, formAction, isPending] = useActionState(sendArcMessageAction, null);
 
   return (
     <form action={formAction} className="mt-3 space-y-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">

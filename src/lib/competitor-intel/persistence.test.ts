@@ -19,7 +19,7 @@ const valid = {
   competitorName: "ServiceMaster Chicago",
   summary: "4 storm-response ads",
   adCreatives: [{ headline: "Flooded?" }],
-  operator: "Mark",
+  operator: "Arc",
 };
 
 describe("persistCompetitorIntel", () => {

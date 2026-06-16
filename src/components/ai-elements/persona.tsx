@@ -316,7 +316,7 @@ export const Persona: FC<PersonaProps> = memo(
 
     return (
       <Component rive={rive} source={source} modelColor={modelColor}>
-        <span aria-hidden data-loaded={loaded} className="mark-persona-fallback" />
+        <span aria-hidden data-loaded={loaded} className="arc-persona-fallback" />
         <RiveComponent className={cn("size-16 shrink-0", className)} />
       </Component>
     );

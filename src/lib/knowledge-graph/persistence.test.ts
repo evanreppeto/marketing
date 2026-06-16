@@ -14,27 +14,27 @@ function insertPayload(supabase: ReturnType<typeof createSupabaseQueryMock>) {
 }
 
 describe("createNode", () => {
-  it("forces Mark's brand_fact to proposed and stamps created_by", async () => {
+  it("forces Arc's brand_fact to proposed and stamps created_by", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: { id: "n-1" }, error: null } });
 
     const result = await createNode(
       { kind: "brand_fact", label: "We answer 24/7" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
 
     expect(result).toEqual({ ok: true, id: "n-1" });
     const payload = insertPayload(supabase)!;
     expect(payload.trust_tier).toBe("proposed");
-    expect(payload.created_by).toBe("mark");
+    expect(payload.created_by).toBe("arc");
     expect(payload.org_id).toBe(ORG);
     expect(payload.approved_by).toBeNull();
   });
 
-  it("records Mark's learning as observed", async () => {
+  it("records Arc's learning as observed", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: { id: "n-2" }, error: null } });
     await createNode(
       { kind: "learning", label: "Emergency persona replies fastest by SMS" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(insertPayload(supabase)!.trust_tier).toBe("observed");
   });
@@ -54,7 +54,7 @@ describe("createNode", () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: null, error: null } });
     const result = await createNode(
       { kind: "nonsense", label: "" } as never,
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(result.ok).toBe(false);
     expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
@@ -62,11 +62,11 @@ describe("createNode", () => {
 });
 
 describe("createEdge", () => {
-  it("inserts a validated edge as observed for Mark", async () => {
+  it("inserts a validated edge as observed for Arc", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_edges: { data: { id: "e-1" }, error: null } });
     const result = await createEdge(
       { fromNodeId: "a", toNodeId: "b", relation: "proves" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(result).toEqual({ ok: true, id: "e-1" });
     const payload = insertPayload(supabase)!;
@@ -78,7 +78,7 @@ describe("createEdge", () => {
     const supabase = createSupabaseQueryMock({ knowledge_edges: { data: null, error: null } });
     const result = await createEdge(
       { fromNodeId: "a", toNodeId: "a", relation: "proves" },
-      { client: supabase as never, orgId: ORG, createdBy: "mark" },
+      { client: supabase as never, orgId: ORG, createdBy: "arc" },
     );
     expect(result.ok).toBe(false);
     expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);

@@ -4,7 +4,7 @@ import { type ActorKind } from "@/domain";
 
 export function ActorBadge({ kind, label }: { kind: ActorKind; label: string }) {
   const tone = kind === "agent" ? "blue" : kind === "system" ? "gray" : "green";
-  const who = kind === "agent" ? "Hermes" : kind === "system" ? "System" : "Human";
+  const who = kind === "agent" ? "Arc" : kind === "system" ? "System" : "Human";
   return (
     <StatusPill tone={tone}>
       {who}

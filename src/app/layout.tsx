@@ -3,7 +3,7 @@ import { Archivo, Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/goo
 
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
-import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
 // Display: an engineered grotesk — confident, gridded, mechanical. Drives headings and key numbers.
@@ -13,7 +13,7 @@ const display = Archivo({
   display: "swap",
 });
 
-// Serif display: editorial voice for Mark and page headlines.
+// Serif display: editorial voice for Arc and page headlines.
 const serif = Fraunces({
   subsets: ["latin"],
   variable: "--ff-serif",

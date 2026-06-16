@@ -7,12 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:hermes-demo": "node scripts/seed-hermes-demo.mjs",
+    "seed:arc-demo": "node scripts/seed-arc-demo.mjs",
     "seed:test-campaign": "node scripts/seed-test-campaign.mjs",
     "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
     "seed:campaign-results": "node scripts/seed-campaign-results.mjs",
     "seed:brain": "node scripts/seed-brain.mjs",
-    "diagnose:hermes": "node scripts/diagnose-hermes-connection.mjs",
+    "diagnose:arc": "node scripts/diagnose-arc-connection.mjs",
     "test": "vitest run"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
--- Append-only ledger of the Mark/Hermes agent's recommendations on approval
--- items. Mark may advise but NEVER decides: approval_items.status and the
+-- Append-only ledger of the Arc/Arc agent's recommendations on approval
+-- items. Arc may advise but NEVER decides: approval_items.status and the
 -- approval_decisions ledger are untouched by the agent API. This table records
 -- guidance only — outbound stays locked behind the human approval gate.
 --
@@ -10,7 +10,7 @@
 create table public.approval_recommendations (
   id uuid primary key default gen_random_uuid(),
   approval_item_id uuid not null references public.approval_items(id) on delete cascade,
-  agent text not null default 'mark' check (length(btrim(agent)) > 0),
+  agent text not null default 'arc' check (length(btrim(agent)) > 0),
   recommendation text not null check (length(btrim(recommendation)) > 0),
   rationale text,
   risk_flags text[] not null default '{}',

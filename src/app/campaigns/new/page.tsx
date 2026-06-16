@@ -1,5 +1,5 @@
 import { requireOperator } from "@/lib/auth/operator";
-import { getAgentDisplayName } from "@/lib/mark-chat/agent-config";
+import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 
 import { PageHeader } from "../../_components/page-header";

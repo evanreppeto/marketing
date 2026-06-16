@@ -259,7 +259,7 @@ function DraftPreview({ item }: { item: ApprovalCard }) {
     return (
       <PacketSection title="Lead list preview">
         <p className="mb-3 text-sm leading-6 text-[var(--text-secondary)]">
-          {item.structuredDraft.candidates.length} candidates for {item.structuredDraft.targetMarket}
+          {item.structuredDraft.candidates.length} candidates for {item.structuredDraft.targetArcet}
         </p>
         <div className="space-y-3">
           {item.structuredDraft.candidates.map((candidate) => (

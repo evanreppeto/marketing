@@ -2,9 +2,9 @@ import { randomBytes } from "node:crypto";
 
 import { normalizeBaseUrl } from "@/lib/deployment/app-url";
 import { type MarketingAgentProfile } from "./marketing-guidance";
-import { createHermesSetupPrompt, createHermesVerificationMessage } from "./setup-prompt";
+import { createArcSetupPrompt, createArcVerificationMessage } from "./setup-prompt";
 
-export type HermesSetupBundleInput = {
+export type ArcSetupBundleInput = {
   appBaseUrl: string;
   agentName?: string;
   token: string;
@@ -14,7 +14,7 @@ export type HermesSetupBundleInput = {
   customInstructions?: string;
 };
 
-export type HermesSetupBundle = {
+export type ArcSetupBundle = {
   token: string;
   webhookSecret: string;
   prompt: string;
@@ -26,7 +26,7 @@ export function generateWebhookSecret(): string {
   return `whsec_${randomBytes(32).toString("base64url")}`;
 }
 
-export function createHermesSetupBundle({
+export function createArcSetupBundle({
   agentName,
   appBaseUrl,
   token,
@@ -34,9 +34,9 @@ export function createHermesSetupBundle({
   marketingProfile,
   selectedSkillIds,
   customInstructions,
-}: HermesSetupBundleInput): HermesSetupBundle {
+}: ArcSetupBundleInput): ArcSetupBundle {
   const baseUrl = normalizeBaseUrl(appBaseUrl);
-  const prompt = createHermesSetupPrompt({
+  const prompt = createArcSetupPrompt({
     agentName,
     appBaseUrl: baseUrl,
     tokenPlaceholder: token,
@@ -50,11 +50,11 @@ export function createHermesSetupBundle({
     token,
     webhookSecret,
     prompt,
-    verificationMessage: createHermesVerificationMessage({ appBaseUrl: baseUrl }),
+    verificationMessage: createArcVerificationMessage({ appBaseUrl: baseUrl }),
     envFile: [
       `GROWTH_APP_BASE_URL=${baseUrl}`,
       `GROWTH_APP_AGENT_TOKEN=${token}`,
-      `HERMES_WEBHOOK_SECRET=${webhookSecret}`,
+      `ARC_WEBHOOK_SECRET=${webhookSecret}`,
     ].join("\n"),
   };
 }

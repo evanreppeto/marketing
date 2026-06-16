@@ -63,7 +63,7 @@ export type AgentOperationsTask = {
   href: string;
 };
 
-export type MarkRunnerStatus = {
+export type ArcRunnerStatus = {
   configured: boolean;
   agentId: string | null;
   name: string;
@@ -115,7 +115,7 @@ export type AgentTaskOutput = {
 
 type AgentTaskTimelineItem = {
   id: string;
-  source: "Human" | "Mark" | "System" | "Approval";
+  source: "Human" | "Arc" | "System" | "Approval";
   title: string;
   body: string | null;
   createdAt: string | null;
@@ -130,7 +130,7 @@ export type AgentOperationsDashboard =
       tasks: AgentOperationsTask[];
       approvals: AgentOperationsApproval[];
       recentOutputs: AgentOperationsOutput[];
-      markRunner: MarkRunnerStatus;
+      arcRunner: ArcRunnerStatus;
     }
   | {
       status: "unavailable";
@@ -436,7 +436,7 @@ export async function getAgentOperationsDashboard(
       tasks: tasks.map((task) => mapTask(task, agentById, campaignById, approvalById, agentName)),
       approvals: activeApprovals.slice(0, 5).map((item) => mapApproval(item, campaignById)),
       recentOutputs: outputs.slice(0, 6).map((output) => mapOutput(output, taskById, agentById)),
-      markRunner: mapMarkRunner(agents, tasks, agentName),
+      arcRunner: mapArcRunner(agents, tasks, agentName),
     };
   } catch (error) {
     return {
@@ -838,33 +838,33 @@ function mapTask(
   };
 }
 
-function mapMarkRunner(
+function mapArcRunner(
   agents: ReturnType<typeof normalizeAgentRow>[],
   tasks: ReturnType<typeof normalizeTaskRow>[],
   agentName: string = "Agent",
-): MarkRunnerStatus {
-  const mark = agents.find((agent) => agent.key === "mark") ?? agents.find((agent) => agent.key === "hermes");
-  const markTasks = mark ? tasks.filter((task) => task.agent_id === mark.id) : [];
-  const metadata = asRecord(mark?.metadata);
+): ArcRunnerStatus {
+  const arc = agents.find((agent) => agent.key === "arc");
+  const arcTasks = arc ? tasks.filter((task) => task.agent_id === arc.id) : [];
+  const metadata = asRecord(arc?.metadata);
   const lastHeartbeat = getString(metadata.last_heartbeat_at) ?? getString(metadata.runner_last_seen_at);
   const mode = getString(metadata.runner_mode) ?? getString(metadata.runtime) ?? "Mac mini CLI bridge pending";
   const runner = getString(metadata.runner) ?? getString(metadata.runner_name) ?? "Codex OAuth or Claude Code CLI";
-  const killSwitch = getString(metadata.kill_switch) ?? (mark?.status === "paused" || mark?.status === "disabled" ? "Paused" : "Outbound locked");
+  const killSwitch = getString(metadata.kill_switch) ?? (arc?.status === "paused" || arc?.status === "disabled" ? "Paused" : "Outbound locked");
 
   return {
-    configured: Boolean(mark),
-    agentId: mark?.id ?? null,
-    name: mark?.name ?? agentName,
-    status: mark ? titleize(mark.status) : "Pending setup",
+    configured: Boolean(arc),
+    agentId: arc?.id ?? null,
+    name: arc?.name ?? agentName,
+    status: arc ? titleize(arc.status) : "Pending setup",
     runner,
     mode,
     lastHeartbeat,
-    queuedTasks: markTasks.filter((task) => task.status === "queued").length,
-    runningTasks: markTasks.filter((task) => task.status === "running").length,
-    blockedTasks: markTasks.filter((task) => task.status === "blocked" || task.status === "failed").length,
-    approvalTasks: markTasks.filter((task) => task.status === "needs_approval").length,
+    queuedTasks: arcTasks.filter((task) => task.status === "queued").length,
+    runningTasks: arcTasks.filter((task) => task.status === "running").length,
+    blockedTasks: arcTasks.filter((task) => task.status === "blocked" || task.status === "failed").length,
+    approvalTasks: arcTasks.filter((task) => task.status === "needs_approval").length,
     killSwitch,
-    nextStep: mark
+    nextStep: arc
       ? `Start ${agentName} on the Mac mini and have it poll queued tasks.`
       : `Create ${agentName} in Supabase from this page, then start the Mac mini runner.`,
   };
@@ -956,7 +956,7 @@ function parseAcceptanceCriteria(metadata: Record<string, unknown>) {
 
 function mapEventSource(row: Pick<AgentTaskEventRow, "actor_kind">): AgentTaskTimelineItem["source"] {
   if (row.actor_kind === "approval") return "Approval";
-  if (row.actor_kind === "agent") return "Mark";
+  if (row.actor_kind === "agent") return "Arc";
   if (row.actor_kind === "system") return "System";
   return "Human";
 }
@@ -977,7 +977,7 @@ function composeTaskTimeline(
 
   const outputItems = outputs.map((output) => ({
     id: output.id,
-    source: "Mark" as const,
+    source: "Arc" as const,
     title: output.title,
     body: output.readableBody,
     createdAt: output.createdAt,

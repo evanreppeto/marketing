@@ -98,7 +98,7 @@ export function TasksPanel({
                   <input type="hidden" name="entityType" value={entityType} />
                   <input type="hidden" name="entityId" value={entityId} />
                   <button type="submit" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-                    Mark complete
+                    Arc complete
                   </button>
                 </form>
               </div>

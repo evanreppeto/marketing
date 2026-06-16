@@ -6,12 +6,12 @@ import { useState, useTransition } from "react";
 import { getMarketingSkillPacks } from "@/lib/agent/marketing-guidance";
 
 import { Button } from "../_components/page-header";
-import { type AgentTestResult } from "../mark/actions";
+import { type AgentTestResult } from "../arc/actions";
 import { type GenerateSetupBundleResult, type IssueTokenResult } from "./agent-actions";
 
 export function CopyPromptButton({
   copiedLabel = "Copied",
-  label = "Copy Hermes prompt",
+  label = "Copy Arc prompt",
   text,
 }: {
   copiedLabel?: string;
@@ -146,19 +146,19 @@ export function AgentSetupBundle({
         <div>
           <div className="text-sm font-bold text-[var(--text-primary)]">Easiest path: generate setup bundle</div>
           <p className="mt-1 max-w-[78ch]">
-            Answer a few plain-English questions, keep the suggested help areas selected, then generate everything Hermes
+            Answer a few plain-English questions, keep the suggested help areas selected, then generate everything Arc
             needs in one bundle.
           </p>
           <p className="mt-2 max-w-[78ch] rounded-md border border-[var(--border-hairline)] bg-[var(--surface-canvas)] px-3 py-2 text-[11px] font-semibold leading-5 text-[var(--text-secondary)]">
-            This does not send anything to Hermes automatically. It creates copyable setup text in this app; you paste
-            that into your Hermes agent.
+            This does not send anything to Arc automatically. It creates copyable setup text in this app; you paste
+            that into your Arc agent.
           </p>
         </div>
 
         <div className="grid gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
           <div>
-            <div className="font-bold text-[var(--text-primary)]">1. Tell Hermes what this business does</div>
-            <p className="mt-1">Keep it short. These answers are just context so Hermes starts in the right lane.</p>
+            <div className="font-bold text-[var(--text-primary)]">1. Tell Arc what this business does</div>
+            <p className="mt-1">Keep it short. These answers are just context so Arc starts in the right lane.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-semibold text-[var(--text-muted)]">
@@ -196,7 +196,7 @@ export function AgentSetupBundle({
 
         <div className="grid gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
           <div>
-            <div className="font-bold text-[var(--text-primary)]">2. Choose what Hermes should help with</div>
+            <div className="font-bold text-[var(--text-primary)]">2. Choose what Arc should help with</div>
             <p className="mt-1">Everything is selected by default. Uncheck anything that does not fit right now.</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -226,7 +226,7 @@ export function AgentSetupBundle({
             Optional: add special instructions
           </summary>
           <label className="mt-3 grid gap-1 text-xs font-semibold text-[var(--text-muted)]">
-            Anything Hermes should remember?
+            Anything Arc should remember?
             <textarea
               className={textAreaClass}
               name="marketing_custom_instructions"
@@ -237,7 +237,7 @@ export function AgentSetupBundle({
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--accent-soft)] bg-[var(--surface-canvas)] p-3">
           <div>
-            <div className="font-bold text-[var(--text-primary)]">Ready to connect Hermes</div>
+            <div className="font-bold text-[var(--text-primary)]">Ready to connect Arc</div>
             <p className="mt-1">The generated prompt will include this profile, the selected help areas, and safe defaults.</p>
           </div>
           <Button disabled={pending} size="sm" type="submit" variant="primary">
@@ -253,17 +253,17 @@ export function AgentSetupBundle({
               <p className="font-semibold">{result.message}</p>
               <p className="mt-1">
                 {autoCopyState === "copied"
-                  ? "The Hermes prompt was copied automatically. Paste it into Hermes now."
+                  ? "The Arc prompt was copied automatically. Paste it into Arc now."
                   : autoCopyState === "failed"
                     ? "Browser clipboard access was blocked. Use the Copy prompt button below."
-                    : "The token below is not stored in plaintext by the app. Store it in Hermes now."}
+                    : "The token below is not stored in plaintext by the app. Store it in Arc now."}
               </p>
             </div>
 
             <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
               <div className="font-bold text-[var(--text-primary)]">Finish setup</div>
               <div className="grid gap-2 sm:grid-cols-3">
-                {["Paste prompt into Hermes", "Copy verification message", `Send a test message in ${agentName}`].map((item, index) => (
+                {["Paste prompt into Arc", "Copy verification message", `Send a test message in ${agentName}`].map((item, index) => (
                   <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-2" key={item}>
                     <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Step {index + 1}</div>
                     <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{item}</div>
@@ -275,24 +275,24 @@ export function AgentSetupBundle({
             <div className="grid gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="font-bold text-[var(--text-primary)]">1. Paste this prompt into Hermes</div>
+                  <div className="font-bold text-[var(--text-primary)]">1. Paste this prompt into Arc</div>
                   <p className="mt-1">The token and webhook secret are already filled in.</p>
                 </div>
                 <CopyPromptButton copiedLabel="Copied" label="Copy prompt" text={result.prompt} />
               </div>
-              <BundleTextArea label="Generated Hermes setup prompt" minHeightClassName="min-h-64" text={result.prompt} />
+              <BundleTextArea label="Generated Arc setup prompt" minHeightClassName="min-h-64" text={result.prompt} />
             </div>
 
             <div className="grid gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="font-bold text-[var(--text-primary)]">2. Ask Hermes to verify</div>
-                  <p className="mt-1">Paste this after the setup prompt so Hermes checks ping and inbox access.</p>
+                  <div className="font-bold text-[var(--text-primary)]">2. Ask Arc to verify</div>
+                  <p className="mt-1">Paste this after the setup prompt so Arc checks ping and inbox access.</p>
                 </div>
                 <CopyPromptButton copiedLabel="Copied" label="Copy verify" text={result.verificationMessage} />
               </div>
               <BundleTextArea
-                label="Generated Hermes verification message"
+                label="Generated Arc verification message"
                 minHeightClassName="min-h-40"
                 text={result.verificationMessage}
               />
@@ -301,11 +301,11 @@ export function AgentSetupBundle({
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--accent-soft)] bg-[var(--surface-canvas)] p-3">
               <div>
                 <div className="font-bold text-[var(--text-primary)]">3. Send a test message in {agentName}</div>
-                <p className="mt-1">After Hermes says verification passed, send one short {agentName} message.</p>
+                <p className="mt-1">After Arc says verification passed, send one short {agentName} message.</p>
               </div>
               <Link
                 className="inline-flex min-h-9 items-center rounded-md border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent-contrast)] transition hover:opacity-90"
-                href="/mark"
+                href="/arc"
               >
                 Open {agentName}
               </Link>
@@ -313,22 +313,22 @@ export function AgentSetupBundle({
 
             <details className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
               <summary className="cursor-pointer font-bold text-[var(--text-primary)]">
-                Advanced: env values for local Hermes
+                Advanced: env values for local Arc
               </summary>
               <div className="mt-3 grid gap-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="font-bold text-[var(--text-primary)]">Save this env file in Hermes</div>
-                    <p className="mt-1">Only needed if your Hermes runtime wants environment variables.</p>
+                    <div className="font-bold text-[var(--text-primary)]">Save this env file in Arc</div>
+                    <p className="mt-1">Only needed if your Arc runtime wants environment variables.</p>
                   </div>
                   <CopyPromptButton copiedLabel="Copied" label="Copy env" text={result.envFile} />
                 </div>
-                <BundleTextArea label="Generated Hermes environment file" minHeightClassName="min-h-28" text={result.envFile} />
+                <BundleTextArea label="Generated Arc environment file" minHeightClassName="min-h-28" text={result.envFile} />
               </div>
             </details>
 
             <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-[11px] leading-5 text-[var(--text-muted)]">
-              Generating again creates a new token and webhook secret. If you reconnect Hermes, use the newest bundle.
+              Generating again creates a new token and webhook secret. If you reconnect Arc, use the newest bundle.
             </div>
           </div>
         ) : (

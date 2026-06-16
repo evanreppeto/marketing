@@ -110,7 +110,7 @@ export type DecideAssetInput = {
 /**
  * Decide a deliverable by asset id — the unit operators actually act on. Every
  * deliverable is decidable: if an approval_item gates it we record the decision
- * through the normal approval path; if none exists (Mark created the asset
+ * through the normal approval path; if none exists (Arc created the asset
  * without a gate) we transition the asset directly and log the event. Never
  * unlocks dispatch — that's a separate launch/deploy step.
  */

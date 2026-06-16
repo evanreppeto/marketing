@@ -11,7 +11,7 @@ function row(overrides: Record<string, unknown> = {}) {
     label: "Resend",
     enabled: true,
     env_var: "RESEND_API_KEY",
-    config: { fromEmail: "Mark <mark@bsg.com>" },
+    config: { fromEmail: "Arc <mark@bsg.com>" },
     last_tested_at: "2026-06-09T00:00:00Z",
     last_test_ok: true,
     last_test_error: null,
@@ -29,7 +29,7 @@ describe("getConnections", () => {
 
     const [resend] = await getConnections(supabase);
 
-    expect(resend).toMatchObject({ provider: "resend", status: "connected", enabled: true, fromEmail: "Mark <mark@bsg.com>" });
+    expect(resend).toMatchObject({ provider: "resend", status: "connected", enabled: true, fromEmail: "Arc <mark@bsg.com>" });
   });
 
   it("reports not_configured when the env secret is absent", async () => {
