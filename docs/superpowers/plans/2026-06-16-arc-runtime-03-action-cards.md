@@ -72,10 +72,16 @@ import { describe, expect, it } from "vitest";
 import type { ArcActionCard } from "../types";
 import { emitCardTool } from "./cards";
 
+type HandlerResult = { content: Array<{ type: string; text: string }> };
+
 function collectorAndTool() {
   const cards: ArcActionCard[] = [];
   const tool = emitCardTool((c) => cards.push(c));
-  return { cards, tool };
+  // The SDK types the handler's args as all-keys-required; in tests we invoke it
+  // with partial inputs (as the model would), so call through a loose wrapper.
+  const call = (args: Record<string, unknown>): Promise<HandlerResult> =>
+    (tool.handler as (a: Record<string, unknown>, e?: unknown) => Promise<HandlerResult>)(args);
+  return { cards, tool, call };
 }
 
 describe("emit_card", () => {
@@ -85,8 +91,8 @@ describe("emit_card", () => {
   });
 
   it("collects a result card, defaulting rows/flags to []", async () => {
-    const { cards, tool } = collectorAndTool();
-    const out = await tool.handler({ kind: "result", title: "3 leads found" }, undefined);
+    const { cards, call } = collectorAndTool();
+    const out = await call({ kind: "result", title: "3 leads found" });
     expect(cards).toEqual<ArcActionCard[]>([
       { kind: "result", title: "3 leads found", rows: [], flags: [] },
     ]);
@@ -94,18 +100,15 @@ describe("emit_card", () => {
   });
 
   it("collects a draft card with rows, flags, preview, and an approval block", async () => {
-    const { cards, tool } = collectorAndTool();
-    await tool.handler(
-      {
-        kind: "draft",
-        title: "Fall ad",
-        preview: "Before winter…",
-        rows: [{ name: "Headline", meta: "28 chars" }],
-        flags: [{ tone: "ok", label: "brand safe" }],
-        approval: { kind: "campaign", campaignId: "c1", assetId: "a1" },
-      },
-      undefined,
-    );
+    const { cards, call } = collectorAndTool();
+    await call({
+      kind: "draft",
+      title: "Fall ad",
+      preview: "Before winter…",
+      rows: [{ name: "Headline", meta: "28 chars" }],
+      flags: [{ tone: "ok", label: "brand safe" }],
+      approval: { kind: "campaign", campaignId: "c1", assetId: "a1" },
+    });
     expect(cards[0]).toEqual<ArcActionCard>({
       kind: "draft",
       title: "Fall ad",
