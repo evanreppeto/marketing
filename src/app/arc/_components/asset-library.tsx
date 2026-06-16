@@ -39,7 +39,7 @@ function AssetTile({
     <button
       type="button"
       onClick={() => onSelect(asset.id)}
-      className="group flex flex-col overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] text-left transition hover:border-[var(--accent-border-strong)]"
+      className="group flex flex-col overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--accent-border-strong)] hover:shadow-[var(--elev-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
     >
       <span className="relative block aspect-[4/3] w-full overflow-hidden bg-[var(--media-void)]">
         <AssetThumb card={card} media={media} eager={eager} />
@@ -100,7 +100,7 @@ export function AssetLibrary({
               "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
               filter === c
                 ? "bg-[var(--accent-soft)] text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                : "text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] hover:text-[var(--text-primary)]",
+                : "text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
             )}
           >
             {c}
