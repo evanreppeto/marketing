@@ -141,13 +141,8 @@ function PendingBlock({ assistantName, steps, body, onStop }: { assistantName: s
               <span />
               <span />
             </span>
-            <span className="mark-shimmer text-sm font-medium">{assistantName} is thinking...</span>
+            <span className="mark-shimmer text-base font-semibold">{assistantName} is thinking...</span>
           </span>
-          <div className="flex flex-col gap-2 pt-0.5">
-            <div className="mark-skel" style={{ width: "92%" }} />
-            <div className="mark-skel" style={{ width: "78%" }} />
-            <div className="mark-skel" style={{ width: "85%" }} />
-          </div>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
