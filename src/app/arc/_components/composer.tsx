@@ -546,7 +546,7 @@ export function Composer({
     if (c.mode) onModeChange(c.mode); // preset the stance the command implies (e.g. Draft)
     onDraftChange("");
     setSlash(null);
-    setActiveIdx(0);
+    setActiveIndex(0);
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
