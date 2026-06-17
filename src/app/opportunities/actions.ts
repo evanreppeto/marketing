@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireOperator } from "@/lib/auth/operator";
 import { runColdLeadDetection } from "@/lib/opportunities/detector";
@@ -10,6 +11,7 @@ export async function scanOpportunitiesAction(): Promise<void> {
   await requireOperator();
   await runColdLeadDetection();
   revalidatePath("/opportunities");
+  redirect("/opportunities?action=scanned");
 }
 
 export async function dismissOpportunityAction(formData: FormData): Promise<void> {

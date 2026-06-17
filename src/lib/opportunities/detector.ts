@@ -6,7 +6,9 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 
 import { upsertOpportunities, type PersistResult } from "./persistence";
 
-const ACTIVE_CAMPAIGN_STATUSES = ["draft", "approved_awaiting_launch", "active", "paused"];
+// Non-terminal campaign_status values (everything except 'archived'/'blocked') —
+// a lead with one of these is already being worked, so skip it.
+const ACTIVE_CAMPAIGN_STATUSES = ["draft", "briefing", "generating", "pending_approval", "approved", "active", "paused"];
 
 /**
  * Run cold-lead detection over current CRM data and persist new opportunities.
@@ -18,7 +20,9 @@ export async function runColdLeadDetection(
 ): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
 
-  const leads = await listLeads({ limit: 500 }, client);
+  // Org-scope at the source: listLeads() (no client) applies the org filter, so the
+  // lead ids — and the events/campaigns queries bounded by them — stay org-scoped.
+  const leads = await listLeads({ limit: 500 });
   if (leads.length === 0) return { ok: true, count: 0 };
   const leadIds = leads.map((l) => l.id);
 
