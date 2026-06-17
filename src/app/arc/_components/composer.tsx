@@ -190,6 +190,28 @@ function mergeVoiceTranscript(base: string, transcript: string): string {
   return `${base}${spacer}${spoken}`;
 }
 
+/** Keyboard-hint footer shown under the slash/mention popovers (Codex-style). */
+function PopoverHint() {
+  const key = "rounded border border-[var(--border-strong)] px-1 font-mono text-[9px] leading-none text-[var(--text-secondary)]";
+  return (
+    <div className="flex items-center gap-3 border-t border-[var(--border-hairline)] px-3 py-1.5 text-[10px] text-[var(--text-muted)]">
+      <span className="flex items-center gap-1">
+        <kbd className={key}>↑</kbd>
+        <kbd className={key}>↓</kbd>
+        navigate
+      </span>
+      <span className="flex items-center gap-1">
+        <kbd className={key}>↵</kbd>
+        select
+      </span>
+      <span className="flex items-center gap-1">
+        <kbd className={key}>esc</kbd>
+        dismiss
+      </span>
+    </div>
+  );
+}
+
 export function Composer({
   conversationId,
   mentionGroups,
@@ -299,6 +321,7 @@ export function Composer({
   const [picked, setPicked] = useState<ArcMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
+  const [activeIdx, setActiveIdx] = useState(0); // highlighted row in whichever popover is open (keyboard nav)
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
   const [attachments, setAttachments] = useState<ArcAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -403,7 +426,7 @@ export function Composer({
     if (query === null) return [];
     const q = query.toLowerCase();
     const flat = mentionGroups.flatMap((g) => g.items);
-    return flat.filter((m) => m.label.toLowerCase().includes(q)).slice(0, 8);
+    return flat.filter((m) => m.label.toLowerCase().includes(q)).slice(0, 6);
   }, [query, mentionGroups]);
 
   function onTextChange(value: string) {
@@ -411,6 +434,7 @@ export function Composer({
     const at = /@([\w-]*)$/.exec(value);
     setQuery(at ? at[1] : null);
     setSlash(matchSlash(value));
+    setActiveIdx(0); // re-highlight the first row whenever the popover re-filters
   }
 
   function stopVoiceInput() {
@@ -510,16 +534,15 @@ export function Composer({
   }
 
   function applySlash(c: SlashCommand) {
-    // The command id travels to the agent as structured intent (not just text).
+    // Codex-style: the command becomes a clean chip (structured intent on the
+    // next send) — we DON'T paste a template prompt into the input. The "/query"
+    // text is cleared so the operator just types their message.
     setCommand(c.cmd.replace(/^\//, ""));
-    onDraftChange(c.prompt);
+    if (c.mode) onModeChange(c.mode); // preset the stance the command implies (e.g. Draft)
+    onDraftChange("");
     setSlash(null);
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(c.prompt.length, c.prompt.length);
-    });
+    setActiveIdx(0);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
@@ -554,37 +577,55 @@ export function Composer({
         <input type="hidden" name="projectId" value={newChatProjectId ?? ""} />
 
         {query !== null && suggestions.length > 0 ? (
-          <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-            {suggestions.map((m) => (
-              <button
-                key={`${m.type}:${m.id}`}
-                type="button"
-                onClick={() => addMention(m)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-inset)]"
-              >
-                <span className="truncate font-semibold text-[var(--text-primary)]">{m.label}</span>
-                <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">{m.type}</span>
-              </button>
-            ))}
+          <div role="listbox" aria-label="Mention a record" className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] shadow-[var(--elev-raised)]">
+            <div className="max-h-72 overflow-y-auto p-1.5">
+              {suggestions.map((m, i) => (
+                <button
+                  key={`${m.type}:${m.id}`}
+                  type="button"
+                  role="option"
+                  aria-selected={i === activeIdx}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onClick={() => addMention(m)}
+                  className={cx(
+                    "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
+                    i === activeIdx ? "bg-[var(--surface-inset)]" : "",
+                  )}
+                >
+                  <span className="truncate font-semibold text-[var(--text-primary)]">{m.label}</span>
+                  <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">{m.type}</span>
+                </button>
+              ))}
+            </div>
+            <PopoverHint />
           </div>
         ) : null}
 
         {slash && slash.length > 0 ? (
-          <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-            {slash.map((c) => (
-              <button
-                key={c.cmd}
-                type="button"
-                onClick={() => applySlash(c)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-inset)]"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-[var(--accent-contrast)]">{c.cmd}</span>
-                  <span className="text-[var(--text-secondary)]">{c.label}</span>
-                </span>
-                <span className="truncate text-[11px] text-[var(--text-muted)]">{c.hint}</span>
-              </button>
-            ))}
+          <div role="listbox" aria-label="Run a command" className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] shadow-[var(--elev-raised)]">
+            <div className="max-h-72 overflow-y-auto p-1.5">
+              {slash.map((c, i) => (
+                <button
+                  key={c.cmd}
+                  type="button"
+                  role="option"
+                  aria-selected={i === activeIdx}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onClick={() => applySlash(c)}
+                  className={cx(
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition",
+                    i === activeIdx ? "bg-[var(--surface-inset)]" : "",
+                  )}
+                >
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-medium text-[var(--text-primary)]">{c.label}</span>
+                    <span className="truncate text-[11px] text-[var(--text-muted)]">{c.hint}</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-[var(--text-muted)]">{c.cmd}</span>
+                </button>
+              ))}
+            </div>
+            <PopoverHint />
           </div>
         ) : null}
 
@@ -689,16 +730,39 @@ export function Composer({
               }
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
+              // Codex-style command/mention navigation when a popover is open.
+              const slashItems = slash && slash.length > 0 ? slash : null;
+              const mentionItems = query !== null && suggestions.length > 0 ? suggestions : null;
+              const openCount = slashItems?.length ?? mentionItems?.length ?? 0;
+              if (openCount > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setActiveIdx((i) => (i + 1) % openCount);
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActiveIdx((i) => (i - 1 + openCount) % openCount);
+                  return;
+                }
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  const idx = Math.min(activeIdx, openCount - 1);
+                  if (slashItems) applySlash(slashItems[idx]);
+                  else if (mentionItems) addMention(mentionItems[idx]);
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setSlash(null);
+                  setQuery(null);
+                  return;
+                }
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (!disabled) formRef.current?.requestSubmit();
-              } else if (
-                e.key === "ArrowUp" &&
-                query === null &&
-                slash === null &&
-                draft.length === 0 &&
-                recallText
-              ) {
+              } else if (e.key === "ArrowUp" && draft.length === 0 && recallText) {
                 // Empty composer: recall the last message to re-send or tweak.
                 e.preventDefault();
                 onDraftChange(recallText);
