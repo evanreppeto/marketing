@@ -29,13 +29,15 @@ function WorkingSpinner() {
   );
 }
 
-/** Gold pulse marking a finished reply you haven't opened yet. Clears on open. */
-function DonePulse() {
+/** Calm gold dot marking a finished reply you haven't opened yet. Clears on
+ *  open. Static on purpose — an unread cue, not a nagging ping. */
+function UnreadDot() {
   return (
-    <span className="relative flex h-2 w-2 shrink-0" aria-label="New reply from Arc" title="New reply — open to view">
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
-    </span>
+    <span
+      className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]"
+      aria-label="New reply from Arc"
+      title="New reply — open to view"
+    />
   );
 }
 
@@ -127,8 +129,11 @@ function ChatRow({
   state?: RunState;
 }) {
   const active = c.id === activeId;
+  // The thread you're viewing already shows its working/streaming state in the
+  // main panel — a sidebar indicator on it is redundant noise, so suppress it.
+  const shown: RunState = active ? "idle" : state;
   const titleText =
-    state === "working" ? `${c.title} — Arc is working…` : state === "done" ? `${c.title} — new reply` : c.title;
+    shown === "working" ? `${c.title} — Arc is working…` : shown === "done" ? `${c.title} — new reply` : c.title;
   return (
     <ThreadContextMenu
       className="group relative flex items-center gap-1"
@@ -151,11 +156,11 @@ function ChatRow({
         title={titleText}
       >
         {c.pinnedAt ? <PinGlyph /> : null}
-        <span className={cx("min-w-0 flex-1 truncate", state === "done" ? "font-semibold text-[var(--text-primary)]" : "")}>{c.title}</span>
-        {state === "working" ? (
+        <span className={cx("min-w-0 flex-1 truncate", shown === "done" ? "font-semibold text-[var(--text-primary)]" : "")}>{c.title}</span>
+        {shown === "working" ? (
           <WorkingSpinner />
-        ) : state === "done" ? (
-          <DonePulse />
+        ) : shown === "done" ? (
+          <UnreadDot />
         ) : (
           <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] transition-opacity duration-150 group-hover:opacity-0">
             {relativeTime(c.lastMessageAt, nowMs)}
