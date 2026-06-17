@@ -321,6 +321,34 @@ export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClien
   }
 }
 
+const CRM_OBJECT_KEYS: readonly CrmObjectKey[] = [
+  "companies",
+  "contacts",
+  "properties",
+  "leads",
+  "jobs",
+  "outcomes",
+];
+
+/**
+ * Sample rows for every CRM object in a single table-bundle fetch, for @-mention
+ * autocomplete. Replaces calling getCrmObjectData() once per object (which each
+ * re-fetched the whole 6-table bundle) — that turned one render into ~36 table
+ * reads. Org scoping is preserved (orgId resolved here when no client is passed).
+ */
+export async function getCrmMentionSamples(
+  client?: SupabaseClient,
+): Promise<Partial<Record<CrmObjectKey, CrmObjectRow[]>>> {
+  if (!client && !isSupabaseAdminConfigured()) return {};
+  const orgId = client ? null : await getCurrentOrgId();
+  const data = await getCrmTableBundle(client, orgId);
+  const out: Partial<Record<CrmObjectKey, CrmObjectRow[]>> = {};
+  for (const key of CRM_OBJECT_KEYS) {
+    out[key] = mapObjectRows(key, data);
+  }
+  return out;
+}
+
 export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCounts> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
