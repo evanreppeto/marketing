@@ -9,29 +9,24 @@ import type { ArcConversation, ArcProject } from "@/lib/arc-chat/persistence";
 import { createProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
 import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
-import { SLASH_COMMANDS } from "./slash-commands";
 
-/** Discoverable agent capabilities — one click opens a fresh chat primed with
- *  the command (the deep link the composer reads via ?skill=<id>). Reuses the
- *  same command definitions as the composer's "/" menu. */
-function SkillsSection() {
+/** A single top-nav entry (Codex/Claude-style) into the Skills page, where you
+ *  launch skills and (soon) set up plugins/connectors. */
+function SkillsNav() {
   return (
-    <div className="flex flex-col gap-0.5">
-      <SectionLabel>Skills</SectionLabel>
-      {SLASH_COMMANDS.map((c) => (
-        <Link
-          key={c.cmd}
-          href={`/arc?skill=${c.cmd.slice(1)}`}
-          title={c.hint}
-          className="group flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 2.5c.4 3.2 1.4 4.2 4.6 4.6-3.2.4-4.2 1.4-4.6 4.6-.4-3.2-1.4-4.2-4.6-4.6 3.2-.4 4.2-1.4 4.6-4.6Z" />
-          </svg>
-          <span className="min-w-0 flex-1 truncate">{c.label}</span>
-        </Link>
-      ))}
-    </div>
+    <Link
+      href="/arc/skills"
+      title="Browse Arc's skills and set up plugins"
+      className="group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+    >
+      <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--text-secondary)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="6" height="6" rx="1.5" />
+        <rect x="11" y="3" width="6" height="6" rx="1.5" />
+        <rect x="3" y="11" width="6" height="6" rx="1.5" />
+        <rect x="11" y="11" width="6" height="6" rx="1.5" />
+      </svg>
+      <span className="min-w-0 flex-1 truncate">Skills</span>
+    </Link>
   );
 }
 
@@ -64,11 +59,11 @@ function DonePulse() {
   );
 }
 
-function SectionLabel({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+function SectionLabel({ children, action, icon }: { children: React.ReactNode; action?: React.ReactNode; icon?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2 px-2 pt-3.5">
       <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-        <span aria-hidden className="h-2.5 w-px rounded-full bg-[var(--accent)]" />
+        {icon ?? <span aria-hidden className="h-2.5 w-px rounded-full bg-[var(--accent)]" />}
         {children}
       </p>
       {action}
@@ -130,10 +125,11 @@ function NewChatLink({ assistantName }: { assistantName: string }) {
   );
 }
 
-function PinGlyph() {
+function PinGlyph({ className = "h-3 w-3 shrink-0 text-[var(--accent)]" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 shrink-0 text-[var(--accent)]" fill="currentColor">
-      <path d="M12 2l1 5 3 2-4 1-1 6-1-6-4-1 3-2 1-5z" />
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 17v5" />
+      <path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
     </svg>
   );
 }
@@ -511,11 +507,11 @@ export function ThreadSidebar({
         </kbd>
       </label>
 
-      <SkillsSection />
+      <SkillsNav />
 
       {pinned.length > 0 ? (
         <div className="flex flex-col gap-0.5">
-          <SectionLabel>Pinned</SectionLabel>
+          <SectionLabel icon={<PinGlyph className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />}>Pinned</SectionLabel>
           {pinned.map((c) => (
             <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
           ))}
@@ -597,24 +593,15 @@ export function ThreadSidebar({
           </Link>
         </div>
 
-        {/* Account / agent row — identity + settings, like the account menu in
-            ChatGPT/Claude. Opens the full settings page. */}
         <Link
           href="/settings"
-          title={`${assistantName} — agent & workspace settings`}
-          className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-[var(--surface-inset)]"
+          className="group flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
-            {(assistantName.trim()[0] ?? "A").toUpperCase()}
-          </span>
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm font-medium text-[var(--text-primary)]">{assistantName}</span>
-            <span className="truncate text-[11px] text-[var(--text-muted)]">Settings &amp; connection</span>
-          </span>
-          <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--text-primary)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
           </svg>
+          Settings
         </Link>
       </div>
     </aside>

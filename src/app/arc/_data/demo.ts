@@ -49,7 +49,7 @@ function conv(id: string, title: string, agoMs: number, extra?: Partial<ArcConve
 const CONVERSATIONS: ArcConversation[] = [
   conv(CONV, "Storm-response campaign for landlords", 7 * MIN, { projectId: PROJECT.id, campaignId: "demo-campaign" }),
   conv("demo-conv-2", "Find new leads in flood zones", 40 * MIN),
-  conv("demo-conv-3", "Summarize last week's approvals", 3 * HOUR),
+  conv("demo-conv-3", "Summarize last week's approvals", 3 * HOUR, { pinnedAt: ago(2 * DAY) }),
   conv("demo-conv-4", "Draft a referral packet", 26 * HOUR),
   conv("demo-conv-5", "HOA board outreach ideas", 5 * DAY),
 ];
