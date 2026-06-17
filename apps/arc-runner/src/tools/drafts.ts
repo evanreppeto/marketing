@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { ArcClient } from "../arc-client";
 import type { ArcActionCard } from "../types";
+import type { ToolContext } from "./index";
 import { textResult, type StepFn } from "./helpers";
 
 /**
@@ -15,6 +16,7 @@ export function draftWorkProductTools(
   client: ArcClient,
   step: StepFn,
   collectCard: (card: ArcActionCard) => void,
+  ctx: ToolContext = {},
 ) {
   const createCampaignDraft = tool(
     "create_campaign_draft",
@@ -38,7 +40,7 @@ export function draftWorkProductTools(
       try {
         const r = await client.apiPost<{ campaignId: string; assetId: string }>(
           "/api/v1/arc/campaigns/draft-asset",
-          args,
+          { ...args, ...(ctx.opportunityId ? { opportunity_id: ctx.opportunityId } : {}) },
         );
         await step(label, "done");
         collectCard({

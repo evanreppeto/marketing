@@ -5,12 +5,16 @@ vi.mock("@/lib/campaigns/create", () => ({
   promoteAssetToCampaign: vi.fn(),
 }));
 
+vi.mock("@/lib/opportunities/persistence", () => ({ markOpportunityDrafted: vi.fn(async () => ({ ok: true })) }));
+
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
 import { POST } from "./route";
 
 const shellMock = vi.mocked(createCampaignShell);
 const promoteMock = vi.mocked(promoteAssetToCampaign);
+const markDraftedMock = vi.mocked(markOpportunityDrafted);
 
 function req(authorization: string | undefined, body?: unknown) {
   return new Request("http://localhost/api/v1/arc/campaigns/draft-asset", {
@@ -35,8 +39,10 @@ function configure() {
 beforeEach(() => {
   shellMock.mockReset();
   promoteMock.mockReset();
+  markDraftedMock.mockReset();
   shellMock.mockResolvedValue({ campaignId: "camp_1" });
   promoteMock.mockResolvedValue({ assetId: "asset_1" });
+  markDraftedMock.mockResolvedValue({ ok: true });
 });
 
 afterEach(() => {
@@ -102,6 +108,18 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     expect(promoteMock).toHaveBeenCalledWith(
       expect.objectContaining({ campaignId: "camp_existing", assetType: "email" }),
     );
+  });
+
+  it("links the opportunity when opportunity_id is provided", async () => {
+    configure();
+    await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "email", title: "Re-engage", opportunity_id: "opp-1" }));
+    expect(markOpportunityDrafted).toHaveBeenCalledWith("opp-1", "camp_existing");
+  });
+
+  it("does not link an opportunity when opportunity_id is absent", async () => {
+    configure();
+    await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "email", title: "Plain" }));
+    expect(markOpportunityDrafted).not.toHaveBeenCalled();
   });
 
   it("forwards media url, path, and generation provenance to persistence", async () => {

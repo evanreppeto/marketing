@@ -35,7 +35,25 @@ export type MarkChatMessagePayload = {
 
 export type MarkPingPayload = { type: "ping"; workspaceId?: string; nonce?: string; at?: string };
 
-export type WakePayload = MarkChatMessagePayload | MarkPingPayload | { type?: string };
+/**
+ * Wake telling Arc to draft an approval-gated campaign package for an
+ * opportunity. `message` is a full briefing used verbatim as the prompt; the
+ * draft is linked back via `opportunityId` (threaded into create_campaign_draft).
+ */
+export type ArcOpportunityDraftPayload = {
+  type: "arc_opportunity_draft";
+  opportunityId: string;
+  agentTaskId: string;
+  message: string;
+  leadId: string;
+  operator: string;
+};
+
+export type WakePayload =
+  | MarkChatMessagePayload
+  | MarkPingPayload
+  | ArcOpportunityDraftPayload
+  | { type?: string };
 
 /** Structured cards Arc attaches to a reply (rendered by the app from metadata.actions). */
 export type ArcActionRow = { name: string; meta?: string; badge?: string; href?: string };

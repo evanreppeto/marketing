@@ -14,8 +14,13 @@ describe("navItems", () => {
     expect(arc?.label).toBe("Arc");
   });
 
-  it("exposes Arc first, then Campaigns, and nothing else", () => {
+  it("includes an Opportunities entry pointing at /opportunities", () => {
+    const opportunities = navItems.find((item) => item.href === "/opportunities");
+    expect(opportunities?.label).toBe("Opportunities");
+  });
+
+  it("exposes Arc first, then Campaigns, then Opportunities", () => {
     const labels = navItems.map((item) => item.label);
-    expect(labels).toEqual(["Arc", "Campaigns"]);
+    expect(labels).toEqual(["Arc", "Campaigns", "Opportunities"]);
   });
 });

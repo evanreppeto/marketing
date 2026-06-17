@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import type { ComponentProps } from "react";
 
 import { countActiveApprovals } from "@/lib/approvals/read-model";
+import { countPendingOpportunities } from "@/lib/opportunities/read-model";
 import { getOperatorActor } from "@/lib/auth/operator";
 import { getMentionables } from "@/lib/arc-chat/mention-search";
 import {
@@ -53,7 +54,9 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]>): Promise<ArcChatProps> {
+async function loadLiveArcChatProps(
+  params: Awaited<ArcPageProps["searchParams"]>,
+): Promise<{ chatProps: ArcChatProps; pendingOpportunities: number }> {
   const operator = getOperatorActor();
   const showArchived = valueOf(params?.archived) === "1";
   const requestedId = valueOf(params?.c);
@@ -64,19 +67,29 @@ async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]
   // ~8 sequential Supabase round-trips that summed past the page-data timeout and
   // silently degraded the whole chat to demo mode; one parallel batch stays well
   // under budget. Optional reads (approvals, campaigns) self-recover to a default.
-  const [mentionGroups, settings, pendingApprovals, conversations, projects, campaigns, archived, activeConversation] =
-    await Promise.all([
-      getMentionables(),
-      getAppSettings(),
-      countActiveApprovals().catch(() => 0),
-      listConversations(operator),
-      listProjects(operator),
-      listCampaignNames()
-        .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
-        .catch(() => [] as { id: string; name: string }[]),
-      showArchived ? listArchivedConversations(operator) : Promise.resolve([] as ArcConversation[]),
-      requestedId ? getConversation(requestedId) : Promise.resolve(null),
-    ]);
+  const [
+    mentionGroups,
+    settings,
+    pendingApprovals,
+    conversations,
+    projects,
+    campaigns,
+    archived,
+    activeConversation,
+    pendingOpportunities,
+  ] = await Promise.all([
+    getMentionables(),
+    getAppSettings(),
+    countActiveApprovals().catch(() => 0),
+    listConversations(operator),
+    listProjects(operator),
+    listCampaignNames()
+      .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
+      .catch(() => [] as { id: string; name: string }[]),
+    showArchived ? listArchivedConversations(operator) : Promise.resolve([] as ArcConversation[]),
+    requestedId ? getConversation(requestedId) : Promise.resolve(null),
+    countPendingOpportunities().catch(() => 0),
+  ]);
 
   // "New chat in this project" deep link (?project=<id>) — only meaningful for a
   // fresh chat; ignored once a thread is active and validated against real projects.
@@ -108,26 +121,29 @@ async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]
   ]);
 
   return {
-    conversations,
-    projects,
-    archived,
-    showArchived,
-    activeId: activeConversation?.id ?? "",
-    activeTitle: activeConversation?.title ?? "",
-    activeProjectId: activeConversation?.projectId ?? null,
-    newChatProjectId,
-    initialSkill,
-    activeCampaignId: activeConversation?.campaignId ?? null,
-    campaigns,
-    activePinned: Boolean(activeConversation?.pinnedAt),
-    initialMessages,
-    projectMessages,
-    mentionGroups,
-    operatorName: displayName(operator),
-    pendingApprovals,
-    defaultMode: settings.markDefaultMode,
-    defaultRoute: settings.markDefaultRoute,
-    assistantName: settings.assistantName,
+    chatProps: {
+      conversations,
+      projects,
+      archived,
+      showArchived,
+      activeId: activeConversation?.id ?? "",
+      activeTitle: activeConversation?.title ?? "",
+      activeProjectId: activeConversation?.projectId ?? null,
+      newChatProjectId,
+      initialSkill,
+      activeCampaignId: activeConversation?.campaignId ?? null,
+      campaigns,
+      activePinned: Boolean(activeConversation?.pinnedAt),
+      initialMessages,
+      projectMessages,
+      mentionGroups,
+      operatorName: displayName(operator),
+      pendingApprovals,
+      defaultMode: settings.markDefaultMode,
+      defaultRoute: settings.markDefaultRoute,
+      assistantName: settings.assistantName,
+    },
+    pendingOpportunities,
   };
 }
 
@@ -150,9 +166,12 @@ export default async function ArcPage({ searchParams }: ArcPageProps) {
 
   const params = await searchParams;
   let markChatProps: ArcChatProps;
+  let pendingOpportunities = 0;
   let demo = false;
   try {
-    markChatProps = await withTimeout(loadLiveArcChatProps(params), ARC_PAGE_DATA_TIMEOUT_MS);
+    const live = await withTimeout(loadLiveArcChatProps(params), ARC_PAGE_DATA_TIMEOUT_MS);
+    markChatProps = live.chatProps;
+    pendingOpportunities = live.pendingOpportunities;
   } catch (err) {
     // Supabase may be paused, unreachable, or missing migrations. Keep the app
     // open with the full preview instead of making Vercel wait on backend reads.
@@ -163,5 +182,5 @@ export default async function ArcPage({ searchParams }: ArcPageProps) {
     demo = true;
   }
 
-  return <ArcChat {...markChatProps} demo={demo} />;
+  return <ArcChat {...markChatProps} demo={demo} pendingOpportunities={pendingOpportunities} />;
 }

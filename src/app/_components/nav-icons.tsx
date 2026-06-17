@@ -8,7 +8,8 @@ export type NavIconName =
   | "board"
   | "analytics"
   | "brain"
-  | "activity";
+  | "activity"
+  | "opportunities";
 
 const paths: Record<NavIconName, React.ReactNode> = {
   // Three columns — kanban task board
@@ -90,6 +91,14 @@ const paths: Record<NavIconName, React.ReactNode> = {
       <path d="m9 7.4 5.9 1.2" />
       <path d="m7.6 9 1.8 6.1" />
       <path d="m15.4 10.7-4 4.8" />
+    </>
+  ),
+  // Concentric target — opportunity inbox
+  opportunities: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" fill="currentColor" r="1.4" stroke="none" />
     </>
   ),
   // Sliders — configuration
