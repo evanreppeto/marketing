@@ -70,24 +70,47 @@ export type ArcNotifyPayload = {
  *   ARC_WEBHOOK_SECRET  — the route's secret (used to HMAC-sign the body)
  */
 export async function notifyArcWebhook(payload: ArcNotifyPayload): Promise<boolean> {
+  return postArcWake({ type: "arc_chat_message", ...payload });
+}
+
+export type ArcOpportunityDraftWake = {
+  opportunityId: string;
+  agentTaskId: string;
+  message: string;
+  leadId: string;
+  operator: string;
+};
+
+/** Best-effort wake for an opportunity draft — same transport/signing as the chat wake. */
+export async function notifyArcOpportunityDraft(payload: ArcOpportunityDraftWake): Promise<boolean> {
+  return postArcWake({ type: "arc_opportunity_draft", ...payload });
+}
+
+/**
+ * Shared transport for every Arc wake: resolve the agent connection (webhook url +
+ * secret), HMAC-sign the already-formed body, and POST it with a short timeout.
+ * Best-effort — never throws; records reachability so the connection pill reflects
+ * whether the runner actually answered.
+ */
+async function postArcWake(body: Record<string, unknown>): Promise<boolean> {
   const connection = await resolveAgentConnection();
   const url = connection.webhookUrl;
   if (!url) return false;
   if (!connection.enabled) return false;
 
-  const body = JSON.stringify({ type: "arc_chat_message", ...payload });
+  const serialized = JSON.stringify(body);
   const headers: Record<string, string> = { "content-type": "application/json" };
 
   const secret = await resolveWebhookSecret(connection.webhookSecretRef);
   if (secret) {
-    headers["x-webhook-signature"] = createHmac("sha256", secret).update(body).digest("hex");
+    headers["x-webhook-signature"] = createHmac("sha256", secret).update(serialized).digest("hex");
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6000);
 
   try {
-    const res = await fetch(url, { method: "POST", headers, body, signal: controller.signal });
+    const res = await fetch(url, { method: "POST", headers, body: serialized, signal: controller.signal });
     // The wake doubles as a reachability probe: record the outcome so the connection
     // pill reflects whether the runner actually answered, not just whether a URL is
     // configured. Best-effort — recordTestResult swallows its own errors.
