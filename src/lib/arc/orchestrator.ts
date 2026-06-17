@@ -3,6 +3,9 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { parseArcPartnerCampaignRequest, type ArcPartnerCampaignRequest } from "./contracts";
 import { createPartnerCampaignDraft } from "./draft-engine";
 import { getSupabaseAdminClient } from "../supabase/server";
+import { type ArcBusinessContext } from "@/domain";
+import { getBusinessContext } from "../brand-kit/read-model";
+import { getCurrentOrgId } from "../auth/org";
 
 export type ArcRunResult = {
   runId: string;
@@ -24,12 +27,14 @@ const sourceSystem = "arc_agent_orchestrator";
 export async function runArcPartnerCampaign(
   input: unknown = {},
   client: SupabaseClient = getSupabaseAdminClient(),
+  context?: ArcBusinessContext,
 ): Promise<ArcRunResult> {
   const request = parseArcPartnerCampaignRequest(input);
+  const businessContext = context ?? (await getBusinessContext(await getCurrentOrgId()));
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
   const startedAt = new Date().toISOString();
   const agentId = await upsertArcAgent(client);
-  const draft = createPartnerCampaignDraft(request);
+  const draft = createPartnerCampaignDraft(request, businessContext);
 
   const companyId = await insertOne(client, "companies", {
     name: `${request.company.name} ${runId}`,
