@@ -279,3 +279,48 @@ export function parseActions(value: unknown): ArcActionCard[] {
   }
   return out;
 }
+
+/**
+ * A structured question Arc poses to the operator, rendered as an interactive
+ * panel (option chips / checkboxes / free text) above the composer instead of a
+ * plain-text question. Answering auto-sends the choice as the next message.
+ * RUNNER CONTRACT: Arc writes these to `arc_messages.metadata.questions`.
+ */
+export type ArcQuestion = {
+  id: string;
+  prompt: string;
+  /** Choices to offer; empty means free-text only. */
+  options: string[];
+  /** Allow selecting several options at once (checkboxes + confirm). */
+  multi?: boolean;
+  /** Offer a "type your own" free-text fallback alongside any options. */
+  allowText?: boolean;
+};
+
+/** Parse Arc's structured questions from message metadata. Defensive: drops
+ *  malformed entries (must have a prompt and either options or allowText), never throws. */
+export function parseQuestions(value: unknown): ArcQuestion[] {
+  if (!Array.isArray(value)) return [];
+  const out: ArcQuestion[] = [];
+  for (const [i, item] of value.entries()) {
+    if (!item || typeof item !== "object") continue;
+    const prompt = str((item as { prompt?: unknown }).prompt);
+    if (!prompt) continue;
+    const rawOptions = (item as { options?: unknown }).options;
+    const options = Array.isArray(rawOptions)
+      ? rawOptions.filter((o): o is string => typeof o === "string" && o.trim().length > 0).map((o) => o.trim()).slice(0, 8)
+      : [];
+    const allowText = (item as { allowText?: unknown }).allowText === true;
+    // A question must offer SOME way to answer.
+    if (options.length === 0 && !allowText) continue;
+    const id = str((item as { id?: unknown }).id) ?? `q${i}`;
+    out.push({
+      id,
+      prompt,
+      options,
+      multi: (item as { multi?: unknown }).multi === true,
+      allowText,
+    });
+  }
+  return out.slice(0, 4);
+}
