@@ -43,6 +43,27 @@ export type ArcActionFlag = { tone: "ok" | "warn" | "risk"; label: string };
 /** Inline approval reference — ONLY valid for an existing campaign asset. */
 export type ArcActionApproval = { kind: "campaign"; campaignId: string; assetId: string };
 
+/** A record Arc referenced — renders in the "Sources Arc used" row. Same shape as MarkMention. */
+export type ArcMention = MarkMention;
+
+/** Media attached to a card (thumbnail + provenance). `url` is required. */
+export type ArcMedia = {
+  kind: "image" | "video";
+  url: string;
+  thumbnailUrl?: string;
+  poster?: string;
+  caption?: string;
+  alt?: string;
+  href?: string;
+  source?: "bsr_real" | "ai_generated" | "composite" | "stock" | "external";
+  sourceId?: string;
+  jobId?: string;
+  model?: string;
+  format?: string;
+  status?: "draft" | "revision" | "approved" | "rejected";
+  riskFlags?: string[];
+};
+
 export type ArcActionCard = {
   kind: "result" | "draft";
   title: string;
@@ -54,4 +75,5 @@ export type ArcActionCard = {
   channel?: string;
   format?: string;
   status?: "draft" | "revision" | "approved" | "rejected";
+  media?: ArcMedia;
 };
