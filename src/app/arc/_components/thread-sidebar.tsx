@@ -332,6 +332,8 @@ export function ThreadSidebar({
   assistantName = "Arc",
   runningIds = NO_RUNNING_IDS,
   doneIds = NO_RUNNING_IDS,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   conversations: ArcConversation[];
   projects: ArcProject[];
@@ -344,6 +346,9 @@ export function ThreadSidebar({
   runningIds?: Set<string>;
   /** Conversation ids with a finished-but-unopened reply — drives the pulse. */
   doneIds?: Set<string>;
+  /** Collapsed icon-rail mode (desktop only). */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
@@ -358,6 +363,46 @@ export function ThreadSidebar({
     const id = setInterval(() => setNowMs(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Collapsed icon rail (desktop): just the essentials; expand to see threads.
+  if (collapsed && variant !== "overlay") {
+    const railBtn =
+      "flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
+    return (
+      <aside className="hidden min-h-0 flex-col items-center gap-2 overflow-y-auto p-2 lg:flex">
+        <button type="button" onClick={onToggleCollapse} title="Expand sidebar" aria-label="Expand sidebar" className={railBtn}>
+          <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="14" height="12" rx="2" />
+            <path d="M8 4v12" />
+          </svg>
+        </button>
+        <Link
+          href="/arc"
+          title="New chat"
+          aria-label="New chat"
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)]"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <path d="M10 4v12M4 10h12" />
+          </svg>
+        </Link>
+        <button type="button" onClick={onToggleCollapse} title="Search chats" aria-label="Search chats" className={railBtn}>
+          <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="9" r="5.5" />
+            <path d="m13.5 13.5 3 3" />
+          </svg>
+        </button>
+        <Link
+          href="/settings"
+          title={`${assistantName} — settings`}
+          aria-label={`${assistantName} settings`}
+          className="mt-auto flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+        >
+          {(assistantName.trim()[0] ?? "A").toUpperCase()}
+        </Link>
+      </aside>
+    );
+  }
 
   if (showArchived) {
     return (
@@ -420,6 +465,22 @@ export function ThreadSidebar({
 
   return (
     <aside className={asideClass}>
+      {onToggleCollapse ? (
+        <div className="flex justify-end px-1">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="14" height="12" rx="2" />
+              <path d="M8 4v12" />
+            </svg>
+          </button>
+        </div>
+      ) : null}
       <NewChatLink assistantName={assistantName} />
 
       <label className="relative mt-1 block px-1">
