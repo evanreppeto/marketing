@@ -243,26 +243,45 @@ export async function listConversations(
   return ((data ?? []) as ConversationRow[]).map(toConversation);
 }
 
+/** A conversation with an in-flight Arc run, plus when that run last advanced. */
+export type ActiveArcRun = {
+  conversationId: string;
+  /** ISO timestamp the run began (started_at, else created_at). Lets the client
+   *  tell a genuinely-working run from an orphaned task stuck in the queue. */
+  since: string;
+};
+
 /**
- * Conversation ids that currently have an Arc run in flight (queued or running)
+ * Conversations that currently have an Arc run in flight (queued or running)
  * — powers the cross-thread "Arc is working…" indicators in the sidebar. Reads
- * the agent_tasks queue by the arc-chat source link; cheap distinct scan.
+ * the agent_tasks queue by the arc-chat source link; cheap distinct scan. The
+ * `since` timestamp lets the sidebar stop spinning on orphaned tasks the runner
+ * never completed (it would otherwise spin forever).
  */
 export async function listActiveArcRunConversationIds(
   client: SupabaseClient = getSupabaseAdminClient(),
-): Promise<string[]> {
+): Promise<ActiveArcRun[]> {
   const { data, error } = await client
     .from("agent_tasks")
-    .select("source_id")
+    .select("source_id, started_at, created_at")
     .eq("task_type", "arc_chat_message")
     .eq("source_type", "arc_conversation")
     .in("status", ["queued", "running"]);
   assertOk("agent_tasks active arc runs", error);
-  const ids = new Set<string>();
-  for (const row of (data ?? []) as { source_id: string | null }[]) {
-    if (row.source_id) ids.add(row.source_id);
+  // One conversation can have several queued turns; keep the freshest start so a
+  // recently-sent message keeps spinning even behind an older stuck task.
+  const latest = new Map<string, string>();
+  for (const row of (data ?? []) as {
+    source_id: string | null;
+    started_at: string | null;
+    created_at: string | null;
+  }[]) {
+    if (!row.source_id) continue;
+    const since = row.started_at ?? row.created_at ?? "";
+    const prev = latest.get(row.source_id);
+    if (prev === undefined || since > prev) latest.set(row.source_id, since);
   }
-  return [...ids];
+  return [...latest].map(([conversationId, since]) => ({ conversationId, since }));
 }
 
 export type ArcRunStatus =
