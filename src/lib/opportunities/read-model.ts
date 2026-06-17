@@ -62,6 +62,44 @@ function toRow(r: OpportunityRecord): OpportunityRow {
   };
 }
 
+export type OpportunityForDraft = {
+  id: string;
+  subjectId: string;
+  title: string;
+  summary: string;
+  urgency: "low" | "medium" | "high";
+  confidence: number;
+  recommendedAction: string;
+  persona: string;
+};
+
+/** Load one opportunity (+ its persona from evidence) for the Draft-with-Arc flow. */
+export async function getOpportunityForDraft(
+  id: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<OpportunityForDraft | null> {
+  if (!isSupabaseAdminConfigured()) return null;
+  const orgId = await getCurrentOrgId();
+  const { data, error } = await client
+    .from("opportunities")
+    .select("id, subject_id, title, summary, urgency, confidence, recommended_action, evidence")
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  const evidence = (data.evidence ?? {}) as { persona?: string };
+  return {
+    id: data.id,
+    subjectId: data.subject_id,
+    title: data.title,
+    summary: data.summary,
+    urgency: data.urgency,
+    confidence: data.confidence,
+    recommendedAction: data.recommended_action,
+    persona: typeof evidence.persona === "string" ? evidence.persona : "",
+  };
+}
+
 /** Bucket open opportunities by urgency for OpportunityCommandCenter. */
 export function buildOpportunityBuckets(records: OpportunityRecord[]): OpportunityBucket[] {
   const sorted = [...records].sort((a, b) => URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]);
