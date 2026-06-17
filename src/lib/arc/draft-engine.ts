@@ -2,6 +2,7 @@ import {
   type ArcPartnerCampaignRequest,
 } from "./contracts";
 import { checkArcGeneratedCopy, type ArcGuardrailResult } from "./guardrails";
+import { type ArcBusinessContext } from "@/domain";
 
 export type ArcDraftPackage = {
   campaignName: string;
@@ -17,22 +18,27 @@ export type ArcDraftPackage = {
   guardrails: ArcGuardrailResult;
 };
 
-export function createPartnerCampaignDraft(request: ArcPartnerCampaignRequest): ArcDraftPackage {
+export function createPartnerCampaignDraft(
+  request: ArcPartnerCampaignRequest,
+  context: ArcBusinessContext,
+): ArcDraftPackage {
   const companyName = request.company.name;
   const firstName = request.contact.firstName;
+  const businessName = context.businessName;
+  const servicesPhrase =
+    context.services.length > 0 ? context.services.join(", ") : "the services you need";
   const campaignName =
     request.campaign.name ?? `${humanizePersona(request.persona)} Referral Outreach - ${companyName}`;
   const audienceSummary =
     request.campaign.audienceSummary ??
-    `${companyName} decision makers who may encounter active water damage before a restoration team is involved.`;
+    `${companyName} decision makers who may need ${servicesPhrase}.`;
   const offerSummary =
-    request.campaign.offerSummary ??
-    "A simple water-loss handoff lane with mitigation, documentation, and rebuild coordination support.";
-  const draftOutput = buildDraftOutput({ request, firstName, offerSummary });
+    request.campaign.offerSummary ?? `A simple handoff lane with ${servicesPhrase}.`;
+  const draftOutput = buildDraftOutput({ request, firstName, businessName, offerSummary, servicesPhrase });
   const guardrails = checkArcGeneratedCopy({
     draftOutput,
-    lossSignals: request.lead.lossSignals,
-    restorationFocus: request.restorationFocus,
+    bannedPhrases: context.bannedPhrases,
+    complianceNotes: context.guardrails.complianceNotes,
   });
 
   return {
@@ -44,7 +50,7 @@ export function createPartnerCampaignDraft(request: ArcPartnerCampaignRequest): 
       `Channel: ${request.channel}`,
       `Tone: ${request.campaign.tone}`,
       `CTA: ${request.campaign.cta}`,
-      `Guardrail: coverage-neutral, no claim approval or payout promises`,
+      `Guardrail: no disallowed claims`,
     ].join("\n"),
     promptInputs: {
       objective: request.objective,
@@ -52,20 +58,19 @@ export function createPartnerCampaignDraft(request: ArcPartnerCampaignRequest): 
       channel: request.channel,
       tone: request.campaign.tone,
       cta: request.campaign.cta,
-      restoration_focus: request.restorationFocus,
       target_company: companyName,
       target_contact: `${request.contact.firstName} ${request.contact.lastName}`,
-      guardrail_summary: "coverage-neutral language required",
+      guardrail_summary: "compliance-checked",
     },
     draftOutput,
     audienceSummary,
     offerSummary,
-    personaSummary: `${companyName} is a ${humanizePersona(request.persona)} candidate with water-loss handoff potential.`,
+    personaSummary: `${companyName} is a ${humanizePersona(request.persona)} candidate for ${businessName}.`,
     recommendedAction:
-      "Review the lead fit and edit/approve the draft if the message matches BSR's partner voice.",
+      `Review the lead fit and edit/approve the draft if the message matches ${businessName}'s voice.`,
     reasoningPayload: {
       why_arc_created_it:
-        "The request targets a referral persona with water-loss source-stop signals and requires an approval-gated campaign draft.",
+        "The request targets a referral persona with source-stop signals and requires an approval-gated campaign draft.",
       source_data: {
         evidence_urls: request.lead.evidenceUrls,
         service_area_zips: request.company.serviceAreaZips,
@@ -83,41 +88,44 @@ export function createPartnerCampaignDraft(request: ArcPartnerCampaignRequest): 
 function buildDraftOutput(input: {
   request: ArcPartnerCampaignRequest;
   firstName: string;
+  businessName: string;
   offerSummary: string;
+  servicesPhrase: string;
 }) {
-  const { request, firstName, offerSummary } = input;
+  const { request, firstName, businessName, offerSummary, servicesPhrase } = input;
+  const cta = request.campaign.cta.toLowerCase();
 
   if (request.channel === "sms") {
     return [
-      `Hi ${firstName}, this is Big Shoulders Restoration.`,
-      "When your team stops the source of a water issue, we can help with mitigation, documentation, and rebuild coordination.",
-      `Would it be useful to ${request.campaign.cta.toLowerCase()}?`,
+      `Hi ${firstName}, this is ${businessName}.`,
+      `When your customers need help, we can support with ${servicesPhrase}.`,
+      `Would it be useful to ${cta}?`,
     ].join(" ");
   }
 
   if (request.channel === "call_script") {
     return [
-      `Opening: Hi ${firstName}, this is Big Shoulders Restoration calling about a simple water-loss handoff process for your plumbing customers.`,
+      `Opening: Hi ${firstName}, this is ${businessName} calling about a simple handoff process for your customers.`,
       "",
-      "Context: When your team stops the source, our team can support mitigation, documentation, and rebuild coordination while respecting the customer relationship you already earned.",
+      `Context: When your customers need ${servicesPhrase}, our team can help while respecting the relationship you already earned.`,
       "",
-      `Ask: Would it be useful to ${request.campaign.cta.toLowerCase()}?`,
+      `Ask: Would it be useful to ${cta}?`,
     ].join("\n");
   }
 
   return [
-    "Subject: Fast water-loss handoff for your plumbing customers",
+    `Subject: A simple handoff lane with ${businessName}`,
     "",
     `Hi ${firstName},`,
     "",
-    "When your team stops the source of a water issue, Big Shoulders Restoration can help with mitigation, documentation, and rebuild coordination that protects the customer relationship you already earned.",
+    `When your customers need help, ${businessName} can support with ${servicesPhrase} — protecting the relationship you already earned.`,
     "",
     offerSummary,
     "",
-    `Would it be useful to ${request.campaign.cta.toLowerCase()}?`,
+    `Would it be useful to ${cta}?`,
     "",
     "Best,",
-    "Big Shoulders Restoration",
+    businessName,
   ].join("\n");
 }
 
