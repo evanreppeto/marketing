@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
 /**
  * Lets Arc create an approval-gated campaign draft asset. If `campaign_id` is
@@ -14,7 +15,8 @@ import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/cre
  *   POST /api/v1/arc/campaigns/draft-asset
  *   { campaign_id?, name?, persona?, restoration_focus?,
  *     asset_type, title, body?, media_url?, media_path?,
- *     media?: { source?, model?, jobId?, format?, riskFlags? } }
+ *     media?: { source?, model?, jobId?, format?, riskFlags? },
+ *     opportunity_id? }
  *   -> 201 { ok, status:"created", campaignId, assetId }
  */
 export async function POST(request: Request) {
@@ -34,6 +36,7 @@ export async function POST(request: Request) {
   const draftBody = str(body.body) || null;
   const mediaUrl = str(body.media_url) || null;
   const mediaPath = str(body.media_path) || null;
+  const opportunityId = str(body.opportunity_id) || null;
 
   // Optional generation provenance (AI source / model / jobId / risk flags) so the
   // AI tag survives on the durable asset record, not just the chat card.
@@ -81,6 +84,11 @@ export async function POST(request: Request) {
       media,
       agentName: "Arc",
     });
+
+    if (opportunityId) {
+      // Link the source opportunity to this campaign and flip it to drafted.
+      await markOpportunityDrafted(opportunityId, campaignId);
+    }
 
     return NextResponse.json(
       { ok: true, status: "created", campaignId, assetId: asset.assetId },
