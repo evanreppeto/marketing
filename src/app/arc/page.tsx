@@ -14,7 +14,7 @@ import {
   type ArcConversation,
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
-import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
+import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -71,8 +71,8 @@ async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]
       countActiveApprovals().catch(() => 0),
       listConversations(operator),
       listProjects(operator),
-      getCampaignWorkspaceList()
-        .then((list) => (list.status === "live" ? list.campaigns.map((c) => ({ id: c.id, name: c.name })) : []))
+      listCampaignNames()
+        .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
         .catch(() => [] as { id: string; name: string }[]),
       showArchived ? listArchivedConversations(operator) : Promise.resolve([] as ArcConversation[]),
       requestedId ? getConversation(requestedId) : Promise.resolve(null),

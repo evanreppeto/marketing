@@ -417,6 +417,30 @@ type LeadRow = {
 
 const EMPTY_READABLE_PREVIEW = "No readable draft content has been attached yet.";
 
+export type CampaignNameRef = { id: string; name: string; href: string };
+
+/**
+ * Lightweight campaign id/name/href list for pickers and @-mention autocomplete.
+ * Unlike getCampaignWorkspaceList this is a single `id,name` query — no asset /
+ * approval / output aggregation — so callers that only need names (Arc composer,
+ * mention search) don't pay for the full workspace build on every render.
+ */
+export async function listCampaignNames(client?: SupabaseClient): Promise<CampaignNameRef[]> {
+  if (!client && !isSupabaseAdminConfigured()) return [];
+  try {
+    const supabase = client ?? getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("campaigns")
+      .select("id,name")
+      .order("updated_at", { ascending: false })
+      .limit(100);
+    assertSupabaseResult("campaigns", error);
+    return (data ?? []).map((c) => ({ id: c.id as string, name: c.name as string, href: `/campaigns/${c.id as string}` }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Arc"): Promise<CampaignWorkspaceList> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };

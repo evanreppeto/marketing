@@ -1,7 +1,7 @@
 import { type ArcMention, type MentionType } from "@/domain";
 import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
-import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
-import { getCrmObjectData, type CrmObjectKey } from "@/lib/crm/read-model";
+import { listCampaignNames } from "@/lib/campaigns/read-model";
+import { getCrmMentionSamples, type CrmObjectKey } from "@/lib/crm/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { listVaultNotes } from "@/lib/vault/persistence";
 
@@ -51,51 +51,43 @@ export async function getMentionables(): Promise<MentionGroup[]> {
 
   const client = getSupabaseAdminClient();
 
-  const campaigns: MentionGroup = { type: "campaign", label: "Campaigns", items: [] };
-  try {
-    const list = await getCampaignWorkspaceList();
-    if (list.status === "live") {
-      campaigns.items = list.campaigns.map((c) => ({
-        type: "campaign" as const,
-        id: c.id,
-        label: c.name,
-        href: c.href,
-      }));
-    }
-  } catch {
-    // leave empty
-  }
+  // Campaign names, CRM samples, and vault notes are independent — fetch them
+  // concurrently. Each is org-/admin-scoped internally; getCrmMentionSamples does
+  // a single table-bundle fetch instead of one per CRM object. Each source
+  // self-recovers to empty so one slow/failing read doesn't sink the rest.
+  const [campaignRefs, crmSamples, vaultNotes] = await Promise.all([
+    listCampaignNames().catch(() => []),
+    getCrmMentionSamples().catch(() => ({}) as Awaited<ReturnType<typeof getCrmMentionSamples>>),
+    listVaultNotes(client).catch(() => []),
+  ]);
 
-  const crmGroups: MentionGroup[] = [];
-  for (const group of CRM_GROUPS) {
-    const out: MentionGroup = { type: group.type, label: group.label, items: [] };
-    try {
-      const data = await getCrmObjectData(group.key);
-      if (data.status === "live") {
-        out.items = data.sampleRows.map((row) => ({
-          type: group.type,
-          id: row.id,
-          label: row.name,
-          href: `/crm/${group.key}/${row.id}`,
-        }));
-      }
-    } catch {
-      // leave empty
-    }
-    crmGroups.push(out);
-  }
+  const campaigns: MentionGroup = {
+    type: "campaign",
+    label: "Campaigns",
+    items: campaignRefs.map((c) => ({ type: "campaign" as const, id: c.id, label: c.name, href: c.href })),
+  };
 
-  const vault: MentionGroup = { type: "vault", label: "Vault notes", items: [] };
-  try {
-    vault.items = (await listVaultNotes(client)).map((note) => ({
+  const crmGroups: MentionGroup[] = CRM_GROUPS.map((group) => ({
+    type: group.type,
+    label: group.label,
+    items: (crmSamples[group.key] ?? []).map((row) => ({
+      type: group.type,
+      id: row.id,
+      label: row.name,
+      href: `/crm/${group.key}/${row.id}`,
+    })),
+  }));
+
+  const vault: MentionGroup = {
+    type: "vault",
+    label: "Vault notes",
+    items: vaultNotes.map((note) => ({
       type: "vault" as const,
       id: note.slug,
       label: note.title,
       href: `/vault/${note.slug}`,
-    }));
-  } catch {
-    // leave empty
-  }
+    })),
+  };
 
   return [campaigns, ...crmGroups, personas, vault].filter((g) => g.items.length > 0);
 }
