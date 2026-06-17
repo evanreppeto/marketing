@@ -5,6 +5,10 @@ import type { ArcClient } from "../arc-client";
 import type { ArcActionCard, ArcMedia } from "../types";
 import { textResult, type StepFn } from "./helpers";
 
+const VIDEO_POLL_MS = 10_000;
+const VIDEO_MAX_POLLS = 36; // ~6 min
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * Media generation (act/draft mode). `generate_image` creates an AI image and
  * lands it as an approval-gated draft campaign asset with a thumbnail card.
@@ -78,5 +82,81 @@ export function mediaTools(client: ArcClient, step: StepFn, collectCard: (card: 
     },
   );
 
-  return [generateImage];
+  const generateVideo = tool(
+    "generate_video",
+    "Generate an AI VIDEO (Veo) for a campaign asset and surface it as an approval-gated draft with a playable clip. Use for short concept / lifestyle / ad clips — NEVER a fabricated 'real job' video. Describe the scene in prompt and the look in style. Videos render asynchronously (about 1-3 minutes); the operator sees progress. aspect_ratio is 16:9 or 9:16. Attach to an existing campaign with campaign_id, or start a new draft campaign with name + persona + restoration_focus.",
+    {
+      prompt: z.string().describe("The scene to generate. No text/logos."),
+      title: z.string().describe("Short title for the asset"),
+      style: z.string().optional().describe("Visual look, e.g. 'candid documentary, natural lighting'"),
+      aspect_ratio: z.string().optional().describe("16:9 | 9:16 (default 16:9)"),
+      duration_seconds: z.number().optional(),
+      asset_type: z.string().optional().describe("default video_ad"),
+      campaign_id: z.string().optional(),
+      name: z.string().optional(),
+      persona: z.string().optional(),
+      restoration_focus: z.string().optional(),
+    },
+    async (args) => {
+      const label = "Generating video";
+      await step(label, "running");
+      try {
+        const promptWithStyle = args.style ? `${args.prompt}\n\nStyle: ${args.style}.` : args.prompt;
+        const start = await client.apiPost<{ operationName: string; model: string }>(
+          "/api/v1/arc/media/generate-video",
+          { prompt: promptWithStyle, aspect_ratio: args.aspect_ratio, duration_seconds: args.duration_seconds },
+        );
+        let media: ArcMedia | null = null;
+        let objectPath: string | undefined;
+        for (let i = 0; i < VIDEO_MAX_POLLS; i++) {
+          await sleep(VIDEO_POLL_MS);
+          const poll = await client.apiPost<{ status: string; media?: ArcMedia; objectPath?: string }>(
+            "/api/v1/arc/media/generate-video",
+            { operation_name: start.operationName, prompt: promptWithStyle, model: start.model },
+          );
+          if (poll.status === "done" && poll.media) {
+            media = poll.media;
+            objectPath = poll.objectPath;
+            break;
+          }
+        }
+        if (!media) {
+          await step(label, "done");
+          return textResult(`${label} timed out — Veo is still rendering. Try again shortly.`);
+        }
+        const withFormat: ArcMedia = { ...media, format: args.aspect_ratio ?? "16:9" };
+        const draft = await client.apiPost<{ campaignId: string; assetId: string }>(
+          "/api/v1/arc/campaigns/draft-asset",
+          {
+            campaign_id: args.campaign_id,
+            name: args.name,
+            persona: args.persona,
+            restoration_focus: args.restoration_focus,
+            asset_type: args.asset_type ?? "video_ad",
+            title: args.title,
+            media_url: withFormat.url,
+            media_path: objectPath,
+            media: withFormat,
+          },
+        );
+        await step(label, "done");
+        collectCard({
+          kind: "draft",
+          title: args.title,
+          rows: [],
+          flags: [],
+          media: withFormat,
+          approval: { kind: "campaign", campaignId: draft.campaignId, assetId: draft.assetId },
+        });
+        return textResult(
+          JSON.stringify({ campaignId: draft.campaignId, assetId: draft.assetId, media: withFormat, status: "video draft created, pending approval" }),
+        );
+      } catch (error) {
+        await step(label, "done");
+        return textResult(`${label} failed: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+    },
+  );
+
+  return [generateImage, generateVideo];
 }
