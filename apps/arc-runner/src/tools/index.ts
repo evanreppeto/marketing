@@ -11,6 +11,9 @@ import type { StepFn, TurnSink } from "./helpers";
 
 export type ArcMode = "ask" | "act" | "draft";
 
+/** Extra per-turn context threaded into work-product tools (e.g. the opportunity a draft links back to). */
+export type ToolContext = { opportunityId?: string };
+
 /** Read app state + reply-shaping tools (cards, suggestions, sources). Available in every mode. */
 function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   return [
@@ -30,8 +33,8 @@ function writeTools(client: ArcClient, step: StepFn) {
 }
 
 /** Draft work products: create approval-gated campaign assets. draft mode only. */
-function draftTools(client: ArcClient, step: StepFn, sink: TurnSink) {
-  return [...draftWorkProductTools(client, step, sink.card), ...mediaTools(client, step, sink.card)];
+function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolContext) {
+  return [...draftWorkProductTools(client, step, sink.card, ctx), ...mediaTools(client, step, sink.card)];
 }
 
 /**
@@ -43,14 +46,20 @@ function draftTools(client: ArcClient, step: StepFn, sink: TurnSink) {
  * (matching the Act mode label); they differ only in how Arc is framed to work.
  * Outbound has no tool in any mode; every work product stays approval-gated.
  */
-export function toolsForMode(mode: ArcMode, client: ArcClient, step: StepFn, sink: TurnSink) {
+export function toolsForMode(
+  mode: ArcMode,
+  client: ArcClient,
+  step: StepFn,
+  sink: TurnSink,
+  ctx: ToolContext = {},
+) {
   // Fresh arrays via spread (not push) so the element type widens to the union of
   // tool definitions — the SDK tool types are invariant in their Zod schema, so
   // pushing differently-typed tools into a narrowed array won't compile.
   const read = readTools(client, step, sink);
   if (mode === "ask") return [...read];
   const write = writeTools(client, step);
-  return [...read, ...write, ...draftTools(client, step, sink)];
+  return [...read, ...write, ...draftTools(client, step, sink, ctx)];
 }
 
 /** The `allowedTools` list the SDK expects — each tool namespaced under the `arc` MCP server. */
