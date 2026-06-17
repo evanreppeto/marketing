@@ -85,6 +85,10 @@ describe("POST /api/v1/arc/media/generate-image", () => {
     });
     expect(typeof json.objectPath).toBe("string");
     expect(json.objectPath).toMatch(/^arc-generated\//);
-    expect(generateImage).toHaveBeenCalledWith({ prompt: "abstract blue gradient", aspectRatio: "9:16" });
+    // The prompt is hardened before the provider sees it: caller intent + no-text guard.
+    const call = generateImage.mock.calls[0][0];
+    expect(call.aspectRatio).toBe("9:16");
+    expect(call.prompt).toContain("abstract blue gradient");
+    expect(call.prompt).toMatch(/do not render any text/i);
   });
 });

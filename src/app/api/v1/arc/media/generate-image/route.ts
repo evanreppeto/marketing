@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
+import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedImage } from "@/lib/media/storage";
 
@@ -13,7 +14,7 @@ import { storeGeneratedImage } from "@/lib/media/storage";
  * (source: ai_generated) with heuristic risk flags. No outbound.
  *
  *   POST /api/v1/arc/media/generate-image
- *   { prompt: string, aspect_ratio?: string }
+ *   { prompt: string, aspect_ratio?: string, style?: string }
  *   -> 201 { ok, status:"created", media: ArcMedia }
  */
 export async function POST(request: Request) {
@@ -33,12 +34,16 @@ export async function POST(request: Request) {
   if (!prompt) return fail("rejected", "prompt is required.", 400);
   const aspectRatio =
     typeof body.aspect_ratio === "string" && body.aspect_ratio.trim() ? body.aspect_ratio.trim() : "1:1";
+  const style = typeof body.style === "string" && body.style.trim() ? body.style.trim() : undefined;
 
   const provider = getMediaProvider();
   if (!provider) return fail("not_configured", "Image generation isn't enabled.", 503);
 
   try {
-    const gen = await provider.generateImage({ prompt, aspectRatio });
+    // Harden the prompt (strip embedded text/branding, add quality + caller style)
+    // before sending; risk flags stay on the operator's original intent.
+    const finalPrompt = hardenImagePrompt(prompt, { style });
+    const gen = await provider.generateImage({ prompt: finalPrompt, aspectRatio });
     const ext = gen.contentType.includes("png") ? "png" : gen.contentType.includes("webp") ? "webp" : "jpg";
     const objectPath = `arc-generated/${randomUUID()}.${ext}`;
     // Permanent public URL from the campaign-media bucket — no expiry to re-sign.
