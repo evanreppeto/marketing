@@ -18,7 +18,7 @@ export function mediaTools(client: ArcClient, step: StepFn, collectCard: (card: 
     {
       prompt: z.string().describe("What to generate — an illustrative concept, not a staged 'real job'"),
       title: z.string().describe("Short title for the asset"),
-      aspect_ratio: z.string().optional().describe("1:1 | 4:5 | 9:16 | 16:9 (default 1:1)"),
+      aspect_ratio: z.string().optional().describe("1:1 | 3:4 | 4:3 | 9:16 | 16:9 (default 1:1)"),
       asset_type: z.string().optional().describe("default image_prompt"),
       campaign_id: z.string().optional().describe("Existing campaign to attach to; omit to create a new draft campaign"),
       name: z.string().optional().describe("New campaign name (when campaign_id omitted)"),
