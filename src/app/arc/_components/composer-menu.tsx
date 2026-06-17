@@ -20,7 +20,7 @@ export const MENTION_TYPE_LABEL: Record<MentionType, string> = {
 
 function Glyph({ children }: { children: ReactNode }) {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       {children}
     </svg>
   );
@@ -127,15 +127,15 @@ export function AutocompleteMenu({
   }, [activeIndex]);
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] shadow-[var(--elev-raised)]">
-      <ul role="listbox" id={listId} className="max-h-72 overflow-y-auto p-1.5">
+    <div className="absolute bottom-full left-0 mb-2 w-[24rem] max-w-full overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] shadow-[var(--elev-raised)]">
+      <ul role="listbox" id={listId} className="max-h-64 overflow-y-auto p-1">
         {rows.map((r, i) => {
           const showHeader = r.group && r.group !== rows[i - 1]?.group;
           const active = i === activeIndex;
           return (
             <Fragment key={r.key}>
               {showHeader ? (
-                <li aria-hidden className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                <li aria-hidden className="px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
                   {r.group}
                 </li>
               ) : null}
@@ -151,22 +151,21 @@ export function AutocompleteMenu({
                   onMouseMove={() => onActiveChange(i)}
                   onClick={() => onSelect(i)}
                   className={cx(
-                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition",
-                    active ? "bg-[var(--accent-soft)] shadow-[inset_2px_0_0_var(--accent)]" : "hover:bg-[var(--surface-inset)]",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition",
+                    active ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--surface-inset)]",
                   )}
                 >
+                  <span className={cx("shrink-0", active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]")}>{r.icon}</span>
                   <span
                     className={cx(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition",
-                      active ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "bg-[var(--surface-inset)] text-[var(--text-muted)]",
+                      "truncate text-[13px] font-medium",
+                      r.meta ? "shrink-0" : "min-w-0 flex-1",
+                      active ? "text-[var(--accent-contrast)]" : "text-[var(--text-primary)]",
                     )}
                   >
-                    {r.icon}
+                    {r.title}
                   </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className={cx("truncate text-sm font-medium", active ? "text-[var(--accent-contrast)]" : "text-[var(--text-primary)]")}>{r.title}</span>
-                    {r.meta ? <span className="truncate text-[11px] text-[var(--text-muted)]">{r.meta}</span> : null}
-                  </span>
+                  {r.meta ? <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-muted)]">{r.meta}</span> : null}
                   {r.trailing ? <span className="shrink-0">{r.trailing}</span> : null}
                 </button>
               </li>
@@ -174,7 +173,7 @@ export function AutocompleteMenu({
           );
         })}
       </ul>
-      <div className="flex items-center gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-1.5 text-[10px] text-[var(--text-muted)]">
+      <div className="flex items-center gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-panel)] px-2.5 py-1 text-[10px] text-[var(--text-muted)]">
         <span className="flex items-center gap-1"><KeyCap>↑↓</KeyCap> Navigate</span>
         <span className="flex items-center gap-1"><KeyCap>↵</KeyCap> Select</span>
         <span className="flex items-center gap-1"><KeyCap>esc</KeyCap> Dismiss</span>
