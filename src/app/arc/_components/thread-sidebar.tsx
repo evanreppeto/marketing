@@ -9,6 +9,31 @@ import type { ArcConversation, ArcProject } from "@/lib/arc-chat/persistence";
 import { createProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
 import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
+import { SLASH_COMMANDS } from "./slash-commands";
+
+/** Discoverable agent capabilities — one click opens a fresh chat primed with
+ *  the command (the deep link the composer reads via ?skill=<id>). Reuses the
+ *  same command definitions as the composer's "/" menu. */
+function SkillsSection() {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <SectionLabel>Skills</SectionLabel>
+      {SLASH_COMMANDS.map((c) => (
+        <Link
+          key={c.cmd}
+          href={`/arc?skill=${c.cmd.slice(1)}`}
+          title={c.hint}
+          className="group flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 2.5c.4 3.2 1.4 4.2 4.6 4.6-3.2.4-4.2 1.4-4.6 4.6-.4-3.2-1.4-4.2-4.6-4.6 3.2-.4 4.2-1.4 4.6-4.6Z" />
+          </svg>
+          <span className="min-w-0 flex-1 truncate">{c.label}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 /** Stable empty set so the default props don't allocate per render. */
 const NO_RUNNING_IDS: Set<string> = new Set();
@@ -307,6 +332,8 @@ export function ThreadSidebar({
   assistantName = "Arc",
   runningIds = NO_RUNNING_IDS,
   doneIds = NO_RUNNING_IDS,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   conversations: ArcConversation[];
   projects: ArcProject[];
@@ -319,6 +346,9 @@ export function ThreadSidebar({
   runningIds?: Set<string>;
   /** Conversation ids with a finished-but-unopened reply — drives the pulse. */
   doneIds?: Set<string>;
+  /** Collapsed icon-rail mode (desktop only). */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
@@ -333,6 +363,46 @@ export function ThreadSidebar({
     const id = setInterval(() => setNowMs(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Collapsed icon rail (desktop): just the essentials; expand to see threads.
+  if (collapsed && variant !== "overlay") {
+    const railBtn =
+      "flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
+    return (
+      <aside className="hidden min-h-0 flex-col items-center gap-2 overflow-y-auto p-2 lg:flex">
+        <button type="button" onClick={onToggleCollapse} title="Expand sidebar" aria-label="Expand sidebar" className={railBtn}>
+          <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="14" height="12" rx="2" />
+            <path d="M8 4v12" />
+          </svg>
+        </button>
+        <Link
+          href="/arc"
+          title="New chat"
+          aria-label="New chat"
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)]"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <path d="M10 4v12M4 10h12" />
+          </svg>
+        </Link>
+        <button type="button" onClick={onToggleCollapse} title="Search chats" aria-label="Search chats" className={railBtn}>
+          <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="9" r="5.5" />
+            <path d="m13.5 13.5 3 3" />
+          </svg>
+        </button>
+        <Link
+          href="/settings"
+          title={`${assistantName} — settings`}
+          aria-label={`${assistantName} settings`}
+          className="mt-auto flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+        >
+          {(assistantName.trim()[0] ?? "A").toUpperCase()}
+        </Link>
+      </aside>
+    );
+  }
 
   if (showArchived) {
     return (
@@ -395,6 +465,22 @@ export function ThreadSidebar({
 
   return (
     <aside className={asideClass}>
+      {onToggleCollapse ? (
+        <div className="flex justify-end px-1">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="14" height="12" rx="2" />
+              <path d="M8 4v12" />
+            </svg>
+          </button>
+        </div>
+      ) : null}
       <NewChatLink assistantName={assistantName} />
 
       <label className="relative mt-1 block px-1">
@@ -424,6 +510,8 @@ export function ThreadSidebar({
           Ctrl K
         </kbd>
       </label>
+
+      <SkillsSection />
 
       {pinned.length > 0 ? (
         <div className="flex flex-col gap-0.5">
@@ -487,23 +575,45 @@ export function ThreadSidebar({
         )}
       </nav>
 
-      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+      <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border-hairline)] pt-2">
+        <div className="flex items-center justify-between gap-2 px-2">
+          <Link
+            href="/arc/saved"
+            className="flex items-center gap-1.5 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 2.5l2.2 4.6 5 .7-3.6 3.5.9 5L10 14l-4.5 2.4.9-5L2.8 7.8l5-.7z" />
+            </svg>
+            Saved
+          </Link>
+          <Link
+            href="/arc?archived=1"
+            className="flex items-center gap-1 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+          >
+            Archived
+            <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m8 5 5 5-5 5" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Account / agent row — identity + settings, like the account menu in
+            ChatGPT/Claude. Opens the full settings page. */}
         <Link
-          href="/arc/saved"
-          className="flex items-center gap-1.5 px-2 pb-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+          href="/settings"
+          title={`${assistantName} — agent & workspace settings`}
+          className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-[var(--surface-inset)]"
         >
-          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 2.5l2.2 4.6 5 .7-3.6 3.5.9 5L10 14l-4.5 2.4.9-5L2.8 7.8l5-.7z" />
-          </svg>
-          Saved
-        </Link>
-        <Link
-          href="/arc?archived=1"
-          className="flex items-center gap-1 px-2 pb-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
-        >
-          Archived
-          <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m8 5 5 5-5 5" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
+            {(assistantName.trim()[0] ?? "A").toUpperCase()}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-sm font-medium text-[var(--text-primary)]">{assistantName}</span>
+            <span className="truncate text-[11px] text-[var(--text-muted)]">Settings &amp; connection</span>
+          </span>
+          <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--text-primary)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
           </svg>
         </Link>
       </div>

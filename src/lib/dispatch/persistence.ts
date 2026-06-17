@@ -14,7 +14,7 @@ function assertOk(label: string, error: { message: string } | null) {
   if (error) throw new Error(`${label}: ${error.message}`);
 }
 
-export type EnqueueInput = { campaignId: string; assetIds: string[]; operator: string };
+export type EnqueueInput = { campaignId: string; assetIds: string[]; operator: string; scheduledFor?: string };
 
 /** Insert one queued dispatch per approved asset. Called from the launch flow
  *  after assets are unlocked. No-op for an empty list. */
@@ -29,12 +29,14 @@ export async function enqueueDispatchesForAssets(input: EnqueueInput, client: Su
   assertOk("campaign_assets lookup", assetError);
   const assets = (assetRows ?? []) as Array<{ id: string; channel: string | null; title: string }>;
 
+  const scheduled = Boolean(input.scheduledFor);
   for (const asset of assets) {
     const { error: insertError } = await client.from("campaign_dispatches").insert({
       campaign_id: campaignId,
       campaign_asset_id: asset.id,
       channel: asset.channel,
-      status: "queued",
+      status: scheduled ? "scheduled" : "queued",
+      ...(scheduled ? { scheduled_for: input.scheduledFor } : {}),
       payload: { source: "campaign_launch", deliverable: asset.title },
     });
     assertOk("campaign_dispatches insert", insertError);
@@ -42,10 +44,12 @@ export async function enqueueDispatchesForAssets(input: EnqueueInput, client: Su
     const { error: eventError } = await client.from("campaign_events").insert({
       campaign_id: campaignId,
       campaign_asset_id: asset.id,
-      event_type: "dispatch_queued",
+      event_type: scheduled ? "dispatch_scheduled" : "dispatch_queued",
       actor: operator,
-      detail: `Queued "${asset.title}" for dispatch.`,
-      payload: { channel: asset.channel },
+      detail: scheduled
+        ? `Scheduled "${asset.title}" for ${input.scheduledFor}.`
+        : `Queued "${asset.title}" for dispatch.`,
+      payload: { channel: asset.channel, ...(scheduled ? { scheduled_for: input.scheduledFor } : {}) },
     });
     assertOk("campaign_events insert", eventError);
   }

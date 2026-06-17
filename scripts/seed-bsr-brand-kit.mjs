@@ -56,6 +56,16 @@ async function seedBsrBrandKit() {
     industry: "home_property_services",
     tone: "reassuring",
     services: ["Water mitigation", "Documentation", "Rebuild coordination"],
+    banned_phrases: [
+      "insurance will cover",
+      "insurance will pay",
+      "insurance will approve",
+      "claim will be approved",
+      "guaranteed payout",
+      "guaranteed coverage",
+      "guaranteed approval",
+      "we guarantee",
+    ],
     guardrails: {
       disallowedClaims: [
         "Insurance outcome promise",
@@ -75,19 +85,21 @@ async function seedBsrBrandKit() {
     .upsert(profile, { onConflict: "org_id" });
   if (upErr) throw upErr;
 
+  // audience_type values match the prod persona_definitions_audience_type_check
+  // constraint: homeowner | property | insurance | real_estate | trade_partner.
   const personas = [
-    ["persona_homeowner_emergency", "Homeowner — Emergency", "customer", 0],
-    ["persona_homeowner_preventative", "Homeowner — Preventative", "customer", 1],
-    ["persona_homeowner_rebuild", "Homeowner — Rebuild", "customer", 2],
-    ["persona_landlord", "Landlord", "customer", 3],
-    ["persona_hoa_board", "HOA Board", "customer", 4],
-    ["persona_property_manager", "Property Manager", "customer", 5],
-    ["persona_insurance_agent", "Insurance Agent", "partner", 6],
-    ["persona_listing_agent", "Listing Agent", "partner", 7],
-    ["persona_buyers_agent", "Buyer's Agent", "partner", 8],
-    ["persona_plumbing_partner", "Plumbing Partner", "partner", 9],
-    ["persona_hvac_roof_electrical_partner", "HVAC/Roof/Electrical Partner", "partner", 10],
-    ["persona_gc_remodeler_partner", "GC / Remodeler Partner", "partner", 11],
+    ["persona_homeowner_emergency", "Homeowner — Emergency", "homeowner", 0],
+    ["persona_homeowner_preventative", "Homeowner — Preventative", "homeowner", 1],
+    ["persona_homeowner_rebuild", "Homeowner — Rebuild", "homeowner", 2],
+    ["persona_landlord", "Landlord", "property", 3],
+    ["persona_hoa_board", "HOA Board", "property", 4],
+    ["persona_property_manager", "Property Manager", "property", 5],
+    ["persona_insurance_agent", "Insurance Agent", "insurance", 6],
+    ["persona_listing_agent", "Listing Agent", "real_estate", 7],
+    ["persona_buyers_agent", "Buyer's Agent", "real_estate", 8],
+    ["persona_plumbing_partner", "Plumbing Partner", "trade_partner", 9],
+    ["persona_hvac_roof_electrical_partner", "HVAC/Roof/Electrical Partner", "trade_partner", 10],
+    ["persona_gc_remodeler_partner", "GC / Remodeler Partner", "trade_partner", 11],
   ].map(([key, label, audience_type, sort_order]) => ({
     org_id: org.id,
     key,

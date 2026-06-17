@@ -521,13 +521,17 @@ export async function findPendingMessageByTask(
 }
 
 export async function completeArcMessage(
-  input: { messageId: string; body: string; metadata?: Record<string, unknown> },
+  input: { messageId: string; body: string; metadata?: Record<string, unknown>; mentions?: ArcMention[] },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<void> {
-  const { error } = await client
-    .from("arc_messages")
-    .update({ body: input.body, status: "complete", metadata: input.metadata ?? {} })
-    .eq("id", input.messageId);
+  const update: Record<string, unknown> = {
+    body: input.body,
+    status: "complete",
+    metadata: input.metadata ?? {},
+  };
+  // Only set mentions when provided so callers that omit it don't clobber the column.
+  if (input.mentions !== undefined) update.mentions = input.mentions;
+  const { error } = await client.from("arc_messages").update(update).eq("id", input.messageId);
   assertOk("arc_messages complete", error);
 }
 

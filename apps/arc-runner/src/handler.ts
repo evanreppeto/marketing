@@ -18,11 +18,15 @@ export async function handleChatMessage(
   try {
     const result = await runArcTurn(payload, client);
     const reply = result.body;
+    const metadata: Record<string, unknown> = {};
+    if (result.actions.length > 0) metadata.actions = result.actions;
+    if (result.suggestions.length > 0) metadata.suggestions = result.suggestions;
     await client.postChatReply({
       agentTaskId: payload.agentTaskId,
       body: reply || "(Arc returned an empty reply.)",
       status: reply ? "complete" : "failed",
-      metadata: result.actions.length > 0 ? { actions: result.actions } : {},
+      metadata,
+      ...(result.sources.length > 0 ? { mentions: result.sources } : {}),
     });
     console.log(`[arc-runner] replied to task ${payload.agentTaskId} in ${Date.now() - started}ms`);
   } catch (error) {

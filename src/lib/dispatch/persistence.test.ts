@@ -31,6 +31,25 @@ describe("enqueueDispatchesForAssets", () => {
     expect(findCalls(supabase, "insert")).toHaveLength(0);
   });
 
+  it("schedules dispatches (status + scheduled_for + dispatch_scheduled event) when scheduledFor is given", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaign_assets: { data: [{ id: "a1", channel: "email", title: "Welcome" }], error: null },
+      campaign_dispatches: { data: null, error: null },
+      campaign_events: { data: null, error: null },
+    });
+
+    await enqueueDispatchesForAssets(
+      { campaignId: "c1", assetIds: ["a1"], operator: "Operator", scheduledFor: "2026-07-01T09:00:00.000Z" },
+      supabase,
+    );
+
+    const inserts = findCalls(supabase, "insert");
+    expect(inserts).toContainEqual(
+      expect.objectContaining({ campaign_asset_id: "a1", status: "scheduled", scheduled_for: "2026-07-01T09:00:00.000Z" }),
+    );
+    expect(inserts).toContainEqual(expect.objectContaining({ event_type: "dispatch_scheduled" }));
+  });
+
   it("inserts a dispatch + event for each asset in a multi-asset list", async () => {
     const supabase = createSupabaseQueryMock({
       campaign_assets: {

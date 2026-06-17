@@ -9,6 +9,8 @@ export type LaunchCampaignInput = {
   operator: string;
   /** Operator-configured agent display name, written into the handoff event detail. */
   agentName?: string;
+  /** When set, deliverables are enqueued "scheduled" for this ISO time instead of "queued". */
+  scheduledFor?: string;
 };
 
 type ApprovalRow = { id: string; status: string; campaign_asset_id: string | null };
@@ -28,7 +30,7 @@ export async function launchCampaign(
   input: LaunchCampaignInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { campaignId, operator, agentName = "Arc" } = input;
+  const { campaignId, operator, agentName = "Arc", scheduledFor } = input;
 
   const { data: campaign, error: campaignError } = await client
     .from("campaigns")
@@ -100,14 +102,16 @@ export async function launchCampaign(
   assertOk("campaigns launch update", campaignUpdateError);
 
   // Open the Outbox: one queued dispatch per approved deliverable.
-  await enqueueDispatchesForAssets({ campaignId, assetIds: approvedAssetIds, operator }, client);
+  await enqueueDispatchesForAssets({ campaignId, assetIds: approvedAssetIds, operator, scheduledFor }, client);
 
   // Record the handoff signal Arc/Arc consumes to do the actual sends.
   const { error: eventError } = await client.from("campaign_events").insert({
     campaign_id: campaignId,
     event_type: "campaign_launched",
     actor: operator,
-    detail: `Campaign launched by ${operator}. ${approvedAssetIds.length} deliverable${approvedAssetIds.length === 1 ? "" : "s"} unlocked for dispatch; handed off to ${agentName}.`,
+    detail: scheduledFor
+      ? `Campaign launched by ${operator}. ${approvedAssetIds.length} deliverable${approvedAssetIds.length === 1 ? "" : "s"} scheduled for ${scheduledFor}; handed off to ${agentName}.`
+      : `Campaign launched by ${operator}. ${approvedAssetIds.length} deliverable${approvedAssetIds.length === 1 ? "" : "s"} unlocked for dispatch; handed off to ${agentName}.`,
     payload: { source: "campaigns_workspace", approved_assets: approvedAssetIds.length, handoff: "arc" },
   });
   assertOk("campaign_events insert", eventError);
@@ -121,6 +125,8 @@ export type DeployAssetInput = {
   operator: string;
   /** Operator-configured agent display name, written into the handoff event detail. */
   agentName?: string;
+  /** When set, the deliverable is enqueued "scheduled" for this ISO time instead of "queued". */
+  scheduledFor?: string;
 };
 
 /**
@@ -134,7 +140,7 @@ export async function deployAsset(
   input: DeployAssetInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { campaignId, assetId, operator, agentName = "Arc" } = input;
+  const { campaignId, assetId, operator, agentName = "Arc", scheduledFor } = input;
 
   const { data: asset, error: assetError } = await client
     .from("campaign_assets")
@@ -169,14 +175,16 @@ export async function deployAsset(
   assertOk("campaign_assets unlock", unlockError);
 
   // Open the Outbox for this single deployed deliverable.
-  await enqueueDispatchesForAssets({ campaignId, assetIds: [assetId], operator }, client);
+  await enqueueDispatchesForAssets({ campaignId, assetIds: [assetId], operator, scheduledFor }, client);
 
   const { error: eventError } = await client.from("campaign_events").insert({
     campaign_id: campaignId || null,
     campaign_asset_id: assetId,
     event_type: "asset_deployed",
     actor: operator,
-    detail: `Deliverable deployed by ${operator}; handed off to ${agentName} for dispatch.`,
+    detail: scheduledFor
+      ? `Deliverable scheduled for ${scheduledFor} by ${operator}; handed off to ${agentName}.`
+      : `Deliverable deployed by ${operator}; handed off to ${agentName} for dispatch.`,
     payload: { source: "campaigns_workspace", handoff: "arc", single_asset: true },
   });
   assertOk("campaign_events insert", eventError);

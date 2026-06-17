@@ -191,6 +191,28 @@ function mergeVoiceTranscript(base: string, transcript: string): string {
   return `${base}${spacer}${spoken}`;
 }
 
+/** Keyboard-hint footer shown under the slash/mention popovers (Codex-style). */
+function PopoverHint() {
+  const key = "rounded border border-[var(--border-strong)] px-1 font-mono text-[9px] leading-none text-[var(--text-secondary)]";
+  return (
+    <div className="flex items-center gap-3 border-t border-[var(--border-hairline)] px-3 py-1.5 text-[10px] text-[var(--text-muted)]">
+      <span className="flex items-center gap-1">
+        <kbd className={key}>↑</kbd>
+        <kbd className={key}>↓</kbd>
+        navigate
+      </span>
+      <span className="flex items-center gap-1">
+        <kbd className={key}>↵</kbd>
+        select
+      </span>
+      <span className="flex items-center gap-1">
+        <kbd className={key}>esc</kbd>
+        dismiss
+      </span>
+    </div>
+  );
+}
+
 export function Composer({
   conversationId,
   mentionGroups,
@@ -215,6 +237,7 @@ export function Composer({
   onDemoSend,
   onSlashOpenChange,
   recallText = null,
+  initialSkill = null,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -246,6 +269,9 @@ export function Composer({
   /** Body of the last operator message; ArrowUp in an empty composer recalls it
    *  for a quick re-send/edit (shell-history muscle memory). */
   recallText?: string | null;
+  /** Skill (slash-command id, no leading slash) to pre-apply on a fresh chat,
+   *  from the sidebar Skills launcher deep link (?skill=<id>). */
+  initialSkill?: string | null;
 }) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   // For a new chat the picked project rides along as a hidden input (assigned on
@@ -405,7 +431,7 @@ export function Composer({
     if (query === null) return [];
     const q = query.toLowerCase();
     const flat = mentionGroups.flatMap((g) => g.items);
-    return flat.filter((m) => m.label.toLowerCase().includes(q)).slice(0, 8);
+    return flat.filter((m) => m.label.toLowerCase().includes(q)).slice(0, 6);
   }, [query, mentionGroups]);
 
   function onTextChange(value: string) {
@@ -513,16 +539,15 @@ export function Composer({
   }
 
   function applySlash(c: SlashCommand) {
-    // The command id travels to the agent as structured intent (not just text).
+    // Codex-style: the command becomes a clean chip (structured intent on the
+    // next send) — we DON'T paste a template prompt into the input. The "/query"
+    // text is cleared so the operator just types their message.
     setCommand(c.cmd.replace(/^\//, ""));
-    onDraftChange(c.prompt);
+    if (c.mode) onModeChange(c.mode); // preset the stance the command implies (e.g. Draft)
+    onDraftChange("");
     setSlash(null);
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(c.prompt.length, c.prompt.length);
-    });
+    setActiveIdx(0);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   // Which autocomplete menu is open (mutually exclusive in practice — a draft
