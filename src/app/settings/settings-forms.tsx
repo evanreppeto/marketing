@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 
 import { useAgentName } from "../_components/agent-name-context";
 import { Button } from "../_components/page-header";
@@ -61,87 +61,23 @@ export function GeneralSettingsForm({
   );
 }
 
-function BrandLogoPreview({ src, fallback }: { src: string; fallback: string }) {
-  return (
-    <div className="flex min-h-24 items-center gap-4 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-      <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--accent-soft)] text-sm font-bold text-[var(--accent-strong)]">
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element -- user-provided logo URL/data URL.
-          <img alt="" className="h-full w-full object-contain p-1.5" src={src} />
-        ) : (
-          fallback
-        )}
-      </span>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">Logo preview</div>
-        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-          This mark is used in the sidebar. If no logo is saved, the short brand mark is shown.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export function BrandingSettingsForm({
-  initialWorkspaceName,
   initialWorkspaceProfile,
   initialProductLabel,
   initialAssistantName,
-  initialBrandShortName,
-  initialBrandLogoUrl,
-  initialBrandFaviconUrl,
 }: {
-  initialWorkspaceName: string;
   initialWorkspaceProfile: "individual" | "company" | "agency";
   initialProductLabel: string;
   initialAssistantName: string;
-  initialBrandShortName: string;
-  initialBrandLogoUrl: string;
-  initialBrandFaviconUrl: string;
 }) {
   const [state, action, pending] = useActionState(saveBrandingSettingsAction, null);
-  const [workspaceName, setWorkspaceName] = useState(initialWorkspaceName);
   const [workspaceProfile, setWorkspaceProfile] = useState(initialWorkspaceProfile);
   const [productLabel, setProductLabel] = useState(initialProductLabel);
   const [assistantName, setAssistantName] = useState(initialAssistantName);
-  const [brandShortName, setBrandShortName] = useState(initialBrandShortName);
-  const [logoUrl, setLogoUrl] = useState(initialBrandLogoUrl);
-  const [logoUpload, setLogoUpload] = useState("");
-  const [clearLogo, setClearLogo] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const [logoFileName, setLogoFileName] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewSrc = clearLogo ? "" : logoUpload || logoUrl;
-
-  function readLogo(file: File | undefined) {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setUploadError("Choose an image file.");
-      return;
-    }
-    if (file.size > 550_000) {
-      setUploadError("Use a logo under 550 KB for now.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setLogoUpload(typeof reader.result === "string" ? reader.result : "");
-      setClearLogo(false);
-      setLogoFileName(file.name);
-      setUploadError("");
-    };
-    reader.onerror = () => setUploadError("Couldn't read that logo file.");
-    reader.readAsDataURL(file);
-  }
 
   return (
     <form action={action} className="grid gap-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Workspace or company name</span>
-          <input className={inputClass} name="workspaceName" onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Arc" value={workspaceName} />
-        </label>
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Product label</span>
           <input className={inputClass} name="productLabel" onChange={(event) => setProductLabel(event.target.value)} placeholder="Marketing" value={productLabel} />
@@ -150,11 +86,6 @@ export function BrandingSettingsForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Chat assistant name</span>
           <input className={inputClass} name="assistantName" onChange={(event) => setAssistantName(event.target.value)} placeholder="Agent" value={assistantName} />
           <span className="text-xs text-[var(--text-muted)]">Changes the visible chat name, prompts, and send box wording.</span>
-        </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Short mark</span>
-          <input className={inputClass} name="brandShortName" onChange={(event) => setBrandShortName(event.target.value)} placeholder="BS" value={brandShortName} />
-          <span className="text-xs text-[var(--text-muted)]">Used when no uploaded logo is saved.</span>
         </label>
       </div>
 
@@ -184,100 +115,19 @@ export function BrandingSettingsForm({
         </div>
       </fieldset>
 
-      <BrandLogoPreview fallback={initialBrandShortName} src={previewSrc} />
-
       <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
         <div className="text-sm font-semibold text-[var(--text-primary)]">Live preview</div>
-        <div className="mt-3 grid gap-3 md:grid-cols-[14rem_1fr]">
-          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-sidebar)] p-3">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-[var(--accent-soft)] text-xs font-bold text-[var(--accent-strong)]">
-                {previewSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- user preview can be URL/data URL.
-                  <img alt="" className="h-full w-full object-contain p-1" src={previewSrc} />
-                ) : (
-                  brandShortName || "BS"
-                )}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-bold text-[var(--text-primary)]">{workspaceName || "Workspace"}</span>
-                <span className="block truncate text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">{productLabel || "Product"}</span>
-              </span>
-            </div>
-          </div>
-          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
-            <div className="text-sm font-bold text-[var(--text-primary)]">What should {assistantName || "Agent"} work on?</div>
-            <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-              Message {assistantName || "Agent"}... Workspace mode: {workspaceProfile}.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Logo URL</span>
-          <input
-            className={inputClass}
-            name="brandLogoUrl"
-            onChange={(event) => {
-              setLogoUrl(event.target.value);
-              setLogoUpload("");
-              setClearLogo(false);
-            }}
-            placeholder="/brand/logo.png or https://..."
-            value={logoUrl}
-          />
-        </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Favicon URL</span>
-          <input className={inputClass} defaultValue={initialBrandFaviconUrl} name="brandFaviconUrl" placeholder="/icon.png" />
-        </label>
-      </div>
-
-      <div className="grid gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
-        <div>
-          <div className="text-sm font-semibold text-[var(--text-primary)]">Upload logo</div>
+        <div className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
+          <div className="text-sm font-bold text-[var(--text-primary)]">What should {assistantName || "Agent"} work on?</div>
           <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-            Choose a PNG, JPG, WebP, GIF, or SVG. It saves directly with settings so it works without storage setup.
+            Message {assistantName || "Agent"}... Product: {productLabel || "Marketing"}. Workspace mode: {workspaceProfile}.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={fileInputRef}
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => readLogo(event.target.files?.[0])}
-            type="file"
-          />
-          <Button size="sm" type="button" variant="ghost" onClick={() => fileInputRef.current?.click()}>
-            Choose logo
-          </Button>
-          <span className="text-xs text-[var(--text-muted)]">{logoFileName || "No logo selected"}</span>
-          <Button
-            size="sm"
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setLogoUpload("");
-              setLogoUrl("");
-              setClearLogo(true);
-              setLogoFileName("");
-              if (fileInputRef.current) fileInputRef.current.value = "";
-            }}
-          >
-            Remove logo
-          </Button>
-        </div>
-        {uploadError ? <p className="text-xs font-semibold text-[var(--priority-text)]">{uploadError}</p> : null}
       </div>
-
-      <input name="brandLogoUpload" type="hidden" value={logoUpload} />
-      <input name="clearBrandLogo" type="hidden" value={clearLogo ? "1" : "0"} />
 
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={pending} size="sm" type="submit" variant="primary">
-          Save branding
+          Save workspace &amp; product
         </Button>
         <Feedback state={state} />
       </div>

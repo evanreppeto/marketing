@@ -3,7 +3,11 @@
 export const SETTINGS_SECTIONS = [
   { id: "home", label: "Home" },
   { id: "general", label: "General" },
-  { id: "branding", label: "Branding" },
+  {
+    id: "branding",
+    label: "Workspace & product",
+    description: "Product label, assistant name, and workspace type. Brand identity (name, logo) lives in Brand Kit.",
+  },
   {
     id: "brand-kit",
     label: "Brand Kit",

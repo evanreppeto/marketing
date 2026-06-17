@@ -8,15 +8,12 @@ import { getAgentName } from "@/lib/settings/agent-name";
 import {
   appAppearanceAccent,
   appAppearanceDensity,
-  DEFAULT_APP_SETTINGS,
   appAppearanceMotion,
   appApprovalStrictness,
   appAssistantResponseStyle,
   appAssistantTone,
   appWorkspaceProfile,
   isValidSupportEmail,
-  normalizeBrandShortName,
-  normalizeBrandUrl,
   normalizeDisplayLabel,
   normalizeWorkspaceName,
   saveAppSettings,
@@ -62,7 +59,7 @@ export async function saveGeneralSettingsAction(
   return { ok: true, message: "Settings saved." };
 }
 
-/** Save user/company branding consumed by the app shell, metadata, and chat UI. */
+/** Save app-level workspace & product settings (identity now lives in Brand Kit). */
 export async function saveBrandingSettingsAction(
   _previous: SettingsActionState,
   formData: FormData,
@@ -70,35 +67,24 @@ export async function saveBrandingSettingsAction(
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
 
-  const workspaceName = normalizeDisplayLabel(String(formData.get("workspaceName") ?? ""), DEFAULT_APP_SETTINGS.workspaceName, 80);
   const workspaceProfile = appWorkspaceProfile(formData.get("workspaceProfile"));
   const productLabel = normalizeDisplayLabel(String(formData.get("productLabel") ?? ""), "Marketing", 42);
   const assistantName = normalizeDisplayLabel(String(formData.get("assistantName") ?? ""), "Agent", 32);
-  const brandShortName = normalizeBrandShortName(String(formData.get("brandShortName") ?? ""));
-  const clearBrandLogo = String(formData.get("clearBrandLogo") ?? "") === "1";
-  const uploadedLogo = normalizeBrandUrl(String(formData.get("brandLogoUpload") ?? ""));
-  const typedLogo = normalizeBrandUrl(String(formData.get("brandLogoUrl") ?? ""));
-  const faviconUrl = normalizeBrandUrl(String(formData.get("brandFaviconUrl") ?? "")) || "/icon.png";
-  const brandLogoUrl = clearBrandLogo ? "" : uploadedLogo || typedLogo;
 
   try {
     await saveAppSettings(getSupabaseAdminClient(), {
-      workspace_name: workspaceName,
       workspace_profile: workspaceProfile,
       product_label: productLabel,
       assistant_name: assistantName,
-      brand_short_name: brandShortName,
-      brand_logo_url: brandLogoUrl,
-      brand_favicon_url: faviconUrl,
     });
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save branding." };
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save workspace & product settings." };
   }
 
   revalidatePath("/", "layout");
   revalidatePath("/settings");
   revalidatePath("/arc");
-  return { ok: true, message: "Branding saved." };
+  return { ok: true, message: "Workspace & product saved." };
 }
 
 /** Save operator-facing agent behavior preferences consumed by new chat tasks. */
