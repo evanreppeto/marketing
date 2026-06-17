@@ -299,7 +299,57 @@ const MESSAGES: ArcMessage[] = [
   },
 ];
 
-const MENTION_GROUPS: MentionGroup[] = [];
+// Sample mention catalog so the @-menu is demonstrable in preview mode (no
+// Supabase). Mirrors the grouping the live `getMentionables` produces.
+const MENTION_GROUPS: MentionGroup[] = [
+  {
+    type: "lead",
+    label: "Leads",
+    items: [
+      { type: "lead", id: "demo-lead-1", label: "Lincoln Park brownstone — water damage", href: "/crm/leads/demo-lead-1" },
+      { type: "lead", id: "demo-lead-2", label: "Riverside HOA — mold remediation", href: "/crm/leads/demo-lead-2" },
+      { type: "lead", id: "demo-lead-3", label: "Wicker Park condo — storm board-up", href: "/crm/leads/demo-lead-3" },
+    ],
+  },
+  {
+    type: "company",
+    label: "Companies",
+    items: [
+      { type: "company", id: "demo-co-1", label: "Halsted Property Group", href: "/crm/companies/demo-co-1" },
+      { type: "company", id: "demo-co-2", label: "Lakeshore Facilities Mgmt", href: "/crm/companies/demo-co-2" },
+    ],
+  },
+  {
+    type: "contact",
+    label: "Contacts",
+    items: [
+      { type: "contact", id: "demo-ct-1", label: "Dana Whitfield — Property Manager", href: "/crm/contacts/demo-ct-1" },
+      { type: "contact", id: "demo-ct-2", label: "Marcus Lee — Building Owner", href: "/crm/contacts/demo-ct-2" },
+    ],
+  },
+  {
+    type: "campaign",
+    label: "Campaigns",
+    items: [{ type: "campaign", id: "demo-campaign", label: "Storm Response 2026", href: "/campaigns/demo-campaign" }],
+  },
+  {
+    type: "persona",
+    label: "Personas",
+    items: [
+      { type: "persona", id: "persona_property_manager", label: "Property Manager", href: "/persona-intelligence?inspect=persona_property_manager" },
+      { type: "persona", id: "persona_landlord", label: "Landlord", href: "/persona-intelligence?inspect=persona_landlord" },
+      { type: "persona", id: "persona_insurance_agent", label: "Insurance Agent", href: "/persona-intelligence?inspect=persona_insurance_agent" },
+    ],
+  },
+  {
+    type: "vault",
+    label: "Vault notes",
+    items: [
+      { type: "vault", id: "flood-zone-playbook", label: "Flood-zone outreach playbook", href: "/vault/flood-zone-playbook" },
+      { type: "vault", id: "approved-gallery", label: "Approved before/after gallery", href: "/vault/approved-gallery" },
+    ],
+  },
+];
 
 export type DemoChatProps = {
   conversations: ArcConversation[];
