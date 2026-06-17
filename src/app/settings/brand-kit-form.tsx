@@ -186,7 +186,7 @@ export function BrandKitForm({
             <span className="text-sm font-semibold text-[var(--text-primary)]">Legal name</span>
             <input
               className={inputClass}
-              defaultValue={legalName}
+              value={legalName}
               name="legalName"
               onChange={(e) => setLegalName(e.target.value)}
               placeholder="Big Shoulders Restoration LLC"
@@ -196,7 +196,7 @@ export function BrandKitForm({
             <span className="text-sm font-semibold text-[var(--text-primary)]">Tagline</span>
             <input
               className={inputClass}
-              defaultValue={tagline}
+              value={tagline}
               name="tagline"
               onChange={(e) => setTagline(e.target.value)}
               placeholder="Chicago's trusted restoration team"
@@ -206,7 +206,7 @@ export function BrandKitForm({
             <span className="text-sm font-semibold text-[var(--text-primary)]">Industry</span>
             <input
               className={inputClass}
-              defaultValue={industry}
+              value={industry}
               name="industry"
               onChange={(e) => setIndustry(e.target.value)}
               placeholder="home_property_services"
@@ -219,7 +219,7 @@ export function BrandKitForm({
             <span className="text-sm font-semibold text-[var(--text-primary)]">Website URL</span>
             <input
               className={inputClass}
-              defaultValue={websiteUrl}
+              value={websiteUrl}
               name="websiteUrl"
               onChange={(e) => setWebsiteUrl(e.target.value)}
               placeholder="https://bigshouldersrestoration.com"
@@ -230,7 +230,7 @@ export function BrandKitForm({
             <span className="text-sm font-semibold text-[var(--text-primary)]">Short mark</span>
             <input
               className={inputClass}
-              defaultValue={shortMark}
+              value={shortMark}
               name="shortMark"
               onChange={(e) => setShortMark(e.target.value)}
               placeholder="BSR"
@@ -243,7 +243,7 @@ export function BrandKitForm({
             <span className="text-sm font-semibold text-[var(--text-primary)]">Favicon URL</span>
             <input
               className={inputClass}
-              defaultValue={faviconUrl}
+              value={faviconUrl}
               name="faviconUrl"
               onChange={(e) => setFaviconUrl(e.target.value)}
               placeholder="/icon.png"
@@ -305,7 +305,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Description</span>
           <textarea
             className={textareaClass}
-            defaultValue={description}
+            value={description}
             name="description"
             onChange={(e) => setDescription(e.target.value)}
             placeholder="A short paragraph Arc and the console use to describe your business."
@@ -317,7 +317,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Service areas</span>
           <textarea
             className={textareaClass}
-            defaultValue={serviceAreas}
+            value={serviceAreas}
             name="serviceAreas"
             onChange={(e) => setServiceAreas(e.target.value)}
             placeholder={"Chicago, IL\nNorthwest suburbs\nLake County"}
@@ -356,7 +356,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Voice guidance</span>
           <textarea
             className={textareaClass}
-            defaultValue={voiceGuidance}
+            value={voiceGuidance}
             name="voiceGuidance"
             onChange={(e) => setVoiceGuidance(e.target.value)}
             placeholder="Sound like a trusted local expert — not a national brand. Use first names when possible."
@@ -369,7 +369,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Preferred phrases</span>
           <textarea
             className={textareaClass}
-            defaultValue={preferredPhrases}
+            value={preferredPhrases}
             name="preferredPhrases"
             onChange={(e) => setPreferredPhrases(e.target.value)}
             placeholder={"we're there when it matters\ncertified and insured\nno hidden fees"}
@@ -380,7 +380,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Banned phrases</span>
           <textarea
             className={textareaClass}
-            defaultValue={bannedPhrases}
+            value={bannedPhrases}
             name="bannedPhrases"
             onChange={(e) => setBannedPhrases(e.target.value)}
             placeholder={"cheapest in town\nguaranteed results\nlimited time only"}
@@ -396,7 +396,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Service list</span>
           <textarea
             className={textareaClass}
-            defaultValue={services}
+            value={services}
             name="services"
             onChange={(e) => setServices(e.target.value)}
             placeholder={"Water damage restoration\nFire and smoke cleanup\nMold remediation\nEmergency board-up"}
@@ -414,7 +414,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Disallowed claims</span>
           <textarea
             className={textareaClass}
-            defaultValue={disallowedClaims}
+            value={disallowedClaims}
             name="disallowedClaims"
             onChange={(e) => setDisallowedClaims(e.target.value)}
             placeholder={"False or unverifiable claims\nMisleading pricing or fake urgency\nGuarantees of outcomes outside the business's control"}
@@ -427,7 +427,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Compliance notes</span>
           <textarea
             className={textareaClass}
-            defaultValue={complianceNotes}
+            value={complianceNotes}
             name="complianceNotes"
             onChange={(e) => setComplianceNotes(e.target.value)}
             placeholder="Keep claims truthful and substantiated. Avoid promises the business cannot guarantee."
@@ -445,7 +445,7 @@ export function BrandKitForm({
           <span className="text-sm font-semibold text-[var(--text-primary)]">Proof points</span>
           <textarea
             className={textareaClass}
-            defaultValue={proofPoints}
+            value={proofPoints}
             name="proofPoints"
             onChange={(e) => setProofPoints(e.target.value)}
             placeholder={"500+ jobs completed\n4.9-star average review\nFully licensed and insured in Illinois"}
