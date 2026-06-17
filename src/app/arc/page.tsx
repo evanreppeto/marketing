@@ -19,10 +19,11 @@ import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { ArcChat } from "./_components/arc-chat";
+import { SLASH_COMMANDS } from "./_components/slash-commands";
 import { getDemoChat } from "./_data/demo";
 
 type ArcPageProps = {
-  searchParams?: Promise<{ c?: string | string[]; archived?: string | string[]; project?: string | string[] }>;
+  searchParams?: Promise<{ c?: string | string[]; archived?: string | string[]; project?: string | string[]; skill?: string | string[] }>;
 };
 type ArcChatProps = ComponentProps<typeof ArcChat>;
 const ARC_PAGE_DATA_TIMEOUT_MS = 8000;
@@ -57,6 +58,7 @@ async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]
   const showArchived = valueOf(params?.archived) === "1";
   const requestedId = valueOf(params?.c);
   const requestedProject = valueOf(params?.project);
+  const requestedSkill = valueOf(params?.skill);
 
   // These reads are independent, so run them concurrently. Previously they were
   // ~8 sequential Supabase round-trips that summed past the page-data timeout and
@@ -83,6 +85,13 @@ async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]
       ? requestedProject
       : null;
 
+  // Skills-launcher deep link (?skill=<id>) — only for a fresh chat, validated
+  // against the known commands so a bad param is ignored.
+  const initialSkill =
+    !activeConversation && requestedSkill && SLASH_COMMANDS.some((c) => c.cmd.slice(1) === requestedSkill)
+      ? requestedSkill
+      : null;
+
   // Dependent reads (need the resolved active conversation / project). Also
   // concurrent. Project assets feed the Studio for an active thread and the
   // empty-state hero for a fresh chat opened via the ?project=<id> deep link.
@@ -107,6 +116,7 @@ async function loadLiveArcChatProps(params: Awaited<ArcPageProps["searchParams"]
     activeTitle: activeConversation?.title ?? "",
     activeProjectId: activeConversation?.projectId ?? null,
     newChatProjectId,
+    initialSkill,
     activeCampaignId: activeConversation?.campaignId ?? null,
     campaigns,
     activePinned: Boolean(activeConversation?.pinnedAt),
@@ -127,7 +137,15 @@ export default async function ArcPage({ searchParams }: ArcPageProps) {
   // Preview mode: when Supabase isn't configured, render the full chat with sample
   // data instead of an empty state, so the whole experience is visible without backend.
   if (!isSupabaseAdminConfigured()) {
-    return <ArcChat {...getDemoChat()} demo />;
+    const demoParams = await searchParams;
+    const demoSkill = valueOf(demoParams?.skill);
+    const initialSkill = demoSkill && SLASH_COMMANDS.some((c) => c.cmd.slice(1) === demoSkill) ? demoSkill : null;
+    // A Skills-launcher click opens a fresh chat, so in preview surface the empty
+    // state (not the seeded thread) and let the composer pre-apply the command.
+    const freshForSkill: Partial<ArcChatProps> = initialSkill
+      ? { activeId: "", activeTitle: "", activeProjectId: null, activeCampaignId: null, activePinned: false, initialMessages: [] }
+      : {};
+    return <ArcChat {...getDemoChat()} {...freshForSkill} demo initialSkill={initialSkill} />;
   }
 
   const params = await searchParams;

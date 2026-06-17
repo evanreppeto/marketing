@@ -10,6 +10,7 @@ import { SegmentedBar } from "./_components/charts/segmented-bar";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getPerformanceReadModel } from "@/lib/performance/read-model";
 import { getAppSettings } from "@/lib/settings/store";
+import { resolveBrandIdentity } from "@/lib/brand-kit/identity";
 import { buildTakeaway } from "@/lib/performance/overview-shape";
 import { KpiBand, type Kpi } from "./_components/overview/kpi-band";
 import { TrendChart } from "./_components/overview/trend-chart";
@@ -40,12 +41,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
   ] as const;
   const activeRange = RANGES.find((r) => String(r.v) === rawRange) ?? RANGES[0];
 
-  const [list, performance, settings] = await Promise.all([
+  const [list, performance, settings, identity] = await Promise.all([
     getCampaignWorkspaceList(),
     getPerformanceReadModel(undefined, activeRange.v),
     getAppSettings(),
+    resolveBrandIdentity(),
   ]);
-  const brand = { workspaceName: settings.workspaceName, logoUrl: settings.brandLogoUrl };
+  const brand = { workspaceName: identity.displayName ?? settings.workspaceName, logoUrl: identity.logoUrl ?? settings.brandLogoUrl };
 
   if (list.status === "unavailable") {
     return (
@@ -280,7 +282,7 @@ function StateBadge({ row }: { row: ComparisonRowData }) {
   );
 }
 
-function AnalyticsHeader({ brand }: { brand: { workspaceName: string; logoUrl: string } }) {
+function AnalyticsHeader({ brand }: { brand: { workspaceName: string; logoUrl: string | null | undefined } }) {
   return (
     <div className="mb-5">
       <PageHeader

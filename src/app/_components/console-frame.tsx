@@ -20,17 +20,21 @@ type ConsoleBrand = {
 };
 
 function BrandArc({ brand }: { brand: ConsoleBrand }) {
+  if (brand.logoUrl) {
+    return (
+      <span className="grid h-9 w-9 shrink-0 place-items-center" aria-hidden>
+        {/* eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or data URL. */}
+        <img alt="" className="h-8 w-8 object-contain" src={brand.logoUrl} />
+      </span>
+    );
+  }
+
   return (
     <span
       className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-sm font-semibold text-[var(--accent)]"
       aria-hidden
     >
-      {brand.logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or data URL.
-        <img alt="" className="h-full w-full object-contain" src={brand.logoUrl} />
-      ) : (
-        brand.shortName
-      )}
+      {brand.shortName}
     </span>
   );
 }
@@ -40,9 +44,9 @@ function BrandWordmark() {
     // eslint-disable-next-line @next/next/no-img-element -- transparent generated wordmark served from /public.
     <img
       alt=""
-      className="h-12 w-auto max-w-[118px] select-none object-contain object-left"
+      className="h-8 w-auto max-w-[112px] select-none object-contain object-left"
       draggable={false}
-      src="/brand/arc-marketing-wordmark.png"
+      src="/brand/arc-wordmark.png"
     />
   );
 }
@@ -81,7 +85,7 @@ export function ConsoleFrame({
     { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
   ];
 
-  if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
+  if (pathname === "/login" || pathname === "/sign-in" || pathname === "/sign-up" || pathname === "/forgot-password") {
     return <AgentNameProvider value={agentName}>{children}</AgentNameProvider>;
   }
 
@@ -137,6 +141,13 @@ export function ConsoleFrame({
                 <BrandWordmark />
               </span>
             </Link>
+            <div
+              aria-hidden
+              className={cx(
+                "hidden h-px shrink-0 bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)] lg:block",
+                collapsed ? "lg:mx-auto lg:w-8" : "lg:w-full",
+              )}
+            />
 
             <SideNav active={pathname} items={navItems} collapsed={collapsed} mobileDock />
           </div>

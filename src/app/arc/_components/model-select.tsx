@@ -115,14 +115,14 @@ export function ModelSelect({
         aria-label={`Arc model: ${current.name}`}
         title={current.tagline}
         className={cx(
-          "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition",
+          "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
           open
-            ? "bg-[var(--surface-inset)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-            : "text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] hover:bg-[var(--surface-inset)]",
+            ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
+            : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
         )}
       >
         <SparkGlyph className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
-        <span className="font-semibold">Arc</span>
+        <span className="font-semibold text-[var(--text-primary)]">Arc</span>
         <span className="text-[var(--text-muted)]">· {current.short}</span>
         <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 8 4 4 4-4" />

@@ -5,6 +5,7 @@ import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
 import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
+import { resolveBrandIdentity } from "@/lib/brand-kit/identity";
 
 // Display: an engineered grotesk — confident, gridded, mechanical. Drives headings and key numbers.
 const display = Archivo({
@@ -35,14 +36,18 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+
 export async function generateMetadata(): Promise<Metadata> {
   const { workspaceName, productLabel, brandFaviconUrl } = await getAppSettings();
+  const identity = await resolveBrandIdentity();
+  const resolvedName = identity.displayName ?? workspaceName;
+  const resolvedFavicon = identity.faviconUrl ?? brandFaviconUrl;
   return {
-    title: `${workspaceName} | ${productLabel}`,
+    title: `${resolvedName} | ${productLabel}`,
     description: "AI-native CRM, persona intelligence, routing, and campaign operations.",
     icons: {
-      icon: brandFaviconUrl,
-      apple: brandFaviconUrl,
+      icon: resolvedFavicon,
+      apple: resolvedFavicon,
     },
   };
 }
@@ -53,6 +58,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const settings = await getAppSettings();
+  const identity = await resolveBrandIdentity();
 
   return (
     <html
@@ -66,10 +72,10 @@ export default async function RootLayout({
         <ConsoleFrame
           agentName={getAgentDisplayName(settings.assistantName)}
           brand={{
-            workspaceName: settings.workspaceName,
+            workspaceName: identity.displayName ?? settings.workspaceName,
             productLabel: settings.productLabel,
-            shortName: settings.brandShortName,
-            logoUrl: settings.brandLogoUrl,
+            shortName: identity.shortMark ?? settings.brandShortName,
+            logoUrl: identity.logoUrl ?? settings.brandLogoUrl,
           }}
         >
           {children}

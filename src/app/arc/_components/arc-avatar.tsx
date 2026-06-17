@@ -1,7 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import { cx } from "@/app/_components/theme";
-import { Persona, type PersonaState } from "@/components/ai-elements/persona";
+import type { PersonaState } from "@/components/ai-elements/persona";
+
+// The persona bubble pulls in the Rive WebGL runtime (~500KB). Code-split it so
+// that runtime loads as its own async chunk rather than inflating the initial JS
+// for every page that shows Arc's avatar. The wrapper span reserves the avatar's
+// size, so the fade-in on load causes no layout shift (decorative, aria-hidden).
+const Persona = dynamic(() => import("@/components/ai-elements/persona").then((m) => m.Persona), {
+  ssr: false,
+});
 
 const ARC_PERSONA_COLORS: Record<PersonaState, readonly [number, number, number]> = {
   asleep: [174, 181, 194],

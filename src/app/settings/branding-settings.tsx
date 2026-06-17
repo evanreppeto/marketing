@@ -8,17 +8,13 @@ export async function BrandingSettings() {
 
   return (
     <SettingsSection
-      description="Make the console fit an individual operator, a team, or a company. These settings update the app shell and chat labels."
-      title="Branding"
+      description="Product label, assistant name, and workspace type. Brand identity (name, logo) lives in Brand Kit."
+      title="Workspace &amp; product"
     >
       <BrandingSettingsForm
-        initialWorkspaceName={settings.workspaceName}
         initialWorkspaceProfile={settings.workspaceProfile}
         initialProductLabel={settings.productLabel}
         initialAssistantName={settings.assistantName}
-        initialBrandShortName={settings.brandShortName}
-        initialBrandLogoUrl={settings.brandLogoUrl}
-        initialBrandFaviconUrl={settings.brandFaviconUrl}
       />
     </SettingsSection>
   );

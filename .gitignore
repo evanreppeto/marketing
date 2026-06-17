@@ -68,3 +68,12 @@ dev-server-*.log
 dev-server-*.err.log
 
 .claude/worktrees/
+
+# Raw brand/asset dumps and archives — these belong in storage/CDN, not the repo.
+# (Web-served assets go in /public.) Guards against re-committing the ~33MB of
+# logo source files, knowledge-base PDFs, and macOS cruft that were removed.
+/Final Files/
+/images/
+*.zip
+__MACOSX/
+*.eps

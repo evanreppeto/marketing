@@ -6,6 +6,7 @@ import { cx } from "@/app/_components/theme";
 import type { ArcMention, ArcMode, ArcRoute } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
+import { AutocompleteMenu, MentionIcon, MENTION_TYPE_LABEL, SlashIcon, type MenuRow } from "./composer-menu";
 import { ModelSelect } from "./model-select";
 import type { ArcAttachment, ArcMessage, ArcProject } from "@/lib/arc-chat/persistence";
 import type { MentionGroup } from "@/lib/arc-chat/mention-search";
@@ -54,7 +55,7 @@ type PillOption<T extends string> = { id: T; label: string; hint: string; icon: 
 /** Shared 14px line glyph so every pill/menu icon matches the footer's stroke weight. */
 function Glyph({ children }: { children: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       {children}
     </svg>
   );
@@ -106,7 +107,12 @@ function PillSelect<T extends string>({
         aria-expanded={open}
         aria-label={`${ariaLabel}: ${current.label}`}
         title={current.hint}
-        className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)]"
+        className={cx(
+          "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
+          open
+            ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
+            : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+        )}
       >
         <span key={current.id} className="pill-glyph-swap flex">{current.icon}</span>
         {current.label}
@@ -236,6 +242,7 @@ export function Composer({
   onDemoSend,
   onSlashOpenChange,
   recallText = null,
+  initialSkill = null,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -267,6 +274,9 @@ export function Composer({
   /** Body of the last operator message; ArrowUp in an empty composer recalls it
    *  for a quick re-send/edit (shell-history muscle memory). */
   recallText?: string | null;
+  /** Skill (slash-command id, no leading slash) to pre-apply on a fresh chat,
+   *  from the sidebar Skills launcher deep link (?skill=<id>). */
+  initialSkill?: string | null;
 }) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   // For a new chat the picked project rides along as a hidden input (assigned on
@@ -321,7 +331,7 @@ export function Composer({
   const [picked, setPicked] = useState<ArcMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
-  const [activeIdx, setActiveIdx] = useState(0); // highlighted row in whichever popover is open (keyboard nav)
+  const [activeIndex, setActiveIndex] = useState(0); // highlighted row in whichever menu is open
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
   const [attachments, setAttachments] = useState<ArcAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -434,7 +444,7 @@ export function Composer({
     const at = /@([\w-]*)$/.exec(value);
     setQuery(at ? at[1] : null);
     setSlash(matchSlash(value));
-    setActiveIdx(0); // re-highlight the first row whenever the popover re-filters
+    setActiveIndex(0);
   }
 
   function stopVoiceInput() {
@@ -541,8 +551,42 @@ export function Composer({
     if (c.mode) onModeChange(c.mode); // preset the stance the command implies (e.g. Draft)
     onDraftChange("");
     setSlash(null);
-    setActiveIdx(0);
+    setActiveIndex(0);
     requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  // Which autocomplete menu is open (mutually exclusive in practice — a draft
+  // can't both start with `/` and end with `@`). `slashOpen` is defined above.
+  const mentionOpen = query !== null && suggestions.length > 0;
+  const menuOpen = mentionOpen || slashOpen;
+  const MENTION_LIST_ID = "arc-mention-menu";
+  const SLASH_LIST_ID = "arc-slash-menu";
+  const activeListId = mentionOpen ? MENTION_LIST_ID : SLASH_LIST_ID;
+  const activeMenuLen = mentionOpen ? suggestions.length : slashOpen ? (slash?.length ?? 0) : 0;
+
+  const mentionRows: MenuRow[] = suggestions.map((m) => ({
+    key: `${m.type}:${m.id}`,
+    icon: <MentionIcon type={m.type} />,
+    title: m.label,
+    group: MENTION_TYPE_LABEL[m.type],
+  }));
+  const slashRows: MenuRow[] = (slash ?? []).map((c) => ({
+    key: c.cmd,
+    icon: <SlashIcon cmd={c.cmd} />,
+    title: c.label,
+    meta: c.hint,
+    trailing: <span className="font-mono text-[10px] text-[var(--text-muted)]">{c.cmd}</span>,
+  }));
+
+  /** Commit the highlighted menu row (shared by Enter, Tab, and click). */
+  function selectActive() {
+    if (mentionOpen) {
+      const m = suggestions[Math.min(activeIndex, suggestions.length - 1)];
+      if (m) addMention(m);
+    } else if (slashOpen && slash) {
+      const c = slash[Math.min(activeIndex, slash.length - 1)];
+      if (c) applySlash(c);
+    }
   }
 
   const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
@@ -576,57 +620,30 @@ export function Composer({
         {/* Project chosen in the footer selector — assigned when this send creates a new thread. */}
         <input type="hidden" name="projectId" value={newChatProjectId ?? ""} />
 
-        {query !== null && suggestions.length > 0 ? (
-          <div role="listbox" aria-label="Mention a record" className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] shadow-[var(--elev-raised)]">
-            <div className="max-h-72 overflow-y-auto p-1.5">
-              {suggestions.map((m, i) => (
-                <button
-                  key={`${m.type}:${m.id}`}
-                  type="button"
-                  role="option"
-                  aria-selected={i === activeIdx}
-                  onMouseEnter={() => setActiveIdx(i)}
-                  onClick={() => addMention(m)}
-                  className={cx(
-                    "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
-                    i === activeIdx ? "bg-[var(--surface-inset)]" : "",
-                  )}
-                >
-                  <span className="truncate font-semibold text-[var(--text-primary)]">{m.label}</span>
-                  <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">{m.type}</span>
-                </button>
-              ))}
-            </div>
-            <PopoverHint />
-          </div>
+        {mentionOpen ? (
+          <AutocompleteMenu
+            listId={MENTION_LIST_ID}
+            rows={mentionRows}
+            activeIndex={activeIndex}
+            onActiveChange={setActiveIndex}
+            onSelect={(i) => {
+              const m = suggestions[i];
+              if (m) addMention(m);
+            }}
+          />
         ) : null}
 
-        {slash && slash.length > 0 ? (
-          <div role="listbox" aria-label="Run a command" className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] shadow-[var(--elev-raised)]">
-            <div className="max-h-72 overflow-y-auto p-1.5">
-              {slash.map((c, i) => (
-                <button
-                  key={c.cmd}
-                  type="button"
-                  role="option"
-                  aria-selected={i === activeIdx}
-                  onMouseEnter={() => setActiveIdx(i)}
-                  onClick={() => applySlash(c)}
-                  className={cx(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition",
-                    i === activeIdx ? "bg-[var(--surface-inset)]" : "",
-                  )}
-                >
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-medium text-[var(--text-primary)]">{c.label}</span>
-                    <span className="truncate text-[11px] text-[var(--text-muted)]">{c.hint}</span>
-                  </span>
-                  <span className="shrink-0 font-mono text-[11px] text-[var(--text-muted)]">{c.cmd}</span>
-                </button>
-              ))}
-            </div>
-            <PopoverHint />
-          </div>
+        {slashOpen ? (
+          <AutocompleteMenu
+            listId={SLASH_LIST_ID}
+            rows={slashRows}
+            activeIndex={activeIndex}
+            onActiveChange={setActiveIndex}
+            onSelect={(i) => {
+              const c = slash?.[i];
+              if (c) applySlash(c);
+            }}
+          />
         ) : null}
 
         <div
@@ -730,32 +747,28 @@ export function Composer({
               }
             }}
             onKeyDown={(e) => {
-              // Codex-style command/mention navigation when a popover is open.
-              const slashItems = slash && slash.length > 0 ? slash : null;
-              const mentionItems = query !== null && suggestions.length > 0 ? suggestions : null;
-              const openCount = slashItems?.length ?? mentionItems?.length ?? 0;
-              if (openCount > 0) {
+              // An open autocomplete menu owns the arrows, Enter/Tab (select) and
+              // Escape (dismiss) so the keyboard never has to leave the textarea.
+              if (menuOpen && activeMenuLen > 0) {
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
-                  setActiveIdx((i) => (i + 1) % openCount);
+                  setActiveIndex((i) => (i + 1) % activeMenuLen);
                   return;
                 }
                 if (e.key === "ArrowUp") {
                   e.preventDefault();
-                  setActiveIdx((i) => (i - 1 + openCount) % openCount);
+                  setActiveIndex((i) => (i - 1 + activeMenuLen) % activeMenuLen);
                   return;
                 }
-                if (e.key === "Enter" || e.key === "Tab") {
+                if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
                   e.preventDefault();
-                  const idx = Math.min(activeIdx, openCount - 1);
-                  if (slashItems) applySlash(slashItems[idx]);
-                  else if (mentionItems) addMention(mentionItems[idx]);
+                  selectActive();
                   return;
                 }
                 if (e.key === "Escape") {
                   e.preventDefault();
-                  setSlash(null);
-                  setQuery(null);
+                  if (mentionOpen) setQuery(null);
+                  else setSlash(null);
                   return;
                 }
               }
@@ -771,6 +784,11 @@ export function Composer({
             rows={1}
             placeholder={`Message ${assistantName}...`}
             style={{ outline: "none" }}
+            role="combobox"
+            aria-expanded={menuOpen}
+            aria-controls={menuOpen ? activeListId : undefined}
+            aria-activedescendant={menuOpen ? `${activeListId}-opt-${activeIndex}` : undefined}
+            aria-autocomplete="list"
             className="max-h-[200px] min-h-12 w-full resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
           />
 
@@ -782,7 +800,7 @@ export function Composer({
               disabled={uploading}
               aria-label="Attach image"
               title="Attach a reference image"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
               <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 5v10M5 10h10" />
@@ -792,11 +810,12 @@ export function Composer({
               type="button"
               onClick={() => {
                 setSlash((s) => (s && s.length ? null : SLASH_COMMANDS));
+                setActiveIndex(0);
                 textareaRef.current?.focus();
               }}
               aria-label="Tools and commands"
               title="Tools - run a command"
-              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 7h-9" />
@@ -815,10 +834,10 @@ export function Composer({
               aria-pressed={voiceState === "listening"}
               title={voiceState === "unsupported" ? "Voice input is not available in this browser" : voiceState === "listening" ? "Stop voice input" : "Speak a message"}
               className={cx(
-                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-[inset_0_0_0_1px_var(--border-strong)] transition active:scale-95 after:hidden",
+                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-95 after:hidden",
                 voiceState === "listening"
                   ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
+                  : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
                 voiceState === "checking" || voiceState === "unsupported" || isPending ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--text-muted)]" : "",
               )}
             >
@@ -885,11 +904,15 @@ export function Composer({
               aria-haspopup="menu"
               aria-expanded={projectMenuOpen}
               className={cx(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
-                selectedProjectName ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
+                "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
+                projectMenuOpen
+                  ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
+                  : selectedProjectName
+                    ? "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
               )}
             >
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
               </svg>
               {selectedProjectName ?? "No project"}

@@ -138,6 +138,7 @@ export function ArcChat({
   activeTitle,
   activeProjectId,
   newChatProjectId = null,
+  initialSkill = null,
   activeCampaignId,
   campaigns,
   activePinned,
@@ -160,6 +161,8 @@ export function ArcChat({
   activeProjectId: string | null;
   /** Pre-selected project for a fresh chat, from the ?project=<id> deep link. */
   newChatProjectId?: string | null;
+  /** Skill (slash-command id) to pre-apply on a fresh chat, from ?skill=<id>. */
+  initialSkill?: string | null;
   activeCampaignId: string | null;
   campaigns: { id: string; name: string }[];
   activePinned: boolean;
@@ -212,6 +215,22 @@ export function ArcChat({
       }
     });
   }, []);
+
+  // Collapsible sidebar (icon rail), persisted across sessions like ChatGPT/Claude.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      if (typeof window === "undefined") return;
+      setSidebarCollapsed(window.localStorage.getItem("arc:sidebar-collapsed") === "1");
+    });
+  }, []);
+  function toggleSidebar() {
+    setSidebarCollapsed((v) => {
+      const next = !v;
+      if (typeof window !== "undefined") window.localStorage.setItem("arc:sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
 
   // Lets the chat open the Studio focused on a specific asset. `seq` bumps so the
   // Studio re-focuses even when the same asset is requested twice.
@@ -562,9 +581,16 @@ export function ArcChat({
     <div className="flex h-full min-h-0 flex-col">
       <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
       <div
-        className={`grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)] lg:grid-cols-[16rem_minmax(0,1fr)] ${
-          activeId && canvasOpen ? "xl:grid-cols-[16rem_minmax(0,1fr)_22rem] 2xl:grid-cols-[16rem_minmax(0,1fr)_25rem]" : ""
-        }`}
+        className={cx(
+          "grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)]",
+          // Literal class strings (both states) so Tailwind's JIT emits them.
+          sidebarCollapsed ? "lg:grid-cols-[3.5rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_minmax(0,1fr)]",
+          activeId && canvasOpen
+            ? sidebarCollapsed
+              ? "xl:grid-cols-[3.5rem_minmax(0,1fr)_22rem] 2xl:grid-cols-[3.5rem_minmax(0,1fr)_25rem]"
+              : "xl:grid-cols-[16rem_minmax(0,1fr)_22rem] 2xl:grid-cols-[16rem_minmax(0,1fr)_25rem]"
+            : "",
+        )}
       >
         <ThreadSidebar
           conversations={conversations}
@@ -575,6 +601,8 @@ export function ArcChat({
           assistantName={assistantName}
           runningIds={runningConversationIds}
           doneIds={doneConversationIds}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
         />
         <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
           {/* Ambient silk backdrop — the 21st.dev MeshGradient shader, obsidian+gold. */}
@@ -740,6 +768,7 @@ export function ArcChat({
                 projects={projects}
                 activeProjectId={activeProjectId}
                 initialNewChatProjectId={newChatProjectId}
+                initialSkill={initialSkill}
                 mode={mode}
                 route={route}
                 onModeChange={setMode}

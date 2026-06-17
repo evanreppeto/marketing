@@ -23,6 +23,9 @@ export function CampaignDeployLaunchpad({
   agentName: string;
 }) {
   const isEmpty = launchpad.totalShippable === 0;
+  const scheduledByAsset = new Map(
+    dispatches.filter((d) => d.status === "scheduled" && d.assetId).map((d) => [d.assetId as string, d.scheduledFor]),
+  );
 
   return (
     <section
@@ -49,7 +52,7 @@ export function CampaignDeployLaunchpad({
         <ul className="divide-y divide-[var(--border-hairline)]">
           {launchpad.pieces.map((piece) => (
             <li key={piece.id}>
-              <DeployPieceRow piece={piece} campaignId={campaignId} />
+              <DeployPieceRow piece={piece} campaignId={campaignId} scheduledFor={scheduledByAsset.get(piece.id) ?? null} />
             </li>
           ))}
         </ul>
@@ -74,7 +77,7 @@ export function CampaignDeployLaunchpad({
   );
 }
 
-function DeployPieceRow({ piece, campaignId }: { piece: DeployPiece; campaignId: string }) {
+function DeployPieceRow({ piece, campaignId, scheduledFor }: { piece: DeployPiece; campaignId: string; scheduledFor: string | null }) {
   return (
     <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
       <div className="min-w-0">
@@ -87,20 +90,20 @@ function DeployPieceRow({ piece, campaignId }: { piece: DeployPiece; campaignId:
         <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-[var(--text-muted)]">{piece.previewText}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-        <PieceActions piece={piece} campaignId={campaignId} />
+        <PieceActions piece={piece} campaignId={campaignId} scheduledFor={scheduledFor} />
       </div>
     </div>
   );
 }
 
-function PieceActions({ piece, campaignId }: { piece: DeployPiece; campaignId: string }) {
+function PieceActions({ piece, campaignId, scheduledFor }: { piece: DeployPiece; campaignId: string; scheduledFor: string | null }) {
   if (piece.mode === "locked") {
     return <span className="text-xs font-semibold text-[var(--text-muted)]">{piece.lockReason}</span>;
   }
   if (piece.mode === "deployed") {
     return (
       <>
-        <StatusPill tone="blue">Queued in Outbox</StatusPill>
+        <StatusPill tone="blue">{scheduledFor ? `Scheduled for ${scheduledFor}` : "Queued in Outbox"}</StatusPill>
         <Link href="/outbox" className={buttonClasses({ variant: "ghost", size: "sm" })}>
           View Outbox
         </Link>
@@ -129,12 +132,27 @@ function PieceActions({ piece, campaignId }: { piece: DeployPiece; campaignId: s
 
 function DeployPieceButton({ assetId, campaignId }: { assetId: string; campaignId: string }) {
   const [state, formAction, isPending] = useActionState(deployAssetAction, null);
+  const [scheduling, setScheduling] = useState(false);
   return (
-    <form action={formAction} className="flex items-center gap-2">
+    <form action={formAction} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="assetId" value={assetId} />
       <input type="hidden" name="campaignId" value={campaignId} />
+      {scheduling ? (
+        <input
+          type="datetime-local"
+          name="scheduledFor"
+          min={localNowValue()}
+          step="60"
+          required
+          aria-label="Schedule deploy for"
+          className="min-h-9 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 text-xs text-[var(--text-primary)]"
+        />
+      ) : null}
       <Button type="submit" variant="primary" size="sm" disabled={isPending}>
-        {isPending ? "Deploying…" : "Deploy"}
+        {isPending ? (scheduling ? "Scheduling…" : "Deploying…") : scheduling ? "Schedule" : "Deploy"}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => setScheduling((s) => !s)} disabled={isPending}>
+        {scheduling ? "Cancel" : "Schedule"}
       </Button>
       {state ? <ActionMessage state={state} /> : null}
     </form>
@@ -152,6 +170,7 @@ function DeployCampaignButton({
 }) {
   const [state, formAction, isPending] = useActionState(launchCampaignAction, null);
   const [confirming, setConfirming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
 
   if (!launchpad.canDeployCampaign) {
     return (
@@ -176,13 +195,27 @@ function DeployCampaignButton({
     <form action={formAction} className="flex shrink-0 flex-col items-end gap-2">
       <input type="hidden" name="campaignId" value={campaignId} />
       <p className="text-xs font-semibold text-[var(--text-secondary)]">
-        Hand {launchpad.readyCount} approved piece{launchpad.readyCount === 1 ? "" : "s"} to {agentName} to send?
+        {scheduling ? "Schedule" : "Hand"} {launchpad.readyCount} approved piece{launchpad.readyCount === 1 ? "" : "s"} to {agentName}{scheduling ? " for later?" : " to send?"}
       </p>
+      {scheduling ? (
+        <input
+          type="datetime-local"
+          name="scheduledFor"
+          min={localNowValue()}
+          step="60"
+          required
+          aria-label="Schedule campaign deploy for"
+          className="min-h-9 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 text-xs text-[var(--text-primary)]"
+        />
+      ) : null}
       <div className="flex items-center gap-2">
         <Button type="submit" variant="primary" size="sm" disabled={isPending}>
-          {isPending ? "Deploying…" : "Confirm deploy"}
+          {isPending ? (scheduling ? "Scheduling…" : "Deploying…") : scheduling ? "Confirm schedule" : "Confirm deploy"}
         </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={isPending}>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setScheduling((s) => !s)} disabled={isPending}>
+          {scheduling ? "Deploy now instead" : "Schedule for later"}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => { setConfirming(false); setScheduling(false); }} disabled={isPending}>
           Cancel
         </Button>
       </div>
@@ -205,4 +238,11 @@ function statusTone(piece: DeployPiece): "amber" | "blue" | "green" | "gray" | "
   if (piece.statusLabel === "Review") return "amber";
   if (piece.statusLabel === "Blocked") return "red";
   return "gray";
+}
+
+/** Current local time as a `datetime-local`-compatible value (YYYY-MM-DDTHH:mm). */
+function localNowValue(): string {
+  const d = new Date();
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 }

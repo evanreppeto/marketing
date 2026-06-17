@@ -429,8 +429,10 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
 
     const campaigns = (data ?? []) as CampaignRow[];
     const campaignIds = campaigns.map((campaign) => campaign.id);
-    const assets = await selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at");
-    const approvals = await selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at");
+    const [assets, approvals] = await Promise.all([
+      selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at"),
+      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at"),
+    ]);
     const approvalOutputs = await selectIn<AgentOutputRow>(
       supabase,
       "agent_outputs",
@@ -529,8 +531,10 @@ export async function getCampaignWorkspaceDetail(
       selectIn<AgentTaskRow>(supabase, "agent_tasks", AGENT_TASK_SELECT, "campaign_id", [campaignId], "created_at"),
     ]);
     const assetIds = assets.map((asset) => asset.id);
-    const campaignApprovals = await selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", [campaignId], "submitted_at");
-    const assetApprovals = await selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_asset_id", assetIds, "submitted_at");
+    const [campaignApprovals, assetApprovals] = await Promise.all([
+      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", [campaignId], "submitted_at"),
+      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_asset_id", assetIds, "submitted_at"),
+    ]);
     const approvals = uniqueById([...campaignApprovals, ...assetApprovals]);
     const approvalIds = approvals.map((approval) => approval.id);
     const [assetOutputs, approvalOutputs] = await Promise.all([
@@ -843,9 +847,11 @@ export async function getCampaignsForRecord(
     const supabase = client ?? getSupabaseAdminClient();
     const column = columnFor(kind);
 
-    const { data: directRows, error: directError } = await supabase.from("campaigns").select("id").eq(column, recordId);
+    const [{ data: directRows, error: directError }, { data: approvalRows, error: approvalError }] = await Promise.all([
+      supabase.from("campaigns").select("id").eq(column, recordId),
+      supabase.from("approval_items").select("campaign_id").eq(column, recordId),
+    ]);
     assertSupabaseResult("campaigns", directError);
-    const { data: approvalRows, error: approvalError } = await supabase.from("approval_items").select("campaign_id").eq(column, recordId);
     assertSupabaseResult("approval_items", approvalError);
 
     const ids = collectReferencingCampaignIds(
@@ -859,8 +865,10 @@ export async function getCampaignsForRecord(
     const campaigns = (data ?? []) as CampaignRow[];
     const campaignIds = campaigns.map((campaign) => campaign.id);
 
-    const assets = await selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at");
-    const approvals = await selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at");
+    const [assets, approvals] = await Promise.all([
+      selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at"),
+      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at"),
+    ]);
     const approvalOutputs = await selectIn<AgentOutputRow>(
       supabase,
       "agent_outputs",

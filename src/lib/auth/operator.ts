@@ -1,12 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { getAuthMode } from "./auth-mode";
 import {
   OPERATOR_COOKIE,
   getConfiguredOperatorCredentials,
   isOperatorGateEnabled,
   isValidOperatorValue,
 } from "./operator-shared";
+import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
 /**
  * Operator access gate. A single shared-secret cookie protects the human-facing
@@ -22,7 +24,19 @@ export { OPERATOR_COOKIE, isOperatorGateEnabled, isValidOperatorValue };
  * the gate is enabled and the caller isn't signed in; no-op when the gate is off.
  */
 export async function requireOperator() {
-  if (!isOperatorGateEnabled()) {
+  const authMode = getAuthMode();
+
+  if (authMode === "open") {
+    return;
+  }
+
+  if (authMode === "supabase") {
+    const user = await getSupabaseAuthenticatedUser();
+
+    if (!user) {
+      redirect("/login");
+    }
+
     return;
   }
 

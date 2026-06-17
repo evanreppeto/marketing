@@ -181,6 +181,55 @@ function ChainOfThoughtTrace({
   );
 }
 
+/**
+ * Live "thinking" step spine shown while Arc works (calm register, à la
+ * Claude/ChatGPT). The animated Persona avatar carries the personality, so the
+ * body stays quiet: completed steps check off on a hairline spine that fills
+ * gold as it goes, and the current step's label shimmers. Used only in-flight;
+ * the finished message keeps the collapsible ChainOfThought trace (`StepTrace`).
+ */
+function ThinkingTrace({ steps, assistantName }: { steps: ArcStep[]; assistantName: string }) {
+  if (steps.length === 0) return null;
+  return (
+    <div role="status" aria-live="polite" aria-label={`${assistantName} is thinking`} className="flex flex-col">
+      {steps.map((s, i) => {
+        const done = s.status === "done";
+        const isLast = i === steps.length - 1;
+        return (
+          <div key={`${i}-${s.label}`} className="msg-rise flex gap-2.5">
+            <div className="flex flex-col items-center">
+              {done ? (
+                <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)]">
+                  <svg viewBox="0 0 12 12" aria-hidden className="h-2.5 w-2.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m2.5 6 2.5 2.5 4.5-5" />
+                  </svg>
+                </span>
+              ) : (
+                <span className="arc-tstep-dot mt-0.5"><span className="core" /></span>
+              )}
+              {!isLast ? (
+                <span className={cx("my-1 w-px flex-1", done ? "bg-[var(--accent-border)]" : "bg-[var(--border-hairline)]")} />
+              ) : null}
+            </div>
+            <div className={cx("min-w-0 flex-1", isLast ? "" : "pb-3")}>
+              <div className={cx("text-[13px] leading-5", done ? "text-[var(--text-muted)]" : "text-[var(--text-primary)]")}>
+                {done ? s.label : <span className="arc-shimmer font-medium">{s.label}</span>}
+              </div>
+              {s.detail && s.detail.length > 0 ? (
+                <div className="mt-1 space-y-0.5 text-xs text-[var(--text-muted)]">
+                  {s.detail.map((d, j) => (
+                    <div key={`${j}-${d}`}>– {d}</div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Arc's narrative thinking, via the AI Elements Reasoning component (collapsible
  *  "Thought for Ns", matching the chain-of-thought treatment already in use). */
 function ArcReasoning({ text, streaming = false }: { text: string; streaming?: boolean }) {
@@ -217,9 +266,7 @@ function PendingBlock({
   const hasBody = body.trim().length > 0;
   return (
     <div className="flex flex-col gap-2">
-      {hasSteps ? (
-        <ChainOfThoughtTrace steps={steps} title={`${assistantName} is thinking…`} defaultOpen />
-      ) : null}
+      {hasSteps ? <ThinkingTrace steps={steps} assistantName={assistantName} /> : null}
       {reasoning ? <ArcReasoning text={reasoning} streaming /> : null}
       {toolCalls.length > 0 ? <ToolTraces tools={toolCalls} /> : null}
       {hasBody ? (
@@ -231,14 +278,9 @@ function PendingBlock({
           <span aria-hidden className="arc-caret" />
         </div>
       ) : !hasSteps ? (
-        <div className="flex flex-col gap-2.5" aria-label={`${assistantName} is thinking`}>
-          <span className="flex items-center gap-2.5">
-            <span aria-hidden className="arc-luma h-4 w-4">
-              <span />
-              <span />
-            </span>
-            <span className="arc-shimmer text-base font-semibold">{assistantName} is thinking...</span>
-          </span>
+        <div className="flex items-center gap-2.5" role="status" aria-live="polite" aria-label={`${assistantName} is thinking`}>
+          <span className="arc-tstep-dot"><span className="core" /></span>
+          <span className="arc-shimmer text-sm font-medium">Thinking…</span>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">

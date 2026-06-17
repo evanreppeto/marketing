@@ -382,6 +382,18 @@ h4, .font-display {
   border-color: var(--accent);
 }
 
+.chicago-dark .auth-input-shell :where(input):focus,
+.chicago-dark .auth-input-shell :where(input):focus-visible {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.chicago-dark .auth-checkbox:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .chicago-dark :where(a, button)[aria-current="page"],
 .chicago-dark :where(a, button)[aria-selected="true"],
 .chicago-dark :where(a, button)[aria-pressed="true"] {
@@ -478,6 +490,136 @@ h4, .font-display {
 @keyframes bar-fill {
   from { width: 0; }
   to { width: var(--bar-target, 100%); }
+}
+
+@keyframes auth-fade-slide-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes auth-panel-reveal {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateX(0);
+  }
+}
+
+@keyframes auth-shadow-drift {
+  0%, 100% {
+    transform: translate3d(-3%, -2%, 0) scale(1.04);
+  }
+  50% {
+    transform: translate3d(3%, 2%, 0) scale(1.1);
+  }
+}
+
+@keyframes auth-submit-pulse {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-auth-element {
+  opacity: 0;
+  animation: auth-fade-slide-in 620ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-auth-delay-100 { animation-delay: 80ms; }
+.animate-auth-delay-150 { animation-delay: 140ms; }
+.animate-auth-delay-200 { animation-delay: 200ms; }
+.animate-auth-delay-250 { animation-delay: 250ms; }
+.animate-auth-delay-300 { animation-delay: 300ms; }
+.animate-auth-delay-400 { animation-delay: 400ms; }
+.animate-auth-delay-450 { animation-delay: 450ms; }
+.animate-auth-delay-500 { animation-delay: 500ms; }
+.animate-auth-delay-600 { animation-delay: 600ms; }
+.animate-auth-delay-700 { animation-delay: 700ms; }
+.animate-auth-delay-800 { animation-delay: 800ms; }
+.animate-auth-delay-900 { animation-delay: 900ms; }
+
+.auth-panel-reveal {
+  opacity: 0;
+  animation: auth-panel-reveal 760ms cubic-bezier(0.16, 1, 0.3, 1) 180ms forwards;
+}
+
+.auth-shadow-field {
+  position: absolute;
+  inset: var(--auth-shadow-inset, -72px);
+  z-index: 1;
+  filter: var(--auth-shadow-filter);
+  background-color: var(--auth-shadow-color);
+  mask-image: url("https://framerusercontent.com/images/ceBGguIpUU8luwByxuQz79t7To.png");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: cover;
+  -webkit-mask-image: url("https://framerusercontent.com/images/ceBGguIpUU8luwByxuQz79t7To.png");
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: cover;
+  animation: auth-shadow-drift var(--auth-shadow-duration, 18s) ease-in-out infinite;
+  will-change: transform;
+}
+
+.auth-shadow-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(44% 42% at 66% 62%, var(--auth-shadow-accent), transparent 74%),
+    radial-gradient(36% 34% at 34% 26%, rgba(255, 255, 255, 0.08), transparent 72%);
+}
+
+.auth-input-shell input:focus-visible {
+  outline: none !important;
+  border-color: transparent !important;
+}
+
+.auth-checkbox {
+  accent-color: var(--accent);
+}
+
+.auth-checkbox:checked {
+  background-image:
+    linear-gradient(45deg, transparent 58%, var(--on-accent) 58% 68%, transparent 68%),
+    linear-gradient(-45deg, transparent 48%, var(--on-accent) 48% 58%, transparent 58%);
+  background-position: 46% 48%, 56% 48%;
+  background-repeat: no-repeat;
+  background-size: 46% 46%, 62% 46%;
+}
+
+.auth-submit-pulse {
+  animation: auth-submit-pulse 920ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-auth-element,
+  .auth-panel-reveal,
+  .auth-shadow-field,
+  .auth-submit-pulse {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
 }
 
 /* One fast, uniform page fade-in. The per-panel `[animation-delay:NNms]`
