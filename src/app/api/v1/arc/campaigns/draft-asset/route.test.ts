@@ -103,4 +103,26 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       expect.objectContaining({ campaignId: "camp_existing", assetType: "email" }),
     );
   });
+
+  it("forwards media url, path, and generation provenance to persistence", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", {
+        campaign_id: "camp_existing",
+        asset_type: "image_prompt",
+        title: "Concept",
+        media_url: "https://signed/img.png",
+        media_path: "arc-generated/abc.png",
+        media: { source: "ai_generated", model: "gemini-2.5-flash-image", jobId: "job_1", format: "1:1", riskFlags: ["claim risk"] },
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(promoteMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaUrl: "https://signed/img.png",
+        mediaPath: "arc-generated/abc.png",
+        media: expect.objectContaining({ source: "ai_generated", model: "gemini-2.5-flash-image", jobId: "job_1", riskFlags: ["claim risk"] }),
+      }),
+    );
+  });
 });

@@ -182,6 +182,17 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
   return { campaignId };
 }
 
+/** Provenance for a generated/attached media asset, persisted into audit_payload
+ *  so the AI tag + model/job/risk flags survive on the durable record (not just
+ *  the ephemeral chat card). All optional — a plain reference URL carries none. */
+export type AssetMediaProvenance = {
+  source?: string;
+  model?: string;
+  jobId?: string;
+  format?: string;
+  riskFlags?: string[];
+};
+
 export type PromoteAssetInput = {
   operator: string;
   campaignId: string;
@@ -189,6 +200,11 @@ export type PromoteAssetInput = {
   title: string;
   body: string | null;
   mediaUrl: string | null;
+  /** Object path/key for the media (e.g. GCS path) so a durable reference is kept
+   *  alongside any short-lived signed URL. */
+  mediaPath?: string | null;
+  /** Generation provenance (AI source, model, jobId, risk flags) for the asset. */
+  media?: AssetMediaProvenance;
   /** Configured agent display name, threaded from the caller for the audit-log detail. */
   agentName?: string;
   client?: SupabaseClient;
@@ -200,6 +216,18 @@ export type PromoteAssetInput = {
 export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<{ assetId: string }> {
   const client = input.client ?? getSupabaseAdminClient();
   const agentName = input.agentName?.trim() || "Agent";
+  const provenance = input.media ?? {};
+  const mediaAsset = input.mediaUrl
+    ? {
+        url: input.mediaUrl,
+        ...(input.mediaPath ? { path: input.mediaPath } : {}),
+        ...(provenance.source ? { source: provenance.source } : {}),
+        ...(provenance.model ? { model: provenance.model } : {}),
+        ...(provenance.jobId ? { job_id: provenance.jobId } : {}),
+        ...(provenance.format ? { format: provenance.format } : {}),
+        ...(provenance.riskFlags?.length ? { risk_flags: provenance.riskFlags } : {}),
+      }
+    : null;
   const assetId = await insertOne(client, "campaign_assets", {
     campaign_id: input.campaignId,
     asset_type: input.assetType,
@@ -208,8 +236,8 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     draft_body: input.body,
     dispatch_locked: true,
     tool_source: "arc_saved",
-    audit_payload: input.mediaUrl
-      ? { media_assets: [{ url: input.mediaUrl }], outbound_locked: true }
+    audit_payload: mediaAsset
+      ? { media_assets: [mediaAsset], outbound_locked: true }
       : { outbound_locked: true },
   });
   await insertNoReturn(client, "approval_items", {

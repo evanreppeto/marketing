@@ -43,6 +43,7 @@ export function mediaTools(client: ArcClient, step: StepFn, collectCard: (card: 
             asset_type: args.asset_type ?? "image_prompt",
             title: args.title,
             media_url: gen.media.url,
+            media: gen.media,
           },
         );
         await step(label, "done");
