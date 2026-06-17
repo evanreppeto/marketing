@@ -49,4 +49,14 @@ describe("emit_card", () => {
       approval: { kind: "campaign", campaignId: "c1", assetId: "a1" },
     });
   });
+
+  it("passes through a media block", async () => {
+    const { cards, call } = collectorAndTool();
+    await call({
+      kind: "draft",
+      title: "Real proof",
+      media: { kind: "image", url: "https://x/y.jpg", source: "bsr_real", format: "1:1" },
+    });
+    expect(cards[0].media).toEqual({ kind: "image", url: "https://x/y.jpg", source: "bsr_real", format: "1:1" });
+  });
 });

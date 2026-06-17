@@ -10,6 +10,8 @@ export type ChatReplyInput = {
   body: string;
   status?: "complete" | "failed";
   metadata?: Record<string, unknown>;
+  /** Records Arc used — populates the "Sources Arc used" row. */
+  mentions?: Array<{ type: string; id: string; label: string; href: string }>;
 };
 
 export type QueryParams = Record<string, string | number | undefined | null>;
@@ -61,6 +63,7 @@ export function createArcClient(config: Config) {
       body: input.body,
       status: input.status ?? "complete",
       metadata: input.metadata ?? {},
+      ...(input.mentions ? { mentions: input.mentions } : {}),
     });
   }
 
