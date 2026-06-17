@@ -35,10 +35,12 @@ function draftTools(client: ArcClient, step: StepFn, sink: TurnSink) {
 
 /**
  * The tool set for a turn, gated by operator mode:
- *   ask   → read + reply-shaping (emit_card, suggest_followups, cite_sources)
- *   act   → + writes (CRM interactions, brain observations)
- *   draft → + draft work products (create approval-gated campaign assets)
- * Outbound has no tool in any mode.
+ *   ask         → read + reply-shaping (emit_card, suggest_followups, cite_sources) only
+ *   act / draft → + writes (CRM interactions, brain observations)
+ *                 + draft work products (create approval-gated campaign assets, generate images)
+ * Act and draft share the same capabilities — both "create approval-ready records"
+ * (matching the Act mode label); they differ only in how Arc is framed to work.
+ * Outbound has no tool in any mode; every work product stays approval-gated.
  */
 export function toolsForMode(mode: ArcMode, client: ArcClient, step: StepFn, sink: TurnSink) {
   // Fresh arrays via spread (not push) so the element type widens to the union of
@@ -47,7 +49,6 @@ export function toolsForMode(mode: ArcMode, client: ArcClient, step: StepFn, sin
   const read = readTools(client, step, sink);
   if (mode === "ask") return [...read];
   const write = writeTools(client, step);
-  if (mode === "act") return [...read, ...write];
   return [...read, ...write, ...draftTools(client, step, sink)];
 }
 

@@ -6,7 +6,7 @@ import type { ArcActionCard } from "../types";
 import { textResult, type StepFn } from "./helpers";
 
 /**
- * Draft work products (DRAFT mode only). `create_campaign_draft` creates a real,
+ * Draft work products (act/draft mode). `create_campaign_draft` creates a real,
  * approval-gated campaign asset (pending_approval, dispatch_locked) and auto-emits
  * a draft card carrying the inline Approve/Decline block. Nothing goes outbound;
  * the operator approves before anything is usable.

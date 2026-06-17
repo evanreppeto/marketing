@@ -6,7 +6,7 @@ import type { ArcActionCard, ArcMedia } from "../types";
 import { textResult, type StepFn } from "./helpers";
 
 /**
- * Media generation (DRAFT mode only). `generate_image` creates an AI image and
+ * Media generation (act/draft mode). `generate_image` creates an AI image and
  * lands it as an approval-gated draft campaign asset with a thumbnail card.
  * AI-tagged + risk-flagged + locked pending approval — never outbound, never a
  * fabricated "proof" of a real BSR job.

@@ -38,23 +38,25 @@ describe("toolsForMode", () => {
     expect(names).toEqual([...READ].sort());
   });
 
-  it("act mode adds the write tools", () => {
+  it("act mode adds the write tools and draft work products", () => {
     const names = toolsForMode("act", stubClient, step, sink).map((t) => t.name).sort();
-    expect(names).toEqual([...READ, ...WRITE].sort());
+    expect(names).toEqual([...READ, ...WRITE, ...DRAFT].sort());
   });
 
-  it("act mode does not include draft work products", () => {
+  it("act mode can create drafts and generate images", () => {
     const names = toolsForMode("act", stubClient, step, sink).map((t) => t.name);
-    expect(names).not.toContain("create_campaign_draft");
+    expect(names).toContain("create_campaign_draft");
+    expect(names).toContain("generate_image");
   });
 
-  it("draft mode adds draft work products on top of act", () => {
+  it("draft mode exposes the same tools as act", () => {
     const names = toolsForMode("draft", stubClient, step, sink).map((t) => t.name).sort();
     expect(names).toEqual([...READ, ...WRITE, ...DRAFT].sort());
   });
 
-  it("act mode does not include generate_image", () => {
-    const names = toolsForMode("act", stubClient, step, sink).map((t) => t.name);
+  it("ask mode excludes draft work products", () => {
+    const names = toolsForMode("ask", stubClient, step, sink).map((t) => t.name);
+    expect(names).not.toContain("create_campaign_draft");
     expect(names).not.toContain("generate_image");
   });
 });
