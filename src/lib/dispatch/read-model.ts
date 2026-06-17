@@ -73,10 +73,12 @@ async function loadViews(supabase: SupabaseClient, filter?: { campaignId: string
     ...new Set(rows.map((r) => r.campaign_asset_id).filter((id): id is string => Boolean(id))),
   ];
 
-  const { data: campaignData } = await supabase.from("campaigns").select("id,name").in("id", campaignIds);
-  const { data: assetData } = assetIds.length
-    ? await supabase.from("campaign_assets").select("id,title").in("id", assetIds)
-    : { data: [] as Array<{ id: string; title: string }> };
+  const [{ data: campaignData }, { data: assetData }] = await Promise.all([
+    supabase.from("campaigns").select("id,name").in("id", campaignIds),
+    assetIds.length
+      ? supabase.from("campaign_assets").select("id,title").in("id", assetIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; title: string }> }),
+  ]);
 
   const campaignName = new Map((campaignData ?? []).map((c) => [c.id as string, c.name as string]));
   const deliverable = new Map((assetData ?? []).map((a) => [a.id as string, a.title as string]));
