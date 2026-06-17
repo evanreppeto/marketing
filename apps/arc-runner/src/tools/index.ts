@@ -5,6 +5,7 @@ import { campaignReadTools } from "./campaigns";
 import { interactionWriteTools } from "./interactions";
 import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
+import { mediaTools } from "./media";
 import { suggestFollowupsTool, citeSourcesTool } from "./reply-meta";
 import type { StepFn, TurnSink } from "./helpers";
 
@@ -29,7 +30,7 @@ function writeTools(client: ArcClient, step: StepFn) {
 
 /** Draft work products: create approval-gated campaign assets. draft mode only. */
 function draftTools(client: ArcClient, step: StepFn, sink: TurnSink) {
-  return [...draftWorkProductTools(client, step, sink.card)];
+  return [...draftWorkProductTools(client, step, sink.card), ...mediaTools(client, step, sink.card)];
 }
 
 /**

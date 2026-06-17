@@ -13,7 +13,8 @@ import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/cre
  *
  *   POST /api/v1/arc/campaigns/draft-asset
  *   { campaign_id?, name?, persona?, restoration_focus?,
- *     asset_type, title, body?, media_url? }
+ *     asset_type, title, body?, media_url?, media_path?,
+ *     media?: { source?, model?, jobId?, format?, riskFlags? } }
  *   -> 201 { ok, status:"created", campaignId, assetId }
  */
 export async function POST(request: Request) {
@@ -32,6 +33,20 @@ export async function POST(request: Request) {
   const title = str(body.title);
   const draftBody = str(body.body) || null;
   const mediaUrl = str(body.media_url) || null;
+  const mediaPath = str(body.media_path) || null;
+
+  // Optional generation provenance (AI source / model / jobId / risk flags) so the
+  // AI tag survives on the durable asset record, not just the chat card.
+  const mediaIn = typeof body.media === "object" && body.media !== null ? (body.media as Record<string, unknown>) : {};
+  const media = {
+    source: str(mediaIn.source) || undefined,
+    model: str(mediaIn.model) || undefined,
+    jobId: str(mediaIn.jobId) || undefined,
+    format: str(mediaIn.format) || undefined,
+    riskFlags: Array.isArray(mediaIn.riskFlags)
+      ? mediaIn.riskFlags.filter((f): f is string => typeof f === "string")
+      : undefined,
+  };
 
   if (!assetType) return fail("rejected", "asset_type is required.", 400);
   if (!title) return fail("rejected", "title is required.", 400);
@@ -62,6 +77,8 @@ export async function POST(request: Request) {
       title,
       body: draftBody,
       mediaUrl,
+      mediaPath,
+      media,
       agentName: "Arc",
     });
 

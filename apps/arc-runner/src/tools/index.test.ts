@@ -30,7 +30,7 @@ const READ = [
   "cite_sources",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
-const DRAFT = ["create_campaign_draft"];
+const DRAFT = ["create_campaign_draft", "generate_image"];
 
 describe("toolsForMode", () => {
   it("ask mode exposes only read tools (no writes)", () => {
@@ -51,6 +51,11 @@ describe("toolsForMode", () => {
   it("draft mode adds draft work products on top of act", () => {
     const names = toolsForMode("draft", stubClient, step, sink).map((t) => t.name).sort();
     expect(names).toEqual([...READ, ...WRITE, ...DRAFT].sort());
+  });
+
+  it("act mode does not include generate_image", () => {
+    const names = toolsForMode("act", stubClient, step, sink).map((t) => t.name);
+    expect(names).not.toContain("generate_image");
   });
 });
 
