@@ -32,3 +32,4 @@ export * from "./knowledge-graph";
 export * from "./campaign-performance";
 export * from "./brand-kit";
 export * from "./dispatch-scheduling";
+export * from "./opportunity-detection";
