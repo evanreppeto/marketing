@@ -142,6 +142,7 @@ function DeployPieceButton({ assetId, campaignId }: { assetId: string; campaignI
           type="datetime-local"
           name="scheduledFor"
           min={localNowValue()}
+          step="60"
           required
           aria-label="Schedule deploy for"
           className="min-h-9 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 text-xs text-[var(--text-primary)]"
@@ -201,6 +202,7 @@ function DeployCampaignButton({
           type="datetime-local"
           name="scheduledFor"
           min={localNowValue()}
+          step="60"
           required
           aria-label="Schedule campaign deploy for"
           className="min-h-9 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 text-xs text-[var(--text-primary)]"
@@ -213,7 +215,7 @@ function DeployCampaignButton({
         <Button type="button" variant="ghost" size="sm" onClick={() => setScheduling((s) => !s)} disabled={isPending}>
           {scheduling ? "Deploy now instead" : "Schedule for later"}
         </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={isPending}>
+        <Button type="button" variant="ghost" size="sm" onClick={() => { setConfirming(false); setScheduling(false); }} disabled={isPending}>
           Cancel
         </Button>
       </div>
