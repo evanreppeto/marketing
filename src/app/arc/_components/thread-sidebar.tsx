@@ -150,6 +150,11 @@ function ChatRow({
   const active = c.id === activeId;
   const titleText =
     state === "working" ? `${c.title} — Arc is working…` : state === "done" ? `${c.title} — new reply` : c.title;
+  // Scroll the open thread into view so a long history doesn't bury it off-screen.
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (active) linkRef.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
   return (
     <ThreadContextMenu
       className="group relative flex items-center gap-1"
@@ -161,6 +166,7 @@ function ChatRow({
       isActive={active}
     >
       <Link
+        ref={linkRef}
         href={`/arc?c=${c.id}`}
         aria-current={active ? "page" : undefined}
         className={cx(
@@ -173,15 +179,18 @@ function ChatRow({
       >
         {c.pinnedAt ? <PinGlyph /> : null}
         <span className={cx("min-w-0 flex-1 truncate", state === "done" ? "font-semibold text-[var(--text-primary)]" : "")}>{c.title}</span>
-        {state === "working" ? (
-          <WorkingSpinner />
-        ) : state === "done" ? (
-          <DonePulse />
-        ) : (
-          <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-muted)] transition-opacity duration-150 group-hover:opacity-0">
-            {relativeTime(c.lastMessageAt, nowMs)}
-          </span>
-        )}
+        {/* Trailing status slot — fades on hover so the dots menu has clear room. */}
+        <span className="flex shrink-0 items-center transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0">
+          {state === "working" ? (
+            <WorkingSpinner />
+          ) : state === "done" ? (
+            <DonePulse />
+          ) : (
+            <span className="text-[10px] tabular-nums text-[var(--text-muted)]">
+              {relativeTime(c.lastMessageAt, nowMs)}
+            </span>
+          )}
+        </span>
       </Link>
       <div className="absolute right-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
         <ThreadMenu
@@ -214,9 +223,31 @@ function ProjectGroup({
   runningIds?: Set<string>;
   doneIds?: Set<string>;
 }) {
-  // Groups holding the active thread start open; everything else starts open
-  // too — collapse is a per-session reading aid, not persisted state.
+  // Collapse state persists across reloads (localStorage), so a project you
+  // collapse stays collapsed. Defaults to open; hydrated after mount to avoid an
+  // SSR/client markup mismatch.
+  const storageKey = `arc:project-open:${project.id}`;
   const [open, setOpen] = useState(true);
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(storageKey);
+    } catch {
+      /* private mode / disabled storage — keep the default */
+    }
+    if (stored === "0") void Promise.resolve().then(() => setOpen(false));
+  }, [storageKey]);
+  function toggleOpen() {
+    setOpen((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(storageKey, next ? "1" : "0");
+      } catch {
+        /* best-effort */
+      }
+      return next;
+    });
+  }
   const containsActive = rows.some((c) => c.id === activeId);
 
   return (
@@ -224,7 +255,7 @@ function ProjectGroup({
       <div className="group/proj flex items-center rounded-md pr-1 transition hover:bg-[var(--surface-inset)]">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggleOpen}
           aria-expanded={open}
           className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left"
         >
@@ -348,6 +379,22 @@ export function ThreadSidebar({
 }) {
   const [query, setQuery] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Ctrl/⌘+K focuses the chat search — the shortcut the input's badge advertises.
+  // Guarded by visibility so only the on-screen sidebar instance reacts.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        const el = searchRef.current;
+        if (!el || el.offsetParent === null) return;
+        e.preventDefault();
+        el.focus();
+        el.select();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
   const asideClass = cx(
     variant === "overlay" ? "flex" : "hidden lg:flex",
     "min-h-0 flex-col gap-1 overflow-y-auto p-3",
@@ -493,18 +540,42 @@ export function ThreadSidebar({
           <path d="m18 18-4.5-4.5" strokeLinecap="round" />
         </svg>
         <input
+          ref={searchRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && query) {
+              e.preventDefault();
+              setQuery("");
+            }
+          }}
           placeholder="Search chats"
           aria-label="Search chats"
           className="h-8 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-8 pr-12 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         />
-        <kbd
-          aria-hidden
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 py-px font-mono text-[9px] text-[var(--text-muted)]"
-        >
-          Ctrl K
-        </kbd>
+        {query ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              searchRef.current?.focus();
+            }}
+            aria-label="Clear search"
+            title="Clear search"
+            className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M5 5l10 10M15 5 5 15" />
+            </svg>
+          </button>
+        ) : (
+          <kbd
+            aria-hidden
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 py-px font-mono text-[9px] text-[var(--text-muted)]"
+          >
+            Ctrl K
+          </kbd>
+        )}
       </label>
 
       <SkillsNav />
