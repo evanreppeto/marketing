@@ -87,7 +87,9 @@ export async function POST(request: Request) {
 
     if (opportunityId) {
       // Link the source opportunity to this campaign and flip it to drafted.
-      await markOpportunityDrafted(opportunityId, campaignId);
+      // Best-effort: the draft asset is already created, so a link hiccup must
+      // not turn a successful 201 into a 502.
+      await markOpportunityDrafted(opportunityId, campaignId).catch(() => undefined);
     }
 
     return NextResponse.json(

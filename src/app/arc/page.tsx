@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import type { ComponentProps } from "react";
 
@@ -183,18 +182,5 @@ export default async function ArcPage({ searchParams }: ArcPageProps) {
     demo = true;
   }
 
-  return (
-    <>
-      {pendingOpportunities > 0 ? (
-        <Link
-          href="/opportunities"
-          className="absolute right-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-        >
-          <span className="font-mono tabular-nums text-[var(--accent)]">{pendingOpportunities}</span>
-          {pendingOpportunities === 1 ? "opportunity" : "opportunities"} to review
-        </Link>
-      ) : null}
-      <ArcChat {...markChatProps} demo={demo} />
-    </>
-  );
+  return <ArcChat {...markChatProps} demo={demo} pendingOpportunities={pendingOpportunities} />;
 }

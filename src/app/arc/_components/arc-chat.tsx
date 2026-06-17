@@ -150,6 +150,7 @@ export function ArcChat({
   defaultMode = "act",
   defaultRoute = "fast",
   assistantName = "Agent",
+  pendingOpportunities = 0,
   demo = false,
 }: {
   conversations: ArcConversation[];
@@ -175,6 +176,8 @@ export function ArcChat({
   defaultMode?: ArcMode;
   defaultRoute?: ArcRoute;
   assistantName?: string;
+  /** Count of pending opportunities to review — a small header chip links to /opportunities. */
+  pendingOpportunities?: number;
   /** Preview mode: render the full UI with sample data, no backend writes. */
   demo?: boolean;
 }) {
@@ -625,6 +628,16 @@ export function ArcChat({
               {meta ? <p className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{meta}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {pendingOpportunities > 0 ? (
+                <Link
+                  href="/opportunities"
+                  title={`${pendingOpportunities} opportunit${pendingOpportunities === 1 ? "y" : "ies"} to review`}
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                >
+                  <span className="font-mono tabular-nums text-[var(--accent)]">{pendingOpportunities}</span>
+                  <span className="hidden sm:inline">to review</span>
+                </Link>
+              ) : null}
               {hasMessages ? <ContextMeter messages={messages} /> : null}
               <button
                 type="button"
