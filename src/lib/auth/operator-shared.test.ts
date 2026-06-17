@@ -55,6 +55,7 @@ describe("getSafeOperatorReturnPath", () => {
     expect(getSafeOperatorReturnPath("//example.com/crm")).toBe("/");
     expect(getSafeOperatorReturnPath("/login?from=/crm")).toBe("/");
     expect(getSafeOperatorReturnPath("/sign-in")).toBe("/");
+    expect(getSafeOperatorReturnPath("/sign-up")).toBe("/");
     expect(getSafeOperatorReturnPath(undefined)).toBe("/");
   });
 });

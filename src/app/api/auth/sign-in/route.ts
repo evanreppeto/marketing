@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getAuthMode } from "@/lib/auth/auth-mode";
 import {
   OPERATOR_COOKIE,
   getConfiguredOperatorCredentials,
@@ -7,13 +8,33 @@ import {
   getSafeOperatorReturnPath,
   isValidOperatorCredentials,
 } from "@/lib/auth/operator-shared";
+import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 
 export async function POST(request: Request) {
   const form = await request.formData();
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
+  const rememberMe = form.get("rememberMe") === "1";
   const from = getSafeOperatorReturnPath(String(form.get("from") ?? "/"));
   const origin = new URL(request.url).origin;
+  const authMode = getAuthMode();
+
+  if (authMode === "supabase") {
+    const supabase = await createSupabaseAuthServerClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      return NextResponse.redirect(
+        new URL(`/login?error=1&from=${encodeURIComponent(from)}`, origin),
+        { status: 303 },
+      );
+    }
+
+    return NextResponse.redirect(new URL(from, origin), { status: 303 });
+  }
 
   const configured = getConfiguredOperatorToken();
 
@@ -41,7 +62,7 @@ export async function POST(request: Request) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 12, // 12 hours
+    maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12,
   });
   return response;
 }

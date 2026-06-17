@@ -4,13 +4,15 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { buttonClasses } from "./page-header";
+import { getAuthMode, type AuthMode } from "@/lib/auth/auth-mode";
 import {
   OPERATOR_COOKIE,
   getSafeOperatorReturnPath,
-  isOperatorGateEnabled,
   isValidOperatorValue,
 } from "@/lib/auth/operator-shared";
 import { getAppSettings, getSupportContactEmail } from "@/lib/settings/store";
+import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
+import { SignInPage } from "@/components/ui/sign-in";
 
 type LoginSearchParams = {
   from?: string;
@@ -20,32 +22,52 @@ type LoginSearchParams = {
 export async function getOperatorLoginProps(searchParams?: Promise<LoginSearchParams>) {
   const query = searchParams ? await searchParams : {};
   const from = getSafeOperatorReturnPath(query.from);
+  const authMode = getAuthMode();
 
-  if (!isOperatorGateEnabled()) {
+  if (authMode === "open") {
     redirect(from);
   }
 
-  const store = await cookies();
+  if (authMode === "supabase") {
+    const user = await getSupabaseAuthenticatedUser();
 
-  if (isValidOperatorValue(store.get(OPERATOR_COOKIE)?.value)) {
-    redirect(from);
+    if (user) {
+      redirect(from);
+    }
+  } else {
+    const store = await cookies();
+
+    if (isValidOperatorValue(store.get(OPERATOR_COOKIE)?.value)) {
+      redirect(from);
+    }
   }
 
   return {
     from,
     error: query.error,
+    authMode,
   };
 }
 
 export async function getOperatorForgotPasswordProps() {
-  if (!isOperatorGateEnabled()) {
+  const authMode = getAuthMode();
+
+  if (authMode === "open") {
     redirect("/");
   }
 
-  const store = await cookies();
+  if (authMode === "supabase") {
+    const user = await getSupabaseAuthenticatedUser();
 
-  if (isValidOperatorValue(store.get(OPERATOR_COOKIE)?.value)) {
-    redirect("/");
+    if (user) {
+      redirect("/");
+    }
+  } else {
+    const store = await cookies();
+
+    if (isValidOperatorValue(store.get(OPERATOR_COOKIE)?.value)) {
+      redirect("/");
+    }
   }
 
   return {
@@ -53,86 +75,34 @@ export async function getOperatorForgotPasswordProps() {
   };
 }
 
-export function OperatorLoginPage({ from, error }: { from: string; error?: string }) {
+export function OperatorLoginPage({ from, error, authMode }: { from: string; error?: string; authMode: AuthMode }) {
   const errorMessage =
     error === "passkey"
       ? "Passkey sign-in is not configured for this console yet."
-      : error
-        ? "That email or password was not accepted. Try again."
-        : null;
+      : error === "oauth_config"
+        ? "Google sign-in needs Supabase Auth to be configured first."
+        : error === "oauth"
+          ? "Google sign-in could not be completed. Try again or use email."
+          : error === "config"
+            ? "Operator credentials are not configured yet."
+            : error
+              ? "That email or password was not accepted. Try again."
+              : null;
 
   return (
-    <OperatorAuthSurface>
-      <LogoArc widthClassName="w-40" />
-
-      <div className="mt-7 text-center">
-        <h1 className="font-display text-[1.8rem] font-bold leading-tight tracking-[-0.04em] text-[var(--text-primary)]">
-          Sign in
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-          Enter your operator email and password to open Arc.
-        </p>
-      </div>
-
-      <form method="post" action="/api/auth/sign-in" className="mt-6 space-y-4">
-        <input type="hidden" name="from" value={from} />
-        <label className="block">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Email</span>
-          <input
-            autoComplete="username"
-            autoFocus
-            required
-            name="email"
-            type="email"
-            placeholder="operator@example.com"
-            className="mt-2 h-12 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[oklch(0.74_0.115_232/0.18)]"
-          />
-        </label>
-        <label className="block">
-          <span className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold text-[var(--text-primary)]">Password</span>
-            <Link className="text-xs font-semibold text-[var(--accent)] transition hover:text-[var(--accent-strong)]" href="/forgot-password">
-              Forgot password?
-            </Link>
-          </span>
-          <input
-            autoComplete="current-password"
-            required
-            name="password"
-            type="password"
-            placeholder="Enter password"
-            className="mt-2 h-12 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[oklch(0.74_0.115_232/0.18)]"
-          />
-        </label>
-        {errorMessage ? (
-          <p className="rounded-lg border border-[oklch(0.68_0.2_26/0.42)] bg-[oklch(0.68_0.2_26/0.16)] px-3 py-2 text-sm text-[oklch(0.86_0.09_26)]">
-            {errorMessage}
-          </p>
-        ) : null}
-        <button type="submit" className={buttonClasses({ variant: "primary", className: "w-full" })}>
-          Sign in
-        </button>
-      </form>
-
-      <form method="post" action="/api/auth/sign-in/passkey" className="mt-3">
-        <input type="hidden" name="from" value={from} />
-        <button type="submit" className={buttonClasses({ variant: "ghost", className: "w-full" })}>
-          <span>or sign in with passkey</span>
-          <svg aria-hidden="true" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24">
-            <path
-              d="M8.2 10.35a3.65 3.65 0 1 0 0-7.3 3.65 3.65 0 0 0 0 7.3Z"
-              fill="currentColor"
-            />
-            <path
-              d="M2.75 17.85c.48-3.48 2.67-5.6 5.45-5.6 2.06 0 3.79 1.14 4.74 3.04a5.72 5.72 0 0 0-1.21 3.56H3.83c-.67 0-1.17-.39-1.08-1Z"
-              fill="currentColor"
-            />
-            <circle cx="16.9" cy="15.55" r="2.35" stroke="currentColor" strokeWidth="1.7" />
-            <path d="M19.25 15.55h3m-1 0v2m-2.05 0h1.6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
-          </svg>
-        </button>
-      </form>
-    </OperatorAuthSurface>
+    <SignInPage
+      authLabel="Operator Access"
+      description={
+        authMode === "supabase"
+          ? "Use your Arc account to continue into campaigns, CRM, approvals, and operator workflows."
+          : "Enter your operator email and password to open Arc."
+      }
+      errorMessage={errorMessage}
+      from={from}
+      showSignUpLink={authMode === "supabase"}
+      showSocialAuth={authMode === "supabase"}
+      title="Sign in to Arc"
+    />
   );
 }
 
@@ -173,7 +143,7 @@ function LogoArc({ widthClassName }: { widthClassName: string }) {
   return (
     <div className="flex justify-center">
       {/* eslint-disable-next-line @next/next/no-img-element -- brand mark served from /public. */}
-      <img alt="Arc" className={`h-auto rounded-2xl object-contain ${widthClassName}`} src="/brand/arc-logo.png" />
+      <img alt="Arc" className={`h-auto object-contain ${widthClassName}`} src="/brand/arc-mark.png" />
     </div>
   );
 }

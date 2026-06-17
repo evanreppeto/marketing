@@ -52,7 +52,7 @@ export function getSafeOperatorReturnPath(value: string | undefined) {
     return DEFAULT_OPERATOR_RETURN_PATH;
   }
 
-  if (parsed.pathname === "/login" || parsed.pathname === "/sign-in") {
+  if (parsed.pathname === "/login" || parsed.pathname === "/sign-in" || parsed.pathname === "/sign-up") {
     return DEFAULT_OPERATOR_RETURN_PATH;
   }
 

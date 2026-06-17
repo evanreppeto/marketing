@@ -44,7 +44,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   assistantResponseStyle: "balanced",
   approvalStrictness: "standard",
   brandShortName: "AR",
-  brandLogoUrl: "/brand/arc-logo.png",
+  brandLogoUrl: "/brand/arc-mark.png",
   brandFaviconUrl: "/icon.png",
   supportEmail: "",
   markDefaultMode: "act",
