@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { CampaignDraftValidationError, parseCampaignDraft, RevisionInstructionError, validateRevisionInstruction } from "@/domain";
+import { CampaignDraftValidationError, parseCampaignDraft, RevisionInstructionError, validateRevisionInstruction, ScheduledForError, validateScheduledFor } from "@/domain";
 import { createCampaignShell, createOperatorCampaign, type CampaignPhoto } from "@/lib/campaigns/create";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { type ApprovalDecision, decideApprovalItem, decideAsset, reopenAsset } from "@/lib/campaigns/decisions";
@@ -269,8 +269,19 @@ export async function deployAssetAction(
     return { ok: false, message: "Missing deliverable." };
   }
 
+  const scheduledForRaw = String(formData.get("scheduledFor") ?? "").trim();
+  let scheduledFor: string | undefined;
+  if (scheduledForRaw) {
+    try {
+      scheduledFor = validateScheduledFor(scheduledForRaw, new Date());
+    } catch (error) {
+      if (error instanceof ScheduledForError) return { ok: false, message: error.message };
+      throw error;
+    }
+  }
+
   try {
-    await deployAsset({ campaignId, assetId, operator: getOperatorActor(), agentName }, getSupabaseAdminClient());
+    await deployAsset({ campaignId, assetId, operator: getOperatorActor(), agentName, scheduledFor }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't deploy the piece." };
   }
@@ -280,7 +291,12 @@ export async function deployAssetAction(
   }
   revalidatePath("/campaigns");
 
-  return { ok: true, message: `Deployed — handed off to ${agentName} for dispatch.` };
+  return {
+    ok: true,
+    message: scheduledFor
+      ? `Scheduled — handed to ${agentName}. Manage the timing in the Outbox.`
+      : `Deployed — handed off to ${agentName} for dispatch.`,
+  };
 }
 
 /**
@@ -305,9 +321,20 @@ export async function launchCampaignAction(
     return { ok: false, message: "Missing campaign." };
   }
 
+  const scheduledForRaw = String(formData.get("scheduledFor") ?? "").trim();
+  let scheduledFor: string | undefined;
+  if (scheduledForRaw) {
+    try {
+      scheduledFor = validateScheduledFor(scheduledForRaw, new Date());
+    } catch (error) {
+      if (error instanceof ScheduledForError) return { ok: false, message: error.message };
+      throw error;
+    }
+  }
+
   let launchedAssets = 0;
   try {
-    ({ launchedAssets } = await launchCampaign({ campaignId, operator: getOperatorActor(), agentName }, getSupabaseAdminClient()));
+    ({ launchedAssets } = await launchCampaign({ campaignId, operator: getOperatorActor(), agentName, scheduledFor }, getSupabaseAdminClient()));
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't launch the campaign." };
   }
@@ -317,7 +344,9 @@ export async function launchCampaignAction(
 
   return {
     ok: true,
-    message: `Campaign launched — ${launchedAssets} deliverable${launchedAssets === 1 ? "" : "s"} handed off to ${agentName} for dispatch.`,
+    message: scheduledFor
+      ? `Scheduled — ${launchedAssets} deliverable${launchedAssets === 1 ? "" : "s"} handed to ${agentName}. Manage the timing in the Outbox.`
+      : `Campaign launched — ${launchedAssets} deliverable${launchedAssets === 1 ? "" : "s"} handed off to ${agentName} for dispatch.`,
   };
 }
 
