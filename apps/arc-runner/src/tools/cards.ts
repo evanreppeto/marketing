@@ -40,6 +40,22 @@ export function emitCardTool(collectCard: (card: ArcActionCard) => void) {
       channel: z.string().optional(),
       format: z.string().optional(),
       status: z.enum(["draft", "revision", "approved", "rejected"]).optional(),
+      media: z
+        .object({
+          kind: z.enum(["image", "video"]),
+          url: z.string(),
+          alt: z.string().optional(),
+          caption: z.string().optional(),
+          source: z.enum(["bsr_real", "ai_generated", "composite", "stock", "external"]).optional(),
+          format: z.string().optional(),
+          status: z.enum(["draft", "revision", "approved", "rejected"]).optional(),
+          riskFlags: z.array(z.string()).optional(),
+          sourceId: z.string().optional(),
+          jobId: z.string().optional(),
+          model: z.string().optional(),
+        })
+        .optional()
+        .describe("Thumbnail + provenance. Use a real url (e.g. approved BSR media, source:'bsr_real'); never invent a url."),
     },
     async (args) => {
       const card: ArcActionCard = {
@@ -53,6 +69,7 @@ export function emitCardTool(collectCard: (card: ArcActionCard) => void) {
         ...(args.channel ? { channel: args.channel } : {}),
         ...(args.format ? { format: args.format } : {}),
         ...(args.status ? { status: args.status } : {}),
+        ...(args.media ? { media: args.media } : {}),
       };
       collectCard(card);
       return textResult(`Attached ${args.kind} card: ${args.title}`);

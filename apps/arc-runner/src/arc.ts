@@ -5,10 +5,15 @@ import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } 
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode } from "./tools";
-import type { ArcActionCard, MarkChatMessagePayload } from "./types";
+import type { ArcActionCard, ArcMention, MarkChatMessagePayload } from "./types";
 
-/** What one Arc turn produces: the reply text plus any cards it attached. */
-export type ArcTurnResult = { body: string; actions: ArcActionCard[] };
+/** What one Arc turn produces: the reply text plus what it attached (cards, suggestions, sources). */
+export type ArcTurnResult = {
+  body: string;
+  actions: ArcActionCard[];
+  suggestions: string[];
+  sources: ArcMention[];
+};
 
 /**
  * Run one Arc turn via the Claude Agent SDK and return the final reply text.
@@ -27,7 +32,13 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const actions: ArcActionCard[] = [];
-  const collectCard = (card: ArcActionCard) => actions.push(card);
+  const suggestions: string[] = [];
+  const sources: ArcMention[] = [];
+  const sink = {
+    card: (card: ArcActionCard) => actions.push(card),
+    suggestion: (text: string) => suggestions.push(text),
+    source: (mention: ArcMention) => sources.push(mention),
+  };
 
   const ctx: ArcTurnContext = {
     business: BSR_CONTEXT,
@@ -44,7 +55,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     approvalStrictness: payload.approvalStrictness,
   };
 
-  const tools = toolsForMode(payload.mode, client, step, collectCard);
+  const tools = toolsForMode(payload.mode, client, step, sink);
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
 
   const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, ctx);
@@ -73,5 +84,5 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     }
   }
 
-  return { body: (resultText || assistantText).trim(), actions };
+  return { body: (resultText || assistantText).trim(), actions, suggestions: suggestions.slice(0, 4), sources };
 }

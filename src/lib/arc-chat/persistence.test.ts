@@ -5,6 +5,7 @@ import { createSupabaseQueryMock, type MockSupabase } from "@/lib/repos/__tests_
 import {
   assignConversationToCampaign,
   cancelPendingArcMessage,
+  completeArcMessage,
   deleteConversation,
   listConversations,
   setConversationPinned,
@@ -154,5 +155,33 @@ describe("assignConversationToCampaign", () => {
 
     const update = calls(supabase, "update")[0];
     expect(update).toEqual({ campaign_id: null });
+  });
+});
+
+describe("completeArcMessage", () => {
+  it("writes mentions onto the row when provided", async () => {
+    const supabase = createSupabaseQueryMock({ arc_messages: { data: null, error: null } });
+    await completeArcMessage(
+      {
+        messageId: "m1",
+        body: "done",
+        metadata: { actions: [] },
+        mentions: [{ type: "lead", id: "L1", label: "Dana", href: "/crm/leads/L1" }],
+      },
+      supabase,
+    );
+    const update = calls(supabase, "update")[0];
+    expect(update).toMatchObject({
+      body: "done",
+      status: "complete",
+      mentions: [{ type: "lead", id: "L1", label: "Dana", href: "/crm/leads/L1" }],
+    });
+  });
+
+  it("omits the mentions key when not provided (no clobber)", async () => {
+    const supabase = createSupabaseQueryMock({ arc_messages: { data: null, error: null } });
+    await completeArcMessage({ messageId: "m1", body: "done" }, supabase);
+    const update = calls(supabase, "update")[0];
+    expect(update).not.toHaveProperty("mentions");
   });
 });

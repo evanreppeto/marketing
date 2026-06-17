@@ -1,5 +1,14 @@
+import type { ArcActionCard, ArcMention } from "../types";
+
 /** Step reporter signature shared by every tool (running -> done live trace). */
 export type StepFn = (label: string, status: "running" | "done") => Promise<void>;
+
+/** Per-turn collectors for everything Arc attaches to its reply beyond text. */
+export type TurnSink = {
+  card: (card: ArcActionCard) => void;
+  suggestion: (text: string) => void;
+  source: (mention: ArcMention) => void;
+};
 
 /** SDK tool result shape. */
 export type ToolResult = { content: Array<{ type: "text"; text: string }> };
