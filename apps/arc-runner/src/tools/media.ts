@@ -29,7 +29,7 @@ export function mediaTools(client: ArcClient, step: StepFn, collectCard: (card: 
       const label = "Generating image";
       await step(label, "running");
       try {
-        const gen = await client.apiPost<{ media: ArcMedia }>("/api/v1/arc/media/generate-image", {
+        const gen = await client.apiPost<{ media: ArcMedia; objectPath?: string }>("/api/v1/arc/media/generate-image", {
           prompt: args.prompt,
           aspect_ratio: args.aspect_ratio,
         });
@@ -43,6 +43,7 @@ export function mediaTools(client: ArcClient, step: StepFn, collectCard: (card: 
             asset_type: args.asset_type ?? "image_prompt",
             title: args.title,
             media_url: gen.media.url,
+            media_path: gen.objectPath,
             media: gen.media,
           },
         );

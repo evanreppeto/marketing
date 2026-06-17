@@ -41,7 +41,9 @@ export async function POST(request: Request) {
     const ext = gen.contentType.includes("png") ? "png" : gen.contentType.includes("webp") ? "webp" : "jpg";
     const objectPath = `arc-generated/${randomUUID()}.${ext}`;
     await uploadObject(objectPath, gen.bytes, gen.contentType);
-    const url = await createSignedReadUrl(objectPath);
+    // 7 days is the v4 signed-URL max. The durable reference is objectPath
+    // (persisted on the asset); a follow-up will re-sign at render time.
+    const url = await createSignedReadUrl(objectPath, 7 * 24 * 60 * 60 * 1000);
     const media = {
       kind: "image" as const,
       url,
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
       jobId: gen.jobId,
       riskFlags: deriveImageRiskFlags(prompt),
     };
-    return NextResponse.json({ ok: true, status: "created", media }, { status: 201 });
+    return NextResponse.json({ ok: true, status: "created", media, objectPath }, { status: 201 });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Image generation failed.", 502);
   }

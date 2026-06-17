@@ -85,6 +85,8 @@ describe("POST /api/v1/arc/media/generate-image", () => {
       format: "9:16",
       model: "gemini-2.5-flash-image",
     });
+    expect(typeof json.objectPath).toBe("string");
+    expect(json.objectPath).toMatch(/^arc-generated\//);
     expect(generateImage).toHaveBeenCalledWith({ prompt: "abstract blue gradient", aspectRatio: "9:16" });
   });
 });

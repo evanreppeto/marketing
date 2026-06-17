@@ -25,13 +25,17 @@ describe("generate_image", () => {
   it("generates, creates a draft asset, and emits a media+approval card", async () => {
     const media = { kind: "image", url: "https://x/y.png", source: "ai_generated", format: "1:1", model: "m", jobId: "j" };
     const { cards, apiPost, call } = setup([
-      async () => ({ media }),
+      async () => ({ media, objectPath: "arc-generated/y.png" }),
       async () => ({ campaignId: "c1", assetId: "a1" }),
     ]);
     const out = await call({ prompt: "blue gradient", title: "BG", name: "Brand", persona: "persona_landlord", restoration_focus: "water" });
 
     expect(apiPost).toHaveBeenNthCalledWith(1, "/api/v1/arc/media/generate-image", expect.objectContaining({ prompt: "blue gradient" }));
-    expect(apiPost).toHaveBeenNthCalledWith(2, "/api/v1/arc/campaigns/draft-asset", expect.objectContaining({ media_url: "https://x/y.png", title: "BG" }));
+    expect(apiPost).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/arc/campaigns/draft-asset",
+      expect.objectContaining({ media_url: "https://x/y.png", media_path: "arc-generated/y.png", title: "BG" }),
+    );
     expect(cards[0]).toMatchObject({
       kind: "draft",
       title: "BG",
