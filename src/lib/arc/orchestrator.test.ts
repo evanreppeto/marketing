@@ -1,8 +1,22 @@
 import { describe, expect, it } from "vitest";
 
+import { type ArcBusinessContext } from "@/domain";
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { runArcPartnerCampaign } from "./orchestrator";
+
+const TEST_CONTEXT: ArcBusinessContext = {
+  businessName: "Big Shoulders Restoration",
+  industry: "home_property_services",
+  services: ["Water mitigation", "Documentation", "Rebuild coordination"],
+  tone: "reassuring",
+  voiceGuidance: null,
+  preferredPhrases: [],
+  bannedPhrases: ["insurance will cover", "claim will be approved", "we guarantee"],
+  proofPoints: [],
+  personas: [],
+  guardrails: { disallowedClaims: [], complianceNotes: "Coverage-neutral language required." },
+};
 
 type InsertArg = {
   channel?: string;
@@ -23,6 +37,7 @@ describe("runArcPartnerCampaign creativeAssets", () => {
         ],
       },
       supabase,
+      TEST_CONTEXT,
     );
 
     const inserts = supabase.calls.filter(([method]) => method === "insert").map(([, arg]) => arg as InsertArg);
