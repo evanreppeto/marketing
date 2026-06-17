@@ -777,36 +777,17 @@ h4, .font-display {
   .arc-aurora::before, .arc-aurora::after { animation: none; }
 }
 
-/* Thinking orbital — a small gold-arc ring that spins while Arc generates.
-   Replaces the neon loader rings from generic AI kits with one calm token-gold arc. */
-/* Arc's living orb avatar — a swirling molten-gold orb (CSS conic gradients +
-   blur + rotation). Cheap enough to render on every message (no WebGL contexts).
-   Adapted from the 21st.dev "Siri Orb", recolored to Signal gold. */
-/* Luma spinner — two rounded squares orbiting the corners (21st.dev "luma-spin"),
-   recolored to Signal gold and made size-independent (percent insets instead of
-   the original fixed 35px/65px). Used for Arc's "thinking" loader. */
-.arc-luma { position: relative; display: inline-block; aspect-ratio: 1; }
-.arc-luma > span {
-  position: absolute;
-  border-radius: 50px;
-  box-shadow: inset 0 0 0 2px var(--accent);
-  animation: arc-luma 2.5s infinite;
+/* Live "thinking" step spine — a calm pulsing gold dot marking the current
+   step (and the empty "Thinking…" state). The animated Persona avatar carries
+   the personality; the body stays quiet, à la Claude/ChatGPT. */
+.arc-tstep-dot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; flex-shrink: 0; }
+.arc-tstep-dot > .core {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  animation: arc-tstep-pulse 1.5s ease-in-out infinite;
 }
-.arc-luma > span:nth-child(2) { animation-delay: -1.25s; }
-@keyframes arc-luma {
-  0%    { inset: 0 54% 54% 0; }
-  12.5% { inset: 0 54% 0 0; }
-  25%   { inset: 54% 54% 0 0; }
-  37.5% { inset: 54% 0 0 0; }
-  50%   { inset: 54% 0 0 54%; }
-  62.5% { inset: 0 0 0 54%; }
-  75%   { inset: 0 0 54% 54%; }
-  87.5% { inset: 0 0 54% 0; }
-  100%  { inset: 0 54% 54% 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .arc-luma > span { animation: none; inset: 0 54% 54% 0; }
-}
+@keyframes arc-tstep-pulse { 0%, 100% { opacity: 0.4; transform: scale(0.78); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .arc-tstep-dot > .core { animation: none; opacity: 1; } }
 
 /* ============================================================================
    Utilities & legacy component helpers
