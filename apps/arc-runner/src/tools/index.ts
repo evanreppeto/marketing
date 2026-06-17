@@ -6,7 +6,7 @@ import { interactionWriteTools } from "./interactions";
 import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
 import { mediaTools } from "./media";
-import { suggestFollowupsTool, citeSourcesTool } from "./reply-meta";
+import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
 import type { StepFn, TurnSink } from "./helpers";
 
 export type ArcMode = "ask" | "act" | "draft";
@@ -20,6 +20,7 @@ function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
     emitCardTool(sink.card),
     suggestFollowupsTool(sink.suggestion),
     citeSourcesTool(sink.source),
+    askOperatorTool(sink.question),
   ];
 }
 
@@ -57,6 +58,6 @@ export function allowedToolNames(mode: ArcMode): string[] {
   // Build from the same source of truth; dummies are fine — we only read names.
   const noop = (async () => {}) as StepFn;
   const placeholder = {} as ArcClient;
-  const sink: TurnSink = { card: () => {}, suggestion: () => {}, source: () => {} };
+  const sink: TurnSink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {} };
   return toolsForMode(mode, placeholder, noop, sink).map((t) => `mcp__arc__${t.name}`);
 }

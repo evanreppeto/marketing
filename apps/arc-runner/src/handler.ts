@@ -21,6 +21,7 @@ export async function handleChatMessage(
     const metadata: Record<string, unknown> = {};
     if (result.actions.length > 0) metadata.actions = result.actions;
     if (result.suggestions.length > 0) metadata.suggestions = result.suggestions;
+    if (result.questions.length > 0) metadata.questions = result.questions;
     await client.postChatReply({
       agentTaskId: payload.agentTaskId,
       body: reply || "(Arc returned an empty reply.)",

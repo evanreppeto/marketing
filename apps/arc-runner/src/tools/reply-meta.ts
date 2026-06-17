@@ -1,7 +1,7 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 
-import type { ArcMention } from "../types";
+import type { ArcMention, ArcQuestion } from "../types";
 import { textResult } from "./helpers";
 
 /** Propose 1–4 follow-up prompts; the app renders them as clickable chips. */
@@ -38,6 +38,41 @@ export function citeSourcesTool(addSource: (mention: ArcMention) => void) {
     async (args) => {
       for (const s of args.sources) addSource({ type: s.type, id: s.id, label: s.label, href: s.href });
       return textResult(`Cited ${args.sources.length} source(s).`);
+    },
+  );
+}
+
+/**
+ * Ask the operator a structured question — the app renders it as an interactive
+ * panel above the composer (option chips / checkboxes / free text), and the
+ * operator's choice auto-sends as their next message. Use this INSTEAD of writing
+ * a plain-text question with options when you genuinely need the operator to
+ * decide; keep your reply body short since the panel shows the choices.
+ */
+export function askOperatorTool(addQuestion: (question: ArcQuestion) => void) {
+  return tool(
+    "ask_operator",
+    "Ask the operator a question with selectable options instead of writing it as prose. Renders as clickable chips above the composer; tapping one auto-sends it as their answer. Provide a short `prompt` and `options` (the choices). Set `multi: true` to let them pick several, and `allow_text: true` to also offer a free-text answer. Only use when you genuinely need their decision — otherwise infer a sensible default and proceed. Keep your reply body brief; don't repeat the options in prose.",
+    {
+      prompt: z.string().describe("The question to ask"),
+      options: z.array(z.string()).optional().describe("Selectable choices (omit for a free-text-only question)"),
+      multi: z.boolean().optional().describe("Allow selecting several options at once"),
+      allow_text: z.boolean().optional().describe("Also offer a free-text 'type your own' answer"),
+    },
+    async (args) => {
+      const options = (args.options ?? []).map((o) => o.trim()).filter(Boolean).slice(0, 8);
+      const allowText = args.allow_text === true;
+      if (options.length === 0 && !allowText) {
+        return textResult("ask_operator needs at least one option or allow_text:true.");
+      }
+      addQuestion({
+        id: `q${Date.now().toString(36)}`,
+        prompt: args.prompt,
+        options,
+        multi: args.multi === true,
+        allowText,
+      });
+      return textResult(`Asked the operator: ${args.prompt}`);
     },
   );
 }

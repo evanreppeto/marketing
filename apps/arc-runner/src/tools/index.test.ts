@@ -11,7 +11,7 @@ const stubClient = {
   postStep: vi.fn(),
 } as unknown as ArcClient;
 const step = vi.fn(async () => {});
-const sink = { card: () => {}, suggestion: () => {}, source: () => {} };
+const sink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {} };
 
 const READ = [
   "search_companies",
@@ -28,6 +28,7 @@ const READ = [
   "emit_card",
   "suggest_followups",
   "cite_sources",
+  "ask_operator",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
 const DRAFT = ["create_campaign_draft", "generate_image"];

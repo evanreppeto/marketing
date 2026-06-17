@@ -5,14 +5,15 @@ import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } 
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode } from "./tools";
-import type { ArcActionCard, ArcMention, MarkChatMessagePayload } from "./types";
+import type { ArcActionCard, ArcMention, ArcQuestion, MarkChatMessagePayload } from "./types";
 
-/** What one Arc turn produces: the reply text plus what it attached (cards, suggestions, sources). */
+/** What one Arc turn produces: the reply text plus what it attached (cards, suggestions, sources, questions). */
 export type ArcTurnResult = {
   body: string;
   actions: ArcActionCard[];
   suggestions: string[];
   sources: ArcMention[];
+  questions: ArcQuestion[];
 };
 
 /**
@@ -34,10 +35,12 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   const actions: ArcActionCard[] = [];
   const suggestions: string[] = [];
   const sources: ArcMention[] = [];
+  const questions: ArcQuestion[] = [];
   const sink = {
     card: (card: ArcActionCard) => actions.push(card),
     suggestion: (text: string) => suggestions.push(text),
     source: (mention: ArcMention) => sources.push(mention),
+    question: (question: ArcQuestion) => questions.push(question),
   };
 
   const ctx: ArcTurnContext = {
@@ -84,5 +87,5 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     }
   }
 
-  return { body: (resultText || assistantText).trim(), actions, suggestions: suggestions.slice(0, 4), sources };
+  return { body: (resultText || assistantText).trim(), actions, suggestions: suggestions.slice(0, 4), sources, questions: questions.slice(0, 4) };
 }

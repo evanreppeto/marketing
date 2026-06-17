@@ -46,6 +46,16 @@ export type ArcActionApproval = { kind: "campaign"; campaignId: string; assetId:
 /** A record Arc referenced — renders in the "Sources Arc used" row. Same shape as MarkMention. */
 export type ArcMention = MarkMention;
 
+/** A structured question Arc poses to the operator (rendered as an interactive
+ *  panel above the composer from metadata.questions). Mirrors the app's ArcQuestion. */
+export type ArcQuestion = {
+  id: string;
+  prompt: string;
+  options: string[];
+  multi?: boolean;
+  allowText?: boolean;
+};
+
 /** Media attached to a card (thumbnail + provenance). `url` is required. */
 export type ArcMedia = {
   kind: "image" | "video";
