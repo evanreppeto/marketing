@@ -20,17 +20,21 @@ type ConsoleBrand = {
 };
 
 function BrandArc({ brand }: { brand: ConsoleBrand }) {
+  if (brand.logoUrl) {
+    return (
+      <span className="grid h-9 w-9 shrink-0 place-items-center" aria-hidden>
+        {/* eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or data URL. */}
+        <img alt="" className="h-8 w-8 object-contain" src={brand.logoUrl} />
+      </span>
+    );
+  }
+
   return (
     <span
       className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-sm font-semibold text-[var(--accent)]"
       aria-hidden
     >
-      {brand.logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or data URL.
-        <img alt="" className="h-full w-full object-contain" src={brand.logoUrl} />
-      ) : (
-        brand.shortName
-      )}
+      {brand.shortName}
     </span>
   );
 }
