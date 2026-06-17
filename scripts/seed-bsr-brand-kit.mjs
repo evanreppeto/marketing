@@ -56,6 +56,16 @@ async function seedBsrBrandKit() {
     industry: "home_property_services",
     tone: "reassuring",
     services: ["Water mitigation", "Documentation", "Rebuild coordination"],
+    banned_phrases: [
+      "insurance will cover",
+      "insurance will pay",
+      "insurance will approve",
+      "claim will be approved",
+      "guaranteed payout",
+      "guaranteed coverage",
+      "guaranteed approval",
+      "we guarantee",
+    ],
     guardrails: {
       disallowedClaims: [
         "Insurance outcome promise",
