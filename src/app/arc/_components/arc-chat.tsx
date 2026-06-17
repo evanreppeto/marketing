@@ -23,6 +23,7 @@ import { Composer } from "./composer";
 import { ChatEmptyHero, ChatEmptyShortcuts } from "./empty-state";
 import { ArcConnection } from "./arc-connection";
 import { MessageList } from "./message-list";
+import { QuestionPanel } from "./question-panel";
 import { WorkCanvas } from "./work-canvas";
 import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
@@ -300,6 +301,14 @@ export function ArcChat({
     });
   }
 
+  /** Answer an Arc question: set the choice as the draft and auto-send it. */
+  function answerQuestion(answer: string) {
+    if (!answer.trim()) return;
+    handleDraftChange(answer);
+    // Defer so the composer's hidden inputs pick up the new draft before submit.
+    requestAnimationFrame(() => submitFnRef.current?.());
+  }
+
   function handleRetry() {
     const lastOperator = [...messages].reverse().find((m) => m.role === "operator");
     if (!lastOperator) return;
@@ -535,6 +544,15 @@ export function ArcChat({
     setStatusOverrides((prev) => ({ ...prev, [assetId]: status }));
   }
 
+  // Arc's pending questions = those on the latest message, only while it's a
+  // completed Arc reply. Once the operator answers (a new message is appended) or
+  // a reply is in flight, the last message changes and the panel clears.
+  const activeQuestions = useMemo(() => {
+    const last = displayMessages[displayMessages.length - 1];
+    if (!last || last.role !== "arc" || last.status !== "complete") return [];
+    return last.questions ?? [];
+  }, [displayMessages]);
+
   const meta = activeId
     ? (activeProjectId ? `${projects.find((p) => p.id === activeProjectId)?.name ?? "Project"} · ` : "") +
       `${messages.length} message${messages.length === 1 ? "" : "s"}`
@@ -700,6 +718,7 @@ export function ArcChat({
               className={hasMessages ? "w-full" : "msg-rise w-full max-w-2xl"}
               style={hasMessages ? undefined : { animationDelay: "60ms" }}
             >
+              <QuestionPanel questions={activeQuestions} onAnswer={answerQuestion} />
               <Composer
                 conversationId={activeId}
                 mentionGroups={mentionGroups}
