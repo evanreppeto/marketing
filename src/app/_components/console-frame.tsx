@@ -1,28 +1,16 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
+import { BackgroundGradientAnimation } from "./background-gradient-animation";
+import { DottedSurface } from "./dotted-surface";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
-
-// Decorative, behind-content backdrops (three.js / animated gradient). Code-split
-// so their heavy runtimes load as separate async chunks after the shell hydrates,
-// instead of bloating the per-page client bundle. ssr:false avoids server work for
-// purely visual layers; they fade in once loaded (no layout shift — both are
-// absolutely positioned, aria-hidden, -z-10).
-const BackgroundGradientAnimation = dynamic(
-  () => import("./background-gradient-animation").then((m) => m.BackgroundGradientAnimation),
-  { ssr: false },
-);
-const DottedSurface = dynamic(() => import("./dotted-surface").then((m) => m.DottedSurface), {
-  ssr: false,
-});
 
 type ConsoleBrand = {
   workspaceName: string;
@@ -52,9 +40,9 @@ function BrandWordmark() {
     // eslint-disable-next-line @next/next/no-img-element -- transparent generated wordmark served from /public.
     <img
       alt=""
-      className="h-12 w-auto max-w-[118px] select-none object-contain object-left"
+      className="h-8 w-auto max-w-[112px] select-none object-contain object-left"
       draggable={false}
-      src="/brand/arc-marketing-wordmark.png"
+      src="/brand/arc-wordmark.png"
     />
   );
 }
@@ -93,7 +81,7 @@ export function ConsoleFrame({
     { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
   ];
 
-  if (pathname === "/login" || pathname === "/sign-in" || pathname === "/forgot-password") {
+  if (pathname === "/login" || pathname === "/sign-in" || pathname === "/sign-up" || pathname === "/forgot-password") {
     return <AgentNameProvider value={agentName}>{children}</AgentNameProvider>;
   }
 
