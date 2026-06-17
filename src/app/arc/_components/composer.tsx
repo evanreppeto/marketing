@@ -54,7 +54,7 @@ type PillOption<T extends string> = { id: T; label: string; hint: string; icon: 
 /** Shared 14px line glyph so every pill/menu icon matches the footer's stroke weight. */
 function Glyph({ children }: { children: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       {children}
     </svg>
   );
@@ -106,7 +106,12 @@ function PillSelect<T extends string>({
         aria-expanded={open}
         aria-label={`${ariaLabel}: ${current.label}`}
         title={current.hint}
-        className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)]"
+        className={cx(
+          "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
+          open
+            ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
+            : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+        )}
       >
         <span key={current.id} className="pill-glyph-swap flex">{current.icon}</span>
         {current.label}
@@ -800,7 +805,7 @@ export function Composer({
               disabled={uploading}
               aria-label="Attach image"
               title="Attach a reference image"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
               <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 5v10M5 10h10" />
@@ -814,7 +819,7 @@ export function Composer({
               }}
               aria-label="Tools and commands"
               title="Tools - run a command"
-              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 7h-9" />
@@ -833,10 +838,10 @@ export function Composer({
               aria-pressed={voiceState === "listening"}
               title={voiceState === "unsupported" ? "Voice input is not available in this browser" : voiceState === "listening" ? "Stop voice input" : "Speak a message"}
               className={cx(
-                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-[inset_0_0_0_1px_var(--border-strong)] transition active:scale-95 after:hidden",
+                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-95 after:hidden",
                 voiceState === "listening"
                   ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
+                  : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
                 voiceState === "checking" || voiceState === "unsupported" || isPending ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--text-muted)]" : "",
               )}
             >
@@ -903,11 +908,15 @@ export function Composer({
               aria-haspopup="menu"
               aria-expanded={projectMenuOpen}
               className={cx(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
-                selectedProjectName ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
+                "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
+                projectMenuOpen
+                  ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
+                  : selectedProjectName
+                    ? "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
               )}
             >
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
               </svg>
               {selectedProjectName ?? "No project"}
