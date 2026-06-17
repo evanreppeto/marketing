@@ -22,7 +22,7 @@ export function CampaignDeployLaunchpad({
   campaignId: string;
   agentName: string;
 }) {
-  if (launchpad.totalShippable === 0) return null;
+  const isEmpty = launchpad.totalShippable === 0;
 
   return (
     <section
@@ -32,22 +32,28 @@ export function CampaignDeployLaunchpad({
       <header className="flex flex-col gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <h2 className="text-xl font-bold text-[var(--text-primary)]">
-            {launchpad.readyCount} of {launchpad.totalShippable} piece{launchpad.totalShippable === 1 ? "" : "s"} ready to ship
+            {isEmpty
+              ? "Deploy & share"
+              : `${launchpad.readyCount} of ${launchpad.totalShippable} piece${launchpad.totalShippable === 1 ? "" : "s"} ready to ship`}
           </h2>
           <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
-            Deploy hands approved pieces to {agentName} via the Outbox. Nothing sends until you click.
+            {isEmpty
+              ? `No pieces to deploy yet. Once ${agentName} adds approved pieces, deploy or share them here — nothing sends until you click.`
+              : `Deploy hands approved pieces to ${agentName} via the Outbox. Nothing sends until you click.`}
           </p>
         </div>
-        <DeployCampaignButton campaignId={campaignId} launchpad={launchpad} agentName={agentName} />
+        {isEmpty ? null : <DeployCampaignButton campaignId={campaignId} launchpad={launchpad} agentName={agentName} />}
       </header>
 
-      <ul className="divide-y divide-[var(--border-hairline)]">
-        {launchpad.pieces.map((piece) => (
-          <li key={piece.id}>
-            <DeployPieceRow piece={piece} campaignId={campaignId} />
-          </li>
-        ))}
-      </ul>
+      {isEmpty ? null : (
+        <ul className="divide-y divide-[var(--border-hairline)]">
+          {launchpad.pieces.map((piece) => (
+            <li key={piece.id}>
+              <DeployPieceRow piece={piece} campaignId={campaignId} />
+            </li>
+          ))}
+        </ul>
+      )}
 
       {launchpad.hasConnectableGap ? (
         <p className="border-t border-[var(--border-hairline)] bg-[var(--surface-soft)] px-4 py-3 text-xs leading-5 text-[var(--text-muted)]">
