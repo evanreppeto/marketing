@@ -236,6 +236,7 @@ export function Composer({
   onDemoSend,
   onSlashOpenChange,
   recallText = null,
+  initialSkill = null,
 }: {
   conversationId: string;
   mentionGroups: MentionGroup[];
@@ -267,6 +268,9 @@ export function Composer({
   /** Body of the last operator message; ArrowUp in an empty composer recalls it
    *  for a quick re-send/edit (shell-history muscle memory). */
   recallText?: string | null;
+  /** Skill (slash-command id, no leading slash) to pre-apply on a fresh chat,
+   *  from the sidebar Skills launcher deep link (?skill=<id>). */
+  initialSkill?: string | null;
 }) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   // For a new chat the picked project rides along as a hidden input (assigned on
@@ -544,6 +548,20 @@ export function Composer({
     setActiveIdx(0);
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
+
+  // Skills-launcher deep link (?skill=<id>): on a fresh chat, pre-apply the
+  // command as a chip (no prompt dump). Re-applies if the skill param changes.
+  const appliedSkillRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (conversationId) return; // only a brand-new chat
+    if (!initialSkill || appliedSkillRef.current === initialSkill) return;
+    const c = SLASH_COMMANDS.find((s) => s.cmd.slice(1) === initialSkill);
+    if (!c) return;
+    appliedSkillRef.current = initialSkill;
+    void Promise.resolve().then(() => applySlash(c));
+    // applySlash is stable enough for this one-shot deep-link apply.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSkill, conversationId]);
 
   const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
 
