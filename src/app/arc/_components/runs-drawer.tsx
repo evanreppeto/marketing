@@ -9,6 +9,7 @@ import type { ArcRun, ArcRunStatus } from "@/lib/arc-chat/persistence";
 
 import { getArcRunsAction } from "../actions";
 import { relativeTime } from "./relative-time";
+import { useDialogA11y } from "./use-dialog-a11y";
 
 const ACTIVE_STATUSES: ArcRunStatus[] = ["queued", "running", "blocked", "needs_approval"];
 
@@ -103,11 +104,13 @@ export function RunsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const panelRef = useDialogA11y<HTMLDivElement>(open);
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
     async function tick() {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       try {
         const next = await getArcRunsAction();
         if (alive) {
@@ -125,10 +128,15 @@ export function RunsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     void tick();
     const poll = setInterval(tick, 4000);
     const clock = setInterval(() => setNowMs(Date.now()), 1000);
+    function onVisible() {
+      if (document.visibilityState === "visible") void tick();
+    }
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
       clearInterval(poll);
       clearInterval(clock);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [open]);
 
@@ -150,10 +158,12 @@ export function RunsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     <div className="fixed inset-0 z-50 flex justify-end">
       <button aria-label="Close runs" className="absolute inset-0 bg-[var(--overlay)] backdrop-blur-sm" onClick={onClose} />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Arc runs"
-        className="relative flex h-full w-full max-w-[440px] flex-col overflow-hidden border-l border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]"
+        tabIndex={-1}
+        className="relative flex h-full w-full max-w-[440px] flex-col overflow-hidden border-l border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)] outline-none"
       >
         <div className="flex items-center justify-between border-b border-[var(--border-hairline)] bg-[var(--surface-inset)]/40 px-5 py-3.5">
           <div className="flex items-baseline gap-2">

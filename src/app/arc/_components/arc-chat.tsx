@@ -108,6 +108,26 @@ function HeaderTitle({
   );
 }
 
+/** An optimistic "thinking" arc bubble used while a regenerate/edit is in flight. */
+function pendingArcMessage(id: string, conversationId: string): ArcMessage {
+  return {
+    id,
+    conversationId,
+    role: "arc",
+    body: "",
+    status: "pending",
+    agentTaskId: null,
+    mentions: [],
+    media: [],
+    steps: [],
+    feedback: null,
+    actions: [],
+    suggestions: [],
+    attachments: [],
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export function ArcChat({
   conversations,
   projects,
@@ -293,27 +313,27 @@ export function ArcChat({
     await cancelReplyAction(activeId);
   }
 
+  // Swap a stuck optimistic "thinking" bubble for a failed reply so a server
+  // error surfaces instead of hanging the thread forever.
+  function replacePendingWithFailure(tempId: string, message?: string) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === tempId
+          ? { ...m, status: "failed" as const, body: message || `${assistantName} couldn't complete that — try again.` }
+          : m,
+      ),
+    );
+  }
+
   async function handleRegenerate(markMessageId: string) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `temp-pending-${markMessageId}-${Date.now()}`,
-        conversationId: activeId,
-        role: "arc",
-        body: "",
-        status: "pending",
-        agentTaskId: null,
-        mentions: [],
-        media: [],
-        steps: [],
-        feedback: null,
-        actions: [],
-        suggestions: [],
-        attachments: [],
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-    await regenerateArcReplyAction(activeId, markMessageId, { mode, route });
+    const tempId = `temp-pending-${markMessageId}-${Date.now()}`;
+    setMessages((prev) => [...prev, pendingArcMessage(tempId, activeId)]);
+    try {
+      await regenerateArcReplyAction(activeId, markMessageId, { mode, route });
+    } catch {
+      // Drop the stuck "thinking" bubble and show what happened instead of hanging.
+      replacePendingWithFailure(tempId);
+    }
   }
 
   // Edit a sent operator message in place and re-run the reply (ChatGPT-style).
@@ -330,30 +350,18 @@ export function ArcChat({
       });
       return;
     }
+    const tempId = `temp-pending-edit-${messageId}-${Date.now()}`;
     setMessages((prev) => {
       if (!prev.some((m) => m.id === messageId)) return prev;
       const updated = prev.map((m) => (m.id === messageId ? { ...m, body } : m));
-      return [
-        ...updated,
-        {
-          id: `temp-pending-edit-${messageId}-${Date.now()}`,
-          conversationId: activeId,
-          role: "arc",
-          body: "",
-          status: "pending",
-          agentTaskId: null,
-          mentions: [],
-          media: [],
-          steps: [],
-          feedback: null,
-          actions: [],
-          suggestions: [],
-          attachments: [],
-          createdAt: new Date().toISOString(),
-        },
-      ];
+      return [...updated, pendingArcMessage(tempId, activeId)];
     });
-    await editAndResendArcMessageAction(activeId, messageId, body, { mode, route });
+    try {
+      const result = await editAndResendArcMessageAction(activeId, messageId, body, { mode, route });
+      if (!result.ok) replacePendingWithFailure(tempId, result.message);
+    } catch {
+      replacePendingWithFailure(tempId);
+    }
   }
 
   const hasMessages = messages.length > 0;
@@ -412,6 +420,8 @@ export function ArcChat({
     if (demo) return;
     let alive = true;
     async function tick() {
+      // Don't poll a backgrounded tab — saves needless server hits + battery.
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       try {
         const ids = await getActiveArcRunsAction();
         if (!alive) return;
@@ -437,9 +447,15 @@ export function ArcChat({
     }
     void tick();
     const id = setInterval(tick, 4000);
+    // Refresh immediately when the tab comes back to the foreground.
+    function onVisible() {
+      if (document.visibilityState === "visible") void tick();
+    }
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [demo]);
 
