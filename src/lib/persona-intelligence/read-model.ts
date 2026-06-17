@@ -17,7 +17,6 @@ export type PersonaTrackerRow = {
   blocker: string;
   offer: string;
   crmPath: string;
-  aiStudioPath: string;
   tone: PersonaTone;
   snapshot?: {
     confidence: string;
@@ -367,7 +366,6 @@ function buildPersonaRows(snapshots: PersonaSnapshotRow[], knowledge: PersonaKno
       blocker: blocker?.title ?? "Needs enough context",
       offer: snapshot?.recommended_offer ?? cta?.body ?? "Approval-safe follow-up",
       crmPath: crmPathForSnapshot(snapshot),
-      aiStudioPath: `/ai-studio?persona=${persona}`,
       tone: toneForScore(score),
       snapshot: {
         confidence: `${score}%`,
