@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         url,
         source: "ai_generated" as const,
         model: typeof body.model === "string" ? body.model : "veo",
+        ...(typeof body.job_id === "string" ? { jobId: body.job_id } : {}),
         riskFlags: typeof body.prompt === "string" ? deriveImageRiskFlags(body.prompt) : [],
       };
       return NextResponse.json({ ok: true, status: "done", media, objectPath }, { status: 201 });
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
     const durationSeconds = typeof body.duration_seconds === "number" ? body.duration_seconds : undefined;
     const start = await provider.startVideo({ prompt: hardenImagePrompt(prompt), aspectRatio, durationSeconds });
     return NextResponse.json(
-      { ok: true, status: "running", operationName: start.operationName, model: start.model },
+      { ok: true, status: "running", operationName: start.operationName, model: start.model, jobId: start.jobId },
       { status: 201 },
     );
   } catch (error) {

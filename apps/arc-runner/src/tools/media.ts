@@ -102,7 +102,7 @@ export function mediaTools(client: ArcClient, step: StepFn, collectCard: (card: 
       await step(label, "running");
       try {
         const promptWithStyle = args.style ? `${args.prompt}\n\nStyle: ${args.style}.` : args.prompt;
-        const start = await client.apiPost<{ operationName: string; model: string }>(
+        const start = await client.apiPost<{ operationName: string; model: string; jobId?: string }>(
           "/api/v1/arc/media/generate-video",
           { prompt: promptWithStyle, aspect_ratio: args.aspect_ratio, duration_seconds: args.duration_seconds },
         );
@@ -112,7 +112,7 @@ export function mediaTools(client: ArcClient, step: StepFn, collectCard: (card: 
           await sleep(VIDEO_POLL_MS);
           const poll = await client.apiPost<{ status: string; media?: ArcMedia; objectPath?: string }>(
             "/api/v1/arc/media/generate-video",
-            { operation_name: start.operationName, prompt: promptWithStyle, model: start.model },
+            { operation_name: start.operationName, prompt: promptWithStyle, model: start.model, job_id: start.jobId },
           );
           if (poll.status === "done" && poll.media) {
             media = poll.media;
