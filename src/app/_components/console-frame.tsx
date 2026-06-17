@@ -141,6 +141,13 @@ export function ConsoleFrame({
                 <BrandWordmark />
               </span>
             </Link>
+            <div
+              aria-hidden
+              className={cx(
+                "hidden h-px shrink-0 bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)] lg:block",
+                collapsed ? "lg:mx-auto lg:w-8" : "lg:w-full",
+              )}
+            />
 
             <SideNav active={pathname} items={navItems} collapsed={collapsed} mobileDock />
           </div>
