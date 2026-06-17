@@ -27,7 +27,6 @@ import { QuestionPanel } from "./question-panel";
 import { WorkCanvas } from "./work-canvas";
 import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
-import { ThreadSwitcher } from "./thread-switcher";
 import { useThreadPoll } from "./use-thread-poll";
 import { demoReply } from "../_data/demo";
 
@@ -408,10 +407,11 @@ export function ArcChat({
     return () => document.removeEventListener("keydown", onKey);
   }, [threadsOpen]);
 
-  // ⌘K / Ctrl+K toggles the command palette from anywhere in the chat.
+  // ⌘/ / Ctrl+/ toggles the slash-command palette. (Ctrl+K is owned by the
+  // sidebar's chat search — see ThreadSidebar — so the two no longer collide.)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
         e.preventDefault();
         setPaletteOpen((v) => !v);
       }
@@ -442,7 +442,9 @@ export function ArcChat({
   // `doneIds` accumulates threads that finished while you were elsewhere.
   const [runningIds, setRunningIds] = useState<Set<string>>(() => new Set());
   const [doneIds, setDoneIds] = useState<Set<string>>(() => new Set());
-  const prevRunningRef = useRef<Set<string>>(new Set());
+  // All conversations with a queued/running task last tick — completion is
+  // inferred from leaving this set, not from the (staleness-filtered) spinner set.
+  const prevActiveRef = useRef<Set<string>>(new Set());
   const activeIdRef = useRef(activeId);
   useEffect(() => {
     activeIdRef.current = activeId;
@@ -450,18 +452,34 @@ export function ArcChat({
   useEffect(() => {
     if (demo) return;
     let alive = true;
+    // A chat turn that's been running longer than this is almost certainly an
+    // orphaned task the runner never finished — stop spinning so the rail isn't
+    // a wall of perpetual spinners. It stays in the queue, so it never trips the
+    // "done" pulse either; it simply falls back to its idle timestamp.
+    const STALE_RUN_MS = 4 * 60_000;
     async function tick() {
       // Don't poll a backgrounded tab — saves needless server hits + battery.
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       try {
-        const ids = await getActiveArcRunsAction();
+        const runs = await getActiveArcRunsAction();
         if (!alive) return;
-        const next = new Set(ids);
-        // A thread that was running last tick but isn't now just finished — mark
-        // it unread unless it's the one you're already looking at.
+        const now = Date.now();
+        // Every conversation still in the queue, regardless of age.
+        const active = new Set(runs.map((r) => r.conversationId));
+        // Only genuinely-fresh runs get a spinner.
+        const working = new Set(
+          runs
+            .filter((r) => {
+              const started = Date.parse(r.since);
+              return Number.isFinite(started) && now - started < STALE_RUN_MS;
+            })
+            .map((r) => r.conversationId),
+        );
+        // A thread that left the queue entirely (completed) since last tick is a
+        // new reply — mark it unread unless you're already looking at it.
         const finished: string[] = [];
-        prevRunningRef.current.forEach((id) => {
-          if (!next.has(id) && id !== activeIdRef.current) finished.push(id);
+        prevActiveRef.current.forEach((id) => {
+          if (!active.has(id) && id !== activeIdRef.current) finished.push(id);
         });
         if (finished.length > 0) {
           setDoneIds((prev) => {
@@ -470,8 +488,8 @@ export function ArcChat({
             return merged;
           });
         }
-        prevRunningRef.current = next;
-        setRunningIds(next);
+        prevActiveRef.current = active;
+        setRunningIds(working);
       } catch {
         /* best-effort; keep the last known set */
       }
@@ -582,7 +600,6 @@ export function ArcChat({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ThreadSwitcher conversations={conversations} projects={projects} activeId={activeId} />
       <div
         className={cx(
           "grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)]",

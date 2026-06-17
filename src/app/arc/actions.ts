@@ -34,6 +34,7 @@ import {
   listActiveArcRunConversationIds,
   listMessages,
   listRecentArcRuns,
+  type ActiveArcRun,
   type ArcRun,
   parseArcAttachmentsJson,
   renameConversation,
@@ -465,7 +466,7 @@ export async function setArcMessageFeedbackAction(
 
 /** Conversation ids with an Arc run in flight — polled by the sidebar to show
  *  cross-thread "working…" indicators. Empty when Supabase isn't configured. */
-export async function getActiveArcRunsAction(): Promise<string[]> {
+export async function getActiveArcRunsAction(): Promise<ActiveArcRun[]> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return [];
   return listActiveArcRunConversationIds().catch(() => []);
