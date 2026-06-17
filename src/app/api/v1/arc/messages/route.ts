@@ -10,6 +10,7 @@ import {
 } from "@/lib/arc-chat/persistence";
 import { logArcChatStatus } from "@/lib/arc-chat/status-log";
 import { getAgentName } from "@/lib/settings/agent-name";
+import { parseMentions } from "@/domain";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -105,7 +106,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, status: "rejected", message: "Request body must be valid JSON." }, { status: 400 });
   }
 
-  const body = payload as { agentTaskId?: unknown; body?: unknown; status?: unknown; metadata?: unknown };
+  const body = payload as {
+    agentTaskId?: unknown;
+    body?: unknown;
+    status?: unknown;
+    metadata?: unknown;
+    mentions?: unknown;
+  };
   const agentTaskId = typeof body.agentTaskId === "string" ? body.agentTaskId.trim() : "";
   const replyBody = typeof body.body === "string" ? body.body : "";
   const status = body.status === "failed" ? "failed" : "complete";
@@ -128,7 +135,13 @@ export async function POST(request: Request) {
       logArcChatStatus("failed", { agentTaskId, conversationId: pending.conversationId });
     } else {
       const metadata = body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : {};
-      await completeArcMessage({ messageId: pending.id, body: replyBody.trim(), metadata });
+      await completeArcMessage({
+        messageId: pending.id,
+        body: replyBody.trim(),
+        metadata,
+        // Only set mentions ("Sources Arc used") when the reply provides them.
+        ...(body.mentions !== undefined ? { mentions: parseMentions(body.mentions) } : {}),
+      });
       logArcChatStatus("complete", { agentTaskId, conversationId: pending.conversationId });
     }
     await touchConversation(pending.conversationId);
