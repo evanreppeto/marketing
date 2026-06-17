@@ -4,6 +4,7 @@ import { AgentBehaviorSettings } from "./agent-behavior-settings";
 import { AgentPanel } from "./agent-panel";
 import { AppearanceSettings } from "./appearance-settings";
 import { BrandingSettings } from "./branding-settings";
+import { BrandKitSettings } from "./brand-kit-settings";
 import { ConnectionsPanel } from "./connections-panel";
 import { GeneralSettings } from "./general-settings";
 import { NotificationSettings } from "./notification-settings";
@@ -39,6 +40,7 @@ export default async function SettingsPage({
             home: <SettingsHome />,
             general: <GeneralSettings />,
             branding: <BrandingSettings />,
+            "brand-kit": <BrandKitSettings />,
             appearance: <AppearanceSettings />,
             behavior: <AgentBehaviorSettings />,
             account: <AccountSettings />,

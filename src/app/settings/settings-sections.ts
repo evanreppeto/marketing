@@ -4,6 +4,11 @@ export const SETTINGS_SECTIONS = [
   { id: "home", label: "Home" },
   { id: "general", label: "General" },
   { id: "branding", label: "Branding" },
+  {
+    id: "brand-kit",
+    label: "Brand Kit",
+    description: "Your business identity, voice, services, and guardrails — what Arc works from.",
+  },
   { id: "appearance", label: "Appearance" },
   { id: "behavior", label: "Agent behavior" },
   { id: "account", label: "Account" },
