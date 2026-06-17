@@ -4,12 +4,13 @@ import { randomUUID } from "node:crypto";
 import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
-import { createSignedReadUrl, isGcsConfigured, uploadObject } from "@/lib/storage/gcs";
+import { storeGeneratedImage } from "@/lib/media/storage";
 
 /**
- * Generate an image (AI) and store it in GCS. Flag-gated + credential-guarded:
- * returns not_configured when media gen or GCS isn't set up. The result is
- * provenance-tagged (source: ai_generated) with heuristic risk flags. No outbound.
+ * Generate an image (AI) and store it in the public campaign-media Supabase
+ * bucket. Flag-gated; Supabase is already required by guard(). Returns
+ * not_configured when media gen isn't enabled. The result is provenance-tagged
+ * (source: ai_generated) with heuristic risk flags. No outbound.
  *
  *   POST /api/v1/arc/media/generate-image
  *   { prompt: string, aspect_ratio?: string }
@@ -19,8 +20,8 @@ export async function POST(request: Request) {
   const denied = await guard(request);
   if (denied) return denied;
 
-  if (!isMediaGenEnabled() || !isGcsConfigured()) {
-    return fail("not_configured", "Image generation isn't enabled (needs ARC_MEDIA_ENABLED, GEMINI_API_KEY, and GCS).", 503);
+  if (!isMediaGenEnabled()) {
+    return fail("not_configured", "Image generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
   }
 
   const payload = await readJson(request);
@@ -40,10 +41,8 @@ export async function POST(request: Request) {
     const gen = await provider.generateImage({ prompt, aspectRatio });
     const ext = gen.contentType.includes("png") ? "png" : gen.contentType.includes("webp") ? "webp" : "jpg";
     const objectPath = `arc-generated/${randomUUID()}.${ext}`;
-    await uploadObject(objectPath, gen.bytes, gen.contentType);
-    // 7 days is the v4 signed-URL max. The durable reference is objectPath
-    // (persisted on the asset); a follow-up will re-sign at render time.
-    const url = await createSignedReadUrl(objectPath, 7 * 24 * 60 * 60 * 1000);
+    // Permanent public URL from the campaign-media bucket — no expiry to re-sign.
+    const url = await storeGeneratedImage(objectPath, gen.bytes, gen.contentType);
     const media = {
       kind: "image" as const,
       url,

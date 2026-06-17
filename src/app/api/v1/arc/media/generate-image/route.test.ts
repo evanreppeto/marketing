@@ -5,10 +5,8 @@ vi.mock("@/lib/media", () => ({
   isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ generateImage }),
 }));
-vi.mock("@/lib/storage/gcs", () => ({
-  isGcsConfigured: () => true,
-  uploadObject: vi.fn(async (p: string) => p),
-  createSignedReadUrl: vi.fn(async () => "https://signed.example/img.png"),
+vi.mock("@/lib/media/storage", () => ({
+  storeGeneratedImage: vi.fn(async () => "https://cdn.example/storage/v1/object/public/campaign-media/arc-generated/x.png"),
 }));
 
 import { POST } from "./route";
@@ -80,7 +78,7 @@ describe("POST /api/v1/arc/media/generate-image", () => {
     const json = await res.json();
     expect(json.media).toMatchObject({
       kind: "image",
-      url: "https://signed.example/img.png",
+      url: "https://cdn.example/storage/v1/object/public/campaign-media/arc-generated/x.png",
       source: "ai_generated",
       format: "9:16",
       model: "gemini-2.5-flash-image",
