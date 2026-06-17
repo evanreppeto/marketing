@@ -6,6 +6,7 @@ import { cx } from "@/app/_components/theme";
 import type { ArcMention, ArcMode, ArcRoute } from "@/domain";
 import { serializeMentions } from "@/domain";
 import { matchSlash, SLASH_COMMANDS, type SlashCommand } from "./slash-commands";
+import { AutocompleteMenu, MentionIcon, MENTION_TYPE_LABEL, SlashIcon, type MenuRow } from "./composer-menu";
 import { ModelSelect } from "./model-select";
 import type { ArcAttachment, ArcMessage, ArcProject } from "@/lib/arc-chat/persistence";
 import type { MentionGroup } from "@/lib/arc-chat/mention-search";
@@ -299,6 +300,7 @@ export function Composer({
   const [picked, setPicked] = useState<ArcMention[]>([]);
   const [query, setQuery] = useState<string | null>(null); // non-null when the @-popover is open
   const [slash, setSlash] = useState<SlashCommand[] | null>(null); // non-null when the /-popover is open
+  const [activeIndex, setActiveIndex] = useState(0); // highlighted row in whichever menu is open
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
   const [attachments, setAttachments] = useState<ArcAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -411,6 +413,7 @@ export function Composer({
     const at = /@([\w-]*)$/.exec(value);
     setQuery(at ? at[1] : null);
     setSlash(matchSlash(value));
+    setActiveIndex(0);
   }
 
   function stopVoiceInput() {
@@ -522,6 +525,40 @@ export function Composer({
     });
   }
 
+  // Which autocomplete menu is open (mutually exclusive in practice — a draft
+  // can't both start with `/` and end with `@`). `slashOpen` is defined above.
+  const mentionOpen = query !== null && suggestions.length > 0;
+  const menuOpen = mentionOpen || slashOpen;
+  const MENTION_LIST_ID = "arc-mention-menu";
+  const SLASH_LIST_ID = "arc-slash-menu";
+  const activeListId = mentionOpen ? MENTION_LIST_ID : SLASH_LIST_ID;
+  const activeMenuLen = mentionOpen ? suggestions.length : slashOpen ? (slash?.length ?? 0) : 0;
+
+  const mentionRows: MenuRow[] = suggestions.map((m) => ({
+    key: `${m.type}:${m.id}`,
+    icon: <MentionIcon type={m.type} />,
+    title: m.label,
+    group: MENTION_TYPE_LABEL[m.type],
+  }));
+  const slashRows: MenuRow[] = (slash ?? []).map((c) => ({
+    key: c.cmd,
+    icon: <SlashIcon cmd={c.cmd} />,
+    title: c.label,
+    meta: c.hint,
+    trailing: <span className="font-mono text-[10px] text-[var(--text-muted)]">{c.cmd}</span>,
+  }));
+
+  /** Commit the highlighted menu row (shared by Enter, Tab, and click). */
+  function selectActive() {
+    if (mentionOpen) {
+      const m = suggestions[Math.min(activeIndex, suggestions.length - 1)];
+      if (m) addMention(m);
+    } else if (slashOpen && slash) {
+      const c = slash[Math.min(activeIndex, slash.length - 1)];
+      if (c) applySlash(c);
+    }
+  }
+
   const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
 
   return (
@@ -553,39 +590,30 @@ export function Composer({
         {/* Project chosen in the footer selector — assigned when this send creates a new thread. */}
         <input type="hidden" name="projectId" value={newChatProjectId ?? ""} />
 
-        {query !== null && suggestions.length > 0 ? (
-          <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-            {suggestions.map((m) => (
-              <button
-                key={`${m.type}:${m.id}`}
-                type="button"
-                onClick={() => addMention(m)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-inset)]"
-              >
-                <span className="truncate font-semibold text-[var(--text-primary)]">{m.label}</span>
-                <span className="font-mono text-[10px] uppercase text-[var(--text-muted)]">{m.type}</span>
-              </button>
-            ))}
-          </div>
+        {mentionOpen ? (
+          <AutocompleteMenu
+            listId={MENTION_LIST_ID}
+            rows={mentionRows}
+            activeIndex={activeIndex}
+            onActiveChange={setActiveIndex}
+            onSelect={(i) => {
+              const m = suggestions[i];
+              if (m) addMention(m);
+            }}
+          />
         ) : null}
 
-        {slash && slash.length > 0 ? (
-          <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-            {slash.map((c) => (
-              <button
-                key={c.cmd}
-                type="button"
-                onClick={() => applySlash(c)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-inset)]"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-[var(--accent-contrast)]">{c.cmd}</span>
-                  <span className="text-[var(--text-secondary)]">{c.label}</span>
-                </span>
-                <span className="truncate text-[11px] text-[var(--text-muted)]">{c.hint}</span>
-              </button>
-            ))}
-          </div>
+        {slashOpen ? (
+          <AutocompleteMenu
+            listId={SLASH_LIST_ID}
+            rows={slashRows}
+            activeIndex={activeIndex}
+            onActiveChange={setActiveIndex}
+            onSelect={(i) => {
+              const c = slash?.[i];
+              if (c) applySlash(c);
+            }}
+          />
         ) : null}
 
         <div
@@ -689,16 +717,35 @@ export function Composer({
               }
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && query === null && slash === null) {
+              // An open autocomplete menu owns the arrows, Enter/Tab (select) and
+              // Escape (dismiss) so the keyboard never has to leave the textarea.
+              if (menuOpen && activeMenuLen > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setActiveIndex((i) => (i + 1) % activeMenuLen);
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActiveIndex((i) => (i - 1 + activeMenuLen) % activeMenuLen);
+                  return;
+                }
+                if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
+                  e.preventDefault();
+                  selectActive();
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  if (mentionOpen) setQuery(null);
+                  else setSlash(null);
+                  return;
+                }
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (!disabled) formRef.current?.requestSubmit();
-              } else if (
-                e.key === "ArrowUp" &&
-                query === null &&
-                slash === null &&
-                draft.length === 0 &&
-                recallText
-              ) {
+              } else if (e.key === "ArrowUp" && draft.length === 0 && recallText) {
                 // Empty composer: recall the last message to re-send or tweak.
                 e.preventDefault();
                 onDraftChange(recallText);
@@ -707,6 +754,11 @@ export function Composer({
             rows={1}
             placeholder={`Message ${assistantName}...`}
             style={{ outline: "none" }}
+            role="combobox"
+            aria-expanded={menuOpen}
+            aria-controls={menuOpen ? activeListId : undefined}
+            aria-activedescendant={menuOpen ? `${activeListId}-opt-${activeIndex}` : undefined}
+            aria-autocomplete="list"
             className="max-h-[200px] min-h-12 w-full resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
           />
 
@@ -728,6 +780,7 @@ export function Composer({
               type="button"
               onClick={() => {
                 setSlash((s) => (s && s.length ? null : SLASH_COMMANDS));
+                setActiveIndex(0);
                 textareaRef.current?.focus();
               }}
               aria-label="Tools and commands"
