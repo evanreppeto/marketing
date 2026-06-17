@@ -514,23 +514,45 @@ export function ThreadSidebar({
         )}
       </nav>
 
-      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+      <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border-hairline)] pt-2">
+        <div className="flex items-center justify-between gap-2 px-2">
+          <Link
+            href="/arc/saved"
+            className="flex items-center gap-1.5 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 2.5l2.2 4.6 5 .7-3.6 3.5.9 5L10 14l-4.5 2.4.9-5L2.8 7.8l5-.7z" />
+            </svg>
+            Saved
+          </Link>
+          <Link
+            href="/arc?archived=1"
+            className="flex items-center gap-1 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+          >
+            Archived
+            <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m8 5 5 5-5 5" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Account / agent row — identity + settings, like the account menu in
+            ChatGPT/Claude. Opens the full settings page. */}
         <Link
-          href="/arc/saved"
-          className="flex items-center gap-1.5 px-2 pb-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+          href="/settings"
+          title={`${assistantName} — agent & workspace settings`}
+          className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-[var(--surface-inset)]"
         >
-          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 2.5l2.2 4.6 5 .7-3.6 3.5.9 5L10 14l-4.5 2.4.9-5L2.8 7.8l5-.7z" />
-          </svg>
-          Saved
-        </Link>
-        <Link
-          href="/arc?archived=1"
-          className="flex items-center gap-1 px-2 pb-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
-        >
-          Archived
-          <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m8 5 5 5-5 5" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
+            {(assistantName.trim()[0] ?? "A").toUpperCase()}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-sm font-medium text-[var(--text-primary)]">{assistantName}</span>
+            <span className="truncate text-[11px] text-[var(--text-muted)]">Settings &amp; connection</span>
+          </span>
+          <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--text-primary)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
           </svg>
         </Link>
       </div>
