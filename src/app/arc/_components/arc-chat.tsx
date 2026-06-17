@@ -137,6 +137,7 @@ export function ArcChat({
   activeTitle,
   activeProjectId,
   newChatProjectId = null,
+  initialSkill = null,
   activeCampaignId,
   campaigns,
   activePinned,
@@ -159,6 +160,8 @@ export function ArcChat({
   activeProjectId: string | null;
   /** Pre-selected project for a fresh chat, from the ?project=<id> deep link. */
   newChatProjectId?: string | null;
+  /** Skill (slash-command id) to pre-apply on a fresh chat, from ?skill=<id>. */
+  initialSkill?: string | null;
   activeCampaignId: string | null;
   campaigns: { id: string; name: string }[];
   activePinned: boolean;
@@ -721,6 +724,7 @@ export function ArcChat({
                 projects={projects}
                 activeProjectId={activeProjectId}
                 initialNewChatProjectId={newChatProjectId}
+                initialSkill={initialSkill}
                 mode={mode}
                 route={route}
                 onModeChange={setMode}

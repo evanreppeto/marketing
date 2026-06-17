@@ -9,6 +9,31 @@ import type { ArcConversation, ArcProject } from "@/lib/arc-chat/persistence";
 import { createProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
 import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
+import { SLASH_COMMANDS } from "./slash-commands";
+
+/** Discoverable agent capabilities — one click opens a fresh chat primed with
+ *  the command (the deep link the composer reads via ?skill=<id>). Reuses the
+ *  same command definitions as the composer's "/" menu. */
+function SkillsSection() {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <SectionLabel>Skills</SectionLabel>
+      {SLASH_COMMANDS.map((c) => (
+        <Link
+          key={c.cmd}
+          href={`/arc?skill=${c.cmd.slice(1)}`}
+          title={c.hint}
+          className="group flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 2.5c.4 3.2 1.4 4.2 4.6 4.6-3.2.4-4.2 1.4-4.6 4.6-.4-3.2-1.4-4.2-4.6-4.6 3.2-.4 4.2-1.4 4.6-4.6Z" />
+          </svg>
+          <span className="min-w-0 flex-1 truncate">{c.label}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 /** Stable empty set so the default props don't allocate per render. */
 const NO_RUNNING_IDS: Set<string> = new Set();
@@ -424,6 +449,8 @@ export function ThreadSidebar({
           Ctrl K
         </kbd>
       </label>
+
+      <SkillsSection />
 
       {pinned.length > 0 ? (
         <div className="flex flex-col gap-0.5">
