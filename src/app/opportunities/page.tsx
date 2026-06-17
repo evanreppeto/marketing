@@ -2,7 +2,12 @@ import { ActionFeedback, OperatorBar, PageHeader, StatusPill } from "@/app/_comp
 import { OpportunityCommandCenter } from "@/app/_components/opportunity-command-center";
 import { buildOpportunityBuckets, listOpenOpportunities } from "@/lib/opportunities/read-model";
 
-import { scanOpportunitiesAction } from "./actions";
+import {
+  dismissOpportunityAction,
+  draftOpportunityWithArcAction,
+  scanOpportunitiesAction,
+  snoozeOpportunityAction,
+} from "./actions";
 
 export default async function OpportunitiesPage({
   searchParams,
@@ -12,6 +17,43 @@ export default async function OpportunitiesPage({
   const { action } = await searchParams;
   const records = await listOpenOpportunities();
   const buckets = buildOpportunityBuckets(records);
+  const bucketsWithActions = buckets.map((b) => ({
+    ...b,
+    rows: b.rows.map((r) => ({
+      ...r,
+      actions: (
+        <div className="flex flex-wrap gap-2">
+          <form action={draftOpportunityWithArcAction}>
+            <input type="hidden" name="id" value={r.id} />
+            <button
+              type="submit"
+              className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--accent-contrast)]"
+            >
+              Draft with Arc
+            </button>
+          </form>
+          <form action={dismissOpportunityAction}>
+            <input type="hidden" name="id" value={r.id} />
+            <button
+              type="submit"
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)]"
+            >
+              Dismiss
+            </button>
+          </form>
+          <form action={snoozeOpportunityAction}>
+            <input type="hidden" name="id" value={r.id} />
+            <button
+              type="submit"
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)]"
+            >
+              Snooze
+            </button>
+          </form>
+        </div>
+      ),
+    })),
+  }));
 
   return (
     <>
@@ -36,9 +78,16 @@ export default async function OpportunitiesPage({
         }
       />
 
-      <ActionFeedback action={action} messages={{ scanned: "Scan complete." }} />
+      <ActionFeedback
+        action={action}
+        messages={{
+          scanned: "Scan complete.",
+          drafting: "Arc is drafting a campaign — it'll appear in Campaigns for approval.",
+          "draft-error": "Couldn't load that opportunity.",
+        }}
+      />
 
-      <OpportunityCommandCenter buckets={buckets} />
+      <OpportunityCommandCenter buckets={bucketsWithActions} />
     </>
   );
 }

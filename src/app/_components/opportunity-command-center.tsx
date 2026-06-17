@@ -20,6 +20,7 @@ export type OpportunityRow = {
   urgencyTag?: string;
   sourceTag?: string;
   lifecycleTag?: string;
+  actions?: React.ReactNode;
 };
 
 export type OpportunityBucket = {
@@ -144,31 +145,33 @@ export function OpportunityCommandCenter({ buckets }: { buckets: OpportunityBuck
           {visibleRows.length > 0 ? (
             <div className="divide-y divide-[var(--border-hairline)]">
               {visibleRows.slice(0, 8).map((row) => (
-                <Link
-                  className="group block px-5 py-4 transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                  href={row.href}
-                  key={row.id}
-                >
-                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="line-clamp-1 font-bold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">
-                          {row.record}
-                        </span>
-                        <StatusPill tone={row.tone}>{row.stage}</StatusPill>
+                <div className="group px-5 py-4 transition hover:bg-[var(--surface-inset)]" key={row.id}>
+                  <Link
+                    className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                    href={row.href}
+                  >
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="line-clamp-1 font-bold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">
+                            {row.record}
+                          </span>
+                          <StatusPill tone={row.tone}>{row.stage}</StatusPill>
+                        </div>
+                        <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{row.account}</p>
+                        <p className="mt-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{row.nextStep}</p>
                       </div>
-                      <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">{row.account}</p>
-                      <p className="mt-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{row.nextStep}</p>
+                      <div className="font-mono text-sm font-bold tabular-nums text-[var(--accent)] lg:text-right">{row.value}</div>
                     </div>
-                    <div className="font-mono text-sm font-bold tabular-nums text-[var(--accent)] lg:text-right">{row.value}</div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
-                    {row.personaTag ? <Tag>{humanizeTag(row.personaTag)}</Tag> : null}
-                    {row.urgencyTag ? <Tag>{humanizeTag(row.urgencyTag)}</Tag> : null}
-                    {row.sourceTag ? <Tag>{humanizeTag(row.sourceTag)}</Tag> : null}
-                    {row.lifecycleTag ? <Tag>{humanizeTag(row.lifecycleTag)}</Tag> : null}
-                  </div>
-                </Link>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
+                      {row.personaTag ? <Tag>{humanizeTag(row.personaTag)}</Tag> : null}
+                      {row.urgencyTag ? <Tag>{humanizeTag(row.urgencyTag)}</Tag> : null}
+                      {row.sourceTag ? <Tag>{humanizeTag(row.sourceTag)}</Tag> : null}
+                      {row.lifecycleTag ? <Tag>{humanizeTag(row.lifecycleTag)}</Tag> : null}
+                    </div>
+                  </Link>
+                  {row.actions ? <div className="mt-3">{row.actions}</div> : null}
+                </div>
               ))}
             </div>
           ) : (
