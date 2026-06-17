@@ -78,3 +78,12 @@ export async function createSignedReadUrl(objectPath: string, ttlMs = 60 * 60 * 
     .getSignedUrl({ version: "v4", action: "read", expires: Date.now() + ttlMs });
   return url;
 }
+
+/** Server-side upload of raw bytes (e.g. AI-generated media). Returns the object path. */
+export async function uploadObject(objectPath: string, bytes: Buffer, contentType: string): Promise<string> {
+  await getStorage()
+    .bucket(getBucketName())
+    .file(objectPath)
+    .save(bytes, { contentType, resumable: false });
+  return objectPath;
+}
