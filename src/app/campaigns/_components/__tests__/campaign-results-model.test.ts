@@ -13,7 +13,6 @@ function dispatch(partial: Partial<DispatchView> & { status: DispatchStatus }): 
     assetId: "a1",
     deliverable: "Welcome email",
     channel: "Email",
-    status: partial.status,
     scheduledFor: null,
     dispatchedAt: null,
     recipientSummary: null,

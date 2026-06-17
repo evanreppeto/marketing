@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { Button, buttonClasses } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
 import { saveAgentNameAction } from "@/app/settings/app-settings-actions";
 import { getAgentConnectionInfoAction, type AgentConnectionInfo } from "../actions";
+import { useDialogA11y } from "./use-dialog-a11y";
 
 const inputClass =
   "min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]";
@@ -19,14 +20,13 @@ const inputClass =
 export function AgentSettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [info, setInfo] = useState<AgentConnectionInfo | null>(null);
   const [state, action, pending] = useActionState(saveAgentNameAction, null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useDialogA11y<HTMLDivElement>(open);
 
   useEffect(() => {
     if (!open) return;
     getAgentConnectionInfoAction()
       .then(setInfo)
       .catch(() => {});
-    panelRef.current?.focus();
   }, [open]);
 
   useEffect(() => {
