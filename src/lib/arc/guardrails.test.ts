@@ -3,44 +3,35 @@ import { describe, expect, it } from "vitest";
 import { checkArcGeneratedCopy } from "./guardrails";
 
 describe("checkArcGeneratedCopy", () => {
-  it("allows coverage-neutral partner outreach with owner approval", () => {
-    const result = checkArcGeneratedCopy({
-      draftOutput:
-        "Big Shoulders Restoration can help with mitigation, documentation, and rebuild coordination after your team stops the source.",
-      lossSignals: ["water_backup"],
-      restorationFocus: "water_backup",
-    });
-
-    expect(result).toMatchObject({
-      riskLevel: "low",
-      approvalStatus: "pending_owner_approval",
-      blockedPhrases: [],
-    });
+  it("always applies the universal baseline (human review + outbound locked)", () => {
+    const result = checkArcGeneratedCopy({ draftOutput: "Hello from Acme Co. Want to chat?" });
+    expect(result.riskLevel).toBe("low");
+    expect(result.approvalStatus).toBe("pending_owner_approval");
+    expect(result.blockedPhrases).toEqual([]);
     expect(result.flags).toContain("Human review required");
-    expect(result.flags).toContain("No coverage promise detected");
+    expect(result.flags).toContain("Outbound locked until approved");
   });
 
-  it("blocks insurance and claim outcome promises", () => {
+  it("blocks copy that contains one of the org's banned phrases (case-insensitive)", () => {
     const result = checkArcGeneratedCopy({
-      draftOutput: "We guarantee your insurance will cover the claim and the claim will be approved.",
-      lossSignals: ["water_backup"],
-      restorationFocus: "water_backup",
+      draftOutput: "We guarantee your INSURANCE WILL COVER the claim.",
+      bannedPhrases: ["insurance will cover", "we guarantee"],
+      complianceNotes: "Coverage-neutral language required.",
     });
-
     expect(result.riskLevel).toBe("blocked");
     expect(result.approvalStatus).toBe("needs_compliance");
-    expect(result.blockedPhrases).toContain("Insurance outcome promise");
-    expect(result.blockedPhrases).toContain("Claim approval promise");
+    expect(result.blockedPhrases).toContain("insurance will cover");
+    expect(result.blockedPhrases).toContain("we guarantee");
+    expect(result.complianceNotes).toBe("Coverage-neutral language required.");
   });
 
-  it("blocks off-scope exterior-only loss requests", () => {
+  it("ignores empty/whitespace banned phrases and passes clean copy", () => {
     const result = checkArcGeneratedCopy({
-      draftOutput: "Create partner outreach for exterior roof work.",
-      lossSignals: ["hail-only", "roof-only"],
-      restorationFocus: "water_backup",
+      draftOutput: "A friendly note from Acme.",
+      bannedPhrases: ["", "   "],
     });
-
-    expect(result.riskLevel).toBe("blocked");
-    expect(result.flags).toContain("Off-scope exterior-only loss blocked");
+    expect(result.riskLevel).toBe("low");
+    expect(result.blockedPhrases).toEqual([]);
+    expect(result.flags).toContain("No banned phrase detected");
   });
 });

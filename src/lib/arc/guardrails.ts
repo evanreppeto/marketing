@@ -8,60 +8,45 @@ export type ArcGuardrailResult = {
   blockedPhrases: string[];
 };
 
-const BLOCKED_COPY_PATTERNS: Array<[RegExp, string]> = [
-  [/\binsurance\s+(will|is going to|should)\s+(cover|pay|approve)\b/i, "Insurance outcome promise"],
-  [/\bclaim\s+(will|is going to|should)\s+be\s+approved\b/i, "Claim approval promise"],
-  [/\bguaranteed\s+(payout|coverage|approval|payment)\b/i, "Guaranteed insurance result"],
-  [/\bwe\s+guarantee\b/i, "Unsupported guarantee"],
-];
-
-const OFF_SCOPE_LOSS_PATTERNS = [/\bhail[-\s]?only\b/i, /\bwind[-\s]?only\b/i, /\broof[-\s]?only\b/i, /\bexterior[-\s]?only\b/i];
-
+/**
+ * Industry-agnostic guardrail check for Arc-generated copy.
+ *
+ * Two non-negotiable baseline flags are ALWAYS applied (human review + outbound
+ * locked) — Arc never sends without human approval. Beyond that, copy is blocked
+ * only when it contains one of the org's configured banned phrases (from the
+ * Brand Kit). Business-specific rules (e.g. BSR's insurance-claim phrases) live
+ * in that per-org list, not in this engine.
+ */
 export function checkArcGeneratedCopy(input: {
   draftOutput: string;
-  lossSignals?: string[];
-  restorationFocus?: string;
+  bannedPhrases?: string[];
+  complianceNotes?: string;
 }): ArcGuardrailResult {
-  const blockedPhrases = BLOCKED_COPY_PATTERNS
-    .filter(([pattern]) => pattern.test(input.draftOutput))
-    .map(([, label]) => label);
-  const lossText = [input.restorationFocus, ...(input.lossSignals ?? [])].filter(Boolean).join(" ");
-  const offScopeLoss = OFF_SCOPE_LOSS_PATTERNS.some((pattern) => pattern.test(lossText));
-  const flags = new Set<string>();
+  const haystack = input.draftOutput.toLowerCase();
+  const blockedPhrases = (input.bannedPhrases ?? [])
+    .map((phrase) => phrase.trim())
+    .filter((phrase) => phrase.length > 0 && haystack.includes(phrase.toLowerCase()));
 
-  flags.add("Human review required");
-  flags.add("Outbound locked until approved");
+  const flags = new Set<string>(["Human review required", "Outbound locked until approved"]);
 
   if (blockedPhrases.length > 0) {
-    flags.add("Coverage or guarantee language blocked");
-  } else {
-    flags.add("No coverage promise detected");
-    flags.add("No claim approval language detected");
-  }
-
-  if (offScopeLoss) {
-    flags.add("Off-scope exterior-only loss blocked");
-  }
-
-  if (blockedPhrases.length > 0 || offScopeLoss) {
+    flags.add("Banned phrase detected");
     return {
       riskLevel: "blocked",
       approvalStatus: "needs_compliance",
-      complianceNotes: "Blocked by Arc guardrails. Rewrite before owner approval.",
+      complianceNotes:
+        input.complianceNotes ?? "Blocked by guardrails: contains disallowed language. Rewrite before owner approval.",
       flags: [...flags],
       blockedPhrases,
     };
   }
 
-  const insuranceMentioned = /\binsurance|claim|coverage\b/i.test(input.draftOutput);
-
+  flags.add("No banned phrase detected");
   return {
-    riskLevel: insuranceMentioned ? "medium" : "low",
+    riskLevel: "low",
     approvalStatus: "pending_owner_approval",
-    complianceNotes: insuranceMentioned
-      ? "Review before outbound. Draft is coverage-neutral and avoids insurance outcome promises."
-      : "Review before outbound. Draft avoids coverage, claim approval, and payout promises.",
+    complianceNotes: input.complianceNotes ?? "Review before outbound. No disallowed language detected.",
     flags: [...flags],
-    blockedPhrases,
+    blockedPhrases: [],
   };
 }
