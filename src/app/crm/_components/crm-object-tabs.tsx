@@ -1,4 +1,15 @@
 import Link from "next/link";
+import {
+  BriefcaseBusiness,
+  Building2,
+  CircleDollarSign,
+  ContactRound,
+  Home,
+  MapPin,
+  SlidersHorizontal,
+  Trophy,
+  type LucideIcon,
+} from "lucide-react";
 
 import { crmObjects } from "../../_data/growth-engine";
 
@@ -11,8 +22,19 @@ const objectTabOrder = [
     label: object.label,
     href: object.href,
   })),
-  { key: "builder", label: "Customize", href: "/crm/customize" },
+  { key: "builder", label: "Object studio", href: "/crm/customize" },
 ];
+
+const tabIcons: Record<string, LucideIcon> = {
+  accounts: Building2,
+  builder: SlidersHorizontal,
+  contacts: ContactRound,
+  home: Home,
+  leads: Trophy,
+  opportunities: BriefcaseBusiness,
+  outcomes: CircleDollarSign,
+  properties: MapPin,
+};
 
 export function CrmObjectTabs({
   activeObject,
@@ -24,34 +46,40 @@ export function CrmObjectTabs({
   counts?: Partial<Record<CrmObjectKey, number>>;
 }) {
   return (
-    <section className="signal-panel module-rise overflow-hidden p-0 [animation-delay:40ms]">
-      <nav aria-label="CRM object tabs" className="flex overflow-x-auto">
+    <section className="module-rise border-b border-[var(--border-hairline)] pb-3 [animation-delay:40ms]">
+      <nav aria-label="CRM object tabs" className="flex gap-1 overflow-x-auto">
         {objectTabOrder.map((tab) => {
           const isHome = tab.key === "home";
           const isBuilder = tab.key === "builder";
           const isActive = isBuilder ? activeBuilder : isHome ? !activeObject && !activeBuilder : tab.key === activeObject;
           const count = !isHome && !isBuilder ? counts?.[tab.key as CrmObjectKey] : undefined;
+          const Icon = tabIcons[tab.key] ?? BriefcaseBusiness;
 
           return (
             <Link
               aria-current={isActive ? "page" : undefined}
-              className={`flex min-h-14 shrink-0 items-center gap-2 border-r border-[var(--border-hairline)] px-5 text-sm font-semibold transition active:translate-y-px ${
+              className={`relative flex min-h-10 shrink-0 items-center gap-2 rounded px-3 text-sm font-semibold transition duration-150 ease-out active:translate-y-px ${
                 isActive
-                  ? "border-b-2 border-b-[var(--accent)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                  ? "text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
               href={tab.href}
               key={tab.key}
             >
+              <Icon aria-hidden className={isActive ? "h-4 w-4 text-[var(--accent)]" : "h-4 w-4 text-[var(--text-muted)]"} strokeWidth={1.8} />
               <span>{tab.label}</span>
               {typeof count === "number" ? (
                 <span
-                  className={`rounded-full px-2 py-0.5 font-mono text-[11px] ${
-                    isActive ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "bg-[var(--surface-inset)] text-[var(--text-muted)]"
-                  }`}
+                  className={`font-mono text-[11px] tabular-nums ${isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}
                 >
                   {count.toLocaleString("en-US")}
                 </span>
+              ) : null}
+              {isActive ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] shadow-[0_0_14px_rgba(199,166,92,0.32)]"
+                />
               ) : null}
             </Link>
           );

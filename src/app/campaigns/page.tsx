@@ -120,11 +120,19 @@ function CampaignsHeader({ pendingCount, agentName }: { pendingCount: number; ag
       description="See each campaign's audience, goal, drafts, messages, and media in one readable place."
       aside={
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {pendingCount > 0 ? <StatusPill tone="amber">{pendingCount} need attention</StatusPill> : <StatusPill tone="green">Nothing waiting</StatusPill>}
-          <Link href="/campaigns/new" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+          {pendingCount > 0 ? (
+            <StatusPill tone="amber" className="bg-transparent">
+              {pendingCount} need attention
+            </StatusPill>
+          ) : (
+            <StatusPill tone="green" className="bg-transparent">
+              Nothing waiting
+            </StatusPill>
+          )}
+          <Link href="/campaigns/new" className={buttonClasses({ variant: "ghost", size: "sm", className: "rounded-[4px]" })}>
             New campaign
           </Link>
-          <Link href="/campaigns/new#ask-arc" className={buttonClasses({ size: "sm" })}>
+          <Link href="/campaigns/new#ask-arc" className={buttonClasses({ size: "sm", className: "rounded-[4px]" })}>
             Ask {agentName}
           </Link>
         </div>

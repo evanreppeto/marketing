@@ -30,15 +30,17 @@ export function ToggleChart({
   return (
     <div>
       <div className="flex justify-end px-4 pt-3">
-        <div className="inline-flex overflow-hidden rounded-lg border border-[var(--border-panel)]">
+        <div className="inline-flex gap-1 border-b border-[var(--border-hairline)]">
           {(["bars", "donut"] as const).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => setMode(value)}
-              className={`px-3 py-1 text-xs font-semibold capitalize transition ${mode === value ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"}`}
+              aria-pressed={mode === value}
+              className={`relative rounded px-3 py-2 text-xs font-semibold capitalize transition duration-150 active:translate-y-px ${mode === value ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {value}
+              {mode === value ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
             </button>
           ))}
         </div>

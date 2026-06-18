@@ -56,7 +56,7 @@ export function CampaignBriefTabs({
           {activeStep ? <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${stepDotClass(activeStep.state)}`} title={activeStep.label} /> : null}
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-1">
+        <div className="mt-3 grid grid-cols-3 gap-1 border-b border-[var(--border-hairline)]">
           {tabs.map((tab) => {
             const active = activeTab === tab.key;
             return (
@@ -64,14 +64,15 @@ export function CampaignBriefTabs({
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`min-h-9 rounded-md px-2 text-xs font-bold transition ${
+                className={`relative min-h-9 rounded px-2 text-xs font-bold transition ${
                   active
-                    ? "bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
-                    : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {tab.label}
                 {typeof tab.count === "number" ? <span className="ml-1 font-mono text-[11px] opacity-80">{tab.count}</span> : null}
+                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
               </button>
             );
           })}

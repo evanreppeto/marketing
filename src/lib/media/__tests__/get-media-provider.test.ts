@@ -29,7 +29,8 @@ afterEach(() => {
 });
 
 function lastOpts(): { imageModel?: string; videoModel?: string } {
-  return createGeminiMediaProvider.mock.calls.at(-1)![1] as { imageModel?: string; videoModel?: string };
+  const calls = createGeminiMediaProvider.mock.calls as unknown as Array<[unknown, { imageModel?: string; videoModel?: string }?]>;
+  return calls.at(-1)?.[1] ?? {};
 }
 
 describe("getMediaProvider precedence", () => {

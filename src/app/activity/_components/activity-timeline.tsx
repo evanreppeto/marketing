@@ -91,7 +91,7 @@ export function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
 
       {/* Filter + search header */}
       <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filter activity">
+        <div className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)]" role="tablist" aria-label="Filter activity">
           {QUICK_FILTERS.map((filter) => {
             const isActive = filter.key === active;
             const count = counts[filter.key] ?? 0;
@@ -103,10 +103,10 @@ export function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                 aria-selected={isActive}
                 onClick={() => setActive(filter.key)}
                 className={cx(
-                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-[transform,background-color,border-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] active:translate-y-px",
+                  "relative inline-flex items-center gap-1.5 rounded px-3 py-2 text-[12px] font-semibold transition duration-150 active:translate-y-px",
                   isActive
-                    ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                    : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:-translate-y-px hover:border-[var(--accent)] hover:text-[var(--text-primary)]",
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                 )}
               >
                 {filter.label}
@@ -118,6 +118,7 @@ export function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                 >
                   {count}
                 </span>
+                {isActive ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
               </button>
             );
           })}

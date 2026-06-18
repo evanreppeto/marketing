@@ -46,7 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const resolvedFavicon = identity.faviconUrl ?? brandFaviconUrl;
   return {
     title: `${resolvedName} | ${productLabel}`,
-    description: "AI-native CRM, persona intelligence, routing, and campaign operations.",
+    description: "Campaign planning, approvals, CRM, and performance workspace for service businesses.",
     icons: {
       icon: resolvedFavicon,
       apple: resolvedFavicon,

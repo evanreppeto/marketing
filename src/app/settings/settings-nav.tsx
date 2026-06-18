@@ -14,15 +14,16 @@ export function SettingsNav({ active }: { active: SettingsSectionId }) {
             <Link
               aria-current={isActive ? "page" : undefined}
               className={cx(
-                "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-semibold transition lg:w-full",
+                "relative shrink-0 whitespace-nowrap rounded px-3 py-2 text-left text-sm font-semibold transition lg:w-full",
                 isActive
-                  ? "bg-[var(--accent-soft)] text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
+                  ? "text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
               )}
               href={`/settings?section=${section.id}`}
               key={section.id}
             >
               {section.label}
+              {isActive ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)] lg:inset-x-auto lg:inset-y-2 lg:right-2 lg:h-auto lg:w-px" /> : null}
             </Link>
           );
         })}

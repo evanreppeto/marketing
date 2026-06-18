@@ -9,11 +9,11 @@ import { buttonClasses, EmptyState } from "./page-header";
 export function ConnectAgentPanel({ agentName }: { agentName: string }) {
   return (
     <EmptyState
-      title={`Connect your ${agentName} agent`}
-      detail={`No agent is wired up yet. Point this workspace at your Arc agent by setting its runner endpoint (ARC_RUNNER_URL) and API token (ARC_AGENT_API_TOKEN) in the environment. Once connected, ${agentName}'s drafts and approvals appear here automatically. Check status anytime in System status.`}
+      title={`Finish the ${agentName} connection`}
+      detail={`This workspace can hold briefs, drafts, and approvals now. Connect the runner when you want ${agentName} to prepare work in the background, then send a test ping before relying on live tasks.`}
       action={
-        <Link href="/settings" className={buttonClasses({ size: "sm" })}>
-          Open System status
+        <Link href="/settings?section=agent" className={buttonClasses({ size: "sm" })}>
+          Open agent setup
         </Link>
       }
     />

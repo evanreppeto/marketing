@@ -869,7 +869,7 @@ export function Composer({
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
                   disabled
                     ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
-                    : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)] active:scale-95",
+                    : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)] active:scale-95",
                 )}
               >
                 {isPending ? <Spinner /> : <SendIcon />}

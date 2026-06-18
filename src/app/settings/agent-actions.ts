@@ -10,6 +10,7 @@ import { writeWebhookSecret } from "@/lib/agent/secret";
 import { createArcSetupBundle, generateWebhookSecret, type ArcSetupBundle } from "@/lib/agent/setup-bundle";
 import { issueAgentToken, revokeAgentToken } from "@/lib/agent/tokens";
 import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type AgentActionState = { ok: boolean; message: string } | null;
@@ -33,16 +34,31 @@ export async function saveAgentConnectionAction(formData: FormData): Promise<voi
   const enabled = formData.get("enabled") === "on";
 
   const client = getSupabaseAdminClient() as SupabaseClient;
-  const { error } = await client.from("agent_connections").upsert(
-    {
-      workspace_id: DEFAULT_WORKSPACE_ID,
-      display_name: displayName,
-      agent_key: agentKey,
-      webhook_url: webhookUrl,
-      enabled,
-    },
-    { onConflict: "workspace_id" },
-  );
+  const context = await getCurrentWorkspaceContext().catch(() => null);
+  const payload = {
+    ...(context?.orgId ? { org_id: context.orgId } : {}),
+    workspace_id: context?.workspaceKey ?? DEFAULT_WORKSPACE_ID,
+    display_name: displayName,
+    agent_key: agentKey,
+    webhook_url: webhookUrl,
+    enabled,
+  };
+  let { error } = await client.from("agent_connections").upsert(payload, {
+    onConflict: context?.orgId ? "org_id,workspace_id" : "workspace_id",
+  });
+
+  if (error && context?.orgId) {
+    const legacyPayload = {
+      workspace_id: payload.workspace_id,
+      display_name: payload.display_name,
+      agent_key: payload.agent_key,
+      webhook_url: payload.webhook_url,
+      enabled: payload.enabled,
+    };
+    const legacyResult = await client.from("agent_connections").upsert(legacyPayload, { onConflict: "workspace_id" });
+    error = legacyResult.error;
+  }
+
   if (error) throw new Error(`agent_connections save: ${error.message}`);
   revalidatePath("/settings");
 }
@@ -86,14 +102,33 @@ export async function generateAgentSetupBundleAction(formData: FormData): Promis
     const selectedSkillIds = formData.getAll("marketing_skill_ids").map((value) => String(value));
     const customInstructions = String(formData.get("marketing_custom_instructions") ?? "").trim();
     const client = getSupabaseAdminClient() as SupabaseClient;
-    const { error: connectionError } = await client
-      .from("agent_connections")
-      .upsert({ workspace_id: DEFAULT_WORKSPACE_ID, enabled: true }, { onConflict: "workspace_id", ignoreDuplicates: true });
+    const context = await getCurrentWorkspaceContext().catch(() => null);
+    const connectionPayload = {
+      ...(context?.orgId ? { org_id: context.orgId } : {}),
+      workspace_id: context?.workspaceKey ?? DEFAULT_WORKSPACE_ID,
+      enabled: true,
+    };
+    let { error: connectionError } = await client.from("agent_connections").upsert(connectionPayload, {
+      onConflict: context?.orgId ? "org_id,workspace_id" : "workspace_id",
+      ignoreDuplicates: true,
+    });
+
+    if (connectionError && context?.orgId) {
+      const legacyPayload = {
+        workspace_id: connectionPayload.workspace_id,
+        enabled: connectionPayload.enabled,
+      };
+      const legacyResult = await client
+        .from("agent_connections")
+        .upsert(legacyPayload, { onConflict: "workspace_id", ignoreDuplicates: true });
+      connectionError = legacyResult.error;
+    }
+
     if (connectionError) throw new Error(`agent_connections ensure: ${connectionError.message}`);
 
     const webhookSecret = generateWebhookSecret();
-    await writeWebhookSecret(webhookSecret, client);
-    const { plaintext } = await issueAgentToken("Arc setup bundle", client);
+    await writeWebhookSecret(webhookSecret);
+    const { plaintext } = await issueAgentToken("Arc setup bundle");
 
     revalidatePath("/settings");
     return {

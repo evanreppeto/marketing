@@ -41,7 +41,7 @@ export const crmObjects = [
     href: "/crm/leads",
     description: "Incoming demand, referrals, prospects, scores, source, and routing.",
     primaryField: "Lead",
-    secondaryField: "Signal",
+    secondaryField: "Source",
   },
   {
     key: "jobs",

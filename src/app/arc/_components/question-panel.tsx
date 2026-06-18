@@ -45,7 +45,7 @@ function QuestionCard({ question, onAnswer }: { question: ArcQuestion; onAnswer:
                 className={cx(
                   CHIP_BASE,
                   selected.includes(opt)
-                    ? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent)]"
+                    ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[inset_0_0_0_1px_var(--accent)]"
                     : "text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] hover:text-[var(--text-primary)]",
                 )}
               >
@@ -76,7 +76,7 @@ function QuestionCard({ question, onAnswer }: { question: ArcQuestion; onAnswer:
           type="button"
           onClick={sendSelected}
           disabled={selected.length === 0}
-          className="mt-2 rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-contrast)] transition disabled:opacity-40"
+          className="mt-2 rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)] disabled:opacity-40"
         >
           Send{selected.length > 0 ? ` (${selected.length})` : ""}
         </button>

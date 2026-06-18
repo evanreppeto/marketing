@@ -46,35 +46,39 @@ export const theme = {
     focus: "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
     input:
       "min-h-11 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
-    tabBase: "rounded-lg border px-4 py-3 transition duration-200 active:translate-y-px",
-    tabActive: "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]",
-    tabIdle:
-      "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
+    tabList: "module-rise flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3",
+    tabBase: "relative shrink-0 rounded px-3 py-2.5 transition duration-150 active:translate-y-px",
+    tabActive: "text-[var(--text-primary)]",
+    tabIdle: "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
     cardInteractive:
       "transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
     kbd: "rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono",
-    tabBadge: "rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent-contrast)]",
+    tabBadge: "font-mono text-xs font-semibold tabular-nums text-[var(--text-muted)]",
     backLink:
       "mb-3 inline-flex min-h-9 items-center gap-2 self-start rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] hover:text-[var(--accent)]",
   },
   button: {
     base:
-      "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md font-semibold transition duration-200 ease-out active:translate-y-px focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60",
+      "inline-flex cursor-pointer items-center justify-center gap-2 rounded-[4px] border border-transparent font-semibold shadow-[var(--elev-control)] transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--elev-control-hover)] active:translate-y-px active:shadow-[var(--elev-control)] focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none disabled:hover:translate-y-0",
     sizes: {
       md: "min-h-11 px-4 text-sm",
       sm: "min-h-9 px-3 text-xs",
     } satisfies Record<ButtonSize, string>,
     variants: {
-      primary: "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-strong)]",
-      priority: "bg-[var(--priority-solid)] text-[var(--on-priority)] hover:bg-[var(--priority-hover)]",
+      primary:
+        "border-[var(--accent-border-strong)] bg-[var(--accent)] text-[var(--on-accent)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] active:bg-[var(--accent-active)]",
+      priority:
+        "border-[var(--priority-border)] bg-[var(--priority-solid)] text-[var(--on-priority)] hover:border-[var(--priority-bright)] hover:bg-[var(--priority-hover)]",
       ghost:
-        "border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)]",
-      approve: "border border-[var(--ok-border)] bg-[var(--ok-solid)] text-[var(--on-ok)] hover:bg-[var(--ok-hover)]",
+        "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] shadow-none hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--accent-contrast)]",
+      approve:
+        "border-[var(--ok-border)] bg-[var(--ok-solid)] text-[var(--on-ok)] hover:border-[var(--ok-hover)] hover:bg-[var(--ok-hover)]",
       decline:
-        "border border-[var(--priority-border)] bg-[var(--priority-solid)] text-[var(--on-priority)] hover:bg-[var(--priority-bright)]",
+        "border-[var(--priority-border)] bg-[var(--priority-solid)] text-[var(--on-priority)] hover:border-[var(--priority-bright)] hover:bg-[var(--priority-bright)]",
       archive:
-        "border border-[var(--neutral-border)] bg-[var(--neutral-solid)] text-[var(--neutral-on)] hover:bg-[var(--neutral-hover)]",
-      revision: "border border-[var(--warn-border)] bg-[var(--warn-solid)] text-[var(--on-warn)] hover:bg-[var(--warn-hover)]",
+        "border-[var(--neutral-border)] bg-[var(--neutral-solid)] text-[var(--neutral-on)] hover:border-[var(--border-strong)] hover:bg-[var(--neutral-hover)]",
+      revision:
+        "border-[var(--warn-border)] bg-[var(--warn-solid)] text-[var(--on-warn)] hover:border-[var(--warn-hover)] hover:bg-[var(--warn-hover)]",
     } satisfies Record<ButtonVariant, string>,
   },
   pill: {

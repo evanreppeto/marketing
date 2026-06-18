@@ -27,7 +27,7 @@ export default async function OpportunitiesPage({
             <input type="hidden" name="id" value={r.id} />
             <button
               type="submit"
-              className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--accent-contrast)]"
+              className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--on-accent)]"
             >
               Draft with Arc
             </button>
@@ -70,7 +70,7 @@ export default async function OpportunitiesPage({
           <form action={scanOpportunitiesAction}>
             <button
               type="submit"
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--accent-contrast)]"
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--on-accent)]"
             >
               Scan for opportunities
             </button>

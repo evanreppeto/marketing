@@ -33,18 +33,19 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
         <div className="mt-3">
           <nav
             aria-label="CRM object navigation"
-            className="flex flex-wrap gap-1 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1"
+            className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)]"
           >
             <Link
               aria-current={!activeObject ? "page" : undefined}
-              className={`inline-flex min-h-9 shrink-0 cursor-pointer items-center rounded px-3 text-sm font-semibold transition ${
+              className={`relative inline-flex min-h-9 shrink-0 cursor-pointer items-center rounded px-3 text-sm font-semibold transition ${
                 activeObject
-                  ? "text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-                  : "bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent-border)]"
+                  ? "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  : "text-[var(--text-primary)]"
               }`}
               href="/crm"
             >
               Home
+              {!activeObject ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
             </Link>
             {crmObjects.map((object) => {
               const isActive = object.key === activeObject;
@@ -52,10 +53,10 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
               return (
                 <Link
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-2 rounded px-3 text-sm font-semibold transition ${
+                  className={`relative inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-2 rounded px-3 text-sm font-semibold transition ${
                     isActive
-                      ? "bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent-border)]"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+                      ? "text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                   href={object.href}
                   key={object.key}
@@ -64,6 +65,7 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
                   <span className={`font-mono text-[11px] ${isActive ? "text-[var(--accent)]" : "text-[var(--accent)] opacity-80"}`}>
                     {counts?.[object.key] ?? 0}
                   </span>
+                  {isActive ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
                 </Link>
               );
             })}

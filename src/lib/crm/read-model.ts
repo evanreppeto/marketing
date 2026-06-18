@@ -2093,7 +2093,7 @@ const objectMetaByKey: Record<
     label: "Leads",
     description: "Incoming demand, referrals, prospects, scores, source, and routing.",
     primaryField: "Lead",
-    secondaryField: "Signal",
+    secondaryField: "Source",
   },
   jobs: {
     label: "Projects",

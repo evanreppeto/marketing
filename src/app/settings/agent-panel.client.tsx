@@ -304,7 +304,7 @@ export function AgentSetupBundle({
                 <p className="mt-1">After Arc says verification passed, send one short {agentName} message.</p>
               </div>
               <Link
-                className="inline-flex min-h-9 items-center rounded-md border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent-contrast)] transition hover:opacity-90"
+                className="inline-flex min-h-9 items-center rounded-md border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--on-accent)] transition hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]"
                 href="/arc"
               >
                 Open {agentName}

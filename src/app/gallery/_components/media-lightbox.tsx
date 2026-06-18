@@ -70,7 +70,7 @@ export function MediaLightbox({ item, onClose }: { item: GalleryItem | null; onC
           <div className="mt-auto flex gap-2 pt-3">
             <Link
               href={`/campaigns/${item.campaignId}`}
-              className="flex-1 rounded-md bg-[var(--accent)] px-3 py-2 text-center text-sm font-semibold text-[var(--accent-contrast)]"
+              className="flex-1 rounded-md bg-[var(--accent)] px-3 py-2 text-center text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)]"
             >
               Open campaign →
             </Link>

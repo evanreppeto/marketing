@@ -1,0 +1,210 @@
+import { cache } from "react";
+
+import { createServerClient } from "@supabase/ssr";
+import { type SupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+
+import { getAuthMode, getSupabaseAnonKey, getSupabaseAuthUrl } from "./auth-mode";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+type QueryClient = SupabaseClient;
+
+export const DEFAULT_ORG_SLUG = process.env.DEFAULT_ORG_SLUG ?? "big-shoulders-restoration";
+export const DEFAULT_WORKSPACE_KEY = process.env.DEFAULT_WORKSPACE_KEY ?? "default";
+
+export type WorkspaceRole = "owner" | "admin" | "marketer" | "reviewer" | "member" | "viewer";
+
+export type WorkspaceContext = {
+  orgId: string;
+  orgSlug: string;
+  orgName: string;
+  workspaceId: string | null;
+  workspaceKey: string;
+  workspaceSlug: string;
+  workspaceName: string;
+  role: WorkspaceRole | null;
+  userId: string | null;
+  source: "membership" | "default-org" | "legacy-org";
+};
+
+type OrgRow = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+type WorkspaceRow = {
+  id: string;
+  org_id: string;
+  key: string;
+  slug: string;
+  name: string;
+};
+
+type WorkspaceMembershipRow = {
+  org_id: string;
+  workspace_id: string;
+  role: WorkspaceRole;
+};
+
+export class WorkspaceUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkspaceUnavailableError";
+  }
+}
+
+async function getSupabaseSessionUserId(): Promise<string | null> {
+  if (getAuthMode() !== "supabase") return null;
+
+  try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(getSupabaseAuthUrl(), getSupabaseAnonKey(), {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll() {
+          // Session refresh writes are handled by proxy.ts; workspace resolution is read-only.
+        },
+      },
+    });
+
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    return data.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchOrgById(client: QueryClient, orgId: string): Promise<OrgRow | null> {
+  const { data, error } = await client
+    .from("organizations")
+    .select("id,slug,name")
+    .eq("id", orgId)
+    .maybeSingle<OrgRow>();
+  if (error) throw new WorkspaceUnavailableError(error.message);
+  return data ?? null;
+}
+
+async function fetchDefaultOrg(client: QueryClient): Promise<OrgRow> {
+  const { data, error } = await client
+    .from("organizations")
+    .select("id,slug,name")
+    .eq("slug", DEFAULT_ORG_SLUG)
+    .maybeSingle<OrgRow>();
+  if (error) throw new WorkspaceUnavailableError(error.message);
+  if (!data) throw new WorkspaceUnavailableError(`No organization found for slug "${DEFAULT_ORG_SLUG}".`);
+  return data;
+}
+
+async function fetchWorkspaceById(client: QueryClient, workspaceId: string): Promise<WorkspaceRow | null> {
+  const { data, error } = await client
+    .from("workspaces")
+    .select("id,org_id,key,slug,name")
+    .eq("id", workspaceId)
+    .eq("status", "active")
+    .maybeSingle<WorkspaceRow>();
+  if (error) throw new WorkspaceUnavailableError(error.message);
+  return data ?? null;
+}
+
+async function fetchDefaultWorkspace(client: QueryClient, org: OrgRow): Promise<WorkspaceContext> {
+  const { data, error } = await client
+    .from("workspaces")
+    .select("id,org_id,key,slug,name")
+    .eq("org_id", org.id)
+    .eq("key", DEFAULT_WORKSPACE_KEY)
+    .eq("status", "active")
+    .maybeSingle<WorkspaceRow>();
+
+  if (error) {
+    return {
+      orgId: org.id,
+      orgSlug: org.slug,
+      orgName: org.name,
+      workspaceId: null,
+      workspaceKey: DEFAULT_WORKSPACE_KEY,
+      workspaceSlug: org.slug,
+      workspaceName: org.name,
+      role: null,
+      userId: null,
+      source: "legacy-org",
+    };
+  }
+
+  return {
+    orgId: org.id,
+    orgSlug: org.slug,
+    orgName: org.name,
+    workspaceId: data?.id ?? null,
+    workspaceKey: data?.key ?? DEFAULT_WORKSPACE_KEY,
+    workspaceSlug: data?.slug ?? org.slug,
+    workspaceName: data?.name ?? org.name,
+    role: null,
+    userId: null,
+    source: data ? "default-org" : "legacy-org",
+  };
+}
+
+async function fetchFirstMembership(client: QueryClient, userId: string): Promise<WorkspaceMembershipRow | null> {
+  const { data, error } = await client
+    .from("workspace_memberships")
+    .select("org_id,workspace_id,role")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<WorkspaceMembershipRow>();
+  if (error) throw new WorkspaceUnavailableError(error.message);
+  return data ?? null;
+}
+
+export async function resolveWorkspaceContextForUser(
+  client: QueryClient,
+  userId: string | null,
+): Promise<WorkspaceContext> {
+  if (userId) {
+    const membership = await fetchFirstMembership(client, userId);
+    if (membership) {
+      const [workspace, org] = await Promise.all([
+        fetchWorkspaceById(client, membership.workspace_id),
+        fetchOrgById(client, membership.org_id),
+      ]);
+
+      if (workspace && org) {
+        return {
+          orgId: org.id,
+          orgSlug: org.slug,
+          orgName: org.name,
+          workspaceId: workspace.id,
+          workspaceKey: workspace.key,
+          workspaceSlug: workspace.slug,
+          workspaceName: workspace.name,
+          role: membership.role,
+          userId,
+          source: "membership",
+        };
+      }
+    }
+
+    throw new WorkspaceUnavailableError("No active workspace membership is available for this user.");
+  }
+
+  const org = await fetchDefaultOrg(client);
+  return fetchDefaultWorkspace(client, org);
+}
+
+export const getCurrentWorkspaceContext = cache(async (): Promise<WorkspaceContext> => {
+  if (!isSupabaseAdminConfigured()) {
+    throw new WorkspaceUnavailableError("Supabase is not configured, so no workspace is available.");
+  }
+
+  const userId = await getSupabaseSessionUserId();
+  return resolveWorkspaceContextForUser(getSupabaseAdminClient(), userId);
+});
+
+export async function getCurrentWorkspaceKey(): Promise<string> {
+  return (await getCurrentWorkspaceContext()).workspaceKey;
+}

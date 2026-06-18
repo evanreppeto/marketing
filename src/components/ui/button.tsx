@@ -5,20 +5,21 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-[4px] border border-transparent text-sm font-semibold whitespace-nowrap shadow-[var(--elev-control)] transition-all duration-200 ease-out outline-none hover:-translate-y-0.5 hover:shadow-[var(--elev-control-hover)] active:translate-y-px active:shadow-[var(--elev-control)] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/45 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default:
+          "border-[var(--accent-border-strong)] bg-primary text-primary-foreground hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] active:bg-[var(--accent-active)]",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
+          "border-[var(--priority-border)] bg-destructive text-white hover:border-[var(--priority-bright)] hover:bg-[var(--priority-hover)] focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-primary)] shadow-none hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--accent-contrast)] dark:border-input dark:bg-input/30",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border-[var(--border-hairline)] bg-secondary text-secondary-foreground shadow-none hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border-transparent bg-transparent text-[var(--text-secondary)] shadow-none hover:border-[var(--border-hairline)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+        link: "border-transparent bg-transparent text-primary shadow-none hover:translate-y-0 hover:bg-transparent hover:shadow-none hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

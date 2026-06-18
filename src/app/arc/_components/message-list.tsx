@@ -592,7 +592,7 @@ function Message({
                 type="button"
                 onClick={saveEdit}
                 disabled={!editText.trim() || editText.trim() === message.body.trim()}
-                className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Save &amp; resend
               </button>

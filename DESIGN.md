@@ -44,6 +44,19 @@ Loaded via `next/font` in `src/app/layout.tsx`; exposed as Tailwind families.
 - **Inputs:** label above, helper/error below, inset surface, 44px min touch target.
 - **Empty states:** composed and instructive, dashed `--border-strong` on soft surface.
 
+## 4.1 Component Library Ownership
+
+The installed libraries support the Signal system; they do not replace it.
+
+- **Signal primitives own the app vocabulary.** `theme.ts`, `PageHeader`, `Button`, `StatusPill`, `Panel`, `DataTable`, and `TabNav` remain the visual contract. New components should compose these before introducing local class recipes.
+- **Radix owns behavior primitives.** Use Radix for accessible menus, popovers, collapsibles, dialogs, and other stateful interactions, then skin them with Signal tokens. Do not hand-roll focus trapping, menu keyboard behavior, or disclosure semantics.
+- **MUI is opt-in and wrapped.** Use MUI Joy/Material only for complex product controls that materially benefit from its maturity, such as dense forms, selects, settings controls, and future data-management surfaces. Never drop raw MUI styling into pages; wrap it behind Signal-named components and map it to CSS variables.
+- **dnd-kit owns drag behavior.** Use it for board and sortable workflows, with restrained motion and explicit state labels.
+- **cmdk owns command/search patterns.** Use it for command palette and quick-jump flows where keyboard-first behavior matters.
+- **Motion owns state feedback, not spectacle.** Keep transitions short, reduced-motion safe, and tied to state changes.
+- **Recharts and Cytoscape own specialized visualization.** Recharts belongs to analytics; Cytoscape belongs to Brain. Both must be token-themed and legible on dark surfaces.
+- **Rive and shader effects are brand moments only.** They may support Arc identity or empty states, but they should never become ambient decoration across ordinary workflow screens.
+
 ## 5. Layout Principles
 
 Persistent command rail + asymmetric content grids. Avoid repeated equal 3-column rows. Lead each route with the operational task, then supporting guidance, queues, and next actions. Constrain explanatory copy to ~65–74ch.

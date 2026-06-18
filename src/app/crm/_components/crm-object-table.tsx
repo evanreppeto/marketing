@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import FormControl from "@mui/material/FormControl";
+import MenuItem from "@mui/material/MenuItem";
+import Select, { type SelectChangeEvent } from "@mui/material/Select";
+import { ArrowRight, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { EmptyState, StatusPill } from "../../_components/page-header";
+import { EmptyState, StatusPill, buttonClasses } from "../../_components/page-header";
+import { CRM_FIELD_PRESETS, type CrmObjectKey, type CrmTableColumnKey } from "./crm-field-presets";
 import { type CrmObjectRow } from "@/lib/crm/read-model";
 
 type CrmListViewKey = "all-records" | "recently-updated" | "needs-review";
@@ -25,6 +30,7 @@ export function CrmObjectTable({
   activeViewDescription,
   activeViewLabel,
   objectHref,
+  objectKey,
   objectLabel,
   primaryField,
   rows,
@@ -36,6 +42,7 @@ export function CrmObjectTable({
   activeViewDescription: string;
   activeViewLabel: string;
   objectHref: string;
+  objectKey: CrmObjectKey;
   objectLabel: string;
   primaryField: string;
   rows: CrmObjectRow[];
@@ -52,6 +59,14 @@ export function CrmObjectTable({
   const [pageSize, setPageSize] = useState(8);
   const normalizedQuery = query.trim().toLowerCase();
   const personaOptions = useMemo(() => uniqueSorted(rows.map((row) => humanizeTag(row.personaTag))), [rows]);
+  const tableColumns = useMemo(
+    () => getTableColumns({
+      objectKey,
+      primaryField,
+      secondaryField,
+    }),
+    [objectKey, primaryField, secondaryField],
+  );
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -123,7 +138,7 @@ export function CrmObjectTable({
     clickTimeoutRef.current = window.setTimeout(() => {
       selectRecord(row);
       clickTimeoutRef.current = null;
-    }, 180);
+    }, 60);
   }
 
   function openRecordFromDoubleClick(row: CrmObjectRow) {
@@ -150,13 +165,13 @@ export function CrmObjectTable({
   return (
     <>
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-        <div className="grid gap-2 xl:grid-cols-[minmax(240px,1fr)_160px_150px_112px]">
+        <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2 xl:grid-cols-[minmax(260px,1fr)_180px_160px_150px]">
           <label className="relative block">
             <span className="sr-only">Search {objectLabel}</span>
-            <SearchIcon />
+            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" strokeWidth={1.9} />
             <input
               aria-label={`Search ${objectLabel}`}
-              className="h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] py-2 pl-9 pr-3 text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              className="h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-2 pl-9 pr-3 text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
               onChange={(event) => {
                 setQuery(event.target.value);
                 resetPage();
@@ -167,38 +182,32 @@ export function CrmObjectTable({
             />
           </label>
 
-          <label className="block">
-            <span className="sr-only">List view</span>
-            <select
-              className="h-10 w-full cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-sm font-semibold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-              onChange={(event) => {
-                window.location.href = event.target.value;
-              }}
-              value={viewHref(objectHref, activeView)}
-            >
-              {views.map((view) => (
-                <option key={view.key} value={view.href}>
-                  View: {view.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SignalSelect
+            label="List view"
+            onChange={(value) => {
+              window.location.href = value;
+            }}
+            value={viewHref(objectHref, activeView)}
+          >
+            {views.map((view) => (
+              <MenuItem key={view.key} value={view.href}>
+                View: {view.label}
+              </MenuItem>
+            ))}
+          </SignalSelect>
 
-          <label className="block">
-            <span className="sr-only">Data quality</span>
-            <select
-              className="h-10 w-full cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-sm font-semibold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-              onChange={(event) => {
-                setDataFilter(event.target.value as DataFilter);
-                resetPage();
-              }}
-              value={dataFilter}
-            >
-              <option value="all">Data: All</option>
-              <option value="missing">Data: Missing</option>
-              <option value="complete">Data: Complete</option>
-            </select>
-          </label>
+          <SignalSelect
+            label="Data quality"
+            onChange={(value) => {
+              setDataFilter(value as DataFilter);
+              resetPage();
+            }}
+            value={dataFilter}
+          >
+            <MenuItem value="all">Data: All</MenuItem>
+            <MenuItem value="missing">Data: Missing</MenuItem>
+            <MenuItem value="complete">Data: Complete</MenuItem>
+          </SignalSelect>
 
           <FilterSelect
             label="Persona"
@@ -217,21 +226,22 @@ export function CrmObjectTable({
             {filteredRows.length.toLocaleString("en-US")}
             {filteredRows.length === rows.length ? "" : ` matched from ${rows.length.toLocaleString("en-US")}`}.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {views.map((view) => (
               <Link
                 aria-current={activeView === view.key ? "page" : undefined}
-                className={`inline-flex min-h-8 items-center gap-2 rounded-md border px-2.5 text-xs font-semibold transition ${
+                className={`relative inline-flex min-h-8 items-center gap-2 rounded px-2.5 text-xs font-semibold transition duration-150 ${
                   activeView === view.key
-                    ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
-                    : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
                 href={view.href}
                 key={view.key}
-                title={view.description}
+                aria-label={view.description}
               >
                 {view.label}
-                <span className="font-mono">{view.count}</span>
+                <span className="font-mono text-[var(--text-muted)]">{view.count}</span>
+                {activeView === view.key ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
               </Link>
             ))}
           </div>
@@ -241,12 +251,12 @@ export function CrmObjectTable({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
           <thead>
-            <tr className="bg-[var(--surface-inset)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              {[primaryField, secondaryField, "Persona", "Signal", "Status", "Updated", "Next action"].map((header) => (
-                <th className="border-b border-[var(--border-hairline)] px-3 py-3" key={header} scope="col">
+            <tr className="bg-[var(--surface-inset)] text-[11px] font-semibold text-[var(--text-muted)]">
+              {tableColumns.map((column) => (
+                <th className="border-b border-[var(--border-hairline)] px-3 py-3" key={column.key} scope="col">
                   <span className="inline-flex items-center gap-1">
-                    {header}
-                    <SortIcon />
+                    {column.header}
+                    <ChevronsUpDown aria-hidden className="h-3.5 w-3.5 text-[var(--text-muted)]" strokeWidth={1.8} />
                   </span>
                 </th>
               ))}
@@ -257,72 +267,30 @@ export function CrmObjectTable({
             {visibleRows.map((row) => {
               const selected = selectedRecordId === row.id;
               const cellButtonClass =
-                "block h-full w-full cursor-pointer bg-transparent px-3 py-3 text-left outline-none transition-[background-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:bg-[var(--surface-raised)]";
+                "block h-full w-full cursor-pointer bg-transparent px-3 py-3 text-left outline-none transition-[background-color,color] duration-200 ease-out focus-visible:bg-[var(--surface-raised)]";
               return (
                 <tr
                   aria-current={selected ? "page" : undefined}
-                  className={`group relative cursor-pointer transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--surface-raised)] active:scale-[0.998] ${
-                    selected ? "bg-[var(--accent-soft)]" : ""
+                  className={`group relative cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)] ${
+                    selected ? "bg-[rgba(255,255,255,0.05)]" : ""
                   }`}
                   key={row.id}
                 >
-                  <td className="relative border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <span
-                      aria-hidden
-                      className={`pointer-events-none absolute inset-y-0 left-0 w-[2px] origin-left scale-y-0 bg-[var(--accent)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-y-100 ${
-                        selected ? "scale-y-100" : ""
-                      }`}
-                    />
-                    <button
-                      aria-label={`Open ${row.name}`}
-                      className={cellButtonClass}
-                      onClick={() => scheduleSelectRecord(row)}
-                      onDoubleClick={() => openRecordFromDoubleClick(row)}
-                      onKeyDown={(event) => handleRowKeyDown(event, row)}
-                      type="button"
-                    >
-                      <span className="block max-w-[28ch] truncate font-semibold text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent)]">{row.name}</span>
-                      <span className="mt-1 block text-xs text-[var(--text-secondary)]">{row.sourceLabel}</span>
-                    </button>
-                  </td>
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle text-[var(--text-secondary)]">
-                    <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <span className="line-clamp-2 max-w-[28ch]">{row.detail || "No detail captured"}</span>
-                      <span className="mt-1 block font-mono text-xs tabular-nums text-[var(--text-muted)]">{row.valueLabel}</span>
-                    </button>
-                  </td>
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <Tag>{humanizeTag(row.personaTag)}</Tag>
-                    </button>
-                  </td>
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <span className="flex items-center gap-2">
-                        {typeof row.score === "number" ? <ScoreRing score={row.score} /> : null}
-                        <MissingBadge missingFields={row.missingFields} />
-                      </span>
-                    </button>
-                  </td>
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill>
-                    </button>
-                  </td>
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <span className="block font-mono text-[13px] font-medium tabular-nums text-[var(--text-primary)]">{formatRelative(row.updated)}</span>
-                      <span className="mt-1 block font-mono text-xs tabular-nums text-[var(--text-muted)]">{formatCrmDate(row.updated)}</span>
-                    </button>
-                  </td>
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <span className="flex items-start gap-2">
-                        <span className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
-                        <span className="line-clamp-2 max-w-[24ch] text-[13px] leading-5 text-[var(--text-secondary)]">{row.nextStep}</span>
-                      </span>
-                    </button>
-                  </td>
+                  {tableColumns.map((column, index) => (
+                    <td className={`border-b border-[var(--border-hairline)] p-0 align-middle ${index === 0 ? "relative" : ""}`} key={column.key}>
+                      {index === 0 && selected ? <span aria-hidden className="absolute left-0 top-0 h-full w-px bg-[var(--accent)]" /> : null}
+                      <button
+                        aria-label={`Select ${row.name}`}
+                        className={cellButtonClass}
+                        onClick={() => scheduleSelectRecord(row)}
+                        onDoubleClick={() => openRecordFromDoubleClick(row)}
+                        onKeyDown={(event) => handleRowKeyDown(event, row)}
+                        type="button"
+                      >
+                        {renderColumnContent(column.key, row, selected)}
+                      </button>
+                    </td>
+                  ))}
                   <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
                     <button
                       aria-label={`Open ${row.name}`}
@@ -330,7 +298,11 @@ export function CrmObjectTable({
                       onClick={() => openRecord(row)}
                       type="button"
                     >
-                      <RowChevron />
+                      <ArrowRight
+                        aria-hidden
+                        className="h-4 w-4 shrink-0 -translate-x-0.5 opacity-0 transition-all duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100"
+                        strokeWidth={1.9}
+                      />
                     </button>
                   </td>
                 </tr>
@@ -355,21 +327,21 @@ export function CrmObjectTable({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
+            className={buttonClasses({ variant: "ghost", size: "sm", className: "h-8 min-h-8 w-8 px-0" })}
             disabled={currentPage <= 1}
             onClick={() => setPage((value) => Math.max(1, value - 1))}
             type="button"
           >
             <span className="sr-only">Previous page</span>
-            <ChevronLeftIcon />
+            <ChevronLeft aria-hidden className="h-4 w-4" strokeWidth={1.9} />
           </button>
           {pageNumbers(pageCount).map((item) =>
             typeof item === "number" ? (
               <button
                 aria-current={currentPage === item ? "page" : undefined}
-                className={`h-8 min-w-8 rounded-md border px-2 font-mono text-xs transition ${
+                className={`h-8 min-w-8 rounded border px-2 font-mono text-xs transition ${
                   currentPage === item
-                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]"
+                    ? "border-transparent bg-[rgba(255,255,255,0.06)] text-[var(--accent)]"
                     : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[var(--surface-panel)]"
                 }`}
                 key={item}
@@ -385,31 +357,34 @@ export function CrmObjectTable({
             ),
           )}
           <button
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
+            className={buttonClasses({ variant: "ghost", size: "sm", className: "h-8 min-h-8 w-8 px-0" })}
             disabled={currentPage >= pageCount}
             onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
             type="button"
           >
             <span className="sr-only">Next page</span>
-            <ChevronRightIcon />
+            <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={1.9} />
           </button>
-          <label className="ml-1 flex items-center gap-2">
+          <div className="ml-1 flex items-center gap-2">
             <span>Rows:</span>
-            <select
-              className="h-8 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-2 text-sm font-semibold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                resetPage();
-              }}
-              value={pageSize}
-            >
-              {PAGE_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
+            <div className="w-20">
+              <SignalSelect
+                label="Rows per page"
+                onChange={(value) => {
+                  setPageSize(Number(value));
+                  resetPage();
+                }}
+                compact
+                value={String(pageSize)}
+              >
+                {PAGE_SIZES.map((size) => (
+                  <MenuItem key={size} value={String(size)}>
+                    {size}
+                  </MenuItem>
+                ))}
+              </SignalSelect>
+            </div>
+          </div>
         </div>
       </div>
     </>
@@ -428,33 +403,211 @@ function FilterSelect({
   value: string;
 }) {
   return (
-    <label className="block">
+    <SignalSelect label={label} onChange={onChange} value={value}>
+      <MenuItem value="all">{label}: All</MenuItem>
+      {options.map((option) => (
+        <MenuItem key={option} value={option}>
+          {option}
+        </MenuItem>
+      ))}
+    </SignalSelect>
+  );
+}
+
+function getTableColumns({
+  objectKey,
+  primaryField,
+  secondaryField,
+}: {
+  objectKey: CrmObjectKey;
+  primaryField: string;
+  secondaryField: string;
+}) {
+  const headers: Record<CrmTableColumnKey, string> = {
+    links: "Links",
+    nextAction: "Next action",
+    persona: "Persona",
+    primary: primaryField,
+    score: "Score",
+    secondary: secondaryField,
+    status: "Status",
+    updated: "Updated",
+    value: "Value",
+  };
+
+  return CRM_FIELD_PRESETS[objectKey].tableColumns.map((key) => ({ key, header: headers[key] }));
+}
+
+function renderColumnContent(column: CrmTableColumnKey, row: CrmObjectRow, selected: boolean) {
+  if (column === "primary") {
+    return (
+      <>
+        <span className={`block max-w-[28ch] truncate font-semibold transition-colors group-hover:text-[var(--accent)] ${selected ? "text-[var(--accent)]" : "text-[var(--text-primary)]"}`}>
+          {row.name}
+        </span>
+        <span className="mt-1 block text-xs text-[var(--text-secondary)]">{row.sourceLabel}</span>
+      </>
+    );
+  }
+
+  if (column === "secondary") {
+    return (
+      <>
+        <span className="line-clamp-2 max-w-[30ch] text-[var(--text-secondary)]">{row.detail || "No detail captured"}</span>
+        <span className="mt-1 block font-mono text-xs tabular-nums text-[var(--text-muted)]">{row.sourceLabel}</span>
+      </>
+    );
+  }
+
+  if (column === "persona") {
+    return <Tag>{humanizeTag(row.personaTag)}</Tag>;
+  }
+
+  if (column === "score") {
+    return (
+      <span className="flex items-center gap-2">
+        {typeof row.score === "number" ? <ScoreRing score={row.score} /> : <span className="rounded border border-[var(--border-hairline)] px-2 py-1 text-[11px] font-semibold leading-none text-[var(--text-muted)]">Unscored</span>}
+        <MissingBadge missingFields={row.missingFields} />
+      </span>
+    );
+  }
+
+  if (column === "status") {
+    return <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill>;
+  }
+
+  if (column === "updated") {
+    return (
+      <>
+        <span className="block font-mono text-[13px] font-medium tabular-nums text-[var(--text-primary)]">{formatRelative(row.updated)}</span>
+        <span className="mt-1 block font-mono text-xs tabular-nums text-[var(--text-muted)]">{formatCrmDate(row.updated)}</span>
+      </>
+    );
+  }
+
+  if (column === "nextAction") {
+    return (
+      <span className="flex items-start gap-2">
+        <span className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
+        <span className="line-clamp-2 max-w-[24ch] text-[13px] leading-5 text-[var(--text-secondary)]">{row.nextStep}</span>
+      </span>
+    );
+  }
+
+  if (column === "value") {
+    return (
+      <>
+        <span className="block font-mono text-[13px] font-semibold tabular-nums text-[var(--text-primary)]">{row.valueLabel}</span>
+        <span className="mt-1 block max-w-[24ch] truncate text-xs text-[var(--text-muted)]">{row.sourceLabel}</span>
+      </>
+    );
+  }
+
+  const [firstRelationship, secondRelationship] = row.relationships;
+  return (
+    <>
+      <span className="block max-w-[24ch] truncate text-[13px] font-semibold text-[var(--text-primary)]">
+        {firstRelationship ? `${firstRelationship.label}: ${firstRelationship.value}` : "No linked records"}
+      </span>
+      <span className="mt-1 block text-xs text-[var(--text-muted)]">
+        {secondRelationship ? `+${Math.max(1, row.relationships.length - 1)} more` : `${row.relationships.length} linked`}
+      </span>
+    </>
+  );
+}
+
+function SignalSelect({
+  children,
+  compact = false,
+  label,
+  onChange,
+  value,
+}: {
+  children: React.ReactNode;
+  compact?: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  function handleChange(event: SelectChangeEvent<string>) {
+    onChange(event.target.value);
+  }
+
+  return (
+    <FormControl fullWidth size="small">
       <span className="sr-only">{label}</span>
-      <select
-        className="h-10 w-full cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-sm font-semibold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-        onChange={(event) => onChange(event.target.value)}
+      <Select
+        aria-label={label}
+        displayEmpty
+        onChange={handleChange}
+        size="small"
+        sx={{
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: "var(--border-hairline)",
+          },
+          "& .MuiSelect-select": {
+            alignItems: "center",
+            display: "flex",
+            minHeight: compact ? "30px" : "38px",
+            paddingBottom: compact ? "0" : "0",
+            paddingTop: compact ? "0" : "0",
+          },
+          "& .MuiSvgIcon-root": {
+            color: "var(--text-muted)",
+          },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: "var(--accent)",
+            borderWidth: "1px",
+          },
+          "&:hover .MuiOutlinedInput-notchedOutline": {
+            borderColor: "var(--accent-border-strong)",
+          },
+          backgroundColor: "var(--surface-inset)",
+          borderRadius: "8px",
+          color: "var(--text-primary)",
+          fontFamily: "inherit",
+          fontSize: "0.875rem",
+          fontWeight: 650,
+          height: compact ? 32 : 40,
+        }}
         value={value}
+        MenuProps={{
+          PaperProps: {
+            sx: {
+              "& .MuiMenuItem-root": {
+                fontFamily: "inherit",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+              },
+              "& .MuiMenuItem-root.Mui-selected": {
+                backgroundColor: "var(--accent-soft)",
+              },
+              backgroundColor: "var(--surface-raised)",
+              border: "1px solid var(--border-panel)",
+              borderRadius: "8px",
+              color: "var(--text-primary)",
+            },
+          },
+        }}
       >
-        <option value="all">{label}: All</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
+        {children}
+      </Select>
+    </FormControl>
   );
 }
 
 function ScoreRing({ score }: { score: number }) {
   const tone =
     score >= 75
-      ? "text-[var(--ok)] border-[var(--ok-border)]"
+      ? "text-[var(--ok)] border-[var(--ok-border)] bg-[var(--ok-soft)]"
       : score >= 55
-        ? "text-[var(--warn)] border-[var(--warn-border)]"
-        : "text-[var(--priority-bright)] border-[var(--priority-border)]";
+        ? "text-[var(--warn)] border-[var(--warn-border)] bg-[var(--warn-soft)]"
+        : "text-[var(--priority-bright)] border-[var(--priority-border)] bg-[var(--priority-soft)]";
   return (
-    <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 bg-[var(--surface-soft)] font-mono text-xs font-semibold ${tone}`}>
+    <span
+      aria-label={`Score ${score}`}
+      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-mono text-[11px] font-semibold tabular-nums shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] ${tone}`}
+    >
       {score}
     </span>
   );
@@ -462,11 +615,11 @@ function ScoreRing({ score }: { score: number }) {
 
 function MissingBadge({ missingFields }: { missingFields: string[] }) {
   if (missingFields.length === 0) {
-    return <span className="rounded-md border border-[var(--ok-border)] bg-[var(--ok-soft)] px-2 py-1 text-[11px] font-semibold leading-none text-[var(--ok)]">Clean</span>;
+    return <span className="rounded border border-[var(--ok-border)] bg-transparent px-2 py-1 text-[11px] font-semibold leading-none text-[var(--ok)]">Clean</span>;
   }
 
   return (
-    <span className="rounded-md border border-[var(--warn-border)] bg-[var(--warn-soft)] px-2 py-1 text-[11px] font-semibold leading-none text-[var(--warn-text)]" title={missingFields.map(formatMissingField).join(", ")}>
+    <span className="rounded border border-[var(--warn-border)] bg-transparent px-2 py-1 text-[11px] font-semibold leading-none text-[var(--warn-text)]" aria-label={missingFields.map(formatMissingField).join(", ")}>
       {missingFields.length} missing
     </span>
   );
@@ -474,14 +627,13 @@ function MissingBadge({ missingFields }: { missingFields: string[] }) {
 
 function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex max-w-[16ch] items-center rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2 py-1 text-[11px] font-semibold leading-none text-[var(--accent-contrast)]">
+    <span className="inline-flex max-w-[16ch] items-center rounded border border-[var(--border-hairline)] bg-[rgba(255,255,255,0.035)] px-2 py-1 text-[11px] font-semibold leading-none text-[var(--text-secondary)]">
       <span className="truncate">{children}</span>
     </span>
   );
 }
 
 function viewHref(objectHref: string, activeView: CrmListViewKey) {
-  if (activeView === "all-records") return objectHref;
   return `${objectHref}?view=${activeView}`;
 }
 
@@ -508,23 +660,6 @@ function humanizeTag(value: string) {
     .replaceAll("-", " ")
     .trim()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function RowChevron() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      className="h-4 w-4 shrink-0 -translate-x-0.5 opacity-0 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0 group-hover:opacity-100"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m6 4 4 4-4 4" />
-    </svg>
-  );
 }
 
 function formatMissingField(value: string) {
@@ -555,38 +690,4 @@ function formatCrmDate(value: string) {
 function pageNumbers(pageCount: number): Array<number | string> {
   if (pageCount <= 5) return Array.from({ length: pageCount }, (_, index) => index + 1);
   return [1, 2, 3, "gap", pageCount];
-}
-
-function SearchIcon() {
-  return (
-    <svg aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 20 20">
-      <circle cx="9" cy="9" r="6" />
-      <path d="m18 18-4.5-4.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function SortIcon() {
-  return (
-    <svg aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 16 16">
-      <path d="m5 6 3-3 3 3" />
-      <path d="m11 10-3 3-3-3" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 20 20">
-      <path d="m12 5-5 5 5 5" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 20 20">
-      <path d="m8 5 5 5-5 5" />
-    </svg>
-  );
 }
