@@ -7,6 +7,7 @@ import { allowedToolNames, toolsForMode } from "./index";
 const stubClient = {
   apiGet: vi.fn(),
   apiPost: vi.fn(),
+  apiPut: vi.fn(),
   postChatReply: vi.fn(),
   postStep: vi.fn(),
 } as unknown as ArcClient;
@@ -32,7 +33,7 @@ const READ = [
   "ask_operator",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
-const DRAFT = ["create_campaign_draft", "generate_image", "generate_video"];
+const DRAFT = ["create_campaign_draft", "generate_image", "generate_video", "analyze_website", "propose_brand_profile"];
 
 describe("toolsForMode", () => {
   it("ask mode exposes only read tools (no writes)", () => {

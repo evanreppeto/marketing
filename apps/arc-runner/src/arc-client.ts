@@ -57,6 +57,20 @@ export function createArcClient(config: Config) {
     return json as T;
   }
 
+  /** Authenticated PUT against the Operations API. Throws on non-2xx or { ok:false }. */
+  async function apiPut<T = unknown>(path: string, body: Record<string, unknown>): Promise<T> {
+    const res = await fetch(`${config.appApiBaseUrl}${path}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string } & Record<string, unknown>;
+    if (!res.ok || json?.ok === false) {
+      throw new Error(`PUT ${path} -> ${res.status} ${json?.message ?? ""}`.trim());
+    }
+    return json as T;
+  }
+
   async function postChatReply(input: ChatReplyInput): Promise<void> {
     await apiPost("/api/v1/arc/messages", {
       agentTaskId: input.agentTaskId,
@@ -83,7 +97,7 @@ export function createArcClient(config: Config) {
     }
   }
 
-  return { apiGet, apiPost, postChatReply, postStep };
+  return { apiGet, apiPost, apiPut, postChatReply, postStep };
 }
 
 export type ArcClient = ReturnType<typeof createArcClient>;
