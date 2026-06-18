@@ -1,3 +1,8 @@
+/**
+ * Media-level gallery read-model: every produced asset/media URL across all
+ * campaigns, deduped by URL with authority-based representative selection.
+ * Distinct from the campaign-showcase read-model at src/lib/gallery/read-model.ts.
+ */
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import {
@@ -155,19 +160,45 @@ export async function getMediaGallery(client?: SupabaseClient): Promise<MediaGal
       }
     }
 
-    // Dedupe by media URL, keeping the newest occurrence and counting reuse.
-    const byUrl = new Map<string, GalleryItem>();
+    // Dedupe by media URL.
+    // Authority priority (highest wins):
+    //   1. Asset-level entry (assetType !== "campaign") over campaign-level
+    //   2. Among same level, prefer approvalStatus === "approved"
+    //   3. Break ties by newest updatedAtIso
+    // usedInCount = number of DISTINCT campaignIds the URL appears in.
+    const groupsByUrl = new Map<string, GalleryItem[]>();
     for (const entry of collected) {
       const key = entry.media.url;
-      const existing = byUrl.get(key);
-      if (!existing) {
-        byUrl.set(key, { ...entry });
-        continue;
+      const group = groupsByUrl.get(key);
+      if (!group) {
+        groupsByUrl.set(key, [entry]);
+      } else {
+        group.push(entry);
       }
-      existing.usedInCount += 1;
-      if (entry.updatedAtIso > existing.updatedAtIso) {
-        byUrl.set(key, { ...entry, usedInCount: existing.usedInCount });
-      }
+    }
+
+    function authorityRank(item: GalleryItem): number {
+      // Lower number = higher priority
+      const levelScore = item.assetType !== "campaign" ? 0 : 2;
+      const approvalScore = item.approvalStatus === "approved" ? 0 : 1;
+      return levelScore + approvalScore;
+    }
+
+    function pickRepresentative(group: GalleryItem[]): GalleryItem {
+      return group.slice(1).reduce((best, candidate) => {
+        const rankDiff = authorityRank(candidate) - authorityRank(best);
+        if (rankDiff < 0) return candidate;
+        if (rankDiff > 0) return best;
+        // Same authority rank — prefer newer timestamp
+        return candidate.updatedAtIso > best.updatedAtIso ? candidate : best;
+      }, group[0]);
+    }
+
+    const byUrl = new Map<string, GalleryItem>();
+    for (const [key, group] of groupsByUrl) {
+      const rep = pickRepresentative(group);
+      const usedInCount = new Set(group.map((e) => e.campaignId)).size;
+      byUrl.set(key, { ...rep, usedInCount });
     }
 
     const items = [...byUrl.values()].sort((a, b) => b.updatedAtIso.localeCompare(a.updatedAtIso));

@@ -128,7 +128,7 @@ describe("getMediaGallery", () => {
     expect(result.hero.map((h) => h.media.url)).toContain("https://cdn.example/hero.png");
   });
 
-  it("dedupes identical media reused across campaigns and counts usage", async () => {
+  it("dedupes identical media reused across campaigns and counts distinct campaigns", async () => {
     const supabase = createSupabaseQueryMock({
       campaigns: { data: [campaignRow({ id: "camp-1" }), campaignRow({ id: "camp-2", name: "Mold Awareness" })], error: null },
       campaign_assets: {
@@ -146,6 +146,78 @@ describe("getMediaGallery", () => {
     expect(result.status).toBe("live");
     if (result.status !== "live") return;
     expect(result.items).toHaveLength(1);
+    // Same URL in two different campaigns → usedInCount = 2
     expect(result.items[0].usedInCount).toBe(2);
+  });
+
+  it("usedInCount counts distinct campaigns, not raw occurrences", async () => {
+    // Two assets in the SAME campaign sharing the same media URL → usedInCount === 1
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: [campaignRow({ id: "camp-1" })], error: null },
+      campaign_assets: {
+        data: [
+          assetRow({ id: "asset-1", campaign_id: "camp-1" }),
+          assetRow({ id: "asset-2", campaign_id: "camp-1", title: "Hero Variant" }),
+        ],
+        error: null,
+      },
+      approval_items: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+    });
+
+    const result = await getMediaGallery(supabase);
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].usedInCount).toBe(1);
+  });
+
+  it("authority-based dedupe: approved AI asset beats a campaign-level entry with a newer timestamp", async () => {
+    const SHARED_URL = "https://cdn.example/hero.png";
+    // The campaign row has a NEWER updated_at than the asset row,
+    // and its audit_payload.media_assets contains the same URL so
+    // collectMediaFromCampaign picks it up — giving it assetType "campaign",
+    // approvalStatus "draft", sourceType "real".
+    const supabase = createSupabaseQueryMock({
+      campaigns: {
+        data: [
+          campaignRow({
+            id: "camp-1",
+            updated_at: "2026-06-10T00:00:00.000Z", // NEWER than the asset
+            audit_payload: {
+              media_assets: [{ url: SHARED_URL, type: "image", title: "Hero" }],
+            },
+          }),
+        ],
+        error: null,
+      },
+      campaign_assets: {
+        data: [
+          assetRow({
+            id: "asset-1",
+            campaign_id: "camp-1",
+            asset_type: "image_prompt",
+            tool_source: "Higgsfield",
+            status: "approved",
+            updated_at: "2026-06-02T00:00:00.000Z", // OLDER
+            audit_payload: { media_assets: [{ url: SHARED_URL, type: "image", title: "Hero" }] },
+          }),
+        ],
+        error: null,
+      },
+      approval_items: { data: [], error: null },
+      agent_outputs: { data: [], error: null },
+    });
+
+    const result = await getMediaGallery(supabase);
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+
+    expect(result.items).toHaveLength(1);
+    const surviving = result.items[0];
+    // The asset-level entry must win despite having an older timestamp
+    expect(surviving.approvalStatus).toBe("approved");
+    expect(surviving.sourceType).toBe("ai");
+    expect(surviving.assetType).not.toBe("campaign");
   });
 });
