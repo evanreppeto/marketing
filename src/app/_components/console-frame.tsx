@@ -41,6 +41,11 @@ function BrandWordmark() {
   );
 }
 
+const sidebarGoldDividerTop =
+  "relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] before:opacity-50 before:content-['']";
+const sidebarGoldDividerBottom =
+  "after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] after:opacity-35 after:content-['']";
+
 /**
  * Persistent application chrome. Desktop uses the command rail; smaller screens
  * keep a compact top dock so core routes remain reachable.
@@ -185,7 +190,7 @@ export function ConsoleFrame({
                 </Link>
               </div>
 
-              <div className={cx("border-y py-3", theme.surface.divider, sidebarCollapsed ? "flex justify-center" : "")}>
+              <div className={cx("py-3", sidebarGoldDividerTop, sidebarGoldDividerBottom, sidebarCollapsed ? "flex justify-center" : "")}>
                 <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
               </div>
 
@@ -211,7 +216,7 @@ export function ConsoleFrame({
 
               <SidebarWorkspaceSwitcher collapsed={sidebarCollapsed} workspaceName={brand.workspaceName} />
 
-              <div className={cx("border-t pt-3", theme.surface.divider)}>
+              <div className={cx("pt-3", sidebarGoldDividerTop)}>
                 <SideNav active={pathname} items={utilityNavItems} collapsed={sidebarCollapsed} />
               </div>
 
@@ -295,7 +300,7 @@ function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: bo
   ];
 
   return (
-    <div className="border-t border-[var(--border-hairline)] pt-3">
+    <div className={cx("pt-3", sidebarGoldDividerTop)}>
       {!collapsed ? (
         <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           Workspace
@@ -334,7 +339,7 @@ function SidebarSection({
   label?: string;
 }) {
   return (
-    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-1.5 border-t border-[var(--border-hairline)] pt-3")} aria-label={label}>
+    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-1.5 pt-3", !collapsed ? sidebarGoldDividerTop : "")} aria-label={label}>
       {!collapsed && label ? (
         <div className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           {label}
@@ -347,7 +352,7 @@ function SidebarSection({
 
 function OperatorProfile({ collapsed }: { collapsed?: boolean }) {
   return (
-    <div className={cx("border-t pb-6 pt-4", theme.surface.divider)}>
+    <div className={cx("pb-6 pt-4", sidebarGoldDividerTop)}>
       <div className={cx("flex items-center gap-3", collapsed ? "justify-center" : "")}>
         <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-xs font-semibold text-[var(--accent)]">
           ER
