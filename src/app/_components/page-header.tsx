@@ -1,5 +1,7 @@
+import type { HTMLMotionProps } from "motion/react";
 import Link from "next/link";
 
+import { MotionCard, MotionReveal, MotionSurface } from "./motion-primitives";
 import { cx, theme, type ButtonSize, type ButtonVariant, type ThemeTone } from "./theme";
 
 /**
@@ -57,7 +59,7 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
   return (
     <header className={theme.surface.pageHeader}>
       <div aria-hidden="true" className="absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-[var(--accent-border-strong)] via-[var(--border-hairline)] to-transparent sm:inset-x-5" />
-      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <MotionReveal className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" y={8}>
         <div className="min-w-0 max-w-[76ch]">
           {backHref ? <BackLink href={backHref} label={backLabel ?? "back"} /> : null}
           {eyebrow ? <div className={cx("mb-2", theme.text.eyebrow)}>{eyebrow}</div> : null}
@@ -69,7 +71,7 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
           ) : null}
         </div>
         {aside ? <div className="flex shrink-0 flex-wrap items-center gap-2 border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1.5 lg:justify-end">{aside}</div> : null}
-      </div>
+      </MotionReveal>
     </header>
   );
 }
@@ -176,7 +178,9 @@ export function StatStrip({
   return (
     <div className={cx("module-rise mb-5 grid gap-3", className)} style={style}>
       {items.map((item, i) => (
-        <StatCard key={`${item.label}-${i}`} {...item} />
+        <MotionCard delay={Math.min(i * 0.035, 0.16)} key={`${item.label}-${i}`}>
+          <StatCard {...item} />
+        </MotionCard>
       ))}
     </div>
   );
@@ -189,11 +193,11 @@ export function Panel({
 }: {
   children: React.ReactNode;
   className?: string;
-} & React.ComponentPropsWithoutRef<"section">) {
+} & HTMLMotionProps<"section">) {
   return (
-    <section {...sectionProps} className={cx(theme.surface.panel, "min-w-0 p-4", className)}>
+    <MotionSurface {...sectionProps} className={cx(theme.surface.panel, "min-w-0 p-4", className)}>
       {children}
-    </section>
+    </MotionSurface>
   );
 }
 
@@ -211,7 +215,7 @@ export function OperatorBar({
   secondary?: React.ReactNode;
 }) {
   return (
-    <div className={cx(theme.surface.inset, "module-rise mb-4 rounded-lg border px-4 py-3.5 [animation-delay:40ms]")}>
+    <MotionReveal className={cx(theme.surface.inset, "module-rise mb-4 rounded-lg border px-4 py-3.5 [animation-delay:40ms]")} delay={0.04}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -228,7 +232,7 @@ export function OperatorBar({
           </div>
         ) : null}
       </div>
-    </div>
+    </MotionReveal>
   );
 }
 
@@ -242,12 +246,12 @@ export function ActionFeedback({
   if (!action) return null;
 
   return (
-    <div className="module-rise mb-4 rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-contrast)] [animation-delay:60ms]">
+    <MotionReveal className="module-rise mb-4 rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-contrast)] [animation-delay:60ms]" delay={0.04}>
       <span>
         <span className="font-semibold text-[var(--text-primary)]">Update: </span>
         {messages[action] ?? "Action recorded."}
       </span>
-    </div>
+    </MotionReveal>
   );
 }
 
@@ -261,11 +265,11 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className={cx(theme.surface.dashedEmpty, "p-6 text-center sm:text-left")}>
+    <MotionReveal className={cx(theme.surface.dashedEmpty, "p-6 text-center sm:text-left")}>
       <div className="font-display text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{title}</div>
       <p className={cx("mx-auto mt-2 max-w-[58ch] sm:mx-0", theme.text.body)}>{detail}</p>
       {action ? <div className="mt-4">{action}</div> : null}
-    </div>
+    </MotionReveal>
   );
 }
 

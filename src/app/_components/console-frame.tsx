@@ -7,6 +7,7 @@ import { PlusIcon, Settings2 } from "lucide-react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
+import { ActiveMotionMarker } from "./motion-primitives";
 import { NavIcon } from "./nav-icons";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
@@ -279,12 +280,12 @@ function ArcCommandLink({
         </span>
       ) : null}
       {active ? (
-        <span
-          aria-hidden
+        <ActiveMotionMarker
           className={cx(
             "pointer-events-none absolute rounded-full bg-[color-mix(in_srgb,var(--accent)_62%,transparent)]",
             collapsed ? "inset-x-3 -bottom-px h-px" : "inset-y-2 right-2 w-px",
           )}
+          layoutId="arc-command-active-marker"
         />
       ) : null}
     </Link>

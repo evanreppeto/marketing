@@ -1,7 +1,9 @@
+import { PageMotion } from "./motion-primitives";
+
 type ShellContentProps = {
   children: React.ReactNode;
 };
 
 export function ShellContent({ children }: ShellContentProps) {
-  return children;
+  return <PageMotion>{children}</PageMotion>;
 }
