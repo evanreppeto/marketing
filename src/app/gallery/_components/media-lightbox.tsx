@@ -38,7 +38,7 @@ export function MediaLightbox({ item, onClose }: { item: GalleryItem | null; onC
         ref={dialogRef}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="grid max-h-[88vh] w-full max-w-5xl grid-cols-1 overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface)] md:grid-cols-[1.6fr_1fr]"
+        className="grid max-h-[88vh] w-full max-w-5xl grid-cols-1 overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] md:grid-cols-[1.6fr_1fr]"
       >
         <div className="flex items-center justify-center bg-black/40 p-3">
           {media.type === "video" ? (
