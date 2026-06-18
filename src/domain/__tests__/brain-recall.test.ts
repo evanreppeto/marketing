@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankRecall, type RecallCandidate } from "../brain-recall";
+import { rankRecall, selectRecall, type RecallCandidate } from "../brain-recall";
 
 function cand(id: string, label: string, extra: Partial<RecallCandidate> = {}): RecallCandidate {
   return { id, kind: "learning", label, summary: null, tags: [], trustTier: "trusted", ...extra };
@@ -52,5 +52,26 @@ describe("rankRecall", () => {
   it("maps to RecallItem shape (label, summary, kind)", () => {
     const out = rankRecall([cand("1", "A", { summary: "s", kind: "proof_point" })], "");
     expect(out[0]).toEqual({ label: "A", summary: "s", kind: "proof_point" });
+  });
+});
+
+describe("selectRecall", () => {
+  function c(id: string, label: string, extra: Partial<RecallCandidate> = {}) {
+    return { id, kind: "learning", label, summary: null, tags: [], trustTier: "trusted", ...extra };
+  }
+
+  it("returns selected CANDIDATES (with ids), core in input order", () => {
+    const out = selectRecall([c("1", "A"), c("2", "B"), c("3", "C")], "", { coreLimit: 2, matchLimit: 0, cap: 15 });
+    expect(out.map((x) => x.id)).toEqual(["1", "2"]);
+  });
+
+  it("adds keyword matches beyond core, by id", () => {
+    const out = selectRecall(
+      [c("1", "Core one"), c("2", "Core two"), c("3", "flood angle"), c("4", "unrelated")],
+      "flood",
+      { coreLimit: 2, matchLimit: 5, cap: 15 },
+    );
+    expect(out.map((x) => x.id)).toContain("3");
+    expect(out.map((x) => x.id)).not.toContain("4");
   });
 });

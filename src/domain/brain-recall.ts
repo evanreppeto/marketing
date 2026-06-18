@@ -15,7 +15,7 @@ export type RecallCandidate = {
 };
 
 /** A prompt-ready memory line. */
-export type RecallItem = { label: string; summary: string | null; kind: string };
+export type RecallItem = { label: string; summary: string | null; kind: string; related?: string[] };
 
 export type RankRecallOptions = { coreLimit?: number; matchLimit?: number; cap?: number };
 
@@ -37,11 +37,11 @@ function candidateText(c: RecallCandidate): string {
   return [c.label, c.summary ?? "", c.tags.join(" ")].join(" ").toLowerCase();
 }
 
-export function rankRecall(
+export function selectRecall(
   candidates: RecallCandidate[],
   message: string,
   options: RankRecallOptions = {},
-): RecallItem[] {
+): RecallCandidate[] {
   const coreLimit = options.coreLimit ?? 10;
   const matchLimit = options.matchLimit ?? 5;
   const cap = options.cap ?? 15;
@@ -65,7 +65,14 @@ export function rankRecall(
           .slice(0, matchLimit)
           .map((s) => s.c);
 
-  return [...core, ...matches]
-    .slice(0, cap)
-    .map((c) => ({ label: c.label, summary: c.summary, kind: c.kind }));
+  return [...core, ...matches].slice(0, cap);
+}
+
+/** Back-compat: select + map to prompt-ready items (no enrichment). */
+export function rankRecall(
+  candidates: RecallCandidate[],
+  message: string,
+  options: RankRecallOptions = {},
+): RecallItem[] {
+  return selectRecall(candidates, message, options).map((c) => ({ label: c.label, summary: c.summary, kind: c.kind }));
 }
