@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveSourceType, normalizeApprovalStatus } from "./gallery";
+import { deriveSourceType, filterGalleryItems, normalizeApprovalStatus, type GalleryItem } from "./gallery";
 
 describe("normalizeApprovalStatus", () => {
   it("maps the approval_status enum to the four UI buckets", () => {
@@ -32,5 +32,47 @@ describe("deriveSourceType", () => {
   it("treats everything else as real BSR media", () => {
     expect(deriveSourceType("social_ad", "Arc Orchestrator")).toBe("real");
     expect(deriveSourceType("one_pager", null)).toBe("real");
+  });
+});
+
+function item(partial: Partial<GalleryItem>): GalleryItem {
+  return {
+    media: { id: "m1", type: "image", title: "t", url: "https://x/a.png", thumbnailUrl: null, mimeType: null, description: null, source: "s" },
+    campaignId: "c1",
+    campaignName: "Campaign",
+    assetType: "social_ad",
+    approvalStatus: "approved",
+    sourceType: "real",
+    format: null,
+    updatedAtIso: "2026-06-01T00:00:00.000Z",
+    usedInCount: 1,
+    ...partial,
+  };
+}
+
+describe("filterGalleryItems", () => {
+  const items = [
+    item({ media: { id: "a", type: "image", title: "a", url: "https://x/a.png", thumbnailUrl: null, mimeType: null, description: null, source: "s" }, sourceType: "real", approvalStatus: "approved" }),
+    item({ media: { id: "b", type: "video", title: "b", url: "https://x/b.mp4", thumbnailUrl: null, mimeType: null, description: null, source: "s" }, sourceType: "ai", approvalStatus: "pending" }),
+    item({ media: { id: "c", type: "file", title: "c", url: "https://x/c.pdf", thumbnailUrl: null, mimeType: null, description: null, source: "s" }, sourceType: "real", approvalStatus: "approved" }),
+  ];
+
+  it("returns everything when filters are 'all'", () => {
+    expect(filterGalleryItems(items, { type: "all", provenance: "all", status: "all" })).toHaveLength(3);
+  });
+
+  it("filters by media type group (images only)", () => {
+    const out = filterGalleryItems(items, { type: "images", provenance: "all", status: "all" });
+    expect(out.map((i) => i.media.id)).toEqual(["a"]);
+  });
+
+  it("filters by provenance", () => {
+    const out = filterGalleryItems(items, { type: "all", provenance: "ai", status: "all" });
+    expect(out.map((i) => i.media.id)).toEqual(["b"]);
+  });
+
+  it("filters by status and combines filters", () => {
+    const out = filterGalleryItems(items, { type: "all", provenance: "real", status: "approved" });
+    expect(out.map((i) => i.media.id)).toEqual(["a", "c"]);
   });
 });
