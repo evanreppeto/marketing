@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArcClient } from "../arc-client";
 import type { ArcActionCard } from "../types";
@@ -52,6 +52,96 @@ describe("generate_image", () => {
       },
     ]);
     const out = await call({ prompt: "x", title: "T", campaign_id: "c1" });
+    expect(cards).toHaveLength(0);
+    expect(out.content[0].text).toContain("failed");
+  });
+});
+
+function setupVideo(posts: Array<() => Promise<unknown>>) {
+  const cards: ArcActionCard[] = [];
+  let i = 0;
+  const apiPost = vi.fn(async () => posts[i++]());
+  const client = { apiPost } as unknown as ArcClient;
+  const step = vi.fn(async () => {});
+  const [, genVideo] = mediaTools(client, step, (c) => cards.push(c));
+  const call = (args: Record<string, unknown>) =>
+    (genVideo.handler as (a: Record<string, unknown>, e?: unknown) => Promise<{ content: Array<{ type: string; text: string }> }>)(args);
+  return { cards, apiPost, call, genVideo };
+}
+
+describe("generate_video", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("is named generate_video", () => {
+    const { genVideo } = setupVideo([async () => ({})]);
+    expect(genVideo.name).toBe("generate_video");
+  });
+
+  it("generates a video, creates a draft asset, emits a video card", async () => {
+    const media = { kind: "video", url: "https://x/v.mp4", source: "ai_generated", model: "veo" };
+    const { cards, apiPost, call } = setupVideo([
+      async () => ({ operationName: "op/1", model: "veo-2.0-generate-001" }), // start
+      async () => ({ status: "running" }), // poll 1
+      async () => ({ status: "done", media, objectPath: "arc-generated/v.mp4" }), // poll 2
+      async () => ({ campaignId: "c1", assetId: "a1" }), // draft-asset
+    ]);
+    const p = call({
+      prompt: "flood cleanup b-roll",
+      title: "Clip",
+      name: "X",
+      persona: "persona_landlord",
+      restoration_focus: "water",
+    });
+    await vi.runAllTimersAsync();
+    const out = await p;
+
+    expect(apiPost).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/arc/media/generate-video",
+      expect.objectContaining({ prompt: expect.stringContaining("flood cleanup b-roll") }),
+    );
+    expect(apiPost).toHaveBeenNthCalledWith(
+      4,
+      "/api/v1/arc/campaigns/draft-asset",
+      expect.objectContaining({
+        media_url: "https://x/v.mp4",
+        media_path: "arc-generated/v.mp4",
+        asset_type: "video_ad",
+        title: "Clip",
+      }),
+    );
+    expect(cards[0]).toMatchObject({
+      kind: "draft",
+      media: { kind: "video", format: "16:9" },
+      approval: { kind: "campaign", campaignId: "c1", assetId: "a1" },
+    });
+    expect(out.content[0].text).toContain("a1");
+  });
+
+  it("times out and emits no card when Veo never finishes", async () => {
+    const posts: Array<() => Promise<unknown>> = [
+      async () => ({ operationName: "op/1", model: "veo" }), // start
+    ];
+    for (let i = 0; i < 36; i++) posts.push(async () => ({ status: "running" })); // every poll still running
+    const { cards, call } = setupVideo(posts);
+    const p = call({ prompt: "x", title: "T", campaign_id: "c1" });
+    await vi.runAllTimersAsync();
+    const out = await p;
+
+    expect(cards).toHaveLength(0);
+    expect(out.content[0].text).toContain("timed out");
+  });
+
+  it("emits no card when start fails", async () => {
+    const { cards, call } = setupVideo([
+      async () => {
+        throw new Error("quota");
+      },
+    ]);
+    const p = call({ prompt: "x", title: "T", campaign_id: "c1" });
+    await vi.runAllTimersAsync();
+    const out = await p;
     expect(cards).toHaveLength(0);
     expect(out.content[0].text).toContain("failed");
   });

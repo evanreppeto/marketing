@@ -31,7 +31,7 @@ const READ = [
   "ask_operator",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
-const DRAFT = ["create_campaign_draft", "generate_image"];
+const DRAFT = ["create_campaign_draft", "generate_image", "generate_video"];
 
 describe("toolsForMode", () => {
   it("ask mode exposes only read tools (no writes)", () => {
