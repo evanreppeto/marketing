@@ -185,7 +185,9 @@ export function ConsoleFrame({
                 </Link>
               </div>
 
-              <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
+              <div className={cx("border-y py-3", theme.surface.divider, sidebarCollapsed ? "flex justify-center" : "")}>
+                <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
+              </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
                 <div className="flex flex-col gap-3">
@@ -269,15 +271,7 @@ function ArcCommandLink({
       prefetch
     >
       <NavIcon className="h-5 w-5 shrink-0 text-[var(--accent)]" name="arc" />
-      {!collapsed ? (
-        <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-current">{agentName}</span>
-          <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--ok)]" />
-            Live
-          </span>
-        </span>
-      ) : null}
+      {!collapsed ? <span className="truncate text-sm font-semibold text-current">{agentName}</span> : null}
       {active ? (
         <span
           aria-hidden
