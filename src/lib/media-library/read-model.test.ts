@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { toAssetView } from "./read-model";
+import { countUsage, toAssetView } from "./read-model";
 import { type MediaAssetRow } from "./types";
 
 const row = (over: Partial<MediaAssetRow> = {}): MediaAssetRow => ({
@@ -25,5 +25,28 @@ describe("toAssetView", () => {
   it("labels logos and video", () => {
     expect(toAssetView(row({ kind: "logo" }), 0).badge).toBe("LOGO");
     expect(toAssetView(row({ kind: "video", content_type: "video/mp4" }), 0).badge).toBe("VIDEO");
+  });
+});
+
+describe("countUsage", () => {
+  const assets = [
+    { id: "a1", storage_path: "library/o/a1.jpg", public_url: "https://x/a1.jpg" },
+    { id: "a2", storage_path: "library/o/a2.jpg", public_url: "https://x/a2.jpg" },
+  ];
+
+  it("counts an entry once even when it matches on both path and url", () => {
+    const counts = countUsage(assets, [{ path: "library/o/a1.jpg", url: "https://x/a1.jpg" }]);
+    expect(counts.get("a1")).toBe(1);
+    expect(counts.get("a2")).toBe(0);
+  });
+
+  it("counts multiple distinct entries and matches by library_asset_id", () => {
+    const counts = countUsage(assets, [
+      { library_asset_id: "a2" },
+      { url: "https://x/a2.jpg" },
+      { path: "nope" },
+    ]);
+    expect(counts.get("a2")).toBe(2);
+    expect(counts.get("a1")).toBe(0);
   });
 });

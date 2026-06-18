@@ -28,17 +28,29 @@ export function toAssetView(row: MediaAssetRow, usedIn: number): MediaAssetView 
   };
 }
 
-/** Count, per library asset, how many campaign assets reference it. */
+/** Count, per library asset, how many campaign-media entries reference it.
+ *  Pre-indexes by id/path/url so each asset is O(1); each campaign-media entry
+ *  is attributed to at most one asset (matching the prior filter semantics). */
 export function countUsage(
   assets: Pick<MediaAssetRow, "id" | "storage_path" | "public_url">[],
   campaignMedia: Array<{ path?: string; url?: string; library_asset_id?: string }>,
 ): Map<string, number> {
-  const counts = new Map<string, number>();
+  const idByLibraryId = new Map<string, string>();
+  const idByPath = new Map<string, string>();
+  const idByUrl = new Map<string, string>();
   for (const a of assets) {
-    const n = campaignMedia.filter(
-      (m) => m.library_asset_id === a.id || m.path === a.storage_path || m.url === a.public_url,
-    ).length;
-    counts.set(a.id, n);
+    idByLibraryId.set(a.id, a.id);
+    idByPath.set(a.storage_path, a.id);
+    idByUrl.set(a.public_url, a.id);
+  }
+  const counts = new Map<string, number>();
+  for (const a of assets) counts.set(a.id, 0);
+  for (const m of campaignMedia) {
+    const assetId =
+      (m.library_asset_id ? idByLibraryId.get(m.library_asset_id) : undefined) ??
+      (m.path ? idByPath.get(m.path) : undefined) ??
+      (m.url ? idByUrl.get(m.url) : undefined);
+    if (assetId) counts.set(assetId, (counts.get(assetId) ?? 0) + 1);
   }
   return counts;
 }
@@ -65,11 +77,14 @@ export async function getMediaLibraryData(client?: SupabaseClient): Promise<Medi
   if (aErr) return { status: "unavailable", message: aErr.message };
   const assets = (assetRows ?? []) as MediaAssetRow[];
 
+  // Not org-scoped: campaign_assets has no org_id column. Safe because used-in
+  // matching keys (library_asset_id, and storage_path/public_url which embed the
+  // org id under library/<orgId>/...) only match THIS org's own asset identifiers.
   const { data: caRows } = await db.from("campaign_assets").select("audit_payload");
   const campaignMedia: Array<{ path?: string; url?: string; library_asset_id?: string }> = [];
   for (const ca of (caRows ?? []) as Array<{ audit_payload: { media_assets?: unknown[] } }>) {
     for (const m of ca.audit_payload?.media_assets ?? []) {
-      if (m && typeof m === "object") campaignMedia.push(m as Record<string, never>);
+      if (m && typeof m === "object") campaignMedia.push(m as { path?: string; url?: string; library_asset_id?: string });
     }
   }
   const usage = countUsage(assets, campaignMedia);
