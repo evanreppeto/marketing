@@ -6,6 +6,7 @@ import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedImage } from "@/lib/media/storage";
+import { getAppSettings } from "@/lib/settings/store";
 
 /**
  * Generate an image (AI) and store it in the public campaign-media Supabase
@@ -36,7 +37,8 @@ export async function POST(request: Request) {
     typeof body.aspect_ratio === "string" && body.aspect_ratio.trim() ? body.aspect_ratio.trim() : "1:1";
   const style = typeof body.style === "string" && body.style.trim() ? body.style.trim() : undefined;
 
-  const provider = getMediaProvider();
+  const settings = await getAppSettings();
+  const provider = getMediaProvider({ imageModel: settings.imageModel, videoModel: settings.videoModel });
   if (!provider) return fail("not_configured", "Image generation isn't enabled.", 503);
 
   try {

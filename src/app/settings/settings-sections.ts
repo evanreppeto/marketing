@@ -15,6 +15,11 @@ export const SETTINGS_SECTIONS = [
   },
   { id: "appearance", label: "Appearance" },
   { id: "behavior", label: "Agent behavior" },
+  {
+    id: "media",
+    label: "Media models",
+    description: "Choose the image and video models Arc generates with.",
+  },
   { id: "account", label: "Account" },
   { id: "connections", label: "Connections" },
   { id: "agent", label: "Agent" },

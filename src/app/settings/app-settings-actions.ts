@@ -12,6 +12,8 @@ import {
   appApprovalStrictness,
   appAssistantResponseStyle,
   appAssistantTone,
+  appImageModel,
+  appVideoModel,
   appWorkspaceProfile,
   isValidSupportEmail,
   normalizeDisplayLabel,
@@ -57,6 +59,31 @@ export async function saveGeneralSettingsAction(
   revalidatePath("/login");
   revalidatePath("/", "layout"); // refresh the document title / shell
   return { ok: true, message: "Settings saved." };
+}
+
+/** Save the operator's image/video model picks ("" = Auto: inherit env/default). */
+export async function saveMediaModelsAction(
+  _previous: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const imageModel = appImageModel(formData.get("imageModel"));
+  const videoModel = appVideoModel(formData.get("videoModel"));
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), {
+      image_model: imageModel,
+      video_model: videoModel,
+    });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't save media models." };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/arc");
+  return { ok: true, message: "Media models saved." };
 }
 
 /** Save app-level workspace & product settings (identity now lives in Brand Kit). */

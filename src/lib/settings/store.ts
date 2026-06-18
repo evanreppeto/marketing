@@ -25,6 +25,8 @@ export type AppSettings = {
   appearanceAccent: AppearanceAccent;
   appearanceDensity: AppearanceDensity;
   appearanceMotion: AppearanceMotion;
+  imageModel: string;
+  videoModel: string;
 };
 
 export type AppearanceAccent = "gold" | "blue" | "red" | "steel" | "emerald";
@@ -52,6 +54,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   appearanceAccent: "gold",
   appearanceDensity: "comfortable",
   appearanceMotion: "standard",
+  imageModel: "",
+  videoModel: "",
 };
 
 export const DEFAULT_SUPPORT_EMAIL = "support@bigshouldersmp.com";
@@ -153,6 +157,23 @@ export function appApprovalStrictness(value: unknown): ApprovalStrictness {
     : DEFAULT_APP_SETTINGS.approvalStrictness;
 }
 
+export const IMAGE_MODELS = [
+  "imagen-4.0-generate-001",
+  "imagen-4.0-ultra-generate-001",
+  "gemini-2.5-flash-image",
+] as const;
+export const VIDEO_MODELS = ["veo-2.0-generate-001", "veo-3.0-generate-001"] as const;
+
+/** "" = Auto (inherit env/default); otherwise must be an allow-listed id. */
+export function appImageModel(value: unknown): string {
+  const v = typeof value === "string" ? value.trim() : "";
+  return v === "" || (IMAGE_MODELS as readonly string[]).includes(v) ? v : "";
+}
+export function appVideoModel(value: unknown): string {
+  const v = typeof value === "string" ? value.trim() : "";
+  return v === "" || (VIDEO_MODELS as readonly string[]).includes(v) ? v : "";
+}
+
 export function mergeAppSettingsRows(rows: SettingRow[]): AppSettings {
   const map = new Map(rows.map((row) => [row.key, row.value]));
   const str = (key: string, fallback: string) => (typeof map.get(key) === "string" ? (map.get(key) as string) : fallback);
@@ -173,6 +194,8 @@ export function mergeAppSettingsRows(rows: SettingRow[]): AppSettings {
     appearanceAccent: appAppearanceAccent(map.get("appearance_accent")),
     appearanceDensity: appAppearanceDensity(map.get("appearance_density")),
     appearanceMotion: appAppearanceMotion(map.get("appearance_motion")),
+    imageModel: appImageModel(map.get("image_model")),
+    videoModel: appVideoModel(map.get("video_model")),
   };
 }
 

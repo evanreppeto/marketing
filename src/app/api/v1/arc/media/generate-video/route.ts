@@ -6,6 +6,7 @@ import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedMedia } from "@/lib/media/storage";
+import { getAppSettings } from "@/lib/settings/store";
 
 /**
  * Generate a video (Veo) — async. Two modes in one route:
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
     return fail("rejected", "Request body must be valid JSON.", 400);
   }
   const body = payload as Record<string, unknown>;
-  const provider = getMediaProvider();
+  const settings = await getAppSettings();
+  const provider = getMediaProvider({ imageModel: settings.imageModel, videoModel: settings.videoModel });
   if (!provider) return fail("not_configured", "Video generation isn't enabled.", 503);
 
   const operationName = typeof body.operation_name === "string" ? body.operation_name.trim() : "";

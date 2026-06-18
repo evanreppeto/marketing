@@ -10,6 +10,7 @@ import {
   saveBrandingSettingsAction,
   saveGeneralSettingsAction,
   saveArcDefaultsAction,
+  saveMediaModelsAction,
   type SettingsActionState,
 } from "./app-settings-actions";
 
@@ -25,6 +26,55 @@ function Feedback({ state }: { state: SettingsActionState }) {
     <span className={`text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>
       {state.message}
     </span>
+  );
+}
+
+/** Pick the image + video models Arc generates with. "" = Auto (env/default). */
+export function MediaModelsForm({
+  initialImageModel,
+  initialVideoModel,
+}: {
+  initialImageModel: string;
+  initialVideoModel: string;
+}) {
+  const [state, action, pending] = useActionState(saveMediaModelsAction, null);
+
+  return (
+    <form action={action} className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5">
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Image model</span>
+          <select className={inputClass} defaultValue={initialImageModel} name="imageModel">
+            <option value="">Auto (recommended)</option>
+            <option value="imagen-4.0-generate-001">Imagen 4 — photoreal, fast</option>
+            <option value="imagen-4.0-ultra-generate-001">Imagen 4 Ultra — max quality</option>
+            <option value="gemini-2.5-flash-image">Gemini Nano Banana — editing / reference</option>
+          </select>
+          <span className="text-xs text-[var(--text-muted)]">
+            Auto uses GEMINI_IMAGE_MODEL or the built-in default. Imagen for fresh concepts; Nano Banana edits real media.
+          </span>
+        </label>
+
+        <label className="grid gap-1.5">
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Video model</span>
+          <select className={inputClass} defaultValue={initialVideoModel} name="videoModel">
+            <option value="">Auto (recommended)</option>
+            <option value="veo-2.0-generate-001">Veo 2</option>
+            <option value="veo-3.0-generate-001">Veo 3 — higher quality</option>
+          </select>
+          <span className="text-xs text-[var(--text-muted)]">
+            Auto uses GEMINI_VIDEO_MODEL or the built-in default. Video generation needs billing on the Gemini key.
+          </span>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button disabled={pending} size="sm" type="submit" variant="primary">
+          Save media models
+        </Button>
+        <Feedback state={state} />
+      </div>
+    </form>
   );
 }
 

@@ -7,6 +7,7 @@ import { BrandingSettings } from "./branding-settings";
 import { BrandKitSettings } from "./brand-kit-settings";
 import { ConnectionsPanel } from "./connections-panel";
 import { GeneralSettings } from "./general-settings";
+import { MediaModelsSettings } from "./media-models-settings";
 import { NotificationSettings } from "./notification-settings";
 import { SettingsShell } from "./settings-shell";
 import { SettingsHome } from "./settings-home";
@@ -43,6 +44,7 @@ export default async function SettingsPage({
             "brand-kit": <BrandKitSettings />,
             appearance: <AppearanceSettings />,
             behavior: <AgentBehaviorSettings />,
+            media: <MediaModelsSettings />,
             account: <AccountSettings />,
             connections: <ConnectionsPanel />,
             agent: <AgentPanel />,
