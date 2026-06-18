@@ -191,6 +191,7 @@ export type AssetMediaProvenance = {
   jobId?: string;
   format?: string;
   riskFlags?: string[];
+  libraryAssetId?: string; // exact link back to a media_assets row (powers "Used in")
 };
 
 export type PromoteAssetInput = {
@@ -226,6 +227,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
         ...(provenance.jobId ? { job_id: provenance.jobId } : {}),
         ...(provenance.format ? { format: provenance.format } : {}),
         ...(provenance.riskFlags?.length ? { risk_flags: provenance.riskFlags } : {}),
+        ...(provenance.libraryAssetId ? { library_asset_id: provenance.libraryAssetId } : {}),
       }
     : null;
   const assetId = await insertOne(client, "campaign_assets", {
