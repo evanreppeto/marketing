@@ -61,20 +61,32 @@ export function ConsoleFrame({
   });
   const sidebarCollapsed = !sidebarExpanded;
 
-  const navItems: ShellNavItem[] = [
+  const homeNavItems: ShellNavItem[] = [
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
-    { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] },
+  ];
+
+  const arcNavItem: ShellNavItem = { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] };
+
+  const growthNavItems: ShellNavItem[] = [
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
     { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
+  ];
+
+  const intelligenceNavItems: ShellNavItem[] = [
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
-    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
-    { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
-    { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
-    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
   ];
+
+  const assetNavItems: ShellNavItem[] = [
+    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
+    { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
+    { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
+    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
+  ];
+
+  const navItems: ShellNavItem[] = [homeNavItems[0], arcNavItem, ...growthNavItems, ...intelligenceNavItems, ...assetNavItems];
 
   const utilityNavItems: ShellNavItem[] = [
     { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
@@ -168,8 +180,28 @@ export function ConsoleFrame({
 
               <div aria-hidden className="h-px bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)]" />
 
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <SideNav active={pathname} items={navItems} collapsed={sidebarCollapsed} />
+              <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+                <div className="flex flex-col gap-4">
+                  <SidebarSection collapsed={sidebarCollapsed}>
+                    <SideNav active={pathname} items={homeNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
+
+                  <SidebarSection collapsed={sidebarCollapsed} label="Command">
+                    <SideNav active={pathname} items={[arcNavItem]} collapsed={sidebarCollapsed} prominent />
+                  </SidebarSection>
+
+                  <SidebarSection collapsed={sidebarCollapsed} label="Growth">
+                    <SideNav active={pathname} items={growthNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
+
+                  <SidebarSection collapsed={sidebarCollapsed} label="Intelligence">
+                    <SideNav active={pathname} items={intelligenceNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
+
+                  <SidebarSection collapsed={sidebarCollapsed} label="Assets">
+                    <SideNav active={pathname} items={assetNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
+                </div>
               </div>
 
               <WorkspaceBadge collapsed={sidebarCollapsed} workspaceName={brand.workspaceName} />
@@ -227,6 +259,27 @@ function WorkspaceBadge({ collapsed, workspaceName }: { collapsed?: boolean; wor
       <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Workspace</div>
       <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{workspaceName}</div>
     </div>
+  );
+}
+
+function SidebarSection({
+  children,
+  collapsed,
+  label,
+}: {
+  children: React.ReactNode;
+  collapsed?: boolean;
+  label?: string;
+}) {
+  return (
+    <section className={cx("min-w-0", collapsed ? "" : "space-y-1.5")} aria-label={label}>
+      {!collapsed && label ? (
+        <div className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          {label}
+        </div>
+      ) : null}
+      {children}
+    </section>
   );
 }
 
