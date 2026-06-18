@@ -1,7 +1,7 @@
 import type { ArcClient } from "./arc-client";
 
 /** A prompt-ready memory line recalled from the brain (mirrors the app's RecallItem). */
-export type RecallItem = { label: string; summary: string | null; kind: string };
+export type RecallItem = { label: string; summary: string | null; kind: string; related?: string[] };
 
 /**
  * Fetch the org's durable memory for this turn; fall back to [] on any error so a

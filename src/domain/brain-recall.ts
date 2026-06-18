@@ -15,7 +15,7 @@ export type RecallCandidate = {
 };
 
 /** A prompt-ready memory line. */
-export type RecallItem = { label: string; summary: string | null; kind: string };
+export type RecallItem = { label: string; summary: string | null; kind: string; related?: string[] };
 
 export type RankRecallOptions = { coreLimit?: number; matchLimit?: number; cap?: number };
 
@@ -37,11 +37,11 @@ function candidateText(c: RecallCandidate): string {
   return [c.label, c.summary ?? "", c.tags.join(" ")].join(" ").toLowerCase();
 }
 
-export function rankRecall(
+export function selectRecall(
   candidates: RecallCandidate[],
   message: string,
   options: RankRecallOptions = {},
-): RecallItem[] {
+): RecallCandidate[] {
   const coreLimit = options.coreLimit ?? 10;
   const matchLimit = options.matchLimit ?? 5;
   const cap = options.cap ?? 15;
@@ -65,7 +65,131 @@ export function rankRecall(
           .slice(0, matchLimit)
           .map((s) => s.c);
 
-  return [...core, ...matches]
-    .slice(0, cap)
-    .map((c) => ({ label: c.label, summary: c.summary, kind: c.kind }));
+  return [...core, ...matches].slice(0, cap);
+}
+
+/** Back-compat: select + map to prompt-ready items (no enrichment). */
+export function rankRecall(
+  candidates: RecallCandidate[],
+  message: string,
+  options: RankRecallOptions = {},
+): RecallItem[] {
+  return selectRecall(candidates, message, options).map((c) => ({ label: c.label, summary: c.summary, kind: c.kind }));
+}
+
+// ─── Task 2: traverseFrom ────────────────────────────────────────────────────
+
+/** A directed edge between two nodes (the subset traverseFrom needs). */
+export type GraphEdgeInput = { fromNodeId: string; toNodeId: string; relation: string };
+
+/** A connection discovered from a seed: which node, via which relation, the
+ *  direction of the discovering edge (out = seed-side was `from`), and hop distance. */
+export type Connection = { nodeId: string; relation: string; direction: "out" | "in"; hops: number };
+
+export type TraverseOptions = { depth?: number; maxPerSeed?: number };
+
+/**
+ * Breadth-first traversal from each seed over the edge list, undirected
+ * reachability (follows an edge either way) with a per-seed visited set
+ * (cycle-safe). Each connection records the discovering edge's relation +
+ * direction + hop distance. Bounded by `depth` (default 2) and `maxPerSeed`
+ * (default 4); closest nodes first. Pure.
+ */
+export function traverseFrom(
+  seedIds: string[],
+  edges: GraphEdgeInput[],
+  options: TraverseOptions = {},
+): Map<string, Connection[]> {
+  const depth = options.depth ?? 2;
+  const maxPerSeed = options.maxPerSeed ?? 4;
+
+  type Adj = { neighbor: string; relation: string; direction: "out" | "in" };
+  const adj = new Map<string, Adj[]>();
+  const add = (from: string, a: Adj) => {
+    const list = adj.get(from);
+    if (list) list.push(a);
+    else adj.set(from, [a]);
+  };
+  for (const e of edges) {
+    add(e.fromNodeId, { neighbor: e.toNodeId, relation: e.relation, direction: "out" });
+    add(e.toNodeId, { neighbor: e.fromNodeId, relation: e.relation, direction: "in" });
+  }
+
+  const result = new Map<string, Connection[]>();
+  for (const seed of seedIds) {
+    const connections: Connection[] = [];
+    const visited = new Set<string>([seed]);
+    let frontier: string[] = [seed];
+    for (let hop = 1; hop <= depth && connections.length < maxPerSeed; hop++) {
+      const nextFrontier: string[] = [];
+      for (const current of frontier) {
+        for (const a of adj.get(current) ?? []) {
+          if (visited.has(a.neighbor)) continue;
+          visited.add(a.neighbor);
+          connections.push({ nodeId: a.neighbor, relation: a.relation, direction: a.direction, hops: hop });
+          nextFrontier.push(a.neighbor);
+          if (connections.length >= maxPerSeed) break;
+        }
+        if (connections.length >= maxPerSeed) break;
+      }
+      frontier = nextFrontier;
+    }
+    result.set(seed, connections);
+  }
+  return result;
+}
+
+// ─── Task 3: enrichRecall ────────────────────────────────────────────────────
+
+/** The node + edge data enrichRecall needs (subset of the bulk brain graph). */
+export type RecallGraph = {
+  nodes: Array<{ id: string; label: string; kind: string }>;
+  edges: GraphEdgeInput[];
+};
+
+export type EnrichOptions = {
+  enrichLimit?: number;
+  relationsPerNode?: number;
+  depth?: number;
+  maxPerSeed?: number;
+};
+
+/**
+ * Map selected candidates to prompt-ready items, attaching `related` connection
+ * lines for the top `enrichLimit` (default 5) selected nodes via traverseFrom.
+ * Each line: `—relation→ Label (kind)` (outbound) or `←relation— Label (kind)`
+ * (inbound), prefixed `(N-hop) ` when more than one hop away. Capped at
+ * `relationsPerNode` (default 3). Pure.
+ */
+export function enrichRecall(
+  selected: RecallCandidate[],
+  graph: RecallGraph,
+  options: EnrichOptions = {},
+): RecallItem[] {
+  const enrichLimit = options.enrichLimit ?? 5;
+  const relationsPerNode = options.relationsPerNode ?? 3;
+
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const seedIds = selected.slice(0, enrichLimit).map((c) => c.id);
+  const traversal = traverseFrom(seedIds, graph.edges, {
+    depth: options.depth ?? 2,
+    maxPerSeed: options.maxPerSeed ?? 4,
+  });
+
+  return selected.map((c) => {
+    const base: RecallItem = { label: c.label, summary: c.summary, kind: c.kind };
+    const conns = traversal.get(c.id);
+    if (!conns || conns.length === 0) return base;
+    const related = conns
+      .map((conn) => {
+        const n = nodeById.get(conn.nodeId);
+        if (!n) return null;
+        const rel = conn.direction === "out" ? `—${conn.relation}→` : `←${conn.relation}—`;
+        const prefix = conn.hops > 1 ? `(${conn.hops}-hop) ` : "";
+        return `${prefix}${rel} ${n.label} (${n.kind})`;
+      })
+      .filter((s): s is string => s !== null)
+      .slice(0, relationsPerNode);
+    return related.length ? { ...base, related } : base;
+  });
 }
