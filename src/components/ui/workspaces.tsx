@@ -126,8 +126,8 @@ function WorkspaceTrigger({
       <button
         data-state={open ? "open" : "closed"}
         className={cn(
-          "group flex w-full items-center rounded border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-left text-sm transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
-          collapsed ? "mx-auto size-10 justify-center p-0" : "min-h-11 justify-between gap-2 px-2.5 py-2",
+          "workspace-trigger group flex w-full items-center rounded border border-transparent bg-transparent text-left text-sm transition hover:bg-[rgba(255,255,255,0.035)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
+          collapsed ? "mx-auto size-10 justify-center p-0" : "min-h-11 justify-between gap-2 px-1 py-1.5",
           className,
         )}
         {...props}

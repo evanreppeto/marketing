@@ -383,6 +383,13 @@ h4, .font-display {
   border-color: var(--border-strong) !important;
 }
 
+.chicago-dark .workspace-trigger,
+.chicago-dark .workspace-trigger:hover,
+.chicago-dark .workspace-trigger[data-state="open"] {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .chicago-dark :where(a, button).arc-hover-border-gradient,
 .chicago-dark :where(a, button).arc-hover-border-gradient:hover,
 .chicago-dark :where(a, button).arc-hover-border-gradient:focus-visible {
