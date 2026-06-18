@@ -211,13 +211,13 @@ export function ArcDefaultsForm({
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Default model route</span>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Default Arc level</span>
           <select className={inputClass} defaultValue={initialRoute} name="markDefaultRoute">
-            <option value="fast">Fast - routine chat and lookup</option>
-            <option value="standard">Standard - deeper drafting/reasoning</option>
+            <option value="fast">Swift — quick & economical (Imagen 4 · Veo 2)</option>
+            <option value="standard">Studio — best quality (Imagen Ultra · Veo 3)</option>
           </select>
           <span className="text-xs text-[var(--text-muted)]">
-            Sent to the agent as metadata so Arc can choose the right runner path.
+            Studio uses deeper reasoning and higher-quality media; Swift is quicker and lighter. Switchable per message in the composer.
           </span>
         </label>
       </div>
@@ -462,11 +462,14 @@ export function AgentBehaviorSettingsForm({
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Default model route</span>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Default Arc level</span>
           <select className={inputClass} defaultValue={initialRoute} name="markDefaultRoute">
-            <option value="fast">Fast - routine chat and lookup</option>
-            <option value="standard">Standard - deeper drafting/reasoning</option>
+            <option value="fast">Swift — quick & economical (Imagen 4 · Veo 2)</option>
+            <option value="standard">Studio — best quality (Imagen Ultra · Veo 3)</option>
           </select>
+          <span className="text-xs text-[var(--text-muted)]">
+            Your default level. Studio uses deeper reasoning and higher-quality media; you can switch per message in the composer.
+          </span>
         </label>
       </div>
 

@@ -18,9 +18,9 @@ import type { ArcRoute } from "@/domain";
 
 type ModelOption = {
   id: ArcRoute;
-  /** Full name shown in the menu, e.g. "Arc · Standard". */
+  /** Full name shown in the menu, e.g. "Arc Studio". */
   name: string;
-  /** Compact label shown on the trigger chip, e.g. "Standard". */
+  /** Compact label shown on the trigger chip, e.g. "Studio". */
   short: string;
   tagline: string;
   /** 1–3 segment meters; purely descriptive of the tier's posture. */
@@ -31,17 +31,17 @@ type ModelOption = {
 export const MODEL_OPTIONS: ModelOption[] = [
   {
     id: "standard",
-    name: "Arc · Standard",
-    short: "Standard",
-    tagline: "Deeper reasoning for campaigns, personas, and analysis.",
+    name: "Arc Studio",
+    short: "Studio",
+    tagline: "Deeper reasoning + top-tier image & video (Imagen Ultra · Veo 3)",
     speed: 2,
     depth: 3,
   },
   {
     id: "fast",
-    name: "Arc · Fast",
-    short: "Fast",
-    tagline: "Quick replies and lightweight drafts.",
+    name: "Arc Swift",
+    short: "Swift",
+    tagline: "Quick replies + fast image & video (Imagen 4 · Veo 2)",
     speed: 3,
     depth: 1,
   },
