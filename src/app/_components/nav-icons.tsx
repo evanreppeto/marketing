@@ -3,6 +3,7 @@ export type NavIconName =
   | "crm"
   | "outbox"
   | "gallery"
+  | "library"
   | "arc"
   | "settings"
   | "board"
@@ -65,6 +66,14 @@ const paths: Record<NavIconName, React.ReactNode> = {
       <rect height="14" rx="1.5" width="16" x="4" y="5" />
       <circle cx="9" cy="10" r="1.4" />
       <path d="m4 16 4.2-4 3.3 3.2 2.7-2.6L20 18" />
+    </>
+  ),
+  // Framed image — media library
+  library: (
+    <>
+      <rect height="14" rx="2" width="16" x="4" y="5" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="m4 16 4-3 3 2 4-4 5 5" />
     </>
   ),
   // Message square — the Arc conversation
