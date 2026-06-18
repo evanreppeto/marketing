@@ -250,14 +250,14 @@ body {
 
 h1, h2, h3 {
   font-family: var(--font-serif);
-  letter-spacing: -0.01em;
-  font-weight: 500;
+  letter-spacing: -0.022em;
+  font-weight: 600;
 }
 
 h4, .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.022em;
-  font-feature-settings: "ss01";
+  letter-spacing: -0.02em;
+  font-weight: 600;
 }
 
 ::selection {
@@ -312,12 +312,14 @@ h4, .font-display {
    ============================================================================ */
 
 .signal-panel {
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   border: 1px solid var(--border-panel);
   background:
-    linear-gradient(180deg, oklch(0.98 0.01 240 / 0.02), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 36%),
     var(--surface-panel);
-  box-shadow: var(--elev-panel);
+  /* Machined depth: ambient drop + a hairline inner top highlight so panels read
+     as physical plates, not flat AI cards. */
+  box-shadow: var(--elev-panel), inset 0 1px 0 rgba(255, 255, 255, 0.045);
   color: var(--text-primary);
 }
 

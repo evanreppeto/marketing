@@ -2,6 +2,8 @@ import { type TrustTier } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
+import { demoBrainNodes } from "./demo";
+
 export type BrainNode = {
   id: string;
   kind: string;
@@ -109,13 +111,35 @@ async function resolveRead(
   return { client: client ?? getSupabaseAdminClient(), orgId: orgId ?? (await getCurrentOrgId()) };
 }
 
+/**
+ * Apply NodeFilters to an in-memory node list, mirroring the SQL filters in
+ * listNodes so the demo fallback responds to the same kind/tier/persona/search
+ * controls the live query would.
+ */
+function filterDemoNodes(filters: NodeFilters): BrainNode[] {
+  let nodes = demoBrainNodes();
+  if (filters.kind) nodes = nodes.filter((n) => n.kind === filters.kind);
+  if (filters.trustTier) nodes = nodes.filter((n) => n.trustTier === filters.trustTier);
+  else nodes = nodes.filter((n) => n.trustTier !== "archived");
+  if (filters.persona) nodes = nodes.filter((n) => n.persona === filters.persona);
+  if (filters.refTable) nodes = nodes.filter((n) => n.refTable === filters.refTable);
+  if (filters.refId) nodes = nodes.filter((n) => n.refId === filters.refId);
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    nodes = nodes.filter((n) => n.label.toLowerCase().includes(q));
+  }
+  return nodes;
+}
+
 export async function listNodes(
   filters: NodeFilters = {},
   client?: TypedSupabaseClient,
   orgId?: string,
 ): Promise<Live<{ nodes: BrainNode[] }> | Unavailable> {
   const resolved = await resolveRead(client, orgId);
-  if (!resolved) return { status: "unavailable", message: "Supabase is not configured." };
+  // No Supabase configured (local preview): serve the demo brain so the page
+  // renders a populated knowledge memory instead of an empty shell.
+  if (!resolved) return { status: "live", nodes: filterDemoNodes(filters) };
   try {
     let query = resolved.client
       .from("knowledge_nodes")
@@ -135,7 +159,14 @@ export async function listNodes(
 
     const { data, error } = await query;
     if (error) return { status: "unavailable", message: error.message };
-    return { status: "live", nodes: ((data ?? []) as NodeRow[]).map(mapNode) };
+    const nodes = ((data ?? []) as NodeRow[]).map(mapNode);
+    // An empty brain (no nodes seeded yet) shows the demo memory rather than a
+    // blank page — but only for an unfiltered read, so a genuine no-match on a
+    // specific filter still returns empty.
+    const unfiltered =
+      !filters.kind && !filters.trustTier && !filters.persona && !filters.refTable && !filters.refId && !filters.search;
+    if (nodes.length === 0 && unfiltered) return { status: "live", nodes: filterDemoNodes({}) };
+    return { status: "live", nodes };
   } catch (error) {
     return { status: "unavailable", message: error instanceof Error ? error.message : "Brain is unavailable." };
   }

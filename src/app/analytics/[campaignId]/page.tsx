@@ -7,6 +7,8 @@ import { getCampaignPerformance } from "@/lib/performance/campaign-performance";
 import { getAppSettings } from "@/lib/settings/store";
 
 import { CampaignAnalyticsDetail } from "../_components/campaign-analytics-detail";
+import { CampaignAnalyticsDemoDetail } from "../_components/campaign-analytics-demo-detail";
+import { getCampaignAnalyticsDemoDetail } from "@/lib/performance/campaign-demo-detail";
 
 export const metadata = {
   title: "Campaign analytics",
@@ -20,6 +22,16 @@ export default async function CampaignAnalyticsPage({ params }: CampaignAnalytic
   await connection();
 
   const { campaignId } = await params;
+
+  // Demo campaign ids (the ones the analytics overview table links to) get the
+  // rich, concept-matching analytics detail — a full performance-over-time
+  // chart, funnel, channel + per-asset breakdown — rather than the
+  // approval-readiness workspace, which only applies to real Supabase records.
+  const demo = getCampaignAnalyticsDemoDetail(campaignId);
+  if (demo) {
+    return <CampaignAnalyticsDemoDetail detail={demo} />;
+  }
+
   const { assistantName } = await getAppSettings();
   const agentName = getAgentDisplayName(assistantName);
   const [detail, performance] = await Promise.all([

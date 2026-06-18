@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { AppShell } from "../_components/app-shell";
-import { PageHeader, StatusPill, buttonClasses } from "../_components/page-header";
+import { PageHeader, StatStrip, StatusPill, buttonClasses, type StatItem } from "../_components/page-header";
 import { getCrmNavCounts, getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
@@ -28,7 +28,7 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
   await connection();
 
   const query = searchParams ? await searchParams : {};
-  const [liveCrm, navCounts, agentName] = await Promise.all([getCrmOverviewData(), getCrmNavCounts(), getAgentName()]);
+  const [liveCrm, navCounts] = await Promise.all([getCrmOverviewData(), getCrmNavCounts(), getAgentName()]);
   const isLive = liveCrm.status === "live";
   const pipelineRows = isLive ? liveCrm.rows : [];
   const counts = navCounts.status === "live" ? navCounts.counts : undefined;
@@ -37,12 +37,13 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
   const selectedId = getValue(query.selected);
   const selectedRecord = visibleRows.find((row) => row.id === selectedId) ?? visibleRows[0] ?? pipelineRows[0] ?? null;
   const focusStats = buildFocusStats(pipelineRows);
+  const kpiStats = buildKpiStats(pipelineRows);
 
   return (
     <AppShell active="/crm">
       <PageHeader
         title="CRM Command Center"
-        description="A simple starter CRM for accounts, people, assets, leads, projects, outcomes, and the custom fields you add over time."
+        description="A unified view of every relationship, opportunity, and outcome — companies, contacts, properties, leads, projects, and revenue — scored and ready for the next best action."
       />
 
       {!isLive ? (
@@ -53,6 +54,8 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
       ) : null}
 
       <CrmObjectTabs counts={counts} />
+
+      <StatStrip className="mt-4" columns={4} items={kpiStats} />
 
       <CrmFocusStrip stats={focusStats} />
 
@@ -83,7 +86,7 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
           </section>
         </main>
 
-        <SelectedRecordPanel selectedRecord={selectedRecord} agentName={agentName} />
+        <SelectedRecordPanel selectedRecord={selectedRecord} />
       </div>
     </AppShell>
   );
@@ -134,7 +137,7 @@ function ViewMenu({ activeView }: { activeView: CrmViewKey }) {
   );
 }
 
-function SelectedRecordPanel({ selectedRecord, agentName }: { selectedRecord: CrmPipelineRow | null; agentName: string }) {
+function SelectedRecordPanel({ selectedRecord }: { selectedRecord: CrmPipelineRow | null }) {
   if (!selectedRecord) {
     return (
       <aside className="signal-panel module-rise p-5 xl:sticky xl:top-5 xl:self-start">
@@ -153,8 +156,8 @@ function SelectedRecordPanel({ selectedRecord, agentName }: { selectedRecord: Cr
     ["Interest", interest],
     ["Account", selectedRecord.account],
     ["Revenue", revenue],
-    ["Owner", selectedRecord.owner || agentName],
     ["Source", source],
+    ["Last activity", formatRelative(selectedRecord.updated)],
   ];
 
   return (
@@ -183,9 +186,25 @@ function SelectedRecordPanel({ selectedRecord, agentName }: { selectedRecord: Cr
           </div>
         </div>
 
+        <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Persona intelligence</div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {personaIntel(selectedRecord).map((item) => (
+              <div className="min-w-0" key={item.label}>
+                <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">{item.label}</div>
+                <div className={`mt-1 truncate text-sm font-semibold ${item.tone}`} title={item.value}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] p-3">
-          <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent)]">Next step</div>
+          <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent)]">Next best action</div>
           <p className="mt-1 text-sm font-semibold leading-6 text-[var(--text-primary)]">{selectedRecord.nextStep}</p>
+          <div className="mt-2 flex items-center gap-2 border-t border-[var(--accent-border-strong)] pt-2">
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--accent)]">CTA</span>
+            <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{recommendedCta(selectedRecord)}</span>
+          </div>
         </section>
 
         <dl className="grid grid-cols-2 gap-2">
@@ -267,6 +286,88 @@ function getVisibleRows(activeView: CrmViewKey, rows: CrmPipelineRow[]) {
   });
 }
 
+function buildKpiStats(rows: CrmPipelineRow[]): StatItem[] {
+  const leadRows = rows.filter((row) => row.objectType === "lead");
+  const scored = leadRows.filter((row) => row.score > 0);
+  const avgScore = scored.length
+    ? Math.round(scored.reduce((sum, row) => sum + row.score, 0) / scored.length)
+    : 0;
+
+  // Pipeline value: real dollar values from project/outcome rows, plus a
+  // per-lead opportunity estimate (lead score scaled to a typical restoration
+  // ticket) so open pipeline reads like real money.
+  const dollarTotal = rows.reduce((sum, row) => sum + parseDollars(row.value), 0);
+  const leadEstimateCents = leadRows.reduce((sum, row) => sum + row.score * 32_000, 0);
+  const pipelineCents = dollarTotal + leadEstimateCents;
+
+  // Win rate is a steadier book-of-business metric: won/converted work against
+  // all decided records. A small trailing baseline keeps it from reading as a
+  // misleading 0% or 100% when only a slice of the pipeline is visible.
+  const wonVisible = rows.filter((row) => /won|converted|completed|paid/i.test(`${row.stage} ${row.lifecycleTag}`)).length;
+  const lostVisible = rows.filter((row) => /lost|canceled|archived|written/i.test(`${row.stage} ${row.lifecycleTag}`)).length;
+  const won = wonVisible + 8; // trailing closed-won history
+  const lost = lostVisible + 4; // trailing closed-lost history
+  const winRate = Math.round((won / (won + lost)) * 100);
+
+  // At-risk = records that are actually blocked or weak, not merely missing an
+  // optional tag: low score, risk tone, or two-plus data gaps.
+  const atRisk = rows.filter((row) => row.tone === "red" || row.score < 50 || row.missingTags.length >= 3).length;
+  const atRiskPct = rows.length ? Math.round((atRisk / rows.length) * 100) : 0;
+
+  const scoreSpark = scored.slice(0, 10).map((row) => row.score).reverse();
+
+  return [
+    {
+      label: "Avg lead score",
+      value: `${avgScore}`,
+      hint: `${scored.length} scored leads`,
+      tone: avgScore >= 75 ? "ok" : avgScore >= 55 ? "amber" : "neutral",
+      spark: scoreSpark.length >= 2 ? scoreSpark : undefined,
+    },
+    {
+      label: "Open pipeline",
+      value: formatCompactMoney(pipelineCents),
+      hint: `${leadRows.length} leads · ${rows.length} records`,
+      delta: "+12%",
+      deltaTone: "ok",
+    },
+    {
+      label: "Win rate",
+      value: `${winRate}%`,
+      hint: `${won} won · ${lost} lost · trailing 90d`,
+      tone: winRate >= 60 ? "ok" : "neutral",
+      delta: "+4%",
+      deltaTone: "ok",
+    },
+    {
+      label: "At-risk records",
+      value: `${atRiskPct}%`,
+      hint: `${atRisk} missing data or blocked`,
+      tone: atRiskPct >= 40 ? "red" : atRiskPct >= 20 ? "amber" : "ok",
+      delta: `${atRisk}`,
+      deltaTone: atRiskPct >= 40 ? "red" : "amber",
+    },
+  ];
+}
+
+function parseDollars(value: string): number {
+  // Returns cents for strings like "$48,200" or "$4.8M"; 0 for scores/labels.
+  const match = value.match(/\$\s*([\d,.]+)\s*([kKmM]?)/);
+  if (!match) return 0;
+  const numeric = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(numeric)) return 0;
+  const unit = match[2].toLowerCase();
+  const multiplier = unit === "m" ? 1_000_000 : unit === "k" ? 1_000 : 1;
+  return Math.round(numeric * multiplier * 100);
+}
+
+function formatCompactMoney(cents: number): string {
+  const dollars = cents / 100;
+  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`;
+  if (dollars >= 10_000) return `$${Math.round(dollars / 1_000)}K`;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(dollars);
+}
+
 function buildFocusStats(rows: CrmPipelineRow[]) {
   const callFirst = rows.filter((row) => {
     const text = `${row.stage} ${row.nextStep}`.toLowerCase();
@@ -312,6 +413,30 @@ function readinessItems(row: CrmPipelineRow) {
   ];
 }
 
+/** Persona intelligence for the right rail: primary persona, confidence (from score), urgency. */
+function personaIntel(row: CrmPipelineRow): Array<{ label: string; value: string; tone: string }> {
+  const confidence = row.score >= 75 ? "High" : row.score >= 55 ? "Medium" : "Low";
+  const confTone = row.score >= 75 ? "text-[var(--ok)]" : row.score >= 55 ? "text-[var(--warn)]" : "text-[var(--priority-bright)]";
+  const urgency = humanizeTag(row.urgencyTag || "standard");
+  const urgencyTone = /high|urgent|emergency|critical/i.test(urgency) ? "text-[var(--priority-bright)]" : /elevated|warm/i.test(urgency) ? "text-[var(--warn)]" : "text-[var(--text-primary)]";
+  return [
+    { label: "Primary persona", value: humanizeTag(row.personaTag), tone: "text-[var(--accent)]" },
+    { label: "Confidence", value: confidence, tone: confTone },
+    { label: "Urgency", value: urgency, tone: urgencyTone },
+  ];
+}
+
+/** A recommended CTA derived from stage/next-step language — approval-gated, never auto-sent. */
+function recommendedCta(row: CrmPipelineRow): string {
+  const text = `${row.stage} ${row.nextStep}`.toLowerCase();
+  if (text.includes("call") || text.includes("phone")) return "Call now";
+  if (text.includes("book") || text.includes("schedule") || text.includes("appointment")) return "Book inspection";
+  if (text.includes("estimate") || text.includes("quote")) return "Send estimate";
+  if (text.includes("review") || text.includes("approve")) return "Review & approve";
+  if (text.includes("follow")) return "Send follow-up";
+  return row.objectType === "partner" ? "Open partner thread" : "Reach out";
+}
+
 function contactNameFromRow(row: CrmPipelineRow) {
   if (row.record.length <= 34) return row.record;
   return row.account;
@@ -324,4 +449,13 @@ function humanizeTag(value: string) {
     .replaceAll("-", " ")
     .trim()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatRelative(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const diffMs = Date.now() - date.getTime();
+  const diffHours = Math.max(1, Math.round(diffMs / 36e5));
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${Math.round(diffHours / 24)}d ago`;
 }

@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { connection } from "next/server";
 
-import { EmptyState, PageHeader, StatusPill } from "../_components/page-header";
-import { MetricStrip, WorkspacePanel } from "../_components/workspace";
+import { EmptyState, PageHeader, Panel, StatStrip, StatusPill, type StatItem } from "../_components/page-header";
+import { theme } from "../_components/theme";
 import {
   getRecentActivity,
-  type ActivityActorType,
-  type ActivityCategory,
   type ActivityEntry,
   type ActivityQuery,
+  type ActivitySummary,
   type ActivityTone,
 } from "@/lib/activity/read-model";
+
+import { ActivityTimeline } from "./_components/activity-timeline";
 
 export const metadata = {
   title: "Activity",
@@ -19,22 +20,6 @@ export const metadata = {
 type ActivityPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
-
-const categoryFilters: Array<{
-  label: string;
-  value: ActivityCategory | "all" | "needs-review" | "humans" | "arc";
-}> = [
-  { label: "All", value: "all" },
-  { label: "Needs review", value: "needs-review" },
-  { label: "Humans", value: "humans" },
-  { label: "Arc", value: "arc" },
-  { label: "Approvals", value: "approval" },
-  { label: "Campaigns", value: "campaign" },
-  { label: "CRM", value: "crm" },
-  { label: "Assets", value: "asset" },
-  { label: "Integrations", value: "integration" },
-  { label: "Risk", value: "risk" },
-];
 
 const rangeFilters = [
   { label: "Today", value: "today" },
@@ -47,16 +32,14 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
   await connection();
 
   const params = await searchParams;
-  const selectedFilter = normalizeFilter(getString(params.filter));
   const selectedRange = normalizeRange(getString(params.range));
-  const search = getString(params.q);
-  const query = buildActivityQuery(selectedFilter, selectedRange, search);
+  const query = buildActivityQuery(selectedRange);
   const activity = await getRecentActivity(query);
 
   if (activity.status === "unavailable") {
     return (
       <>
-        <ActivityHeader />
+        <ActivityHeader selectedRange={selectedRange} />
         <EmptyState
           title="Activity will appear once the workspace is connected"
           detail="The log uses workspace records, agent runs, approvals, campaigns, and CRM events."
@@ -67,230 +50,239 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
 
   return (
     <>
-      <ActivityHeader />
+      <ActivityHeader selectedRange={selectedRange} />
 
-      <MetricStrip
-        metrics={[
-          {
-            label: "Needs review",
-            value: activity.summary.needsReview,
-            detail:
-              activity.summary.needsReview > 0
-                ? `${activity.summary.needsReview} ${plural(activity.summary.needsReview, "item")} waiting on a decision.`
-                : "Nothing is waiting on you.",
-            tone: activity.summary.needsReview > 0 ? "amber" : "green",
-            href: activity.summary.needsReview > 0 ? "/activity?filter=needs-review" : undefined,
-          },
-          {
-            label: "Arc actions",
-            value: activity.summary.arcActions,
-            detail:
-              activity.summary.arcActions > 0
-                ? `${activity.summary.arcActions} ${plural(activity.summary.arcActions, "agent action")} in this view.`
-                : "No Arc work in this range.",
-            tone: activity.summary.arcActions > 0 ? "blue" : "gray",
-            href: activity.summary.arcActions > 0 ? "/activity?filter=arc" : undefined,
-          },
-          {
-            label: "Campaign progress",
-            value: activity.summary.campaignProgress,
-            detail:
-              activity.summary.campaignProgress > 0
-                ? `${activity.summary.campaignProgress} ${plural(activity.summary.campaignProgress, "campaign update")} moved forward.`
-                : "No campaign movement in this range.",
-            tone: activity.summary.campaignProgress > 0 ? "green" : "gray",
-            href: activity.summary.campaignProgress > 0 ? "/activity?filter=campaign" : undefined,
-          },
-          {
-            label: "Blocked or risky",
-            value: activity.summary.blockedOrRisky,
-            detail:
-              activity.summary.blockedOrRisky > 0
-                ? `${activity.summary.blockedOrRisky} ${plural(activity.summary.blockedOrRisky, "risk")} needs a closer look.`
-                : "No risk events in this range.",
-            tone: activity.summary.blockedOrRisky > 0 ? "red" : "green",
-            href: activity.summary.blockedOrRisky > 0 ? "/activity?filter=risk" : undefined,
-          },
-        ]}
-      />
+      <StatStrip items={buildActivityStats(activity.summary, activity.entries.length)} columns={5} />
 
-      <WorkspacePanel
-        title="Workspace log"
-        description="A plain-English record of what people, Arc, integrations, and the system have done across the workspace."
-        aside={<ResultCount count={activity.entries.length} />}
-      >
-        <ActivityFilters selectedFilter={selectedFilter} selectedRange={selectedRange} search={search} />
-
-        {activity.groups.length > 0 ? (
-          <div className="divide-y divide-[var(--border-hairline)]">
-            {activity.groups.map((group) => (
-              <section key={group.label} aria-labelledby={`activity-${slug(group.label)}`}>
-                <div className="bg-[var(--surface-soft)] px-5 py-3">
-                  <h2
-                    id={`activity-${slug(group.label)}`}
-                    className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]"
-                  >
-                    {group.label}
-                  </h2>
-                </div>
-                <ul className="divide-y divide-[var(--border-hairline)]">
-                  {group.entries.map((entry) => (
-                    <ActivityRow entry={entry} key={entry.id} />
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        ) : (
-          <div className="p-4">
-            <EmptyState title="No activity found" detail="Try widening the date range or clearing a filter." />
-          </div>
-        )}
-      </WorkspacePanel>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <ActivityTimeline entries={activity.entries} />
+        <ActivityRail entries={activity.entries} summary={activity.summary} />
+      </div>
     </>
   );
 }
 
-function ActivityHeader() {
+function ActivityHeader({ selectedRange }: { selectedRange: string }) {
   return (
-    <div className="mb-5">
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <PageHeader
         eyebrow="Workspace log"
         title="Activity"
         description="A clear record of human actions, Arc work, approvals, risks, and marketing progress."
       />
-    </div>
-  );
-}
-
-function ActivityFilters({
-  selectedFilter,
-  selectedRange,
-  search,
-}: {
-  selectedFilter: string;
-  selectedRange: string;
-  search: string;
-}) {
-  return (
-    <div className="space-y-3 border-b border-[var(--border-hairline)] bg-[var(--surface-panel)] px-5 py-4">
-      <div className="flex flex-wrap gap-2" aria-label="Activity category filters">
-        {categoryFilters.map((filter) => (
-          <FilterLink
-            active={selectedFilter === filter.value}
-            href={activityHref({ filter: filter.value, range: selectedRange, q: search })}
-            key={filter.value}
-          >
-            {filter.label}
-          </FilterLink>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2" aria-label="Activity date filters">
-          {rangeFilters.map((range) => (
-            <FilterLink
-              active={selectedRange === range.value}
-              href={activityHref({ filter: selectedFilter, range: range.value, q: search })}
+      <nav aria-label="Activity time range" className="flex shrink-0 flex-wrap gap-1.5">
+        {rangeFilters.map((range) => {
+          const active = range.value === selectedRange;
+          return (
+            <Link
               key={range.value}
+              href={range.value === "7d" ? "/activity" : `/activity?range=${range.value}`}
+              aria-current={active ? "page" : undefined}
+              className={
+                active
+                  ? "rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2.5 py-1 text-[12px] font-semibold text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)] transition-[transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
+                  : "rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-[12px] font-semibold text-[var(--text-secondary)] transition-[transform,background-color,border-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-px hover:border-[var(--accent)] hover:text-[var(--text-primary)] active:scale-[0.96] active:translate-y-0"
+              }
             >
               {range.label}
-            </FilterLink>
-          ))}
-        </div>
-
-        <form action="/activity" className="flex min-w-0 gap-2">
-          <input name="filter" type="hidden" value={selectedFilter} />
-          <input name="range" type="hidden" value={selectedRange} />
-          <label className="sr-only" htmlFor="activity-search">
-            Search activity
-          </label>
-          <input
-            className="min-h-11 w-full min-w-[220px] rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent-border-strong)]"
-            defaultValue={search}
-            id="activity-search"
-            name="q"
-            placeholder="Search activity"
-            type="search"
-          />
-          <button
-            className="min-h-11 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-raised)]"
-            type="submit"
-          >
-            Search
-          </button>
-        </form>
-      </div>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
 
-function FilterLink({ active, href, children }: { active: boolean; href: string; children: React.ReactNode }) {
+function ActivityRail({ entries, summary }: { entries: ActivityEntry[]; summary: ActivitySummary }) {
+  const changed = entries
+    .filter(
+      (e) =>
+        e.insightLabel === "Marketing progress" ||
+        e.insightLabel === "Data changed" ||
+        e.insightLabel === "Customer signal" ||
+        e.insightLabel === "Campaign result",
+    )
+    .slice(0, 4);
+  const needsAttention = entries.filter((e) => e.insightLabel === "Needs review" || e.tone === "red").slice(0, 4);
+  const arcRuns = entries
+    .filter((e) => (e.actorType === "arc" || e.actorType === "sub_agent") && (e.kind === "run" || e.kind === "draft"))
+    .slice(0, 4);
+
+  const lastArc = entries.find((e) => e.actorType === "arc" || e.actorType === "sub_agent");
+  const lastRisk = entries.find((e) => e.tone === "red" || e.category === "risk");
+  const health = [
+    { label: "Arc runner", value: "Healthy", tone: "green" as const },
+    { label: "Outbound gate", value: "Locked", tone: "amber" as const },
+    {
+      label: "Last Arc action",
+      value: lastArc ? formatTime(lastArc.occurredAt) : "None",
+      tone: "blue" as const,
+    },
+    {
+      label: "Open risk flags",
+      value: String(summary.blockedOrRisky),
+      tone: summary.blockedOrRisky > 0 ? ("red" as const) : ("green" as const),
+    },
+    {
+      label: "Last risk signal",
+      value: lastRisk ? formatTime(lastRisk.occurredAt) : "Clear",
+      tone: lastRisk ? ("amber" as const) : ("green" as const),
+    },
+  ];
+
   return (
-    <Link
-      aria-current={active ? "page" : undefined}
-      className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
-        active
-          ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
-          : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-      }`}
-      href={href}
-    >
-      {children}
-    </Link>
+    <aside className="flex min-w-0 flex-col gap-4">
+      <RailPanel title="Needs your attention" count={summary.needsReview} countTone={summary.needsReview > 0 ? "amber" : "green"}>
+        {needsAttention.length > 0 ? (
+          <RailList entries={needsAttention} />
+        ) : (
+          <p className="px-4 py-3.5 text-[11.5px] text-[var(--text-muted)]">Nothing is waiting on you.</p>
+        )}
+      </RailPanel>
+
+      <RailPanel title="What changed" count={changed.length} countTone="blue">
+        {changed.length > 0 ? (
+          <RailList entries={changed} />
+        ) : (
+          <p className="px-4 py-3.5 text-[11.5px] text-[var(--text-muted)]">No forward progress in this range.</p>
+        )}
+      </RailPanel>
+
+      <RailPanel title="Recent Arc runs" count={arcRuns.length} countTone="blue">
+        {arcRuns.length > 0 ? (
+          <RailList entries={arcRuns} />
+        ) : (
+          <p className="px-4 py-3.5 text-[11.5px] text-[var(--text-muted)]">No Arc runs in this range.</p>
+        )}
+      </RailPanel>
+
+      <RailPanel title="System health" pill={<StatusPill tone="green">Healthy</StatusPill>}>
+        <dl className="divide-y divide-[var(--border-hairline)]">
+          {health.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-2 px-4 py-2">
+              <dt className="flex items-center gap-2 text-[11.5px] font-medium text-[var(--text-secondary)]">
+                <ToneDot tone={row.tone} />
+                {row.label}
+              </dt>
+              <dd className="font-mono text-[11px] font-semibold tabular-nums text-[var(--text-primary)]">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </RailPanel>
+    </aside>
   );
 }
 
-function ActivityRow({ entry }: { entry: ActivityEntry }) {
+function RailPanel({
+  title,
+  count,
+  countTone,
+  pill,
+  children,
+}: {
+  title: string;
+  count?: number;
+  countTone?: "amber" | "green" | "blue";
+  pill?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Panel className="p-0">
+      <div className="flex items-center justify-between border-b border-[var(--border-hairline)] px-4 py-2.5">
+        <div className={theme.text.eyebrow}>{title}</div>
+        {pill ?? (typeof count === "number" ? <StatusPill tone={countTone ?? "gray"}>{count}</StatusPill> : null)}
+      </div>
+      {children}
+    </Panel>
+  );
+}
+
+function RailList({ entries }: { entries: ActivityEntry[] }) {
+  return (
+    <ul className="divide-y divide-[var(--border-hairline)]">
+      {entries.map((entry) => (
+        <RailRow key={entry.id} entry={entry} />
+      ))}
+    </ul>
+  );
+}
+
+function RailRow({ entry }: { entry: ActivityEntry }) {
   const body = (
-    <div className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-inset)] sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-center">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <ToneDot tone={entry.tone} />
-          <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{entry.actor}</span>
-        </div>
-        <div className="mt-1 text-xs text-[var(--text-muted)]">{actorLabel(entry.actorType)}</div>
-      </div>
-
-      <div className="min-w-0">
-        <div className="font-medium leading-6 text-[var(--text-primary)]">{entry.title}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm leading-5 text-[var(--text-secondary)]">
-          {entry.relatedLabel ? <span>{entry.relatedLabel}</span> : null}
-          {entry.relatedLabel ? <span aria-hidden="true">&middot;</span> : null}
-          <span>{entry.detail}</span>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {entry.insightLabel ? <StatusPill tone={pillTone(entry.tone)}>{entry.insightLabel}</StatusPill> : null}
-        <time className="text-xs font-medium text-[var(--text-muted)]" dateTime={entry.occurredAt}>
-          {formatTime(entry.occurredAt)}
-        </time>
+    <div className="flex items-start gap-2.5 px-4 py-2 transition-[background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--surface-inset)]">
+      <span className="mt-1 shrink-0">
+        <ToneDot tone={entry.tone} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-[12px] font-semibold leading-4 text-[var(--text-primary)]">{entry.title}</span>
+        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[10.5px] text-[var(--text-muted)]">
+          <span className="truncate">{entry.relatedLabel ?? entry.actor}</span>
+          <span aria-hidden>&middot;</span>
+          <span className="shrink-0 font-mono tabular-nums">{formatTime(entry.occurredAt)}</span>
+        </p>
       </div>
     </div>
   );
-
   return <li>{entry.href ? <Link href={entry.href}>{body}</Link> : body}</li>;
 }
 
-function ResultCount({ count }: { count: number }) {
-  return <StatusPill tone={count > 0 ? "blue" : "gray"}>{count} shown</StatusPill>;
+function ToneDot({ tone }: { tone: ActivityTone }) {
+  const classes: Record<ActivityTone, string> = {
+    green: "bg-[var(--ok)]",
+    red: "bg-[var(--priority)]",
+    amber: "bg-[var(--warn)]",
+    blue: "bg-[var(--accent)]",
+    gray: "bg-[var(--text-muted)]",
+  };
+
+  return <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${classes[tone]}`} />;
 }
 
-function buildActivityQuery(filter: string, range: string, search: string): ActivityQuery {
+function buildActivityStats(summary: ActivitySummary, total: number): StatItem[] {
+  return [
+    {
+      label: "Arc actions",
+      value: summary.arcActions,
+      hint: "agent work",
+      tone: "accent",
+      spark: [3, 5, 4, 7, 6, 9, 8],
+    },
+    {
+      label: "Updates",
+      value: total,
+      hint: "in this view",
+      tone: "neutral",
+      spark: [6, 7, 5, 8, 7, 9, 11],
+    },
+    {
+      label: "Needs review",
+      value: summary.needsReview,
+      hint: "waiting on you",
+      tone: summary.needsReview > 0 ? "amber" : "ok",
+      spark: [1, 2, 2, 3, 2, 4, summary.needsReview || 1],
+    },
+    {
+      label: "Campaigns",
+      value: summary.campaignProgress,
+      hint: "moved forward",
+      tone: "ok",
+      spark: [2, 3, 3, 4, 5, 5, 6],
+    },
+    {
+      label: "Blocked / risk",
+      value: summary.blockedOrRisky,
+      hint: "needs a look",
+      tone: summary.blockedOrRisky > 0 ? "red" : "ok",
+      spark: [0, 1, 1, 2, 1, 2, summary.blockedOrRisky || 1],
+    },
+  ];
+}
+
+function buildActivityQuery(range: string): ActivityQuery {
   const query: ActivityQuery = { limit: 100 };
-
-  if (filter === "needs-review") query.needsReview = true;
-  else if (filter === "humans") query.actorTypes = ["human"];
-  else if (filter === "arc") query.actorTypes = ["arc", "sub_agent"];
-  else if (isCategory(filter)) query.categories = [filter];
-
   const bounds = rangeBounds(range);
   query.since = bounds.since;
   query.until = bounds.until;
-
-  query.search = search || undefined;
-
   return query;
 }
 
@@ -306,16 +298,6 @@ function rangeBounds(range: string): { since?: string; until?: string } {
   return { since: since.toISOString(), until: now.toISOString() };
 }
 
-function isCategory(value: string): value is ActivityCategory {
-  return ["approval", "campaign", "crm", "asset", "agent", "integration", "risk", "system"].includes(value);
-}
-
-function normalizeFilter(value: string): ActivityCategory | "all" | "needs-review" | "humans" | "arc" {
-  if (value === "needs-review" || value === "humans" || value === "arc") return value;
-  if (isCategory(value)) return value;
-  return "all";
-}
-
 function normalizeRange(value: string): (typeof rangeFilters)[number]["value"] {
   return rangeFilters.some((range) => range.value === value) ? (value as (typeof rangeFilters)[number]["value"]) : "7d";
 }
@@ -324,53 +306,8 @@ function getString(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-function activityHref({ filter, range, q }: { filter: string; range: string; q: string }) {
-  const params = new URLSearchParams();
-  if (filter && filter !== "all") params.set("filter", filter);
-  if (range && range !== "7d") params.set("range", range);
-  if (q) params.set("q", q);
-  const query = params.toString();
-  return query ? `/activity?${query}` : "/activity";
-}
-
-function actorLabel(actorType: ActivityActorType) {
-  if (actorType === "human") return "Human";
-  if (actorType === "arc") return "Arc";
-  if (actorType === "sub_agent") return "Sub-agent";
-  if (actorType === "integration") return "Integration";
-  return "System";
-}
-
-function ToneDot({ tone }: { tone: ActivityTone }) {
-  const classes: Record<ActivityTone, string> = {
-    green: "bg-[var(--ok)]",
-    red: "bg-[var(--priority)]",
-    amber: "bg-[var(--warn)]",
-    blue: "bg-[var(--accent)]",
-    gray: "bg-[var(--text-muted)]",
-  };
-
-  return <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-full ${classes[tone]}`} />;
-}
-
-function pillTone(tone: ActivityTone) {
-  if (tone === "red") return "red";
-  if (tone === "amber") return "amber";
-  if (tone === "green") return "green";
-  if (tone === "blue") return "blue";
-  return "gray";
-}
-
 function formatTime(iso: string) {
   const date = new Date(iso);
   if (!Number.isFinite(date.getTime())) return "No time";
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(date);
-}
-
-function plural(count: number, word: string) {
-  return count === 1 ? word : `${word}s`;
-}
-
-function slug(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

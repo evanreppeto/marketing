@@ -58,8 +58,19 @@ function setRiveBooleanInput(
   input: { value: boolean | number } | null | undefined,
   value: boolean
 ) {
-  if (input) {
+  if (!input) {
+    return;
+  }
+  // A Rive StateMachineInput proxy can be truthy yet backed by a disposed native
+  // instance — e.g. when the avatar's `state` prop flips during a rapid re-render
+  // (dragging a card into the "Working" lane toggles `pending`/`thinking`) while
+  // the previous Rive runtime is being torn down. Writing `value` then throws out
+  // of the wasm binding and takes down the whole React tree. Swallow that narrow,
+  // benign race so a transient avatar update can never crash the page.
+  try {
     Reflect.set(input, "value", value);
+  } catch {
+    // input was disposed between the truthy check and the write — nothing to do.
   }
 }
 

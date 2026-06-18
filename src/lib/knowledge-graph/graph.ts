@@ -2,7 +2,23 @@ import { type TrustTier } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
+import { demoBrainEdges, demoBrainNodes } from "./demo";
 import { type BrainEdge, type BrainNode, mapEdge, mapNode } from "./read-model";
+
+/**
+ * The demo brain, shaped as a live graph result. Edges are pruned to visible
+ * (non-archived) nodes so no dangling links reach the renderer.
+ */
+function demoGraph(filters: { kinds?: string[]; trustTiers?: TrustTier[] }): GraphResult {
+  const tiers = filters.trustTiers && filters.trustTiers.length ? new Set(filters.trustTiers) : new Set(VISIBLE_TIERS);
+  const kinds = filters.kinds && filters.kinds.length ? new Set(filters.kinds) : null;
+  const nodes = demoBrainNodes().filter(
+    (n) => tiers.has(n.trustTier) && (!kinds || kinds.has(n.kind)),
+  );
+  const ids = new Set(nodes.map((n) => n.id));
+  const edges = demoBrainEdges().filter((e) => ids.has(e.fromNodeId) && ids.has(e.toNodeId));
+  return { status: "live", nodes, edges, truncated: false };
+}
 
 export type BrainGraph = { nodes: BrainNode[]; edges: BrainEdge[]; truncated: boolean };
 type GraphResult = ({ status: "live" } & BrainGraph) | { status: "unavailable"; message: string };
@@ -46,7 +62,9 @@ export async function getBrainGraph(
   orgId?: string,
 ): Promise<GraphResult> {
   if (!(client && orgId)) {
-    if (!isSupabaseAdminConfigured()) return { status: "unavailable", message: "Supabase is not configured." };
+    // Local preview without Supabase: serve the demo knowledge graph so the
+    // brain renders a populated node-web instead of an empty canvas.
+    if (!isSupabaseAdminConfigured()) return demoGraph(filters);
   }
   try {
     const supabase = client ?? getSupabaseAdminClient();
@@ -82,6 +100,11 @@ export async function getBrainGraph(
     const edges = (truncatedEdges ? edgeRows.slice(0, EDGE_CAP) : edgeRows)
       .map(mapEdge)
       .filter((e) => nodeIds.has(e.fromNodeId) && nodeIds.has(e.toNodeId));
+
+    // Empty brain + no filters applied: show the demo graph instead of a blank
+    // canvas (matches the read-model's empty-DB fallback).
+    const noFilters = !(filters.kinds && filters.kinds.length) && !(filters.trustTiers && filters.trustTiers.length);
+    if (nodes.length === 0 && noFilters) return demoGraph(filters);
 
     return { status: "live", nodes, edges, truncated: truncatedNodes || truncatedEdges };
   } catch (error) {

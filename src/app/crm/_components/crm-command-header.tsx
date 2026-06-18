@@ -37,10 +37,10 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
           >
             <Link
               aria-current={!activeObject ? "page" : undefined}
-              className={`inline-flex min-h-9 shrink-0 items-center rounded px-3 text-sm font-semibold transition ${
+              className={`inline-flex min-h-9 shrink-0 cursor-pointer items-center rounded px-3 text-sm font-semibold transition ${
                 activeObject
                   ? "text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-                  : "bg-[var(--priority-solid)] text-[var(--on-priority)] shadow-sm"
+                  : "bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent-border)]"
               }`}
               href="/crm"
             >
@@ -52,16 +52,16 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
               return (
                 <Link
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded px-3 text-sm font-semibold transition ${
+                  className={`inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-2 rounded px-3 text-sm font-semibold transition ${
                     isActive
-                      ? "bg-[var(--priority-solid)] text-[var(--on-priority)] shadow-sm"
+                      ? "bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent-border)]"
                       : "text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
                   }`}
                   href={object.href}
                   key={object.key}
                 >
                   {object.label}
-                  <span className={`font-mono text-[11px] ${isActive ? "text-[var(--on-priority)] opacity-75" : "text-[var(--accent)]"}`}>
+                  <span className={`font-mono text-[11px] ${isActive ? "text-[var(--accent)]" : "text-[var(--accent)] opacity-80"}`}>
                     {counts?.[object.key] ?? 0}
                   </span>
                 </Link>

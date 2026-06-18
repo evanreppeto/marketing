@@ -76,6 +76,7 @@ export function ConsoleFrame({
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
+    { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
     { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
@@ -90,7 +91,9 @@ export function ConsoleFrame({
     return <AgentNameProvider value={agentName}>{children}</AgentNameProvider>;
   }
 
-  const expanded = isSidebarExpanded({ pinned: false, hovered, focusWithin });
+  // Default to the expanded, labeled rail (matches the product concepts); hover/
+  // focus still keep it open. Mobile keeps its own top-bar dock below `lg`.
+  const expanded = isSidebarExpanded({ pinned: true, hovered, focusWithin });
   const collapsed = !expanded;
 
   const layout = cx(

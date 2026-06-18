@@ -46,7 +46,7 @@ export function KpiBand({ kpis }: { kpis: Kpi[] }) {
           </>
         );
         return kpi.href ? (
-          <Link key={kpi.label} href={kpi.href} className="border-b border-r border-[var(--border-hairline)] p-4 transition hover:bg-[var(--surface-inset)]">{body}</Link>
+          <Link key={kpi.label} href={kpi.href} className="border-b border-r border-[var(--border-hairline)] p-4 transition-[background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--surface-inset)]">{body}</Link>
         ) : (
           <div key={kpi.label} className="border-b border-r border-[var(--border-hairline)] p-4">{body}</div>
         );

@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { connection } from "next/server";
 
-import { buttonClasses, EmptyState, PageHeader, StatusPill } from "../_components/page-header";
+import { buttonClasses, EmptyState, PageHeader, StatStrip, StatusPill, type StatItem } from "../_components/page-header";
+import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 import { getAgentDisplayName, isAgentConfigured } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
@@ -41,7 +42,10 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
       <CampaignsHeader pendingCount={pendingCount} agentName={displayName} />
 
       {campaigns.length > 0 ? (
-        <CampaignLibrary campaigns={campaigns} activeView={getViewParam(params.view)} query={getParam(params.q)} agentName={displayName} />
+        <>
+          <StatStrip items={buildCampaignKpis(campaigns)} columns={5} />
+          <CampaignLibrary campaigns={campaigns} activeView={getViewParam(params.view)} query={getParam(params.q)} agentName={displayName} />
+        </>
       ) : configured ? (
         <EmptyState
           title="No campaigns yet"
@@ -52,6 +56,49 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
       )}
     </>
   );
+}
+
+function buildCampaignKpis(campaigns: CampaignWorkspaceListItem[]): StatItem[] {
+  const isArchived = (campaign: CampaignWorkspaceListItem) => /archived/i.test(campaign.status);
+  const active = campaigns.filter((campaign) => !isArchived(campaign));
+  const live = active.filter((campaign) => campaign.lifecycle === "Live").length;
+  const awaiting = active.filter((campaign) => campaign.pendingCount > 0 || campaign.lifecycle === "In review").length;
+  const ready = active.filter((campaign) => campaign.lifecycle === "Ready").length;
+  const archived = campaigns.filter(isArchived).length;
+  const pendingPieces = active.reduce((total, campaign) => total + campaign.pendingCount, 0);
+
+  return [
+    {
+      label: "Live",
+      value: active.length,
+      hint: "Active campaigns",
+      tone: "neutral",
+    },
+    {
+      label: "Awaiting approval",
+      value: awaiting,
+      hint: pendingPieces > 0 ? `${pendingPieces} to review` : "Nothing waiting",
+      tone: awaiting > 0 ? "amber" : "neutral",
+    },
+    {
+      label: "Ready to send",
+      value: ready,
+      hint: ready > 0 ? "Awaiting launch" : "None ready",
+      tone: ready > 0 ? "accent" : "neutral",
+    },
+    {
+      label: "In market",
+      value: live,
+      hint: live > 0 ? "Running now" : "None live",
+      tone: live > 0 ? "ok" : "neutral",
+    },
+    {
+      label: "Archived",
+      value: archived,
+      hint: "Saved for reuse",
+      tone: "neutral",
+    },
+  ];
 }
 
 function getParam(value: string | string[] | undefined) {
