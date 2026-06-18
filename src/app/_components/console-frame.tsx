@@ -257,24 +257,24 @@ function ArcCommandLink({
       aria-current={active ? "page" : undefined}
       aria-label={`${agentName} command center`}
       className={cx(
-        "group relative flex shrink-0 items-center rounded border transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
+        "group relative flex shrink-0 items-center rounded transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
         collapsed
-          ? "mx-auto h-12 w-12 justify-center border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_9%,transparent)]"
-          : "min-h-16 gap-3 border-[color-mix(in_srgb,var(--accent)_26%,transparent)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_13%,transparent),rgba(255,255,255,0.035))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+          ? "mx-auto h-10 w-10 justify-center"
+          : "min-h-11 gap-2.5 px-2.5",
         active
-          ? "text-[var(--text-primary)]"
-          : "text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent)_42%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:text-[var(--text-primary)]",
+          ? "bg-[rgba(255,255,255,0.055)] text-[var(--text-primary)]"
+          : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--text-primary)]",
       )}
       href="/arc"
       prefetch
     >
-      <NavIcon className="h-6 w-6 shrink-0 text-[var(--accent)]" name="arc" />
+      <NavIcon className="h-5 w-5 shrink-0 text-[var(--accent)]" name="arc" />
       {!collapsed ? (
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">{agentName}</span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+        <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-current">{agentName}</span>
+          <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--ok)]" />
-            Ready
+            Live
           </span>
         </span>
       ) : null}
@@ -282,8 +282,8 @@ function ArcCommandLink({
         <span
           aria-hidden
           className={cx(
-            "pointer-events-none absolute rounded-full bg-[var(--accent)]",
-            collapsed ? "inset-x-3 -bottom-px h-px" : "inset-y-3 right-2 w-px",
+            "pointer-events-none absolute rounded-full bg-[color-mix(in_srgb,var(--accent)_62%,transparent)]",
+            collapsed ? "inset-x-3 -bottom-px h-px" : "inset-y-2 right-2 w-px",
           )}
         />
       ) : null}
