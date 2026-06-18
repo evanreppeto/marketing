@@ -138,3 +138,58 @@ export function traverseFrom(
   }
   return result;
 }
+
+// ─── Task 3: enrichRecall ────────────────────────────────────────────────────
+
+/** The node + edge data enrichRecall needs (subset of the bulk brain graph). */
+export type RecallGraph = {
+  nodes: Array<{ id: string; label: string; kind: string }>;
+  edges: GraphEdgeInput[];
+};
+
+export type EnrichOptions = {
+  enrichLimit?: number;
+  relationsPerNode?: number;
+  depth?: number;
+  maxPerSeed?: number;
+};
+
+/**
+ * Map selected candidates to prompt-ready items, attaching `related` connection
+ * lines for the top `enrichLimit` (default 5) selected nodes via traverseFrom.
+ * Each line: `—relation→ Label (kind)` (outbound) or `←relation— Label (kind)`
+ * (inbound), prefixed `(N-hop) ` when more than one hop away. Capped at
+ * `relationsPerNode` (default 3). Pure.
+ */
+export function enrichRecall(
+  selected: RecallCandidate[],
+  graph: RecallGraph,
+  options: EnrichOptions = {},
+): RecallItem[] {
+  const enrichLimit = options.enrichLimit ?? 5;
+  const relationsPerNode = options.relationsPerNode ?? 3;
+
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const seedIds = selected.slice(0, enrichLimit).map((c) => c.id);
+  const traversal = traverseFrom(seedIds, graph.edges, {
+    depth: options.depth ?? 2,
+    maxPerSeed: options.maxPerSeed ?? 4,
+  });
+
+  return selected.map((c) => {
+    const base: RecallItem = { label: c.label, summary: c.summary, kind: c.kind };
+    const conns = traversal.get(c.id);
+    if (!conns || conns.length === 0) return base;
+    const related = conns
+      .map((conn) => {
+        const n = nodeById.get(conn.nodeId);
+        if (!n) return null;
+        const rel = conn.direction === "out" ? `—${conn.relation}→` : `←${conn.relation}—`;
+        const prefix = conn.hops > 1 ? `(${conn.hops}-hop) ` : "";
+        return `${prefix}${rel} ${n.label} (${n.kind})`;
+      })
+      .filter((s): s is string => s !== null)
+      .slice(0, relationsPerNode);
+    return related.length ? { ...base, related } : base;
+  });
+}

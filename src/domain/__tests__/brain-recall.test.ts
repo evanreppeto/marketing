@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { rankRecall, selectRecall, traverseFrom, type RecallCandidate, type GraphEdgeInput } from "../brain-recall";
+import {
+  rankRecall,
+  selectRecall,
+  traverseFrom,
+  enrichRecall,
+  type RecallCandidate,
+  type GraphEdgeInput,
+  type RecallGraph,
+} from "../brain-recall";
 
 function cand(id: string, label: string, extra: Partial<RecallCandidate> = {}): RecallCandidate {
   return { id, kind: "learning", label, summary: null, tags: [], trustTier: "trusted", ...extra };
@@ -115,5 +123,63 @@ describe("traverseFrom", () => {
 
   it("returns an empty list for a seed with no edges", () => {
     expect(traverseFrom(["lonely"], edges).get("lonely")).toEqual([]);
+  });
+});
+
+describe("enrichRecall", () => {
+  const selected = [
+    { id: "a", kind: "messaging_angle", label: "Flood angle", summary: "lead 24/7", tags: [], trustTier: "trusted" },
+    { id: "z", kind: "learning", label: "Lonely", summary: null, tags: [], trustTier: "observed" },
+  ];
+  const graph: RecallGraph = {
+    nodes: [
+      { id: "a", label: "Flood angle", kind: "messaging_angle" },
+      { id: "b", label: "24/7 response", kind: "proof_point" },
+      { id: "z", label: "Lonely", kind: "learning" },
+    ],
+    edges: [{ fromNodeId: "a", toNodeId: "b", relation: "proves" }],
+  };
+
+  it("attaches outbound relation lines to connected nodes", () => {
+    const out = enrichRecall(selected, graph, { enrichLimit: 5, relationsPerNode: 3 });
+    const a = out.find((i) => i.label === "Flood angle")!;
+    expect(a.related).toEqual(["—proves→ 24/7 response (proof_point)"]);
+  });
+
+  it("leaves nodes with no connections without a related field", () => {
+    const out = enrichRecall(selected, graph, {});
+    const z = out.find((i) => i.label === "Lonely")!;
+    expect(z.related).toBeUndefined();
+  });
+
+  it("only enriches the top enrichLimit selected nodes", () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({
+      id: `n${i}`, kind: "learning", label: `N${i}`, summary: null, tags: [], trustTier: "trusted",
+    }));
+    const g: RecallGraph = {
+      nodes: [...many.map((m) => ({ id: m.id, label: m.label, kind: m.kind })), { id: "t", label: "Target", kind: "proof_point" }],
+      edges: many.map((m) => ({ fromNodeId: m.id, toNodeId: "t", relation: "proves" })),
+    };
+    const out = enrichRecall(many, g, { enrichLimit: 2 });
+    expect(out.filter((i) => i.related).length).toBe(2);
+  });
+
+  it("renders inbound direction and a hop prefix for 2-hop", () => {
+    const sel = [{ id: "a", kind: "learning", label: "A", summary: null, tags: [], trustTier: "trusted" }];
+    const g: RecallGraph = {
+      nodes: [
+        { id: "a", label: "A", kind: "learning" },
+        { id: "b", label: "B", kind: "learning" },
+        { id: "c", label: "C", kind: "proof_point" },
+      ],
+      edges: [
+        { fromNodeId: "d_b", toNodeId: "a", relation: "governs" },
+        { fromNodeId: "a", toNodeId: "b", relation: "relates_to" },
+        { fromNodeId: "b", toNodeId: "c", relation: "proves" },
+      ],
+    };
+    const a = enrichRecall(sel, g, { depth: 2, maxPerSeed: 10 }).find((i) => i.label === "A")!;
+    expect(a.related).toContain("—relates_to→ B (learning)");
+    expect(a.related).toContain("(2-hop) —proves→ C (proof_point)");
   });
 });
