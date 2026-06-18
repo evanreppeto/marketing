@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
+import { NavIcon } from "./nav-icons";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
@@ -65,8 +66,6 @@ export function ConsoleFrame({
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
   ];
 
-  const arcNavItem: ShellNavItem = { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] };
-
   const growthNavItems: ShellNavItem[] = [
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
@@ -86,7 +85,13 @@ export function ConsoleFrame({
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
   ];
 
-  const navItems: ShellNavItem[] = [homeNavItems[0], arcNavItem, ...growthNavItems, ...intelligenceNavItems, ...assetNavItems];
+  const navItems: ShellNavItem[] = [
+    homeNavItems[0],
+    { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] },
+    ...growthNavItems,
+    ...intelligenceNavItems,
+    ...assetNavItems,
+  ];
 
   const utilityNavItems: ShellNavItem[] = [
     { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
@@ -178,16 +183,12 @@ export function ConsoleFrame({
                 </Link>
               </div>
 
-              <div aria-hidden className="h-px bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)]" />
+              <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
-                <div className="flex flex-col gap-4">
-                  <SidebarSection collapsed={sidebarCollapsed}>
+                <div className="flex flex-col gap-3">
+                  <SidebarSection collapsed={sidebarCollapsed} label="Workspace">
                     <SideNav active={pathname} items={homeNavItems} collapsed={sidebarCollapsed} />
-                  </SidebarSection>
-
-                  <SidebarSection collapsed={sidebarCollapsed} label="Command">
-                    <SideNav active={pathname} items={[arcNavItem]} collapsed={sidebarCollapsed} prominent />
                   </SidebarSection>
 
                   <SidebarSection collapsed={sidebarCollapsed} label="Growth">
@@ -262,6 +263,54 @@ function WorkspaceBadge({ collapsed, workspaceName }: { collapsed?: boolean; wor
   );
 }
 
+function ArcCommandLink({
+  active,
+  agentName,
+  collapsed,
+}: {
+  active: boolean;
+  agentName: string;
+  collapsed?: boolean;
+}) {
+  return (
+    <Link
+      aria-current={active ? "page" : undefined}
+      aria-label={`${agentName} command center`}
+      className={cx(
+        "group relative flex shrink-0 items-center rounded border transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
+        collapsed
+          ? "mx-auto h-12 w-12 justify-center border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_9%,transparent)]"
+          : "min-h-16 gap-3 border-[color-mix(in_srgb,var(--accent)_26%,transparent)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_13%,transparent),rgba(255,255,255,0.035))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+        active
+          ? "text-[var(--text-primary)]"
+          : "text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent)_42%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:text-[var(--text-primary)]",
+      )}
+      href="/arc"
+      prefetch
+    >
+      <NavIcon className="h-6 w-6 shrink-0 text-[var(--accent)]" name="arc" />
+      {!collapsed ? (
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">{agentName}</span>
+          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--ok)]" />
+            Ready
+          </span>
+        </span>
+      ) : null}
+      {active ? (
+        <span
+          aria-hidden
+          className={cx(
+            "pointer-events-none absolute rounded-full bg-[var(--accent)]",
+            collapsed ? "inset-x-3 -bottom-px h-px" : "inset-y-3 right-2 w-px",
+          )}
+        />
+      ) : null}
+    </Link>
+  );
+}
+
 function SidebarSection({
   children,
   collapsed,
@@ -272,7 +321,7 @@ function SidebarSection({
   label?: string;
 }) {
   return (
-    <section className={cx("min-w-0", collapsed ? "" : "space-y-1.5")} aria-label={label}>
+    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-1.5 border-t border-[var(--border-hairline)] pt-3")} aria-label={label}>
       {!collapsed && label ? (
         <div className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           {label}

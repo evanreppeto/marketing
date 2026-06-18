@@ -19,7 +19,6 @@ type SideNavProps = {
   items: ShellNavItem[];
   collapsed?: boolean;
   mobileDock?: boolean;
-  prominent?: boolean;
 };
 
 function matchesItem(item: ShellNavItem, path: string) {
@@ -29,7 +28,7 @@ function matchesItem(item: ShellNavItem, path: string) {
   return item.matches.some((match) => path === match || (match !== "/" && path.startsWith(match)));
 }
 
-export function SideNav({ active, items, collapsed = false, mobileDock = false, prominent = false }: SideNavProps) {
+export function SideNav({ active, items, collapsed = false, mobileDock = false }: SideNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, setPending] = useState<{ fromPath: string; href: string } | null>(null);
@@ -63,20 +62,12 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false, 
               mobileDock
                 ? "h-10 w-10 justify-center px-0 lg:h-10 lg:w-auto lg:min-w-0 lg:gap-2.5 lg:px-3"
                 : compactRail
-                  ? prominent
-                    ? "h-11 w-11 justify-center border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-0"
-                    : "h-10 w-10 justify-center px-0"
-                  : prominent
-                    ? "min-h-14 w-full gap-3 border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_12%,transparent),rgba(255,255,255,0.035))] px-3"
-                    : "min-h-10 w-full gap-2.5 px-2.5"
+                  ? "h-10 w-10 justify-center px-0"
+                  : "min-h-10 w-full gap-2.5 px-2.5"
             } ${
               isActive
-                ? prominent
-                  ? "text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                  : "bg-[rgba(255,255,255,0.055)] text-[var(--text-primary)]"
-                : prominent
-                  ? "text-[var(--text-primary)] hover:border-[color-mix(in_srgb,var(--accent)_34%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-                  : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--text-primary)]"
+                ? "bg-[rgba(255,255,255,0.055)] text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--text-primary)]"
             }`}
             href={item.href}
             key={item.href}
@@ -89,16 +80,10 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false, 
             onMouseEnter={() => router.prefetch(item.href)}
             prefetch
           >
-            <NavIcon
-              className={`${prominent ? "h-6 w-6" : "h-5 w-5"} shrink-0 transition-colors ${
-                isActive || prominent ? "text-[var(--accent)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]"
-              }`}
-              name={item.icon}
-            />
+            <NavIcon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]"}`} name={item.icon} />
             {showLabel ? (
               <span className={`${mobileDock ? "hidden lg:block" : "block"} min-w-0 truncate`}>
                 <span className="block truncate">{item.label}</span>
-                {prominent ? <span className="block truncate text-[11px] font-medium text-[var(--text-muted)]">Command agent</span> : null}
               </span>
             ) : null}
             {isActive && showLabel ? (
