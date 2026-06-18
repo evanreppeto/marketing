@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { PlusIcon, Settings2 } from "lucide-react";
+import { Cog, PlusIcon } from "lucide-react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
@@ -47,7 +47,7 @@ const sidebarGoldDividerTop =
 const sidebarGoldDividerBottom =
   "after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] after:opacity-35 after:content-['']";
 const sidebarBottomDock =
-  "relative rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-soft)_58%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] before:absolute before:inset-x-3 before:-top-px before:h-px before:bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_72%,transparent),color-mix(in_srgb,var(--ok)_34%,transparent),transparent)] before:content-['']";
+  "relative mt-1 rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-soft)_58%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] before:absolute before:inset-x-3 before:-top-px before:h-px before:bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_72%,transparent),color-mix(in_srgb,var(--ok)_34%,transparent),transparent)] before:content-['']";
 
 /**
  * Persistent application chrome. Desktop uses the command rail; smaller screens
@@ -93,12 +93,6 @@ export function ConsoleFrame({
     { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
     { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
-  ];
-
-  const collapsedNavGroups: CollapsedNavGroupConfig[] = [
-    { label: "Growth", icon: "campaigns", items: growthNavItems },
-    { label: "Intelligence", icon: "brain", items: intelligenceNavItems },
-    { label: "Assets", icon: "gallery", items: assetNavItems },
   ];
 
   const navItems: ShellNavItem[] = [
@@ -207,28 +201,24 @@ export function ConsoleFrame({
                 <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
               </div>
 
-              <div className={cx(sidebarCollapsed ? "flex flex-1 items-center justify-center overflow-visible" : "min-h-0 flex-1 overflow-y-auto pr-0.5")}>
-                {sidebarCollapsed ? (
-                  <CollapsedNavRail active={pathname} groups={collapsedNavGroups} />
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    <SidebarSection label="Workspace">
-                      <SideNav active={pathname} items={homeNavItems} />
-                    </SidebarSection>
+              <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+                <div className="flex flex-col gap-3">
+                  <SidebarSection collapsed={sidebarCollapsed} label="Workspace">
+                    <SideNav active={pathname} items={homeNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
 
-                    <SidebarSection label="Growth">
-                      <SideNav active={pathname} items={growthNavItems} />
-                    </SidebarSection>
+                  <SidebarSection collapsed={sidebarCollapsed} label="Growth">
+                    <SideNav active={pathname} items={growthNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
 
-                    <SidebarSection label="Intelligence">
-                      <SideNav active={pathname} items={intelligenceNavItems} />
-                    </SidebarSection>
+                  <SidebarSection collapsed={sidebarCollapsed} label="Intelligence">
+                    <SideNav active={pathname} items={intelligenceNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
 
-                    <SidebarSection label="Assets">
-                      <SideNav active={pathname} items={assetNavItems} />
-                    </SidebarSection>
-                  </div>
-                )}
+                  <SidebarSection collapsed={sidebarCollapsed} label="Assets">
+                    <SideNav active={pathname} items={assetNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
+                </div>
               </div>
 
               <SidebarBottomDock collapsed={sidebarCollapsed} settingsHref={utilityNavItems[0].href} workspaceName={brand.workspaceName} />
@@ -258,83 +248,6 @@ export function ConsoleFrame({
         </div>
       </main>
     </AgentNameProvider>
-  );
-}
-
-type CollapsedNavGroupConfig = {
-  icon: ShellNavItem["icon"];
-  items: ShellNavItem[];
-  label: string;
-};
-
-function matchesShellItem(item: ShellNavItem, path: string) {
-  if (item.exact) {
-    return item.matches.some((match) => path === match);
-  }
-  return item.matches.some((match) => path === match || (match !== "/" && path.startsWith(match)));
-}
-
-function CollapsedNavRail({ active, groups }: { active: string; groups: CollapsedNavGroupConfig[] }) {
-  return (
-    <nav aria-label="Grouped navigation" className="flex w-full flex-col items-center gap-2.5">
-      {groups.map((group) => (
-        <CollapsedNavGroup active={active} group={group} key={group.label} />
-      ))}
-    </nav>
-  );
-}
-
-function CollapsedNavGroup({ active, group }: { active: string; group: CollapsedNavGroupConfig }) {
-  const groupActive = group.items.some((item) => matchesShellItem(item, active));
-
-  return (
-    <div className="group/nav-flyout relative flex justify-center">
-      <button
-        aria-label={`${group.label} navigation`}
-        aria-haspopup="menu"
-        className={cx(
-          "relative flex h-10 w-10 items-center justify-center rounded text-[var(--text-muted)] transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] group-hover/nav-flyout:bg-[rgba(255,255,255,0.045)] group-hover/nav-flyout:text-[var(--text-primary)]",
-          groupActive ? "bg-[rgba(255,255,255,0.055)] text-[var(--text-primary)]" : "",
-        )}
-        type="button"
-      >
-        <NavIcon className={cx("h-5 w-5", groupActive ? "text-[var(--accent)]" : "")} name={group.icon} />
-        {groupActive ? (
-          <ActiveMotionMarker
-            className="pointer-events-none absolute inset-x-3 -bottom-px h-px rounded-full bg-[color-mix(in_srgb,var(--accent)_62%,transparent)]"
-            layoutId="collapsed-group-active-marker"
-          />
-        ) : null}
-      </button>
-      <div
-        role="menu"
-        className="pointer-events-none absolute left-[calc(100%+0.65rem)] top-1/2 z-40 w-56 -translate-y-1/2 translate-x-1 rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--canvas-deep)_92%,transparent)] p-1.5 opacity-0 shadow-[0_18px_44px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.055)] backdrop-blur transition duration-150 ease-out group-hover/nav-flyout:pointer-events-auto group-hover/nav-flyout:translate-x-0 group-hover/nav-flyout:opacity-100 group-focus-within/nav-flyout:pointer-events-auto group-focus-within/nav-flyout:translate-x-0 group-focus-within/nav-flyout:opacity-100"
-      >
-        <div className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          {group.label}
-        </div>
-        <div className="space-y-1">
-          {group.items.map((item) => {
-            const isActive = matchesShellItem(item, active);
-            return (
-              <Link
-                aria-current={isActive ? "page" : undefined}
-                className={cx(
-                  "flex min-h-9 items-center gap-2 rounded px-2 text-sm font-semibold transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]",
-                  isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]",
-                )}
-                href={item.href}
-                key={item.href}
-                role="menuitem"
-              >
-                <NavIcon className={cx("h-4.5 w-4.5 shrink-0", isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]")} name={item.icon} />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -380,7 +293,7 @@ function ArcCommandLink({
 
 function SidebarBottomDock({ collapsed, settingsHref, workspaceName }: { collapsed?: boolean; settingsHref: string; workspaceName: string }) {
   return (
-    <div className={cx(sidebarBottomDock, collapsed ? "space-y-2 px-1.5 py-2.5" : "space-y-3 px-3 py-3.5")}>
+    <div className={cx(sidebarBottomDock, collapsed ? "space-y-2 px-1.5 py-2.5" : "space-y-3.5 px-3 py-3.5")}>
       <SidebarWorkspaceSwitcher collapsed={collapsed} workspaceName={workspaceName} />
       <OperatorProfile collapsed={collapsed} settingsHref={settingsHref} />
     </div>
@@ -410,7 +323,7 @@ function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: bo
             className="flex w-full items-center gap-2 rounded px-2 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
             href="/settings?section=workspace"
           >
-            <Settings2 aria-hidden className="h-4 w-4 text-[var(--text-muted)]" />
+            <Cog aria-hidden className="h-4 w-4 text-[var(--text-muted)]" />
             Manage workspace
           </Link>
           <Link
@@ -428,14 +341,16 @@ function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: bo
 
 function SidebarSection({
   children,
+  collapsed,
   label,
 }: {
   children: React.ReactNode;
+  collapsed?: boolean;
   label?: string;
 }) {
   return (
-    <section className={cx("min-w-0 space-y-1.5 pt-3", sidebarGoldDividerTop)} aria-label={label}>
-      {label ? (
+    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-1.5 pt-3", !collapsed ? sidebarGoldDividerTop : "")} aria-label={label}>
+      {!collapsed && label ? (
         <div className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           {label}
         </div>
@@ -447,7 +362,7 @@ function SidebarSection({
 
 function OperatorProfile({ collapsed, settingsHref }: { collapsed?: boolean; settingsHref: string }) {
   return (
-    <div className={cx("flex items-center", collapsed ? "flex-col gap-2" : "gap-2")}>
+    <div className={cx("flex items-center", collapsed ? "justify-center" : "gap-2 border-t border-[var(--border-hairline)] pt-3")}>
       <div className={cx("flex min-w-0 flex-1 items-center gap-3", collapsed ? "justify-center" : "")}>
         <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-xs font-semibold text-[var(--accent)]">
           ER
@@ -463,14 +378,16 @@ function OperatorProfile({ collapsed, settingsHref }: { collapsed?: boolean; set
           </div>
         ) : null}
       </div>
-      <Link
-        aria-label="Settings"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
-        href={settingsHref}
-        title="Settings"
-      >
-        <Settings2 aria-hidden className="h-4.5 w-4.5" />
-      </Link>
+      {!collapsed ? (
+        <Link
+          aria-label="Settings"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+          href={settingsHref}
+          title="Settings"
+        >
+          <Cog aria-hidden className="h-4.5 w-4.5" />
+        </Link>
+      ) : null}
     </div>
   );
 }
