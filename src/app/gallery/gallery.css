@@ -3,10 +3,14 @@
   50% { transform: translateY(-6px); }
 }
 
-.gallery-tile { animation: gallery-float 6s ease-in-out infinite; transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
+.gallery-tile { animation: gallery-float 6s ease-in-out infinite; }
 .gallery-tile:nth-child(2n) { animation-duration: 7.5s; animation-delay: -2s; }
 .gallery-tile:nth-child(3n) { animation-duration: 5.5s; animation-delay: -1s; }
-.gallery-tile:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 18px 30px rgba(0,0,0,.22); }
+
+/* The tilt surface — cursor-tracked rotateX/Y + scale are applied inline via JS.
+   Lives on a separate element from the float animation so the two compose
+   instead of fighting over `transform`. */
+.gallery-tile-media { transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; transform-style: preserve-3d; will-change: transform; }
 
 .gallery-masonry { columns: 4; column-gap: .75rem; }
 @media (max-width: 1100px) { .gallery-masonry { columns: 3; } }
@@ -15,5 +19,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gallery-tile { animation: none !important; }
-  .gallery-tile:hover { transform: none; }
+  .gallery-tile-media { transform: none !important; transition: none; }
 }
