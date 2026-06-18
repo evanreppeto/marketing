@@ -2,13 +2,11 @@ import { createGeminiMediaProvider } from "./gemini";
 import type { MediaProvider } from "./types";
 
 export type { MediaProvider, GeneratedMedia, ImageGenInput } from "./types";
+// Re-export the model resolver from the provider (the shipping seam) so it's
+// importable from @/lib/media and its unit test covers the real code path.
+export { resolveModel } from "./gemini";
 
 export type MediaModelPrefs = { imageModel?: string; videoModel?: string };
-
-/** stored pref (if non-empty) -> env -> built-in default. Pure + testable. */
-export function resolveModel(stored: string | undefined, env: string | undefined, fallback: string): string {
-  return (stored && stored.trim()) || (env && env.trim()) || fallback;
-}
 
 /** Master flag: media generation is on only when explicitly enabled AND credentialed. */
 export function isMediaGenEnabled(): boolean {

@@ -13,14 +13,12 @@ const DEFAULT_IMAGE_MODEL = "imagen-4.0-generate-001";
 // falls back to the model default.
 const SUPPORTED_ASPECT_RATIOS = new Set(["1:1", "3:4", "4:3", "9:16", "16:9"]);
 
-function resolveImageModel(): string {
-  return process.env.GEMINI_IMAGE_MODEL?.trim() || DEFAULT_IMAGE_MODEL;
-}
-
 const DEFAULT_VIDEO_MODEL = "veo-2.0-generate-001";
 const SUPPORTED_VIDEO_ASPECT = new Set(["16:9", "9:16"]);
-function resolveVideoModel(): string {
-  return process.env.GEMINI_VIDEO_MODEL?.trim() || DEFAULT_VIDEO_MODEL;
+
+/** Pick a model: stored pref (if non-empty) -> env -> built-in default. Pure + testable. */
+export function resolveModel(stored: string | undefined, env: string | undefined, fallback: string): string {
+  return (stored && stored.trim()) || (env && env.trim()) || fallback;
 }
 
 /** Google Gemini provider — Imagen 4 (generateImages) or Gemini flash-image
@@ -30,8 +28,8 @@ export function createGeminiMediaProvider(
   opts?: { imageModel?: string; videoModel?: string },
 ): MediaProvider {
   const ai = new GoogleGenAI({ apiKey });
-  const imageModel = opts?.imageModel?.trim() || resolveImageModel();
-  const videoModel = opts?.videoModel?.trim() || resolveVideoModel();
+  const imageModel = resolveModel(opts?.imageModel, process.env.GEMINI_IMAGE_MODEL, DEFAULT_IMAGE_MODEL);
+  const videoModel = resolveModel(opts?.videoModel, process.env.GEMINI_VIDEO_MODEL, DEFAULT_VIDEO_MODEL);
   return {
     async generateImage(input: ImageGenInput): Promise<GeneratedMedia> {
       const model = imageModel;
