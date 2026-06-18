@@ -6,8 +6,14 @@ import { getMediaLibraryData } from "@/lib/media-library/read-model";
 
 import { AssetGrid } from "./_components/asset-grid";
 import { FolderRail } from "./_components/folder-rail";
+import { NewFolderButton } from "./_components/new-folder-button";
+import { UploadButton } from "./_components/upload-button";
 
-export default async function LibraryPage() {
+export default async function LibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ folder?: string | string[] }>;
+}) {
   await connection();
   const data = await getMediaLibraryData();
 
@@ -20,18 +26,38 @@ export default async function LibraryPage() {
     );
   }
 
+  const folderParam = (await searchParams).folder;
+  const activeFolderId = (Array.isArray(folderParam) ? folderParam[0] : folderParam) ?? "all";
+  const isFolderActive = activeFolderId !== "all" && data.folders.some((f) => f.id === activeFolderId);
+  const visibleAssets = isFolderActive
+    ? data.assets.filter((a) => a.folderId === activeFolderId)
+    : data.assets;
+  const arcCount = data.assets.filter((a) => a.availableToArc).length;
+
   return (
     <>
       <PageHeader
         title="Library"
-        description={`${data.assets.length} assets · ${formatByteSize(data.totalBytes)} · upload media and hand it to your agent.`}
+        description={`${data.assets.length} assets · ${formatByteSize(data.totalBytes)} · ${arcCount} available to Arc.`}
+        aside={
+          data.assets.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <NewFolderButton />
+              <UploadButton activeFolderId={isFolderActive ? activeFolderId : null} />
+            </div>
+          ) : undefined
+        }
       />
       {data.assets.length === 0 ? (
-        <EmptyState title="No media yet" detail="Upload photos, video, or logos and they'll appear here." />
+        <EmptyState
+          title="No media yet"
+          detail="Upload photos, video, or logos and they'll appear here."
+          action={<UploadButton activeFolderId={null} />}
+        />
       ) : (
         <div className="flex gap-5">
-          <FolderRail folders={data.folders} />
-          <AssetGrid assets={data.assets} />
+          <FolderRail folders={data.folders} activeFolderId={isFolderActive ? activeFolderId : "all"} />
+          <AssetGrid assets={visibleAssets} folders={data.folders} />
         </div>
       )}
     </>
