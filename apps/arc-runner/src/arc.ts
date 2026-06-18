@@ -130,6 +130,9 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     client,
     prompt,
     model: modelForRoute(payload.route),
+    // Thread the turn's level so media tools tell the generate endpoints which
+    // tier (Swift=fast / Studio=standard) to resolve image/video models from.
+    toolContext: { level: payload.route },
   });
 }
 

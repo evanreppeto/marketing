@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
+import { parseArcRoute } from "@/domain";
+
 import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
@@ -26,7 +28,11 @@ export async function POST(request: Request) {
   }
   const body = payload as Record<string, unknown>;
   const settings = await getAppSettings();
-  const provider = getMediaProvider({ imageModel: settings.imageModel, videoModel: settings.videoModel });
+  // Precedence: Advanced override -> turn level (body.level) -> workspace default
+  // level -> env/default. Computed each call; the poll request may omit body.level
+  // (start already picked the model), so it falls back safely either way.
+  const level = parseArcRoute(body.level ?? settings.markDefaultRoute);
+  const provider = getMediaProvider({ level, imageModel: settings.imageModel, videoModel: settings.videoModel });
   if (!provider) return fail("not_configured", "Video generation isn't enabled.", 503);
 
   const operationName = typeof body.operation_name === "string" ? body.operation_name.trim() : "";

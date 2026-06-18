@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
+import { parseArcRoute } from "@/domain";
+
 import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
@@ -38,7 +40,11 @@ export async function POST(request: Request) {
   const style = typeof body.style === "string" && body.style.trim() ? body.style.trim() : undefined;
 
   const settings = await getAppSettings();
-  const provider = getMediaProvider({ imageModel: settings.imageModel, videoModel: settings.videoModel });
+  // Precedence: explicit Advanced override (settings.image/videoModel) beats the
+  // turn's level mapping, which beats the workspace default level, which beats
+  // env/built-in default. The turn's level rides on body.level.
+  const level = parseArcRoute(body.level ?? settings.markDefaultRoute);
+  const provider = getMediaProvider({ level, imageModel: settings.imageModel, videoModel: settings.videoModel });
   if (!provider) return fail("not_configured", "Image generation isn't enabled.", 503);
 
   try {

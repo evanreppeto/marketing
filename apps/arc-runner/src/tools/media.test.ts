@@ -55,6 +55,29 @@ describe("generate_image", () => {
     expect(cards).toHaveLength(0);
     expect(out.content[0].text).toContain("failed");
   });
+
+  it("forwards the turn's level on the generate-image POST when ctx provides it", async () => {
+    const media = { kind: "image", url: "https://x/y.png", source: "ai_generated", format: "1:1", model: "m" };
+    const posts: Array<() => Promise<unknown>> = [
+      async () => ({ media, objectPath: "arc-generated/y.png" }),
+      async () => ({ campaignId: "c1", assetId: "a1" }),
+    ];
+    let i = 0;
+    const apiPost = vi.fn(async () => posts[i++]());
+    const client = { apiPost } as unknown as ArcClient;
+    const step = vi.fn(async () => {});
+    const [genImage] = mediaTools(client, step, () => {}, { level: "standard" });
+    const handler = genImage.handler as (
+      a: Record<string, unknown>,
+      e?: unknown,
+    ) => Promise<{ content: Array<{ type: string; text: string }> }>;
+    await handler({ prompt: "blue gradient", title: "BG", campaign_id: "c1" });
+    expect(apiPost).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/arc/media/generate-image",
+      expect.objectContaining({ level: "standard" }),
+    );
+  });
 });
 
 function setupVideo(posts: Array<() => Promise<unknown>>) {
@@ -144,5 +167,25 @@ describe("generate_video", () => {
     const out = await p;
     expect(cards).toHaveLength(0);
     expect(out.content[0].text).toContain("failed");
+  });
+
+  it("forwards the turn's level on the start POST when ctx provides it", async () => {
+    const apiPost = vi.fn(async () => ({ operationName: "op/1", model: "veo" }));
+    const client = { apiPost } as unknown as ArcClient;
+    const step = vi.fn(async () => {});
+    const [, genVideo] = mediaTools(client, step, () => {}, { level: "standard" });
+    const handler = genVideo.handler as (
+      a: Record<string, unknown>,
+      e?: unknown,
+    ) => Promise<{ content: Array<{ type: string; text: string }> }>;
+    // Times out (only the start resolves), but the start body is all we assert.
+    const p = handler({ prompt: "x", title: "T", campaign_id: "c1" });
+    await vi.runAllTimersAsync();
+    await p;
+    expect(apiPost).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/arc/media/generate-video",
+      expect.objectContaining({ level: "standard" }),
+    );
   });
 });
