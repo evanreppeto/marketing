@@ -1,19 +1,19 @@
 import {
   Activity,
-  BotMessageSquare,
+  Brain,
   ChartSpline,
   Columns3,
   GalleryHorizontalEnd,
   Home,
   Images,
   Megaphone,
-  Network,
   Send,
   Settings2,
   Target,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import Image from "next/image";
 
 export type NavIconName =
   | "home"
@@ -30,12 +30,11 @@ export type NavIconName =
   | "activity"
   | "opportunities";
 
-const icons: Record<NavIconName, LucideIcon> = {
+const icons: Record<Exclude<NavIconName, "arc">, LucideIcon> = {
   activity: Activity,
   analytics: ChartSpline,
-  arc: BotMessageSquare,
   board: Columns3,
-  brain: Network,
+  brain: Brain,
   campaigns: Megaphone,
   crm: UsersRound,
   gallery: Images,
@@ -47,6 +46,10 @@ const icons: Record<NavIconName, LucideIcon> = {
 };
 
 export function NavIcon({ name, className = "h-5 w-5" }: { name: NavIconName; className?: string }) {
+  if (name === "arc") {
+    return <Image alt="" aria-hidden="true" className={`${className} object-contain`} draggable={false} height={256} src="/brand/nav-icons/arc-icon.png" width={256} />;
+  }
+
   const Icon = icons[name];
 
   return <Icon aria-hidden="true" className={className} strokeWidth={1.8} />;

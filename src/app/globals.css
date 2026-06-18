@@ -383,6 +383,21 @@ h4, .font-display {
   border-color: var(--border-strong) !important;
 }
 
+.chicago-dark .workspace-trigger,
+.chicago-dark .workspace-trigger:hover,
+.chicago-dark .workspace-trigger[data-state="open"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.chicago-dark :where(a, button).arc-hover-border-gradient,
+.chicago-dark :where(a, button).arc-hover-border-gradient:hover,
+.chicago-dark :where(a, button).arc-hover-border-gradient:focus-visible {
+  border-color: transparent !important;
+}
+
 .chicago-dark :where(a, button)[class*="rounded"]:active {
   transform: translateY(1px) scale(0.99) !important;
 }
@@ -409,6 +424,43 @@ h4, .font-display {
 .chicago-dark .auth-checkbox:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+.arc-hover-border-gradient {
+  --button-bg: var(--surface-inset);
+  --button-border-from: rgba(255, 255, 255, 0.12);
+  --button-border-via: var(--accent-border-strong);
+  --button-border-to: rgba(127, 184, 154, 0.18);
+  border-color: transparent !important;
+  background:
+    linear-gradient(var(--button-bg), var(--button-bg)) padding-box,
+    linear-gradient(
+      115deg,
+      var(--button-border-from),
+      var(--button-border-via),
+      var(--button-border-to),
+      var(--button-border-from)
+    ) border-box !important;
+  background-size: 100% 100%, 230% 230%;
+  background-position: center, 0% 50%;
+}
+
+.arc-hover-border-gradient:hover,
+.arc-hover-border-gradient:focus-visible {
+  background-position: center, 100% 50%;
+}
+
+.arc-hover-border-gradient:disabled,
+.arc-hover-border-gradient[aria-disabled="true"] {
+  background-position: center, 0% 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-hover-border-gradient,
+  .arc-hover-border-gradient:hover,
+  .arc-hover-border-gradient:focus-visible {
+    background-position: center, 50% 50%;
+  }
 }
 
 .chicago-dark :where(a, button)[aria-current="page"],
