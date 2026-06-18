@@ -45,25 +45,25 @@ export function MediaModelsForm({
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Image model</span>
           <select className={inputClass} defaultValue={initialImageModel} name="imageModel">
-            <option value="">Auto (recommended)</option>
+            <option value="">Auto — follow Arc level</option>
             <option value="imagen-4.0-generate-001">Imagen 4 — photoreal, fast</option>
             <option value="imagen-4.0-ultra-generate-001">Imagen 4 Ultra — max quality</option>
             <option value="gemini-2.5-flash-image">Gemini Nano Banana — editing / reference</option>
           </select>
           <span className="text-xs text-[var(--text-muted)]">
-            Auto uses GEMINI_IMAGE_MODEL or the built-in default. Imagen for fresh concepts; Nano Banana edits real media.
+            Auto follows your Arc level (Swift → Imagen 4, Studio → Imagen 4 Ultra). Pick one to pin it regardless of level.
           </span>
         </label>
 
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-[var(--text-primary)]">Video model</span>
           <select className={inputClass} defaultValue={initialVideoModel} name="videoModel">
-            <option value="">Auto (recommended)</option>
+            <option value="">Auto — follow Arc level</option>
             <option value="veo-2.0-generate-001">Veo 2</option>
             <option value="veo-3.0-generate-001">Veo 3 — higher quality</option>
           </select>
           <span className="text-xs text-[var(--text-muted)]">
-            Auto uses GEMINI_VIDEO_MODEL or the built-in default. Video generation needs billing on the Gemini key.
+            Auto follows your Arc level (Swift → Veo 2, Studio → Veo 3). Video generation needs billing on the Gemini key.
           </span>
         </label>
       </div>

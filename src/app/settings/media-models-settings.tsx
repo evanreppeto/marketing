@@ -8,8 +8,8 @@ export async function MediaModelsSettings() {
 
   return (
     <SettingsSection
-      description="Choose the image and video models Arc generates with. Auto inherits the deployment's env default; explicit picks override it."
-      title="Media models"
+      description="Advanced — pin a specific image or video model. This overrides your Arc level (Swift/Studio); leave on Auto to follow the level."
+      title="Media models (Advanced)"
     >
       <MediaModelsForm initialImageModel={settings.imageModel} initialVideoModel={settings.videoModel} />
     </SettingsSection>
