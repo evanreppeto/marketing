@@ -126,8 +126,8 @@ function WorkspaceTrigger({
       <button
         data-state={open ? "open" : "closed"}
         className={cn(
-          "workspace-trigger group flex w-full items-center rounded border border-transparent bg-transparent text-left text-sm transition hover:bg-[rgba(255,255,255,0.035)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
-          collapsed ? "mx-auto size-10 justify-center p-0" : "min-h-11 justify-between gap-2 px-1 py-1.5",
+          "workspace-trigger group flex w-full items-center bg-transparent text-left text-sm transition-colors hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
+          collapsed ? "mx-auto size-10 justify-center p-0" : "min-h-10 justify-between gap-2 px-0 py-1",
           className,
         )}
         {...props}
@@ -143,7 +143,12 @@ function WorkspaceTrigger({
             </span>
           ) : null}
         </span>
-        {!collapsed ? <ChevronsUpDownIcon aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)]" /> : null}
+        {!collapsed ? (
+          <ChevronsUpDownIcon
+            aria-hidden
+            className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-secondary)]"
+          />
+        ) : null}
       </button>
     </PopoverTrigger>
   )
