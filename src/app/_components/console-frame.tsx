@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
+import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
 import FlowFieldBackground from "@/components/ui/flow-field-background";
 
@@ -52,21 +52,14 @@ export function ConsoleFrame({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "/";
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const sidebarPreferenceRestored = useRef(false);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      sidebarPreferenceRestored.current = true;
-      setSidebarCollapsed(window.localStorage.getItem("arc-sidebar-collapsed") === "true");
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
-  useEffect(() => {
-    if (!sidebarPreferenceRestored.current) return;
-    window.localStorage.setItem("arc-sidebar-collapsed", String(sidebarCollapsed));
-  }, [sidebarCollapsed]);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [sidebarFocusWithin, setSidebarFocusWithin] = useState(false);
+  const sidebarExpanded = isSidebarExpanded({
+    focusWithin: sidebarFocusWithin,
+    hovered: sidebarHovered,
+    pinned: false,
+  });
+  const sidebarCollapsed = !sidebarExpanded;
 
   const navItems: ShellNavItem[] = [
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
@@ -102,7 +95,7 @@ export function ConsoleFrame({
       <main className={theme.shell.canvas}>
         <div
           className={cx(
-            "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0",
+            "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-200 lg:ease-out",
             sidebarCollapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[280px_minmax(0,1fr)]",
           )}
         >
@@ -130,7 +123,17 @@ export function ConsoleFrame({
             </div>
           </header>
 
-          <aside className={cx(theme.shell.sidebar, "hidden transition-[padding] duration-200 lg:flex lg:flex-col", sidebarCollapsed ? "lg:px-3" : "")}>
+          <aside
+            className={cx(theme.shell.sidebar, "hidden transition-[padding] duration-200 lg:flex lg:flex-col", sidebarCollapsed ? "lg:px-3" : "")}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) {
+                setSidebarFocusWithin(false);
+              }
+            }}
+            onFocus={() => setSidebarFocusWithin(true)}
+            onMouseEnter={() => setSidebarHovered(true)}
+            onMouseLeave={() => setSidebarHovered(false)}
+          >
             <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
               <BackgroundGradientAnimation
                 blendingValue="soft-light"
@@ -145,7 +148,7 @@ export function ConsoleFrame({
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-4">
-              <div className={cx("flex min-h-12 shrink-0 items-center gap-2", sidebarCollapsed ? "justify-center" : "justify-between")}>
+              <div className={cx("flex min-h-12 shrink-0 items-center", sidebarCollapsed ? "justify-center" : "")}>
                 <Link
                   href="/"
                   className={cx(
@@ -161,16 +164,6 @@ export function ConsoleFrame({
                     </span>
                   ) : null}
                 </Link>
-                <button
-                  type="button"
-                  aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  aria-pressed={sidebarCollapsed}
-                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-muted)] transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  onClick={() => setSidebarCollapsed((value) => !value)}
-                >
-                  {sidebarCollapsed ? <PanelLeftOpen aria-hidden className="h-4 w-4" /> : <PanelLeftClose aria-hidden className="h-4 w-4" />}
-                </button>
               </div>
 
               <div aria-hidden className="h-px bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)]" />
