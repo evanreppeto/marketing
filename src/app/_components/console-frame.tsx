@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
@@ -50,15 +52,35 @@ export function ConsoleFrame({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "/";
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarPreferenceRestored = useRef(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      sidebarPreferenceRestored.current = true;
+      setSidebarCollapsed(window.localStorage.getItem("arc-sidebar-collapsed") === "true");
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarPreferenceRestored.current) return;
+    window.localStorage.setItem("arc-sidebar-collapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const navItems: ShellNavItem[] = [
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
     { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
-    { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
+    { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
+    { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
+    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
     { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
+    { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
+    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
+    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
   ];
 
   const utilityNavItems: ShellNavItem[] = [
@@ -78,7 +100,12 @@ export function ConsoleFrame({
   return (
     <AgentNameProvider value={agentName}>
       <main className={theme.shell.canvas}>
-        <div className="flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div
+          className={cx(
+            "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0",
+            sidebarCollapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[280px_minmax(0,1fr)]",
+          )}
+        >
           <header className="sticky top-0 z-40 flex min-h-[64px] items-center gap-2 overflow-x-auto border-b border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--canvas-deep)_92%,transparent)] px-3 py-2 backdrop-blur lg:hidden">
             <Link
               href="/"
@@ -103,7 +130,7 @@ export function ConsoleFrame({
             </div>
           </header>
 
-          <aside className={cx(theme.shell.sidebar, "hidden lg:flex lg:flex-col")}>
+          <aside className={cx(theme.shell.sidebar, "hidden transition-[padding] duration-200 lg:flex lg:flex-col", sidebarCollapsed ? "lg:px-3" : "")}>
             <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
               <BackgroundGradientAnimation
                 blendingValue="soft-light"
@@ -118,30 +145,47 @@ export function ConsoleFrame({
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-4">
-              <Link
-                href="/"
-                className="flex min-h-12 shrink-0 items-center gap-3 overflow-visible rounded px-1 py-1 transition hover:bg-[rgba(255,255,255,0.035)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
-              >
-                <BrandMark />
-                <span className="min-w-0">
-                  <BrandWordmark />
-                </span>
-              </Link>
+              <div className={cx("flex min-h-12 shrink-0 items-center gap-2", sidebarCollapsed ? "justify-center" : "justify-between")}>
+                <Link
+                  href="/"
+                  className={cx(
+                    "flex min-h-12 shrink-0 items-center gap-3 overflow-visible rounded px-1 py-1 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+                    sidebarCollapsed ? "justify-center" : "",
+                  )}
+                  aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
+                >
+                  <BrandMark />
+                  {!sidebarCollapsed ? (
+                    <span className="min-w-0">
+                      <BrandWordmark />
+                    </span>
+                  ) : null}
+                </Link>
+                <button
+                  type="button"
+                  aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  aria-pressed={sidebarCollapsed}
+                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-muted)] transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                  onClick={() => setSidebarCollapsed((value) => !value)}
+                >
+                  {sidebarCollapsed ? <PanelLeftOpen aria-hidden className="h-4 w-4" /> : <PanelLeftClose aria-hidden className="h-4 w-4" />}
+                </button>
+              </div>
 
               <div aria-hidden className="h-px bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)]" />
 
               <div className="min-h-0 flex-1 overflow-y-auto">
-                <SideNav active={pathname} items={navItems} />
+                <SideNav active={pathname} items={navItems} collapsed={sidebarCollapsed} />
               </div>
 
-              <WorkspaceBadge workspaceName={brand.workspaceName} />
+              <WorkspaceBadge collapsed={sidebarCollapsed} workspaceName={brand.workspaceName} />
 
               <div className={cx("border-t pt-3", theme.surface.divider)}>
-                <SideNav active={pathname} items={utilityNavItems} />
+                <SideNav active={pathname} items={utilityNavItems} collapsed={sidebarCollapsed} />
               </div>
 
-              <OperatorProfile />
+              <OperatorProfile collapsed={sidebarCollapsed} />
             </div>
           </aside>
 
@@ -171,7 +215,20 @@ export function ConsoleFrame({
   );
 }
 
-function WorkspaceBadge({ workspaceName }: { workspaceName: string }) {
+function WorkspaceBadge({ collapsed, workspaceName }: { collapsed?: boolean; workspaceName: string }) {
+  if (collapsed) {
+    return (
+      <div className="border-t border-[var(--border-hairline)] pt-3">
+        <div
+          title={workspaceName}
+          className="mx-auto flex h-9 w-9 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-[10px] font-semibold text-[var(--accent)]"
+        >
+          {workspaceName.slice(0, 2).toUpperCase()}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="border-t border-[var(--border-hairline)] pt-3">
       <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Workspace</div>
@@ -180,10 +237,10 @@ function WorkspaceBadge({ workspaceName }: { workspaceName: string }) {
   );
 }
 
-function OperatorProfile() {
+function OperatorProfile({ collapsed }: { collapsed?: boolean }) {
   return (
     <div className={cx("border-t pb-6 pt-4", theme.surface.divider)}>
-      <div className="flex items-center gap-3">
+      <div className={cx("flex items-center gap-3", collapsed ? "justify-center" : "")}>
         <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-xs font-semibold text-[var(--accent)]">
           ER
           <span
@@ -191,10 +248,12 @@ function OperatorProfile() {
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-sidebar)] bg-[var(--ok)]"
           />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
-          <div className="truncate text-[11px] text-[var(--text-muted)]">Operator</div>
-        </div>
+        {!collapsed ? (
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
+            <div className="truncate text-[11px] text-[var(--text-muted)]">Operator</div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
