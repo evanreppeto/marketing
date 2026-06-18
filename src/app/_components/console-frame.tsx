@@ -77,6 +77,7 @@ export function ConsoleFrame({
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
     { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
+    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
     { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
