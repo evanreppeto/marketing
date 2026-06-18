@@ -206,7 +206,7 @@ function RecordPreviewPanel({
 
             <dl className="grid grid-cols-2 gap-2">
               {[
-                ["Owner", selectedRow.owner],
+                ["Persona", humanizeTag(selectedRow.personaTag)],
                 ["Updated", formatCrmDate(selectedRow.updated)],
                 ["Object", singularLabel(crmObject.label)],
                 ["Missing data", selectedRow.missingFields.length === 0 ? "Complete" : selectedRow.missingFields.map(formatMissingField).join(", ")],
@@ -320,11 +320,20 @@ function quickActions(selectedRow: CrmObjectRow) {
 
 function recordChecklist(selectedRow: CrmObjectRow) {
   return [
-    { label: "Owner", value: selectedRow.owner ? selectedRow.owner : "Missing", done: Boolean(selectedRow.owner) },
-    { label: "Linked records", value: `${selectedRow.relationships.length} connected`, done: selectedRow.relationships.length > 0 },
     { label: "Persona", value: selectedRow.personaTag === "unassigned_persona" ? "Missing" : "Set", done: selectedRow.personaTag !== "unassigned_persona" },
+    { label: "Linked records", value: `${selectedRow.relationships.length} connected`, done: selectedRow.relationships.length > 0 },
+    { label: "Signal", value: typeof selectedRow.score === "number" ? `Score ${selectedRow.score}` : "Unscored", done: typeof selectedRow.score === "number" },
     { label: "Missing data", value: selectedRow.missingFields.length === 0 ? "None" : `${selectedRow.missingFields.length} gaps`, done: selectedRow.missingFields.length === 0 },
   ];
+}
+
+function humanizeTag(value: string) {
+  return value
+    .replace(/^persona_/, "")
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function activityRank(updated: string) {

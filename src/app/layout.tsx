@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
@@ -7,34 +7,36 @@ import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 import { resolveBrandIdentity } from "@/lib/brand-kit/identity";
 
-// Display: an engineered grotesk — confident, gridded, mechanical. Drives headings and key numbers.
-const display = Archivo({
+// Geist — the modern product grotesk (Linear/Vercel-grade). One family carries
+// display, headings, and body so the UI reads as a single, intentional system.
+// `display` and `serif` variables are kept (pointed at Geist) so existing
+// `font-display` / `font-serif` usages resolve without per-component edits.
+const display = Geist({
   subsets: ["latin"],
   variable: "--ff-display",
   display: "swap",
 });
 
-// Serif display: editorial voice for Arc and page headlines.
-const serif = Fraunces({
+const headline = Geist({
   subsets: ["latin"],
   variable: "--ff-serif",
   display: "swap",
-  weight: ["400", "500", "600"],
 });
 
-// Body: a warm, highly legible humanist grotesk for dense operator copy.
-const body = Hanken_Grotesk({
+const body = Geist({
   subsets: ["latin"],
   variable: "--ff-body",
   display: "swap",
 });
 
-// Mono: technical face for identifiers, scores, timestamps, and tabular metrics.
-const mono = JetBrains_Mono({
+// Geist Mono — technical face for identifiers, scores, timestamps, tabular metrics.
+const mono = Geist_Mono({
   subsets: ["latin"],
   variable: "--ff-mono",
   display: "swap",
 });
+
+const serif = headline;
 
 
 export async function generateMetadata(): Promise<Metadata> {

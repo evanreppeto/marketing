@@ -26,9 +26,65 @@ export type PerformanceContract = {
   nextBackendStep: string;
 };
 
+/** Headline KPI for the analytics top row. `spark` is a raw series the UI normalizes for the inline sparkline. */
+export type PerformanceKpi = {
+  key: string;
+  label: string;
+  value: string;
+  hint?: string;
+  delta?: string;
+  deltaTone?: "ok" | "amber" | "red" | "neutral";
+  tone?: "neutral" | "accent" | "ok" | "amber" | "red";
+  spark?: number[];
+};
+
+/** One channel's performance row for the channel bar chart (Email / SMS / Meta / Landing / Referral). */
+export type ChannelPerformance = {
+  channel: string;
+  leads: number;
+  booked: number;
+  revenueCents: number;
+  spendCents: number;
+  share: number;
+};
+
+/** A flagged anomaly for the right rail (good or bad), source-backed where possible. */
+export type PerformanceAnomaly = {
+  id: string;
+  title: string;
+  detail: string;
+  tone: "ok" | "amber" | "red";
+  metric?: string;
+};
+
+/** A recommended next move Arc surfaces — always approval-gated, never auto-executed. */
+export type PerformanceNextMove = {
+  id: string;
+  title: string;
+  detail: string;
+  cta: string;
+  href: string;
+};
+
+/** Per-campaign performance row for the analytics table. */
+export type CampaignPerformanceRow = {
+  id: string;
+  name: string;
+  persona: string;
+  impressions: number;
+  clicks: number;
+  leads: number;
+  booked: number;
+  revenueCents: number;
+  conversion: number;
+  trend: "up" | "down" | "flat";
+};
+
 export type PerformanceReadModel =
   | {
       status: "live";
+      /** True when these numbers are illustrative demo data (Supabase not configured or empty), not real records. */
+      isDemo?: boolean;
       metrics: PerformanceMetric[];
       leadVolumeByPersona: PerformanceBreakdown[];
       leadVolumeBySource: PerformanceBreakdown[];
@@ -42,6 +98,12 @@ export type PerformanceReadModel =
       revenueByPersona: PerformanceBreakdown[];
       ctaSignals: PerformanceBreakdown[];
       contracts: PerformanceContract[];
+      /** Optional rich dashboard layer — present for the demo dataset; live data may add it later. */
+      kpis?: PerformanceKpi[];
+      channelPerformance?: ChannelPerformance[];
+      anomalies?: PerformanceAnomaly[];
+      nextMoves?: PerformanceNextMove[];
+      campaignRows?: CampaignPerformanceRow[];
     }
   | {
       status: "unavailable";
@@ -124,7 +186,9 @@ type EngagementEventRow = {
 
 export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays: number = 30): Promise<PerformanceReadModel> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
+    // No DB in this environment (local preview, demo): render an illustrative BSR dashboard
+    // instead of an empty page. Clearly flagged via `isDemo` so nothing reads as real records.
+    return buildDemoPerformanceReadModel(rangeDays);
   }
 
   try {
@@ -169,6 +233,13 @@ export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays
     );
     // Trend window tracks the range: ~1 bucket/week, min 8 weeks, capped at 26.
     const trendWeeks = Math.min(Math.max(Math.ceil(rangeDays / 7), 8), 26);
+
+    // If the DB is reachable but holds nothing yet, the page would read as empty.
+    // Fall back to the illustrative demo dataset so the dashboard is never blank.
+    if (leadRows.length === 0 && jobRows.length === 0 && outcomeRows.length === 0 && campaignRows.length === 0) {
+      return buildDemoPerformanceReadModel(rangeDays);
+    }
+
     return {
       status: "live",
       // Note: the breakdown lists below (persona/source/revenue/partners/cta) are all-time;
@@ -199,6 +270,200 @@ export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays
   } catch (error) {
     return { status: "unavailable", message: error instanceof Error ? error.message : "Performance data is unavailable." };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Demo dataset — illustrative BSR marketing performance for environments with
+// no Supabase (local preview, screenshots, sales demos). Numbers are believable
+// but synthetic; the read model flags them via `isDemo: true`. Nothing here
+// implies a real outbound action — analytics is read-only display.
+// ---------------------------------------------------------------------------
+
+/** Deterministic pseudo-random so the demo is stable across renders. */
+function seeded(seed: number): () => number {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const weeks = Math.min(Math.max(Math.ceil(rangeDays / 7), 12), 18);
+
+  // Twelve-plus weeks of leads vs. booked work, gently trending up with a seasonal
+  // storm spike midway (Spring Storm Prep). Bookings track leads at ~30-40%.
+  const rng = seeded(8675309);
+  const trend: TrendPoint[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = now - i * 7 * DAY_MS - 7 * DAY_MS;
+    const label = new Date(start + DAY_MS).toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+    const progress = (weeks - 1 - i) / Math.max(weeks - 1, 1);
+    const base = 38 + progress * 34; // ramp from ~38 to ~72 leads/wk
+    const stormSpike = i >= 4 && i <= 7 ? 22 : 0; // mid-window storm surge
+    const leads = Math.round(base + stormSpike + (rng() - 0.5) * 14);
+    const bookings = Math.round(leads * (0.32 + progress * 0.1) + (rng() - 0.5) * 4);
+    trend.push({ week: label, leads: Math.max(leads, 0), bookings: Math.max(bookings, 0) });
+  }
+
+  const totalLeads = trend.reduce((s, p) => s + p.leads, 0);
+  const totalBooked = trend.reduce((s, p) => s + p.bookings, 0);
+
+  // Channel mix — Email/SMS/Meta/Landing/Referral. Revenue + spend per channel.
+  const channelPerformance: ChannelPerformance[] = [
+    { channel: "Email", leads: 214, booked: 26, revenueCents: 5_820_000, spendCents: 0 },
+    { channel: "Meta Ads", leads: 168, booked: 19, revenueCents: 4_360_000, spendCents: 980_000 },
+    { channel: "Landing", leads: 142, booked: 17, revenueCents: 3_910_000, spendCents: 0 },
+    { channel: "SMS", leads: 96, booked: 11, revenueCents: 2_240_000, spendCents: 0 },
+    { channel: "Referral", leads: 74, booked: 9, revenueCents: 2_290_000, spendCents: 0 },
+  ].map((c) => ({ ...c, share: 0 }));
+  const channelLeadTotal = channelPerformance.reduce((s, c) => s + c.leads, 0);
+  for (const c of channelPerformance) c.share = Math.round((c.leads / channelLeadTotal) * 100);
+
+  const revenueImpactCents = channelPerformance.reduce((s, c) => s + c.revenueCents, 0); // ~$186K
+  const bookedJobs = 82;
+  const avgLeadScore = 78;
+  const conversionPct = 63;
+
+  // Sparkline helpers from the trend so KPI cards animate believably.
+  const leadSpark = trend.map((p) => p.leads);
+  const bookedSpark = trend.map((p) => p.bookings);
+  const revenueSpark = trend.map((p) => p.bookings * (rng() * 1.6 + 2.2));
+  const scoreSpark = trend.map((_, i) => 70 + (i / Math.max(weeks - 1, 1)) * 10 + (rng() - 0.5) * 3);
+  const convSpark = trend.map((p) => (p.leads > 0 ? (p.bookings / p.leads) * 100 : 0));
+
+  const kpis: PerformanceKpi[] = [
+    { key: "campaigns", label: "Active campaigns", value: "6", hint: "2 awaiting approval", tone: "neutral", delta: "+2", deltaTone: "ok", spark: trend.map(() => 5 + rng()) },
+    { key: "booked", label: "Booked work", value: String(bookedJobs), hint: "jobs this range", tone: "ok", delta: "+18%", deltaTone: "ok", spark: bookedSpark },
+    { key: "revenue", label: "Revenue impact", value: formatMoney(revenueImpactCents), hint: "attributed to marketing", tone: "accent", delta: "+24%", deltaTone: "ok", spark: revenueSpark },
+    { key: "conversion", label: "Lead → booked", value: `${conversionPct}%`, hint: "qualified leads booked", tone: "ok", delta: "+6 pts", deltaTone: "ok", spark: convSpark },
+    { key: "score", label: "Avg lead score", value: String(avgLeadScore), hint: "across new leads", tone: "neutral", delta: "+4", deltaTone: "ok", spark: scoreSpark },
+  ];
+
+  // Funnel: impressions → clicks → leads → booked.
+  const funnelStages = [
+    { label: "Impressions", count: 214_800 },
+    { label: "Clicks", count: 9_640 },
+    { label: "Leads", count: channelLeadTotal },
+    { label: "Booked", count: bookedJobs },
+  ];
+
+  // Per-campaign rows for the demo library (names mirror the campaigns demo fallback).
+  const campaignRows: CampaignPerformanceRow[] = [
+    { id: "demo-emergency-water-response-2026", name: "Emergency Water Response 2026", persona: "Distressed Homeowner", impressions: 68_400, clicks: 3_120, leads: 188, booked: 31, revenueCents: 7_240_000, conversion: 16, trend: "up" },
+    { id: "demo-spring-storm-prep", name: "Spring Storm Prep", persona: "Proactive Homeowner", impressions: 52_100, clicks: 2_410, leads: 142, booked: 18, revenueCents: 3_960_000, conversion: 13, trend: "up" },
+    { id: "demo-commercial-water-mitigation", name: "Commercial Water Mitigation", persona: "Property Manager", impressions: 31_900, clicks: 1_180, leads: 74, booked: 14, revenueCents: 5_120_000, conversion: 19, trend: "flat" },
+    { id: "demo-mold-remediation-awareness", name: "Mold Remediation Awareness", persona: "Health-Conscious Homeowner", impressions: 28_600, clicks: 1_040, leads: 61, booked: 8, revenueCents: 1_840_000, conversion: 13, trend: "down" },
+    { id: "demo-burst-pipe-rapid-response", name: "Burst Pipe Rapid Response", persona: "Distressed Homeowner", impressions: 19_300, clicks: 980, leads: 58, booked: 7, revenueCents: 1_690_000, conversion: 12, trend: "up" },
+    { id: "demo-insurance-partner-referral", name: "Insurance Partner Referral", persona: "Insurance Adjuster", impressions: 14_500, clicks: 540, leads: 41, booked: 4, revenueCents: 1_020_000, conversion: 10, trend: "flat" },
+  ];
+
+  const anomalies: PerformanceAnomaly[] = [
+    {
+      id: "anom-storm-spike",
+      title: "Spring Storm Prep leads up 34% week-over-week",
+      detail: "Storm-driven demand spiked after the regional weather alert. Capacity to book is the current constraint, not demand.",
+      tone: "ok",
+      metric: "+34% leads",
+    },
+    {
+      id: "anom-mold-decay",
+      title: "Mold Remediation Awareness conversion slipping",
+      detail: "Click-to-lead held steady but lead-to-booked fell to 13%. The landing CTA may be under-qualifying inquiries.",
+      tone: "amber",
+      metric: "13% booked",
+    },
+    {
+      id: "anom-referral-revenue",
+      title: "Referral channel punches above its volume",
+      detail: "Only 9% of leads but $22.9K booked — partner referrals convert at nearly 2x the portfolio average.",
+      tone: "ok",
+      metric: "$22.9K",
+    },
+  ];
+
+  const nextMoves: PerformanceNextMove[] = [
+    {
+      id: "move-storm-capacity",
+      title: "Resize Spring Storm Prep creative for capacity",
+      detail: "Demand outpaces booking capacity. Arc drafted a 'priority scheduling' variant — review before it goes live.",
+      cta: "Review draft",
+      href: "/campaigns",
+    },
+    {
+      id: "move-mold-cta",
+      title: "Tighten the Mold Awareness landing CTA",
+      detail: "Arc proposes a qualifying question on the form to lift lead-to-booked. Approval-gated; nothing publishes until you sign off.",
+      cta: "Open campaign",
+      href: "/analytics/demo-mold-remediation-awareness",
+    },
+    {
+      id: "move-referral-expand",
+      title: "Expand the Insurance Partner Referral package",
+      detail: "Referral ROI is strong but volume is thin. Arc prepared an outreach packet for three new adjuster partners.",
+      cta: "See package",
+      href: "/campaigns",
+    },
+  ];
+
+  return {
+    status: "live",
+    isDemo: true,
+    metrics: [
+      { label: "Lead records", value: totalLeads, detail: "Across all live demo campaigns", tone: "blue" },
+      { label: "Booked work", value: totalBooked, detail: "Jobs attributed to marketing", tone: "green" },
+      { label: "Campaign packages", value: 6, detail: "Drafted, in approval, or live", tone: "blue" },
+      { label: "Revenue impact", value: formatMoney(revenueImpactCents), detail: "Marketing-attributed outcomes", tone: "green" },
+    ],
+    leadVolumeByPersona: [
+      { label: "Distressed Homeowner", value: 246, detail: "246 leads in current data.", tone: "blue" },
+      { label: "Property Manager", value: 138, detail: "138 leads in current data.", tone: "blue" },
+      { label: "Proactive Homeowner", value: 142, detail: "142 leads in current data.", tone: "blue" },
+      { label: "Insurance Adjuster", value: 74, detail: "74 leads in current data.", tone: "blue" },
+      { label: "Health-Conscious Homeowner", value: 61, detail: "61 leads in current data.", tone: "blue" },
+    ],
+    leadVolumeBySource: channelPerformance.map((c) => ({ label: c.channel, value: c.leads, detail: `${c.leads} leads in current data.`, tone: "blue" as PerformanceTone })),
+    conversionSignals: [
+      { label: "Lead → booked rate", value: `${conversionPct}%`, detail: "Qualified leads that became booked work.", tone: "green" },
+      { label: "Estimate pipeline", value: formatMoney(24_600_000), detail: "Open estimates not yet won.", tone: "green" },
+      { label: "Avg revenue / job", value: formatMoney(Math.round(revenueImpactCents / bookedJobs)), detail: "Marketing-attributed revenue per booked job.", tone: "green" },
+    ],
+    funnelStages,
+    trend,
+    leadsRecent: { count: channelLeadTotal, delta: { pct: 21, dir: "up" } },
+    revenueRecent: { cents: revenueImpactCents, delta: { pct: 24, dir: "up" } },
+    campaignSignals: [
+      { label: "Campaign packages", value: 6, detail: "Campaign records in the demo workspace.", tone: "blue" },
+      { label: "Approved/running", value: 4, detail: "Execution status only; no publishing is enabled here.", tone: "green" },
+      { label: "Creative assets", value: 23, detail: "14 visual/media-like assets detected.", tone: "blue" },
+      { label: "Approvals waiting", value: 2, detail: "Human approval gate volume.", tone: "amber" },
+    ],
+    partnerSignals: [
+      { label: "Partner companies", value: 12, detail: "Partner persona or partner tier records.", tone: "blue" },
+      { label: "Tiered partners", value: 5, detail: "Companies with partner_tier populated.", tone: "green" },
+      { label: "Referral revenue", value: 22900, detail: "Booked revenue attributed to referrals.", tone: "green" },
+    ],
+    revenueByPersona: [
+      { label: "Distressed Homeowner", value: 89300, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+      { label: "Property Manager", value: 51200, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+      { label: "Proactive Homeowner", value: 39600, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+      { label: "Insurance Adjuster", value: 10200, detail: "gross_revenue grouped by outcome persona.", tone: "green" },
+    ],
+    ctaSignals: [
+      { label: "Form submissions", value: 318, detail: "318 events in current data.", tone: "blue" },
+      { label: "Photo uploads", value: 142, detail: "142 events in current data.", tone: "blue" },
+      { label: "Landing CTA clicks", value: 1240, detail: "1240 events in current data.", tone: "blue" },
+    ],
+    contracts: buildContracts(),
+    kpis,
+    channelPerformance,
+    anomalies,
+    nextMoves,
+    campaignRows,
+  };
 }
 
 function buildConversionSignals(leads: LeadRow[], jobs: JobRow[], outcomes: OutcomeRow[]): PerformanceBreakdown[] {

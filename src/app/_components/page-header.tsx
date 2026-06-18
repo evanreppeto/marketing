@@ -78,6 +78,112 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
   );
 }
 
+type StatTone = "neutral" | "accent" | "ok" | "amber" | "red";
+
+const STAT_VALUE_TONE: Record<StatTone, string> = {
+  neutral: "text-[var(--text-primary)]",
+  accent: "text-[var(--accent-contrast)]",
+  ok: "text-[var(--ok-text)]",
+  amber: "text-[var(--warn-text)]",
+  red: "text-[var(--priority-text)]",
+};
+
+export type StatItem = {
+  label: string;
+  value: React.ReactNode;
+  /** Small caption under the value, e.g. "vs last 30d" or a unit. */
+  hint?: React.ReactNode;
+  /** Trend chip on the right of the value, e.g. "+12%". */
+  delta?: string;
+  deltaTone?: "ok" | "amber" | "red" | "neutral";
+  /** Tints the value to signal status without shouting. */
+  tone?: StatTone;
+  /** Optional inline glyph (small svg) shown before the label. */
+  icon?: React.ReactNode;
+  /** Optional sparkline — pass a normalized 0–1 series for a tiny inline chart. */
+  spark?: number[];
+};
+
+function Sparkline({ points, tone = "accent" }: { points: number[]; tone?: StatTone }) {
+  if (points.length < 2) return null;
+  const w = 64;
+  const h = 20;
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const span = max - min || 1;
+  const stroke =
+    tone === "ok" ? "var(--ok)" : tone === "red" ? "var(--priority)" : tone === "amber" ? "var(--warn)" : "var(--accent)";
+  const d = points
+    .map((p, i) => {
+      const x = (i / (points.length - 1)) * w;
+      const y = h - ((p - min) / span) * (h - 3) - 1.5;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg aria-hidden viewBox={`0 0 ${w} ${h}`} className="h-5 w-16 shrink-0" preserveAspectRatio="none" fill="none">
+      <path d={d} stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+    </svg>
+  );
+}
+
+/**
+ * KPI card used in the stat rows across the product (Campaigns, Activity, CRM,
+ * Analytics, Board). Reads like a quiet frontend for a database metric: label,
+ * a confident number, and an optional trend chip / sparkline.
+ */
+export function StatCard({ label, value, hint, delta, deltaTone = "neutral", tone = "neutral", icon, spark }: StatItem) {
+  const deltaClass =
+    deltaTone === "ok"
+      ? "text-[var(--ok-text)]"
+      : deltaTone === "amber"
+        ? "text-[var(--warn-text)]"
+        : deltaTone === "red"
+          ? "text-[var(--priority-text)]"
+          : "text-[var(--text-muted)]";
+  return (
+    <div className={cx(theme.surface.panel, "min-w-0 px-3.5 py-3")}>
+      <div className="flex items-center gap-1.5">
+        {icon ? <span className="inline-flex h-3.5 w-3.5 items-center justify-center text-[var(--text-muted)] [&>svg]:h-3.5 [&>svg]:w-3.5">{icon}</span> : null}
+        <span className="truncate text-[11px] font-medium uppercase tracking-[0.13em] text-[var(--text-muted)]">{label}</span>
+      </div>
+      <div className="mt-1.5 flex items-end justify-between gap-2">
+        <div className={cx("font-display text-[1.55rem] font-semibold leading-none tracking-[-0.02em]", STAT_VALUE_TONE[tone])}>
+          {value}
+        </div>
+        {spark ? <Sparkline points={spark} tone={tone === "neutral" ? "accent" : tone} /> : null}
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        {hint ? <span className="truncate text-[11px] text-[var(--text-muted)]">{hint}</span> : <span />}
+        {delta ? <span className={cx("shrink-0 text-[11px] font-semibold tabular-nums", deltaClass)}>{delta}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+/** Responsive KPI row. Defaults to an auto-fit grid so 4–6 stats lay out cleanly. */
+export function StatStrip({
+  items,
+  className = "",
+  columns,
+}: {
+  items: StatItem[];
+  className?: string;
+  /** Force a fixed column count at lg; otherwise auto-fits ~190px cards. */
+  columns?: number;
+}) {
+  const style = columns
+    ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
+    : { gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" };
+  return (
+    <div className={cx("module-rise mb-5 grid gap-3", className)} style={style}>
+      {items.map((item, i) => (
+        <StatCard key={`${item.label}-${i}`} {...item} />
+      ))}
+    </div>
+  );
+}
+
 export function Panel({
   children,
   className = "",

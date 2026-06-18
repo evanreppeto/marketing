@@ -89,7 +89,9 @@ export function ConsoleFrame({
     return <AgentNameProvider value={agentName}>{children}</AgentNameProvider>;
   }
 
-  const expanded = isSidebarExpanded({ pinned: false, hovered, focusWithin });
+  // Default to the expanded, labeled rail (matches the product concepts); hover/
+  // focus still keep it open. Mobile keeps its own top-bar dock below `lg`.
+  const expanded = isSidebarExpanded({ pinned: true, hovered, focusWithin });
   const collapsed = !expanded;
 
   const layout = cx(

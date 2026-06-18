@@ -33,24 +33,20 @@ export function CrmPipelineBoard({
   const [query, setQuery] = useState("");
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("all");
   const [personaFilter, setPersonaFilter] = useState("all");
-  const [ownerFilter, setOwnerFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const normalizedQuery = query.trim().toLowerCase();
   const personaOptions = useMemo(() => uniqueSorted(rows.map((row) => row.personaTag)), [rows]);
-  const ownerOptions = useMemo(() => uniqueSorted(rows.map((row) => row.owner)), [rows]);
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
       const matchesScore = matchesScoreFilter(row, scoreFilter);
       const matchesPersona = personaFilter === "all" || row.personaTag === personaFilter;
-      const matchesOwner = ownerFilter === "all" || row.owner === ownerFilter;
       const searchable = [
         row.record,
         row.account,
         row.type,
         row.stage,
-        row.owner,
         row.value,
         row.nextStep,
         row.personaTag,
@@ -63,9 +59,9 @@ export function CrmPipelineBoard({
         .join(" ")
         .toLowerCase();
 
-      return matchesScore && matchesPersona && matchesOwner && (!normalizedQuery || searchable.includes(normalizedQuery));
+      return matchesScore && matchesPersona && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
-  }, [normalizedQuery, ownerFilter, personaFilter, rows, scoreFilter]);
+  }, [normalizedQuery, personaFilter, rows, scoreFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -137,7 +133,7 @@ export function CrmPipelineBoard({
   return (
     <>
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-        <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.8fr)_150px_140px_140px_112px]">
+        <div className="grid gap-2 xl:grid-cols-[minmax(240px,1fr)_160px_150px_140px]">
           <label className="relative block">
             <span className="sr-only">Search leads</span>
             <SearchIcon />
@@ -199,24 +195,14 @@ export function CrmPipelineBoard({
               ))}
             </select>
           </label>
-
-          <FilterSelect
-            label="Owner"
-            onChange={(value) => {
-              setOwnerFilter(value);
-              resetPage();
-            }}
-            options={ownerOptions}
-            value={ownerFilter}
-          />
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-left text-sm">
+        <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm">
           <thead>
             <tr className="bg-[var(--surface-inset)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              {["Lead", "Account / Asset", "Persona", "Score", "Stage", "Last activity", "Next step", "Owner"].map((header) => (
+              {["Lead", "Account / Asset", "Persona", "Score", "Stage", "Last activity", "Next step"].map((header) => (
                 <th className="border-b border-[var(--border-hairline)] px-3 py-3" key={header} scope="col">
                   <span className="inline-flex items-center gap-1">
                     {header}
@@ -225,30 +211,39 @@ export function CrmPipelineBoard({
                 </th>
               ))}
               <th className="w-10 border-b border-[var(--border-hairline)] px-3 py-3">
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">Open record</span>
               </th>
             </tr>
           </thead>
           <tbody>
             {visibleRows.map((row) => {
               const selected = selectedRecordId === row.id;
-              const cellButtonClass = "block h-full w-full bg-transparent px-3 py-3 text-left outline-none transition focus-visible:bg-[var(--surface-raised)]";
+              const cellButtonClass =
+                "block h-full w-full cursor-pointer bg-transparent px-3 py-3 text-left outline-none transition-[background-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:bg-[var(--surface-raised)]";
               return (
                 <tr
                   aria-current={selected ? "page" : undefined}
-                  className={`group transition duration-150 hover:bg-[var(--surface-raised)] ${selected ? "bg-[var(--accent-soft)]" : ""}`}
+                  className={`group relative cursor-pointer transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--surface-raised)] active:scale-[0.998] ${
+                    selected ? "bg-[var(--accent-soft)]" : ""
+                  }`}
                   key={row.id}
                 >
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
+                  <td className="relative border-b border-[var(--border-hairline)] p-0 align-middle">
+                    <span
+                      aria-hidden
+                      className={`pointer-events-none absolute inset-y-0 left-0 w-[2px] origin-left scale-y-0 bg-[var(--accent)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-y-100 ${
+                        selected ? "scale-y-100" : ""
+                      }`}
+                    />
                     <button
-                      aria-label={`Select ${row.record}; double click to open record.`}
+                      aria-label={`Open ${row.record}`}
                       className={cellButtonClass}
                       onClick={() => scheduleSelectRecord(row)}
                       onDoubleClick={() => openRecordFromDoubleClick(row)}
                       onKeyDown={(event) => handleRowKeyDown(event, row)}
                       type="button"
                     >
-                      <span className="block font-semibold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.record}</span>
+                      <span className="block font-semibold text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent)]">{row.record}</span>
                       <span className="mt-1 block text-xs text-[var(--text-secondary)]">{row.account}</span>
                     </button>
                   </td>
@@ -265,7 +260,7 @@ export function CrmPipelineBoard({
                   </td>
                   <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
                     <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <ScoreRing score={row.score} />
+                      <ScoreMeter score={row.score} />
                     </button>
                   </td>
                   <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
@@ -275,32 +270,26 @@ export function CrmPipelineBoard({
                   </td>
                   <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
                     <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <span className="block font-medium text-[var(--text-primary)]">{formatRelative(row.updated)}</span>
+                      <span className="block font-mono text-[13px] font-medium tabular-nums text-[var(--text-primary)]">{formatRelative(row.updated)}</span>
                       <span className="mt-1 block text-xs text-[var(--text-muted)]">{humanizeTag(row.sourceTag)}</span>
                     </button>
                   </td>
                   <td className="border-b border-[var(--border-hairline)] p-0 align-middle text-[var(--text-secondary)]">
                     <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <span className="line-clamp-2 max-w-[22ch]">{row.nextStep}</span>
-                    </button>
-                  </td>
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <button className={cellButtonClass} onClick={() => scheduleSelectRecord(row)} onDoubleClick={() => openRecordFromDoubleClick(row)} type="button">
-                      <span className="flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] font-mono text-[11px] font-semibold text-[var(--accent)]">
-                          {initials(row.owner)}
-                        </span>
-                        <span className="max-w-[9ch] truncate text-sm text-[var(--text-secondary)]">{row.owner}</span>
+                      <span className="flex items-start gap-2">
+                        <span className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
+                        <span className="line-clamp-2 max-w-[22ch] text-[13px] leading-5">{row.nextStep}</span>
                       </span>
                     </button>
                   </td>
-                  <td className="border-b border-[var(--border-hairline)] px-3 py-3 align-middle text-right text-[var(--text-muted)]">
+                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle text-right">
                     <Link
-                      className="inline-flex min-h-8 items-center rounded-md border border-[var(--border-hairline)] px-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-inset)] hover:text-[var(--accent)]"
+                      aria-label={`Open ${row.record}`}
+                      className="flex h-full w-full cursor-pointer items-center justify-center px-2 text-[var(--text-muted)] transition-colors duration-300 hover:text-[var(--accent)]"
                       href={row.href}
                       onClick={(event) => event.stopPropagation()}
                     >
-                      Open
+                      <RowChevron />
                     </Link>
                   </td>
                 </tr>
@@ -311,7 +300,7 @@ export function CrmPipelineBoard({
 
         {visibleRows.length === 0 ? (
           <div className="border-t border-[var(--border-hairline)] px-5 py-8">
-            <EmptyState title="No matching CRM records" detail="Clear the search, score, persona, or owner filter to widen the working list." />
+            <EmptyState title="No matching CRM records" detail="Clear the search, score, or persona filter to widen the working list." />
           </div>
         ) : null}
       </div>
@@ -414,11 +403,17 @@ function FilterSelect({
   );
 }
 
-function ScoreRing({ score }: { score: number }) {
-  const tone = score >= 75 ? "text-[var(--ok)] border-[var(--ok-border)]" : score >= 55 ? "text-[var(--warn)] border-[var(--warn-border)]" : "text-[var(--priority-bright)] border-[var(--priority-border)]";
+/** Lead score as a mono number above a thin tone-colored fill bar — concept-accurate, denser than a ring. */
+function ScoreMeter({ score }: { score: number }) {
+  const fill = score >= 75 ? "var(--ok)" : score >= 55 ? "var(--warn)" : "var(--priority)";
+  const numTone = score >= 75 ? "text-[var(--ok)]" : score >= 55 ? "text-[var(--warn)]" : "text-[var(--priority-bright)]";
+  const pct = Math.max(Math.min(score, 100), 0);
   return (
-    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-[var(--surface-soft)] font-mono text-xs font-semibold ${tone}`}>
-      {score}
+    <span className="block w-14">
+      <span className={`block font-mono text-sm font-bold tabular-nums leading-none ${numTone}`}>{score}</span>
+      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[var(--surface-inset)]">
+        <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: fill }} />
+      </span>
     </span>
   );
 }
@@ -459,10 +454,21 @@ function humanizeTag(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function initials(value: string) {
-  const parts = value.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "GE";
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+function RowChevron() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-4 w-4 shrink-0 -translate-x-0.5 opacity-0 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0 group-hover:opacity-100"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m6 4 4 4-4 4" />
+    </svg>
+  );
 }
 
 function formatRelative(value: string) {

@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import { buildDemoAgentOperationsDashboard } from "./demo";
 
 const OPEN_TASK_STATUSES = new Set(["queued", "running", "needs_approval", "blocked"]);
 const ACTIVE_APPROVAL_STATUSES = new Set([
@@ -47,6 +48,10 @@ export type AgentOperationsTask = {
   objective: string;
   linkedObject: string;
   linkedHref: string;
+  /** Short campaign label for the card tag chip (additive; demo + live). */
+  campaignLabel: string | null;
+  /** Short persona label for the card meta line (additive; demo + live). */
+  personaLabel: string | null;
   approvalHref: string | null;
   risk: string;
   approval: string;
@@ -373,10 +378,9 @@ export async function getAgentOperationsDashboard(
   agentName: string = "Agent",
 ): Promise<AgentOperationsDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return {
-      status: "unavailable",
-      message: "Supabase env vars are not configured.",
-    };
+    // No DB connected (local preview): show a realistic, read-only BSR board
+    // instead of an "unavailable" card. Nothing here implies an outbound send.
+    return buildDemoAgentOperationsDashboard();
   }
 
   try {
@@ -421,6 +425,12 @@ export async function getAgentOperationsDashboard(
     const campaignById = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
     const activeApprovals = approvals.filter((item) => ACTIVE_APPROVAL_STATUSES.has(item.status));
     const openTasks = tasks.filter((task) => OPEN_TASK_STATUSES.has(task.status));
+
+    // Connected but no Arc work recorded yet: keep the board populated with the
+    // same read-only preview so operators see the intended shape pre-seed.
+    if (tasks.length === 0 && agents.length === 0) {
+      return buildDemoAgentOperationsDashboard();
+    }
 
     return {
       status: "live",
@@ -820,6 +830,8 @@ function mapTask(
     linkedObject: campaign
       ? `Campaign: ${campaign.name}`
       : [task.source_type, task.source_id].filter(Boolean).join(": ") || "No linked record",
+    campaignLabel: campaign?.name ?? null,
+    personaLabel: campaign?.persona ? titleize(campaign.persona.replace(/^persona_/, "")) : null,
     linkedHref: task.approval_item_id ? `/approvals?item=${task.approval_item_id}` : campaign ? "/campaigns" : "/agent-operations",
     approvalHref: task.approval_item_id ? `/approvals?item=${task.approval_item_id}` : null,
     risk: titleize(risk),
