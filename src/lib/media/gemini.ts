@@ -25,11 +25,16 @@ function resolveVideoModel(): string {
 
 /** Google Gemini provider — Imagen 4 (generateImages) or Gemini flash-image
  *  ("Nano Banana", generateContent), selected by model id. */
-export function createGeminiMediaProvider(apiKey: string): MediaProvider {
+export function createGeminiMediaProvider(
+  apiKey: string,
+  opts?: { imageModel?: string; videoModel?: string },
+): MediaProvider {
   const ai = new GoogleGenAI({ apiKey });
+  const imageModel = opts?.imageModel?.trim() || resolveImageModel();
+  const videoModel = opts?.videoModel?.trim() || resolveVideoModel();
   return {
     async generateImage(input: ImageGenInput): Promise<GeneratedMedia> {
-      const model = resolveImageModel();
+      const model = imageModel;
       const aspectRatio =
         input.aspectRatio && SUPPORTED_ASPECT_RATIOS.has(input.aspectRatio) ? input.aspectRatio : undefined;
 
@@ -77,7 +82,7 @@ export function createGeminiMediaProvider(apiKey: string): MediaProvider {
       throw new Error("Gemini returned no image data");
     },
     async startVideo(input: VideoGenInput): Promise<VideoStart> {
-      const model = resolveVideoModel();
+      const model = videoModel;
       const aspectRatio =
         input.aspectRatio && SUPPORTED_VIDEO_ASPECT.has(input.aspectRatio) ? input.aspectRatio : undefined;
       const operation = await ai.models.generateVideos({
