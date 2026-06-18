@@ -9,10 +9,25 @@ export function SpotlightReel({ items, onOpen }: { items: GalleryItem[]; onOpen:
 
   useEffect(() => {
     if (items.length <= 1) return;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
-    const id = window.setInterval(() => setActive((i) => (i + 1) % items.length), 4500);
-    return () => window.clearInterval(id);
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    let id: number | undefined;
+
+    function start() {
+      id = window.setInterval(() => setActive((i) => (i + 1) % items.length), 4500);
+    }
+    function stop() {
+      if (id !== undefined) { window.clearInterval(id); id = undefined; }
+    }
+    function onChange(e: MediaQueryListEvent) {
+      if (e.matches) { stop(); } else { start(); }
+    }
+
+    if (!mq?.matches) start();
+    mq?.addEventListener("change", onChange);
+    return () => {
+      stop();
+      mq?.removeEventListener("change", onChange);
+    };
   }, [items.length]);
 
   if (items.length === 0) return null;

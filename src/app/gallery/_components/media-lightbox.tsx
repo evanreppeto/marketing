@@ -4,11 +4,16 @@ import { useEffect } from "react";
 import Link from "next/link";
 
 import { StatusPill } from "@/app/_components/page-header";
+import { useDialogA11y } from "@/app/arc/_components/use-dialog-a11y";
 import type { GalleryItem } from "@/lib/campaigns/gallery";
 
 const STATUS_TONE = { approved: "green", pending: "amber", rejected: "red", draft: "gray" } as const;
 
 export function MediaLightbox({ item, onClose }: { item: GalleryItem | null; onClose: () => void }) {
+  // useDialogA11y handles focus-in, Tab trap, and focus-restore on close.
+  // It does NOT handle Escape, so we keep the local Escape handler below.
+  const dialogRef = useDialogA11y<HTMLDivElement>(!!item);
+
   useEffect(() => {
     if (!item) return;
     const onKey = (e: KeyboardEvent) => {
@@ -30,6 +35,8 @@ export function MediaLightbox({ item, onClose }: { item: GalleryItem | null; onC
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         className="grid max-h-[88vh] w-full max-w-5xl grid-cols-1 overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface)] md:grid-cols-[1.6fr_1fr]"
       >

@@ -2,10 +2,6 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
-@keyframes gallery-hero-fade {
-  0%, 100% { opacity: 1; }
-  6% { opacity: 1; }
-}
 
 .gallery-tile { animation: gallery-float 6s ease-in-out infinite; transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
 .gallery-tile:nth-child(2n) { animation-duration: 7.5s; animation-delay: -2s; }
@@ -20,5 +16,4 @@
 @media (prefers-reduced-motion: reduce) {
   .gallery-tile { animation: none !important; }
   .gallery-tile:hover { transform: none; }
-  .gallery-hero-cycle { animation: none !important; }
 }
