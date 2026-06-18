@@ -9,6 +9,7 @@ import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import {
   createConversation,
   insertOperatorMessage,
+  insertPendingArcMessage,
   touchConversation,
 } from "@/lib/arc-chat/persistence";
 import { loadArcAttachments } from "@/lib/media-library/arc-handoff";
@@ -24,8 +25,6 @@ import {
   setAvailableToArc,
 } from "@/lib/media-library/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
-
-const OPERATOR = "Operator";
 
 async function guard() {
   await requireOperator();
@@ -71,7 +70,7 @@ export async function uploadAssetsAction(formData: FormData): Promise<void> {
       contentType: file.type,
       kind: classifyKind(file.type, file.name),
       byteSize: file.size,
-      uploadedBy: OPERATOR,
+      uploadedBy: getOperatorActor(),
     });
   }
   revalidatePath("/library");
@@ -147,7 +146,7 @@ export async function sendAssetsToArcAction(formData: FormData): Promise<void> {
   });
   await touchConversation(conversation.id);
 
-  await enqueueArcChatTask({
+  const agentTaskId = await enqueueArcChatTask({
     conversationId: conversation.id,
     messageId: operatorMessage.id,
     message,
@@ -155,6 +154,14 @@ export async function sendAssetsToArcAction(formData: FormData): Promise<void> {
     operator,
     attachments,
   });
+  // Drop the pending Arc bubble keyed to the task id. Without it the reply
+  // callback (POST /api/v1/arc/messages) can't findPendingMessageByTask and
+  // 404s before persisting, so Arc's reply never lands. This mirrors
+  // sendArcMessageAction's post-enqueue insertPendingArcMessage step. We omit
+  // the best-effort webhook wake (a latency optimization in the chat path); the
+  // inbox poll picks the queued task up regardless, and skipping it avoids the
+  // extra outbound surface. Outbound stays locked.
+  await insertPendingArcMessage({ conversationId: conversation.id, agentTaskId });
 
   revalidatePath("/arc");
 }
