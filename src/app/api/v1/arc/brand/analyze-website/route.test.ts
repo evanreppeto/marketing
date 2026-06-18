@@ -53,6 +53,17 @@ describe("POST /api/v1/arc/brand/analyze-website", () => {
     expect((await res.json()).status).toBe("rejected");
   });
 
+  it("refuses to follow a redirect to a private host", async () => {
+    configure();
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" } }),
+    );
+    const res = await POST(req("Bearer secret", { url: "https://acme.com" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).status).toBe("rejected");
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // followed 0 redirects
+  });
+
   it("fetches and returns extracted brand signal", async () => {
     configure();
     vi.spyOn(global, "fetch").mockResolvedValue(

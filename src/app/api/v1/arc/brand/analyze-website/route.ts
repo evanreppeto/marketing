@@ -52,33 +52,60 @@ export async function POST(request: Request) {
     return fail("rejected", error instanceof Error ? error.message : "Unsafe URL.", 400);
   }
 
-  // DNS guard for named hosts. Best-effort: if lookup is unavailable, the literal
-  // guard above still applies.
-  try {
-    const resolved = await lookup(url.hostname);
-    if (isPrivateAddress(resolved.address, resolved.family)) {
-      return fail("rejected", "Refusing to fetch a private/loopback address.", 400);
+  // Re-resolve + re-check each hop; never follow a redirect to a private host.
+  async function resolvedIsPrivate(hostname: string): Promise<boolean> {
+    try {
+      const r = await lookup(hostname);
+      return isPrivateAddress(r.address, r.family);
+    } catch {
+      return false; // lookup unavailable — best effort, allow
     }
-  } catch {
-    /* lookup failed/unavailable — proceed; fetch will surface real errors */
   }
 
+  const MAX_REDIRECTS = 2;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    let res: Response;
-    try {
-      res = await fetch(url, { redirect: "follow", signal: controller.signal, headers: { "user-agent": "ArcBrandBot/1.0" } });
-    } finally {
-      clearTimeout(timer);
-    }
-    if (!res.ok) return fail("failed", `Site returned ${res.status}.`, 502);
+    let current = url;
+    for (let hop = 0; ; hop++) {
+      // Validate the current hop's URL (literal guard) — initial url was already
+      // checked, but redirect targets must be re-validated.
+      let safe;
+      try {
+        safe = assertPublicHttpUrl(current.toString());
+      } catch (error) {
+        return fail("rejected", error instanceof Error ? error.message : "Unsafe redirect target.", 400);
+      }
+      if (await resolvedIsPrivate(safe.hostname)) {
+        return fail("rejected", "Refusing to fetch a private/loopback address.", 400);
+      }
 
-    const raw = await res.text();
-    const html = raw.slice(0, MAX_BYTES);
-    const signal = extractBrandSignal(html, url.toString());
-    return ok({ title: signal.title, description: signal.description, faviconUrl: signal.faviconUrl, text: signal.text });
+      const res = await fetch(safe, {
+        redirect: "manual",
+        signal: controller.signal,
+        headers: { "user-agent": "ArcBrandBot/1.0" },
+      });
+
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status < 400 && location) {
+        if (hop >= MAX_REDIRECTS) return fail("failed", "Too many redirects.", 502);
+        try {
+          current = new URL(location, safe);
+        } catch {
+          return fail("failed", "Invalid redirect location.", 502);
+        }
+        continue; // loop re-validates the new target
+      }
+
+      if (!res.ok) return fail("failed", `Site returned ${res.status}.`, 502);
+      const raw = await res.text();
+      const html = raw.slice(0, MAX_BYTES);
+      const signal = extractBrandSignal(html, safe.toString());
+      return ok({ title: signal.title, description: signal.description, faviconUrl: signal.faviconUrl, text: signal.text });
+    }
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to fetch the site.", 502);
+  } finally {
+    clearTimeout(timer);
   }
 }
