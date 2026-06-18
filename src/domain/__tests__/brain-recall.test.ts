@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankRecall, selectRecall, type RecallCandidate } from "../brain-recall";
+import { rankRecall, selectRecall, traverseFrom, type RecallCandidate, type GraphEdgeInput } from "../brain-recall";
 
 function cand(id: string, label: string, extra: Partial<RecallCandidate> = {}): RecallCandidate {
   return { id, kind: "learning", label, summary: null, tags: [], trustTier: "trusted", ...extra };
@@ -73,5 +73,47 @@ describe("selectRecall", () => {
     );
     expect(out.map((x) => x.id)).toContain("3");
     expect(out.map((x) => x.id)).not.toContain("4");
+  });
+});
+
+describe("traverseFrom", () => {
+  const edges: GraphEdgeInput[] = [
+    { fromNodeId: "a", toNodeId: "b", relation: "proves" },
+    { fromNodeId: "b", toNodeId: "c", relation: "targets" },
+    { fromNodeId: "d", toNodeId: "a", relation: "governs" },
+  ];
+
+  it("finds 1-hop and 2-hop connections with direction + hops", () => {
+    const conns = traverseFrom(["a"], edges, { depth: 2, maxPerSeed: 10 }).get("a")!;
+    expect(conns).toEqual(
+      expect.arrayContaining([
+        { nodeId: "b", relation: "proves", direction: "out", hops: 1 },
+        { nodeId: "d", relation: "governs", direction: "in", hops: 1 },
+        { nodeId: "c", relation: "targets", direction: "out", hops: 2 },
+      ]),
+    );
+  });
+
+  it("respects depth (1 hop excludes 2-hop nodes)", () => {
+    const conns = traverseFrom(["a"], edges, { depth: 1, maxPerSeed: 10 }).get("a")!;
+    expect(conns.map((x) => x.nodeId)).not.toContain("c");
+  });
+
+  it("respects maxPerSeed", () => {
+    const conns = traverseFrom(["a"], edges, { depth: 2, maxPerSeed: 1 }).get("a")!;
+    expect(conns).toHaveLength(1);
+  });
+
+  it("is cycle-safe", () => {
+    const cyclic: GraphEdgeInput[] = [
+      { fromNodeId: "x", toNodeId: "y", relation: "relates_to" },
+      { fromNodeId: "y", toNodeId: "x", relation: "relates_to" },
+    ];
+    const conns = traverseFrom(["x"], cyclic, { depth: 5, maxPerSeed: 10 }).get("x")!;
+    expect(conns.map((c) => c.nodeId)).toEqual(["y"]);
+  });
+
+  it("returns an empty list for a seed with no edges", () => {
+    expect(traverseFrom(["lonely"], edges).get("lonely")).toEqual([]);
   });
 });

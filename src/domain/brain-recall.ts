@@ -76,3 +76,65 @@ export function rankRecall(
 ): RecallItem[] {
   return selectRecall(candidates, message, options).map((c) => ({ label: c.label, summary: c.summary, kind: c.kind }));
 }
+
+// ─── Task 2: traverseFrom ────────────────────────────────────────────────────
+
+/** A directed edge between two nodes (the subset traverseFrom needs). */
+export type GraphEdgeInput = { fromNodeId: string; toNodeId: string; relation: string };
+
+/** A connection discovered from a seed: which node, via which relation, the
+ *  direction of the discovering edge (out = seed-side was `from`), and hop distance. */
+export type Connection = { nodeId: string; relation: string; direction: "out" | "in"; hops: number };
+
+export type TraverseOptions = { depth?: number; maxPerSeed?: number };
+
+/**
+ * Breadth-first traversal from each seed over the edge list, undirected
+ * reachability (follows an edge either way) with a per-seed visited set
+ * (cycle-safe). Each connection records the discovering edge's relation +
+ * direction + hop distance. Bounded by `depth` (default 2) and `maxPerSeed`
+ * (default 4); closest nodes first. Pure.
+ */
+export function traverseFrom(
+  seedIds: string[],
+  edges: GraphEdgeInput[],
+  options: TraverseOptions = {},
+): Map<string, Connection[]> {
+  const depth = options.depth ?? 2;
+  const maxPerSeed = options.maxPerSeed ?? 4;
+
+  type Adj = { neighbor: string; relation: string; direction: "out" | "in" };
+  const adj = new Map<string, Adj[]>();
+  const add = (from: string, a: Adj) => {
+    const list = adj.get(from);
+    if (list) list.push(a);
+    else adj.set(from, [a]);
+  };
+  for (const e of edges) {
+    add(e.fromNodeId, { neighbor: e.toNodeId, relation: e.relation, direction: "out" });
+    add(e.toNodeId, { neighbor: e.fromNodeId, relation: e.relation, direction: "in" });
+  }
+
+  const result = new Map<string, Connection[]>();
+  for (const seed of seedIds) {
+    const connections: Connection[] = [];
+    const visited = new Set<string>([seed]);
+    let frontier: string[] = [seed];
+    for (let hop = 1; hop <= depth && connections.length < maxPerSeed; hop++) {
+      const nextFrontier: string[] = [];
+      for (const current of frontier) {
+        for (const a of adj.get(current) ?? []) {
+          if (visited.has(a.neighbor)) continue;
+          visited.add(a.neighbor);
+          connections.push({ nodeId: a.neighbor, relation: a.relation, direction: a.direction, hops: hop });
+          nextFrontier.push(a.neighbor);
+          if (connections.length >= maxPerSeed) break;
+        }
+        if (connections.length >= maxPerSeed) break;
+      }
+      frontier = nextFrontier;
+    }
+    result.set(seed, connections);
+  }
+  return result;
+}
