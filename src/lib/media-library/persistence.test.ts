@@ -4,7 +4,8 @@ import { buildStoragePath, sanitizeFileName } from "./persistence";
 
 describe("sanitizeFileName", () => {
   it("strips path separators and unsafe chars", () => {
-    expect(sanitizeFileName("../../etc/p w!d.jpg")).toBe("etc-p-w-d.jpg");
+    expect(sanitizeFileName("../../etc/p w!d.jpg")).toBe("p-w-d.jpg");
+    expect(sanitizeFileName("photo.PNG")).toBe("photo.PNG");
   });
 });
 
