@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { PlusIcon, Settings2 } from "lucide-react";
+import { Cog, PlusIcon } from "lucide-react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
@@ -41,6 +41,13 @@ function BrandWordmark() {
     />
   );
 }
+
+const sidebarGoldDividerTop =
+  "relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] before:opacity-50 before:content-['']";
+const sidebarGoldDividerBottom =
+  "after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] after:opacity-35 after:content-['']";
+const sidebarBottomDock =
+  "relative mt-1 rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-soft)_58%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] before:absolute before:inset-x-3 before:-top-px before:h-px before:bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_72%,transparent),color-mix(in_srgb,var(--ok)_34%,transparent),transparent)] before:content-['']";
 
 /**
  * Persistent application chrome. Desktop uses the command rail; smaller screens
@@ -144,7 +151,11 @@ export function ConsoleFrame({
           </header>
 
           <aside
-            className={cx(theme.shell.sidebar, "hidden transition-[padding] duration-200 lg:flex lg:flex-col", sidebarCollapsed ? "lg:px-3" : "")}
+            className={cx(
+              theme.shell.sidebar,
+              "hidden transition-[padding] duration-200 lg:flex lg:flex-col",
+              sidebarCollapsed ? "lg:overflow-visible lg:px-3" : "",
+            )}
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget)) {
                 setSidebarFocusWithin(false);
@@ -186,7 +197,9 @@ export function ConsoleFrame({
                 </Link>
               </div>
 
-              <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
+              <div className={cx("py-3", sidebarGoldDividerTop, sidebarGoldDividerBottom, sidebarCollapsed ? "flex justify-center" : "")}>
+                <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
+              </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
                 <div className="flex flex-col gap-3">
@@ -208,13 +221,7 @@ export function ConsoleFrame({
                 </div>
               </div>
 
-              <SidebarWorkspaceSwitcher collapsed={sidebarCollapsed} workspaceName={brand.workspaceName} />
-
-              <div className={cx("border-t pt-3", theme.surface.divider)}>
-                <SideNav active={pathname} items={utilityNavItems} collapsed={sidebarCollapsed} />
-              </div>
-
-              <OperatorProfile collapsed={sidebarCollapsed} />
+              <SidebarBottomDock collapsed={sidebarCollapsed} settingsHref={utilityNavItems[0].href} workspaceName={brand.workspaceName} />
             </div>
           </aside>
 
@@ -270,15 +277,7 @@ function ArcCommandLink({
       prefetch
     >
       <NavIcon className="h-5 w-5 shrink-0 text-[var(--accent)]" name="arc" />
-      {!collapsed ? (
-        <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-current">{agentName}</span>
-          <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--ok)]" />
-            Live
-          </span>
-        </span>
-      ) : null}
+      {!collapsed ? <span className="truncate text-sm font-semibold text-current">{agentName}</span> : null}
       {active ? (
         <ActiveMotionMarker
           className={cx(
@@ -292,6 +291,15 @@ function ArcCommandLink({
   );
 }
 
+function SidebarBottomDock({ collapsed, settingsHref, workspaceName }: { collapsed?: boolean; settingsHref: string; workspaceName: string }) {
+  return (
+    <div className={cx(sidebarBottomDock, collapsed ? "space-y-2 px-1.5 py-2.5" : "space-y-3.5 px-3 py-3.5")}>
+      <SidebarWorkspaceSwitcher collapsed={collapsed} workspaceName={workspaceName} />
+      <OperatorProfile collapsed={collapsed} settingsHref={settingsHref} />
+    </div>
+  );
+}
+
 function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: boolean; workspaceName: string }) {
   const workspaces: Workspace[] = [
     {
@@ -302,7 +310,7 @@ function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: bo
   ];
 
   return (
-    <div className="border-t border-[var(--border-hairline)] pt-3">
+    <div className={cx(collapsed ? "flex justify-center" : "")}>
       {!collapsed ? (
         <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           Workspace
@@ -315,7 +323,7 @@ function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: bo
             className="flex w-full items-center gap-2 rounded px-2 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
             href="/settings?section=workspace"
           >
-            <Settings2 aria-hidden className="h-4 w-4 text-[var(--text-muted)]" />
+            <Cog aria-hidden className="h-4 w-4 text-[var(--text-muted)]" />
             Manage workspace
           </Link>
           <Link
@@ -341,7 +349,7 @@ function SidebarSection({
   label?: string;
 }) {
   return (
-    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-1.5 border-t border-[var(--border-hairline)] pt-3")} aria-label={label}>
+    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-1.5 pt-3", !collapsed ? sidebarGoldDividerTop : "")} aria-label={label}>
       {!collapsed && label ? (
         <div className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           {label}
@@ -352,10 +360,10 @@ function SidebarSection({
   );
 }
 
-function OperatorProfile({ collapsed }: { collapsed?: boolean }) {
+function OperatorProfile({ collapsed, settingsHref }: { collapsed?: boolean; settingsHref: string }) {
   return (
-    <div className={cx("border-t pb-6 pt-4", theme.surface.divider)}>
-      <div className={cx("flex items-center gap-3", collapsed ? "justify-center" : "")}>
+    <div className={cx("flex items-center", collapsed ? "justify-center" : "gap-2 border-t border-[var(--border-hairline)] pt-3")}>
+      <div className={cx("flex min-w-0 flex-1 items-center gap-3", collapsed ? "justify-center" : "")}>
         <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-xs font-semibold text-[var(--accent)]">
           ER
           <span
@@ -370,6 +378,16 @@ function OperatorProfile({ collapsed }: { collapsed?: boolean }) {
           </div>
         ) : null}
       </div>
+      {!collapsed ? (
+        <Link
+          aria-label="Settings"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+          href={settingsHref}
+          title="Settings"
+        >
+          <Cog aria-hidden className="h-4.5 w-4.5" />
+        </Link>
+      ) : null}
     </div>
   );
 }
