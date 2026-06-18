@@ -7,6 +7,7 @@ export type TabItem = {
   label: string;
   detail?: string;
   count?: number;
+  icon?: React.ReactNode;
   href: string;
 };
 
@@ -46,21 +47,32 @@ export function TabNav({
             key={tab.key}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={cx(theme.control.tabBase, active ? theme.control.tabActive : theme.control.tabIdle)}
+            className={cx(
+              theme.control.tabBase,
+              "flex-col items-start justify-center gap-1.5",
+              active ? theme.control.tabActive : theme.control.tabIdle,
+            )}
           >
-            <span className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold text-current">{tab.label}</span>
-              {tab.count !== undefined ? <span className={theme.control.tabBadge}>{tab.count}</span> : null}
+            <span className="flex min-w-0 items-center gap-2">
+              {tab.icon ? (
+                <span
+                  className={cx(
+                    "inline-flex h-4 w-4 shrink-0 items-center justify-center [&>svg]:h-4 [&>svg]:w-4",
+                    active ? "text-[var(--accent)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]",
+                  )}
+                >
+                  {tab.icon}
+                </span>
+              ) : null}
+              <span className="min-w-0 truncate text-sm font-bold text-current">{tab.label}</span>
+              {tab.count !== undefined ? (
+                <span className={cx(theme.control.tabBadge, active ? "text-[var(--accent)]" : "")}>{tab.count}</span>
+              ) : null}
             </span>
             {tab.detail !== undefined ? (
               <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
             ) : null}
-            {active ? (
-              <span
-                aria-hidden
-                className="absolute inset-x-3 bottom-0 h-px rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] shadow-[0_0_14px_rgba(199,166,92,0.32)]"
-              />
-            ) : null}
+            {active ? <span aria-hidden className={theme.control.tabMarker} /> : null}
           </Link>
         );
       })}
