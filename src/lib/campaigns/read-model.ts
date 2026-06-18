@@ -3,9 +3,9 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup } from "@/domain";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
-const CAMPAIGN_SELECT =
+export const CAMPAIGN_SELECT =
   "id,name,persona,restoration_focus,status,company_id,contact_id,lead_id,owner,objective,audience_summary,offer_summary,compliance_notes,launch_locked,source_signal,source_system,reasoning_payload,audit_payload,created_at,updated_at";
-const ASSET_SELECT =
+export const ASSET_SELECT =
   "id,campaign_id,asset_type,channel,title,status,tool_source,prompt_input,prompt_inputs,draft_body,edited_body,approved_body,dispatch_locked,compliance_notes,reasoning_payload,audit_payload,created_at,updated_at";
 const APPROVAL_SELECT =
   "id,campaign_id,campaign_asset_id,company_id,contact_id,lead_id,item_type,status,locked_until_approved,prompt_inputs,draft_output,edited_output,requested_by,submitted_at,risk_level,compliance_notes,decision_notes,reasoning_payload,audit_payload,created_at,updated_at";
@@ -274,7 +274,7 @@ export type CampaignWorkspaceDetail =
 
 type JsonObject = Record<string, unknown>;
 
-type CampaignRow = {
+export type CampaignRow = {
   id: string;
   name: string;
   persona: string;
@@ -297,7 +297,7 @@ type CampaignRow = {
   updated_at: string;
 };
 
-type CampaignAssetRow = {
+export type CampaignAssetRow = {
   id: string;
   campaign_id: string;
   asset_type: string;
@@ -1431,7 +1431,7 @@ function classifyAssetText(value: string): CampaignWorkspaceAssetCategory {
   return "other";
 }
 
-async function selectIn<T>(
+export async function selectIn<T>(
   client: SupabaseClient,
   table: string,
   columns: string,
@@ -1587,7 +1587,7 @@ function buildSourceCountByCampaign(campaigns: CampaignRow[], approvals: Approva
   return sourceCountByCampaign;
 }
 
-function collectMediaFromCampaign(campaign: CampaignRow) {
+export function collectMediaFromCampaign(campaign: CampaignRow) {
   return buildMediaAssets([
     ["Campaign source", asObject(campaign.source_signal)],
     ["Campaign reasoning", asObject(campaign.reasoning_payload)],
@@ -1595,7 +1595,7 @@ function collectMediaFromCampaign(campaign: CampaignRow) {
   ]);
 }
 
-function collectMediaFromAsset(asset: CampaignAssetRow) {
+export function collectMediaFromAsset(asset: CampaignAssetRow) {
   return buildMediaAssets([
     ["Asset prompt", asObject(asset.prompt_inputs)],
     ["Asset reasoning", asObject(asset.reasoning_payload)],
@@ -1875,7 +1875,7 @@ function uniqueById<T extends { id: string }>(items: T[]) {
   return [...byId.values()];
 }
 
-function uniqueMedia(items: CampaignMediaAsset[]) {
+export function uniqueMedia(items: CampaignMediaAsset[]) {
   const byUrl = new Map<string, CampaignMediaAsset>();
   for (const item of items) {
     if (!byUrl.has(item.url)) byUrl.set(item.url, item);
@@ -2001,7 +2001,7 @@ function statusLabel(status: string) {
   return humanize(status);
 }
 
-function humanize(value: string) {
+export function humanize(value: string) {
   return value
     .replaceAll("_", " ")
     .replaceAll("-", " ")
@@ -2028,7 +2028,7 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
-function assertSupabaseResult(label: string, error: { message: string } | null) {
+export function assertSupabaseResult(label: string, error: { message: string } | null) {
   if (error) {
     throw new Error(`${label} lookup failed: ${error.message}`);
   }
