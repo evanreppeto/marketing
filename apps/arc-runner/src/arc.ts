@@ -1,6 +1,6 @@
 import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
-import { BSR_CONTEXT } from "./business-context";
+import { resolveBusinessContext } from "./business-context";
 import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
@@ -105,8 +105,9 @@ async function runArcQuery(opts: {
 export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcClient): Promise<ArcTurnResult> {
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
+  const business = await resolveBusinessContext(client);
   const ctx: ArcTurnContext = {
-    business: BSR_CONTEXT,
+    business,
     mode: payload.mode,
     scope: {
       conversationId: payload.conversationId,
@@ -148,8 +149,9 @@ export async function runArcOpportunityDraft(
 ): Promise<ArcTurnResult> {
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
+  const business = await resolveBusinessContext(client);
   const ctx: ArcTurnContext = {
-    business: BSR_CONTEXT,
+    business,
     mode: "draft",
     scope: {
       conversationId: payload.opportunityId,
