@@ -85,7 +85,14 @@ export type InsertAssetInput = {
   uploader?: ImageUploader;
 };
 
-/** Upload bytes to Storage, then insert the media_assets row. Returns the new id. */
+/** Insert the media_assets row (placeholder path), upload the bytes, then update
+ *  the row with the real storage path + public URL. Returns the new id.
+ *
+ *  Non-transactional (Supabase JS has no multi-table transaction): if the upload
+ *  throws, the row is left with a "pending" path; if the final update throws, a
+ *  storage object exists with no row reference. Acceptable for this iteration —
+ *  uploads are low-frequency and a cleanup pass can be added if it matters.
+ *  Mirrors the same documented tradeoff in src/lib/campaigns/create.ts. */
 export async function insertAsset(input: InsertAssetInput): Promise<string> {
   const client = input.client ?? getSupabaseAdminClient();
   const upload = input.uploader ?? defaultUploader(client);
@@ -120,8 +127,15 @@ export async function setAvailableToArc(id: string, value: boolean, client: Supa
 export async function deleteAsset(id: string, client: SupabaseClient = getSupabaseAdminClient()) {
   const { data, error } = await client.from("media_assets" as string).select("storage_path").eq("id", id).maybeSingle();
   if (error) throw new Error(`delete lookup failed: ${error.message}`);
-  if ((data as { storage_path?: string } | null)?.storage_path) {
-    await client.storage.from(BUCKET).remove([(data as { storage_path: string }).storage_path]);
+  const path = (data as { storage_path?: string } | null)?.storage_path;
+  // Skip the "pending" placeholder left by a failed upload — there's no object to remove.
+  if (path && path !== "pending") {
+    const { error: removeError } = await client.storage.from(BUCKET).remove([path]);
+    // Don't block the row delete on a storage miss (object may already be gone),
+    // but surface other failures so partial-delete problems are visible.
+    if (removeError && !/not.?found|does not exist/i.test(removeError.message)) {
+      throw new Error(`storage remove failed: ${removeError.message}`);
+    }
   }
   await deleteRow(client, "media_assets", id);
 }
