@@ -1,3 +1,5 @@
+import type { ArcClient } from "./arc-client";
+
 /**
  * The business Arc currently acts on behalf of. Single-tenant today (BSR), but
  * this object IS the multi-tenant seam: every per-business fact Arc needs is
@@ -25,8 +27,6 @@ export const BSR_CONTEXT: ArcBusinessContext = {
     "Never promise insurance coverage, claim approval, payouts, or timelines. Stay coverage-neutral. Keep to restoration scope (water/flood/sewage/mold/fire/storm); route hail-only, wind-only, exterior-roof-only, and unrelated remodeling out of scope.",
 };
 
-import type { ArcClient } from "./arc-client";
-
 /** The rich context shape returned by GET /api/v1/arc/brand/context (app's assembleArcContext output). */
 export type AppBusinessContext = {
   businessName: string;
@@ -37,7 +37,9 @@ export type AppBusinessContext = {
   preferredPhrases: string[];
   bannedPhrases: string[];
   proofPoints: Array<{ kind: string; label: string; detail?: string }>;
-  personas: Array<{ key: string; label: string }>;
+  // Structural subset — fromAppContext doesn't read personas yet. The wire payload
+  // includes more (audienceType, sortOrder, isActive, metadata); a later task maps them.
+  personas: Array<{ key: string; label: string; [k: string]: unknown }>;
   guardrails: { disallowedClaims: string[]; complianceNotes: string };
 };
 
