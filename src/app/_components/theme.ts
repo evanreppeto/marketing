@@ -47,9 +47,13 @@ export const theme = {
     input:
       "min-h-11 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
     tabList: "module-rise flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3",
-    tabBase: "relative shrink-0 rounded px-3 py-2.5 transition duration-150 active:translate-y-px",
+    tabBase:
+      "group relative inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[4px] px-3.5 py-2 text-sm font-semibold transition duration-150 ease-out hover:bg-[color-mix(in_srgb,var(--surface-inset)_46%,transparent)] active:translate-y-px",
     tabActive: "text-[var(--text-primary)]",
     tabIdle: "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+    tabIcon: "h-4 w-4 shrink-0 transition-colors",
+    tabMarker:
+      "absolute inset-x-2 bottom-[-0.75rem] h-px rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] shadow-[0_0_14px_rgba(199,166,92,0.32)]",
     cardInteractive:
       "transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
     kbd: "rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono",
