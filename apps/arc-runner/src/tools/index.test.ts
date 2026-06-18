@@ -61,6 +61,8 @@ describe("toolsForMode", () => {
     const names = toolsForMode("ask", stubClient, step, sink).map((t) => t.name);
     expect(names).not.toContain("create_campaign_draft");
     expect(names).not.toContain("generate_image");
+    expect(names).not.toContain("analyze_website");
+    expect(names).not.toContain("propose_brand_profile");
   });
 });
 
