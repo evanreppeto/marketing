@@ -25,6 +25,7 @@ const READ = [
   "list_campaigns",
   "get_campaign",
   "list_approvals",
+  "read_performance",
   "emit_card",
   "suggest_followups",
   "cite_sources",
