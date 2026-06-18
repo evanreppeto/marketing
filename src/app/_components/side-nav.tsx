@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { ActiveMotionMarker } from "./motion-primitives";
 import { NavIcon, type NavIconName } from "./nav-icons";
 
 export type ShellNavItem = {
@@ -87,7 +88,10 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false }
               </span>
             ) : null}
             {isActive && showLabel ? (
-              <span aria-hidden className="pointer-events-none absolute inset-y-2 right-2 w-px rounded-full bg-[color-mix(in_srgb,var(--accent)_55%,transparent)]" />
+              <ActiveMotionMarker
+                className="pointer-events-none absolute inset-y-2 right-2 w-px rounded-full bg-[color-mix(in_srgb,var(--accent)_55%,transparent)]"
+                layoutId={mobileDock ? "active-mobile-nav-marker" : "active-desktop-nav-marker"}
+              />
             ) : null}
           </Link>
         );
