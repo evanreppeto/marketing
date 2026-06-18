@@ -8,7 +8,9 @@ vi.mock("@/lib/media", () => ({
 vi.mock("@/lib/media/storage", () => ({
   storeGeneratedImage: vi.fn(async () => "https://cdn.example/storage/v1/object/public/campaign-media/arc-generated/x.png"),
 }));
-vi.mock("@/lib/settings/store", () => ({ getAppSettings: async () => ({ imageModel: "", videoModel: "" }) }));
+vi.mock("@/lib/settings/store", () => ({
+  getAppSettings: async () => ({ imageModel: "", videoModel: "", markDefaultRoute: "fast" }),
+}));
 
 import { POST } from "./route";
 

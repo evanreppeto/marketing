@@ -18,7 +18,7 @@ export const SETTINGS_SECTIONS = [
   {
     id: "media",
     label: "Media models",
-    description: "Choose the image and video models Arc generates with.",
+    description: "Advanced: pin specific image/video models that override your Arc level.",
   },
   { id: "account", label: "Account" },
   { id: "connections", label: "Connections" },

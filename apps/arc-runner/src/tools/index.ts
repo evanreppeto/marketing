@@ -12,8 +12,8 @@ import type { StepFn, TurnSink } from "./helpers";
 
 export type ArcMode = "ask" | "act" | "draft";
 
-/** Extra per-turn context threaded into work-product tools (e.g. the opportunity a draft links back to). */
-export type ToolContext = { opportunityId?: string };
+/** Extra per-turn context threaded into work-product tools (e.g. the opportunity a draft links back to, the Arc level driving media models). */
+export type ToolContext = { opportunityId?: string; level?: "fast" | "standard" };
 
 /** Read app state + reply-shaping tools (cards, suggestions, sources). Available in every mode. */
 function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
@@ -36,7 +36,7 @@ function writeTools(client: ArcClient, step: StepFn) {
 
 /** Draft work products: create approval-gated campaign assets. draft mode only. */
 function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolContext) {
-  return [...draftWorkProductTools(client, step, sink.card, ctx), ...mediaTools(client, step, sink.card)];
+  return [...draftWorkProductTools(client, step, sink.card, ctx), ...mediaTools(client, step, sink.card, ctx)];
 }
 
 /**
