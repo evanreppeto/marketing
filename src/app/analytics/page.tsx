@@ -15,6 +15,12 @@ import { buildTakeaway } from "@/lib/performance/overview-shape";
 import { KpiBand, type Kpi } from "./_components/overview/kpi-band";
 import { TrendChart } from "./_components/overview/trend-chart";
 import { TakeawayBanner } from "./_components/overview/takeaway-banner";
+import { InsightsRail } from "./_components/overview/insights-rail";
+import { CampaignPerformanceTable } from "./_components/overview/campaign-performance-table";
+import { FunnelFlow } from "./_components/charts/funnel-flow";
+import { ChannelBars } from "./_components/overview/channel-bars";
+import { AnalyticsExplorer } from "./_components/overview/analytics-explorer";
+import { StatStrip, type StatItem } from "../_components/page-header";
 import { ConversionTab, ContractTab, LeadVolumeTab, PartnerSignalsTab, RevenueTab } from "./_components/performance-breakdowns";
 
 export const metadata = {
@@ -78,41 +84,60 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
   const perf = performance.status === "live" ? performance : null;
   const fmtMoney = (cents: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
-  const kpis: Kpi[] = [
+  const takeaway = buildTakeaway(split, waitingOnYou);
+
+  // Prefer the rich KPI strip (sparklines + deltas) when the performance model carries it;
+  // otherwise fall back to the approval-readiness KpiBand so older/live data still renders.
+  const statItems: StatItem[] | null = perf?.kpis
+    ? perf.kpis.map((k) => ({ label: k.label, value: k.value, hint: k.hint, delta: k.delta, deltaTone: k.deltaTone, tone: k.tone, spark: k.spark }))
+    : null;
+  const fallbackKpis: Kpi[] = [
     { label: "Waiting on you", value: String(waitingOnYou), caption: waitingOnYou > 0 ? "need approval" : "all clear", toneVar: "warn", href: waitingOnYou > 0 ? "/campaigns" : undefined },
     { label: "Approved & ready", value: String(readyCount), caption: "signed off", toneVar: "ok" },
     { label: `Leads (${activeRange.short})`, value: perf ? String(perf.leadsRecent.count) : "—", delta: perf ? perf.leadsRecent.delta : null, toneVar: "accent" },
     { label: `Revenue linked (${activeRange.short})`, value: perf ? fmtMoney(perf.revenueRecent.cents) : "—", delta: perf ? perf.revenueRecent.delta : null, toneVar: "accent" },
   ];
-  const takeaway = buildTakeaway(split, waitingOnYou);
 
   return (
     <>
-      <AnalyticsHeader brand={brand} />
+      <AnalyticsHeader brand={brand} demo={Boolean(perf?.isDemo)} />
 
       {/* General analytics + range filter — the at-a-glance read */}
       <div className="mb-5 flex items-center gap-2">
         <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Range</span>
-        <div className="inline-flex overflow-hidden rounded-lg border border-[var(--border-panel)]">
-          {RANGES.map((r) => (
-            <Link
-              key={r.v}
-              href={`/analytics?range=${r.v}`}
-              className={`px-3 py-1 text-xs font-semibold transition ${activeRange.v === r.v ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"}`}
-            >
-              {r.label}
-            </Link>
-          ))}
+        <div className="inline-flex gap-0.5 rounded-lg border border-[var(--border-panel)] bg-[var(--surface-inset)] p-0.5">
+          {RANGES.map((r) => {
+            const active = activeRange.v === r.v;
+            return (
+              <Link
+                key={r.v}
+                href={`/analytics?range=${r.v}`}
+                aria-current={active ? "true" : undefined}
+                className={`rounded-[6px] px-3 py-1 text-xs font-semibold transition-[transform,background-color,color,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
+                  active
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--text-secondary)]"
+                }`}
+              >
+                {r.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      <KpiBand kpis={kpis} />
+      {statItems ? <StatStrip items={statItems} /> : <KpiBand kpis={fallbackKpis} />}
       <TakeawayBanner text={takeaway} />
 
-      <div className="mb-5 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
-        <WorkspacePanel eyebrow="Trend" title="Leads & booked work" description="New leads vs. booked jobs over the selected range.">
-          {perf ? <TrendChart data={perf.trend} /> : <EmptyState title="Trend unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />}
-        </WorkspacePanel>
+      {/* Performance over time — the hero chart, full width */}
+      <WorkspacePanel className="mb-5" eyebrow="Performance over time" title="Leads & booked work" description="New leads vs. booked jobs across the selected range.">
+        {perf ? <TrendChart data={perf.trend} /> : <EmptyState title="Trend unavailable" detail={performance.status === "unavailable" ? performance.message : "No data yet."} />}
+      </WorkspacePanel>
+
+      {/* Portfolio donut + insights rail sit above the explorer; the explorer
+          owns the funnel, channels, and per-campaign table so its filter bar
+          can re-derive all three together. */}
+      <div className="mb-5 grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <WorkspacePanel eyebrow="Readiness" title="Portfolio approval">
           <div className="grid gap-5 p-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
             <DonutSplit segments={heroSegments} centerValue={`${split.readiness}%`} centerLabel={split.total > 0 ? "approved" : "nothing drafted yet"} />
@@ -126,24 +151,49 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
             </dl>
           </div>
         </WorkspacePanel>
+        {perf?.anomalies && perf?.nextMoves ? <InsightsRail anomalies={perf.anomalies} nextMoves={perf.nextMoves} /> : null}
       </div>
 
-      {/* The focus: campaigns as a scannable table. Each row opens its own analytics. */}
-      <WorkspacePanel title="Campaigns" description="Every campaign and its progress. Select one to open its full analytics.">
-        <DataTable
-          columns={CAMPAIGN_COLUMNS}
-          rows={rows}
-          rowKey={(row) => row.id}
-          rowHref={(row) => `/analytics/${row.id}`}
-          minWidth="min-w-[760px]"
-          emptyState={<EmptyState title="No campaigns yet" detail="When Arc drafts a campaign or you create one, it will appear here with its progress." />}
-        />
-      </WorkspacePanel>
+      {/* Filterable funnel + channels + per-campaign table (client island). */}
+      {perf?.channelPerformance && perf?.campaignRows ? (
+        <div className="mb-5">
+          <AnalyticsExplorer funnelStages={perf.funnelStages} channels={perf.channelPerformance} campaignRows={perf.campaignRows} />
+        </div>
+      ) : (
+        <>
+          {perf ? (
+            <WorkspacePanel className="mb-5" eyebrow="Funnel" title="Impressions to booked work" description="How reach narrows into booked jobs.">
+              <FunnelFlow stages={perf.funnelStages} />
+            </WorkspacePanel>
+          ) : null}
+          {perf?.channelPerformance ? (
+            <WorkspacePanel className="mb-5" eyebrow="Channels" title="Channel performance" description="Leads, booked work, and revenue by channel.">
+              <ChannelBars channels={perf.channelPerformance} />
+            </WorkspacePanel>
+          ) : null}
+          {perf?.campaignRows ? (
+            <WorkspacePanel className="mb-5" eyebrow="Per campaign" title="Campaign performance" description="Reach, leads, booked work, and revenue per campaign. Select one to open its full analytics.">
+              <CampaignPerformanceTable rows={perf.campaignRows} />
+            </WorkspacePanel>
+          ) : (
+            <WorkspacePanel className="mb-5" title="Campaigns" description="Every campaign and its progress. Select one to open its full analytics.">
+              <DataTable
+                columns={CAMPAIGN_COLUMNS}
+                rows={rows}
+                rowKey={(row) => row.id}
+                rowHref={(row) => `/analytics/${row.id}`}
+                minWidth="min-w-[760px]"
+                emptyState={<EmptyState title="No campaigns yet" detail="When Arc drafts a campaign or you create one, it will appear here with its progress." />}
+              />
+            </WorkspacePanel>
+          )}
+        </>
+      )}
 
       {/* Portfolio-wide breakdowns live here, collapsed, so the main view stays calm. */}
       {perf ? (
         <details className="mt-5">
-          <summary className="cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)]">
+          <summary className="cursor-pointer select-none rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-5 py-3 text-sm font-semibold text-[var(--text-secondary)] transition-[background-color,border-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]">
             More analytics — leads, conversion, revenue &amp; partners
           </summary>
           <div className="mt-5 space-y-8">
@@ -282,14 +332,19 @@ function StateBadge({ row }: { row: ComparisonRowData }) {
   );
 }
 
-function AnalyticsHeader({ brand }: { brand: { workspaceName: string; logoUrl: string | null | undefined } }) {
+function AnalyticsHeader({ brand, demo = false }: { brand: { workspaceName: string; logoUrl: string | null | undefined }; demo?: boolean }) {
   return (
     <div className="mb-5">
       <PageHeader
         title="Analytics"
-        description="A simple read on your campaigns and what is waiting on you."
+        description="How your campaigns are performing — leads, booked work, and revenue impact."
         aside={
           <div className="flex items-center gap-2 px-1.5 py-0.5">
+            {demo ? (
+              <span className="rounded-md border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--warn-text)]">
+                Demo data
+              </span>
+            ) : null}
             {brand.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or a data URL.
               <img alt="" className="h-5 w-5 shrink-0 rounded object-contain" src={brand.logoUrl} />

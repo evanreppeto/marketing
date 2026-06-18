@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 
+import { ChannelLogo } from "@/app/_components/brand-logos";
 import { Button, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import type { ConnectionView } from "@/lib/connections/read-model";
@@ -171,7 +172,10 @@ function CampaignPiece({
             <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
               {contentWhere(asset)}
             </span>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{asset.channel}</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+              <ChannelLogo channel={asset.channel} size={16} />
+              {asset.channel}
+            </span>
           </div>
           <h3 className="mt-2 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{asset.title}</h3>
           <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{pieceDescription(asset, agentName)}</p>

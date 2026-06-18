@@ -443,7 +443,10 @@ export async function listCampaignNames(client?: SupabaseClient): Promise<Campai
 
 export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Arc"): Promise<CampaignWorkspaceList> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
+    // Local preview has no database. Rather than show an empty "unavailable"
+    // shell, render a realistic, read-only campaign library so the workspace
+    // reads like a populated DB view. Nothing here is sendable — demo data only.
+    return buildDemoCampaignWorkspaceList(agentName);
   }
 
   try {
@@ -512,6 +515,13 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
       };
     });
 
+    // An empty real table in local preview is indistinguishable from a not-yet-seeded
+    // workspace; show the demo library instead of a blank page. Tests pass an explicit
+    // client, so they keep getting the real (possibly empty) result.
+    if (!client && items.length === 0) {
+      return buildDemoCampaignWorkspaceList(agentName);
+    }
+
     return {
       status: "live",
       campaigns: items,
@@ -530,13 +540,904 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
   }
 }
 
+// ---------------------------------------------------------------------------
+// Demo fallback — a realistic, read-only campaign library for local preview
+// (no Supabase). Mirrors the shape the real read-model produces so the UI is
+// identical to a populated DB view. No piece here is sendable.
+// ---------------------------------------------------------------------------
+
+type DemoMedia = { id: string; type: CampaignMediaAsset["type"]; title: string; seed: string };
+
+type DemoPiece = {
+  id: string;
+  title: string;
+  kind: string;
+  channel: string;
+  status: string;
+  rawStatus: string;
+  preview: string;
+  needsReview: boolean;
+  media?: DemoMedia[];
+  /** Full rendered copy for the detail email/asset preview. Falls back to
+   *  `preview` when omitted. */
+  body?: string;
+  /** Asset-level compliance note shown on the detail piece. */
+  compliance?: string;
+  /** Original draft vs current copy, drives the "What changed" diff. */
+  revision?: { draft: string; current: string };
+};
+
+/** A source-backed record the detail page lists under "Sources" / "Linked
+ *  leads". Mirrors CampaignWorkspaceSource so the demo reads like real CRM
+ *  evidence without inventing a separate shape. */
+type DemoSource = {
+  id: string;
+  label: string;
+  detail: string;
+  kind: CampaignWorkspaceSource["kind"];
+  recordHref?: string;
+  url?: string;
+};
+
+type DemoCampaign = {
+  id: string;
+  name: string;
+  persona: string;
+  restorationFocus: string;
+  status: string;
+  lifecycle: CampaignLaunchState["lifecycle"];
+  launchLocked: boolean;
+  driver: CampaignDriver;
+  owner: string;
+  objective: string;
+  audienceSummary: string;
+  offerSummary: string;
+  complianceNotes: string;
+  whyBuilt: string;
+  recommendedAction: string;
+  guardrailFlags: string[];
+  toolsUsed: string[];
+  channels: string[];
+  sourceCount: number;
+  sources: DemoSource[];
+  createdAtIso: string;
+  updatedAt: string;
+  updatedAtIso: string;
+  pieces: DemoPiece[];
+};
+
+function demoMedia(media: DemoMedia): CampaignMediaAsset {
+  const url = `https://picsum.photos/seed/${media.seed}/640/400`;
+  return {
+    id: media.id,
+    type: media.type,
+    title: media.title,
+    url,
+    thumbnailUrl: `https://picsum.photos/seed/${media.seed}/240/160`,
+    mimeType: media.type === "video" ? "video/mp4" : "image/jpeg",
+    description: media.title,
+    source: "Approved BSR media",
+  };
+}
+
+function demoListContentPiece(piece: DemoPiece): CampaignListContentPiece {
+  return {
+    id: piece.id,
+    title: piece.title,
+    kind: piece.kind,
+    channel: piece.channel,
+    status: piece.status,
+    preview: piece.preview,
+    media: (piece.media ?? []).map(demoMedia),
+    updatedAt: "",
+    needsReview: piece.needsReview,
+  };
+}
+
+function buildDemoListItem(campaign: DemoCampaign): CampaignWorkspaceListItem {
+  const contentPieces = campaign.pieces.map(demoListContentPiece);
+  const media = contentPieces.flatMap((piece) => piece.media);
+  const pendingPieces = campaign.pieces.filter((piece) => piece.needsReview);
+  const approvedPieces = campaign.pieces.filter((piece) => /approved/i.test(piece.rawStatus));
+  const rollup = deriveCampaignRollup(campaign.pieces.map((piece) => piece.rawStatus));
+  const assetTypes = uniqueStrings(campaign.pieces.map((piece) => piece.kind)).slice(0, 4);
+  const firstPreview = contentPieces[0]?.preview ?? null;
+
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    persona: campaign.persona,
+    status: campaign.status,
+    lifecycle: campaign.lifecycle,
+    pendingCount: pendingPieces.length,
+    pendingDeliverables: pendingPieces.map((piece) => ({ assetId: piece.id, title: piece.title, kind: piece.kind })),
+    objective: campaign.objective,
+    audienceSummary: campaign.audienceSummary,
+    offerSummary: campaign.offerSummary,
+    whyBuilt: campaign.whyBuilt,
+    assetCount: campaign.pieces.length,
+    approvalCount: pendingPieces.length + approvedPieces.length,
+    mediaCount: media.length,
+    sourceCount: campaign.sourceCount,
+    thumbnailUrl: media[0]?.thumbnailUrl ?? media[0]?.url ?? null,
+    assetTypes,
+    driver: campaign.driver,
+    channels: campaign.channels.slice(0, 3),
+    previewText: firstPreview,
+    previewLabel: contentPieces[0]?.channel ?? null,
+    contentPieces,
+    updatedAt: campaign.updatedAt,
+    updatedAtIso: campaign.updatedAtIso,
+    href: `/campaigns/${campaign.id}`,
+    rollup,
+  };
+}
+
+export function buildDemoCampaignWorkspaceList(agentName = "Arc"): CampaignWorkspaceList {
+  const campaigns = DEMO_CAMPAIGNS(agentName).map(buildDemoListItem);
+  const assets = campaigns.reduce((total, campaign) => total + campaign.assetCount, 0);
+  const approvals = campaigns.reduce((total, campaign) => total + campaign.approvalCount, 0);
+  const media = campaigns.reduce((total, campaign) => total + campaign.mediaCount, 0);
+  return {
+    status: "live",
+    campaigns,
+    totals: { campaigns: campaigns.length, assets, approvals, media },
+  };
+}
+
+// --- Demo detail --------------------------------------------------------------
+
+/** Map a demo status string to the same plain status labels the real read-model
+ *  emits, so downstream launch/checklist logic behaves identically. */
+function demoAssetStatus(rawStatus: string): string {
+  return statusLabel(rawStatus);
+}
+
+function demoDetailAsset(piece: DemoPiece): CampaignWorkspaceAsset {
+  const media = (piece.media ?? []).map(demoMedia);
+  const body = (piece.body ?? piece.preview).trim();
+  // Every demo piece is a gated deliverable: pending pieces offer Approve/Decline,
+  // decided pieces echo their state. Either way the asset carries an approval gate.
+  const hasGate = piece.needsReview || /approved|archived/i.test(piece.rawStatus);
+  return {
+    id: piece.id,
+    title: piece.title,
+    assetType: piece.kind,
+    category: classifyAssetText(`${piece.kind} ${piece.channel} ${piece.title}`),
+    channel: piece.channel,
+    status: demoAssetStatus(piece.rawStatus),
+    body,
+    preview: piece.preview,
+    complianceNotes: piece.compliance ?? "No asset-level compliance notes captured.",
+    // Approved demo pieces in a Live campaign are deployable; everything else
+    // stays dispatch-locked so the gold "outbound locked" gate shows.
+    dispatchLocked: !/approved/i.test(piece.rawStatus),
+    toolSource: "Approved BSR media library",
+    updatedAt: "",
+    media,
+    revision: piece.revision ?? null,
+    approval: hasGate ? { id: `approval-${piece.id}`, status: demoAssetStatus(piece.rawStatus) } : null,
+  };
+}
+
+function demoSource(source: DemoSource): CampaignWorkspaceSource {
+  return {
+    id: source.id,
+    label: source.label,
+    detail: source.detail,
+    url: source.url ?? null,
+    recordHref: source.recordHref ?? null,
+    kind: source.kind,
+  };
+}
+
+/** Build a full LiveCampaignWorkspace for a demo campaign id, mirroring the
+ *  shape getCampaignWorkspaceDetail produces from Supabase so the detail page
+ *  renders the real review workspace with no database. Nothing here is sendable. */
+function buildDemoCampaignWorkspaceDetail(campaign: DemoCampaign, agentName: string): LiveCampaignWorkspace {
+  const assets = campaign.pieces.map(demoDetailAsset);
+  const groupedAssets = groupAssets(assets);
+  const media = uniqueMedia(assets.flatMap((asset) => asset.media));
+  const sources = campaign.sources.map(demoSource);
+  const launchLocked = campaign.launchLocked;
+  const launchState = buildLaunchState(assets, launchLocked);
+  const rollup = deriveCampaignRollup(campaign.pieces.map((piece) => piece.rawStatus));
+
+  const reasoning: CampaignWorkspaceReasoning = {
+    whyBuilt: campaign.whyBuilt,
+    recommendedAction: campaign.recommendedAction,
+    guardrailFlags: campaign.guardrailFlags,
+    toolsUsed: campaign.toolsUsed,
+    promptInputs: [
+      { label: "Persona", value: campaign.persona },
+      { label: "Restoration focus", value: campaign.restorationFocus },
+      { label: "Service area", value: "North Shore — 60091 / 60093 / 60201" },
+      { label: "Offer", value: campaign.offerSummary },
+    ],
+  };
+
+  const approvals: CampaignWorkspaceApproval[] = campaign.pieces
+    .filter((piece) => piece.needsReview)
+    .map((piece) => ({
+      id: `approval-${piece.id}`,
+      title: piece.title,
+      type: piece.kind,
+      status: demoAssetStatus(piece.rawStatus),
+      riskLevel: "Low",
+      requestedBy: agentName,
+      submittedAt: campaign.updatedAt,
+      href: `#piece-${piece.id}`,
+      preview: piece.preview,
+      media: (piece.media ?? []).map(demoMedia),
+      promptInputs: [
+        { label: "Channel", value: piece.channel },
+        { label: "Audience", value: campaign.audienceSummary },
+      ],
+      complianceNotes: piece.compliance ?? campaign.complianceNotes,
+    }));
+
+  const activity: CampaignWorkspaceActivity[] = campaign.pieces.map((piece) => ({
+    id: `activity-${piece.id}`,
+    title: piece.title,
+    outputType: piece.kind,
+    status: demoAssetStatus(piece.rawStatus),
+    riskLevel: "Low",
+    createdAt: campaign.updatedAt,
+    body: piece.preview,
+  }));
+
+  const events: CampaignWorkspaceEvent[] = [
+    {
+      id: `${campaign.id}-evt-created`,
+      type: "Campaign Drafted",
+      actor: agentName,
+      detail: campaign.whyBuilt,
+      occurredAt: campaign.updatedAt,
+    },
+    {
+      id: `${campaign.id}-evt-package`,
+      type: "Package Assembled",
+      actor: agentName,
+      detail: `${assets.length} deliverable${assets.length === 1 ? "" : "s"} prepared across ${campaign.channels.join(", ")}.`,
+      occurredAt: campaign.updatedAt,
+    },
+  ];
+
+  const executiveOverview: CampaignExecutiveOverview = {
+    what: campaign.objective,
+    why: `${campaign.whyBuilt} Goal: reduce decision friction and make the next step clear.`,
+    timeframe: `Updated ${campaign.updatedAt}. Awaiting human approval before anything goes out.`,
+    where: campaign.audienceSummary,
+    successTracking: `Track CTA events, form/phone submissions, booked jobs, and attribution. Current evidence: ${sources.length} source record${sources.length === 1 ? "" : "s"}, ${assets.length} deliverable${assets.length === 1 ? "" : "s"}, ${approvals.length} approval record${approvals.length === 1 ? "" : "s"}.`,
+  };
+
+  const markConversation: ArcMessage[] = [
+    {
+      id: `${campaign.id}-msg-1`,
+      role: "arc",
+      author: agentName,
+      kind: "Campaign package",
+      title: campaign.name,
+      body: campaign.whyBuilt,
+      at: campaign.updatedAt,
+      status: launchState.lifecycle,
+    },
+    {
+      id: `${campaign.id}-msg-2`,
+      role: "arc",
+      author: agentName,
+      kind: "Recommendation",
+      title: null,
+      body: campaign.recommendedAction,
+      at: campaign.updatedAt,
+      status: null,
+    },
+  ];
+
+  const approvalHistory: CampaignDecisionEvent[] = campaign.pieces
+    .filter((piece) => /approved/i.test(piece.rawStatus))
+    .map((piece) => ({
+      id: `${piece.id}-decision`,
+      decision: "approved",
+      action: "Approved",
+      tone: "green",
+      itemTitle: piece.title,
+      decidedBy: campaign.owner,
+      at: campaign.updatedAt,
+      notes: null,
+    }));
+
+  const auditLog: AuditEntry[] = [
+    ...events.map((event) => ({
+      id: `audit-${event.id}`,
+      actor: event.actor,
+      actorKind: "arc" as const,
+      action: event.type,
+      detail: event.detail,
+      at: event.occurredAt,
+    })),
+    ...approvalHistory.map((decision) => ({
+      id: `audit-${decision.id}`,
+      actor: decision.decidedBy,
+      actorKind: "user" as const,
+      action: decision.action,
+      detail: decision.itemTitle,
+      at: decision.at,
+    })),
+  ];
+
+  return {
+    status: "live",
+    campaign: {
+      id: campaign.id,
+      name: campaign.name,
+      persona: campaign.persona,
+      restorationFocus: campaign.restorationFocus,
+      status: campaign.status,
+      objective: campaign.objective,
+      audienceSummary: campaign.audienceSummary,
+      offerSummary: campaign.offerSummary,
+      complianceNotes: campaign.complianceNotes,
+      owner: campaign.owner,
+      launchLocked,
+      createdAt: formatDate(campaign.createdAtIso),
+      updatedAt: campaign.updatedAt,
+      rollup,
+    },
+    assets,
+    groupedAssets,
+    approvals,
+    media,
+    sources,
+    activity,
+    events,
+    reasoning,
+    executiveOverview,
+    metrics: {
+      assets: assets.length,
+      approvals: approvals.length,
+      media: media.length,
+      sources: sources.length,
+    },
+    launchState,
+    markConversation,
+    approvalHistory,
+    auditLog,
+  };
+}
+
+function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
+  return [
+    {
+      id: "demo-emergency-water-response-2026",
+      name: "Emergency Water Response 2026",
+      persona: "Homeowner Emergency",
+      restorationFocus: "Water Mitigation",
+      status: "In Review",
+      lifecycle: "In review",
+      launchLocked: true,
+      driver: "agent",
+      owner: agentName,
+      objective:
+        "Capture high-intent emergency water-loss searches across the North Shore and convert them to same-day mitigation calls before competitors respond.",
+      audienceSummary:
+        "Homeowners in 60091/60093/60201 with active water emergencies — burst pipes, sump failures, and storm backups in the last 24 hours.",
+      offerSummary: "24/7 emergency response, on-site in 60 minutes, insurance documentation handled from the first call.",
+      complianceNotes:
+        "No guaranteed-outcome or insurance-payout claims. Response-time language reflects historical North Shore averages, not a contractual promise.",
+      whyBuilt: `${agentName} flagged a spike in burst-pipe and sump-failure searches after the cold snap and assembled a ready-to-launch rapid-response package.`,
+      recommendedAction:
+        "Approve the email and SMS so the rapid-response set is live before the next freeze-thaw cycle this weekend.",
+      guardrailFlags: ["No payout guarantees", "Response time stated as historical average"],
+      toolsUsed: ["Search-trend signal", "CRM service-area match", "Approved BSR media library"],
+      channels: ["Gmail", "Meta", "Instagram", "SMS"],
+      sourceCount: 6,
+      sources: [
+        {
+          id: "demo-ewr-src-trend",
+          label: "Search-trend spike — burst pipe + sump failure",
+          detail: "Confidence 0.86 / North Shore / +212% week-over-week after the cold snap",
+          kind: "evidence",
+        },
+        {
+          id: "demo-ewr-src-lead-1",
+          label: "Lead from organic search",
+          detail: "New / 88 score / Basement water intrusion reported overnight",
+          kind: "lead",
+          recordHref: "/crm/leads/demo-ewr-lead-1",
+        },
+        {
+          id: "demo-ewr-src-lead-2",
+          label: "Lead from Google Local Services",
+          detail: "Working / 81 score / Sump pump failure, finished basement",
+          kind: "lead",
+          recordHref: "/crm/leads/demo-ewr-lead-2",
+        },
+        {
+          id: "demo-ewr-src-contact",
+          label: "Dana Whitfield",
+          detail: "Homeowner / Wilmette 60091 / prior water-loss inquiry",
+          kind: "contact",
+          recordHref: "/crm/contacts/demo-ewr-contact",
+        },
+        {
+          id: "demo-ewr-src-weather",
+          label: "weather.gov advisory",
+          detail: "Hard-freeze warning issued for Cook + northern suburbs",
+          kind: "web",
+          url: "https://www.weather.gov",
+        },
+      ],
+      createdAtIso: "2026-06-15T22:10:00.000Z",
+      updatedAt: "Jun 16, 2026",
+      updatedAtIso: "2026-06-16T14:20:00.000Z",
+      pieces: [
+        {
+          id: "demo-ewr-email",
+          title: "Water in your home? We respond in 60 minutes.",
+          kind: "Email",
+          channel: "Email",
+          status: "Pending approval",
+          rawStatus: "pending_approval",
+          needsReview: true,
+          preview: "When a pipe bursts, every minute counts. A Big Shoulders crew is on call 24/7 across the North Shore.",
+          compliance:
+            "Response-time claim cites historical average. No insurance-payout language. CTA links to the emergency request form, no auto-dial.",
+          body:
+            "When a pipe bursts or your sump gives out, every minute counts — standing water spreads behind walls and under floors fast.\n\nBig Shoulders Restoration crews are on call 24/7 across Wilmette, Winnetka, and Evanston. We typically reach North Shore homes within 60 minutes, start extraction immediately, and document every reading and photo for your insurer from the first minute on site.\n\nOne call gets a crew rolling and your claim documented. Tap below and we'll dispatch the nearest team.\n\nRequest an emergency crew →",
+          media: [{ id: "demo-ewr-email-hero", type: "image", title: "Crew arriving on emergency call", seed: "bsr-ewr-hero" }],
+        },
+        {
+          id: "demo-ewr-sms",
+          title: "SMS — Same-day mitigation reminder",
+          kind: "SMS",
+          channel: "SMS",
+          status: "Pending approval",
+          rawStatus: "pending_approval",
+          needsReview: true,
+          preview: "A crew can be on-site within the hour for your water emergency. Reply YES and we'll call you right back.",
+          compliance: "Includes business identification and a clear opt-out path. No automated outbound until approved.",
+          body:
+            "Big Shoulders Restoration: a crew can be on-site within the hour for your water emergency. Reply YES and we'll call you right back, or STOP to opt out.",
+        },
+        {
+          id: "demo-ewr-meta",
+          title: "Meta ad — 60-minute response",
+          kind: "Social Ad",
+          channel: "Meta",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "We respond fast. You recover faster. 24/7 emergency water mitigation across the North Shore.",
+          compliance: "Approved BSR before/after media. No embedded text overlays that violate ad policy.",
+          body:
+            "We respond fast. You recover faster.\n\n24/7 emergency water mitigation across the North Shore. Real crews, real before-and-afters, insurance documentation handled.",
+          media: [
+            { id: "demo-ewr-meta-1", type: "image", title: "Before / after — flooded basement", seed: "bsr-ewr-beforeafter" },
+            { id: "demo-ewr-meta-2", type: "image", title: "Restored living room", seed: "bsr-ewr-restored" },
+          ],
+        },
+        {
+          id: "demo-ewr-landing",
+          title: "Landing page — Emergency water response",
+          kind: "Landing Page",
+          channel: "Landing page",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "Request a crew, see live response times, and start your insurance documentation in one tap.",
+          compliance: "Form-only CTA. Response-time copy matches the email's historical-average wording.",
+          body:
+            "Water damage? We're already on the way.\n\nRequest a crew, see live response times for your area, and start your insurance documentation in one tap. Big Shoulders crews arrive ready to extract, dry, and document.",
+          media: [{ id: "demo-ewr-landing-hero", type: "image", title: "Landing hero — crew with equipment", seed: "bsr-ewr-landing" }],
+        },
+      ],
+    },
+    {
+      id: "demo-burst-pipe-rapid-response",
+      name: "Burst Pipe Rapid Response",
+      persona: "Homeowner Emergency",
+      restorationFocus: "Water Mitigation",
+      status: "In Review",
+      lifecycle: "In review",
+      launchLocked: true,
+      driver: "agent",
+      owner: agentName,
+      objective: "Re-engage homeowners who searched for burst-pipe help overnight but never booked a crew.",
+      audienceSummary: "Overnight emergency searchers in the North Shore service area with no booked job in the CRM.",
+      offerSummary: "Priority morning callback with documented water extraction and drying.",
+      complianceNotes: "Follow-up only to inbound inquiries. No cold outreach. Clear opt-out on the SMS.",
+      whyBuilt: `${agentName} found unconverted overnight emergency leads and drafted a fast morning-callback package.`,
+      recommendedAction: "Approve the email so the morning-callback window isn't missed.",
+      guardrailFlags: ["Inbound-only follow-up"],
+      toolsUsed: ["CRM unconverted-lead scan", "Approved BSR media library"],
+      channels: ["Gmail", "SMS", "WhatsApp"],
+      sourceCount: 4,
+      sources: [
+        {
+          id: "demo-bprr-src-lead",
+          label: "Lead from overnight search",
+          detail: "New / 79 score / Burst pipe, no crew booked",
+          kind: "lead",
+          recordHref: "/crm/leads/demo-bprr-lead",
+        },
+        {
+          id: "demo-bprr-src-signal",
+          label: "Unconverted-inquiry signal",
+          detail: "Confidence 0.74 / 4 overnight inquiries with no booked job",
+          kind: "evidence",
+        },
+      ],
+      createdAtIso: "2026-06-16T06:40:00.000Z",
+      updatedAt: "Jun 16, 2026",
+      updatedAtIso: "2026-06-16T09:05:00.000Z",
+      pieces: [
+        {
+          id: "demo-bprr-email",
+          title: "Still dealing with that burst pipe?",
+          kind: "Email",
+          channel: "Email",
+          status: "Pending approval",
+          rawStatus: "pending_approval",
+          needsReview: true,
+          preview: "We saw you reached out overnight. A crew can be at your door this morning, ready to go.",
+          compliance: "Replies to an inbound inquiry only. Response-time language is a historical average.",
+          body:
+            "We saw you reached out about a burst pipe overnight — we don't want you waiting.\n\nA Big Shoulders crew can be at your door this morning with extraction and drying equipment ready to go, and we'll document everything for your insurer.\n\nReply or tap below and we'll lock in a priority slot.\n\nBook a morning crew →",
+          media: [{ id: "demo-bprr-email-img", type: "image", title: "Water extraction in progress", seed: "bsr-bprr-extract" }],
+        },
+        {
+          id: "demo-bprr-sms",
+          title: "SMS — Priority callback",
+          kind: "SMS",
+          channel: "SMS",
+          status: "Draft",
+          rawStatus: "draft",
+          needsReview: false,
+          preview: "Your overnight water emergency is still our priority. Want a crew this morning? Reply YES.",
+          compliance: "Draft — includes opt-out, pending review.",
+          body: "Big Shoulders: your overnight water emergency is still our priority. Want a crew this morning? Reply YES, or STOP to opt out.",
+        },
+      ],
+    },
+    {
+      id: "demo-commercial-water-mitigation",
+      name: "Commercial Water Mitigation",
+      persona: "Property Manager",
+      restorationFocus: "Water Mitigation",
+      status: "Ready",
+      lifecycle: "Ready",
+      launchLocked: true,
+      driver: "operator",
+      owner: "Evan Reppeto",
+      objective: "Pre-approve Big Shoulders as the priority water-loss vendor for managed multifamily portfolios.",
+      audienceSummary: "Property managers and operations directors overseeing multifamily portfolios in 60091/60093/60201.",
+      offerSummary: "Managed-building SLA, insurance-ready documentation, and a vendor pre-approval packet.",
+      complianceNotes: "B2B outreach to named contacts. SLA language reviewed; no contractual commitment until a packet is signed.",
+      whyBuilt: `${agentName} assembled a vendor-packet outreach set targeting property managers ahead of the spring storm season.`,
+      recommendedAction: "Everything is approved — send the partner intro and attach the vendor packet.",
+      guardrailFlags: ["SLA is a proposal, not a contract"],
+      toolsUsed: ["CRM company portfolio match", "Approved BSR media library"],
+      channels: ["LinkedIn", "Gmail", "Meta"],
+      sourceCount: 5,
+      sources: [
+        {
+          id: "demo-cwm-src-company",
+          label: "North Shore Residential Partners",
+          detail: "Property Manager / 14-building portfolio / partner-tier prospect",
+          kind: "company",
+          recordHref: "/crm/companies/demo-cwm-company",
+        },
+        {
+          id: "demo-cwm-src-contact",
+          label: "Maya Ellison",
+          detail: "Operations Director / mellison@nsrp.example / 60093",
+          kind: "contact",
+          recordHref: "/crm/contacts/demo-cwm-contact",
+        },
+      ],
+      createdAtIso: "2026-06-12T15:00:00.000Z",
+      updatedAt: "Jun 14, 2026",
+      updatedAtIso: "2026-06-14T16:40:00.000Z",
+      pieces: [
+        {
+          id: "demo-cwm-email",
+          title: "Priority water-loss response for your North Shore properties",
+          kind: "Email",
+          channel: "Email",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "When a unit floods, your residents call you first. Pre-approve our crews and request the vendor packet.",
+          compliance: "B2B intro to a named contact. SLA framed as a proposal.",
+          body:
+            "When a unit floods, your residents call you first — and the clock starts the moment they do.\n\nBig Shoulders is set up to be your priority water-loss vendor across managed North Shore buildings: documented response SLAs, insurance-ready paperwork on every job, and one named contact for your whole portfolio.\n\nPre-approve our crews now so there's no scramble when the next storm hits. Reply and I'll send the vendor packet.\n\nRequest the vendor packet →",
+        },
+        {
+          id: "demo-cwm-social",
+          title: "Social ad — Managed buildings",
+          kind: "Social Ad",
+          channel: "Meta",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "Protect your North Shore portfolio. Priority response for managed buildings.",
+          media: [{ id: "demo-cwm-social-img", type: "image", title: "Restored multifamily common area", seed: "bsr-cwm-lobby" }],
+        },
+        {
+          id: "demo-cwm-onepager",
+          title: "Vendor packet one-pager",
+          kind: "One Pager",
+          channel: "Export",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "Services, response SLA, insurance documentation process, and references — formatted for procurement.",
+          media: [{ id: "demo-cwm-doc", type: "file", title: "Vendor packet (PDF)", seed: "bsr-cwm-packet" }],
+        },
+      ],
+    },
+    {
+      id: "demo-spring-storm-prep",
+      name: "Spring Storm Prep",
+      persona: "Homeowner Preventative",
+      restorationFocus: "Storm Readiness",
+      status: "Live",
+      lifecycle: "Live",
+      launchLocked: false,
+      driver: "operator",
+      owner: "Evan Reppeto",
+      objective: "Drive preventative sump-pump and backwater-valve inspections ahead of spring storms.",
+      audienceSummary: "Homeowners with finished basements in flood-prone North Shore zips who have not booked an inspection.",
+      offerSummary: "Discounted pre-season basement and sump inspection with a documented readiness report.",
+      complianceNotes: "Promotional pricing disclosed with terms. No scare-tactic claims about specific homes.",
+      whyBuilt: `${agentName} timed a preventative inspection push to the spring storm forecast.`,
+      recommendedAction: "Campaign is live — monitor inspection bookings and reply rates.",
+      guardrailFlags: [],
+      toolsUsed: ["Weather forecast signal", "CRM finished-basement segment"],
+      channels: ["Instagram", "TikTok", "Gmail"],
+      sourceCount: 3,
+      sources: [
+        {
+          id: "demo-ssp-src-forecast",
+          label: "Spring storm forecast",
+          detail: "Confidence 0.7 / above-average rainfall projected for the season",
+          kind: "evidence",
+        },
+        {
+          id: "demo-ssp-src-segment",
+          label: "Finished-basement segment",
+          detail: "312 homeowners in flood-prone zips with no inspection on file",
+          kind: "evidence",
+        },
+      ],
+      createdAtIso: "2026-06-08T12:00:00.000Z",
+      updatedAt: "Jun 10, 2026",
+      updatedAtIso: "2026-06-10T13:00:00.000Z",
+      pieces: [
+        {
+          id: "demo-ssp-email",
+          title: "Email — Beat the spring storms",
+          kind: "Email",
+          channel: "Email",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview:
+            "Subject: Is your basement ready for spring storms?\n\nA quick pre-season inspection now can save a flooded basement later. Book your readiness check.",
+          media: [{ id: "demo-ssp-email-img", type: "image", title: "Sump pump inspection", seed: "bsr-ssp-sump" }],
+        },
+        {
+          id: "demo-ssp-social",
+          title: "Social ad — Storm readiness",
+          kind: "Social Ad",
+          channel: "Meta",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "Spring storms are coming. Is your basement ready? Book a pre-season inspection.",
+          media: [{ id: "demo-ssp-social-img", type: "image", title: "Storm clouds over rooftops", seed: "bsr-ssp-storm" }],
+        },
+      ],
+    },
+    {
+      id: "demo-mold-remediation-awareness",
+      name: "Mold Remediation Awareness",
+      persona: "Homeowner Rebuild",
+      restorationFocus: "Mold Remediation",
+      status: "Live",
+      lifecycle: "Live",
+      launchLocked: false,
+      driver: "agent",
+      owner: agentName,
+      objective: "Educate homeowners on post-water-loss mold risk and convert to remediation assessments.",
+      audienceSummary: "Homeowners with a closed water-loss job in the last 60 days who have not had a mold assessment.",
+      offerSummary: "Free mold risk assessment with lab-backed air sampling and a remediation plan.",
+      complianceNotes: "Educational framing. Health claims limited to general mold-growth timelines, no diagnosis language.",
+      whyBuilt: `${agentName} identified recently restored homes at elevated mold risk and built a follow-up education set.`,
+      recommendedAction: "Live — track assessment bookings from recently restored homes.",
+      guardrailFlags: ["No medical/diagnostic claims"],
+      toolsUsed: ["CRM closed-job lookback", "Approved BSR media library"],
+      channels: ["Meta", "Gmail", "Landing page"],
+      sourceCount: 4,
+      sources: [
+        {
+          id: "demo-mra-src-jobs",
+          label: "Recently closed water-loss jobs",
+          detail: "41 homes restored in the last 60 days with no mold assessment on file",
+          kind: "evidence",
+        },
+        {
+          id: "demo-mra-src-lead",
+          label: "Lead from prior water-loss job",
+          detail: "Closed-won / finished basement / elevated humidity flagged",
+          kind: "lead",
+          recordHref: "/crm/leads/demo-mra-lead",
+        },
+      ],
+      createdAtIso: "2026-06-06T10:00:00.000Z",
+      updatedAt: "Jun 8, 2026",
+      updatedAtIso: "2026-06-08T11:30:00.000Z",
+      pieces: [
+        {
+          id: "demo-mra-email",
+          title: "Email — Hidden mold after water damage",
+          kind: "Email",
+          channel: "Email",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview:
+            "Subject: Water's gone — but is mold growing?\n\nMold can take hold within 48 hours of water exposure. A quick assessment confirms your home is truly dry and safe.",
+        },
+        {
+          id: "demo-mra-landing",
+          title: "Landing page — Mold risk assessment",
+          kind: "Landing Page",
+          channel: "Landing page",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "Book a lab-backed mold assessment. See what air sampling reveals and get a clear remediation plan.",
+          media: [{ id: "demo-mra-landing-img", type: "image", title: "Air sampling equipment", seed: "bsr-mra-sampling" }],
+        },
+      ],
+    },
+    {
+      id: "demo-insurance-partner-referral",
+      name: "Insurance Partner Referral",
+      persona: "Insurance Agent",
+      restorationFocus: "Partner Development",
+      status: "Ready",
+      lifecycle: "Ready",
+      launchLocked: true,
+      driver: "operator",
+      owner: "Evan Reppeto",
+      objective: "Build a referral pipeline with independent insurance agents for water and fire losses.",
+      audienceSummary: "Independent property & casualty agents in the North Shore who place homeowner policies.",
+      offerSummary: "Co-branded claims-support packet and a named restoration contact for fast policyholder response.",
+      complianceNotes: "B2B partner outreach. No referral-fee language that would violate insurance regulations.",
+      whyBuilt: `${agentName} mapped local agents with high homeowner-policy volume and prepared a referral outreach packet.`,
+      recommendedAction: "Approved and ready — send the partner intro with the claims-support packet attached.",
+      guardrailFlags: ["No referral-fee inducements"],
+      toolsUsed: ["Local agent directory match", "CRM partner segment"],
+      channels: ["LinkedIn", "Gmail"],
+      sourceCount: 5,
+      sources: [
+        {
+          id: "demo-ipr-src-company",
+          label: "Lakeside Insurance Group",
+          detail: "Independent P&C agency / high homeowner-policy volume",
+          kind: "company",
+          recordHref: "/crm/companies/demo-ipr-company",
+        },
+        {
+          id: "demo-ipr-src-contact",
+          label: "Carlos Mendes",
+          detail: "Principal agent / cmendes@lakeside.example",
+          kind: "contact",
+          recordHref: "/crm/contacts/demo-ipr-contact",
+        },
+      ],
+      createdAtIso: "2026-06-04T14:00:00.000Z",
+      updatedAt: "Jun 6, 2026",
+      updatedAtIso: "2026-06-06T15:10:00.000Z",
+      pieces: [
+        {
+          id: "demo-ipr-email",
+          title: "Email — Restoration partner for your policyholders",
+          kind: "Email",
+          channel: "Email",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview:
+            "Subject: A restoration partner your policyholders can trust\n\nWhen a claim comes in, give your clients a named contact and fast, documented response. Let's set up a referral path.",
+        },
+        {
+          id: "demo-ipr-onepager",
+          title: "Claims-support one-pager",
+          kind: "One Pager",
+          channel: "Export",
+          status: "Approved",
+          rawStatus: "approved",
+          needsReview: false,
+          preview: "How we document losses, coordinate with adjusters, and keep policyholders informed end to end.",
+          media: [{ id: "demo-ipr-doc", type: "file", title: "Claims-support packet (PDF)", seed: "bsr-ipr-packet" }],
+        },
+      ],
+    },
+    {
+      id: "demo-wildfire-smoke-cleanup",
+      name: "Wildfire Smoke Cleanup",
+      persona: "Homeowner Rebuild",
+      restorationFocus: "Smoke & Odor",
+      status: "Archived",
+      lifecycle: "In review",
+      launchLocked: true,
+      driver: "agent",
+      owner: agentName,
+      objective: "Offer smoke and soot remediation to homeowners affected by regional wildfire smoke events.",
+      audienceSummary: "Homeowners in affected zips after a regional air-quality advisory from wildfire smoke.",
+      offerSummary: "Smoke and odor remediation with HVAC cleaning and air-quality verification.",
+      complianceNotes: "Tied to a specific air-quality advisory window. Archived once the event passed.",
+      whyBuilt: `${agentName} drafted this for a wildfire smoke event that has since passed; archived for reuse next season.`,
+      recommendedAction: "Archived — reactivate and re-time copy when the next regional smoke advisory issues.",
+      guardrailFlags: ["Event-windowed — verify advisory before reuse"],
+      toolsUsed: ["Air-quality advisory signal"],
+      channels: ["Meta", "Instagram", "Gmail", "SMS"],
+      sourceCount: 2,
+      sources: [
+        {
+          id: "demo-wsc-src-advisory",
+          label: "Regional air-quality advisory (expired)",
+          detail: "Wildfire smoke event / advisory has since lifted",
+          kind: "evidence",
+        },
+      ],
+      createdAtIso: "2026-05-26T09:00:00.000Z",
+      updatedAt: "May 28, 2026",
+      updatedAtIso: "2026-05-28T10:00:00.000Z",
+      pieces: [
+        {
+          id: "demo-wsc-email",
+          title: "Email — Clear the smoke from your home",
+          kind: "Email",
+          channel: "Email",
+          status: "Archived",
+          rawStatus: "archived",
+          needsReview: false,
+          preview:
+            "Subject: Lingering smoke smell after the wildfires?\n\nSmoke and soot settle into HVAC systems and soft surfaces. We clean, deodorize, and verify your air is clear.",
+          media: [{ id: "demo-wsc-email-img", type: "image", title: "HVAC cleaning crew", seed: "bsr-wsc-hvac" }],
+        },
+        {
+          id: "demo-wsc-social",
+          title: "Social ad — Smoke remediation",
+          kind: "Social Ad",
+          channel: "Meta",
+          status: "Archived",
+          rawStatus: "archived",
+          needsReview: false,
+          preview: "Breathe easy again. Professional smoke and odor remediation after the wildfires.",
+        },
+      ],
+    },
+  ];
+}
+
 export async function getCampaignWorkspaceDetail(
   campaignId: string,
   client?: SupabaseClient,
   agentName = "Arc",
 ): Promise<CampaignWorkspaceDetail> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
+    // Local preview has no database. Build the same rich review workspace from
+    // the demo library so /campaigns/[id] renders the real layout instead of an
+    // "unavailable" shell. Nothing here is sendable — demo data only.
+    const demo = DEMO_CAMPAIGNS(agentName).find((campaign) => campaign.id === campaignId);
+    if (demo) return buildDemoCampaignWorkspaceDetail(demo, agentName);
+    return { status: "not_found" };
   }
 
   try {

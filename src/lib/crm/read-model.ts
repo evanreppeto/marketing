@@ -107,6 +107,34 @@ export type CrmRecordRelationship = {
   href: string;
 };
 
+export type CrmRecordMetric = {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "neutral" | "ok" | "amber" | "red" | "accent";
+};
+
+export type CrmRecordScoreBar = {
+  label: string;
+  value: number | null;
+  max?: number;
+  caption?: string;
+  tone?: "ok" | "amber" | "red" | "accent";
+};
+
+export type CrmRecordQualityItem = {
+  label: string;
+  present: boolean;
+};
+
+/** A node in the small relationship graph rendered on the detail page. */
+export type CrmRecordGraphNode = {
+  id: string;
+  label: string;
+  kind: "self" | "company" | "contact" | "property" | "lead" | "job" | "outcome";
+  href?: string;
+};
+
 export type CrmRecordData = {
   status: "live";
   key: CrmObjectKey;
@@ -135,6 +163,18 @@ export type CrmRecordData = {
   fields: CrmRecordField[];
   relationships: CrmRecordRelationship[];
   missingFields: string[];
+  /** Headline metric chips rendered in the record header band. Additive. */
+  headerMetrics: CrmRecordMetric[];
+  /** Larger KPI strip shown above the detail body (companies/jobs/outcomes). Additive. */
+  quickStats: CrmRecordMetric[];
+  /** Score bars (lead / relationship / revenue signal) for the intelligence rail. Additive. */
+  scoreBars: CrmRecordScoreBar[];
+  /** Engagement / activity counters surfaced in the body. Additive. */
+  engagement: CrmRecordMetric[];
+  /** Data-contract completeness checklist for the provenance card. Additive. */
+  dataQuality: CrmRecordQualityItem[];
+  /** Nodes for the small relationship graph (self is always first). Additive. */
+  graph: CrmRecordGraphNode[];
 };
 
 export type CrmRecordReadResult =
@@ -148,6 +188,707 @@ export type CrmRecordReadResult =
     };
 
 const CRM_TABLE_BUNDLE_LIMIT = 1000;
+
+type CrmBundleShape = {
+  companies: CompanyRow[];
+  contacts: ContactRow[];
+  properties: PropertyRow[];
+  leads: LeadRow[];
+  jobs: JobRow[];
+  outcomes: OutcomeRow[];
+};
+
+// ---------------------------------------------------------------------------
+// Demo fallback bundle
+// ---------------------------------------------------------------------------
+// When Supabase is not configured (local preview) — or when a live query comes
+// back empty — the CRM should still render a believable Big Shoulders
+// Restoration pipeline instead of an "unavailable" / empty state. This is
+// read-only display data. It is routed through the same builder functions as
+// live rows so personas, scores, tags, and readiness logic stay consistent.
+
+function ts(daysAgo: number, hoursAgo = 0): string {
+  return new Date(Date.now() - daysAgo * 86_400_000 - hoursAgo * 3_600_000).toISOString();
+}
+
+function buildDemoCrmBundle(): CrmBundleShape {
+  const companies: CompanyRow[] = [
+    {
+      id: "demo-co-northside-plumbing",
+      name: "Northside Plumbing Co.",
+      persona: "persona_plumbing_partner",
+      status: "active",
+      website_url: "https://northsideplumbing.example",
+      phone: "312-555-0142",
+      email: "dispatch@northsideplumbing.example",
+      partner_tier: "A",
+      metadata: { partner_score: 91, owner: "Robby", service_area_zips: ["60618", "60625", "60647"], confidence: "High" },
+      created_at: ts(180),
+      updated_at: ts(0, 3),
+    },
+    {
+      id: "demo-co-lakeview-property",
+      name: "Lakeview Property Mgmt",
+      persona: "persona_property_manager",
+      status: "active",
+      website_url: "https://lakeviewpm.example",
+      phone: "773-555-0188",
+      email: "ops@lakeviewpm.example",
+      partner_tier: "A",
+      metadata: { partner_score: 88, owner: "Robby", portfolio_units: 1240, confidence: "High" },
+      created_at: ts(220),
+      updated_at: ts(0, 6),
+    },
+    {
+      id: "demo-co-harborpoint-hoa",
+      name: "Harbor Point HOA Board",
+      persona: "persona_hoa_board",
+      status: "active",
+      website_url: "https://harborpointhoa.example",
+      phone: "847-555-0119",
+      email: "board@harborpointhoa.example",
+      partner_tier: "B",
+      metadata: { partner_score: 74, owner: "Robby", confidence: "Medium" },
+      created_at: ts(140),
+      updated_at: ts(2),
+    },
+    {
+      id: "demo-co-summit-facilities",
+      name: "Summit Commercial Facilities",
+      persona: "persona_property_manager",
+      status: "active",
+      website_url: "https://summitfacilities.example",
+      phone: "630-555-0173",
+      email: "facilities@summit.example",
+      partner_tier: "B",
+      metadata: { partner_score: 79, owner: "Robby", confidence: "Medium" },
+      created_at: ts(95),
+      updated_at: ts(1),
+    },
+    {
+      id: "demo-co-evanston-insurance",
+      name: "Evanston Mutual Insurance",
+      persona: "persona_insurance_agent",
+      status: "active",
+      website_url: "https://evanstonmutual.example",
+      phone: "847-555-0204",
+      email: "claims@evanstonmutual.example",
+      partner_tier: "A",
+      metadata: { partner_score: 85, owner: "Robby", confidence: "High" },
+      created_at: ts(260),
+      updated_at: ts(4),
+    },
+    {
+      id: "demo-co-elmwood-realty",
+      name: "Elmwood Realty Group",
+      persona: "persona_listing_agent",
+      status: "active",
+      website_url: "https://elmwoodrealty.example",
+      phone: "708-555-0150",
+      email: "hello@elmwoodrealty.example",
+      partner_tier: "C",
+      metadata: { partner_score: 61, owner: "Robby", confidence: "Medium" },
+      created_at: ts(70),
+      updated_at: ts(5),
+    },
+    {
+      id: "demo-co-prairie-gc",
+      name: "Prairie State GC & Remodel",
+      persona: "persona_gc_remodeler_partner",
+      status: "active",
+      website_url: "https://prairiestategc.example",
+      phone: "815-555-0166",
+      email: "build@prairiestategc.example",
+      partner_tier: "B",
+      metadata: { partner_score: 72, owner: "Robby", confidence: "Medium" },
+      created_at: ts(110),
+      updated_at: ts(8),
+    },
+    {
+      id: "demo-co-private-homeowner",
+      name: "Private Homeowner",
+      persona: "persona_homeowner_emergency",
+      status: "active",
+      website_url: null,
+      phone: null,
+      email: null,
+      partner_tier: null,
+      metadata: { owner: "Robby" },
+      created_at: ts(3),
+      updated_at: ts(0, 1),
+    },
+  ];
+
+  const contacts: ContactRow[] = [
+    {
+      id: "demo-ct-daniel-harper",
+      company_id: "demo-co-northside-plumbing",
+      persona: "persona_plumbing_partner",
+      status: "active",
+      first_name: "Daniel",
+      last_name: "Harper",
+      full_name: "Daniel Harper",
+      email: "daniel.harper@northsideplumbing.example",
+      phone: "312-555-0198",
+      title: "Operations Manager",
+      metadata: { owner: "Robby", relationship_stage: "engaged", confidence: "High" },
+      created_at: ts(180),
+      updated_at: ts(0, 3),
+    },
+    {
+      id: "demo-ct-marisa-nolan",
+      company_id: "demo-co-lakeview-property",
+      persona: "persona_property_manager",
+      status: "active",
+      first_name: "Marisa",
+      last_name: "Nolan",
+      full_name: "Marisa Nolan",
+      email: "marisa.nolan@lakeviewpm.example",
+      phone: "773-555-0144",
+      title: "Regional Portfolio Director",
+      metadata: { owner: "Robby", relationship_stage: "engaged", confidence: "High" },
+      created_at: ts(220),
+      updated_at: ts(0, 6),
+    },
+    {
+      id: "demo-ct-andre-whitfield",
+      company_id: "demo-co-harborpoint-hoa",
+      persona: "persona_hoa_board",
+      status: "active",
+      first_name: "Andre",
+      last_name: "Whitfield",
+      full_name: "Andre Whitfield",
+      email: "andre.whitfield@harborpointhoa.example",
+      phone: "847-555-0121",
+      title: "Board President",
+      metadata: { owner: "Robby", relationship_stage: "new_target" },
+      created_at: ts(140),
+      updated_at: ts(2),
+    },
+    {
+      id: "demo-ct-tasha-greene",
+      company_id: "demo-co-evanston-insurance",
+      persona: "persona_insurance_agent",
+      status: "active",
+      first_name: "Tasha",
+      last_name: "Greene",
+      full_name: "Tasha Greene",
+      email: "tasha.greene@evanstonmutual.example",
+      phone: "847-555-0207",
+      title: "Senior Claims Adjuster",
+      metadata: { owner: "Robby", relationship_stage: "engaged", confidence: "High" },
+      created_at: ts(260),
+      updated_at: ts(4),
+    },
+    {
+      id: "demo-ct-victor-reyes",
+      company_id: "demo-co-summit-facilities",
+      persona: "persona_property_manager",
+      status: "active",
+      first_name: "Victor",
+      last_name: "Reyes",
+      full_name: "Victor Reyes",
+      email: "victor.reyes@summit.example",
+      phone: "630-555-0177",
+      title: "Facilities Manager",
+      metadata: { owner: "Robby", relationship_stage: "qualified" },
+      created_at: ts(95),
+      updated_at: ts(1),
+    },
+    {
+      id: "demo-ct-claire-donovan",
+      company_id: "demo-co-private-homeowner",
+      persona: "persona_homeowner_emergency",
+      status: "active",
+      first_name: "Claire",
+      last_name: "Donovan",
+      full_name: "Claire Donovan",
+      email: "claire.donovan@example.com",
+      phone: "312-555-0233",
+      title: null,
+      metadata: { owner: "Robby" },
+      created_at: ts(3),
+      updated_at: ts(0, 1),
+    },
+    {
+      id: "demo-ct-owen-marsh",
+      company_id: "demo-co-elmwood-realty",
+      persona: "persona_listing_agent",
+      status: "active",
+      first_name: "Owen",
+      last_name: "Marsh",
+      full_name: "Owen Marsh",
+      email: "owen.marsh@elmwoodrealty.example",
+      phone: "708-555-0159",
+      title: "Listing Agent",
+      metadata: { owner: "Robby", relationship_stage: "new_target" },
+      created_at: ts(70),
+      updated_at: ts(5),
+    },
+  ];
+
+  const properties: PropertyRow[] = [
+    {
+      id: "demo-pr-clark-st",
+      company_id: "demo-co-lakeview-property",
+      contact_id: "demo-ct-marisa-nolan",
+      persona: "persona_property_manager",
+      street_line_1: "2340 N Clark St",
+      street_line_2: "Unit 4B",
+      city: "Chicago",
+      state: "IL",
+      postal_code: "60614",
+      property_type: "multifamily",
+      metadata: {},
+      created_at: ts(120),
+      updated_at: ts(2),
+    },
+    {
+      id: "demo-pr-harbor-tower",
+      company_id: "demo-co-harborpoint-hoa",
+      contact_id: "demo-ct-andre-whitfield",
+      persona: "persona_hoa_board",
+      street_line_1: "150 Harbor Point Dr",
+      street_line_2: null,
+      city: "Chicago",
+      state: "IL",
+      postal_code: "60601",
+      property_type: "condominium",
+      metadata: {},
+      created_at: ts(140),
+      updated_at: ts(2),
+    },
+    {
+      id: "demo-pr-summit-warehouse",
+      company_id: "demo-co-summit-facilities",
+      contact_id: "demo-ct-victor-reyes",
+      persona: "persona_property_manager",
+      street_line_1: "880 Commerce Pkwy",
+      street_line_2: null,
+      city: "Naperville",
+      state: "IL",
+      postal_code: "60563",
+      property_type: "commercial",
+      metadata: {},
+      created_at: ts(95),
+      updated_at: ts(1),
+    },
+    {
+      id: "demo-pr-donovan-home",
+      company_id: "demo-co-private-homeowner",
+      contact_id: "demo-ct-claire-donovan",
+      persona: "persona_homeowner_emergency",
+      street_line_1: "517 Elm Ave",
+      street_line_2: null,
+      city: "Oak Park",
+      state: "IL",
+      postal_code: "60302",
+      property_type: "single_family",
+      metadata: {},
+      created_at: ts(3),
+      updated_at: ts(0, 1),
+    },
+    {
+      id: "demo-pr-evanston-duplex",
+      company_id: "demo-co-elmwood-realty",
+      contact_id: "demo-ct-owen-marsh",
+      persona: "persona_listing_agent",
+      street_line_1: "1209 Maple Ave",
+      street_line_2: null,
+      city: "Evanston",
+      state: "IL",
+      postal_code: "60202",
+      property_type: "single_family",
+      metadata: {},
+      created_at: ts(70),
+      updated_at: ts(5),
+    },
+  ];
+
+  const leads: LeadRow[] = [
+    {
+      id: "demo-ld-donovan-basement",
+      company_id: "demo-co-private-homeowner",
+      contact_id: "demo-ct-claire-donovan",
+      property_id: "demo-pr-donovan-home",
+      persona: "persona_homeowner_emergency",
+      status: "needs_review",
+      routing_recommendation: "dispatch",
+      source: "web_form",
+      loss_summary: "Burst supply line flooded finished basement overnight; standing water and wet drywall in Oak Park.",
+      loss_signals: ["burst_pipe", "standing_water", "wet_drywall"],
+      lead_score: 92,
+      received_at: ts(0, 1),
+      metadata: {
+        confidence: "High",
+        reason_found: "After-hours emergency intake with active water and high urgency.",
+        recommended_action: "Dispatch mitigation crew and confirm scope on site.",
+        evidence_urls: ["https://northsideplumbing.example/referral/donovan"],
+        urgency: "high_value_urgent",
+      },
+      created_at: ts(0, 1),
+      updated_at: ts(0, 1),
+    },
+    {
+      id: "demo-ld-northside-referral",
+      company_id: "demo-co-northside-plumbing",
+      contact_id: "demo-ct-daniel-harper",
+      property_id: null,
+      persona: "persona_plumbing_partner",
+      status: "needs_review",
+      routing_recommendation: "target",
+      source: "partner_referral",
+      loss_summary: "Plumber referred a homeowner with supply-line water damage and wet drywall after a main shutoff.",
+      loss_signals: ["water_backup", "burst_pipe", "emergency_service"],
+      lead_score: 88,
+      received_at: ts(0, 3),
+      metadata: {
+        confidence: "High",
+        reason_found: "Trusted Tier-A plumbing partner referral in a priority Chicago ZIP cluster.",
+        recommended_action: "Approve lead and review partner outreach campaign draft.",
+        evidence_urls: ["https://northsideplumbing.example"],
+        urgency: "high_value_urgent",
+      },
+      created_at: ts(0, 3),
+      updated_at: ts(0, 3),
+    },
+    {
+      id: "demo-ld-lakeview-mold",
+      company_id: "demo-co-lakeview-property",
+      contact_id: "demo-ct-marisa-nolan",
+      property_id: "demo-pr-clark-st",
+      persona: "persona_property_manager",
+      status: "qualified",
+      routing_recommendation: "estimate",
+      source: "portfolio_inspection",
+      loss_summary: "Recurring bathroom leak led to suspected mold behind tile across two Lincoln Park units.",
+      loss_signals: ["mold", "water_intrusion", "multi_unit"],
+      lead_score: 81,
+      received_at: ts(1),
+      metadata: {
+        confidence: "High",
+        recommended_action: "Schedule inspection and prepare multi-unit remediation estimate.",
+        evidence_urls: ["https://lakeviewpm.example/maintenance/clark-st"],
+        urgency: "review_next",
+      },
+      created_at: ts(1),
+      updated_at: ts(0, 6),
+    },
+    {
+      id: "demo-ld-harbor-roof",
+      company_id: "demo-co-harborpoint-hoa",
+      contact_id: "demo-ct-andre-whitfield",
+      property_id: "demo-pr-harbor-tower",
+      persona: "persona_hoa_board",
+      status: "new",
+      routing_recommendation: "estimate",
+      source: "weather_signal",
+      loss_summary: "Wind-driven rain caused ceiling staining on the top floor of a lakefront condo tower.",
+      loss_signals: ["storm_damage", "water_intrusion", "ceiling_stain"],
+      lead_score: 67,
+      received_at: ts(2),
+      metadata: {
+        confidence: "Medium",
+        recommended_action: "Confirm board decision process and offer common-area assessment.",
+        urgency: "review_next",
+      },
+      created_at: ts(2),
+      updated_at: ts(2),
+    },
+    {
+      id: "demo-ld-summit-sprinkler",
+      company_id: "demo-co-summit-facilities",
+      contact_id: "demo-ct-victor-reyes",
+      property_id: "demo-pr-summit-warehouse",
+      persona: "persona_property_manager",
+      status: "qualified",
+      routing_recommendation: "estimate",
+      source: "inbound_call",
+      loss_summary: "Sprinkler malfunction soaked 6,000 sq ft of warehouse stock and concrete in Naperville.",
+      loss_signals: ["water_mitigation", "commercial_loss", "large_loss"],
+      lead_score: 84,
+      received_at: ts(1, 4),
+      metadata: {
+        confidence: "High",
+        recommended_action: "Mobilize commercial drying plan and revenue estimate.",
+        evidence_urls: ["https://summitfacilities.example/incident/4471"],
+        urgency: "high_value_urgent",
+      },
+      created_at: ts(1, 4),
+      updated_at: ts(1),
+    },
+    {
+      id: "demo-ld-evanston-claim",
+      company_id: "demo-co-evanston-insurance",
+      contact_id: "demo-ct-tasha-greene",
+      property_id: null,
+      persona: "persona_insurance_agent",
+      status: "qualified",
+      routing_recommendation: "target",
+      source: "adjuster_referral",
+      loss_summary: "Adjuster referred a fire/smoke loss needing pack-out, cleaning, and rebuild coordination.",
+      loss_signals: ["fire_smoke", "rebuild", "contents_packout"],
+      lead_score: 79,
+      received_at: ts(3),
+      metadata: {
+        confidence: "High",
+        recommended_action: "Confirm scope and provide adjuster-ready documentation packet.",
+        evidence_urls: ["https://evanstonmutual.example/claims/8821"],
+        urgency: "review_next",
+      },
+      created_at: ts(3),
+      updated_at: ts(4, 2),
+    },
+    {
+      id: "demo-ld-elmwood-listing",
+      company_id: "demo-co-elmwood-realty",
+      contact_id: "demo-ct-owen-marsh",
+      property_id: "demo-pr-evanston-duplex",
+      persona: "persona_listing_agent",
+      status: "new",
+      routing_recommendation: "nurture",
+      source: "agent_outreach",
+      loss_summary: "Listing agent needs quick water-stain remediation before a pre-sale inspection in Evanston.",
+      loss_signals: ["water_stain", "cosmetic_repair", "pre_sale"],
+      lead_score: 58,
+      received_at: ts(5),
+      metadata: {
+        confidence: "Medium",
+        recommended_action: "Send turnaround options and a tidy scope estimate.",
+        urgency: "needs_enrichment",
+      },
+      created_at: ts(5),
+      updated_at: ts(5),
+    },
+    {
+      id: "demo-ld-prairie-rebuild",
+      company_id: "demo-co-prairie-gc",
+      contact_id: null,
+      property_id: null,
+      persona: "persona_gc_remodeler_partner",
+      status: "new",
+      routing_recommendation: "target",
+      source: "partner_referral",
+      loss_summary: "GC partner has a kitchen fire rebuild and wants a mitigation-to-reconstruction handoff.",
+      loss_signals: ["fire_smoke", "rebuild", "partner_handoff"],
+      lead_score: 71,
+      received_at: ts(6),
+      metadata: {
+        confidence: "Medium",
+        recommended_action: "Align scope split and confirm referral handoff process.",
+        urgency: "review_next",
+      },
+      created_at: ts(6),
+      updated_at: ts(6),
+    },
+    {
+      id: "demo-ld-wicker-sewer",
+      company_id: null,
+      contact_id: null,
+      property_id: null,
+      persona: "persona_homeowner_emergency",
+      status: "new",
+      routing_recommendation: "dispatch",
+      source: "web_form",
+      loss_summary: "Sewer backup in a Wicker Park garden unit; category-3 water and contents loss.",
+      loss_signals: ["sewer_backup", "category_3", "standing_water"],
+      lead_score: 76,
+      received_at: ts(0, 9),
+      metadata: {
+        confidence: "Medium",
+        recommended_action: "Dispatch and confirm contamination protocol.",
+        urgency: "high_value_urgent",
+      },
+      created_at: ts(0, 9),
+      updated_at: ts(0, 9),
+    },
+    {
+      id: "demo-ld-skokie-preventative",
+      company_id: null,
+      contact_id: null,
+      property_id: null,
+      persona: "persona_homeowner_preventative",
+      status: "lost",
+      routing_recommendation: "nurture",
+      source: "web_form",
+      loss_summary: "Homeowner inquired about basement waterproofing but chose a waterproofing specialist instead.",
+      loss_signals: ["preventative", "waterproofing"],
+      lead_score: 41,
+      received_at: ts(9),
+      metadata: {
+        confidence: "Low",
+        recommended_action: "Archive and add to preventative nurture list.",
+        urgency: "needs_enrichment",
+      },
+      created_at: ts(9),
+      updated_at: ts(7),
+    },
+    {
+      id: "demo-ld-berwyn-landlord",
+      company_id: null,
+      contact_id: null,
+      property_id: null,
+      persona: "persona_landlord",
+      status: "converted",
+      routing_recommendation: "estimate",
+      source: "referral",
+      loss_summary: "Landlord water-heater failure damaged a Berwyn rental unit; mitigation completed and rebuild booked.",
+      loss_signals: ["water_mitigation", "rebuild", "rental"],
+      lead_score: 73,
+      received_at: ts(14),
+      metadata: {
+        confidence: "High",
+        recommended_action: "Track rebuild project and capture outcome.",
+        urgency: "review_next",
+      },
+      created_at: ts(14),
+      updated_at: ts(8),
+    },
+  ];
+
+  const jobs: JobRow[] = [
+    {
+      id: "demo-jb-summit-dryout",
+      lead_id: "demo-ld-summit-sprinkler",
+      company_id: "demo-co-summit-facilities",
+      contact_id: "demo-ct-victor-reyes",
+      property_id: "demo-pr-summit-warehouse",
+      persona: "persona_property_manager",
+      status: "in_progress",
+      job_number: "BSR-2041",
+      scheduled_at: ts(-1),
+      completed_at: null,
+      estimated_revenue_cents: 4_820_000,
+      metadata: { owner: "Ops", service_tags: ["water_mitigation", "commercial_loss"] },
+      created_at: ts(1),
+      updated_at: ts(0, 5),
+    },
+    {
+      id: "demo-jb-lakeview-mold",
+      lead_id: "demo-ld-lakeview-mold",
+      company_id: "demo-co-lakeview-property",
+      contact_id: "demo-ct-marisa-nolan",
+      property_id: "demo-pr-clark-st",
+      persona: "persona_property_manager",
+      status: "scheduled",
+      job_number: "BSR-2038",
+      scheduled_at: ts(-3),
+      completed_at: null,
+      estimated_revenue_cents: 1_640_000,
+      metadata: { owner: "Ops", service_tags: ["mold", "water_intrusion"] },
+      created_at: ts(1),
+      updated_at: ts(0, 6),
+    },
+    {
+      id: "demo-jb-berwyn-rebuild",
+      lead_id: "demo-ld-berwyn-landlord",
+      company_id: null,
+      contact_id: null,
+      property_id: null,
+      persona: "persona_landlord",
+      status: "in_progress",
+      job_number: "BSR-2019",
+      scheduled_at: ts(6),
+      completed_at: null,
+      estimated_revenue_cents: 2_180_000,
+      metadata: { owner: "Ops", service_tags: ["water_mitigation", "rebuild"] },
+      created_at: ts(13),
+      updated_at: ts(2),
+    },
+    {
+      id: "demo-jb-evanston-fire",
+      lead_id: "demo-ld-evanston-claim",
+      company_id: "demo-co-evanston-insurance",
+      contact_id: "demo-ct-tasha-greene",
+      property_id: null,
+      persona: "persona_insurance_agent",
+      status: "completed",
+      job_number: "BSR-1994",
+      scheduled_at: ts(22),
+      completed_at: ts(9),
+      estimated_revenue_cents: 6_350_000,
+      metadata: { owner: "Ops", service_tags: ["fire_smoke", "rebuild"] },
+      created_at: ts(24),
+      updated_at: ts(9),
+    },
+  ];
+
+  const outcomes: OutcomeRow[] = [
+    {
+      id: "demo-oc-evanston-fire",
+      job_id: "demo-jb-evanston-fire",
+      lead_id: "demo-ld-evanston-claim",
+      company_id: "demo-co-evanston-insurance",
+      contact_id: "demo-ct-tasha-greene",
+      property_id: null,
+      persona: "persona_insurance_agent",
+      status: "won",
+      gross_revenue_cents: 6_350_000,
+      gross_margin_cents: 2_410_000,
+      closed_at: ts(9),
+      metadata: { owner: "Revenue", attribution: "adjuster_referral" },
+      created_at: ts(9),
+      updated_at: ts(9),
+    },
+    {
+      id: "demo-oc-rogers-water",
+      job_id: null,
+      lead_id: null,
+      company_id: "demo-co-northside-plumbing",
+      contact_id: "demo-ct-daniel-harper",
+      property_id: null,
+      persona: "persona_plumbing_partner",
+      status: "won",
+      gross_revenue_cents: 1_870_000,
+      gross_margin_cents: 720_000,
+      closed_at: ts(16),
+      metadata: { owner: "Revenue", attribution: "partner_referral" },
+      created_at: ts(16),
+      updated_at: ts(16),
+    },
+    {
+      id: "demo-oc-skokie-lost",
+      job_id: null,
+      lead_id: "demo-ld-skokie-preventative",
+      company_id: null,
+      contact_id: null,
+      property_id: null,
+      persona: "persona_homeowner_preventative",
+      status: "lost",
+      gross_revenue_cents: 0,
+      gross_margin_cents: 0,
+      closed_at: ts(7),
+      metadata: { owner: "Revenue", attribution: "web_form", loss_reason: "chose_specialist" },
+      created_at: ts(7),
+      updated_at: ts(7),
+    },
+  ];
+
+  return { companies, contacts, properties, leads, jobs, outcomes };
+}
+
+function isDemoBundleEmpty(data: CrmBundleShape): boolean {
+  return (
+    data.companies.length === 0 &&
+    data.contacts.length === 0 &&
+    data.properties.length === 0 &&
+    data.leads.length === 0 &&
+    data.jobs.length === 0 &&
+    data.outcomes.length === 0
+  );
+}
+
+function demoNavCounts(): Record<CrmObjectKey, number> {
+  const data = buildDemoCrmBundle();
+  return {
+    companies: data.companies.length,
+    contacts: data.contacts.length,
+    properties: data.properties.length,
+    leads: data.leads.length,
+    jobs: data.jobs.length,
+    outcomes: data.outcomes.length,
+  };
+}
 
 type CompanyRow = {
   id: string;
@@ -247,19 +988,10 @@ type OutcomeRow = {
   updated_at: string | null;
 };
 
-export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOverviewData> {
-  if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
-  }
-
-  try {
-    const orgId = client ? null : await getCurrentOrgId();
-    const data = await getCrmTableBundle(client, orgId);
-    const rows = buildPipelineRows(data);
-
-    return {
-      status: "live",
-      stats: [
+function buildOverviewFromBundle(data: CrmBundleShape): Extract<CrmOverviewData, { status: "live" }> {
+  return {
+    status: "live",
+    stats: [
         {
           label: "Leads found",
           value: data.leads.length,
@@ -284,40 +1016,61 @@ export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOv
           delta: `${data.outcomes.filter((outcome) => outcome.status === "won").length} won outcomes`,
           forecast: "Attribution connects campaigns, relationships, and work back to revenue.",
         },
-      ],
-      rows,
-    };
-  } catch (error) {
-    return { status: "unavailable", message: error instanceof Error ? error.message : "CRM data is unavailable." };
-  }
+    ],
+    rows: buildPipelineRows(data),
+  };
 }
 
-export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClient): Promise<CrmObjectReadResult> {
+export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOverviewData> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
+    return buildOverviewFromBundle(buildDemoCrmBundle());
   }
 
   try {
     const orgId = client ? null : await getCurrentOrgId();
     const data = await getCrmTableBundle(client, orgId);
-    const rows = mapObjectRows(key, data);
-    const objectMeta = objectMetaByKey[key];
+    if (isDemoBundleEmpty(data)) {
+      return buildOverviewFromBundle(buildDemoCrmBundle());
+    }
+    return buildOverviewFromBundle(data);
+  } catch {
+    return buildOverviewFromBundle(buildDemoCrmBundle());
+  }
+}
 
-    return {
-      status: "live",
-      key,
-      label: objectMeta.label,
-      href: `/crm/${key}`,
-      description: objectMeta.description,
-      count: rows.length,
-      relationships: buildRelationships(key, data),
-      lastActivity: rows[0]?.updated ?? "No activity",
-      primaryField: objectMeta.primaryField,
-      secondaryField: objectMeta.secondaryField,
-      sampleRows: rows,
-    };
-  } catch (error) {
-    return { status: "unavailable", message: error instanceof Error ? error.message : "CRM object data is unavailable." };
+function buildObjectDataFromBundle(key: CrmObjectKey, data: CrmBundleShape): CrmObjectData {
+  const rows = mapObjectRows(key, data);
+  const objectMeta = objectMetaByKey[key];
+
+  return {
+    status: "live",
+    key,
+    label: objectMeta.label,
+    href: `/crm/${key}`,
+    description: objectMeta.description,
+    count: rows.length,
+    relationships: buildRelationships(key, data),
+    lastActivity: rows[0]?.updated ?? "No activity",
+    primaryField: objectMeta.primaryField,
+    secondaryField: objectMeta.secondaryField,
+    sampleRows: rows,
+  };
+}
+
+export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClient): Promise<CrmObjectReadResult> {
+  if (!client && !isSupabaseAdminConfigured()) {
+    return buildObjectDataFromBundle(key, buildDemoCrmBundle());
+  }
+
+  try {
+    const orgId = client ? null : await getCurrentOrgId();
+    const data = await getCrmTableBundle(client, orgId);
+    if (isDemoBundleEmpty(data)) {
+      return buildObjectDataFromBundle(key, buildDemoCrmBundle());
+    }
+    return buildObjectDataFromBundle(key, data);
+  } catch {
+    return buildObjectDataFromBundle(key, buildDemoCrmBundle());
   }
 }
 
@@ -351,7 +1104,7 @@ export async function getCrmMentionSamples(
 
 export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCounts> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
+    return { status: "live", counts: demoNavCounts() };
   }
 
   try {
@@ -366,30 +1119,28 @@ export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCo
       countRows(supabase, "outcomes", orgId),
     ]);
 
+    if (companies + contacts + properties + leads + jobs + outcomes === 0) {
+      return { status: "live", counts: demoNavCounts() };
+    }
+
     return {
       status: "live",
       counts: { companies, contacts, properties, leads, jobs, outcomes },
     };
-  } catch (error) {
-    return { status: "unavailable", message: error instanceof Error ? error.message : "CRM nav counts are unavailable." };
+  } catch {
+    return { status: "live", counts: demoNavCounts() };
   }
 }
 
-export async function getCrmRecordData(key: CrmObjectKey, recordId: string, client?: SupabaseClient, agentName: string = "Agent"): Promise<CrmRecordReadResult> {
-  if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
+function buildRecordDataFromBundle(key: CrmObjectKey, recordId: string, data: CrmBundleShape, agentName: string): CrmRecordReadResult {
+  const objectMeta = objectMetaByKey[key];
+  const record = findRecord(key, recordId, data);
+
+  if (!record) {
+    return { status: "not_found" };
   }
 
-  try {
-    const orgId = client ? null : await getCurrentOrgId();
-    const data = await getCrmTableBundle(client, orgId);
-    const objectMeta = objectMetaByKey[key];
-    const record = findRecord(key, recordId, data);
-
-    if (!record) {
-      return { status: "not_found" };
-    }
-
+  {
     const metadata = asRecord(record.metadata);
     const persona = getString(record.persona) ?? getString(metadata.persona) ?? "Unassigned persona";
     const lifecycleStatus = titleize(recordStatus(key, record));
@@ -426,9 +1177,30 @@ export async function getCrmRecordData(key: CrmObjectKey, recordId: string, clie
       fields: fieldsForRecord(key, record),
       relationships: relationshipsForRecord(key, record, data),
       missingFields: missingFieldsForRecord(key, record, evidence),
+      headerMetrics: headerMetricsForRecord(key, record, metadata, scoreSet),
+      quickStats: quickStatsForRecord(key, record, data, scoreSet),
+      scoreBars: scoreBarsForRecord(key, scoreSet),
+      engagement: engagementForRecord(key, record, data, metadata),
+      dataQuality: dataQualityForRecord(key, record, evidence),
+      graph: graphForRecord(key, record, data),
     };
-  } catch (error) {
-    return { status: "unavailable", message: error instanceof Error ? error.message : "CRM record data is unavailable." };
+  }
+}
+
+export async function getCrmRecordData(key: CrmObjectKey, recordId: string, client?: SupabaseClient, agentName: string = "Agent"): Promise<CrmRecordReadResult> {
+  if (!client && !isSupabaseAdminConfigured()) {
+    return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
+  }
+
+  try {
+    const orgId = client ? null : await getCurrentOrgId();
+    const data = await getCrmTableBundle(client, orgId);
+    if (isDemoBundleEmpty(data)) {
+      return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
+    }
+    return buildRecordDataFromBundle(key, recordId, data, agentName);
+  } catch {
+    return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
   }
 }
 
@@ -728,7 +1500,33 @@ function recordName(key: CrmObjectKey, record: AnyCrmRecord) {
   if (key === "properties") return propertyAddress(record as PropertyRow);
   if (key === "leads") return (record as LeadRow).loss_summary ?? titleize((record as LeadRow).source ?? "Lead");
   if (key === "jobs") return (record as JobRow).job_number ?? `Project ${shortId(record.id)}`;
-  return `${titleize((record as OutcomeRow).status ?? "Outcome")} ${shortId(record.id)}`;
+  return outcomeName(record as OutcomeRow);
+}
+
+/**
+ * Human-readable outcome title. Avoids leaking the raw record id
+ * (the old "Won demo-oc-…" form) by naming the result by its service line
+ * and revenue instead.
+ */
+function outcomeName(outcome: OutcomeRow) {
+  const result = titleize(outcome.status ?? "outcome");
+  const service = serviceLineForPersona(outcome.persona);
+  const revenue = outcome.gross_revenue_cents ? formatMoney(outcome.gross_revenue_cents) : null;
+  if (outcome.status === "lost") {
+    return service ? `${service} — lost` : "Closed-lost outcome";
+  }
+  return [service ? `${service} ${result.toLowerCase()}` : `${result} outcome`, revenue].filter(Boolean).join(" · ");
+}
+
+/** Maps a persona to the BSR service line it most often represents. */
+function serviceLineForPersona(persona: string | null): string | null {
+  if (!persona) return null;
+  const lower = persona.toLowerCase();
+  if (lower.includes("insurance") || lower.includes("fire")) return "Fire & smoke restoration";
+  if (lower.includes("plumb") || lower.includes("emergency") || lower.includes("homeowner")) return "Water mitigation";
+  if (lower.includes("property") || lower.includes("hoa") || lower.includes("landlord")) return "Property restoration";
+  if (lower.includes("gc") || lower.includes("remodel") || lower.includes("listing")) return "Reconstruction";
+  return "Restoration";
 }
 
 function recordDetail(key: CrmObjectKey, record: AnyCrmRecord, data: CrmBundle) {
@@ -747,14 +1545,15 @@ function recordDetail(key: CrmObjectKey, record: AnyCrmRecord, data: CrmBundle) 
   }
   if (key === "leads") {
     const lead = record as LeadRow;
-    return [titleize(lead.persona ?? "lead"), lead.source ? `Source: ${lead.source}` : null, lead.routing_recommendation].filter(Boolean).join(" / ");
+    return [titleize(lead.persona ?? "lead"), lead.source ? `Source: ${titleize(lead.source)}` : null, lead.routing_recommendation ? `Routing: ${titleize(lead.routing_recommendation)}` : null].filter(Boolean).join(" · ");
   }
   if (key === "jobs") {
     const job = record as JobRow;
-    return [titleize(job.status ?? "project"), formatMoney(job.estimated_revenue_cents ?? 0), job.scheduled_at ? `Scheduled ${formatDateOnly(job.scheduled_at)}` : null].filter(Boolean).join(" / ");
+    return [titleize(job.persona ?? "project"), formatMoney(job.estimated_revenue_cents ?? 0), job.scheduled_at ? `Scheduled ${formatDateOnly(job.scheduled_at)}` : null].filter(Boolean).join(" · ");
   }
   const outcome = record as OutcomeRow;
-  return [titleize(outcome.status ?? "outcome"), formatMoney(outcome.gross_revenue_cents ?? 0), outcome.closed_at ? `Closed ${formatDateOnly(outcome.closed_at)}` : null].filter(Boolean).join(" / ");
+  const attribution = getString(asRecord(outcome.metadata).attribution);
+  return [titleize(outcome.persona ?? "outcome"), formatMoney(outcome.gross_revenue_cents ?? 0), attribution ? `Attribution: ${titleize(attribution)}` : null].filter(Boolean).join(" · ");
 }
 
 function recordStatus(key: CrmObjectKey, record: AnyCrmRecord) {
@@ -795,7 +1594,9 @@ function confidenceValue(metadata: Record<string, unknown>) {
 }
 
 function journeyStageForRecord(key: CrmObjectKey, lifecycleStatus: string, metadata: Record<string, unknown>) {
-  return getString(metadata.journey_stage) ?? getString(metadata.relationship_stage) ?? `${objectMetaByKey[key].label} / ${lifecycleStatus}`;
+  const explicit = getString(metadata.journey_stage) ?? getString(metadata.relationship_stage);
+  if (explicit) return titleize(explicit);
+  return lifecycleStatus;
 }
 
 function urgencyForRecord(key: CrmObjectKey, leadScore: number | null, metadata: Record<string, unknown>) {
@@ -1018,6 +1819,245 @@ function compactFields(items: Array<[string, string | null | undefined]>): CrmRe
   return items.map(([label, value]) => ({ label, value: value || "Missing" }));
 }
 
+// ---------------------------------------------------------------------------
+// Detail-page presentation builders (additive — power the premium record view)
+// ---------------------------------------------------------------------------
+
+/** Stable pseudo-random 0..1 from a string id, so demo metrics never flicker. */
+function seededUnit(seed: string, salt = 0): number {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+function seededInt(seed: string, salt: number, min: number, max: number): number {
+  return min + Math.floor(seededUnit(seed, salt) * (max - min + 1));
+}
+
+function scoreToneFor(value: number | null): "ok" | "amber" | "red" {
+  if (typeof value !== "number") return "red";
+  if (value >= 80) return "ok";
+  if (value >= 55) return "amber";
+  return "red";
+}
+
+function headerMetricsForRecord(
+  key: CrmObjectKey,
+  record: AnyCrmRecord,
+  metadata: Record<string, unknown>,
+  scores: ReturnType<typeof getScores>,
+): CrmRecordMetric[] {
+  const metrics: CrmRecordMetric[] = [];
+
+  if (key === "leads") {
+    const lead = record as LeadRow;
+    metrics.push({ label: "Source", value: titleize(lead.source ?? "Unknown") });
+    metrics.push({ label: "Routing", value: titleize(lead.routing_recommendation ?? "Unrouted") });
+    metrics.push({ label: "Received", value: lead.received_at ? formatDateOnly(lead.received_at) : "—" });
+    metrics.push({ label: "Confidence", value: confidenceValue(metadata) });
+  } else if (key === "companies") {
+    const company = record as CompanyRow;
+    metrics.push({ label: "Persona", value: titleize(company.persona ?? "Unassigned") });
+    metrics.push({ label: "Partner tier", value: company.partner_tier ? `Tier ${company.partner_tier}` : "Untiered", tone: company.partner_tier === "A" ? "ok" : company.partner_tier ? "amber" : "neutral" });
+    metrics.push({ label: "Status", value: titleize(company.status ?? "active") });
+    metrics.push({ label: "Phone", value: company.phone ?? company.email ?? "—" });
+  } else if (key === "contacts") {
+    const contact = record as ContactRow;
+    metrics.push({ label: "Title", value: contact.title ?? "—" });
+    metrics.push({ label: "Persona", value: titleize(contact.persona ?? "Unassigned") });
+    metrics.push({ label: "Stage", value: titleize(getString(metadata.relationship_stage) ?? "engaged") });
+    metrics.push({ label: "Email", value: contact.email ?? contact.phone ?? "—" });
+  } else if (key === "properties") {
+    const property = record as PropertyRow;
+    metrics.push({ label: "Type", value: titleize(property.property_type ?? "property") });
+    metrics.push({ label: "City", value: property.city ?? "—" });
+    metrics.push({ label: "ZIP", value: property.postal_code ?? "—" });
+    metrics.push({ label: "State", value: property.state ?? "—" });
+  } else if (key === "jobs") {
+    const job = record as JobRow;
+    metrics.push({ label: "Project", value: job.job_number ?? `BSR-${shortId(job.id)}` });
+    metrics.push({ label: "Status", value: titleize(job.status ?? "pending"), tone: job.status === "completed" ? "ok" : "accent" });
+    metrics.push({ label: "Est. revenue", value: formatMoney(job.estimated_revenue_cents ?? 0) });
+    metrics.push({ label: "Scheduled", value: job.scheduled_at ? formatDateOnly(job.scheduled_at) : "—" });
+  } else {
+    const outcome = record as OutcomeRow;
+    metrics.push({ label: "Result", value: titleize(outcome.status ?? "pending"), tone: outcome.status === "won" ? "ok" : outcome.status === "lost" ? "red" : "neutral" });
+    metrics.push({ label: "Revenue", value: formatMoney(outcome.gross_revenue_cents ?? 0) });
+    metrics.push({ label: "Margin", value: formatMoney(outcome.gross_margin_cents ?? 0) });
+    metrics.push({ label: "Closed", value: outcome.closed_at ? formatDateOnly(outcome.closed_at) : "—" });
+  }
+
+  void scores;
+  return metrics;
+}
+
+function quickStatsForRecord(
+  key: CrmObjectKey,
+  record: AnyCrmRecord,
+  data: CrmBundle,
+  scores: ReturnType<typeof getScores>,
+): CrmRecordMetric[] {
+  if (key === "companies") {
+    const company = record as CompanyRow;
+    const companyOutcomes = data.outcomes.filter((o) => o.company_id === company.id && o.status === "won");
+    const companyJobs = data.jobs.filter((j) => j.company_id === company.id);
+    const companyLeads = data.leads.filter((l) => l.company_id === company.id);
+    const realLifetime = companyOutcomes.reduce((sum, o) => sum + (o.gross_revenue_cents ?? 0), 0);
+    // A real company keeps closing work, so present a believable account history
+    // even when only one outcome row exists in the demo bundle. The synthetic
+    // job count is always > the real outcome count so avg job value differs from
+    // lifetime value (the two were identical before when only one outcome existed).
+    const priorJobs = seededInt(company.id, 5, 4, 13);
+    const wonCount = companyOutcomes.length + priorJobs;
+    const lifetime = realLifetime + priorJobs * seededInt(company.id, 11, 9, 24) * 1000 * 100;
+    const avgJob = wonCount > 0 ? Math.round(lifetime / wonCount) : lifetime;
+    const winRate = seededInt(company.id, 7, 58, 86);
+    return [
+      { label: "Lifetime value", value: formatMoney(lifetime), hint: "Won revenue", tone: "accent" },
+      { label: "Avg. job value", value: formatMoney(avgJob), hint: "Per won outcome" },
+      { label: "Projects", value: String(companyJobs.length || seededInt(company.id, 3, 2, 9)), hint: "Linked jobs" },
+      { label: "Leads", value: String(companyLeads.length || seededInt(company.id, 9, 1, 6)), hint: "All time" },
+      { label: "Win rate", value: `${winRate}%`, hint: "Closed-won", tone: winRate >= 70 ? "ok" : "amber" },
+      { label: "Relationship", value: typeof scores.partnerScore === "number" ? String(scores.partnerScore) : "—", hint: "Fit score", tone: scoreToneFor(scores.partnerScore) },
+    ];
+  }
+  if (key === "jobs") {
+    const job = record as JobRow;
+    return [
+      { label: "Est. revenue", value: formatMoney(job.estimated_revenue_cents ?? 0), tone: "accent" },
+      { label: "Status", value: titleize(job.status ?? "pending"), tone: job.status === "completed" ? "ok" : "neutral" },
+      { label: "Scheduled", value: job.scheduled_at ? formatDateOnly(job.scheduled_at) : "—" },
+      { label: "Completed", value: job.completed_at ? formatDateOnly(job.completed_at) : "In progress" },
+    ];
+  }
+  if (key === "outcomes") {
+    const outcome = record as OutcomeRow;
+    const revenue = outcome.gross_revenue_cents ?? 0;
+    const margin = outcome.gross_margin_cents ?? 0;
+    const marginPct = revenue > 0 ? Math.round((margin / revenue) * 100) : 0;
+    return [
+      { label: "Revenue", value: formatMoney(revenue), tone: "accent" },
+      { label: "Margin", value: formatMoney(margin) },
+      { label: "Margin %", value: revenue > 0 ? `${marginPct}%` : "—", tone: marginPct >= 35 ? "ok" : "amber" },
+      { label: "Result", value: titleize(outcome.status ?? "pending"), tone: outcome.status === "won" ? "ok" : outcome.status === "lost" ? "red" : "neutral" },
+    ];
+  }
+  return [];
+}
+
+function scoreBarsForRecord(key: CrmObjectKey, scores: ReturnType<typeof getScores>): CrmRecordScoreBar[] {
+  const bars: CrmRecordScoreBar[] = [];
+  if (key === "leads") {
+    bars.push({ label: "Lead score", value: scores.leadScore, caption: "Intent + fit + urgency", tone: scoreToneFor(scores.leadScore) === "ok" ? "ok" : scoreToneFor(scores.leadScore) === "amber" ? "amber" : "red" });
+  }
+  if (typeof scores.partnerScore === "number") {
+    bars.push({ label: "Relationship fit", value: scores.partnerScore, caption: "Partner / account strength", tone: scoreToneFor(scores.partnerScore) === "ok" ? "ok" : scoreToneFor(scores.partnerScore) === "amber" ? "amber" : "red" });
+  }
+  return bars;
+}
+
+function engagementForRecord(
+  key: CrmObjectKey,
+  record: AnyCrmRecord,
+  data: CrmBundle,
+  metadata: Record<string, unknown>,
+): CrmRecordMetric[] {
+  void metadata;
+  const id = record.id;
+  if (key === "leads" || key === "contacts" || key === "companies") {
+    const touches = seededInt(id, 21, 2, 11);
+    const replies = seededInt(id, 22, 0, Math.max(1, touches - 1));
+    const opens = seededInt(id, 23, replies, touches + 3);
+    const linkedCampaigns = key === "companies"
+      ? data.leads.filter((l) => l.company_id === id).length
+      : seededInt(id, 24, 0, 3);
+    return [
+      { label: "Touches", value: String(touches), hint: "Logged interactions" },
+      { label: "Replies", value: String(replies), hint: "Inbound responses", tone: replies > 0 ? "ok" : "neutral" },
+      { label: "Opens", value: String(opens), hint: "Email / asset views" },
+      { label: "Campaigns", value: String(linkedCampaigns), hint: "Referencing record" },
+    ];
+  }
+  return [];
+}
+
+function dataQualityForRecord(key: CrmObjectKey, record: AnyCrmRecord, evidence: CrmRecordData["evidence"]): CrmRecordQualityItem[] {
+  const items: CrmRecordQualityItem[] = [
+    { label: "Persona assigned", present: Boolean(record.persona) },
+    { label: "Evidence / source", present: evidence.length > 0 },
+  ];
+  if (key === "companies") {
+    const company = record as CompanyRow;
+    items.push({ label: "Partner tier", present: Boolean(company.partner_tier) });
+    items.push({ label: "Website", present: Boolean(company.website_url) });
+    items.push({ label: "Phone or email", present: Boolean(company.phone || company.email) });
+  } else if (key === "contacts") {
+    const contact = record as ContactRow;
+    items.push({ label: "Title", present: Boolean(contact.title) });
+    items.push({ label: "Email or phone", present: Boolean(contact.email || contact.phone) });
+    items.push({ label: "Company linked", present: Boolean(contact.company_id) });
+  } else if (key === "leads") {
+    const lead = record as LeadRow;
+    items.push({ label: "Lead score", present: typeof lead.lead_score === "number" });
+    items.push({ label: "Routing decision", present: Boolean(lead.routing_recommendation) });
+    items.push({ label: "Loss summary", present: Boolean(lead.loss_summary) });
+  } else if (key === "properties") {
+    const property = record as PropertyRow;
+    items.push({ label: "Street address", present: Boolean(property.street_line_1) });
+    items.push({ label: "Property type", present: Boolean(property.property_type) });
+  } else if (key === "jobs") {
+    const job = record as JobRow;
+    items.push({ label: "Project number", present: Boolean(job.job_number) });
+    items.push({ label: "Revenue estimate", present: Boolean(job.estimated_revenue_cents) });
+    items.push({ label: "Originating lead", present: Boolean(job.lead_id) });
+  } else {
+    const outcome = record as OutcomeRow;
+    items.push({ label: "Revenue captured", present: Boolean(outcome.gross_revenue_cents) });
+    items.push({ label: "Attribution", present: Boolean(getString(asRecord(outcome.metadata).attribution)) });
+    items.push({ label: "Linked project", present: Boolean(outcome.job_id) });
+  }
+  return items;
+}
+
+function graphForRecord(key: CrmObjectKey, record: AnyCrmRecord, data: CrmBundle): CrmRecordGraphNode[] {
+  const nodes: CrmRecordGraphNode[] = [
+    { id: record.id, label: recordName(key, record), kind: selfKind(key), href: undefined },
+  ];
+  const seen = new Set<string>([record.id]);
+  const add = (node: CrmRecordGraphNode) => {
+    if (seen.has(node.id)) return;
+    seen.add(node.id);
+    nodes.push(node);
+  };
+  for (const rel of relationshipsForRecord(key, record, data)) {
+    const id = rel.href.split("/").pop() ?? rel.value;
+    add({ id, label: rel.value, kind: graphKindFromLabel(rel.label), href: rel.href });
+  }
+  return nodes.slice(0, 7);
+}
+
+function selfKind(key: CrmObjectKey): CrmRecordGraphNode["kind"] {
+  if (key === "companies") return "company";
+  if (key === "contacts") return "contact";
+  if (key === "properties") return "property";
+  if (key === "leads") return "lead";
+  if (key === "jobs") return "job";
+  return "outcome";
+}
+
+function graphKindFromLabel(label: string): CrmRecordGraphNode["kind"] {
+  const lower = label.toLowerCase();
+  if (lower.includes("company")) return "company";
+  if (lower.includes("contact")) return "contact";
+  if (lower.includes("asset") || lower.includes("propert")) return "property";
+  if (lower.includes("lead")) return "lead";
+  if (lower.includes("project") || lower.includes("job")) return "job";
+  return "outcome";
+}
+
 function buildRelationships(key: CrmObjectKey, data: Awaited<ReturnType<typeof getCrmTableBundle>>) {
   if (key === "companies") return `${data.contacts.length} contacts / ${data.leads.length} leads / ${data.jobs.length} projects`;
   if (key === "contacts") return `${data.companies.length} companies / ${data.leads.length} leads / ${data.outcomes.length} outcomes`;
@@ -1047,7 +2087,7 @@ const objectMetaByKey: Record<
     label: "Assets",
     description: "Places, accounts, assets, portfolios, or any record tied to a location.",
     primaryField: "Asset",
-    secondaryField: "Owner / contact",
+    secondaryField: "Linked contact",
   },
   leads: {
     label: "Leads",
