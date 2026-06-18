@@ -23,8 +23,10 @@ gcloud run deploy "$SERVICE" \
   --source apps/arc-runner \
   --no-cpu-throttling \
   --min-instances 1 \
-  --max-instances 3 \
-  --concurrency 4 \
+  --max-instances 1 \
+  --concurrency 8 \
+  --memory 2Gi \
+  --cpu 2 \
   --timeout 900 \
   --allow-unauthenticated \
   --set-env-vars "APP_API_BASE_URL=${APP_URL},ARC_MODEL=${MODEL}" \
