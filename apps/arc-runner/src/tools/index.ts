@@ -8,6 +8,7 @@ import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
 import { mediaTools } from "./media";
 import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
+import { brandTools } from "./brand";
 import type { StepFn, TurnSink } from "./helpers";
 
 export type ArcMode = "ask" | "act" | "draft";
@@ -34,9 +35,13 @@ function writeTools(client: ArcClient, step: StepFn) {
   return [...brainWriteTools(client, step), ...interactionWriteTools(client, step)];
 }
 
-/** Draft work products: create approval-gated campaign assets. draft mode only. */
+/** Draft work products: create approval-gated campaign assets + brand learning. draft mode only. */
 function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolContext) {
-  return [...draftWorkProductTools(client, step, sink.card, ctx), ...mediaTools(client, step, sink.card, ctx)];
+  return [
+    ...draftWorkProductTools(client, step, sink.card, ctx),
+    ...mediaTools(client, step, sink.card, ctx),
+    ...brandTools(client, step, sink.card),
+  ];
 }
 
 /**
