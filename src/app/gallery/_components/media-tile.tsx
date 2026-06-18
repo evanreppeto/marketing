@@ -25,7 +25,7 @@ export function MediaTile({ item, onOpen }: { item: GalleryItem; onOpen: (item: 
         // eslint-disable-next-line @next/next/no-img-element
         <img src={thumb} alt={media.title} className="block w-full object-cover" loading="lazy" />
       ) : (
-        <div className="flex aspect-[4/3] items-center justify-center bg-[var(--surface)] text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)]">
+        <div className="flex aspect-[4/3] items-center justify-center bg-[var(--surface-raised)] text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)]">
           {media.type}
         </div>
       )}

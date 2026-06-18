@@ -40,7 +40,7 @@ function Group<T extends string>({ value, opts, onPick }: { value: T; opts: Arra
           aria-pressed={value === key}
           className={
             value === key
-              ? "rounded-full bg-[var(--text-primary)] px-2.5 py-1 text-xs font-semibold text-[var(--surface)]"
+              ? "rounded-full bg-[var(--text-primary)] px-2.5 py-1 text-xs font-semibold text-[var(--canvas)]"
               : "rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }
         >
