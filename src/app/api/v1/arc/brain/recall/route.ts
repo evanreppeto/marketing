@@ -4,7 +4,8 @@ import { getRecallMemory } from "@/lib/knowledge-graph/recall";
 
 /**
  * The org's durable "memory" for Arc to recall this turn — trusted + observed
- * brain nodes, ranked (core + keyword top-up against `message`). The runner
+ * brain nodes, selected (core + keyword top-up against `message`) and enriched
+ * with multi-hop relationship sub-lines from the brain's edges. The runner
  * fetches this each turn and injects it into the system prompt. Read-only.
  * `message` is optional (an empty message still returns the core set).
  *
