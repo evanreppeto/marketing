@@ -87,11 +87,11 @@ export function CampaignFeaturedRail({
 
   return (
     <aside className="xl:sticky xl:top-5 xl:self-start">
-      <div className="overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+      <div className="overflow-hidden border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
         {/* Status header */}
         <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent-contrast)]">
+            <span className="border-l-2 border-[var(--accent)] pl-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent-contrast)]">
               Featured
             </span>
             <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
@@ -110,7 +110,7 @@ export function CampaignFeaturedRail({
             </div>
           ) : null}
           {locked ? (
-            <div className="mt-2.5 flex items-center gap-2 rounded-md border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2.5 py-1.5">
+            <div className="mt-2.5 flex items-center gap-2 border-l-2 border-[var(--warn)] bg-[color-mix(in_srgb,var(--warn-soft)_48%,transparent)] px-2.5 py-1.5">
               <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-[var(--warn-text)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" />
                 <path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
@@ -121,14 +121,14 @@ export function CampaignFeaturedRail({
             </div>
           ) : (
             <div className="mt-2.5 flex items-center gap-2">
-              <StatusPill tone="green">In market</StatusPill>
+              <StatusPill tone="green" className="rounded-[3px] bg-transparent">In market</StatusPill>
               <span className="font-mono text-[11px] tabular-nums text-[var(--text-muted)]">Updated {campaign.updatedAt}</span>
             </div>
           )}
         </div>
 
         {/* Tab bar */}
-        <div role="tablist" aria-label="Campaign channels" className="flex gap-1 border-b border-[var(--border-hairline)] bg-[var(--surface-panel)] px-2 py-1.5">
+        <div role="tablist" aria-label="Campaign channels" className="flex gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2">
           {TABS.map((entry) => {
             const active = entry.key === tab;
             return (
@@ -139,10 +139,10 @@ export function CampaignFeaturedRail({
                 aria-selected={active}
                 onClick={() => setTab(entry.key)}
                 className={cx(
-                  "inline-flex min-h-7 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-semibold tracking-[0.01em] transition",
+                  "inline-flex min-h-7 flex-1 items-center justify-center gap-1.5 border-b px-1 text-[11px] font-semibold tracking-[0.01em] transition",
                   active
-                    ? "bg-[var(--accent-soft)] text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                    : "text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
+                    ? "border-[var(--accent)] text-[var(--accent-contrast)]"
+                    : "border-transparent text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]",
                 )}
               >
                 {entry.channel ? (
@@ -184,7 +184,7 @@ export function CampaignFeaturedRail({
                 key={`${url}-${i}`}
                 src={url}
                 alt=""
-                className="aspect-[4/3] w-full rounded-md border border-[var(--border-hairline)] object-cover"
+                className="aspect-[4/3] w-full border border-[var(--border-hairline)] object-cover"
               />
             ))}
           </div>
@@ -207,8 +207,8 @@ export function CampaignFeaturedRail({
             <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Launch readiness</h3>
             <span className="font-mono text-[11px] font-bold tabular-nums text-[var(--accent)]">{progressPct}%</span>
           </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-inset)]">
-            <div className="h-full rounded-full bg-[var(--accent)] transition-[width]" style={{ width: `${progressPct}%` }} />
+          <div className="mt-2 h-1.5 w-full overflow-hidden bg-[var(--surface-inset)]">
+            <div className="h-full bg-[var(--accent)] transition-[width]" style={{ width: `${progressPct}%` }} />
           </div>
           <ul className="mt-3 space-y-1.5">
             {checklist.map((item) => (
@@ -218,7 +218,7 @@ export function CampaignFeaturedRail({
               </li>
             ))}
           </ul>
-          <Link href={campaign.href} className={buttonClasses({ size: "sm", className: "mt-3.5 w-full justify-center" })}>
+          <Link href={campaign.href} className={buttonClasses({ size: "sm", className: "mt-3.5 w-full justify-center rounded-[4px]" })}>
             Open full campaign packet
           </Link>
         </div>
@@ -241,7 +241,7 @@ function PerfStat({ label, value, tone = "neutral" }: { label: string; value: st
 function CheckGlyph({ done }: { done: boolean }) {
   if (done) {
     return (
-      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--ok-border-soft)] bg-[var(--ok-soft)] text-[var(--ok-text)]">
+      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center border border-[var(--ok-border-soft)] bg-[var(--ok-soft)] text-[var(--ok-text)]">
         <svg viewBox="0 0 16 16" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="m3.5 8.5 3 3 6-7" />
         </svg>
@@ -249,15 +249,15 @@ function CheckGlyph({ done }: { done: boolean }) {
     );
   }
   return (
-    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] text-[var(--text-muted)]">
-      <span className="h-1 w-1 rounded-full bg-[var(--text-muted)]" />
+    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center border border-[var(--border-strong)] text-[var(--text-muted)]">
+      <span className="h-1 w-1 bg-[var(--text-muted)]" />
     </span>
   );
 }
 
 function EmailPreview({ heroUrl, subject, body }: { heroUrl: string; subject: string; body: string }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
+    <div className="overflow-hidden border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={heroUrl} alt="Email hero" className="aspect-[16/9] w-full object-cover" />
       <div className="p-3.5">
@@ -267,7 +267,7 @@ function EmailPreview({ heroUrl, subject, body }: { heroUrl: string; subject: st
         </div>
         <p className="mt-1.5 text-sm font-bold leading-snug text-[var(--text-primary)]">{subject}</p>
         <p className="mt-2 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{body}</p>
-        <span className="mt-3 inline-flex rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]">
+        <span className="mt-3 inline-flex rounded-[4px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]">
           Request emergency crew
         </span>
       </div>
@@ -277,12 +277,12 @@ function EmailPreview({ heroUrl, subject, body }: { heroUrl: string; subject: st
 
 function SmsPreview({ body }: { body: string }) {
   return (
-    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
+    <div className="border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
         <ChannelLogo channel="SMS" size={16} />
         SMS message
       </div>
-      <div className="mt-2.5 max-w-[88%] rounded-2xl rounded-bl-sm border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3.5 py-2.5">
+      <div className="mt-2.5 max-w-[88%] border-l-2 border-[var(--accent-border-strong)] bg-[var(--surface-inset)] px-3.5 py-2.5">
         <p className="text-xs leading-5 text-[var(--text-primary)]">{body}</p>
       </div>
       <p className="mt-2 font-mono text-[11px] tabular-nums text-[var(--text-muted)]">160 char limit · 1 segment</p>
@@ -292,7 +292,7 @@ function SmsPreview({ body }: { body: string }) {
 
 function AdsPreview({ piece, thumbs }: { piece: CampaignListContentPiece | undefined; thumbs: string[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
+    <div className="overflow-hidden border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={thumbs[0] ?? "https://picsum.photos/seed/bsr-water-ad/640/360"} alt="Ad creative" className="aspect-[4/5] max-h-56 w-full object-cover" />
       <div className="p-3.5">
@@ -312,7 +312,7 @@ function LandingPreview({ piece, heroUrl }: { piece: CampaignListContentPiece | 
   const split = piece ? splitEmail(piece.preview) : { subject: "Water damage? We're already on the way.", body: "Request a crew and start your insurance documentation in one tap." };
   const headline = split.subject.replace(/^Headline:\s*/i, "");
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
+    <div className="overflow-hidden border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
       <div className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroUrl} alt="Landing hero" className="aspect-[16/9] w-full object-cover" />
@@ -322,7 +322,7 @@ function LandingPreview({ piece, heroUrl }: { piece: CampaignListContentPiece | 
       </div>
       <div className="p-3.5">
         <p className="line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{split.body}</p>
-        <span className="mt-2.5 inline-flex rounded-md bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]">
+        <span className="mt-2.5 inline-flex rounded-[4px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]">
           See live response times
         </span>
       </div>
@@ -334,7 +334,7 @@ function OverviewPreview({ campaign, agentName }: { campaign: CampaignWorkspaceL
   return (
     <div className="space-y-3">
       <p className="text-sm leading-6 text-[var(--text-secondary)]">{campaign.objective}</p>
-      <dl className="divide-y divide-[var(--border-hairline)] rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
+      <dl className="divide-y divide-[var(--border-hairline)] border border-[var(--border-hairline)] bg-[var(--surface-soft)]">
         <OverviewFact label="Audience" value={campaign.audienceSummary} />
         <OverviewFact label="Offer" value={campaign.offerSummary} />
         <div className="grid gap-1 px-3 py-2 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
@@ -346,7 +346,7 @@ function OverviewPreview({ campaign, agentName }: { campaign: CampaignWorkspaceL
         </div>
       </dl>
       <p className="flex items-start gap-2 text-xs leading-5 text-[var(--text-muted)]">
-        <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[9px] font-bold text-[var(--accent)]">
+        <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[9px] font-bold text-[var(--accent)]">
           {agentName.charAt(0).toUpperCase()}
         </span>
         {campaign.whyBuilt}

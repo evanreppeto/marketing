@@ -8,8 +8,10 @@ import { getAuthMode, type AuthMode } from "@/lib/auth/auth-mode";
 import {
   OPERATOR_COOKIE,
   getSafeOperatorReturnPath,
+  isAuthScreenPreviewEnabled,
   isValidOperatorValue,
 } from "@/lib/auth/operator-shared";
+import { provisionAuthenticatedUser } from "@/lib/auth/user-provisioning";
 import { getAppSettings, getSupportContactEmail } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { SignInPage } from "@/components/ui/sign-in";
@@ -17,24 +19,30 @@ import { SignInPage } from "@/components/ui/sign-in";
 type LoginSearchParams = {
   from?: string;
   error?: string;
+  preview?: string;
 };
 
 export async function getOperatorLoginProps(searchParams?: Promise<LoginSearchParams>) {
   const query = searchParams ? await searchParams : {};
   const from = getSafeOperatorReturnPath(query.from);
   const authMode = getAuthMode();
+  const showPreview = isAuthScreenPreviewEnabled(query.preview);
 
-  if (authMode === "open") {
+  if (authMode === "open" && !showPreview) {
     redirect(from);
   }
 
-  if (authMode === "supabase") {
+  if (authMode === "supabase" && !showPreview) {
     const user = await getSupabaseAuthenticatedUser();
 
     if (user) {
+      const provisioned = await provisionAuthenticatedUser(user);
+      if (provisioned.ok && provisioned.status === "profile_only") {
+        redirect(`/onboarding?from=${encodeURIComponent(from)}`);
+      }
       redirect(from);
     }
-  } else {
+  } else if (!showPreview) {
     const store = await cookies();
 
     if (isValidOperatorValue(store.get(OPERATOR_COOKIE)?.value)) {

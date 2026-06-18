@@ -6,10 +6,8 @@ import { cx } from "@/app/_components/theme";
 import { getArcAgentStatusAction, type ArcAgentStatus } from "../actions";
 
 /**
- * The production trust signal: is an agent attached to this workspace? Polls a
- * server action (which holds the runner config) every 30s. Green = attached;
- * amber = no agent, sends queue until one connects. The user never has to guess
- * whether their Arc agent is wired up.
+ * Production trust signal: is the Arc runner connected to this workspace? Polls
+ * every 30s so the operator knows whether background work can move.
  */
 export function ArcConnection() {
   const [status, setStatus] = useState<ArcAgentStatus | null>(null);
@@ -22,7 +20,7 @@ export function ArcConnection() {
           if (alive) setStatus(s);
         })
         .catch(() => {
-          /* transient — keep the last known status */
+          /* transient: keep the last known status */
         });
     }
     tick();
@@ -42,7 +40,7 @@ export function ArcConnection() {
       title={
         attached
           ? `${status.name} is attached to this workspace.${lastSeen}`
-          : `No agent attached — your messages queue and deliver when one connects.${lastSeen}`
+          : `Runner disconnected. Messages stay in the workspace until a runner connects.${lastSeen}`
       }
       className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)]"
     >
@@ -53,7 +51,7 @@ export function ArcConnection() {
           attached ? "bg-[var(--ok)] shadow-[0_0_0_3px_var(--ok-soft)]" : "bg-[var(--warn)]",
         )}
       />
-      {attached ? `${status.name} connected` : "Agent not attached"}
+      {attached ? `${status.name} connected` : "Runner disconnected"}
     </span>
   );
 }

@@ -105,7 +105,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
       {/* General analytics + range filter — the at-a-glance read */}
       <div className="mb-5 flex items-center gap-2">
         <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Range</span>
-        <div className="inline-flex gap-0.5 rounded-lg border border-[var(--border-panel)] bg-[var(--surface-inset)] p-0.5">
+        <div className="inline-flex gap-1 border-b border-[var(--border-hairline)]">
           {RANGES.map((r) => {
             const active = activeRange.v === r.v;
             return (
@@ -113,13 +113,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
                 key={r.v}
                 href={`/analytics?range=${r.v}`}
                 aria-current={active ? "true" : undefined}
-                className={`rounded-[6px] px-3 py-1 text-xs font-semibold transition-[transform,background-color,color,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
+                className={`relative rounded px-3 py-2 text-xs font-semibold transition duration-150 active:translate-y-px ${
                   active
-                    ? "bg-[var(--accent-soft)] text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                    : "text-[var(--text-muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--text-secondary)]"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {r.label}
+                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
               </Link>
             );
           })}

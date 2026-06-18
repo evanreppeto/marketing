@@ -1,11 +1,13 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type AgentConnectionStatus = "ok" | "error" | "unreachable";
 export type FieldSource = "env" | "db" | "default";
 
 export type AgentConnectionRow = {
+  org_id?: string;
   workspace_id: string;
   display_name: string | null;
   agent_key: string | null;
@@ -86,17 +88,25 @@ export function mergeConnection(env: EnvLike, row: AgentConnectionRow | null): E
   };
 }
 
-/** Fetch the singleton connection row and merge it with env. Degrades to defaults. */
+/** Fetch the current workspace connection row and merge it with env. Degrades to defaults. */
 export async function resolveAgentConnection(client?: SupabaseClient): Promise<EffectiveAgentConnection> {
   const supabase: SupabaseClient | null = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
   if (!supabase) return mergeConnection(process.env, null);
 
   try {
-    const { data, error } = await supabase
+    const context = client ? null : await getCurrentWorkspaceContext().catch(() => null);
+    const workspaceId = context?.workspaceKey ?? DEFAULT_WORKSPACE_ID;
+
+    let query = supabase
       .from("agent_connections")
       .select("*")
-      .eq("workspace_id", DEFAULT_WORKSPACE_ID)
-      .maybeSingle<AgentConnectionRow>();
+      .eq("workspace_id", workspaceId);
+
+    if (context?.orgId) {
+      query = query.eq("org_id", context.orgId);
+    }
+
+    const { data, error } = await query.maybeSingle<AgentConnectionRow>();
     if (error) return mergeConnection(process.env, null);
     return mergeConnection(process.env, data ?? null);
   } catch {

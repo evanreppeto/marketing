@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
-import { DottedSurface } from "./dotted-surface";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
-import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
+import FlowFieldBackground from "@/components/ui/flow-field-background";
 
 type ConsoleBrand = {
   workspaceName: string;
@@ -19,23 +17,10 @@ type ConsoleBrand = {
   logoUrl: string;
 };
 
-function BrandArc({ brand }: { brand: ConsoleBrand }) {
-  if (brand.logoUrl) {
-    return (
-      <span className="grid h-9 w-9 shrink-0 place-items-center" aria-hidden>
-        {/* eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or data URL. */}
-        <img alt="" className="h-8 w-8 object-contain" src={brand.logoUrl} />
-      </span>
-    );
-  }
-
+function BrandMark() {
   return (
-    <span
-      className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-sm font-semibold text-[var(--accent)]"
-      aria-hidden
-    >
-      {brand.shortName}
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element -- transparent product mark served from /public.
+    <img alt="" className="h-9 w-9 shrink-0 select-none object-contain" draggable={false} src="/brand/arc-mark.png" />
   );
 }
 
@@ -52,10 +37,8 @@ function BrandWordmark() {
 }
 
 /**
- * Persistent application chrome, rendered ONCE in the root layout so the sidebar
- * and SideNav pending state survive navigations. The rail is a compact icon strip
- * by default (lg+) and expands on hover or keyboard focus.
- * Brand and agent identity come from the server layout. Auth pages render bare.
+ * Persistent application chrome. Desktop uses the command rail; smaller screens
+ * keep a compact top dock so core routes remain reachable.
  */
 export function ConsoleFrame({
   agentName,
@@ -68,128 +51,139 @@ export function ConsoleFrame({
 }) {
   const pathname = usePathname() ?? "/";
 
-  const [hovered, setHovered] = useState(false);
-  const [focusWithin, setFocusWithin] = useState(false);
-
   const navItems: ShellNavItem[] = [
-    { label: agentName, href: "/arc", icon: "arc", matches: ["/arc", "/"] },
-    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
-    { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
+    { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
+    { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] },
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
-    { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
-    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
     { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
-    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
+    { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
   ];
 
-  const settingsNavItems: ShellNavItem[] = [
+  const utilityNavItems: ShellNavItem[] = [
     { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
   ];
 
-  if (pathname === "/login" || pathname === "/sign-in" || pathname === "/sign-up" || pathname === "/forgot-password") {
+  if (
+    pathname === "/login" ||
+    pathname === "/sign-in" ||
+    pathname === "/sign-up" ||
+    pathname === "/forgot-password" ||
+    pathname === "/onboarding"
+  ) {
     return <AgentNameProvider value={agentName}>{children}</AgentNameProvider>;
   }
-
-  // Default to the expanded, labeled rail (matches the product concepts); hover/
-  // focus still keep it open. Mobile keeps its own top-bar dock below `lg`.
-  const expanded = isSidebarExpanded({ pinned: true, hovered, focusWithin });
-  const collapsed = !expanded;
-
-  const layout = cx(
-    "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0",
-    "lg:transition-[grid-template-columns] lg:duration-200 motion-reduce:lg:transition-none",
-    expanded ? "lg:grid-cols-[280px_minmax(0,1fr)]" : "lg:grid-cols-[72px_minmax(0,1fr)]",
-  );
 
   return (
     <AgentNameProvider value={agentName}>
       <main className={theme.shell.canvas}>
-        <div className={layout}>
-        <aside
-          className={cx(
-            theme.shell.sidebar,
-            "sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 overflow-hidden px-2 py-2 lg:relative lg:h-screen lg:items-stretch lg:gap-0 lg:overflow-hidden lg:px-4 lg:py-5",
-          )}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          onFocus={() => setFocusWithin(true)}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusWithin(false);
-          }}
-        >
-          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <BackgroundGradientAnimation />
-            {/* Readability scrim: fade the gradient toward the sidebar tone so nav
-                labels and the gold active-indicator stay legible. */}
-            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_30%_20%,transparent,var(--surface-sidebar)_88%)]" />
-            <div className="absolute inset-0 bg-[var(--surface-sidebar)] opacity-40" />
-          </div>
-          <div className="flex min-w-0 flex-1 items-center gap-1 lg:min-h-0 lg:flex-col lg:items-stretch lg:gap-3 lg:overflow-y-auto">
+        <div className="flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <header className="sticky top-0 z-40 flex min-h-[64px] items-center gap-2 overflow-x-auto border-b border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--canvas-deep)_92%,transparent)] px-3 py-2 backdrop-blur lg:hidden">
             <Link
-              href="/arc"
-              className={cx(
-                "group flex shrink-0 items-center gap-3 px-0.5 leading-none transition hover:opacity-90 lg:mb-2 lg:px-1.5",
-                collapsed && "lg:justify-center lg:gap-0 lg:px-0",
-              )}
+              href="/"
+              className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition hover:bg-[var(--surface-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
-              title={`${brand.workspaceName} ${brand.productLabel}`}
             >
-              <BrandArc brand={brand} />
-              <span
-                className={cx(
-                  "hidden min-w-0 max-w-[130px] overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none lg:flex",
-                  collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
-                )}
-              >
+              <BrandMark />
+              <span className="hidden min-w-0 sm:block">
                 <BrandWordmark />
+                <span className="-mt-0.5 block max-w-[150px] truncate text-[0.69rem] leading-none text-[var(--text-muted)]">
+                  {brand.workspaceName}
+                </span>
               </span>
             </Link>
-            <div
-              aria-hidden
-              className={cx(
-                "hidden h-px shrink-0 bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)] lg:block",
-                collapsed ? "lg:mx-auto lg:w-8" : "lg:w-full",
-              )}
-            />
 
-            <SideNav active={pathname} items={navItems} collapsed={collapsed} mobileDock />
-          </div>
-
-          <div className={cx("shrink-0 border-l pl-1 lg:mt-2 lg:border-l-0", theme.surface.divider, "lg:border-t lg:pl-0 lg:pt-3")}>
-            <SideNav active={pathname} items={settingsNavItems} collapsed={collapsed} mobileDock />
-          </div>
-
-          <OperatorProfile collapsed={collapsed} />
-        </aside>
-
-        {pathname.startsWith("/arc") ? (
-          <section className="min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
-            <ShellContent>{children}</ShellContent>
-          </section>
-        ) : (
-          // Ambient dotted backdrop sits behind the content column (not the Arc
-          // surface, which keeps its own visuals). `relative isolate` keeps the
-          // -z-10 field above the page canvas but below content; the inner div
-          // owns the scroll so the backdrop stays put as the page scrolls.
-          <section className="relative isolate min-w-0 min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden">
-            <DottedSurface />
-            <div className="px-4 py-4 sm:px-6 lg:h-full lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
-              <ShellContent>{children}</ShellContent>
+            <div className="min-w-0 flex-1">
+              <SideNav active={pathname} items={navItems} mobileDock />
             </div>
-          </section>
-        )}
+
+            <div className="flex min-w-0 items-center">
+              <SideNav active={pathname} items={utilityNavItems} collapsed mobileDock />
+            </div>
+          </header>
+
+          <aside className={cx(theme.shell.sidebar, "hidden lg:flex lg:flex-col")}>
+            <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+              <BackgroundGradientAnimation
+                blendingValue="soft-light"
+                containerClassName="opacity-80"
+                firstColor="200, 162, 74"
+                fourthColor="90, 52, 42"
+                secondColor="120, 96, 60"
+                size="135%"
+                thirdColor="55, 55, 66"
+              />
+              <div className="absolute inset-0 bg-[radial-gradient(100%_80%_at_25%_8%,rgba(200,162,74,0.08),transparent_46%),linear-gradient(180deg,rgba(16,16,19,0.54),rgba(16,16,19,0.88)_62%,rgba(16,16,19,0.96))]" />
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
+              <Link
+                href="/"
+                className="flex min-h-12 shrink-0 items-center gap-3 overflow-visible rounded px-1 py-1 transition hover:bg-[rgba(255,255,255,0.035)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
+              >
+                <BrandMark />
+                <span className="min-w-0">
+                  <BrandWordmark />
+                </span>
+              </Link>
+
+              <div aria-hidden className="h-px bg-[linear-gradient(90deg,rgba(200,162,74,0.36),rgba(255,255,255,0.08),transparent)]" />
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <SideNav active={pathname} items={navItems} />
+              </div>
+
+              <WorkspaceBadge workspaceName={brand.workspaceName} />
+
+              <div className={cx("border-t pt-3", theme.surface.divider)}>
+                <SideNav active={pathname} items={utilityNavItems} />
+              </div>
+
+              <OperatorProfile />
+            </div>
+          </aside>
+
+          {pathname.startsWith("/arc") ? (
+            <section className="min-w-0 min-h-[calc(100dvh-64px)] lg:h-screen lg:min-h-0 lg:overflow-hidden">
+              <ShellContent>{children}</ShellContent>
+            </section>
+          ) : (
+            <section className="relative isolate min-w-0 flex-1 lg:min-h-0 lg:overflow-hidden">
+              <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+                <FlowFieldBackground
+                  className="absolute inset-0 opacity-70"
+                  particleCount={520}
+                  speed={0.64}
+                  trailOpacity={0.13}
+                />
+                <div className="absolute inset-0 bg-[radial-gradient(90%_65%_at_8%_-8%,rgba(200,162,74,0.12),transparent_50%),radial-gradient(70%_54%_at_105%_0%,rgba(127,184,154,0.06),transparent_48%),linear-gradient(180deg,rgba(22,22,26,0.22),rgba(22,22,26,0.72)_62%,rgba(22,22,26,0.93))]" />
+              </div>
+              <div className="px-4 py-4 sm:px-6 lg:h-screen lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
+                <ShellContent>{children}</ShellContent>
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </AgentNameProvider>
   );
 }
 
-function OperatorProfile({ collapsed }: { collapsed: boolean }) {
+function WorkspaceBadge({ workspaceName }: { workspaceName: string }) {
   return (
-    <div className={cx("mt-4 hidden border-t pb-6 pt-4 lg:block", theme.surface.divider)}>
-      <div className={cx("flex items-center gap-3", collapsed && "lg:justify-center")}>
+    <div className="border-t border-[var(--border-hairline)] pt-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Workspace</div>
+      <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{workspaceName}</div>
+    </div>
+  );
+}
+
+function OperatorProfile() {
+  return (
+    <div className={cx("border-t pb-6 pt-4", theme.surface.divider)}>
+      <div className="flex items-center gap-3">
         <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-xs font-semibold text-[var(--accent)]">
           ER
           <span
@@ -197,12 +191,7 @@ function OperatorProfile({ collapsed }: { collapsed: boolean }) {
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-sidebar)] bg-[var(--ok)]"
           />
         </div>
-        <div
-          className={cx(
-            "min-w-0 max-w-[180px] flex-1 overflow-hidden opacity-100 transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-            collapsed && "lg:max-w-0 lg:-translate-x-1 lg:opacity-0",
-          )}
-        >
+        <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
           <div className="truncate text-[11px] text-[var(--text-muted)]">Operator</div>
         </div>

@@ -155,7 +155,7 @@ export function ChannelArtifact({
           type="button"
           onClick={save}
           disabled={!dirty || saving}
-          className="w-full rounded-lg bg-[var(--accent)] py-2 text-xs font-bold text-[var(--on-accent)] transition enabled:hover:bg-[var(--accent-strong)] disabled:opacity-45"
+          className="w-full rounded-lg bg-[var(--accent)] py-2 text-xs font-bold text-[var(--on-accent)] transition enabled:hover:bg-[var(--accent-hover)] disabled:opacity-45"
         >
           {saving ? "Saving…" : saved && !dirty ? "Saved" : "Save edits"}
         </button>

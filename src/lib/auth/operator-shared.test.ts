@@ -4,6 +4,7 @@ import {
   getConfiguredOperatorCredentials,
   getConfiguredOperatorToken,
   getSafeOperatorReturnPath,
+  isAuthScreenPreviewEnabled,
   isOperatorGateEnabled,
   isValidOperatorCredentials,
   isValidOperatorValue,
@@ -57,5 +58,19 @@ describe("getSafeOperatorReturnPath", () => {
     expect(getSafeOperatorReturnPath("/sign-in")).toBe("/");
     expect(getSafeOperatorReturnPath("/sign-up")).toBe("/");
     expect(getSafeOperatorReturnPath(undefined)).toBe("/");
+  });
+});
+
+describe("isAuthScreenPreviewEnabled", () => {
+  it("allows auth screen preview links outside production only", () => {
+    expect(isAuthScreenPreviewEnabled("auth", "development")).toBe(true);
+    expect(isAuthScreenPreviewEnabled("auth", "test")).toBe(true);
+    expect(isAuthScreenPreviewEnabled("auth", "production")).toBe(false);
+  });
+
+  it("ignores ordinary or missing preview params", () => {
+    expect(isAuthScreenPreviewEnabled(undefined, "development")).toBe(false);
+    expect(isAuthScreenPreviewEnabled("1", "development")).toBe(false);
+    expect(isAuthScreenPreviewEnabled("true", "development")).toBe(false);
   });
 });

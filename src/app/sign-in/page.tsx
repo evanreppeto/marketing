@@ -3,7 +3,7 @@ import { getOperatorLoginProps, OperatorLoginPage } from "../_components/operato
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ from?: string; error?: string }>;
+  searchParams?: Promise<{ from?: string; error?: string; preview?: string }>;
 }) {
   const props = await getOperatorLoginProps(searchParams);
   return <OperatorLoginPage {...props} />;

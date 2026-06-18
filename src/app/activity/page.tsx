@@ -70,7 +70,7 @@ function ActivityHeader({ selectedRange }: { selectedRange: string }) {
         title="Activity"
         description="A clear record of human actions, Arc work, approvals, risks, and marketing progress."
       />
-      <nav aria-label="Activity time range" className="flex shrink-0 flex-wrap gap-1.5">
+      <nav aria-label="Activity time range" className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--border-hairline)]">
         {rangeFilters.map((range) => {
           const active = range.value === selectedRange;
           return (
@@ -80,11 +80,12 @@ function ActivityHeader({ selectedRange }: { selectedRange: string }) {
               aria-current={active ? "page" : undefined}
               className={
                 active
-                  ? "rounded-md border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-2.5 py-1 text-[12px] font-semibold text-[var(--accent-contrast)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)] transition-[transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
-                  : "rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-[12px] font-semibold text-[var(--text-secondary)] transition-[transform,background-color,border-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-px hover:border-[var(--accent)] hover:text-[var(--text-primary)] active:scale-[0.96] active:translate-y-0"
+                  ? "relative rounded px-3 py-2 text-[12px] font-semibold text-[var(--text-primary)] transition active:translate-y-px"
+                  : "relative rounded px-3 py-2 text-[12px] font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] active:translate-y-px"
               }
             >
               {range.label}
+              {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
             </Link>
           );
         })}

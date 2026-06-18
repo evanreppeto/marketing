@@ -110,7 +110,7 @@ export function PromoteDialog({
             type="button"
             onClick={submit}
             disabled={busy}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)] disabled:opacity-60"
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)] disabled:opacity-60"
           >
             {busy ? "Promoting…" : "Promote"}
           </button>

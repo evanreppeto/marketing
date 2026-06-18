@@ -45,7 +45,7 @@ export function SavedList({ items, campaigns }: { items: SavedItem[]; campaigns:
                     <button
                       type="button"
                       onClick={() => setPromoting(item)}
-                      className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)]"
+                      className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)]"
                     >
                       Promote
                     </button>

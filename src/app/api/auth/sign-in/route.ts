@@ -8,6 +8,7 @@ import {
   getSafeOperatorReturnPath,
   isValidOperatorCredentials,
 } from "@/lib/auth/operator-shared";
+import { provisionAuthenticatedUser } from "@/lib/auth/user-provisioning";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 
 export async function POST(request: Request) {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
 
   if (authMode === "supabase") {
     const supabase = await createSupabaseAuthServerClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
@@ -31,6 +32,16 @@ export async function POST(request: Request) {
         new URL(`/login?error=1&from=${encodeURIComponent(from)}`, origin),
         { status: 303 },
       );
+    }
+
+    if (data.user) {
+      const provisioned = await provisionAuthenticatedUser(data.user);
+      if (provisioned.ok && provisioned.status === "profile_only") {
+        return NextResponse.redirect(
+          new URL(`/onboarding?from=${encodeURIComponent(from)}`, origin),
+          { status: 303 },
+        );
+      }
     }
 
     return NextResponse.redirect(new URL(from, origin), { status: 303 });

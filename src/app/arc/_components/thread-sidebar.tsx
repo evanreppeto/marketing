@@ -423,7 +423,7 @@ export function ThreadSidebar({
           href="/arc"
           title="New chat"
           aria-label="New chat"
-          className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--on-accent)] transition hover:bg-[var(--accent-strong)]"
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)]"
         >
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
             <path d="M10 4v12M4 10h12" />

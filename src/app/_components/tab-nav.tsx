@@ -34,7 +34,7 @@ export function TabNav({
     <nav
       aria-label={ariaLabel}
       className={cx(
-        "module-rise grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)]",
+        theme.control.tabList,
         columns,
         className,
       )}
@@ -49,11 +49,17 @@ export function TabNav({
             className={cx(theme.control.tabBase, active ? theme.control.tabActive : theme.control.tabIdle)}
           >
             <span className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold text-[var(--text-primary)]">{tab.label}</span>
+              <span className="text-sm font-bold text-current">{tab.label}</span>
               {tab.count !== undefined ? <span className={theme.control.tabBadge}>{tab.count}</span> : null}
             </span>
             {tab.detail !== undefined ? (
               <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
+            ) : null}
+            {active ? (
+              <span
+                aria-hidden
+                className="absolute inset-x-3 bottom-0 h-px rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] shadow-[0_0_14px_rgba(199,166,92,0.32)]"
+              />
             ) : null}
           </Link>
         );

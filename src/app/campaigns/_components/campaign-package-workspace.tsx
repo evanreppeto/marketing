@@ -59,7 +59,7 @@ export function CampaignPackageWorkspace({
           <PackageSnapshot summary={summary} />
         </div>
 
-        <nav aria-label="Campaign package views" className="mt-4 grid gap-2 sm:grid-cols-5">
+        <nav aria-label="Campaign package views" className="mt-4 flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)]">
           {tabs.map((tab) => {
             const active = activeView === tab.key;
             return (
@@ -68,14 +68,15 @@ export function CampaignPackageWorkspace({
                 type="button"
                 onClick={() => activateView(tab.key)}
                 disabled={tab.count === 0}
-                className={`min-h-11 rounded-md border px-3 text-left text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-55 ${
+                className={`relative min-h-11 shrink-0 rounded px-3 text-left text-xs font-bold transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 ${
                   active
-                    ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
-                    : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 <span className="block">{tab.label}</span>
-                <span className="mt-1 block font-mono text-[11px] opacity-80">{tab.count}</span>
+                <span className={`mt-1 block font-mono text-[11px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>{tab.count}</span>
+                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
               </button>
             );
           })}
@@ -126,7 +127,7 @@ function PieceSelector({
               onClick={() => onSelect(asset)}
               className={`rounded-lg border p-3 text-left transition ${
                 active
-                  ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] shadow-[inset_3px_0_0_var(--accent)]"
+                  ? "border-[var(--accent-border-strong)] bg-[color-mix(in_srgb,var(--surface-panel)_74%,var(--accent-soft))]"
                   : "border-[var(--border-hairline)] bg-[var(--surface-panel)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
               }`}
             >

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserPlus } from "lucide-react";
+import { ArrowRight, Building2, Eye, EyeOff, LockKeyhole, Mail, User, UserPlus, Users } from "lucide-react";
 import React, { useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -30,19 +30,21 @@ type SignInPageProps = {
 
 type AuthPageFrameProps = {
   children: React.ReactNode;
+  contentClassName?: string;
   rightTitle?: string;
   rightSteps?: string[];
 };
 
 function AuthPageFrame({
   children,
+  contentClassName = "max-w-[430px]",
   rightSteps,
   rightTitle = "Approval-safe campaign operations, protected at the front door.",
 }: AuthPageFrameProps) {
   return (
     <main className="chicago-dark grid min-h-[100dvh] overflow-hidden bg-[var(--canvas)] text-[var(--text-primary)] md:grid-cols-[minmax(0,0.92fr)_minmax(420px,1.08fr)]">
       <section className="relative z-10 flex min-h-[100dvh] items-center justify-center px-5 py-8 sm:px-8">
-        <div className="w-full max-w-[430px]">{children}</div>
+        <div className={`w-full ${contentClassName}`}>{children}</div>
       </section>
 
       <section className="relative hidden min-h-[100dvh] p-4 md:block">
@@ -238,11 +240,14 @@ export function SignUpPage({
   successMessage,
 }: SignUpPageProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [workspaceIntent, setWorkspaceIntent] = useState<"create" | "join">("create");
+  const creatingWorkspace = workspaceIntent === "create";
 
   return (
     <AuthPageFrame
-      rightSteps={["Create your account", "Confirm your work email", "Workspace admin approves access"]}
-      rightTitle="Create an operator account, then let your workspace admin approve access."
+      contentClassName="max-w-[620px]"
+      rightSteps={["Create your profile", "Create or join a workspace", "Invite the team and configure Arc"]}
+      rightTitle="Start with the company workspace, then give Arc a clean place to learn."
     >
       <div className="animate-auth-element">
         {/* eslint-disable-next-line @next/next/no-img-element -- transparent brand mark served from /public. */}
@@ -251,58 +256,176 @@ export function SignUpPage({
 
       <div className="mt-8 space-y-3 sm:mt-10">
         <p className="animate-auth-element animate-auth-delay-100 font-display text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
-          Operator Access
+          Workspace setup
         </p>
         <h1 className="animate-auth-element animate-auth-delay-150 font-serif text-[2.28rem] font-medium leading-[0.98] tracking-[-0.03em] text-[var(--text-primary)] sm:text-[3.2rem]">
           Create your Arc account
         </h1>
         <p className="animate-auth-element animate-auth-delay-200 max-w-[34rem] text-sm leading-6 text-[var(--text-secondary)]">
-          Use a work email. Arc may ask you to confirm your email and wait for workspace approval before signing in.
+          Create your profile, then either start a company workspace or join one by invitation.
         </p>
       </div>
 
-      <form action="/api/auth/sign-up" method="post" className="mt-7 space-y-5 sm:mt-8">
+      <form action="/api/auth/sign-up" method="post" className="mt-7 space-y-6 sm:mt-8">
         <input type="hidden" name="from" value={from} />
 
-        <label className="animate-auth-element animate-auth-delay-300 block">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Email address</span>
-          <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-            <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-            <input
-              autoComplete="username"
-              autoFocus
-              required
-              name="email"
-              type="email"
-              placeholder="operator@example.com"
-              className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-            />
-          </span>
-        </label>
+        <section className="animate-auth-element animate-auth-delay-300 rounded-xl border border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--surface-panel)_72%,transparent)] p-4 shadow-[0_18px_60px_-54px_var(--accent)]">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--accent)]">
+              <User aria-hidden="true" className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="font-display text-base font-semibold text-[var(--text-primary)]">Your profile</h2>
+              <p className="text-xs leading-5 text-[var(--text-muted)]">This identifies who owns the first workspace step.</p>
+            </div>
+          </div>
 
-        <label className="animate-auth-element animate-auth-delay-400 block">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Password</span>
-          <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-            <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-            <input
-              autoComplete="new-password"
-              minLength={8}
-              required
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="At least 8 characters"
-              className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-            />
-            <button
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-              onClick={() => setShowPassword((value) => !value)}
-              type="button"
-            >
-              {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
-            </button>
-          </span>
-        </label>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">Full name</span>
+              <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
+                <User aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                <input
+                  autoComplete="name"
+                  autoFocus
+                  maxLength={96}
+                  required
+                  name="fullName"
+                  type="text"
+                  placeholder="Evan Ryan"
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                />
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">Work email</span>
+              <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
+                <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                <input
+                  autoComplete="username"
+                  required
+                  name="email"
+                  type="email"
+                  placeholder="operator@example.com"
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                />
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <section className="animate-auth-element animate-auth-delay-400 rounded-xl border border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--surface-panel)_72%,transparent)] p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--accent)]">
+              <Building2 aria-hidden="true" className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="font-display text-base font-semibold text-[var(--text-primary)]">Workspace</h2>
+              <p className="text-xs leading-5 text-[var(--text-muted)]">Arc keeps company memory, brand rules, and access inside this boundary.</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className={`cursor-pointer rounded-lg border p-4 transition ${creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"}`}>
+              <input
+                checked={creatingWorkspace}
+                className="sr-only"
+                name="workspaceIntent"
+                onChange={() => setWorkspaceIntent("create")}
+                type="radio"
+                value="create"
+              />
+              <span className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                <Building2 aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
+                Create workspace
+              </span>
+              <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
+                Start the organization account and invite the team after setup.
+              </span>
+            </label>
+
+            <label className={`cursor-pointer rounded-lg border p-4 transition ${!creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"}`}>
+              <input
+                checked={!creatingWorkspace}
+                className="sr-only"
+                name="workspaceIntent"
+                onChange={() => setWorkspaceIntent("join")}
+                type="radio"
+                value="join"
+              />
+              <span className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                <Users aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
+                Join workspace
+              </span>
+              <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
+                Use this if someone will invite you into an existing company.
+              </span>
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
+            <label className="block">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                Organization name{creatingWorkspace ? "" : " (optional)"}
+              </span>
+              <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
+                <Building2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                <input
+                  autoComplete="organization"
+                  maxLength={96}
+                  name="organizationName"
+                  placeholder="Big Shoulders Restoration"
+                  required={creatingWorkspace}
+                  type="text"
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                />
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">Type</span>
+              <select
+                className="mt-2 h-13 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition focus:border-[var(--accent-border-strong)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+                defaultValue="company"
+                name="workspaceType"
+              >
+                <option value="company">Company</option>
+                <option value="agency">Agency</option>
+                <option value="individual">Personal</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section className="animate-auth-element animate-auth-delay-450 rounded-xl border border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--surface-panel)_72%,transparent)] p-4">
+          <label className="block">
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Password</span>
+            <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
+              <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                required
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="At least 8 characters"
+                className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+              />
+              <button
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+                onClick={() => setShowPassword((value) => !value)}
+                type="button"
+              >
+                {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
+              </button>
+            </span>
+          </label>
+          <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
+            After email confirmation, Arc will send you to workspace setup or match an invitation by email.
+          </p>
+        </section>
 
         {!canCreateAccount ? (
           <p
@@ -380,7 +503,7 @@ function PrimarySubmitButton({
 
   return (
     <button
-      className={`${className ?? ""} flex h-13 w-full items-center justify-center gap-2 rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--on-accent)] shadow-[0_18px_36px_-28px_var(--accent)] transition hover:bg-[var(--accent-strong)] active:translate-y-px disabled:cursor-wait disabled:opacity-75`}
+      className={`${className ?? ""} flex h-13 w-full items-center justify-center gap-2 rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--on-accent)] shadow-[var(--elev-control)] transition duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] hover:shadow-[var(--elev-control-hover)] active:translate-y-px active:bg-[var(--accent-active)] disabled:cursor-wait disabled:opacity-75 disabled:hover:translate-y-0`}
       disabled={disabled || pending}
       type="submit"
     >

@@ -137,7 +137,7 @@ export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalC
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-1 border-b border-[var(--border-hairline)]">
           {QUEUE_FILTERS.map((item) => {
             const selected = filter === item.key;
             const count = items.filter((approval) => item.key === "all" || queueBucket(approval) === item.key).length;
@@ -145,10 +145,10 @@ export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalC
             return (
               <button
                 aria-pressed={selected}
-                className={`inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-sm font-semibold transition active:translate-y-px ${
+                className={`relative inline-flex min-h-9 cursor-pointer items-center rounded px-3 text-sm font-semibold transition active:translate-y-px ${
                   selected
-                    ? "border-[oklch(0.74_0.115_232/0.5)] bg-[var(--surface-raised)] text-[var(--text-primary)]"
-                    : "border-[var(--border-hairline)] bg-[var(--surface-panel)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
                 key={item.key}
                 onClick={() => {
@@ -158,7 +158,8 @@ export function ApprovalQueueTable({ items, selectedItemId }: { items: ApprovalC
                 type="button"
               >
                 {item.label}
-                <span className="ml-2 rounded-full bg-current/10 px-1.5 text-xs">{count}</span>
+                <span className={`ml-2 font-mono text-xs tabular-nums ${selected ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>{count}</span>
+                {selected ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
               </button>
             );
           })}

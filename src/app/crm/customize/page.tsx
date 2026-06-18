@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AppShell } from "../../_components/app-shell";
 import { PageHeader, Panel, StatusPill, buttonClasses } from "../../_components/page-header";
 import { crmObjects } from "../../_data/growth-engine";
+import { CRM_FIELD_PRESETS } from "../_components/crm-field-presets";
 import { CrmObjectTabs } from "../_components/crm-object-tabs";
 
 const customizationSteps = [
@@ -34,7 +35,7 @@ export default function CrmCustomizePage() {
   return (
     <AppShell active="/crm">
       <PageHeader
-        title="Customize CRM"
+        title="Object Studio"
         description="Keep the everyday CRM simple, but let each customer shape the tables, fields, views, and reports around how their business works."
         aside={
           <>
@@ -70,18 +71,31 @@ export default function CrmCustomizePage() {
             </p>
           </div>
           <div className="divide-y divide-[var(--border-hairline)]">
-            {crmObjects.map((object) => (
-              <div className="grid gap-3 px-5 py-4 md:grid-cols-[180px_minmax(0,1fr)_140px]" key={object.key}>
+            {crmObjects.map((object) => {
+              const preset = CRM_FIELD_PRESETS[object.key];
+              return (
+              <div className="grid gap-3 px-5 py-4 lg:grid-cols-[160px_minmax(0,1fr)_minmax(220px,0.75fr)_120px]" key={object.key}>
                 <div>
                   <div className="font-semibold text-[var(--text-primary)]">{object.label}</div>
                   <div className="mt-1 text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">{object.key}</div>
                 </div>
                 <p className="text-sm leading-6 text-[var(--text-secondary)]">{object.description}</p>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold text-[var(--text-muted)]">Default fields</div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {preset.studioFields.slice(0, 5).map((field) => (
+                      <span className="rounded border border-[var(--border-hairline)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]" key={field.label}>
+                        {field.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
                 <Link className={buttonClasses({ variant: "ghost", size: "sm", className: "justify-center" })} href={object.href}>
                   Open
                 </Link>
               </div>
-            ))}
+            );
+            })}
           </div>
         </Panel>
 
@@ -91,7 +105,7 @@ export default function CrmCustomizePage() {
             <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Common field types</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {fieldTypes.map((field) => (
-                <span className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)]" key={field}>
+                <span className="rounded border border-[var(--border-hairline)] bg-[rgba(255,255,255,0.025)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)]" key={field}>
                   {field}
                 </span>
               ))}

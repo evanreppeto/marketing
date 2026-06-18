@@ -24,7 +24,7 @@ export function FilterChips({
   onChange: (filter: AssetFilter) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)]">
       {FILTERS.map((f) => {
         const on = f.value === active;
         return (
@@ -34,13 +34,14 @@ export function FilterChips({
             onClick={() => onChange(f.value)}
             aria-pressed={on}
             className={cx(
-              "rounded-full border px-3 py-1 text-[11.5px] font-medium transition",
+              "relative rounded px-3 py-2 text-[11.5px] font-semibold transition active:translate-y-px",
               on
-                ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] text-[var(--accent-contrast)]"
-                : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:border-[var(--accent-border-strong)] hover:text-[var(--text-primary)]",
+                ? "text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
             )}
           >
             {f.label}
+            {on ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
           </button>
         );
       })}

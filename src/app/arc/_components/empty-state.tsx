@@ -82,7 +82,7 @@ export function ChatEmptyHero({
         </p>
       )}
       <h2 className="font-display text-[clamp(1.7rem,3.2vw,2.15rem)] font-bold leading-[1.04] tracking-[-0.035em] text-[var(--text-primary)]">
-        {project ? `New chat in ${project.name}` : `What should ${assistantName} work on?`}
+        {project ? `New chat in ${project.name}` : `Give ${assistantName} a concrete job`}
       </h2>
       {project ? (
         <>
@@ -107,7 +107,7 @@ export function ChatEmptyHero({
         </>
       ) : (
         <p className="max-w-[46ch] text-sm leading-6 text-[var(--text-secondary)]">
-          Ask about a campaign, lead, or persona. {assistantName} drafts and recommends — you approve what goes out.
+          Name the audience, source, channel, or blocker. {assistantName} should return usable work, show the reasoning, and keep outbound locked for review.
         </p>
       )}
     </div>
@@ -115,7 +115,6 @@ export function ChatEmptyHero({
 }
 
 export function ChatEmptyShortcuts({
-  assistantName,
   onPick,
   pendingApprovals,
 }: {
@@ -124,19 +123,29 @@ export function ChatEmptyShortcuts({
   pendingApprovals: number;
 }) {
   const shortcuts: Shortcut[] = [
-    { label: "Draft a campaign", hint: `${assistantName} drafts; you approve`, prompt: "Draft a campaign for @", icon: ICON.draft },
-    { label: "Find new leads", hint: "Search and propose prospects", prompt: "Find new leads for @", icon: ICON.leads },
     {
-      label: "Review pending",
-      hint: "Everything awaiting your decision",
-      prompt: "What's awaiting my approval right now, and the risk on each?",
+      label: "Prepare a campaign packet",
+      hint: "Audience, channels, copy, review list",
+      prompt: "Prepare a campaign packet for @. Include audience, channel plan, draft copy, proof points, and what needs approval.",
+      icon: ICON.draft,
+    },
+    {
+      label: "Surface lead signals",
+      hint: "Prospects with evidence, not guesses",
+      prompt: "Find lead signals for @. Show why each one matters, the source, and the recommended next action.",
+      icon: ICON.leads,
+    },
+    {
+      label: "Review locked work",
+      hint: "What is waiting, why it is locked",
+      prompt: "List everything awaiting approval. For each item, show the risk, source, and the exact decision needed.",
       icon: ICON.review,
       badge: pendingApprovals > 0 ? pendingApprovals : undefined,
     },
     {
-      label: "Summarize a campaign",
-      hint: "Status, approvals, next steps",
-      prompt: "Summarize my latest campaign — status, pending approvals, and what's next.",
+      label: "Brief a campaign",
+      hint: "Status, blockers, next decision",
+      prompt: "Brief my latest campaign. Cover status, open decisions, blocked pieces, launch readiness, and the next operator action.",
       icon: ICON.summarize,
     },
   ];

@@ -160,7 +160,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
 
 function PersonaDetailTabs({ activeTab, personaKey, agentName }: { activeTab: PersonaDetailTab; personaKey: string; agentName: string }) {
   return (
-    <nav aria-label="Persona detail sections" className="module-rise mb-5 grid gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-2 shadow-[var(--elev-panel)] md:grid-cols-3">
+    <nav aria-label="Persona detail sections" className="module-rise mb-5 flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3">
       {buildPersonaDetailTabs(agentName).map((tab) => {
         const selected = activeTab === tab.key;
         const href = tab.key === "rule" ? `/persona-intelligence/${personaKey}` : `/persona-intelligence/${personaKey}?tab=${tab.key}`;
@@ -168,16 +168,17 @@ function PersonaDetailTabs({ activeTab, personaKey, agentName }: { activeTab: Pe
         return (
           <Link
             aria-current={selected ? "page" : undefined}
-            className={`cursor-pointer rounded-lg border px-4 py-3 transition duration-200 hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] active:translate-y-px ${
+            className={`relative min-w-[13rem] cursor-pointer rounded px-3 py-2.5 transition duration-150 active:translate-y-px ${
               selected
-                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
-                : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)]"
+                ? "text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
             href={href}
             key={tab.key}
           >
             <span className="block text-sm font-bold text-[var(--text-primary)]">{tab.label}</span>
             <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{tab.detail}</span>
+            {selected ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
           </Link>
         );
       })}

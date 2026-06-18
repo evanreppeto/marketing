@@ -1,0 +1,305 @@
+import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
+
+type WorkspaceType = "individual" | "company" | "agency";
+
+type OrganizationRow = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+type WorkspaceRow = {
+  id: string;
+  org_id: string;
+  key: string;
+  slug: string;
+  name: string;
+};
+
+export type CreateWorkspaceInput = {
+  organizationName: string;
+  workspaceName?: string;
+  workspaceType?: string;
+};
+
+export type CreateWorkspaceResult =
+  | { ok: true; orgId: string; workspaceId: string; claimedExistingOrg: boolean }
+  | { ok: false; status: "not_authenticated" | "not_configured" | "invalid_input" | "already_claimed" | "failed"; message: string };
+
+function normalizeName(value: string | undefined, fallback = "") {
+  return (value ?? fallback).replace(/\s+/g, " ").trim();
+}
+
+function slugify(value: string) {
+  const slug = value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72);
+  return slug || "workspace";
+}
+
+function normalizeWorkspaceType(value: string | undefined): WorkspaceType {
+  return value === "individual" || value === "agency" || value === "company" ? value : "company";
+}
+
+function shortMarkFor(name: string) {
+  const words = name
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-z0-9]/gi, ""))
+    .filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
+}
+
+async function getActiveMembershipForUser(client: TypedSupabaseClient, userId: string) {
+  const { data, error } = await client
+    .from("workspace_memberships")
+    .select("org_id,workspace_id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<{ org_id: string; workspace_id: string }>();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+async function findOrganizationBySlug(client: TypedSupabaseClient, slug: string) {
+  const { data, error } = await client
+    .from("organizations")
+    .select("id,name,slug")
+    .eq("slug", slug)
+    .maybeSingle<OrganizationRow>();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+async function organizationHasMemberships(client: TypedSupabaseClient, orgId: string) {
+  const { count, error } = await client
+    .from("organization_memberships")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .in("status", ["active", "invited"]);
+
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+async function createOrganization(client: TypedSupabaseClient, name: string, slug: string) {
+  const { data, error } = await client
+    .from("organizations")
+    .insert({ name, slug, status: "active" })
+    .select("id,name,slug")
+    .single<OrganizationRow>();
+
+  if (error) throw error;
+  return data;
+}
+
+async function upsertDefaultWorkspace(
+  client: TypedSupabaseClient,
+  org: OrganizationRow,
+  workspaceName: string,
+  workspaceType: WorkspaceType,
+  userId: string,
+) {
+  const workspaceSlug = slugify(workspaceName || org.name);
+  const { data: existing, error: existingError } = await client
+    .from("workspaces")
+    .select("id,org_id,key,slug,name")
+    .eq("org_id", org.id)
+    .eq("key", "default")
+    .maybeSingle<WorkspaceRow>();
+
+  if (existingError) throw existingError;
+
+  if (existing) {
+    const { data, error } = await client
+      .from("workspaces")
+      .update({
+        name: workspaceName,
+        workspace_type: workspaceType,
+        created_by: userId,
+        status: "active",
+      })
+      .eq("id", existing.id)
+      .select("id,org_id,key,slug,name")
+      .single<WorkspaceRow>();
+
+    if (error) throw error;
+    return data;
+  }
+
+  const { data, error } = await client
+    .from("workspaces")
+    .insert({
+      org_id: org.id,
+      key: "default",
+      slug: workspaceSlug,
+      name: workspaceName,
+      workspace_type: workspaceType,
+      created_by: userId,
+      settings: { createdFromOnboarding: true },
+      metadata: {},
+    })
+    .select("id,org_id,key,slug,name")
+    .single<WorkspaceRow>();
+
+  if (error) throw error;
+  return data;
+}
+
+async function createOwnerMemberships(client: TypedSupabaseClient, orgId: string, workspaceId: string, userId: string, email: string) {
+  const joinedAt = new Date().toISOString();
+  const orgMembership = {
+    org_id: orgId,
+    user_id: userId,
+    invited_email: email,
+    role: "owner",
+    status: "active",
+    joined_at: joinedAt,
+  };
+  const workspaceMembership = {
+    org_id: orgId,
+    workspace_id: workspaceId,
+    user_id: userId,
+    invited_email: email,
+    role: "owner",
+    status: "active",
+    joined_at: joinedAt,
+  };
+
+  const { data: existingOrgMembership, error: existingOrgError } = await client
+    .from("organization_memberships")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .maybeSingle<{ id: string }>();
+
+  if (existingOrgError) throw existingOrgError;
+
+  const { error: orgError } = existingOrgMembership
+    ? await client.from("organization_memberships").update(orgMembership).eq("id", existingOrgMembership.id)
+    : await client.from("organization_memberships").insert(orgMembership);
+
+  if (orgError) throw orgError;
+
+  const { data: existingWorkspaceMembership, error: existingWorkspaceError } = await client
+    .from("workspace_memberships")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle<{ id: string }>();
+
+  if (existingWorkspaceError) throw existingWorkspaceError;
+
+  const { error: workspaceError } = existingWorkspaceMembership
+    ? await client.from("workspace_memberships").update(workspaceMembership).eq("id", existingWorkspaceMembership.id)
+    : await client.from("workspace_memberships").insert(workspaceMembership);
+
+  if (workspaceError) throw workspaceError;
+}
+
+async function createWorkspaceDefaults(client: TypedSupabaseClient, org: OrganizationRow, workspace: WorkspaceRow, userId: string) {
+  await client.from("arc_instances").upsert(
+    {
+      org_id: org.id,
+      workspace_id: workspace.id,
+      key: "arc",
+      display_name: "Arc",
+      status: "active",
+      memory_policy: "approval_required",
+    },
+    { onConflict: "workspace_id,key" },
+  );
+
+  await client.from("business_profiles").upsert(
+    {
+      org_id: org.id,
+      display_name: org.name,
+      legal_name: org.name,
+      short_mark: shortMarkFor(org.name),
+      status: "draft",
+    },
+    { onConflict: "org_id" },
+  );
+
+  await client.from("audit_events").insert({
+    org_id: org.id,
+    workspace_id: workspace.id,
+    actor_user_id: userId,
+    actor_kind: "user",
+    action: "workspace.created",
+    subject_table: "workspaces",
+    subject_id: workspace.id,
+    summary: `Workspace created for ${org.name}.`,
+    metadata: { source: "onboarding" },
+  });
+}
+
+export async function createWorkspaceForAuthenticatedUser(input: CreateWorkspaceInput): Promise<CreateWorkspaceResult> {
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, status: "not_configured", message: "Supabase admin env vars are required to create a workspace." };
+  }
+
+  const user = await getSupabaseAuthenticatedUser();
+  if (!user) {
+    return { ok: false, status: "not_authenticated", message: "Sign in before creating a workspace." };
+  }
+
+  const email = user.email?.trim().toLowerCase();
+  const organizationName = normalizeName(input.organizationName);
+  const workspaceName = normalizeName(input.workspaceName, organizationName);
+  const workspaceType = normalizeWorkspaceType(input.workspaceType);
+
+  if (!email || organizationName.length < 2 || workspaceName.length < 2) {
+    return { ok: false, status: "invalid_input", message: "Enter an organization and workspace name." };
+  }
+
+  const client = getSupabaseAdminClient();
+
+  try {
+    const existingMembership = await getActiveMembershipForUser(client, user.id);
+    if (existingMembership) {
+      return {
+        ok: true,
+        orgId: existingMembership.org_id,
+        workspaceId: existingMembership.workspace_id,
+        claimedExistingOrg: false,
+      };
+    }
+
+    const orgSlug = slugify(organizationName);
+    const existingOrg = await findOrganizationBySlug(client, orgSlug);
+    const claimedExistingOrg = Boolean(existingOrg);
+
+    if (existingOrg && (await organizationHasMemberships(client, existingOrg.id))) {
+      return {
+        ok: false,
+        status: "already_claimed",
+        message: "That organization already has members. Ask an owner or admin to invite you.",
+      };
+    }
+
+    const org = existingOrg ?? (await createOrganization(client, organizationName, orgSlug));
+    const workspace = await upsertDefaultWorkspace(client, org, workspaceName, workspaceType, user.id);
+
+    await createOwnerMemberships(client, org.id, workspace.id, user.id, email);
+    await createWorkspaceDefaults(client, org, workspace, user.id);
+
+    return { ok: true, orgId: org.id, workspaceId: workspace.id, claimedExistingOrg };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "failed",
+      message: error instanceof Error ? error.message : "Workspace creation failed.",
+    };
+  }
+}

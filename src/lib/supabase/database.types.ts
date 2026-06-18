@@ -16,6 +16,180 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      agent_api_tokens: {
+        Row: {
+          id: string;
+          org_id: string;
+          workspace_id: string;
+          token_hash: string;
+          prefix: string;
+          label: string | null;
+          created_at: string;
+          last_used_at: string | null;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string;
+          workspace_id?: string;
+          token_hash: string;
+          prefix: string;
+          label?: string | null;
+          created_at?: string;
+          last_used_at?: string | null;
+          revoked_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          workspace_id?: string;
+          token_hash?: string;
+          prefix?: string;
+          label?: string | null;
+          created_at?: string;
+          last_used_at?: string | null;
+          revoked_at?: string | null;
+        };
+        Relationships: [];
+      };
+      agent_connections: {
+        Row: {
+          org_id: string;
+          workspace_id: string;
+          display_name: string | null;
+          agent_key: string | null;
+          webhook_url: string | null;
+          webhook_secret_ref: string | null;
+          enabled: boolean;
+          last_seen_at: string | null;
+          last_status: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          org_id?: string;
+          workspace_id?: string;
+          display_name?: string | null;
+          agent_key?: string | null;
+          webhook_url?: string | null;
+          webhook_secret_ref?: string | null;
+          enabled?: boolean;
+          last_seen_at?: string | null;
+          last_status?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          org_id?: string;
+          workspace_id?: string;
+          display_name?: string | null;
+          agent_key?: string | null;
+          webhook_url?: string | null;
+          webhook_secret_ref?: string | null;
+          enabled?: boolean;
+          last_seen_at?: string | null;
+          last_status?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      arc_instances: {
+        Row: {
+          id: string;
+          org_id: string;
+          workspace_id: string;
+          key: string;
+          display_name: string;
+          status: string;
+          memory_policy: string;
+          model_policy: Json;
+          brand_policy: Json;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          workspace_id: string;
+          key?: string;
+          display_name?: string;
+          status?: string;
+          memory_policy?: string;
+          model_policy?: Json;
+          brand_policy?: Json;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          workspace_id?: string;
+          key?: string;
+          display_name?: string;
+          status?: string;
+          memory_policy?: string;
+          model_policy?: Json;
+          brand_policy?: Json;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      audit_events: {
+        Row: {
+          id: string;
+          org_id: string;
+          workspace_id: string | null;
+          actor_user_id: string | null;
+          actor_kind: string;
+          action: string;
+          subject_table: string | null;
+          subject_id: string | null;
+          summary: string | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          workspace_id?: string | null;
+          actor_user_id?: string | null;
+          actor_kind?: string;
+          action: string;
+          subject_table?: string | null;
+          subject_id?: string | null;
+          summary?: string | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          workspace_id?: string | null;
+          actor_user_id?: string | null;
+          actor_kind?: string;
+          action?: string;
+          subject_table?: string | null;
+          subject_id?: string | null;
+          summary?: string | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       companies: {
         Row: {
           id: string;
@@ -1486,6 +1660,165 @@ export type Database = {
         };
         Relationships: [];
       };
+      organization_memberships: {
+        Row: {
+          id: string;
+          org_id: string;
+          user_id: string | null;
+          invited_email: string | null;
+          role: string;
+          status: string;
+          invited_by: string | null;
+          joined_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          user_id?: string | null;
+          invited_email?: string | null;
+          role?: string;
+          status?: string;
+          invited_by?: string | null;
+          joined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          user_id?: string | null;
+          invited_email?: string | null;
+          role?: string;
+          status?: string;
+          invited_by?: string | null;
+          joined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          id: string;
+          email: string | null;
+          full_name: string | null;
+          avatar_url: string | null;
+          timezone: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email?: string | null;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          timezone?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string | null;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          timezone?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      workspace_memberships: {
+        Row: {
+          id: string;
+          org_id: string;
+          workspace_id: string;
+          user_id: string | null;
+          invited_email: string | null;
+          role: string;
+          status: string;
+          invited_by: string | null;
+          joined_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          workspace_id: string;
+          user_id?: string | null;
+          invited_email?: string | null;
+          role?: string;
+          status?: string;
+          invited_by?: string | null;
+          joined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          workspace_id?: string;
+          user_id?: string | null;
+          invited_email?: string | null;
+          role?: string;
+          status?: string;
+          invited_by?: string | null;
+          joined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      workspaces: {
+        Row: {
+          id: string;
+          org_id: string;
+          key: string;
+          slug: string;
+          name: string;
+          workspace_type: string;
+          status: string;
+          settings: Json;
+          metadata: Json;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          key?: string;
+          slug: string;
+          name: string;
+          workspace_type?: string;
+          status?: string;
+          settings?: Json;
+          metadata?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          key?: string;
+          slug?: string;
+          name?: string;
+          workspace_type?: string;
+          status?: string;
+          settings?: Json;
+          metadata?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       business_profiles: {
         Row: {
           id: string;
@@ -1881,7 +2214,16 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_secret: {
+        Args: {
+          new_secret: string;
+          new_name?: string;
+          new_description?: string;
+        };
+        Returns: string;
+      };
+    };
     Enums: {
       persona_mapping:
         | "persona_homeowner_emergency"

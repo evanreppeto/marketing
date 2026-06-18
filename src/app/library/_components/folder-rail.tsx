@@ -31,15 +31,16 @@ export function FolderRail({
             href={f.id === "all" ? "/library" : `/library?folder=${encodeURIComponent(f.id)}`}
             aria-current={isActive ? "page" : undefined}
             className={cx(
-              "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
+              "relative flex items-center gap-2 rounded px-3 py-2 text-sm transition",
               isActive
-                ? "bg-[var(--surface-raised)] text-[var(--text-primary)]"
-                : "text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]",
+                ? "text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
             )}
           >
             <FolderIcon className="h-4 w-4 shrink-0" />
             <span className="flex-1 truncate">{f.name}</span>
             <span className="text-xs text-[var(--text-muted)]">{f.count}</span>
+            {isActive ? <span aria-hidden className="absolute inset-y-2 right-1 w-px bg-[var(--accent)]" /> : null}
           </Link>
         );
       })}

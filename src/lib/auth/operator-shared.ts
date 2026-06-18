@@ -58,3 +58,7 @@ export function getSafeOperatorReturnPath(value: string | undefined) {
 
   return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
+
+export function isAuthScreenPreviewEnabled(value: string | undefined, nodeEnv = process.env.NODE_ENV) {
+  return value === "auth" && nodeEnv !== "production";
+}

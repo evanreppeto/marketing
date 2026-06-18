@@ -93,7 +93,7 @@ export function AnalyticsExplorer({ funnelStages, channels, campaignRows }: Expl
   return (
     <div className="grid gap-5">
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-[var(--border-hairline)] pb-3">
         <FilterGroup
           label="Channel"
           value={channel}
@@ -213,7 +213,7 @@ function FilterGroup({
           </svg>
         </div>
       ) : (
-        <div className="inline-flex flex-wrap gap-1 rounded-lg border border-[var(--border-panel)] bg-[var(--surface-inset)] p-0.5">
+        <div className="inline-flex flex-wrap gap-1 border-b border-[var(--border-hairline)]">
           {options.map((o) => {
             const active = o.value === value;
             return (
@@ -221,14 +221,15 @@ function FilterGroup({
                 key={o.value}
                 type="button"
                 onClick={() => onChange(o.value)}
-                className={`inline-flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs font-semibold transition-[transform,background-color,color,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96] ${
+                className={`relative inline-flex items-center gap-1.5 rounded px-3 py-2 text-xs font-semibold transition duration-150 active:translate-y-px ${
                   active
-                    ? "bg-[var(--accent-soft)] text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                    : "text-[var(--text-muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--text-secondary)]"
+                    ? "text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {withLogos && o.channel ? <ChannelLogo channel={o.channel} size={15} /> : null}
                 {o.label}
+                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
               </button>
             );
           })}

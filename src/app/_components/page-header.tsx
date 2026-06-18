@@ -68,11 +68,7 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
             <p className={cx("mt-2 max-w-[72ch] text-[0.95rem] leading-7", theme.text.body)}>{description}</p>
           ) : null}
         </div>
-        {aside ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:justify-end">
-            {aside}
-          </div>
-        ) : null}
+        {aside ? <div className="flex shrink-0 flex-wrap items-center gap-2 border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1.5 lg:justify-end">{aside}</div> : null}
       </div>
     </header>
   );
@@ -142,10 +138,10 @@ export function StatCard({ label, value, hint, delta, deltaTone = "neutral", ton
           ? "text-[var(--priority-text)]"
           : "text-[var(--text-muted)]";
   return (
-    <div className={cx(theme.surface.panel, "min-w-0 px-3.5 py-3")}>
+    <div className="min-w-0 border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-panel)_82%,var(--canvas))] px-3.5 py-3">
       <div className="flex items-center gap-1.5">
         {icon ? <span className="inline-flex h-3.5 w-3.5 items-center justify-center text-[var(--text-muted)] [&>svg]:h-3.5 [&>svg]:w-3.5">{icon}</span> : null}
-        <span className="truncate text-[11px] font-medium uppercase tracking-[0.13em] text-[var(--text-muted)]">{label}</span>
+        <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
       </div>
       <div className="mt-1.5 flex items-end justify-between gap-2">
         <div className={cx("font-display text-[1.55rem] font-semibold leading-none tracking-[-0.02em]", STAT_VALUE_TONE[tone])}>
@@ -172,9 +168,11 @@ export function StatStrip({
   /** Force a fixed column count at lg; otherwise auto-fits ~190px cards. */
   columns?: number;
 }) {
-  const style = columns
-    ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
-    : { gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" };
+  const style = {
+    gridTemplateColumns: columns
+      ? "repeat(auto-fit, minmax(min(170px, 100%), 1fr))"
+      : "repeat(auto-fit, minmax(min(190px, 100%), 1fr))",
+  };
   return (
     <div className={cx("module-rise mb-5 grid gap-3", className)} style={style}>
       {items.map((item, i) => (
@@ -276,18 +274,21 @@ export function StatusPill({
   tone = "gray",
   icon,
   style,
+  className = "",
 }: {
   children: React.ReactNode;
   tone?: ThemeTone;
   icon?: React.ReactNode;
   style?: React.CSSProperties;
+  className?: string;
 }) {
   return (
     <span
       style={style}
       className={cx(
-        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
+        "inline-flex items-center gap-1.5 rounded-[3px] border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
         theme.pill[tone],
+        className,
       )}
     >
       {icon ? <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center [&>svg]:h-3 [&>svg]:w-3">{icon}</span> : null}

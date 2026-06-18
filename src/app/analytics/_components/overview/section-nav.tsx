@@ -25,14 +25,19 @@ export function SectionNav({ links }: { links: SectionLink[] }) {
   }, [links]);
 
   return (
-    <nav aria-label="Analytics sections" className="sticky top-2 z-10 mb-5 flex flex-wrap gap-1 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)]/95 p-1.5 backdrop-blur">
+    <nav
+      aria-label="Analytics sections"
+      className="sticky top-2 z-10 mb-5 flex flex-wrap gap-1 border-b border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--canvas)_86%,transparent)] pb-3 backdrop-blur"
+    >
       {links.map((link) => (
         <a
           key={link.id}
           href={`#${link.id}`}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${active === link.id ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]"}`}
+          aria-current={active === link.id ? "true" : undefined}
+          className={`relative rounded px-3 py-2 text-sm font-semibold transition active:translate-y-px ${active === link.id ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
         >
           {link.label}
+          {active === link.id ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
         </a>
       ))}
     </nav>

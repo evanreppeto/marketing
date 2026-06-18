@@ -60,6 +60,15 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
 
       <CrmObjectTabs activeObject={objectKey} counts={navCounts} />
 
+      <div className="module-rise mt-3 flex flex-col gap-2 border-b border-[var(--border-hairline)] pb-3 text-sm text-[var(--text-secondary)] [animation-delay:55ms] sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-[78ch] leading-6">
+          <span className="font-semibold text-[var(--text-primary)]">Workspace CRM schema.</span> Core tables stay ready by default; Object studio is where a team can add custom tables, fields, saved views, and reports.
+        </p>
+        <Link className={buttonClasses({ variant: "ghost", size: "sm", className: "shrink-0 justify-center" })} href="/crm/customize">
+          Open Object studio
+        </Link>
+      </div>
+
       <ActionFeedback
         action={showCreateForm ? undefined : action}
         messages={{
@@ -108,6 +117,7 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
               activeViewDescription={activeViewMeta.description}
               activeViewLabel={activeViewMeta.label}
               objectHref={crmObject.href}
+              objectKey={objectKey}
               objectLabel={crmObject.label}
               primaryField={crmObject.primaryField}
               rows={filteredRows}
@@ -130,21 +140,22 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
 
 function ObjectViewMenu({ activeView, objectHref }: { activeView: CrmListViewKey; objectHref: string }) {
   return (
-    <div className="flex flex-wrap gap-1 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1">
+    <div className="flex flex-wrap gap-1">
       {crmListViews.map((view) => {
         const isActive = activeView === view.key;
         return (
           <Link
             aria-current={isActive ? "page" : undefined}
-            className={`inline-flex min-h-8 items-center rounded px-3 text-xs font-semibold transition ${
+            className={`relative inline-flex min-h-8 items-center rounded px-3 text-xs font-semibold transition ${
               isActive
-                ? "bg-[var(--accent)] text-[var(--on-accent)]"
-                : "text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+                ? "text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
             href={view.key === "all-records" ? objectHref : `${objectHref}?view=${view.key}`}
             key={view.key}
           >
             {view.label}
+            {isActive ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
           </Link>
         );
       })}
@@ -187,7 +198,7 @@ function RecordPreviewPanel({
               <StatusPill tone={statusTone(selectedRow.status)}>{selectedRow.status}</StatusPill>
             </div>
 
-            <section className="rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] p-3">
+            <section className="border-l border-[var(--accent)] bg-[var(--surface-inset)] px-3 py-2.5">
               <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent)]">Next step</div>
               <p className="mt-1 text-sm font-semibold leading-6 text-[var(--text-primary)]">{selectedRow.nextStep}</p>
             </section>
