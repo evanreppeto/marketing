@@ -26,4 +26,12 @@ describe("memory block in buildSystemPrompt", () => {
     expect(buildSystemPrompt("BASE", ctx([]))).not.toContain("WHAT YOU REMEMBER");
     expect(buildSystemPrompt("BASE", ctx(undefined))).not.toContain("WHAT YOU REMEMBER");
   });
+
+  it("renders related connection lines as indented sub-lines", () => {
+    const prompt = buildSystemPrompt("BASE", ctx([
+      { label: "Flood angle", summary: "lead 24/7", kind: "messaging_angle", related: ["—proves→ 24/7 response (proof_point)"] },
+    ]));
+    expect(prompt).toContain("- Flood angle — lead 24/7 · messaging_angle");
+    expect(prompt).toContain("    —proves→ 24/7 response (proof_point)");
+  });
 });
