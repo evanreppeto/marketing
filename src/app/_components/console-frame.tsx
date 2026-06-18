@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { PlusIcon, Settings2 } from "lucide-react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
@@ -12,6 +13,7 @@ import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
 import FlowFieldBackground from "@/components/ui/flow-field-background";
+import { Workspaces, WorkspaceContent, WorkspaceTrigger, type Workspace } from "@/components/ui/workspaces";
 
 type ConsoleBrand = {
   workspaceName: string;
@@ -205,7 +207,7 @@ export function ConsoleFrame({
                 </div>
               </div>
 
-              <WorkspaceBadge collapsed={sidebarCollapsed} workspaceName={brand.workspaceName} />
+              <SidebarWorkspaceSwitcher collapsed={sidebarCollapsed} workspaceName={brand.workspaceName} />
 
               <div className={cx("border-t pt-3", theme.surface.divider)}>
                 <SideNav active={pathname} items={utilityNavItems} collapsed={sidebarCollapsed} />
@@ -238,28 +240,6 @@ export function ConsoleFrame({
         </div>
       </main>
     </AgentNameProvider>
-  );
-}
-
-function WorkspaceBadge({ collapsed, workspaceName }: { collapsed?: boolean; workspaceName: string }) {
-  if (collapsed) {
-    return (
-      <div className="border-t border-[var(--border-hairline)] pt-3">
-        <div
-          title={workspaceName}
-          className="mx-auto flex h-9 w-9 items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-[10px] font-semibold text-[var(--accent)]"
-        >
-          {workspaceName.slice(0, 2).toUpperCase()}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="border-t border-[var(--border-hairline)] pt-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Workspace</div>
-      <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{workspaceName}</div>
-    </div>
   );
 }
 
@@ -308,6 +288,45 @@ function ArcCommandLink({
         />
       ) : null}
     </Link>
+  );
+}
+
+function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: boolean; workspaceName: string }) {
+  const workspaces: Workspace[] = [
+    {
+      id: "current",
+      name: workspaceName,
+      plan: "Company workspace",
+    },
+  ];
+
+  return (
+    <div className="border-t border-[var(--border-hairline)] pt-3">
+      {!collapsed ? (
+        <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          Workspace
+        </div>
+      ) : null}
+      <Workspaces workspaces={workspaces} selectedWorkspaceId="current">
+        <WorkspaceTrigger collapsed={collapsed} />
+        <WorkspaceContent align={collapsed ? "center" : "start"} side={collapsed ? "right" : "top"} sideOffset={10} title="Workspaces">
+          <Link
+            className="flex w-full items-center gap-2 rounded px-2 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+            href="/settings?section=workspace"
+          >
+            <Settings2 aria-hidden className="h-4 w-4 text-[var(--text-muted)]" />
+            Manage workspace
+          </Link>
+          <Link
+            className="flex w-full items-center gap-2 rounded px-2 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+            href="/onboarding"
+          >
+            <PlusIcon aria-hidden className="h-4 w-4 text-[var(--accent)]" />
+            Create workspace
+          </Link>
+        </WorkspaceContent>
+      </Workspaces>
+    </div>
   );
 }
 
