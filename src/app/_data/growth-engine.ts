@@ -3,6 +3,7 @@ import { type OfficialPersonaMapping } from "@/domain";
 export const navItems = [
   { label: "Arc", href: "/arc", icon: "agents" },
   { label: "Campaigns", href: "/campaigns", icon: "approval" },
+  { label: "Gallery", href: "/gallery", icon: "gallery" },
   { label: "Opportunities", href: "/opportunities", icon: "opportunities" },
 ];
 

@@ -1,12 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AppShell } from "../../_components/app-shell";
-import { IntelligencePanel } from "../../_components/intelligence-panel";
-import { ActionFeedback, EmptyState, PageHeader, Panel, StatusPill } from "../../_components/page-header";
+import { ActionFeedback, EmptyState, PageHeader } from "../../_components/page-header";
 import { CrmRecordForm } from "./crm-record-form";
 import { isCrmEntityKey } from "../entity-keys";
-import { getCrmRecordData, type CrmObjectKey, type CrmRecordData } from "@/lib/crm/read-model";
+import { getCrmRecordData, type CrmObjectKey } from "@/lib/crm/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getCampaignsForRecord, type LinkedCampaignRecordKind } from "@/lib/campaigns/read-model";
 import { LinkedCampaignsPanel } from "./linked-campaigns-panel";
@@ -17,6 +15,19 @@ import { getRecordNotes, getRecordTasks, getRecordTimeline } from "@/lib/interac
 import { RecordTimeline } from "./record-interactions/timeline";
 import { NotesPanel } from "./record-interactions/notes-panel";
 import { TasksPanel } from "./record-interactions/tasks-panel";
+import {
+  ConnectedRecords,
+  ContactChannels,
+  DataQuality,
+  EngagementSummary,
+  EvidenceSection,
+  NextBestAction,
+  PersonaIntelligence,
+  RecordHeaderBand,
+  RecordQuickStats,
+  RelationshipGraph,
+  StoredFields,
+} from "./crm-record-detail";
 
 const RECORD_FEEDBACK = [
   "created",
@@ -41,7 +52,11 @@ type CrmRecordPageProps = {
 
 
 export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProps) {
-  if (!isUuid(recordId)) {
+  // Demo fallback records (rendered when Supabase is unconfigured/empty) use
+  // stable string ids like "demo-ld-northside-referral" rather than UUIDs. Let
+  // those through so the read-model can resolve them; genuinely unknown ids
+  // still return not_found below.
+  if (!isUuid(recordId) && !recordId.startsWith("demo-")) {
     notFound();
   }
 
@@ -96,9 +111,8 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
       <PageHeader
         backHref={`/crm/${record.key}`}
         backLabel={record.label}
-        eyebrow={`${record.label} record`}
-        title={record.name}
-        description={record.detail}
+        eyebrow="CRM"
+        title={`${record.label} record`}
       />
 
       <ActionFeedback
@@ -119,58 +133,45 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
         }}
       />
 
-      {showEditForm && isCrmEntityKey(objectKey) ? (
-        <div className="mb-4">
+      <div className="space-y-5">
+        <RecordHeaderBand record={record} />
+
+        {showEditForm && isCrmEntityKey(objectKey) ? (
           <CrmRecordForm objectKey={objectKey} mode="edit" recordId={recordId} values={editValues} />
+        ) : null}
+
+        <RecordQuickStats stats={record.quickStats} />
+
+        <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+          {/* Intelligence rail — rendered first in source so it leads the page on
+             narrow viewports, and sticks to the top on wide ones. */}
+          <aside className="min-w-0 space-y-5 lg:order-2 lg:sticky lg:top-5 lg:self-start">
+            <NextBestAction record={record} />
+            <PersonaIntelligence record={record} />
+            <ConnectedRecords record={record} agentName={agentName} />
+            <ContactChannels record={record} />
+            <LinkedCampaignsPanel campaigns={linkedCampaigns} />
+            <DataQuality items={record.dataQuality} recordId={record.id} objectLabel={record.label} />
+          </aside>
+
+          <div className="min-w-0 space-y-5 lg:order-1">
+            <StoredFields record={record} />
+            <EvidenceSection record={record} />
+            <EngagementSummary metrics={record.engagement} />
+            <RelationshipGraph nodes={record.graph} />
+            {entityType ? (
+              <>
+                {tasks?.status === "live" ? (
+                  <TasksPanel entityType={entityType} entityId={recordId} tasks={tasks.tasks} />
+                ) : null}
+                {notes?.status === "live" ? (
+                  <NotesPanel entityType={entityType} entityId={recordId} notes={notes.notes} agentName={agentName} />
+                ) : null}
+                {timeline?.status === "live" ? <RecordTimeline entries={timeline.entries} /> : null}
+              </>
+            ) : null}
+          </div>
         </div>
-      ) : null}
-
-      <div className="grid min-w-0 items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="min-w-0 space-y-5">
-          <RecordSummary record={record} />
-          <RecordFields record={record} />
-          <RelatedRecords record={record} agentName={agentName} />
-          {entityType ? (
-            <>
-              {tasks?.status === "live" ? (
-                <TasksPanel entityType={entityType} entityId={recordId} tasks={tasks.tasks} />
-              ) : null}
-              {notes?.status === "live" ? (
-                <NotesPanel entityType={entityType} entityId={recordId} notes={notes.notes} agentName={agentName} />
-              ) : null}
-              {timeline?.status === "live" ? <RecordTimeline entries={timeline.entries} /> : null}
-            </>
-          ) : null}
-          <LinkedCampaignsPanel campaigns={linkedCampaigns} />
-        </div>
-
-        <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
-          <IntelligencePanel
-            agentName={agentName}
-            model={{
-              title: `${record.label} intelligence`,
-              persona: record.persona,
-              confidence: record.confidence,
-              journeyStage: record.journeyStage,
-              urgency: record.urgency,
-              attentionReason: record.attentionReason,
-              nextBestAction: record.nextBestAction,
-              cta: record.cta,
-              messageAngle: record.messageAngle,
-              guardrailStatus: record.guardrailStatus,
-              scores: [
-                { label: "Lead", value: record.leadScore, detail: "Lead score", tone: record.leadScore === null ? "gray" : undefined },
-                { label: "Fit", value: record.partnerScore, detail: "Relationship fit", tone: record.partnerScore === null ? "gray" : undefined },
-                { label: "Revenue", value: record.revenueScore, detail: "Revenue signal", tone: record.revenueScore ? "green" : "gray" },
-              ],
-              proofPoints: record.proofPoints,
-              evidence: record.evidence,
-              outboundLocked: true,
-            }}
-          />
-
-          <MissingFields record={record} />
-        </aside>
       </div>
     </AppShell>
   );
@@ -179,116 +180,6 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
 export function getCrmRecordParams(objectKey: CrmObjectKey) {
   void objectKey;
   return [];
-}
-
-function RecordSummary({ record }: { record: CrmRecordData }) {
-  return (
-    <Panel className="module-rise">
-      <div>
-        <div className="signal-eyebrow">Record summary</div>
-        <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">{record.name}</h2>
-        <p className="mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">{record.detail}</p>
-      </div>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Owner", record.owner],
-          ["Updated", formatDate(record.updated)],
-          ["Object", record.label],
-          ["Record id", record.id],
-        ].map(([label, value]) => (
-          <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3" key={label}>
-            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-            <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{value}</div>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
-function RecordFields({ record }: { record: CrmRecordData }) {
-  return (
-    <Panel className="module-rise p-0">
-      <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-        <div className="signal-eyebrow">Stored fields</div>
-        <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">What the database knows</h2>
-      </div>
-      <dl className="divide-y divide-[var(--border-hairline)]">
-        {record.fields.map((field) => (
-          <div key={field.label} className="grid gap-3 px-5 py-3 sm:grid-cols-[180px_minmax(0,1fr)]">
-            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{field.label}</dt>
-            <dd className={`min-w-0 text-sm font-semibold leading-6 ${field.value === "Missing" ? "text-[var(--warn)]" : "text-[var(--text-primary)]"}`}>
-              {field.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </Panel>
-  );
-}
-
-function RelatedRecords({ record, agentName }: { record: CrmRecordData; agentName: string }) {
-  return (
-    <Panel className="module-rise">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="signal-eyebrow">Relationships</div>
-          <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">Connected CRM records</h2>
-        </div>
-        <StatusPill tone={record.relationships.length > 0 ? "blue" : "gray"}>{record.relationships.length}</StatusPill>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {record.relationships.length > 0 ? (
-          record.relationships.map((relationship) => (
-            <Link
-              className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
-              href={relationship.href}
-              key={`${relationship.label}-${relationship.href}`}
-            >
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{relationship.label}</div>
-              <div className="mt-1 font-bold text-[var(--text-primary)]">{relationship.value}</div>
-            </Link>
-          ))
-        ) : (
-          <EmptyState title="No relationships linked" detail={`This record needs relationship mapping before ${agentName} can use it confidently.`} />
-        )}
-      </div>
-    </Panel>
-  );
-}
-
-function MissingFields({ record }: { record: CrmRecordData }) {
-  return (
-    <Panel className="module-rise">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="signal-eyebrow">Data contract</div>
-          <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Missing fields</h2>
-        </div>
-        <StatusPill tone={record.missingFields.length > 0 ? "amber" : "green"}>
-          {record.missingFields.length > 0 ? "Needs enrichment" : "Ready"}
-        </StatusPill>
-      </div>
-      <div className="mt-4 grid gap-2">
-        {record.missingFields.length > 0 ? (
-          record.missingFields.map((field) => (
-            <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)]" key={field}>
-              {field}
-            </div>
-          ))
-        ) : (
-          <p className="text-sm leading-6 text-[var(--text-secondary)]">No obvious required fields are missing for this record type.</p>
-        )}
-      </div>
-    </Panel>
-  );
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 function isUuid(value: string) {

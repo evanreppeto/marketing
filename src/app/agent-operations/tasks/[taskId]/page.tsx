@@ -6,6 +6,9 @@ import { EmptyState, PageHeader } from "@/app/_components/page-header";
 import { labelIcon } from "@/app/_components/ticket-icons";
 import { getAgentName } from "@/lib/settings/agent-name";
 import { getAgentTaskDetail } from "@/lib/agent-operations/read-model";
+import { getDemoTaskDetail } from "@/lib/agent-operations/task-demo-detail";
+
+import { TaskDemoDetailEditable } from "./task-demo-detail-editable";
 
 import { TaskInputsPanel, TaskLogsPanel, TaskOutputsPanel } from "./task-record-panels";
 import { TicketAcceptanceCriteria } from "./ticket-acceptance-criteria";
@@ -34,6 +37,14 @@ export default async function Page({ params, searchParams }: PageProps) {
   const query = searchParams ? await searchParams : {};
   const activeSection = normalizeTaskSection(getValue(query.section));
   const agentName = await getAgentName();
+
+  // Demo task ids (the ones the Board links to without Supabase) open into the
+  // rich, concept-matching work-ticket view instead of an "unavailable" card.
+  const demo = getDemoTaskDetail(taskId);
+  if (demo) {
+    return <TaskDemoDetailEditable detail={demo} agentName={agentName} />;
+  }
+
   const detail = await getAgentTaskDetail(taskId, undefined, agentName);
 
   if (detail.status === "not_found") {

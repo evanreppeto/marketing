@@ -8,12 +8,15 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
  */
 const CAMPAIGN_MEDIA_BUCKET = "campaign-media";
 
-/** Upload generated image bytes; returns a permanent public URL. */
-export async function storeGeneratedImage(objectPath: string, bytes: Buffer, contentType: string): Promise<string> {
+/** Upload generated media bytes (image or video); returns a permanent public URL. */
+export async function storeGeneratedMedia(objectPath: string, bytes: Buffer, contentType: string): Promise<string> {
   const client = getSupabaseAdminClient();
   const { error } = await client.storage
     .from(CAMPAIGN_MEDIA_BUCKET)
     .upload(objectPath, bytes, { contentType, upsert: true });
-  if (error) throw new Error(`image upload failed: ${error.message}`);
+  if (error) throw new Error(`media upload failed: ${error.message}`);
   return client.storage.from(CAMPAIGN_MEDIA_BUCKET).getPublicUrl(objectPath).data.publicUrl;
 }
+
+/** @deprecated use storeGeneratedMedia */
+export const storeGeneratedImage = storeGeneratedMedia;

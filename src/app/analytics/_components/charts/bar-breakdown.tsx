@@ -1,25 +1,21 @@
-"use client";
-
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-
 import { EmptyState } from "@/app/_components/page-header";
 import type { ChartPoint } from "../campaign-analytics-model";
-import { ChartTooltip, NeedsDataChip, formatValue, useReducedMotion, type ValueFormat } from "./chart-kit";
-import { useChartTheme, type ChartTheme } from "./use-chart-theme";
+import { NeedsDataChip, formatValue, type ValueFormat } from "./chart-kit";
 
-function toneColor(tone: ChartPoint["tone"], theme: ChartTheme): string {
-  switch (tone) {
-    case "green":
-      return theme.ok;
-    case "amber":
-      return theme.warn;
-    case "red":
-      return theme.priority;
-    default:
-      return theme.accent;
-  }
-}
+/** Bar fill per tone — gold-forward, calm, drawn straight from theme tokens. */
+const TONE_FILL: Record<ChartPoint["tone"], string> = {
+  green: "var(--ok)",
+  amber: "var(--warn)",
+  red: "var(--priority)",
+  blue: "var(--accent)",
+  gray: "var(--border-strong)",
+};
 
+/**
+ * Horizontal breakdown bars — pure CSS/flex (no recharts, no ResponsiveContainer).
+ * Renders deterministically server-side: a label, a tone-colored bar scaled to the
+ * row max, and a mono tabular value. Matches the calm analytics design language.
+ */
 export function BarBreakdown({
   points,
   missing = [],
@@ -33,9 +29,6 @@ export function BarBreakdown({
   emptyDetail: string;
   valueFormat?: ValueFormat;
 }) {
-  const theme = useChartTheme();
-  const reduced = useReducedMotion();
-
   if (points.length === 0) {
     return (
       <div className="p-4">
@@ -51,34 +44,31 @@ export function BarBreakdown({
     );
   }
 
-  // Each row ~44px keeps labels legible; min height avoids a squashed single-bar chart.
-  const height = Math.max(points.length * 44, 120);
-  const data = points.map((point) => ({
-    ...point,
-    displayValue: formatValue(point.value, valueFormat),
-  }));
+  const max = Math.max(1, ...points.map((point) => point.value));
 
   return (
     <div className="p-4">
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }} barCategoryGap={10}>
-          <XAxis type="number" hide />
-          <YAxis
-            type="category"
-            dataKey="label"
-            width={140}
-            tickLine={false}
-            axisLine={false}
-            tick={{ fill: theme.textMuted, fontSize: 12 }}
-          />
-          <Tooltip cursor={{ fill: theme.surface }} content={<ChartTooltip valueFormat={valueFormat} />} />
-          <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={!reduced} animationDuration={420}>
-            {data.map((point) => (
-              <Cell key={point.label} fill={toneColor(point.tone, theme)} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <ul className="space-y-2.5">
+        {points.map((point) => {
+          const pct = Math.max((point.value / max) * 100, point.value > 0 ? 3 : 0);
+          return (
+            <li key={point.label} className="grid grid-cols-[140px_minmax(0,1fr)_auto] items-center gap-3">
+              <span className="truncate text-sm text-[var(--text-secondary)]" title={point.label}>
+                {point.label}
+              </span>
+              <span className="h-2.5 overflow-hidden rounded-full bg-[var(--surface-inset)]">
+                <span
+                  className="block h-full rounded-full transition-[width]"
+                  style={{ width: `${pct}%`, background: TONE_FILL[point.tone] }}
+                />
+              </span>
+              <span className="w-16 text-right font-mono text-xs font-bold tabular-nums text-[var(--text-primary)]">
+                {formatValue(point.value, valueFormat)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
       {missing.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {missing.map((label) => (

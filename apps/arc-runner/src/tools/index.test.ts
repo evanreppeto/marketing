@@ -25,13 +25,14 @@ const READ = [
   "list_campaigns",
   "get_campaign",
   "list_approvals",
+  "read_performance",
   "emit_card",
   "suggest_followups",
   "cite_sources",
   "ask_operator",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
-const DRAFT = ["create_campaign_draft", "generate_image"];
+const DRAFT = ["create_campaign_draft", "generate_image", "generate_video"];
 
 describe("toolsForMode", () => {
   it("ask mode exposes only read tools (no writes)", () => {

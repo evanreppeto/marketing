@@ -1,7 +1,7 @@
 import { GoogleGenAI, PersonGeneration } from "@google/genai";
 import { randomUUID } from "node:crypto";
 
-import type { GeneratedMedia, ImageGenInput, MediaProvider } from "./types";
+import type { GeneratedMedia, ImageGenInput, MediaProvider, VideoGenInput, VideoStart, VideoPoll } from "./types";
 
 // Default to Imagen 4 for best text-to-image photoreal quality. Override with
 // GEMINI_IMAGE_MODEL — e.g. "imagen-4.0-ultra-generate-001" (max quality) or
@@ -13,17 +13,26 @@ const DEFAULT_IMAGE_MODEL = "imagen-4.0-generate-001";
 // falls back to the model default.
 const SUPPORTED_ASPECT_RATIOS = new Set(["1:1", "3:4", "4:3", "9:16", "16:9"]);
 
-function resolveImageModel(): string {
-  return process.env.GEMINI_IMAGE_MODEL?.trim() || DEFAULT_IMAGE_MODEL;
+const DEFAULT_VIDEO_MODEL = "veo-2.0-generate-001";
+const SUPPORTED_VIDEO_ASPECT = new Set(["16:9", "9:16"]);
+
+/** Pick a model: stored pref (if non-empty) -> env -> built-in default. Pure + testable. */
+export function resolveModel(stored: string | undefined, env: string | undefined, fallback: string): string {
+  return (stored && stored.trim()) || (env && env.trim()) || fallback;
 }
 
 /** Google Gemini provider — Imagen 4 (generateImages) or Gemini flash-image
  *  ("Nano Banana", generateContent), selected by model id. */
-export function createGeminiMediaProvider(apiKey: string): MediaProvider {
+export function createGeminiMediaProvider(
+  apiKey: string,
+  opts?: { imageModel?: string; videoModel?: string },
+): MediaProvider {
   const ai = new GoogleGenAI({ apiKey });
+  const imageModel = resolveModel(opts?.imageModel, process.env.GEMINI_IMAGE_MODEL, DEFAULT_IMAGE_MODEL);
+  const videoModel = resolveModel(opts?.videoModel, process.env.GEMINI_VIDEO_MODEL, DEFAULT_VIDEO_MODEL);
   return {
     async generateImage(input: ImageGenInput): Promise<GeneratedMedia> {
-      const model = resolveImageModel();
+      const model = imageModel;
       const aspectRatio =
         input.aspectRatio && SUPPORTED_ASPECT_RATIOS.has(input.aspectRatio) ? input.aspectRatio : undefined;
 
@@ -69,6 +78,42 @@ export function createGeminiMediaProvider(apiKey: string): MediaProvider {
         }
       }
       throw new Error("Gemini returned no image data");
+    },
+    async startVideo(input: VideoGenInput): Promise<VideoStart> {
+      const model = videoModel;
+      const aspectRatio =
+        input.aspectRatio && SUPPORTED_VIDEO_ASPECT.has(input.aspectRatio) ? input.aspectRatio : undefined;
+      const operation = await ai.models.generateVideos({
+        model,
+        prompt: input.prompt,
+        config: {
+          numberOfVideos: 1,
+          personGeneration: PersonGeneration.ALLOW_ADULT,
+          ...(aspectRatio ? { aspectRatio } : {}),
+          ...(input.durationSeconds ? { durationSeconds: input.durationSeconds } : {}),
+        },
+      });
+      const operationName = operation.name;
+      if (!operationName) throw new Error("Veo did not return an operation name");
+      return { operationName, model, jobId: randomUUID() };
+    },
+    async pollVideo(operationName: string): Promise<VideoPoll> {
+      const operation = await ai.operations.getVideosOperation({
+        operation: { name: operationName } as Awaited<ReturnType<typeof ai.models.generateVideos>>,
+      });
+      if (!operation.done) return { status: "running" };
+      const video = operation.response?.generatedVideos?.[0]?.video;
+      if (!video) throw new Error("Veo finished but returned no video (it may have been safety-filtered)");
+      const contentType = video.mimeType ?? "video/mp4";
+      if (video.videoBytes) {
+        return { status: "done", bytes: Buffer.from(video.videoBytes, "base64"), contentType };
+      }
+      if (video.uri) {
+        const res = await fetch(video.uri, { headers: { "x-goog-api-key": apiKey } });
+        if (!res.ok) throw new Error(`Veo video download failed: ${res.status}`);
+        return { status: "done", bytes: Buffer.from(await res.arrayBuffer()), contentType };
+      }
+      throw new Error("Veo result had neither videoBytes nor uri");
     },
   };
 }

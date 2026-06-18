@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import { buildDemoActivity } from "./demo";
 
 /**
  * Unified activity log. The control plane already WRITES a full audit trail
@@ -73,7 +74,9 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
   const sourceLimit = sourceLimitForQuery(query);
 
   if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "unavailable", message: "Supabase env vars are not configured." };
+    // No DB connected (local preview): render a realistic, read-only BSR audit
+    // trail instead of an empty state. Display-only — no outbound side effects.
+    return buildDemoActivity(query);
   }
 
   try {
@@ -128,6 +131,12 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
     const filtered = applyActivityFilters(entries, query);
     const merged = mergeActivityEntries(filtered, limit);
 
+    // Connected but no audit trail recorded yet (fresh DB, pre-seed): keep the
+    // log populated with the read-only preview so the page never reads empty.
+    if (merged.length === 0 && !hasActiveQuery(query)) {
+      return buildDemoActivity(query);
+    }
+
     return {
       status: "live",
       entries: merged,
@@ -141,6 +150,23 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
 
 export function sourceLimitForQuery(query: ActivityQuery): number {
   return query.needsReview === true ? NEEDS_REVIEW_SOURCE_LIMIT : SOURCE_LIMIT;
+}
+
+/**
+ * True when the query narrows results (filters/search/needs-review/time bounds).
+ * Used to decide whether an empty live result should fall back to demo data: we
+ * only seed the preview for an unfiltered, genuinely-empty feed — a filter that
+ * legitimately matches nothing must still show "No activity found".
+ */
+function hasActiveQuery(query: ActivityQuery): boolean {
+  return Boolean(
+    query.categories?.length ||
+      query.actorTypes?.length ||
+      query.needsReview ||
+      query.search ||
+      query.since ||
+      query.until,
+  );
 }
 
 /** Pure merge: drop entries with no timestamp, sort newest-first, cap to `limit`. */

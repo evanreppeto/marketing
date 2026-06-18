@@ -18,6 +18,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@google-cloud/storage": "^7.21.0",
     "@google/genai": "^2.8.0",
     "@paper-design/shaders-react": "^0.0.76",
@@ -31,10 +34,13 @@
     "@streamdown/mermaid": "^1.0.2",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
+    "@types/cytoscape": "^3.31.0",
     "ai": "^6.0.206",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cytoscape": "^3.34.0",
+    "cytoscape-cola": "^2.5.1",
     "lucide-react": "^1.20.0",
     "motion": "^12.40.0",
     "nanoid": "^5.1.11",
