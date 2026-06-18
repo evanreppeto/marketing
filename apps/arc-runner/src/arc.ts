@@ -1,6 +1,7 @@
 import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { resolveBusinessContext } from "./business-context";
+import { resolveRecallMemory } from "./recall";
 import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
@@ -106,6 +107,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const business = await resolveBusinessContext(client);
+  const memory = await resolveRecallMemory(client, payload.message);
   const ctx: ArcTurnContext = {
     business,
     mode: payload.mode,
@@ -116,6 +118,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
       operator: payload.operator,
     },
     mentions: payload.mentions,
+    memory,
     assistantTone: payload.assistantTone,
     assistantResponseStyle: payload.assistantResponseStyle,
     approvalStrictness: payload.approvalStrictness,
@@ -150,6 +153,7 @@ export async function runArcOpportunityDraft(
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const business = await resolveBusinessContext(client);
+  const memory = await resolveRecallMemory(client, payload.message);
   const ctx: ArcTurnContext = {
     business,
     mode: "draft",
@@ -160,6 +164,7 @@ export async function runArcOpportunityDraft(
       operator: payload.operator,
     },
     mentions: [],
+    memory,
   };
 
   return runArcQuery({
