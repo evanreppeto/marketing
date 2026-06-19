@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { Button, StatusPill } from "../_components/page-header";
+import { Button, StatusPill, buttonClasses } from "../_components/page-header";
 import { type ThemeTone } from "../_components/theme";
 import {
   type ConnectionActionState,
@@ -47,6 +47,10 @@ const PROVIDER_COPY: Record<string, { enables: string; setup: string }> = {
     enables: "Approved email dispatches can leave the app through Resend.",
     setup: "Add RESEND_API_KEY and RESEND_FROM, then test the connection.",
   },
+  google_drive: {
+    enables: "Lets each operator connect their Google Drive and import selected files into Library and Arc context.",
+    setup: "Add the app-level Google Drive OAuth client ID and secret, then connect your Google account.",
+  },
   instagram: {
     enables: "Lets future approved social assets target Instagram once the posting transport ships.",
     setup: "Add the Meta app credentials and page access token.",
@@ -67,6 +71,7 @@ const PROVIDER_COPY: Record<string, { enables: string; setup: string }> = {
 
 const PROVIDER_STEPS: Record<string, string[]> = {
   resend: ["Create or open your Resend account.", "Add the API key and sender email to the app environment.", "Test the connection, then send a test email."],
+  google_drive: ["Create the app's Google Cloud OAuth client.", "Add the Drive client ID and secret to the app environment.", "Each operator connects their own Drive account before importing files from Library."],
   instagram: ["Create a Meta app or use the existing company app.", "Connect the Instagram business user and page access token.", "Test credentials here before enabling posting workflows."],
   facebook: ["Create a Meta app or use the existing company app.", "Connect the Facebook page and page access token.", "Test credentials here before enabling posting workflows."],
   linkedin: ["Create or open the LinkedIn developer app.", "Add the organization URN and access token.", "Test credentials here before enabling posting workflows."],
@@ -167,6 +172,14 @@ function SendTestEmail() {
   );
 }
 
+function ConnectGoogleDrive() {
+  return (
+    <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="/api/integrations/google-drive/connect">
+      Connect Google Drive
+    </Link>
+  );
+}
+
 export function ConnectionSetupCard({ connection }: { connection: ConnectionRowView }) {
   const copy = PROVIDER_COPY[connection.provider] ?? {
     enables: "Connects this provider to Arc.",
@@ -205,6 +218,7 @@ export function ConnectionSetupCard({ connection }: { connection: ConnectionRowV
       <SetupSteps connection={connection} />
 
       {connection.provider === "resend" ? <SendTestEmail /> : null}
+      {connection.provider === "google_drive" ? <ConnectGoogleDrive /> : null}
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-[var(--text-muted)]">
         <span>Last tested: {fmt(connection.lastTestedAt)}</span>

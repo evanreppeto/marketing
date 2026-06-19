@@ -6,12 +6,15 @@ import { classifyKind, deriveThreadTitle, validateUpload } from "@/domain";
 import { requireOperator, getOperatorActor } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
+import { parseGoogleDriveFileIds } from "@/lib/google-drive/drive-client";
+import { recordGoogleDriveImportResult, resolveGoogleDriveAccessToken } from "@/lib/google-drive/connection";
 import {
   createConversation,
   insertOperatorMessage,
   insertPendingArcMessage,
   touchConversation,
 } from "@/lib/arc-chat/persistence";
+import { importGoogleDriveFiles } from "@/lib/media-library/google-drive-import";
 import { loadArcAttachments } from "@/lib/media-library/arc-handoff";
 import {
   createFolder,
@@ -31,6 +34,8 @@ async function guard() {
   if (!isSupabaseAdminConfigured()) throw new Error("Supabase is not configured.");
   return getCurrentOrgId();
 }
+
+export type GoogleDriveImportActionState = { ok: boolean; message: string } | null;
 
 export async function createFolderAction(formData: FormData): Promise<void> {
   const orgId = await guard();
@@ -74,6 +79,47 @@ export async function uploadAssetsAction(formData: FormData): Promise<void> {
     });
   }
   revalidatePath("/library");
+}
+
+export async function importFromGoogleDriveAction(
+  _previous: GoogleDriveImportActionState,
+  formData: FormData,
+): Promise<GoogleDriveImportActionState> {
+  const orgId = await guard();
+  const folderId = (String(formData.get("folderId") ?? "") || null) as string | null;
+  const raw = String(formData.get("driveFiles") ?? "");
+  const fileIds = parseGoogleDriveFileIds(raw);
+  if (fileIds.length === 0) {
+    return { ok: false, message: "Paste at least one Google Drive file link or ID." };
+  }
+
+  try {
+    const operator = getOperatorActor();
+    const accessToken = await resolveGoogleDriveAccessToken({ orgId, connectedBy: operator });
+    const result = await importGoogleDriveFiles({
+      orgId,
+      folderId,
+      fileIds,
+      uploadedBy: operator,
+      accessToken,
+    });
+    await recordGoogleDriveImportResult({
+      orgId,
+      connectedBy: operator,
+      ok: result.errors.length === 0,
+      error: result.errors[0] ?? null,
+    });
+    revalidatePath("/library");
+    if (result.imported === 0) {
+      return { ok: false, message: result.errors[0] ?? "No Drive files were imported." };
+    }
+    const skipped = result.skipped > 0 ? ` ${result.skipped} skipped.` : "";
+    return { ok: true, message: `Imported ${result.imported} Drive file${result.imported === 1 ? "" : "s"}.${skipped}` };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Google Drive import failed.";
+    await recordGoogleDriveImportResult({ orgId, connectedBy: getOperatorActor(), ok: false, error: message }).catch(() => undefined);
+    return { ok: false, message };
+  }
 }
 
 export async function renameAssetAction(formData: FormData): Promise<void> {

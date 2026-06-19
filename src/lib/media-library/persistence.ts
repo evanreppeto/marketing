@@ -80,6 +80,7 @@ export type InsertAssetInput = {
   height?: number | null;
   byteSize: number;
   source?: string;
+  provenance?: Record<string, unknown>;
   uploadedBy: string;
   client?: SupabaseClient;
   uploader?: ImageUploader;
@@ -100,7 +101,8 @@ export async function insertAsset(input: InsertAssetInput): Promise<string> {
     org_id: input.orgId, folder_id: input.folderId, file_name: input.fileName,
     storage_path: "pending", public_url: "pending", content_type: input.contentType, kind: input.kind,
     width: input.width ?? null, height: input.height ?? null, byte_size: input.byteSize,
-    source: input.source ?? "uploaded", uploaded_by: input.uploadedBy,
+    source: input.source ?? "uploaded", provenance: input.provenance ?? {},
+    uploaded_by: input.uploadedBy,
   });
   const path = buildStoragePath(input.orgId, id, input.fileName);
   const url = await upload(path, input.bytes, input.contentType);

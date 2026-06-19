@@ -73,9 +73,9 @@ export async function testConnectionAction(
 
   const { kind, label } = providerMeta(provider);
 
-  // Social providers have no live transport yet — "test" verifies that every required
-  // credential env var is present (no external API call).
-  if (kind === "social") {
+  // Social/storage providers have no live transport here. "Test" verifies that
+  // every required env var is present (no external API call).
+  if (kind === "social" || kind === "storage") {
     const missing = missingRequiredEnvVars(provider, process.env);
     const result =
       missing.length === 0
