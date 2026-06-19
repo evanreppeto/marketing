@@ -57,6 +57,11 @@ function makeSink() {
  * runArcTurn (chat) and runArcOpportunityDraft (opportunity drafting): both
  * build their own ctx/prompt/tools, then hand off the same machinery here.
  */
+/** Min gap between live partial-body posts, so streaming doesn't hammer the app
+ *  endpoint. ~180ms reads as continuous typing once the client typewriter
+ *  smooths between chunks. */
+const STREAM_THROTTLE_MS = 180;
+
 async function runArcQuery(opts: {
   step: StepFn;
   mode: ArcMode;
@@ -65,6 +70,8 @@ async function runArcQuery(opts: {
   prompt: string;
   model: string;
   toolContext?: ToolContext;
+  /** Live partial reply text, posted as the model streams (chat-turn only). */
+  onPartial?: (text: string) => void | Promise<void>;
 }): Promise<ArcTurnResult> {
   const { actions, suggestions, sources, questions, sink } = makeSink();
 
@@ -74,6 +81,11 @@ async function runArcQuery(opts: {
 
   let assistantText = "";
   let resultText = "";
+  // Live-streaming buffer, accumulated from token deltas purely for the typing
+  // effect. The final body is still (resultText || assistantText) below, so if
+  // partial events are unavailable the reply is unchanged — streaming is additive.
+  let streamBuf = "";
+  let lastEmit = 0;
 
   for await (const message of query({
     prompt: opts.prompt,
@@ -83,9 +95,24 @@ async function runArcQuery(opts: {
       mcpServers: { arc: arcServer },
       allowedTools: allowedToolNames(opts.mode),
       permissionMode: "bypassPermissions",
+      // Emit SDKPartialAssistantMessage ('stream_event') token deltas so we can
+      // type the reply out live; the final assistant/result messages still land.
+      includePartialMessages: true,
     },
   })) {
-    if (message.type === "assistant") {
+    if (message.type === "stream_event") {
+      const event = message.event;
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        streamBuf += event.delta.text;
+        const now = Date.now();
+        if (opts.onPartial && now - lastEmit >= STREAM_THROTTLE_MS) {
+          lastEmit = now;
+          // Awaited (not fire-and-forget) so the throttled posts stay ordered;
+          // postChatChunk swallows its own errors, so this never breaks the run.
+          await opts.onPartial(streamBuf);
+        }
+      }
+    } else if (message.type === "assistant") {
       for (const block of message.message.content) {
         if (block.type === "text") assistantText += block.text;
       }
@@ -137,6 +164,8 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     // Thread the turn's level so media tools tell the generate endpoints which
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
     toolContext: { level: payload.route },
+    // Type the reply out live into the pending bubble as the model streams.
+    onPartial: (text) => client.postChatChunk(payload.agentTaskId, text),
   });
 }
 

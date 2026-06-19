@@ -97,7 +97,24 @@ export function createArcClient(config: Config) {
     }
   }
 
-  return { apiGet, apiPost, apiPut, postChatReply, postStep };
+  /**
+   * Stream the growing reply text into the pending chat bubble so the chat types
+   * it out live as the model generates. Best-effort — the canonical body is the
+   * final postChatReply, so a dropped chunk never affects correctness.
+   */
+  async function postChatChunk(agentTaskId: string, body: string): Promise<void> {
+    try {
+      await fetch(`${config.appApiBaseUrl}/api/v1/arc/messages/${agentTaskId}/body`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ body }),
+      });
+    } catch {
+      /* streaming chunks are cosmetic; the final reply is the source of truth */
+    }
+  }
+
+  return { apiGet, apiPost, apiPut, postChatReply, postStep, postChatChunk };
 }
 
 export type ArcClient = ReturnType<typeof createArcClient>;
