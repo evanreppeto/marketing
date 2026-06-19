@@ -5,14 +5,20 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 import { refreshGoogleDriveAccessToken, resolveGoogleDriveConfig, type GoogleDriveTokenSet } from "./oauth";
 
 type SecretRow = { decrypted_secret: string | null };
-type CreateSecretResult = { data: string | null; error: { message: string } | null };
+type RpcResult<T> = { data: T | null; error: { message: string } | null };
+type SecretCreateData = string | { id?: string | null; create_secret?: string | null };
 type VaultClient = SupabaseClient & {
+  rpc(
+    fn: "arc_create_vault_secret",
+    args: { new_secret: string; new_name: string; new_description: string },
+  ): Promise<RpcResult<SecretCreateData>>;
+  rpc(fn: "arc_read_vault_secret", args: { secret_id: string }): Promise<RpcResult<string>>;
   schema(schema: "vault"): {
     from(table: "decrypted_secrets"): SupabaseClient["from"];
     rpc(
       fn: "create_secret",
       args: { new_secret: string; new_name: string; new_description: string },
-    ): Promise<CreateSecretResult>;
+    ): Promise<RpcResult<SecretCreateData>>;
   };
 };
 
@@ -46,6 +52,12 @@ type UntypedSupabaseClient = {
   };
 };
 
+function secretRefFromData(data: SecretCreateData | null): string | null {
+  if (!data) return null;
+  if (typeof data === "string") return data;
+  return data.id ?? data.create_secret ?? null;
+}
+
 async function writeVaultSecret(
   client: SupabaseClient,
   name: string,
@@ -55,12 +67,12 @@ async function writeVaultSecret(
   let ref: string | null = null;
 
   try {
-    const { data, error } = await client.rpc("create_secret", {
+    const { data, error } = await (client as VaultClient).rpc("arc_create_vault_secret", {
       new_secret: plaintext,
       new_name: name,
       new_description: description,
     });
-    if (!error && data) ref = String(data);
+    if (!error) ref = secretRefFromData(data);
   } catch {
     ref = null;
   }
@@ -72,7 +84,7 @@ async function writeVaultSecret(
         new_name: name,
         new_description: description,
       });
-      if (!error && data) ref = String(data);
+      if (!error) ref = secretRefFromData(data);
     } catch {
       ref = null;
     }
@@ -83,6 +95,13 @@ async function writeVaultSecret(
 }
 
 async function readVaultSecret(client: SupabaseClient, ref: string): Promise<string | null> {
+  try {
+    const { data, error } = await (client as VaultClient).rpc("arc_read_vault_secret", { secret_id: ref });
+    if (!error && data) return data;
+  } catch {
+    // Fall through to direct vault schema access for environments that expose it.
+  }
+
   try {
     const scoped = typeof client.schema === "function" ? client.schema("vault") : client;
     const { data, error } = await scoped
