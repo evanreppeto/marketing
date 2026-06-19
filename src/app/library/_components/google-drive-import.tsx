@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { buttonClasses } from "@/app/_components/page-header";
 
@@ -113,6 +114,7 @@ function selectedFileIds(data: Record<string, unknown>, picker: GooglePicker): s
 
 export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string | null }) {
   const [state, action, pending] = useActionState(importFromGoogleDriveAction, null);
+  const [open, setOpen] = useState(false);
   const [pickerMessage, setPickerMessage] = useState<string | null>(null);
   const [pickerPending, setPickerPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -161,13 +163,14 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
     }
   }
 
-  return (
-    <details className="group relative z-[200]">
-      <summary className={buttonClasses({ variant: "ghost", size: "sm" })}>
-        <DriveIcon />
-        Drive
-      </summary>
-      <div className="absolute right-0 z-[1000] mt-2 w-[min(28rem,calc(100vw-2rem))] rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] p-4 shadow-[var(--elev-overlay)]">
+  const panel = (
+    <div className="fixed inset-0 z-[1000] pointer-events-none">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-auto"
+        onClick={() => setOpen(false)}
+      />
+      <div className="pointer-events-auto absolute right-4 top-24 w-[min(42rem,calc(100vw-2rem))] rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] p-4 shadow-[var(--elev-overlay)] sm:right-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm font-bold text-[var(--text-primary)]">Import from Google Drive</div>
@@ -175,9 +178,19 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
               Choose files from Drive. Arc copies selected files into Library.
             </p>
           </div>
-          <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/api/integrations/google-drive/connect">
-            Connect
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/api/integrations/google-drive/connect">
+              Connect
+            </Link>
+            <button
+              aria-label="Close Google Drive import"
+              className={buttonClasses({ variant: "ghost", size: "sm" })}
+              onClick={() => setOpen(false)}
+              type="button"
+            >
+              Close
+            </button>
+          </div>
         </div>
         <form ref={formRef} action={action} className="mt-3 grid gap-3">
           {activeFolderId ? <input name="folderId" type="hidden" value={activeFolderId} /> : null}
@@ -211,7 +224,17 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
           </div>
         </form>
       </div>
-    </details>
+    </div>
+  );
+
+  return (
+    <>
+      <button className={buttonClasses({ variant: "ghost", size: "sm" })} onClick={() => setOpen((value) => !value)} type="button">
+        <DriveIcon />
+        Drive
+      </button>
+      {open ? createPortal(panel, document.body) : null}
+    </>
   );
 }
 
