@@ -1,49 +1,41 @@
-import Link from "next/link";
+import { FilesystemItem } from "@/components/ui/filesystem-item";
+import { type MediaAssetView, type MediaFolderView } from "@/lib/media-library/types";
 
-import { cx } from "@/app/_components/theme";
-import { type MediaFolderView } from "@/lib/media-library/types";
-
-import { FolderIcon } from "./icons";
+import { buildFilesystemTree } from "./folder-tree-model";
 
 /**
  * Folder navigation. Filtering is kept server-side: each folder is a Link that
  * sets ?folder=<id> (the "all" folder links to /library with no param).
  * page.tsx reads the param, filters the asset list, and passes the active id
- * back here for highlighting.
+ * back here for highlighting. Nested folders are rendered expanded so uploaded
+ * image sets stay visible without another client-side state island.
  */
 export function FolderRail({
   folders,
+  assets,
   activeFolderId,
 }: {
   folders: MediaFolderView[];
+  assets: MediaAssetView[];
   activeFolderId: string;
 }) {
+  const nodes = buildFilesystemTree({ folders, assets, activeFolderId });
+
   return (
-    <nav className="w-[200px] shrink-0 space-y-1">
-      <div className="px-2 pb-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-        Folders
+    <nav className="w-[300px] shrink-0 border-r border-[var(--border-hairline)] pr-5">
+      <div className="mb-3 flex items-center justify-between px-1">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+          File tree
+        </div>
+        <div className="rounded-full border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
+          {Math.max(0, folders.length - 1)} folders
+        </div>
       </div>
-      {folders.map((f) => {
-        const isActive = f.id === activeFolderId;
-        return (
-          <Link
-            key={f.id}
-            href={f.id === "all" ? "/library" : `/library?folder=${encodeURIComponent(f.id)}`}
-            aria-current={isActive ? "page" : undefined}
-            className={cx(
-              "relative flex items-center gap-2 rounded px-3 py-2 text-sm transition",
-              isActive
-                ? "text-[var(--text-primary)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-            )}
-          >
-            <FolderIcon className="h-4 w-4 shrink-0" />
-            <span className="flex-1 truncate">{f.name}</span>
-            <span className="text-xs text-[var(--text-muted)]">{f.count}</span>
-            {isActive ? <span aria-hidden className="absolute inset-y-2 right-1 w-px bg-[var(--accent)]" /> : null}
-          </Link>
-        );
-      })}
+      <ul className="space-y-1">
+        {nodes.map((node) => (
+          <FilesystemItem animated key={`${node.id}:${activeFolderId}`} node={node} />
+        ))}
+      </ul>
     </nav>
   );
 }

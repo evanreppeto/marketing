@@ -41,7 +41,8 @@ export type GoogleDriveImportActionState = { ok: boolean; message: string } | nu
 export async function createFolderAction(formData: FormData): Promise<void> {
   const orgId = await guard();
   const name = String(formData.get("name") ?? "").trim();
-  if (name) await createFolder({ orgId, name });
+  const parentId = (String(formData.get("parentId") ?? "") || null) as string | null;
+  if (name) await createFolder({ orgId, name, parentId });
   revalidatePath("/library");
 }
 

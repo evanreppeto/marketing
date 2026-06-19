@@ -4,7 +4,13 @@ import { formatByteSize } from "@/domain";
 import { getCurrentOrgId, OrgUnavailableError } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-import { type MediaAssetRow, type MediaAssetView, type MediaFolderView, type MediaLibraryData } from "./types";
+import {
+  type MediaAssetRow,
+  type MediaAssetView,
+  type MediaFolderRow,
+  type MediaFolderView,
+  type MediaLibraryData,
+} from "./types";
 
 /** Pure: one DB row → view model. `usedIn` is the count of campaign assets referencing it. */
 export function toAssetView(row: MediaAssetRow, usedIn: number): MediaAssetView {
@@ -55,6 +61,71 @@ export function countUsage(
   return counts;
 }
 
+export function buildFolderViews(folderRows: MediaFolderRow[], assets: Pick<MediaAssetRow, "folder_id">[]): MediaFolderView[] {
+  const knownIds = new Set(folderRows.map((folder) => folder.id));
+  const rows = folderRows.map((folder) => ({
+    ...folder,
+    parent_id: folder.parent_id && folder.parent_id !== folder.id && knownIds.has(folder.parent_id) ? folder.parent_id : null,
+  }));
+  const children = new Map<string | null, MediaFolderRow[]>();
+  const directCounts = new Map<string | null, number>();
+
+  for (const folder of rows) {
+    const siblings = children.get(folder.parent_id) ?? [];
+    siblings.push(folder);
+    children.set(folder.parent_id, siblings);
+  }
+  for (const asset of assets) {
+    directCounts.set(asset.folder_id, (directCounts.get(asset.folder_id) ?? 0) + 1);
+  }
+
+  const countSubtree = (folderId: string, trail = new Set<string>()): number => {
+    if (trail.has(folderId)) return directCounts.get(folderId) ?? 0;
+    const nextTrail = new Set(trail);
+    nextTrail.add(folderId);
+    return (directCounts.get(folderId) ?? 0) + (children.get(folderId) ?? []).reduce((sum, child) => sum + countSubtree(child.id, nextTrail), 0);
+  };
+
+  const views: MediaFolderView[] = [
+    { id: "all", name: "All media", parentId: null, depth: 0, count: assets.length, directCount: assets.length },
+  ];
+  const visited = new Set<string>();
+
+  const append = (folder: MediaFolderRow, depth: number) => {
+    if (visited.has(folder.id)) return;
+    visited.add(folder.id);
+    views.push({
+      id: folder.id,
+      name: folder.name,
+      parentId: folder.parent_id,
+      depth,
+      count: countSubtree(folder.id),
+      directCount: directCounts.get(folder.id) ?? 0,
+    });
+    for (const child of children.get(folder.id) ?? []) append(child, depth + 1);
+  };
+
+  for (const folder of children.get(null) ?? []) append(folder, 0);
+  for (const folder of rows) append(folder, 0);
+
+  return views;
+}
+
+export function folderAndDescendantIds(folders: MediaFolderView[], folderId: string): Set<string> {
+  const ids = new Set<string>([folderId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const folder of folders) {
+      if (folder.parentId && ids.has(folder.parentId) && !ids.has(folder.id)) {
+        ids.add(folder.id);
+        changed = true;
+      }
+    }
+  }
+  return ids;
+}
+
 export async function getMediaLibraryData(client?: SupabaseClient): Promise<MediaLibraryData> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
@@ -69,7 +140,7 @@ export async function getMediaLibraryData(client?: SupabaseClient): Promise<Medi
   }
 
   const { data: folderRows, error: fErr } = await db
-    .from("media_folders").select("id, name").eq("org_id", orgId).order("sort_order");
+    .from("media_folders").select("id, name, parent_id").eq("org_id", orgId).order("sort_order");
   if (fErr) return { status: "unavailable", message: fErr.message };
 
   const { data: assetRows, error: aErr } = await db
@@ -89,19 +160,9 @@ export async function getMediaLibraryData(client?: SupabaseClient): Promise<Medi
   }
   const usage = countUsage(assets, campaignMedia);
 
-  const counts = new Map<string | null, number>();
-  for (const a of assets) counts.set(a.folder_id, (counts.get(a.folder_id) ?? 0) + 1);
-
-  const folders: MediaFolderView[] = [
-    { id: "all", name: "All media", count: assets.length },
-    ...((folderRows ?? []) as Array<{ id: string; name: string }>).map((f) => ({
-      id: f.id, name: f.name, count: counts.get(f.id) ?? 0,
-    })),
-  ];
-
   return {
     status: "live",
-    folders,
+    folders: buildFolderViews((folderRows ?? []) as MediaFolderRow[], assets),
     assets: assets.map((a) => toAssetView(a, usage.get(a.id) ?? 0)),
     totalBytes: assets.reduce((sum, a) => sum + (a.byte_size ?? 0), 0),
   };

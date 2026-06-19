@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { buildStoragePath, insertAsset, insertAssetWithUrl, sanitizeFileName } from "./persistence";
+import { buildStoragePath, createFolder, insertAsset, insertAssetWithUrl, sanitizeFileName } from "./persistence";
 
 describe("sanitizeFileName", () => {
   it("strips path separators and unsafe chars", () => {
@@ -14,6 +14,30 @@ describe("sanitizeFileName", () => {
 describe("buildStoragePath", () => {
   it("namespaces by org and asset id", () => {
     expect(buildStoragePath("org1", "asset1", "before.jpg")).toBe("library/org1/asset1-before.jpg");
+  });
+});
+
+describe("createFolder", () => {
+  it("persists a parent folder when creating a subfolder", async () => {
+    const supabase = createSupabaseQueryMock({
+      media_folders: { data: { id: "folder-2" }, error: null },
+    });
+
+    await createFolder({
+      orgId: "org-1",
+      name: "After photos",
+      parentId: "folder-1",
+      client: supabase,
+    });
+
+    expect(supabase.calls).toContainEqual([
+      "insert",
+      expect.objectContaining({
+        org_id: "org-1",
+        name: "After photos",
+        parent_id: "folder-1",
+      }),
+    ]);
   });
 });
 

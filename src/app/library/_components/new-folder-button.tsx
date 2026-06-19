@@ -11,7 +11,7 @@ import { createFolderAction } from "../actions";
  * Ghost "New folder" button that reveals an inline name field. Submits the
  * name to createFolderAction; revalidatePath refreshes the rail.
  */
-export function NewFolderButton() {
+export function NewFolderButton({ parentFolderId }: { parentFolderId: string | null }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
@@ -21,6 +21,7 @@ export function NewFolderButton() {
     if (!trimmed) return;
     const formData = new FormData();
     formData.set("name", trimmed);
+    if (parentFolderId) formData.set("parentId", parentFolderId);
     startTransition(async () => {
       await createFolderAction(formData);
       setName("");
