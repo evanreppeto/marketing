@@ -28,6 +28,7 @@ import {
   createConversation,
   createProject,
   deleteConversation,
+  deleteProject,
   insertFailedArcMessage,
   insertOperatorMessage,
   insertPendingArcMessage,
@@ -438,6 +439,15 @@ export async function renameProjectForm(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim();
   if (!id || !name) return;
   await renameProject(id, name);
+  revalidatePath("/arc");
+}
+
+export async function deleteProjectForm(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  const id = String(formData.get("projectId") ?? "").trim();
+  if (!id) return;
+  await deleteProject(id);
   revalidatePath("/arc");
 }
 
