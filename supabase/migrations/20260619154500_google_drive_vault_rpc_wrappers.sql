@@ -19,9 +19,8 @@ as $$
 declare
   secret_id uuid;
 begin
-  select id
-  into secret_id
-  from vault.create_secret(new_secret, new_name, new_description);
+  select vault.create_secret(new_secret, new_name, new_description)
+  into secret_id;
 
   return secret_id;
 end;
