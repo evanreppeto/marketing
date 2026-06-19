@@ -7,6 +7,7 @@ describe("buildSignUpIntent", () => {
     expect(
       buildSignUpIntent({
         fullName: "  Evan Ryan  ",
+        inviteCode: "",
         organizationName: "  Big Shoulders Restoration  ",
         workspaceType: "agency",
         workspaceIntent: "create",
@@ -26,6 +27,7 @@ describe("buildSignUpIntent", () => {
     expect(
       buildSignUpIntent({
         fullName: " ",
+        inviteCode: "",
         organizationName: "",
         workspaceType: "company",
         workspaceIntent: "create",
@@ -35,6 +37,7 @@ describe("buildSignUpIntent", () => {
     expect(
       buildSignUpIntent({
         fullName: "Evan Ryan",
+        inviteCode: "",
         organizationName: " ",
         workspaceType: "company",
         workspaceIntent: "create",
@@ -46,6 +49,7 @@ describe("buildSignUpIntent", () => {
     expect(
       buildSignUpIntent({
         fullName: "Jordan Demo",
+        inviteCode: "",
         organizationName: "",
         workspaceType: "not-real",
         workspaceIntent: "join",
@@ -53,6 +57,48 @@ describe("buildSignUpIntent", () => {
     ).toEqual({
       metadata: {
         full_name: "Jordan Demo",
+        pending_workspace_intent: "join",
+        pending_workspace_type: "company",
+      },
+      ok: true,
+    });
+  });
+
+  it("builds the profile name from separate first and last name fields", () => {
+    expect(
+      buildSignUpIntent({
+        firstName: "  Evan  ",
+        fullName: "",
+        inviteCode: "",
+        lastName: "  Ryan  ",
+        organizationName: "Big Shoulders Restoration",
+        workspaceType: "company",
+        workspaceIntent: "create",
+      }),
+    ).toEqual({
+      metadata: {
+        full_name: "Evan Ryan",
+        pending_organization_name: "Big Shoulders Restoration",
+        pending_workspace_intent: "create",
+        pending_workspace_type: "company",
+      },
+      ok: true,
+    });
+  });
+
+  it("normalizes invite codes for join intent without granting authorization", () => {
+    expect(
+      buildSignUpIntent({
+        fullName: "Jordan Demo",
+        inviteCode: "  bsr 7k2m  ",
+        organizationName: "",
+        workspaceType: "company",
+        workspaceIntent: "join",
+      }),
+    ).toEqual({
+      metadata: {
+        full_name: "Jordan Demo",
+        pending_invite_code: "BSR7K2M",
         pending_workspace_intent: "join",
         pending_workspace_type: "company",
       },

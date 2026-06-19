@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { fail, guard } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail } from "@/app/api/v1/arc/_lib/http";
 import { claimAgentTask } from "@/lib/arc-api";
 
 /**
@@ -10,13 +10,13 @@ import { claimAgentTask } from "@/lib/arc-api";
  *   POST /api/v1/arc/tasks/:id/claim
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const { id } = await params;
 
   try {
-    const result = await claimAgentTask(id);
+    const result = await claimAgentTask(id, undefined, allowed.scope);
     if (!result.ok) {
       return result.reason === "not_found"
         ? fail("not_found", "No task with that id.", 404)

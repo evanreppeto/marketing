@@ -16,13 +16,14 @@ describe("enqueueDispatchesForAssets", () => {
       campaign_events: { data: null, error: null },
     });
 
-    await enqueueDispatchesForAssets({ campaignId: "c1", assetIds: ["a1"], operator: "Operator" }, supabase);
+    await enqueueDispatchesForAssets({ campaignId: "c1", assetIds: ["a1"], operator: "Operator", tenant: { org_id: "org-1", workspace_id: "workspace-1" } }, supabase);
 
     const inserts = findCalls(supabase, "insert");
     expect(inserts).toContainEqual(
-      expect.objectContaining({ campaign_id: "c1", campaign_asset_id: "a1", status: "queued", channel: "email" }),
+      expect.objectContaining({ campaign_id: "c1", campaign_asset_id: "a1", status: "queued", channel: "email", org_id: "org-1" }),
     );
-    expect(inserts).toContainEqual(expect.objectContaining({ event_type: "dispatch_queued" }));
+    expect(inserts).toContainEqual(expect.objectContaining({ event_type: "dispatch_queued", org_id: "org-1" }));
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
   });
 
   it("does nothing for an empty asset list", async () => {
@@ -80,12 +81,13 @@ describe("transitionDispatch", () => {
       campaign_events: { data: null, error: null },
     });
 
-    await transitionDispatch({ dispatchId: "d1", to: "sent", operator: "Operator" }, supabase);
+    await transitionDispatch({ dispatchId: "d1", to: "sent", operator: "Operator", tenant: { org_id: "org-1", workspace_id: "workspace-1" } }, supabase);
 
     const updates = findCalls(supabase, "update");
     expect(updates).toContainEqual(expect.objectContaining({ status: "sent" }));
     expect(updates.some((u) => "dispatched_at" in u)).toBe(true);
-    expect(findCalls(supabase, "insert")).toContainEqual(expect.objectContaining({ event_type: "dispatch_sent" }));
+    expect(findCalls(supabase, "insert")).toContainEqual(expect.objectContaining({ event_type: "dispatch_sent", org_id: "org-1" }));
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(2);
   });
 
   it("rejects an unknown target status", async () => {

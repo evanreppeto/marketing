@@ -81,6 +81,16 @@ describe("listLeads filters", () => {
     expect(supabase.calls).toContainEqual(["eq", "persona", "persona_insurance_agent"]);
   });
 
+  it("applies explicit org scope when provided", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: [], error: null },
+    });
+
+    await listLeads({ orgId: "org-1" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
+
   it("applies a source filter via .eq", async () => {
     const supabase = createSupabaseQueryMock({
       leads: { data: [], error: null },
@@ -131,6 +141,17 @@ describe("getLead", () => {
     expect(supabase.calls).toContainEqual(["from", "leads"]);
     expect(supabase.calls).toContainEqual(["eq", "id", validLeadRow.id]);
     expect(supabase.calls).toContainEqual(["maybeSingle"]);
+  });
+
+  it("applies explicit org scope when provided", async () => {
+    const supabase = createSupabaseQueryMock({
+      leads: { data: validLeadRow, error: null },
+    });
+
+    await getLead(validLeadRow.id, supabase, { orgId: "org-1" });
+
+    expect(supabase.calls).toContainEqual(["eq", "id", validLeadRow.id]);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
   });
 
   it("returns null when no row is found", async () => {

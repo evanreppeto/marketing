@@ -51,4 +51,29 @@ describe("buildBusinessProfileFromForm", () => {
     const profile = buildBusinessProfileFromForm(fd({ displayName: "Acme", tagline: "" }), NEUTRAL_DEFAULTS);
     expect(profile.tagline).toBeNull();
   });
+
+  it("allows an active profile to be saved back as a draft", () => {
+    const profile = buildBusinessProfileFromForm(
+      fd({ displayName: "Acme", status: "draft" }),
+      { ...NEUTRAL_DEFAULTS, status: "active" },
+    );
+
+    expect(profile.status).toBe("draft");
+  });
+
+  it("uses uploaded logo and favicon URLs when present", () => {
+    const profile = buildBusinessProfileFromForm(
+      fd({
+        displayName: "Acme",
+        logoUrl: "https://old.example/logo.png",
+        faviconUrl: "https://old.example/favicon.ico",
+        logoUpload: "https://cdn.example/logo.png",
+        faviconUpload: "https://cdn.example/favicon.png",
+      }),
+      NEUTRAL_DEFAULTS,
+    );
+
+    expect(profile.logoUrl).toBe("https://cdn.example/logo.png");
+    expect(profile.faviconUrl).toBe("https://cdn.example/favicon.png");
+  });
 });

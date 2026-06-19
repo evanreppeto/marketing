@@ -132,6 +132,15 @@ describe("validateNodeInput", () => {
     const result = validateNodeInput({ kind: "crm_ref", label: "Acme", refTable: "companies", refId: "abc" });
     expect(result.ok).toBe(true);
   });
+  it("accepts media assets as source references for Brain knowledge", () => {
+    const result = validateNodeInput({
+      kind: "brand_fact",
+      label: "Brand guide source",
+      refTable: "media_assets",
+      refId: "asset-1",
+    });
+    expect(result.ok).toBe(true);
+  });
   it("rejects out-of-range confidence", () => {
     expect(validateNodeInput({ kind: "learning", label: "x", confidence: 140 }).ok).toBe(false);
   });

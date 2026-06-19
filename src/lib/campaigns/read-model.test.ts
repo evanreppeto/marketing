@@ -103,7 +103,7 @@ describe("getCampaignWorkspaceDetail creative media", () => {
       },
     });
 
-    const detail = await getCampaignWorkspaceDetail("camp-1", supabase);
+    const detail = await getCampaignWorkspaceDetail("camp-1", supabase, "Arc", "org-1");
 
     expect(detail.status).toBe("live");
     if (detail.status !== "live") return;
@@ -112,6 +112,7 @@ describe("getCampaignWorkspaceDetail creative media", () => {
     expect(asset.category).toBe("media");
     expect(asset.media[0]).toMatchObject({ type: "image", url: "https://cdn.example/hero.png" });
     expect(detail.metrics.media).toBeGreaterThan(0);
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(7);
   });
 
   it("turns structured candidate JSON into human-readable campaign copy", async () => {
@@ -311,7 +312,7 @@ describe("getCampaignWorkspaceList rollup", () => {
       approval_items: { data: ROLLUP_APPROVALS, error: null },
     });
 
-    const list = await getCampaignWorkspaceList(supabase);
+    const list = await getCampaignWorkspaceList(supabase, "Arc", "org-1");
 
     expect(list.status).toBe("live");
     if (list.status !== "live") return;
@@ -322,6 +323,7 @@ describe("getCampaignWorkspaceList rollup", () => {
     expect(item?.rollup.draft).toBe(1); // no-approval asset -> draft
     expect(item?.rollup.total).toBe(3);
     expect(item?.rollup.state).toBe("needs_review");
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(4);
   });
 
   it("exposes the campaign package pieces needed by the library page", async () => {
@@ -348,7 +350,7 @@ describe("getCampaignWorkspaceList rollup", () => {
       approval_items: { data: [], error: null },
     });
 
-    const list = await getCampaignWorkspaceList(supabase);
+    const list = await getCampaignWorkspaceList(supabase, "Arc", "org-1");
 
     expect(list.status).toBe("live");
     if (list.status !== "live") return;

@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { redactDeep, redactSecrets } from "@/domain";
 import { type ApprovalCard, listApprovalCards } from "@/lib/approvals/read-model";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { type ArcTenantScope } from "./drafts";
 
 /**
  * Arc Operations API approvals layer.
@@ -33,9 +34,10 @@ const ALL_APPROVAL_STATUSES = [
 export async function listApprovalsForApi(
   filter: { statuses?: string[]; limit?: number } = {},
   client?: SupabaseClient,
+  scope?: ArcTenantScope,
 ): Promise<ApprovalCard[]> {
   return listApprovalCards(
-    { statuses: filter.statuses, limit: filter.limit },
+    { statuses: filter.statuses, limit: filter.limit, orgId: scope?.orgId },
     client ?? getSupabaseAdminClient(),
   );
 }
@@ -83,13 +85,16 @@ function mapRecommendation(row: RecommendationRow): ApprovalRecommendation {
 export async function listApprovalRecommendations(
   approvalItemId: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcTenantScope,
 ): Promise<ApprovalRecommendation[]> {
   try {
-    const { data, error } = await client
-      .from("approval_recommendations")
-      .select("*")
-      .eq("approval_item_id", approvalItemId)
-      .order("created_at", { ascending: false });
+    const { data, error } = await applyOrgScope(
+      client
+        .from("approval_recommendations")
+        .select("*")
+        .eq("approval_item_id", approvalItemId),
+      scope,
+    ).order("created_at", { ascending: false });
     if (error) {
       return [];
     }
@@ -101,14 +106,14 @@ export async function listApprovalRecommendations(
 
 export type ApprovalDetail = ApprovalCard & { recommendations: ApprovalRecommendation[] };
 
-export async function getApprovalForApi(id: string, client?: SupabaseClient): Promise<ApprovalDetail | null> {
+export async function getApprovalForApi(id: string, client?: SupabaseClient, scope?: ArcTenantScope): Promise<ApprovalDetail | null> {
   const supabase = client ?? getSupabaseAdminClient();
-  const cards = await listApprovalCards({ statuses: ALL_APPROVAL_STATUSES, limit: 500 }, supabase);
+  const cards = await listApprovalCards({ statuses: ALL_APPROVAL_STATUSES, limit: 500, orgId: scope?.orgId }, supabase);
   const card = cards.find((entry) => entry.id === id);
   if (!card) {
     return null;
   }
-  const recommendations = await listApprovalRecommendations(id, supabase);
+  const recommendations = await listApprovalRecommendations(id, supabase, scope);
   return { ...card, recommendations };
 }
 
@@ -129,14 +134,17 @@ export type AddRecommendationResult =
 export async function addApprovalRecommendation(
   input: AddRecommendationInput,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcTenantScope,
 ): Promise<AddRecommendationResult> {
   // Validate the target exists (read-only) so a bad id 404s instead of failing
   // an FK insert. This is the ONLY read of approval_items here.
-  const { data: item, error: lookupError } = await client
-    .from("approval_items")
-    .select("id")
-    .eq("id", input.approvalItemId)
-    .maybeSingle();
+  const { data: item, error: lookupError } = await applyOrgScope(
+    client
+      .from("approval_items")
+      .select("id")
+      .eq("id", input.approvalItemId),
+    scope,
+  ).maybeSingle();
   if (lookupError) {
     throw new Error(`approval lookup failed: ${lookupError.message}`);
   }
@@ -147,6 +155,7 @@ export async function addApprovalRecommendation(
   const { data, error } = await client
     .from("approval_recommendations")
     .insert({
+      ...orgTenantFields(scope),
       approval_item_id: input.approvalItemId,
       agent: input.agent ?? "arc",
       recommendation: redactSecrets(input.recommendation),
@@ -161,4 +170,13 @@ export async function addApprovalRecommendation(
     throw new Error(`addApprovalRecommendation insert failed: ${error.message}`);
   }
   return { ok: true, recommendationId: (data as { id: string }).id };
+}
+
+function applyOrgScope<Query>(query: Query, scope?: ArcTenantScope): Query {
+  if (!scope) return query;
+  return (query as { eq(column: string, value: string): Query }).eq("org_id", scope.orgId);
+}
+
+function orgTenantFields(scope?: ArcTenantScope): Record<string, string> {
+  return scope ? { org_id: scope.orgId } : {};
 }

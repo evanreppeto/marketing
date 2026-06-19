@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 
 export type RevisionRequestInput = {
@@ -108,9 +109,12 @@ async function queueArcRevision(
   // approval/asset state transition above still stands; just skip the queue.
   if (!agent) return null;
 
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: task, error: taskError } = await client
     .from("agent_tasks")
     .insert({
+      ...tenant,
       agent_id: agent.id,
       status: "queued",
       priority: "high",

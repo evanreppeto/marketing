@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { parseArcRoute } from "@/domain";
 
-import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
@@ -21,8 +21,8 @@ import { getAppSettings } from "@/lib/settings/store";
  *   -> 201 { ok, status:"created", media: ArcMedia }
  */
 export async function POST(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   if (!isMediaGenEnabled()) {
     return fail("not_configured", "Image generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     const finalPrompt = hardenImagePrompt(prompt, { style });
     const gen = await provider.generateImage({ prompt: finalPrompt, aspectRatio });
     const ext = gen.contentType.includes("png") ? "png" : gen.contentType.includes("webp") ? "webp" : "jpg";
-    const objectPath = `arc-generated/${randomUUID()}.${ext}`;
+    const objectPath = `arc-generated/${allowed.scope.orgId}/${allowed.scope.workspaceId}/${randomUUID()}.${ext}`;
     // Permanent public URL from the campaign-media bucket — no expiry to re-sign.
     const url = await storeGeneratedImage(objectPath, gen.bytes, gen.contentType);
     const media = {

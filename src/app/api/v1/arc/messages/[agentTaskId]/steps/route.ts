@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { checkAgentBearer } from "@/lib/auth/api-token";
+import { arcGuard } from "@/app/api/v1/arc/_lib/http";
 import { appendArcStep } from "@/lib/arc-chat/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -13,15 +13,9 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  *   body: { label: string, status?: "running" | "done" }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ agentTaskId: string }> }) {
-  const auth = await checkAgentBearer(request);
-  if (!auth.ok) {
-    return NextResponse.json(
-      auth.reason === "not_configured"
-        ? { ok: false, status: "not_configured", message: "Set ARC_AGENT_API_TOKEN before reporting steps." }
-        : { ok: false, status: "unauthorized", message: "Reporting steps requires a valid bearer token." },
-      { status: auth.status },
-    );
-  }
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
+  const scope = { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId };
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
@@ -47,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ age
   }
 
   try {
-    const applied = await appendArcStep({ agentTaskId, label, status, at: new Date().toISOString() });
+    const applied = await appendArcStep({ agentTaskId, label, status, at: new Date().toISOString() }, undefined, scope);
     if (!applied) {
       return NextResponse.json({ ok: false, status: "not_found", message: "No pending message for that agentTaskId." }, { status: 404 });
     }

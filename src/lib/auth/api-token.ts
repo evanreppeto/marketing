@@ -12,7 +12,7 @@ import { recordAgentSeen } from "@/lib/agent/health";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type BearerTokenResult =
-  | { ok: true }
+  | { ok: true; orgId?: string; workspaceId?: string; tokenSource: "env" | "database" }
   | { ok: false; status: 401 | 503; reason: "unauthorized" | "not_configured" };
 
 type HeaderCarrier = { headers: { get(name: string): string | null } };
@@ -27,7 +27,7 @@ export function checkBearerToken(
 
   if (!configured) {
     // No token set: agent endpoints refuse; the public-ish intake endpoint allows.
-    return required ? { ok: false, status: 503, reason: "not_configured" } : { ok: true };
+    return required ? { ok: false, status: 503, reason: "not_configured" } : { ok: true, tokenSource: "env" };
   }
 
   const authorization = request.headers.get("authorization");
@@ -36,7 +36,7 @@ export function checkBearerToken(
     return { ok: false, status: 401, reason: "unauthorized" };
   }
 
-  return { ok: true };
+  return { ok: true, tokenSource: "env" };
 }
 
 type AgentBearerDeps = {
@@ -83,14 +83,14 @@ export async function checkAgentBearer(request: HeaderCarrier, deps: AgentBearer
 
   if (token && envToken && token === envToken) {
     await recordSeen().catch(() => undefined);
-    return { ok: true };
+    return { ok: true, tokenSource: "env" };
   }
 
   if (token) {
     const verified = await verify(token);
     if (verified.ok) {
       await recordSeen().catch(() => undefined);
-      return { ok: true };
+      return { ok: true, tokenSource: "database", orgId: verified.orgId, workspaceId: verified.workspaceId };
     }
   }
 

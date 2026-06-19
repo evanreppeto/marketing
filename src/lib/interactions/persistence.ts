@@ -8,13 +8,14 @@ import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type PersistResult = { ok: true; id: string } | { ok: false; error: string };
+export type PersistScope = { orgId: string; workspaceId?: string };
 
 const NOT_CONFIGURED = "Supabase is not configured, so nothing was written.";
 
 /** Write a free-standing activity row (also used as a companion to notes/tasks). */
-export async function insertActivity(input: ActivityInput): Promise<PersistResult> {
+export async function insertActivity(input: ActivityInput, scope?: PersistScope): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const orgId = await getCurrentOrgId();
+  const orgId = await resolveOrgId(scope);
   const { data, error } = await getSupabaseAdminClient()
     .from("crm_activities")
     .insert({
@@ -54,9 +55,9 @@ async function logCompanionActivity(
     });
 }
 
-export async function insertNote(input: NoteInput): Promise<PersistResult> {
+export async function insertNote(input: NoteInput, scope?: PersistScope): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const orgId = await getCurrentOrgId();
+  const orgId = await resolveOrgId(scope);
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("crm_notes")
@@ -88,9 +89,9 @@ export async function insertNote(input: NoteInput): Promise<PersistResult> {
   return { ok: true, id: data.id };
 }
 
-export async function insertTask(input: TaskInput): Promise<PersistResult> {
+export async function insertTask(input: TaskInput, scope?: PersistScope): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const orgId = await getCurrentOrgId();
+  const orgId = await resolveOrgId(scope);
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("crm_tasks")
@@ -132,9 +133,10 @@ export async function updateTaskStatus(
   taskId: string,
   status: TaskInput["status"],
   actor: { kind: NoteInput["authorKind"]; name?: string },
+  scope?: PersistScope,
 ): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const orgId = await getCurrentOrgId();
+  const orgId = await resolveOrgId(scope);
   const supabase = getSupabaseAdminClient();
   const completedAt = status === "completed" ? new Date().toISOString() : null;
 
@@ -169,9 +171,9 @@ export async function updateTaskStatus(
 }
 
 /** Toggle a note's pinned flag (org-scoped). */
-export async function setNotePinned(noteId: string, isPinned: boolean): Promise<PersistResult> {
+export async function setNotePinned(noteId: string, isPinned: boolean, scope?: PersistScope): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const orgId = await getCurrentOrgId();
+  const orgId = await resolveOrgId(scope);
   const { data, error } = await getSupabaseAdminClient()
     .from("crm_notes")
     .update({ is_pinned: isPinned })
@@ -181,4 +183,8 @@ export async function setNotePinned(noteId: string, isPinned: boolean): Promise<
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
   return { ok: true, id: data.id };
+}
+
+async function resolveOrgId(scope?: PersistScope): Promise<string> {
+  return scope?.orgId ?? getCurrentOrgId();
 }

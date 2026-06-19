@@ -8,7 +8,7 @@ export async function BrandingSettings() {
 
   return (
     <SettingsSection
-      description="Product label, assistant name, and workspace type. Brand identity (name, logo) lives in Brand Kit."
+      description="Product label, assistant name, and workspace type. Company brand, logo, voice, proof, and source knowledge live in Brand."
       title="Workspace &amp; product"
     >
       <BrandingSettingsForm

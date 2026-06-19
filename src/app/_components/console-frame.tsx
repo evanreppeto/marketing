@@ -108,6 +108,7 @@ export function ConsoleFrame({
   const intelligenceNavItems: ShellNavItem[] = [
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
+    { label: "Brand", href: "/brand", icon: "brand", matches: ["/brand"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
   ];
 
@@ -127,7 +128,7 @@ export function ConsoleFrame({
   ];
 
   const utilityNavItems: ShellNavItem[] = [
-    { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
+    { label: "Settings", href: "/settings", icon: "settings", matches: ["/settings"] },
   ];
   const mobilePrimaryNavItems = [homeNavItems[0], navItems[1], growthNavItems[0], growthNavItems[1]];
   const mobileMoreNavItems = navItems.filter((item) => !mobilePrimaryNavItems.some((primary) => primary.href === item.href));

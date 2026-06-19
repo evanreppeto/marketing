@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentAgentTaskTenantFields } from "../agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 
 export type ArcDemoWorkflowResult = {
@@ -243,7 +244,10 @@ export async function runArcDemoWorkflow(client?: SupabaseClient): Promise<ArcDe
 
   await updateById(supabase, "campaigns", campaignId, { approval_item_id: approvalItemId });
 
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const agentTaskId = await insertOne(supabase, "agent_tasks", {
+    ...tenant,
     agent_id: agentId,
     status: "needs_approval",
     priority: "high",

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { buildStoragePath, insertAsset, sanitizeFileName } from "./persistence";
+import { buildStoragePath, insertAsset, insertAssetWithUrl, sanitizeFileName } from "./persistence";
 
 describe("sanitizeFileName", () => {
   it("strips path separators and unsafe chars", () => {
@@ -65,5 +65,34 @@ describe("insertAsset", () => {
         },
       }),
     ]);
+  });
+
+  it("can return the uploaded public URL for brand profile assets", async () => {
+    const supabase = createSupabaseQueryMock({
+      media_assets: [
+        { data: { id: "asset-logo" }, error: null },
+        { data: null, error: null },
+      ],
+    });
+
+    const result = await insertAssetWithUrl({
+      orgId: "org-1",
+      folderId: null,
+      fileName: "logo.png",
+      bytes: new Uint8Array([4, 5, 6]),
+      contentType: "image/png",
+      kind: "image",
+      byteSize: 3,
+      source: "uploaded",
+      provenance: { brandRole: "logo" },
+      uploadedBy: "operator",
+      client: supabase,
+      uploader: async (path) => `https://cdn.example/${path}`,
+    });
+
+    expect(result).toEqual({
+      id: "asset-logo",
+      url: "https://cdn.example/library/org-1/asset-logo-logo.png",
+    });
   });
 });

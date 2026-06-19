@@ -32,6 +32,7 @@ export type GoogleDriveDownloadedFile = {
   webViewLink: string | null;
   modifiedTime: string | null;
   size: number;
+  plainText?: string | null;
 };
 
 export type DownloadGoogleDriveFileInput = {
@@ -50,6 +51,7 @@ type DriveFileMetadata = {
 };
 
 const GOOGLE_APPS_PREFIX = "application/vnd.google-apps.";
+const GOOGLE_DOC_MIME = "application/vnd.google-apps.document";
 
 function ensurePdfName(name: string): string {
   return /\.pdf$/i.test(name) ? name : `${name}.pdf`;
@@ -77,6 +79,7 @@ export async function downloadGoogleDriveFile({
   const metadata = await parseDriveJson<DriveFileMetadata>(metadataResponse);
 
   const isGoogleWorkspaceFile = metadata.mimeType.startsWith(GOOGLE_APPS_PREFIX);
+  const isGoogleDoc = metadata.mimeType === GOOGLE_DOC_MIME;
   const downloadUrl = isGoogleWorkspaceFile
     ? new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export`)
     : new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`);
@@ -97,6 +100,17 @@ export async function downloadGoogleDriveFile({
   const mimeType = isGoogleWorkspaceFile
     ? "application/pdf"
     : (fileResponse.headers.get("content-type")?.split(";")[0] || metadata.mimeType);
+  let plainText: string | null = null;
+  if (isGoogleDoc) {
+    const textUrl = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export`);
+    textUrl.searchParams.set("mimeType", "text/plain");
+    const textResponse = await fetcher(textUrl.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (textResponse.ok) {
+      plainText = (await textResponse.text()).trim() || null;
+    }
+  }
 
   return {
     fileId: metadata.id,
@@ -106,5 +120,6 @@ export async function downloadGoogleDriveFile({
     webViewLink: metadata.webViewLink ?? null,
     modifiedTime: metadata.modifiedTime ?? null,
     size: Number(metadata.size ?? bytes.byteLength),
+    plainText,
   };
 }

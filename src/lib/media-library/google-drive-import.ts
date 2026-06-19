@@ -6,6 +6,7 @@ import {
 } from "@/lib/google-drive/drive-client";
 
 import { insertAsset, type InsertAssetInput } from "./persistence";
+import { type BrandKnowledgeAsset } from "@/lib/brand-knowledge/brain-sync";
 
 export type GoogleDriveImportResult = {
   imported: number;
@@ -22,6 +23,7 @@ export type ImportGoogleDriveFilesInput = {
   accessToken: string;
   downloader?: (input: DownloadGoogleDriveFileInput) => Promise<GoogleDriveDownloadedFile>;
   insert?: (input: InsertAssetInput) => Promise<string>;
+  afterInsert?: (asset: BrandKnowledgeAsset) => Promise<void>;
 };
 
 export async function importGoogleDriveFiles(input: ImportGoogleDriveFilesInput): Promise<GoogleDriveImportResult> {
@@ -33,13 +35,14 @@ export async function importGoogleDriveFiles(input: ImportGoogleDriveFilesInput)
   for (const fileId of uniqueFileIds) {
     try {
       const file = await downloader({ fileId, accessToken: input.accessToken });
+      const kind = classifyKind(file.mimeType, file.name);
       const assetId = await insert({
         orgId: input.orgId,
         folderId: input.folderId,
         fileName: file.name,
         bytes: file.bytes,
         contentType: file.mimeType,
-        kind: classifyKind(file.mimeType, file.name),
+        kind,
         byteSize: file.size,
         source: "google_drive",
         provenance: {
@@ -48,6 +51,18 @@ export async function importGoogleDriveFiles(input: ImportGoogleDriveFilesInput)
           googleDriveModifiedTime: file.modifiedTime,
         },
         uploadedBy: input.uploadedBy,
+      });
+      await input.afterInsert?.({
+        id: assetId,
+        fileName: file.name,
+        kind,
+        source: "google_drive",
+        tags: [],
+        availableToArc: true,
+        url: file.webViewLink,
+        extractedText: file.plainText,
+        contentType: file.mimeType,
+        fileBytes: file.bytes,
       });
       result.imported += 1;
       result.assetIds.push(assetId);

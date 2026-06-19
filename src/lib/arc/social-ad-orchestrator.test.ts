@@ -5,6 +5,7 @@ import { createSupabaseQueryMock, type MockSupabase } from "@/lib/repos/__tests_
 import { runArcSocialAd } from "./social-ad-orchestrator";
 
 type InsertArg = {
+  org_id?: string;
   company_id?: unknown;
   asset_type?: string;
   status?: string;
@@ -54,7 +55,10 @@ describe("runArcSocialAd", () => {
       return `https://app.example/storage/v1/object/public/${path}`;
     };
 
-    const result = await runArcSocialAd(validRequest, supabase, fakeUpload);
+    const result = await runArcSocialAd(validRequest, supabase, fakeUpload, {
+      org_id: "org-1",
+      workspace_id: "workspace-1",
+    });
     expect(result.status).toBe("needs_approval");
     expect(result.campaignAssetIds).toHaveLength(2);
 
@@ -84,5 +88,6 @@ describe("runArcSocialAd", () => {
     const approvals = insertsByTable(supabase, "approval_items");
     expect(approvals).toHaveLength(2);
     expect(approvals.every((a) => a.locked_until_approved === true)).toBe(true);
+    expect([...campaigns, ...assets, ...approvals].every((row) => row.org_id === "org-1")).toBe(true);
   });
 });

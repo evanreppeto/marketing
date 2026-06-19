@@ -18,11 +18,13 @@ describe("launchCampaign enqueues dispatches", () => {
       campaign_events: { data: null, error: null },
     });
 
-    await launchCampaign({ campaignId: "c1", operator: "Operator" }, supabase);
+    await launchCampaign({ campaignId: "c1", operator: "Operator", tenant: { org_id: "org-1", workspace_id: "workspace-1" } }, supabase);
 
     const inserts = findCalls(supabase, "insert");
     expect(inserts).toContainEqual(
-      expect.objectContaining({ campaign_id: "c1", campaign_asset_id: "a1", status: "queued" }),
+      expect.objectContaining({ campaign_id: "c1", campaign_asset_id: "a1", status: "queued", org_id: "org-1" }),
     );
+    expect(inserts).toContainEqual(expect.objectContaining({ event_type: "campaign_launched", org_id: "org-1" }));
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1").length).toBeGreaterThanOrEqual(4);
   });
 });

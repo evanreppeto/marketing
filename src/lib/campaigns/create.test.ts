@@ -41,6 +41,7 @@ describe("createOperatorCampaign", () => {
       photos: [{ filename: "a.png", contentType: "image/png", bytes: new Uint8Array([1, 2, 3]) }],
       client: supabase,
       uploader,
+      tenant: { org_id: "org-1", workspace_id: "workspace-1" },
     });
 
     expect(out.campaignId).toBe("camp-1");
@@ -55,15 +56,16 @@ describe("createOperatorCampaign", () => {
       launch_locked: true,
       owner: "evan@test",
       audience_summary: "North side homeowners",
+      org_id: "org-1",
     });
     const asset = insertsFor(supabase, "campaign_assets")[0];
-    expect(asset).toMatchObject({ campaign_id: "camp-1", asset_type: "social_ad", status: "approved", dispatch_locked: true });
+    expect(asset).toMatchObject({ campaign_id: "camp-1", asset_type: "social_ad", status: "approved", dispatch_locked: true, org_id: "org-1" });
     const media = (asset.audit_payload as { media_assets: { url: string; path: string }[] }).media_assets[0];
     expect(media.url).toBe("https://cdn.test/operator-campaigns/camp-1/0-a.png");
     expect(media.path).toBe("operator-campaigns/camp-1/0-a.png");
-    expect(insertsFor(supabase, "approval_items")[0]).toMatchObject({ campaign_id: "camp-1", campaign_asset_id: "asset-1", status: "approved", item_type: "campaign_asset" });
-    expect(insertsFor(supabase, "approval_decisions")[0]).toMatchObject({ approval_item_id: "appr-1", decision: "approved" });
-    expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ campaign_id: "camp-1", event_type: "created", actor: "evan@test" });
+    expect(insertsFor(supabase, "approval_items")[0]).toMatchObject({ campaign_id: "camp-1", campaign_asset_id: "asset-1", status: "approved", item_type: "campaign_asset", org_id: "org-1" });
+    expect(insertsFor(supabase, "approval_decisions")[0]).toMatchObject({ approval_item_id: "appr-1", decision: "approved", org_id: "org-1" });
+    expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ campaign_id: "camp-1", event_type: "created", actor: "evan@test", org_id: "org-1" });
   });
 
   it("iterates per photo — uploads, asset, and approval row for each", async () => {

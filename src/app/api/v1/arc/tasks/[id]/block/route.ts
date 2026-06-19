@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { blockAgentTask } from "@/lib/arc-api";
 
 /**
@@ -11,8 +11,8 @@ import { blockAgentTask } from "@/lib/arc-api";
  *   body: { reason, needs?, metadata? }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const { id } = await params;
 
@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    const result = await blockAgentTask(id, { reason, metadata });
+    const result = await blockAgentTask(id, { reason, metadata }, undefined, allowed.scope);
     if (!result.ok) {
       return result.reason === "not_found"
         ? fail("not_found", "No task with that id.", 404)

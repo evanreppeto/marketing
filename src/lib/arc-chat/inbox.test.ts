@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock, type MockSupabase } from "@/lib/repos/__tests__/test-helpers";
 
-import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks } from "./inbox";
+import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "./inbox";
 
 function calls(supabase: MockSupabase, method: string): Array<Record<string, unknown>> {
   return supabase.calls.filter(([m]) => m === method).map(([, arg]) => arg as Record<string, unknown>);
@@ -25,6 +25,15 @@ describe("claimChatTask", () => {
     // Guarded on the task id AND a still-queued status so two workers can't both claim it.
     expect(eqCalls(supabase)).toContainEqual(["eq", "id", "t1"]);
     expect(eqCalls(supabase)).toContainEqual(["eq", "status", "queued"]);
+  });
+
+  it("scopes claims to the resolved Arc workspace", async () => {
+    const supabase = createSupabaseQueryMock({ agent_tasks: { data: { id: "t1" }, error: null } });
+
+    await claimChatTask("t1", supabase, { orgId: "org-1", workspaceId: "workspace-1" });
+
+    expect(eqCalls(supabase)).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(eqCalls(supabase)).toContainEqual(["eq", "workspace_id", "workspace-1"]);
   });
 
   it("reports not claimed when no queued row matched (already claimed elsewhere)", async () => {
@@ -52,6 +61,17 @@ describe("listQueuedChatTasks", () => {
     expect(eqCalls(supabase)).toContainEqual(["eq", "task_type", "arc_chat_message"]);
     expect(eqCalls(supabase)).toContainEqual(["eq", "status", "queued"]);
   });
+
+  it("lists queued chat tasks only inside the resolved Arc workspace", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: [], error: null },
+    });
+
+    await listQueuedChatTasks(20, supabase, { orgId: "org-1", workspaceId: "workspace-1" });
+
+    expect(eqCalls(supabase)).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(eqCalls(supabase)).toContainEqual(["eq", "workspace_id", "workspace-1"]);
+  });
 });
 
 describe("reclaimStaleChatTasks", () => {
@@ -74,6 +94,20 @@ describe("reclaimStaleChatTasks", () => {
     const restamp = calls(supabase, "update").find((u) => "retry_count" in u);
     expect(restamp).toMatchObject({ retry_count: 2 });
     expect(restamp?.started_at).toEqual(expect.any(String));
+  });
+
+  it("reclaims stale chat tasks only inside the resolved Arc workspace", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: {
+        data: [{ id: "t1", objective: "hi", metadata: { conversation_id: "c1" }, created_at: "t", retry_count: 1 }],
+        error: null,
+      },
+    });
+
+    await reclaimStaleChatTasks({ staleMs: 1000, maxRetries: 3, limit: 20 }, supabase, { orgId: "org-1", workspaceId: "workspace-1" });
+
+    expect(eqCalls(supabase).filter((call) => call[1] === "org_id" && call[2] === "org-1").length).toBeGreaterThanOrEqual(2);
+    expect(eqCalls(supabase).filter((call) => call[1] === "workspace_id" && call[2] === "workspace-1").length).toBeGreaterThanOrEqual(2);
   });
 
   it("gives up on a task past the retry cap: fails the task and the pending bubble", async () => {
@@ -103,5 +137,17 @@ describe("reclaimStaleChatTasks", () => {
     expect(items).toHaveLength(0);
     // Both the task and its pending message are flipped to failed.
     expect(calls(supabase, "update").some((u) => u.status === "failed")).toBe(true);
+  });
+});
+
+describe("settleChatTask", () => {
+  it("settles only the task inside the resolved Arc workspace", async () => {
+    const supabase = createSupabaseQueryMock({ agent_tasks: { data: null, error: null } });
+
+    await settleChatTask("t1", "completed", supabase, { orgId: "org-1", workspaceId: "workspace-1" });
+
+    expect(eqCalls(supabase)).toContainEqual(["eq", "id", "t1"]);
+    expect(eqCalls(supabase)).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(eqCalls(supabase)).toContainEqual(["eq", "workspace_id", "workspace-1"]);
   });
 });

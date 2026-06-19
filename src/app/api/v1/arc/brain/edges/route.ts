@@ -1,4 +1,4 @@
-import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
 import { markCreateEdge } from "@/lib/arc-api/brain";
 
 /**
@@ -8,8 +8,8 @@ import { markCreateEdge } from "@/lib/arc-api/brain";
  *   { "from_node_id": "...", "to_node_id": "...", "relation": "proves" }
  */
 export async function POST(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const body = await readJson(request);
   if (body === INVALID_JSON || typeof body !== "object" || body === null) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await markCreateEdge(body as Record<string, unknown>);
+    const result = await markCreateEdge(body as Record<string, unknown>, { orgId: allowed.scope.orgId });
     if (!result.ok) return fail("invalid_request", result.error, 400);
     return ok({ id: result.id }, 201);
   } catch (error) {

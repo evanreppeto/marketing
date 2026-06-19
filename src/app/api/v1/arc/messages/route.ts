@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { checkAgentBearer } from "@/lib/auth/api-token";
+import { arcGuard } from "@/app/api/v1/arc/_lib/http";
 import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "@/lib/arc-chat/inbox";
 import {
   completeArcMessage,
@@ -24,15 +24,9 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
  *   200 -> { ok: true, messages: [{ agentTaskId, conversationId, message, mentions, operator, createdAt }] }
  */
 export async function GET(request: Request) {
-  const auth = await checkAgentBearer(request);
-  if (!auth.ok) {
-    return NextResponse.json(
-      auth.reason === "not_configured"
-        ? { ok: false, status: "not_configured", message: "Set ARC_AGENT_API_TOKEN before pulling Arc messages." }
-        : { ok: false, status: "unauthorized", message: "Pulling Arc messages requires a valid bearer token." },
-      { status: auth.status },
-    );
-  }
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
+  const scope = { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId };
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
@@ -46,13 +40,13 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(parsedLimit) && parsedLimit > 0 && parsedLimit <= 100 ? parsedLimit : 20;
 
   try {
-    const queued = await listQueuedChatTasks(limit);
+    const queued = await listQueuedChatTasks(limit, undefined, scope);
     // Claim before handing out so a message is processed exactly once, even if
     // the webhook push already woke Arc. A lost claim race just means another
     // path already took it, so drop it from this response.
     const messages = [];
     for (const item of queued) {
-      if (await claimChatTask(item.agentTaskId)) {
+      if (await claimChatTask(item.agentTaskId, undefined, scope)) {
         logArcChatStatus("processing", { agentTaskId: item.agentTaskId, conversationId: item.conversationId, detail: "via=inbox" });
         messages.push(item);
       }
@@ -61,7 +55,7 @@ export async function GET(request: Request) {
     // answered — e.g. a crashed turn), so a dropped message isn't lost forever.
     if (messages.length < limit) {
       const agentName = await getAgentName();
-      messages.push(...(await reclaimStaleChatTasks({ limit: limit - messages.length, agentName })));
+      messages.push(...(await reclaimStaleChatTasks({ limit: limit - messages.length, agentName }, undefined, scope)));
     }
     return NextResponse.json({ ok: true, status: "ok", messages }, { status: 200 });
   } catch (error) {
@@ -82,15 +76,9 @@ export async function GET(request: Request) {
  *   body: { agentTaskId: string, body: string, status?: "complete"|"failed", metadata?: object }
  */
 export async function POST(request: Request) {
-  const auth = await checkAgentBearer(request);
-  if (!auth.ok) {
-    return NextResponse.json(
-      auth.reason === "not_configured"
-        ? { ok: false, status: "not_configured", message: "Set ARC_AGENT_API_TOKEN before delivering Arc replies." }
-        : { ok: false, status: "unauthorized", message: "Arc replies require a valid bearer token." },
-      { status: auth.status },
-    );
-  }
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
+  const scope = { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId };
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
@@ -125,7 +113,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const pending = await findPendingMessageByTask(agentTaskId);
+    const pending = await findPendingMessageByTask(agentTaskId, undefined, scope);
     if (!pending) {
       return NextResponse.json({ ok: false, status: "not_found", message: "No pending Arc message for that agentTaskId." }, { status: 404 });
     }
@@ -147,7 +135,7 @@ export async function POST(request: Request) {
     await touchConversation(pending.conversationId);
     // Move the queued task out of the inbox; best-effort so a settle failure
     // never masks a successfully recorded reply (a re-pull would just 404).
-    await settleChatTask(agentTaskId, status === "failed" ? "failed" : "completed").catch(() => undefined);
+    await settleChatTask(agentTaskId, status === "failed" ? "failed" : "completed", undefined, scope).catch(() => undefined);
 
     return NextResponse.json({ ok: true, status: "recorded", messageId: pending.id }, { status: 201 });
   } catch (error) {
