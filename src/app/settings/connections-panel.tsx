@@ -20,8 +20,10 @@ function summaryTone(ok: boolean) {
 export async function ConnectionsPanel() {
   const connections = await getConnections();
   const email = connections.filter((connection) => connection.kind === "email");
+  const storage = connections.filter((connection) => connection.kind === "storage");
   const social = connections.filter((connection) => connection.kind === "social");
   const emailReady = email.some((connection) => connection.status === "connected");
+  const storageReady = storage.filter((connection) => connection.status === "connected").length;
   const socialReady = social.filter((connection) => connection.status === "connected").length;
 
   return (
@@ -32,15 +34,19 @@ export async function ConnectionsPanel() {
       title="Connections"
       actions={<StatusPill tone={summaryTone(emailReady || socialReady > 0)}>Guided setup</StatusPill>}
     >
-      <div className="grid gap-3 border-b border-[var(--border-hairline)] px-5 py-4 sm:grid-cols-4">
+      <div className="grid gap-3 border-b border-[var(--border-hairline)] px-5 py-4 sm:grid-cols-5">
         <SummaryTile icon={<ProviderLogo provider="database" size="sm" />} label="Database" ready={isSupabaseAdminConfigured()} value={isSupabaseAdminConfigured() ? "Ready" : "Needs setup"} />
         <SummaryTile icon={<ProviderLogo provider="resend" size="sm" />} label="Email" ready={emailReady} value={emailReady ? "Ready" : "Needs setup"} />
+        <SummaryTile icon={<ProviderLogo provider="google_drive" size="sm" />} label="Drive" ready={storageReady > 0} value={storageReady > 0 ? "Ready" : "Needs setup"} />
         <SummaryTile icon={<ProviderLogo provider="agent" size="sm" />} label="Agent" ready value="Agent tab" />
         <SummaryTile icon={<SocialStack />} label="Social" ready={socialReady > 0} value={`${socialReady}/${social.length} ready`} />
       </div>
 
       <ul className="divide-y divide-[var(--border-hairline)]">
         {email.map((connection) => (
+          <ConnectionSetupCard connection={connection} key={connection.provider} />
+        ))}
+        {storage.map((connection) => (
           <ConnectionSetupCard connection={connection} key={connection.provider} />
         ))}
         <AgentConnectionShortcut />

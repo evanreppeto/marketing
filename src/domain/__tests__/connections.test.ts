@@ -22,6 +22,17 @@ describe("CONNECTION_REGISTRY", () => {
     expect(social.every((entry) => typeof entry.envVar === "string")).toBe(true);
   });
 
+  it("includes Google Drive as a storage connection backed by OAuth env vars", () => {
+    const drive = CONNECTION_REGISTRY.find((entry) => entry.provider === "google_drive");
+    expect(drive).toMatchObject({
+      provider: "google_drive",
+      kind: "storage",
+      label: "Google Drive",
+      envVar: "GOOGLE_DRIVE_CLIENT_ID",
+      requiredEnvVars: ["GOOGLE_DRIVE_CLIENT_ID", "GOOGLE_DRIVE_CLIENT_SECRET"],
+    });
+  });
+
   it("requires the Meta credential block for facebook and instagram", () => {
     const facebook = CONNECTION_REGISTRY.find((entry) => entry.provider === "facebook");
     const instagram = CONNECTION_REGISTRY.find((entry) => entry.provider === "instagram");
@@ -52,6 +63,12 @@ describe("missingRequiredEnvVars", () => {
   it("returns only the missing subset for a multi-var provider", () => {
     const env = { META_APP_ID: "a", META_APP_SECRET: "b", META_PAGE_ACCESS_TOKEN: "t" };
     expect(missingRequiredEnvVars("facebook", env)).toEqual(["META_PAGE_ID"]);
+  });
+
+  it("returns the missing Google Drive OAuth secret", () => {
+    expect(missingRequiredEnvVars("google_drive", { GOOGLE_DRIVE_CLIENT_ID: "client" })).toEqual([
+      "GOOGLE_DRIVE_CLIENT_SECRET",
+    ]);
   });
 
   it("returns [] for facebook when the full Meta block is present", () => {

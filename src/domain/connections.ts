@@ -1,8 +1,8 @@
 // Pure, deterministic logic for outbound connections (Resend + social).
 // No I/O. Secrets live in env vars; this module never reads process.env.
 
-export type ConnectionProvider = "resend" | "instagram" | "facebook" | "linkedin" | "x";
-export type ConnectionKind = "email" | "social";
+export type ConnectionProvider = "resend" | "instagram" | "facebook" | "linkedin" | "x" | "google_drive";
+export type ConnectionKind = "email" | "social" | "storage";
 
 /** Derived status surfaced to operators — never persisted (see read-model). */
 export type ConnectionStatus = "not_configured" | "disabled" | "error" | "connected";
@@ -20,6 +20,13 @@ export type ConnectionRegistryEntry = {
 /** Canonical list of connectable providers. Seeded into the `connections` table. */
 export const CONNECTION_REGISTRY: ConnectionRegistryEntry[] = [
   { provider: "resend", kind: "email", label: "Resend", envVar: "RESEND_API_KEY", requiredEnvVars: ["RESEND_API_KEY"] },
+  {
+    provider: "google_drive",
+    kind: "storage",
+    label: "Google Drive",
+    envVar: "GOOGLE_DRIVE_CLIENT_ID",
+    requiredEnvVars: ["GOOGLE_DRIVE_CLIENT_ID", "GOOGLE_DRIVE_CLIENT_SECRET"],
+  },
   {
     provider: "instagram",
     kind: "social",

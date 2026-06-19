@@ -70,9 +70,32 @@ describe("getConnections", () => {
     const views = await getConnections(supabase);
 
     // Registry-derived: every provider present, resend computed from env, none enabled.
-    expect(views.map((view) => view.provider).sort()).toEqual(["facebook", "instagram", "linkedin", "resend", "x"]);
+    expect(views.map((view) => view.provider).sort()).toEqual([
+      "facebook",
+      "google_drive",
+      "instagram",
+      "linkedin",
+      "resend",
+      "x",
+    ]);
     const resend = views.find((view) => view.provider === "resend");
     expect(resend).toMatchObject({ enabled: false, status: "disabled" });
+  });
+
+  it("adds registry providers missing from an older connections table", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_live");
+    vi.stubEnv("GOOGLE_DRIVE_CLIENT_ID", "client");
+    vi.stubEnv("GOOGLE_DRIVE_CLIENT_SECRET", "secret");
+    const supabase = createSupabaseQueryMock({ connections: { data: [row()], error: null } });
+
+    const views = await getConnections(supabase);
+
+    expect(views.some((view) => view.provider === "google_drive")).toBe(true);
+    expect(views.find((view) => view.provider === "google_drive")).toMatchObject({
+      enabled: false,
+      status: "disabled",
+      requiredEnvVars: ["GOOGLE_DRIVE_CLIENT_ID", "GOOGLE_DRIVE_CLIENT_SECRET"],
+    });
   });
 
   it("treats social providers (no env var) as not_configured", async () => {

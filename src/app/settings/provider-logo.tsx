@@ -4,9 +4,10 @@ import { cx } from "../_components/theme";
 
 const BRAND: Record<
   ConnectionProvider | "agent" | "database",
-  { label: string; mark: string; className: string; glyph?: "instagram" | "x" | "mail" | "db" | "spark" }
+  { label: string; mark: string; className: string; glyph?: "instagram" | "x" | "mail" | "db" | "spark" | "drive" }
 > = {
   resend: { label: "Resend", mark: "R", className: "bg-[#111827] text-white", glyph: "mail" },
+  google_drive: { label: "Google Drive", mark: "GD", className: "bg-white text-[#1f2937]", glyph: "drive" },
   instagram: { label: "Instagram", mark: "IG", className: "bg-[#d62976] text-white", glyph: "instagram" },
   facebook: { label: "Facebook", mark: "f", className: "bg-[#1877f2] text-white" },
   linkedin: { label: "LinkedIn", mark: "in", className: "bg-[#0a66c2] text-white" },
@@ -15,7 +16,7 @@ const BRAND: Record<
   database: { label: "Database", mark: "DB", className: "bg-[var(--surface-inset)] text-[var(--ok-text)]", glyph: "db" },
 };
 
-function Glyph({ type }: { type?: "instagram" | "x" | "mail" | "db" | "spark" }) {
+function Glyph({ type }: { type?: "instagram" | "x" | "mail" | "db" | "spark" | "drive" }) {
   if (!type) return null;
   if (type === "instagram") {
     return (
@@ -38,6 +39,16 @@ function Glyph({ type }: { type?: "instagram" | "x" | "mail" | "db" | "spark" })
       <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M4 7h16v10H4z" />
         <path d="m4 8 8 5 8-5" />
+      </svg>
+    );
+  }
+  if (type === "drive") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M9 4h6l6 10-3 6H6l-3-6z" />
+        <path d="M9 4 3 14" />
+        <path d="m15 4 6 10" />
+        <path d="M6 20 12 9l6 11" />
       </svg>
     );
   }

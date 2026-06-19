@@ -6,6 +6,7 @@ import { getMediaLibraryData } from "@/lib/media-library/read-model";
 
 import { AssetGrid } from "./_components/asset-grid";
 import { FolderRail } from "./_components/folder-rail";
+import { GoogleDriveImport } from "./_components/google-drive-import";
 import { NewFolderButton } from "./_components/new-folder-button";
 import { UploadButton } from "./_components/upload-button";
 
@@ -43,6 +44,7 @@ export default async function LibraryPage({
           data.assets.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
               <NewFolderButton />
+              <GoogleDriveImport activeFolderId={isFolderActive ? activeFolderId : null} />
               <UploadButton activeFolderId={isFolderActive ? activeFolderId : null} />
             </div>
           ) : undefined
@@ -52,7 +54,12 @@ export default async function LibraryPage({
         <EmptyState
           title="No media yet"
           detail="Upload photos, video, or logos and they'll appear here."
-          action={<UploadButton activeFolderId={null} />}
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <GoogleDriveImport activeFolderId={null} />
+              <UploadButton activeFolderId={null} />
+            </div>
+          }
         />
       ) : (
         <div className="flex gap-5">

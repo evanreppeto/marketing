@@ -89,6 +89,23 @@ function fallbackViews(): ConnectionView[] {
   }));
 }
 
+function fallbackViewFor(entry: (typeof CONNECTION_REGISTRY)[number]): ConnectionView {
+  return {
+    provider: entry.provider,
+    kind: entry.kind,
+    label: entry.label,
+    envVar: entry.envVar,
+    requiredEnvVars: entry.requiredEnvVars,
+    enabled: false,
+    status: computeConnectionStatus({ envPresent: isConfigured(entry.provider), enabled: false, lastTestOk: null }),
+    fromEmail: null,
+    lastTestedAt: null,
+    lastTestOk: null,
+    lastTestError: null,
+    lastUsedAt: null,
+  };
+}
+
 /**
  * Connection list for the Settings UI. Status is computed here (env presence ×
  * operator switch × last test) — never stored. Degrades gracefully to a registry
@@ -111,5 +128,11 @@ export async function getConnections(client?: SupabaseClient): Promise<Connectio
     return fallbackViews();
   }
 
-  return ((data ?? []) as ConnectionRow[]).map(rowToView);
+  const views = ((data ?? []) as ConnectionRow[]).map(rowToView);
+  const seen = new Set(views.map((view) => view.provider));
+  for (const entry of CONNECTION_REGISTRY) {
+    if (!seen.has(entry.provider)) views.push(fallbackViewFor(entry));
+  }
+
+  return views;
 }
