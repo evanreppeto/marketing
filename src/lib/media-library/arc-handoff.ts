@@ -56,7 +56,7 @@ export function toArcMediaSummary(rows: ArcMediaRow[]): ArcMediaSummary[] {
     fileName: r.file_name,
     url: r.public_url,
     kind: r.kind,
-    dimensions: r.width && r.height ? `${r.width} × ${r.height}` : null,
+    dimensions: r.width != null && r.height != null ? `${r.width} × ${r.height}` : null,
     tags: r.tags ?? [],
     riskFlags: r.risk_flags ?? [],
   }));
