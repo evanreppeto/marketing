@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type ArcBusinessContext } from "@/domain";
+import { type ArcBusinessContext, EMPTY_BRAND_PALETTE } from "@/domain";
 
 import { parseArcPartnerCampaignRequest } from "./contracts";
 import { createPartnerCampaignDraft } from "./draft-engine";
@@ -17,6 +17,12 @@ const CONTEXT: ArcBusinessContext = {
   personas: [],
   guardrails: { disallowedClaims: [], complianceNotes: "" },
   brainFacts: ["Proof: IICRC certified.", "Voice: calm and specific."],
+  palette: EMPTY_BRAND_PALETTE,
+  logoUrl: null,
+  tagline: null,
+  description: null,
+  websiteUrl: null,
+  serviceAreas: [],
 };
 
 describe("createPartnerCampaignDraft", () => {
