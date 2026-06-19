@@ -5,6 +5,7 @@ import { buttonClasses, PageHeader, Panel, StatStrip, StatusPill, type StatItem 
 import { theme } from "./_components/theme";
 import { getRecentActivity } from "@/lib/activity/read-model";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { getConnections } from "@/lib/connections/read-model";
 import { getDashboardCounts } from "@/lib/dashboard/read-model";
 import { getAgentDisplayName, isAgentConfigured } from "@/lib/arc-chat/agent-config";
@@ -16,9 +17,10 @@ export default async function HomePage() {
 
   const settings = await getAppSettings();
   const agentName = getAgentDisplayName(settings.assistantName);
+  const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
   const [counts, campaignList, activity, connections] = await Promise.all([
     getDashboardCounts(),
-    getCampaignWorkspaceList(undefined, agentName),
+    getCampaignWorkspaceList(undefined, agentName, orgId),
     getRecentActivity({ limit: 5 }),
     getConnections(),
   ]);

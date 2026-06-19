@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 
 /**
@@ -8,8 +8,8 @@ import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
  *   GET /api/v1/arc/campaigns?status=pending_approval&needs_review=true&limit=20
  */
 export async function GET(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const url = new URL(request.url);
   const statusParam = url.searchParams.get("status");
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const list = await getCampaignWorkspaceList();
+    const list = await getCampaignWorkspaceList(undefined, "Arc", allowed.scope.orgId);
     if (list.status !== "live") {
       return fail("failed", list.message ?? "Campaigns are unavailable.", 502);
     }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpportunityCandidate } from "@/domain";
+import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 vi.mock("@/lib/supabase/server", () => ({
   isSupabaseAdminConfigured: () => true,
@@ -30,7 +31,7 @@ const mockClient = {
   },
 } as never;
 
-import { upsertOpportunities } from "../persistence";
+import { markOpportunityDrafted, upsertOpportunities } from "../persistence";
 
 function candidate(id: string): OpportunityCandidate {
   return {
@@ -59,5 +60,17 @@ describe("upsertOpportunities", () => {
     const res = await upsertOpportunities([candidate("lead-A"), candidate("lead-B")]);
     expect(res.ok).toBe(true);
     expect(inserted.map((r) => r.subject_id)).toEqual(["lead-B"]); // A deduped
+  });
+});
+
+describe("markOpportunityDrafted", () => {
+  it("applies explicit org scope when provided", async () => {
+    const supabase = createSupabaseQueryMock({ opportunities: { data: [], error: null } });
+
+    await markOpportunityDrafted("opp-1", "camp-1", supabase, { orgId: "org-2" });
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-2"]);
+    expect(supabase.calls).toContainEqual(["eq", "id", "opp-1"]);
+    expect(supabase.calls).toContainEqual(["update", { status: "drafted", campaign_id: "camp-1" }]);
   });
 });

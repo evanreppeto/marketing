@@ -50,6 +50,11 @@ export type ListAgentTasksFilter = {
   limit?: number;
 };
 
+export type AgentTaskScope = {
+  orgId: string;
+  workspaceId: string;
+};
+
 export type TaskMutationResult =
   | { ok: true; task: NormalizedTask }
   | { ok: false; reason: "not_found" }
@@ -79,8 +84,20 @@ function rowToNormalized(row: TaskRow, latestLogError: string | null = null): No
   });
 }
 
-async function readTaskRow(taskId: string, client: SupabaseClient): Promise<TaskRow | null> {
-  const { data, error } = await client.from("agent_tasks").select(TASK_SELECT).eq("id", taskId).maybeSingle();
+function applyAgentTaskScope<Query>(query: Query, scope?: AgentTaskScope): Query {
+  if (!scope) return query;
+  const scoped = query as {
+    eq(column: string, value: string): { eq(column: string, value: string): Query };
+  };
+  return scoped.eq("org_id", scope.orgId).eq("workspace_id", scope.workspaceId);
+}
+
+async function readTaskRow(taskId: string, client: SupabaseClient, scope?: AgentTaskScope): Promise<TaskRow | null> {
+  const query = applyAgentTaskScope(
+    client.from("agent_tasks").select(TASK_SELECT).eq("id", taskId),
+    scope,
+  );
+  const { data, error } = await query.maybeSingle();
   if (error) {
     throw new Error(`agent_tasks read failed: ${error.message}`);
   }
@@ -90,6 +107,7 @@ async function readTaskRow(taskId: string, client: SupabaseClient): Promise<Task
 export async function listAgentTasks(
   filter: ListAgentTasksFilter = {},
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: AgentTaskScope,
 ): Promise<NormalizedTask[]> {
   let agentId: string | undefined;
   if (filter.assignee) {
@@ -108,7 +126,7 @@ export async function listAgentTasks(
     agentId = (agentRow as { id: string }).id;
   }
 
-  let query = client.from("agent_tasks").select(TASK_SELECT);
+  let query = applyAgentTaskScope(client.from("agent_tasks").select(TASK_SELECT), scope);
   if (filter.status) {
     query = query.eq("status", filter.status);
   }
@@ -136,8 +154,21 @@ export type GetAgentTaskResult =
 export async function getAgentTaskForApi(
   taskId: string,
   client?: SupabaseClient,
+  scope?: AgentTaskScope,
 ): Promise<GetAgentTaskResult> {
-  const detail = await getAgentTaskDetail(taskId, client);
+  if (scope) {
+    const scopedTask = await readTaskRow(taskId, client ?? getSupabaseAdminClient(), scope);
+    if (!scopedTask) {
+      return { ok: false, reason: "not_found" };
+    }
+  }
+
+  const detail = await getAgentTaskDetail(
+    taskId,
+    client,
+    "Agent",
+    scope ? { org_id: scope.orgId, workspace_id: scope.workspaceId } : undefined,
+  );
   if (detail.status === "not_found") {
     return { ok: false, reason: "not_found" };
   }
@@ -170,11 +201,16 @@ async function updateAndNormalize(
   taskId: string,
   patch: Record<string, unknown>,
   client: SupabaseClient,
+  scope?: AgentTaskScope,
 ): Promise<NormalizedTask> {
-  const { data, error } = await client
+  const query = applyAgentTaskScope(
+    client
     .from("agent_tasks")
     .update(patch)
-    .eq("id", taskId)
+      .eq("id", taskId),
+    scope,
+  );
+  const { data, error } = await query
     .select(TASK_SELECT)
     .single();
   if (error) {
@@ -186,8 +222,9 @@ async function updateAndNormalize(
 export async function claimAgentTask(
   taskId: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: AgentTaskScope,
 ): Promise<TaskMutationResult> {
-  const row = await readTaskRow(taskId, client);
+  const row = await readTaskRow(taskId, client, scope);
   if (!row) return { ok: false, reason: "not_found" };
   if (row.status !== "queued") {
     return { ok: false, reason: "conflict", currentStatus: row.status ?? "unknown" };
@@ -196,6 +233,7 @@ export async function claimAgentTask(
     taskId,
     { status: "running", started_at: new Date().toISOString() },
     client,
+    scope,
   );
   return { ok: true, task };
 }
@@ -204,8 +242,9 @@ export async function completeAgentTask(
   taskId: string,
   opts: { summary?: string; metadata?: Record<string, unknown> } = {},
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: AgentTaskScope,
 ): Promise<TaskMutationResult> {
-  const row = await readTaskRow(taskId, client);
+  const row = await readTaskRow(taskId, client, scope);
   if (!row) return { ok: false, reason: "not_found" };
   if (TERMINAL_STATUSES.has(row.status ?? "")) {
     return { ok: false, reason: "conflict", currentStatus: row.status ?? "unknown" };
@@ -221,6 +260,7 @@ export async function completeAgentTask(
     taskId,
     { status: "completed", completed_at: new Date().toISOString(), metadata: mergedMetadata },
     client,
+    scope,
   );
   return { ok: true, task };
 }
@@ -229,8 +269,9 @@ export async function blockAgentTask(
   taskId: string,
   opts: { reason: string; metadata?: Record<string, unknown> },
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: AgentTaskScope,
 ): Promise<TaskMutationResult> {
-  const row = await readTaskRow(taskId, client);
+  const row = await readTaskRow(taskId, client, scope);
   if (!row) return { ok: false, reason: "not_found" };
   if (TERMINAL_STATUSES.has(row.status ?? "")) {
     return { ok: false, reason: "conflict", currentStatus: row.status ?? "unknown" };
@@ -241,7 +282,7 @@ export async function blockAgentTask(
     ...(redactDeep(opts.metadata ?? {}) as Record<string, unknown>),
     blocked_reason: reason,
   };
-  const task = await updateAndNormalize(taskId, { status: "blocked", metadata: mergedMetadata }, client);
+  const task = await updateAndNormalize(taskId, { status: "blocked", metadata: mergedMetadata }, client, scope);
 
   // Record the block on the run-log timeline (best-effort; the state change is
   // already persisted above, so a failed audit insert must not fail the block).
@@ -300,8 +341,9 @@ export async function moveAgentTask(
   taskId: string,
   toStatus: OperatorDropTarget,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: AgentTaskScope,
 ): Promise<MoveTaskResult> {
-  const row = await readTaskRow(taskId, client);
+  const row = await readTaskRow(taskId, client, scope);
   if (!row) return { ok: false, reason: "not_found" };
 
   const openApproval = await hasOpenApproval(row.approval_item_id, client);
@@ -318,7 +360,7 @@ export async function moveAgentTask(
     patch.completed_at = new Date().toISOString();
   }
 
-  const task = await updateAndNormalize(taskId, patch, client);
+  const task = await updateAndNormalize(taskId, patch, client, scope);
 
   // Audit log is best-effort: the status change above is the source of truth and
   // is already persisted, so a failed audit insert must not fail (or crash) the move.
@@ -355,11 +397,16 @@ export async function appendAgentRunLog(
   taskId: string,
   input: AppendRunLogInput,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: AgentTaskScope,
 ): Promise<AppendRunLogResult> {
-  const { data: taskRow, error: taskErr } = await client
+  const taskQuery = applyAgentTaskScope(
+    client
     .from("agent_tasks")
     .select("agent_id")
-    .eq("id", taskId)
+      .eq("id", taskId),
+    scope,
+  );
+  const { data: taskRow, error: taskErr } = await taskQuery
     .maybeSingle();
   if (taskErr) {
     throw new Error(`appendAgentRunLog task lookup failed: ${taskErr.message}`);

@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { getAgentTaskForApi } from "@/lib/arc-api";
 
 /**
@@ -8,13 +8,13 @@ import { getAgentTaskForApi } from "@/lib/arc-api";
  *   GET /api/v1/arc/tasks/:id
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const { id } = await params;
 
   try {
-    const result = await getAgentTaskForApi(id);
+    const result = await getAgentTaskForApi(id, undefined, allowed.scope);
     if (!result.ok) {
       return result.reason === "not_found"
         ? fail("not_found", "No task with that id.", 404)

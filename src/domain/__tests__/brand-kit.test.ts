@@ -134,4 +134,16 @@ describe("assembleArcContext", () => {
     const ctx = assembleArcContext({ ...NEUTRAL_DEFAULTS, displayName: "Acme" }, personas);
     expect(ctx.personas.map((p) => p.key)).toEqual(["a", "b"]);
   });
+
+  it("can carry approved Brain facts for the agent runtime", () => {
+    const ctx = assembleArcContext({ ...NEUTRAL_DEFAULTS, displayName: "Acme" }, [], [
+      "Messaging: Use a calm expert voice.",
+      "Proof: IICRC certified.",
+    ]);
+
+    expect(ctx.brainFacts).toEqual([
+      "Messaging: Use a calm expert voice.",
+      "Proof: IICRC certified.",
+    ]);
+  });
 });

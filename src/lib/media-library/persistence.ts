@@ -86,6 +86,11 @@ export type InsertAssetInput = {
   uploader?: ImageUploader;
 };
 
+export type InsertAssetResult = {
+  id: string;
+  url: string;
+};
+
 /** Insert the media_assets row (placeholder path), upload the bytes, then update
  *  the row with the real storage path + public URL. Returns the new id.
  *
@@ -94,7 +99,7 @@ export type InsertAssetInput = {
  *  storage object exists with no row reference. Acceptable for this iteration —
  *  uploads are low-frequency and a cleanup pass can be added if it matters.
  *  Mirrors the same documented tradeoff in src/lib/campaigns/create.ts. */
-export async function insertAsset(input: InsertAssetInput): Promise<string> {
+export async function insertAssetWithUrl(input: InsertAssetInput): Promise<InsertAssetResult> {
   const client = input.client ?? getSupabaseAdminClient();
   const upload = input.uploader ?? defaultUploader(client);
   const id = await insertGetId(client, "media_assets", {
@@ -107,7 +112,12 @@ export async function insertAsset(input: InsertAssetInput): Promise<string> {
   const path = buildStoragePath(input.orgId, id, input.fileName);
   const url = await upload(path, input.bytes, input.contentType);
   await updateRow(client, "media_assets", { storage_path: path, public_url: url }, id);
-  return id;
+  return { id, url };
+}
+
+export async function insertAsset(input: InsertAssetInput): Promise<string> {
+  const result = await insertAssetWithUrl(input);
+  return result.id;
 }
 
 export async function renameAsset(id: string, fileName: string, client: SupabaseClient = getSupabaseAdminClient()) {

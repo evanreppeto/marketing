@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { markAgentKeys } from "@/lib/arc-chat/agent-config";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -22,9 +23,12 @@ export async function enqueueArcOpportunityTask(
     .maybeSingle<{ id: string }>();
   if (!agent) throw new Error("Arc agent not found");
 
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: task, error } = await client
     .from("agent_tasks")
     .insert({
+      ...tenant,
       agent_id: agent.id,
       status: "queued",
       priority: "high",

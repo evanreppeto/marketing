@@ -1,8 +1,27 @@
 vi.mock("node:dns/promises", () => ({ lookup: vi.fn(async () => ({ address: "93.184.216.34", family: 4 })) }));
+vi.mock("@/lib/auth/api-token", () => ({
+  checkAgentBearer: vi.fn(async () => ({
+    ok: true,
+    tokenSource: "database",
+    orgId: "org-2",
+    workspaceId: "20000000-0000-4000-8000-000000000002",
+  })),
+}));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    workspaceId: "10000000-0000-4000-8000-000000000001",
+    workspaceKey: "default",
+    role: "admin",
+  })),
+}));
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "./route";
+import { checkAgentBearer } from "@/lib/auth/api-token";
+
+const bearerMock = vi.mocked(checkAgentBearer);
 
 function req(authorization: string | undefined, body?: unknown) {
   return new Request("http://localhost/api/v1/arc/brand/analyze-website", {
@@ -25,6 +44,13 @@ function configure() {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  bearerMock.mockReset();
+  bearerMock.mockResolvedValue({
+    ok: true,
+    tokenSource: "database",
+    orgId: "org-2",
+    workspaceId: "20000000-0000-4000-8000-000000000002",
+  });
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(env)) {
@@ -36,8 +62,21 @@ afterEach(() => {
 describe("POST /api/v1/arc/brand/analyze-website", () => {
   it("401s without a valid token", async () => {
     process.env.ARC_AGENT_API_TOKEN = "secret";
+    bearerMock.mockResolvedValue({ ok: false, reason: "unauthorized", status: 401 });
     const res = await POST(req("Bearer wrong", { url: "https://example.com" }));
     expect(res.status).toBe(401);
+  });
+
+  it("409s when a database token is not tied to a workspace", async () => {
+    configure();
+    const fetchSpy = vi.spyOn(global, "fetch");
+    bearerMock.mockResolvedValue({ ok: true, tokenSource: "database", orgId: "org-2" });
+
+    const res = await POST(req("Bearer token", { url: "https://acme.com" }));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).status).toBe("workspace_required");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("400s on a missing url", async () => {

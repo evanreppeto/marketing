@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { checkAgentBearer } from "@/lib/auth/api-token";
-import { getCurrentOrgId } from "@/lib/auth/org";
+import { arcGuard } from "@/app/api/v1/arc/_lib/http";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -10,22 +9,16 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
  *   200 -> { ok: true, assets: [...] }   401 -> bad token   503 -> not configured
  */
 export async function GET(request: Request) {
-  const auth = await checkAgentBearer(request);
-  if (!auth.ok) {
-    return NextResponse.json(
-      { ok: false, status: auth.reason === "not_configured" ? "not_configured" : "unauthorized" },
-      { status: auth.status },
-    );
-  }
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json({ ok: false, status: "not_configured" }, { status: 503 });
   }
-  const orgId = await getCurrentOrgId();
   const table: string = "media_assets";
   const { data, error } = await getSupabaseAdminClient()
     .from(table)
     .select("id, file_name, public_url, kind, source, provenance, risk_flags, tags, width, height")
-    .eq("org_id", orgId)
+    .eq("org_id", allowed.scope.orgId)
     .eq("available_to_arc", true)
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ ok: false, status: "error", message: error.message }, { status: 502 });

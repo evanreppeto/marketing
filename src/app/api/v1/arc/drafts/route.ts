@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { createApprovalDraft } from "@/lib/arc-api";
 
 /**
@@ -18,8 +18,8 @@ import { createApprovalDraft } from "@/lib/arc-api";
  *   }
  */
 export async function POST(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const payload = await readJson(request);
   if (payload === INVALID_JSON) {
@@ -38,25 +38,29 @@ export async function POST(request: Request) {
   const str = (key: string) => (typeof body[key] === "string" ? (body[key] as string) : undefined);
 
   try {
-    const result = await createApprovalDraft({
-      itemType,
-      draft,
-      title: str("title"),
-      summary: str("summary"),
-      riskLevel: str("risk_level"),
-      promptInputs:
-        body.prompt_inputs && typeof body.prompt_inputs === "object"
-          ? (body.prompt_inputs as Record<string, unknown>)
-          : undefined,
-      agent: str("agent"),
-      campaignId: str("campaign_id"),
-      campaignAssetId: str("campaign_asset_id"),
-      companyId: str("company_id"),
-      contactId: str("contact_id"),
-      leadId: str("lead_id"),
-      taskId: str("task_id"),
-      metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : undefined,
-    });
+    const result = await createApprovalDraft(
+      {
+        itemType,
+        draft,
+        title: str("title"),
+        summary: str("summary"),
+        riskLevel: str("risk_level"),
+        promptInputs:
+          body.prompt_inputs && typeof body.prompt_inputs === "object"
+            ? (body.prompt_inputs as Record<string, unknown>)
+            : undefined,
+        agent: str("agent"),
+        campaignId: str("campaign_id"),
+        campaignAssetId: str("campaign_asset_id"),
+        companyId: str("company_id"),
+        contactId: str("contact_id"),
+        leadId: str("lead_id"),
+        taskId: str("task_id"),
+        metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : undefined,
+      },
+      undefined,
+      { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId },
+    );
     return NextResponse.json(
       { ok: true, status: "drafted", approvalItemId: result.approvalItemId, agentOutputId: result.agentOutputId },
       { status: 201 },

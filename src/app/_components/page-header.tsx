@@ -70,7 +70,11 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
             <p className={cx("mt-2 max-w-[72ch] text-[0.95rem] leading-7", theme.text.body)}>{description}</p>
           ) : null}
         </div>
-        {aside ? <div className="flex shrink-0 flex-wrap items-center gap-2 border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1.5 lg:justify-end">{aside}</div> : null}
+        {aside ? (
+          <div className="grid w-full shrink-0 grid-cols-[repeat(auto-fit,minmax(min(10rem,100%),1fr))] items-center gap-2 border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1.5 [&>*]:w-full lg:flex lg:w-auto lg:flex-wrap lg:justify-end">
+            {aside}
+          </div>
+        ) : null}
       </MotionReveal>
     </header>
   );

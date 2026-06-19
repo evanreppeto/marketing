@@ -5,8 +5,10 @@ import { connection } from "next/server";
 import { buttonClasses, EmptyState, PageHeader, StatStrip, StatusPill, type StatItem } from "../_components/page-header";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { getAgentDisplayName, isAgentConfigured } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import type { CampaignManagerView } from "./_components/library-model";
 
 import { ConnectAgentPanel } from "../_components/connect-agent-panel";
@@ -22,7 +24,8 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   const params = await searchParams;
   const { assistantName } = await getAppSettings();
   const displayName = getAgentDisplayName(assistantName);
-  const list = await getCampaignWorkspaceList(undefined, displayName);
+  const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
+  const list = await getCampaignWorkspaceList(undefined, displayName, orgId);
 
   if (list.status === "unavailable") {
     return (

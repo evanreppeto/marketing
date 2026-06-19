@@ -1,8 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { requestAssetRevision } from "./revisions";
+
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    orgSlug: "org",
+    orgName: "Org",
+    workspaceId: "workspace-1",
+    workspaceKey: "default",
+    workspaceSlug: "default",
+    workspaceName: "Default",
+    role: null,
+    userId: null,
+    source: "default-org",
+  })),
+}));
 
 function findCalls(supabase: { calls: Array<[string, ...unknown[]]> }, method: string) {
   return supabase.calls.filter(([m]) => m === method).map(([, arg]) => arg as Record<string, unknown>);

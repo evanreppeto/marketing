@@ -12,7 +12,10 @@ export async function POST(request: Request) {
   const password = String(form.get("password") ?? "");
   const from = getSafeOperatorReturnPath(String(form.get("from") ?? "/"));
   const signUpIntent = buildSignUpIntent({
+    firstName: String(form.get("firstName") ?? ""),
     fullName: String(form.get("fullName") ?? ""),
+    inviteCode: String(form.get("inviteCode") ?? ""),
+    lastName: String(form.get("lastName") ?? ""),
     organizationName: String(form.get("organizationName") ?? ""),
     workspaceIntent: String(form.get("workspaceIntent") ?? "create"),
     workspaceType: String(form.get("workspaceType") ?? "company"),
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (data.user) {
+  if (data.user && data.session) {
     const provisioned = await provisionAuthenticatedUser(data.user);
     if (!provisioned.ok) {
       return NextResponse.redirect(
@@ -75,7 +78,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (data.session && provisioned.status === "profile_only") {
+    if (provisioned.status === "profile_only") {
       return NextResponse.redirect(
         new URL(`/onboarding?from=${encodeURIComponent(from)}`, origin),
         { status: 303 },

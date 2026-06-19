@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { getCurrentAgentTaskTenantFields, type AgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { type Database, type Json } from "@/lib/supabase/database.types";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -33,9 +34,14 @@ type AgentTaskUpdate = Database["public"]["Tables"]["agent_tasks"]["Update"];
 type AgentTaskStatus = Database["public"]["Enums"]["agent_task_status"];
 type AgentTaskPriority = Database["public"]["Enums"]["agent_task_priority"];
 type NormalizedFieldValue = { ok: true; value: string | null } | { ok: false; message: string };
+type TenantScopeResult = { ok: true; tenant: AgentTaskTenantFields } | { ok: false; message: string };
 
 type TaskMetadataRow = {
   metadata: Json | null;
+};
+
+type TaskIdentityRow = {
+  id: string;
 };
 
 export async function updateTaskFieldAction(
@@ -68,17 +74,26 @@ export async function updateTaskFieldAction(
   }
 
   const supabase = getSupabaseAdminClient();
-  const { error: updateError } = await supabase
-    .from("agent_tasks")
-    .update(updatePayload(field, normalized.value))
-    .eq("id", taskId);
+  const tenant = await resolveTenantScope();
+  if (!tenant.ok) return tenant;
+
+  const existingTask = await readScopedTaskIdentity(supabase, taskId, tenant.tenant);
+  if (!existingTask.ok) return existingTask;
+
+  const { error: updateError } = await applyTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .update(updatePayload(field, normalized.value))
+      .eq("id", taskId),
+    tenant.tenant,
+  );
 
   if (updateError) {
     return { ok: false, message: `Task update failed: ${updateError.message}` };
   }
 
   const fieldLabel = humanize(field);
-  const eventResult = await insertTaskEvent(taskId, {
+  const eventResult = await insertTaskEvent(supabase, taskId, {
     event_type: field === "status" ? "status_changed" : "property_changed",
     title: `${fieldLabel} changed`,
     body: `${fieldLabel} changed to ${formatValueForBody(normalized.value)}.`,
@@ -128,8 +143,15 @@ export async function addTaskEventAction(
     return { ok: false, message: "Supabase is not configured." };
   }
 
+  const supabase = getSupabaseAdminClient();
+  const tenant = await resolveTenantScope();
+  if (!tenant.ok) return tenant;
+
+  const existingTask = await readScopedTaskIdentity(supabase, taskId, tenant.tenant);
+  if (!existingTask.ok) return existingTask;
+
   const title = payload.eventType === "comment" ? "Comment added" : "Instruction added";
-  const eventResult = await insertTaskEvent(taskId, {
+  const eventResult = await insertTaskEvent(supabase, taskId, {
     event_type: payload.eventType,
     title,
     body,
@@ -166,11 +188,16 @@ export async function toggleAcceptanceCriterionAction(
   }
 
   const supabase = getSupabaseAdminClient();
-  const { data, error: readError } = await supabase
-    .from("agent_tasks")
-    .select("metadata")
-    .eq("id", taskId)
-    .maybeSingle<TaskMetadataRow>();
+  const tenant = await resolveTenantScope();
+  if (!tenant.ok) return tenant;
+
+  const { data, error: readError } = await applyTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .select("metadata")
+      .eq("id", taskId),
+    tenant.tenant,
+  ).maybeSingle<TaskMetadataRow>();
 
   if (readError) {
     return { ok: false, message: `Task lookup failed: ${readError.message}` };
@@ -200,16 +227,19 @@ export async function toggleAcceptanceCriterionAction(
   }
 
   const nextMetadata = { ...metadata, acceptance_criteria: nextCriteria };
-  const { error: updateError } = await supabase
-    .from("agent_tasks")
-    .update({ metadata: nextMetadata })
-    .eq("id", taskId);
+  const { error: updateError } = await applyTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .update({ metadata: nextMetadata })
+      .eq("id", taskId),
+    tenant.tenant,
+  );
 
   if (updateError) {
     return { ok: false, message: `Acceptance criterion update failed: ${updateError.message}` };
   }
 
-  const eventResult = await insertTaskEvent(taskId, {
+  const eventResult = await insertTaskEvent(supabase, taskId, {
     event_type: "property_changed",
     title: "Acceptance criterion updated",
     body: `${changedLabel ?? "Acceptance criterion"} marked ${completed ? "complete" : "incomplete"}.`,
@@ -221,6 +251,48 @@ export async function toggleAcceptanceCriterionAction(
   }
 
   revalidateTaskViews(taskId);
+  return { ok: true };
+}
+
+async function resolveTenantScope(): Promise<TenantScopeResult> {
+  try {
+    return { ok: true, tenant: await getCurrentAgentTaskTenantFields() };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "No active workspace is available.",
+    };
+  }
+}
+
+function applyTaskTenantScope<Query>(query: Query, tenant: AgentTaskTenantFields): Query {
+  const scoped = query as {
+    eq(column: string, value: string): { eq(column: string, value: string): Query };
+  };
+  return scoped.eq("org_id", tenant.org_id).eq("workspace_id", tenant.workspace_id);
+}
+
+async function readScopedTaskIdentity(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  taskId: string,
+  tenant: AgentTaskTenantFields,
+): Promise<ActionResult> {
+  const { data, error } = await applyTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .select("id")
+      .eq("id", taskId),
+    tenant,
+  ).maybeSingle<TaskIdentityRow>();
+
+  if (error) {
+    return { ok: false, message: `Task lookup failed: ${error.message}` };
+  }
+
+  if (!data) {
+    return { ok: false, message: "Task no longer exists." };
+  }
+
   return { ok: true };
 }
 
@@ -292,6 +364,7 @@ function updatePayload(field: EditableField, value: string | null): AgentTaskUpd
 }
 
 async function insertTaskEvent(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
   taskId: string,
   event: {
     event_type: string;
@@ -300,7 +373,6 @@ async function insertTaskEvent(
     metadata: Json;
   },
 ): Promise<ActionResult> {
-  const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("agent_task_events").insert({
     task_id: taskId,
     actor_kind: "human",

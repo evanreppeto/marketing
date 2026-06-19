@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
@@ -20,8 +20,9 @@ import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
  *   -> 201 { ok, status:"created", campaignId, assetId }
  */
 export async function POST(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
+  const tenant = { org_id: allowed.scope.orgId, workspace_id: allowed.scope.workspaceId };
 
   const payload = await readJson(request);
   if (payload === INVALID_JSON || typeof payload !== "object" || payload === null) {
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
           400,
         );
       }
-      const shell = await createCampaignShell({ operator, name, persona, restorationFocus, agentName: "Arc" });
+      const shell = await createCampaignShell({ operator, name, persona, restorationFocus, agentName: "Arc", tenant });
       campaignId = shell.campaignId;
     }
 
@@ -83,13 +84,14 @@ export async function POST(request: Request) {
       mediaPath,
       media,
       agentName: "Arc",
+      tenant,
     });
 
     if (opportunityId) {
       // Link the source opportunity to this campaign and flip it to drafted.
       // Best-effort: the draft asset is already created, so a link hiccup must
       // not turn a successful 201 into a 502.
-      await markOpportunityDrafted(opportunityId, campaignId).catch(() => undefined);
+      await markOpportunityDrafted(opportunityId, campaignId, undefined, { orgId: allowed.scope.orgId }).catch(() => undefined);
     }
 
     return NextResponse.json(

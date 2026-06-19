@@ -102,7 +102,7 @@ describe("getAgentOperationsDashboard", () => {
       },
     });
 
-    const dashboard = await getAgentOperationsDashboard(supabase);
+    const dashboard = await getAgentOperationsDashboard(supabase, "Agent", { org_id: "org-1", workspace_id: "workspace-1" });
 
     expect(dashboard.status).toBe("live");
     if (dashboard.status !== "live") return;
@@ -144,7 +144,11 @@ describe("getAgentOperationsDashboard", () => {
     });
     expect(supabase.calls).toContainEqual(["from", "agents"]);
     expect(supabase.calls).toContainEqual(["from", "agent_tasks"]);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
     expect(supabase.calls).toContainEqual(["from", "approval_items"]);
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(4);
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "workspace_id" && call[2] === "workspace-1")).toHaveLength(1);
   });
 
   it("returns unavailable when a Supabase lookup fails", async () => {
@@ -393,7 +397,7 @@ describe("getAgentTaskDetail", () => {
       },
     });
 
-    const detail = await getAgentTaskDetail("task-123456789", supabase);
+    const detail = await getAgentTaskDetail("task-123456789", supabase, "Agent", { org_id: "org-1", workspace_id: "workspace-1" });
 
     expect(detail.status).toBe("live");
     if (detail.status !== "live") return;
@@ -448,6 +452,8 @@ describe("getAgentTaskDetail", () => {
       ]),
     );
     expect(supabase.calls).toContainEqual(["from", "agent_task_events"]);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
   });
 
   it("summarizes Supabase HTML DNS errors on task detail lookup", async () => {

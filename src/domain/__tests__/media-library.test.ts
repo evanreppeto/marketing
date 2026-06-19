@@ -16,6 +16,9 @@ describe("validateUpload", () => {
   it("accepts a normal image", () => {
     expect(validateUpload({ contentType: "image/png", byteSize: 1_000_000 })).toEqual({ ok: true });
   });
+  it("accepts favicon ico files", () => {
+    expect(validateUpload({ contentType: "image/x-icon", byteSize: 50_000 })).toEqual({ ok: true });
+  });
   it("rejects an unsupported type", () => {
     const r = validateUpload({ contentType: "text/html", byteSize: 10 });
     expect(r.ok).toBe(false);

@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { type ParsedCampaignDraft } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
+import { type AgentTaskTenantFields } from "../agent-tasks/scope";
 
 const SOURCE_SYSTEM = "operator";
 const CAMPAIGN_MEDIA_BUCKET = "campaign-media";
@@ -29,15 +30,17 @@ export type PhotoAssetInput = {
   channel: string;
   uploader: ImageUploader;
   now: string;
+  tenant?: AgentTaskTenantFields;
 };
 
 /** Upload one photo and insert its approved asset + approval + decision. Returns the asset id. */
-export async function insertPhotoAsset({ client, campaignId, operator, photo, index, channel, uploader, now }: PhotoAssetInput): Promise<string> {
+export async function insertPhotoAsset({ client, campaignId, operator, photo, index, channel, uploader, now, tenant }: PhotoAssetInput): Promise<string> {
   // Caller is responsible for sanitizing photo.filename — it is interpolated into the path.
   const path = `operator-campaigns/${campaignId}/${index}-${photo.filename}`;
   const url = await uploader(path, photo.bytes, photo.contentType);
 
   const assetId = await insertOne(client, "campaign_assets", {
+    ...orgTenantFields(tenant),
     campaign_id: campaignId,
     asset_type: "social_ad",
     channel,
@@ -51,6 +54,7 @@ export async function insertPhotoAsset({ client, campaignId, operator, photo, in
   });
 
   const approvalItemId = await insertOne(client, "approval_items", {
+    ...orgTenantFields(tenant),
     campaign_id: campaignId,
     campaign_asset_id: assetId,
     item_type: "campaign_asset",
@@ -64,6 +68,7 @@ export async function insertPhotoAsset({ client, campaignId, operator, photo, in
   });
 
   await insertNoReturn(client, "approval_decisions", {
+    ...orgTenantFields(tenant),
     approval_item_id: approvalItemId,
     decision: "approved",
     decided_by: operator,
@@ -81,6 +86,7 @@ export type CreateOperatorCampaignInput = {
   photos: CampaignPhoto[];
   client?: SupabaseClient;
   uploader?: ImageUploader;
+  tenant?: AgentTaskTenantFields;
 };
 
 export type CreateOperatorCampaignResult = { campaignId: string; assetIds: string[] };
@@ -99,11 +105,13 @@ export async function createOperatorCampaign({
   photos,
   client = getSupabaseAdminClient(),
   uploader,
+  tenant,
 }: CreateOperatorCampaignInput): Promise<CreateOperatorCampaignResult> {
   const upload = uploader ?? defaultUploader(client);
   const now = new Date().toISOString();
 
   const campaignId = await insertOne(client, "campaigns", {
+    ...orgTenantFields(tenant),
     name: draft.name,
     persona: draft.persona,
     restoration_focus: draft.restorationFocus,
@@ -122,11 +130,12 @@ export async function createOperatorCampaign({
   const assetIds: string[] = [];
   for (const [index, photo] of photos.entries()) {
     assetIds.push(
-      await insertPhotoAsset({ client, campaignId, operator, photo, index, channel: draft.channel ?? "social", uploader: upload, now }),
+      await insertPhotoAsset({ client, campaignId, operator, photo, index, channel: draft.channel ?? "social", uploader: upload, now, tenant }),
     );
   }
 
   await insertNoReturn(client, "campaign_events", {
+    ...orgTenantFields(tenant),
     campaign_id: campaignId,
     event_type: "created",
     actor: operator,
@@ -157,6 +166,7 @@ export type CreateCampaignShellInput = {
   /** Configured agent display name, threaded from the caller for the audit-log detail. */
   agentName?: string;
   client?: SupabaseClient;
+  tenant?: AgentTaskTenantFields;
 };
 
 /** Minimal campaign row (draft, launch-locked) for promoting a saved item into a
@@ -165,6 +175,7 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
   const client = input.client ?? getSupabaseAdminClient();
   const agentName = input.agentName?.trim() || "Agent";
   const campaignId = await insertOne(client, "campaigns", {
+    ...orgTenantFields(input.tenant),
     name: input.name,
     persona: input.persona,
     restoration_focus: input.restorationFocus,
@@ -174,6 +185,7 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
     source_system: "arc_saved",
   });
   await insertNoReturn(client, "campaign_events", {
+    ...orgTenantFields(input.tenant),
     campaign_id: campaignId,
     event_type: "created",
     actor: input.operator,
@@ -209,6 +221,7 @@ export type PromoteAssetInput = {
   /** Configured agent display name, threaded from the caller for the audit-log detail. */
   agentName?: string;
   client?: SupabaseClient;
+  tenant?: AgentTaskTenantFields;
 };
 
 /** Insert a pending-approval campaign asset + its approval gate + an event, so the
@@ -231,6 +244,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
       }
     : null;
   const assetId = await insertOne(client, "campaign_assets", {
+    ...orgTenantFields(input.tenant),
     campaign_id: input.campaignId,
     asset_type: input.assetType,
     title: input.title,
@@ -243,6 +257,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
       : { outbound_locked: true },
   });
   await insertNoReturn(client, "approval_items", {
+    ...orgTenantFields(input.tenant),
     campaign_id: input.campaignId,
     campaign_asset_id: assetId,
     item_type: "campaign_asset",
@@ -253,6 +268,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     risk_level: "medium",
   });
   await insertNoReturn(client, "campaign_events", {
+    ...orgTenantFields(input.tenant),
     campaign_id: input.campaignId,
     campaign_asset_id: assetId,
     event_type: "asset_generated",
@@ -260,4 +276,8 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
     detail: `promoted from ${agentName} saved`,
   });
   return { assetId };
+}
+
+function orgTenantFields(tenant?: AgentTaskTenantFields): Record<string, string> {
+  return tenant ? { org_id: tenant.org_id } : {};
 }

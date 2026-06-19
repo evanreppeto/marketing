@@ -1,4 +1,4 @@
-import { fail, guard, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, INVALID_JSON, ok, readJson } from "@/app/api/v1/arc/_lib/http";
 import { parseActivityInput, parseNoteInput, parseTaskInput } from "@/domain";
 import { insertActivity, insertNote, insertTask } from "@/lib/interactions/persistence";
 
@@ -11,8 +11,9 @@ import { insertActivity, insertNote, insertTask } from "@/lib/interactions/persi
  *   { "kind": "note" | "task" | "activity", ...payload }
  */
 export async function POST(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
+  const scope = { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId };
 
   const body = await readJson(request);
   if (body === INVALID_JSON || typeof body !== "object" || body === null) {
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
         authorName,
       });
       if (!parsed.ok) return fail("invalid_request", parsed.error, 400);
-      const result = await insertNote(parsed.value);
+      const result = await insertNote(parsed.value, scope);
       if (!result.ok) return fail("failed", result.error, 502);
       return ok({ id: result.id, kind: "note" }, 201);
     }
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
         authorName,
       });
       if (!parsed.ok) return fail("invalid_request", parsed.error, 400);
-      const result = await insertTask(parsed.value);
+      const result = await insertTask(parsed.value, scope);
       if (!result.ok) return fail("failed", result.error, 502);
       return ok({ id: result.id, kind: "task" }, 201);
     }
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
         metadata: payload.metadata,
       });
       if (!parsed.ok) return fail("invalid_request", parsed.error, 400);
-      const result = await insertActivity(parsed.value);
+      const result = await insertActivity(parsed.value, scope);
       if (!result.ok) return fail("failed", result.error, 502);
       return ok({ id: result.id, kind: "activity" }, 201);
     }

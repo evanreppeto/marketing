@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { PageHeader, EmptyState } from "../../_components/page-header";
 import { getOperatorActor } from "@/lib/auth/operator";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { listSavedItems } from "@/lib/arc-chat/saved";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
@@ -41,7 +42,8 @@ export default async function ArcSavedPage() {
     items = [];
   }
   try {
-    const list = await getCampaignWorkspaceList();
+    const orgId = await getCurrentOrgId().catch(() => undefined);
+    const list = await getCampaignWorkspaceList(undefined, agentName, orgId);
     campaigns = list.status === "live" ? list.campaigns.map((c) => ({ id: c.id, name: c.name })) : [];
   } catch {
     campaigns = [];

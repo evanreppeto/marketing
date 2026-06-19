@@ -4,12 +4,13 @@ export type MediaKind = "image" | "video" | "logo" | "document";
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
 
-const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"];
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "image/x-icon"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 const DOC_TYPES = ["application/pdf"];
 
 export function classifyKind(contentType: string, fileName: string): MediaKind {
   if (contentType === "image/svg+xml" || fileName.toLowerCase().endsWith(".svg")) return "logo";
+  if (contentType === "image/x-icon" || fileName.toLowerCase().endsWith(".ico")) return "logo";
   if (IMAGE_TYPES.includes(contentType)) return "image";
   if (VIDEO_TYPES.includes(contentType)) return "video";
   if (DOC_TYPES.includes(contentType)) return "document";

@@ -37,4 +37,12 @@ describe("listProperties", () => {
     await listProperties({ q: "State" }, supabase);
     expect(supabase.calls).toContainEqual(["ilike", "street_line_1", "%State%"]);
   });
+
+  it("applies explicit org scope when provided", async () => {
+    const supabase = createSupabaseQueryMock({ properties: { data: [], error: null } });
+
+    await listProperties({ orgId: "org-1" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
 });

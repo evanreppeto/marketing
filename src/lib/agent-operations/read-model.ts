@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentAgentTaskTenantFields, type AgentTaskTenantFields } from "../agent-tasks/scope";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 import { buildDemoAgentOperationsDashboard } from "./demo";
 
@@ -376,6 +377,7 @@ type AgentTaskEventRow = {
 export async function getAgentOperationsDashboard(
   client?: SupabaseClient,
   agentName: string = "Agent",
+  tenantScope?: AgentTaskTenantFields,
 ): Promise<AgentOperationsDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
     // No DB connected (local preview): show a realistic, read-only BSR board
@@ -385,26 +387,40 @@ export async function getAgentOperationsDashboard(
 
   try {
     const supabase = client ?? getSupabaseAdminClient();
+    const scope = tenantScope ?? (!client ? await getCurrentAgentTaskTenantFields() : undefined);
     const [agentsResult, tasksResult, approvalsResult, outputsResult, campaignsResult] = await Promise.all([
       supabase
         .from("agents")
         .select("id,key,name,description,status,allowed_actions,blocked_actions,default_approval_policy,metadata,updated_at")
         .order("updated_at", { ascending: false })
         .limit(25),
-      fetchDashboardTasks(supabase),
-      supabase
-        .from("approval_items")
-        .select(
-          "id,campaign_id,campaign_asset_id,item_type,status,risk_level,requested_by,submitted_at,reviewed_at,draft_output,decision_notes",
-        )
+      fetchDashboardTasks(supabase, scope),
+      applyOrgScope(
+        supabase
+          .from("approval_items")
+          .select(
+            "id,campaign_id,campaign_asset_id,item_type,status,risk_level,requested_by,submitted_at,reviewed_at,draft_output,decision_notes",
+          ),
+        scope?.org_id,
+      )
         .order("submitted_at", { ascending: false })
         .limit(50),
-      supabase
-        .from("agent_outputs")
-        .select("id,task_id,approval_item_id,title,output_type,risk_level,compliance_status,approval_status,created_at")
+      applyOrgScope(
+        supabase
+          .from("agent_outputs")
+          .select("id,task_id,approval_item_id,title,output_type,risk_level,compliance_status,approval_status,created_at"),
+        scope?.org_id,
+      )
         .order("created_at", { ascending: false })
         .limit(25),
-      supabase.from("campaigns").select("id,name,persona,status,objective").order("updated_at", { ascending: false }).limit(50),
+      applyOrgScope(
+        supabase
+          .from("campaigns")
+          .select("id,name,persona,status,objective"),
+        scope?.org_id,
+      )
+        .order("updated_at", { ascending: false })
+        .limit(50),
     ]);
 
     assertSupabaseResult("agents", agentsResult.error);
@@ -456,7 +472,12 @@ export async function getAgentOperationsDashboard(
   }
 }
 
-export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient, agentName: string = "Agent"): Promise<AgentTaskDetail> {
+export async function getAgentTaskDetail(
+  taskId: string,
+  client?: SupabaseClient,
+  agentName: string = "Agent",
+  tenantScope?: AgentTaskTenantFields,
+): Promise<AgentTaskDetail> {
   if (!client && !isSupabaseAdminConfigured()) {
     return {
       status: "unavailable",
@@ -466,7 +487,8 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
 
   try {
     const supabase = client ?? getSupabaseAdminClient();
-    const { data: taskData, error: taskError } = await fetchTaskDetailRow(supabase, taskId);
+    const scope = tenantScope ?? (!client ? await getCurrentAgentTaskTenantFields() : undefined);
+    const { data: taskData, error: taskError } = await fetchTaskDetailRow(supabase, taskId, scope);
 
     assertSupabaseResult("agent_tasks", taskError);
 
@@ -614,36 +636,59 @@ export async function getAgentTaskDetail(taskId: string, client?: SupabaseClient
   }
 }
 
-async function fetchDashboardTasks(supabase: SupabaseClient) {
-  const result = await supabase
-    .from("agent_tasks")
-    .select(TASK_SELECT)
+function applyAgentTaskTenantScope<Query>(query: Query, scope?: AgentTaskTenantFields): Query {
+  if (!scope) return query;
+  const scoped = query as {
+    eq(column: string, value: string): { eq(column: string, value: string): Query };
+  };
+  return scoped.eq("org_id", scope.org_id).eq("workspace_id", scope.workspace_id);
+}
+
+function applyOrgScope<Query>(query: Query, orgId?: string): Query {
+  if (!orgId) return query;
+  return (query as { eq(column: string, value: string): Query }).eq("org_id", orgId);
+}
+
+async function fetchDashboardTasks(supabase: SupabaseClient, scope?: AgentTaskTenantFields) {
+  const result = await applyAgentTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .select(TASK_SELECT),
+    scope,
+  )
     .order("updated_at", { ascending: false })
     .limit(50);
 
   if (!isMissingSharedTaskSchemaError(result.error)) return result;
 
-  return supabase
-    .from("agent_tasks")
-    .select(LEGACY_TASK_SELECT)
+  return applyAgentTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .select(LEGACY_TASK_SELECT),
+    scope,
+  )
     .order("updated_at", { ascending: false })
     .limit(50);
 }
 
-async function fetchTaskDetailRow(supabase: SupabaseClient, taskId: string) {
-  const result = await supabase
-    .from("agent_tasks")
-    .select(TASK_DETAIL_SELECT)
-    .eq("id", taskId)
-    .maybeSingle<AgentTaskDetailRow>();
+async function fetchTaskDetailRow(supabase: SupabaseClient, taskId: string, scope?: AgentTaskTenantFields) {
+  const result = await applyAgentTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .select(TASK_DETAIL_SELECT)
+      .eq("id", taskId),
+    scope,
+  ).maybeSingle<AgentTaskDetailRow>();
 
   if (!isMissingSharedTaskSchemaError(result.error)) return result;
 
-  return supabase
-    .from("agent_tasks")
-    .select(LEGACY_TASK_DETAIL_SELECT)
-    .eq("id", taskId)
-    .maybeSingle<LegacyAgentTaskDetailRow>();
+  return applyAgentTaskTenantScope(
+    supabase
+      .from("agent_tasks")
+      .select(LEGACY_TASK_DETAIL_SELECT)
+      .eq("id", taskId),
+    scope,
+  ).maybeSingle<LegacyAgentTaskDetailRow>();
 }
 
 async function fetchTaskEvents(supabase: SupabaseClient, taskId: string) {

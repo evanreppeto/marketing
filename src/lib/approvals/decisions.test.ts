@@ -1,8 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { decideApprovalItem } from "./decisions";
+
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    orgSlug: "org",
+    orgName: "Org",
+    workspaceId: "workspace-1",
+    workspaceKey: "default",
+    workspaceSlug: "default",
+    workspaceName: "Default",
+    role: null,
+    userId: null,
+    source: "default-org",
+  })),
+}));
 
 const approvalItemId = "10000000-0000-4000-8000-000000000001";
 const campaignId = "10000000-0000-4000-8000-000000000002";

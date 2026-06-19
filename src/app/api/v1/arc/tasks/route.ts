@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { resolveStatusFilter } from "@/domain";
 import { listAgentTasks } from "@/lib/arc-api";
 
@@ -12,8 +12,8 @@ import { listAgentTasks } from "@/lib/arc-api";
  * native enum (queued|running|blocked|needs_approval|completed|failed|canceled).
  */
 export async function GET(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const url = new URL(request.url);
 
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const tasks = await listAgentTasks({ status, assignee, limit });
+    const tasks = await listAgentTasks({ status, assignee, limit }, undefined, allowed.scope);
     return ok({ tasks });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list tasks.", 502);

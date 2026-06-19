@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { CampaignDraftValidationError, parseCampaignDraft, RevisionInstructionError, validateRevisionInstruction, ScheduledForError, validateScheduledFor } from "@/domain";
 import { createCampaignShell, createOperatorCampaign, type CampaignPhoto } from "@/lib/campaigns/create";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { type ApprovalDecision, decideApprovalItem, decideAsset, reopenAsset } from "@/lib/campaigns/decisions";
 import { deployAsset, launchCampaign } from "@/lib/campaigns/launch";
 import { sendArcDirective } from "@/lib/campaigns/arc-conversation";
@@ -99,8 +100,9 @@ export async function decideApprovalAction(
   }
 
   try {
+    const tenant = await getCurrentAgentTaskTenantFields();
     await decideApprovalItem(
-      { approvalItemId, decision: decision as ApprovalDecision, operator: getOperatorActor(), notes },
+      { approvalItemId, decision: decision as ApprovalDecision, operator: getOperatorActor(), notes, tenant },
       getSupabaseAdminClient(),
     );
   } catch (error) {
@@ -149,7 +151,8 @@ export async function decideAssetAction(
   }
 
   try {
-    await decideAsset({ assetId, campaignId, decision: decision as ApprovalDecision, operator: getOperatorActor(), notes }, getSupabaseAdminClient());
+    const tenant = await getCurrentAgentTaskTenantFields();
+    await decideAsset({ assetId, campaignId, decision: decision as ApprovalDecision, operator: getOperatorActor(), notes, tenant }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't record the decision." };
   }
@@ -189,7 +192,8 @@ export async function reopenAssetAction(
   }
 
   try {
-    await reopenAsset({ assetId, campaignId, operator: getOperatorActor() }, getSupabaseAdminClient());
+    const tenant = await getCurrentAgentTaskTenantFields();
+    await reopenAsset({ assetId, campaignId, operator: getOperatorActor(), tenant }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't re-open the piece." };
   }
@@ -281,7 +285,8 @@ export async function deployAssetAction(
   }
 
   try {
-    await deployAsset({ campaignId, assetId, operator: getOperatorActor(), agentName, scheduledFor }, getSupabaseAdminClient());
+    const tenant = await getCurrentAgentTaskTenantFields();
+    await deployAsset({ campaignId, assetId, operator: getOperatorActor(), agentName, scheduledFor, tenant }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't deploy the piece." };
   }
@@ -334,7 +339,8 @@ export async function launchCampaignAction(
 
   let launchedAssets = 0;
   try {
-    ({ launchedAssets } = await launchCampaign({ campaignId, operator: getOperatorActor(), agentName, scheduledFor }, getSupabaseAdminClient()));
+    const tenant = await getCurrentAgentTaskTenantFields();
+    ({ launchedAssets } = await launchCampaign({ campaignId, operator: getOperatorActor(), agentName, scheduledFor, tenant }, getSupabaseAdminClient()));
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't launch the campaign." };
   }
@@ -395,11 +401,13 @@ export async function createCampaignAction(
 
   let campaignId: string;
   try {
+    const tenant = await getCurrentAgentTaskTenantFields();
     const result = await createOperatorCampaign({
       draft,
       operator: getOperatorActor(),
       photos,
       client: getSupabaseAdminClient(),
+      tenant,
     });
     campaignId = result.campaignId;
   } catch (error) {
@@ -466,6 +474,7 @@ export async function askArcToBuildCampaignAction(formData: FormData): Promise<v
   const operator = getOperatorActor();
   const client = getSupabaseAdminClient();
   const name = deriveCampaignName(prompt);
+  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { campaignId } = await createCampaignShell({
     operator,
@@ -478,6 +487,7 @@ export async function askArcToBuildCampaignAction(formData: FormData): Promise<v
     restorationFocus: "flood",
     agentName,
     client,
+    tenant,
   });
 
   const conversation = await createConversation(
@@ -491,6 +501,7 @@ export async function askArcToBuildCampaignAction(formData: FormData): Promise<v
   );
 
   await client.from("agent_tasks").insert({
+    ...tenant,
     agent_id: await ensureArcAgentId(agentName, client),
     status: "queued",
     priority: "high",
@@ -523,7 +534,9 @@ export async function handToArcAction(formData: FormData): Promise<void> {
   if (!UUID_RE.test(campaignId)) redirect("/campaigns?action=build-error");
 
   const client = getSupabaseAdminClient();
+  const tenant = await getCurrentAgentTaskTenantFields();
   await client.from("agent_tasks").insert({
+    ...tenant,
     agent_id: await ensureArcAgentId(agentName, client),
     status: "queued",
     priority: "medium",

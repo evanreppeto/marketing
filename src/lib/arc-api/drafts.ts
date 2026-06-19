@@ -35,10 +35,12 @@ export type CreateDraftInput = {
 };
 
 export type CreateDraftResult = { ok: true; approvalItemId: string; agentOutputId: string | null };
+export type ArcTenantScope = { orgId: string; workspaceId: string };
 
 export async function createApprovalDraft(
   input: CreateDraftInput,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcTenantScope,
 ): Promise<CreateDraftResult> {
   const riskLevel = input.riskLevel && RISK_LEVELS.has(input.riskLevel) ? input.riskLevel : "medium";
   const draft = redactSecrets(input.draft);
@@ -52,6 +54,7 @@ export async function createApprovalDraft(
   const { data: approval, error: approvalError } = await client
     .from("approval_items")
     .insert({
+      ...orgTenantFields(scope),
       item_type: input.itemType,
       // Hardcoded safe state — Arc cannot create an approved/unlocked item.
       status: "pending_approval",
@@ -80,6 +83,7 @@ export async function createApprovalDraft(
     const { data: output, error: outputError } = await client
       .from("agent_outputs")
       .insert({
+        ...orgTenantFields(scope),
         task_id: input.taskId,
         approval_item_id: approvalItemId,
         output_type: input.itemType,
@@ -100,4 +104,8 @@ export async function createApprovalDraft(
   }
 
   return { ok: true, approvalItemId, agentOutputId };
+}
+
+function orgTenantFields(scope?: ArcTenantScope): Record<string, string> {
+  return scope ? { org_id: scope.orgId } : {};
 }

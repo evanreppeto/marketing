@@ -38,6 +38,14 @@ describe("listContacts", () => {
 
     expect(supabase.calls).toContainEqual(["eq", "company_id", validContactRow.company_id]);
   });
+
+  it("applies explicit org scope when provided", async () => {
+    const supabase = createSupabaseQueryMock({ contacts: { data: [], error: null } });
+
+    await listContacts({ orgId: "org-1" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
 });
 
 describe("getContact", () => {

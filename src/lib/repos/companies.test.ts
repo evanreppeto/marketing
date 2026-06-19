@@ -39,6 +39,14 @@ describe("listCompanies", () => {
     expect(supabase.calls).toContainEqual(["limit", 10]);
   });
 
+  it("applies explicit org scope when provided", async () => {
+    const supabase = createSupabaseQueryMock({ companies: { data: [], error: null } });
+
+    await listCompanies({ orgId: "org-1" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
+
   it("applies a name search (ilike) and partner_tier filter", async () => {
     const supabase = createSupabaseQueryMock({ companies: { data: [], error: null } });
 

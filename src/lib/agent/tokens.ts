@@ -52,12 +52,10 @@ function toSummary(row: AgentTokenRow): AgentTokenSummary {
 }
 
 async function getTokenScope(client?: SupabaseClient): Promise<{ orgId: string | null; workspaceId: string }> {
-  if (client) return { orgId: null, workspaceId: DEFAULT_WORKSPACE_ID };
-
   const context = await getCurrentWorkspaceContext().catch(() => null);
   return {
     orgId: context?.orgId ?? null,
-    workspaceId: context?.workspaceKey ?? DEFAULT_WORKSPACE_ID,
+    workspaceId: context?.workspaceId ?? context?.workspaceKey ?? DEFAULT_WORKSPACE_ID,
   };
 }
 

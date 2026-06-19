@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { type ArcMention } from "@/domain";
 import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTone } from "@/lib/settings/store";
 
+import { getCurrentAgentTaskTenantFields } from "../agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 import { markAgentKeys } from "./agent-config";
 import { type ArcAttachment } from "./persistence";
@@ -55,9 +56,12 @@ export async function enqueueArcChatTask(
     throw new Error(`${agentName} isn't connected to this workspace yet, so the message can't be queued.`);
   }
 
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: task, error: taskError } = await client
     .from("agent_tasks")
     .insert({
+      ...tenant,
       agent_id: agent.id,
       status: "queued",
       priority: "high",

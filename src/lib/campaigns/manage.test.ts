@@ -42,11 +42,13 @@ describe("addCampaignPhotos", () => {
       photos: [{ filename: "x.png", contentType: "image/png", bytes: new Uint8Array([1]) }],
       client: supabase,
       uploader,
+      tenant: { org_id: "org-1", workspace_id: "workspace-1" },
     });
     expect(uploader).toHaveBeenCalledWith("operator-campaigns/camp-1/0-x.png", expect.anything(), "image/png");
-    expect(insertsFor(supabase, "campaign_assets")[0]).toMatchObject({ campaign_id: "camp-1", status: "approved" });
-    expect(insertsFor(supabase, "approval_items")[0]).toMatchObject({ campaign_asset_id: "asset-1", status: "approved" });
-    expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ event_type: "asset_generated" });
+    expect(insertsFor(supabase, "campaign_assets")[0]).toMatchObject({ campaign_id: "camp-1", status: "approved", org_id: "org-1" });
+    expect(insertsFor(supabase, "approval_items")[0]).toMatchObject({ campaign_asset_id: "asset-1", status: "approved", org_id: "org-1" });
+    expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ event_type: "asset_generated", org_id: "org-1" });
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(2);
     expect(out.assetIds).toEqual(["asset-1"]);
   });
 
@@ -67,8 +69,11 @@ describe("updateOperatorCampaign", () => {
       operator: "evan@test",
       fields: { name: "New name", audienceSummary: "aud", objective: undefined, offerSummary: undefined },
       client: supabase,
+      tenant: { org_id: "org-1", workspace_id: "workspace-1" },
     });
     expect(updatesFor(supabase, "campaigns")[0]).toMatchObject({ name: "New name", audience_summary: "aud", objective: null, offer_summary: null });
+    expect(insertsFor(supabase, "campaign_events")[0]).toMatchObject({ event_type: "planned", org_id: "org-1" });
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(2);
   });
 
   it("rejects a launched campaign", async () => {

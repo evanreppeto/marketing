@@ -1,13 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth/org", () => ({ getCurrentOrgId: vi.fn(async () => "org_1") }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org_1",
+    orgSlug: "big-shoulders-restoration",
+    orgName: "Big Shoulders Restoration",
+    workspaceId: "workspace_1",
+    workspaceKey: "default",
+    workspaceSlug: "default",
+    workspaceName: "Default",
+    role: null,
+    userId: null,
+    source: "default-org",
+  })),
+}));
 vi.mock("@/lib/brand-kit/read-model", () => ({ getBusinessContext: vi.fn() }));
 
-import { getCurrentOrgId } from "@/lib/auth/org";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getBusinessContext } from "@/lib/brand-kit/read-model";
 import { GET } from "./route";
 
-const orgMock = vi.mocked(getCurrentOrgId);
+const workspaceMock = vi.mocked(getCurrentWorkspaceContext);
 const ctxMock = vi.mocked(getBusinessContext);
 
 function req(authorization: string | undefined) {
@@ -28,9 +41,8 @@ function configure() {
 }
 
 beforeEach(() => {
-  orgMock.mockReset();
+  workspaceMock.mockClear();
   ctxMock.mockReset();
-  orgMock.mockResolvedValue("org_1");
   ctxMock.mockResolvedValue({
     businessName: "Big Shoulders Restoration",
     industry: "restoration",
@@ -42,6 +54,7 @@ beforeEach(() => {
     proofPoints: [],
     personas: [],
     guardrails: { disallowedClaims: [], complianceNotes: "" },
+    brainFacts: [],
   });
 });
 afterEach(() => {

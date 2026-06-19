@@ -1,6 +1,30 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateToken, hashToken, verifyAgentToken } from "../tokens";
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(),
+}));
+
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+
+import { generateToken, hashToken, issueAgentToken, verifyAgentToken } from "../tokens";
+
+const getCurrentWorkspaceContextMock = vi.mocked(getCurrentWorkspaceContext);
+
+beforeEach(() => {
+  getCurrentWorkspaceContextMock.mockReset();
+  getCurrentWorkspaceContextMock.mockResolvedValue({
+    orgId: "org-1",
+    orgSlug: "org",
+    orgName: "Org",
+    workspaceId: "workspace-uuid",
+    workspaceKey: "default",
+    workspaceSlug: "default",
+    workspaceName: "Default",
+    role: "admin",
+    userId: "user-1",
+    source: "membership",
+  });
+});
 
 describe("token primitives", () => {
   it("hashes deterministically to 64 hex chars", () => {
@@ -19,7 +43,7 @@ describe("token primitives", () => {
 });
 
 describe("verifyAgentToken", () => {
-  function fakeClient(row: { workspace_id: string } | null) {
+  function fakeClient(row: { org_id?: string; workspace_id: string } | null) {
     const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
     return {
       from: () => ({
@@ -41,9 +65,47 @@ describe("verifyAgentToken", () => {
     expect(result).toEqual({ ok: true, workspaceId: "default" });
   });
 
+  it("returns the organization and workspace scope for a scoped token", async () => {
+    const result = await verifyAgentToken("sk_live_known", fakeClient({ org_id: "org-1", workspace_id: "workspace-1" }));
+
+    expect(result).toEqual({ ok: true, orgId: "org-1", workspaceId: "workspace-1" });
+  });
+
   it("returns not-ok for an unknown token", async () => {
     const result = await verifyAgentToken("sk_live_nope", fakeClient(null));
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("issueAgentToken", () => {
+  it("stores the current workspace uuid, not only the workspace key", async () => {
+    let inserted: Record<string, unknown> | null = null;
+    const client = {
+      from: () => ({
+        insert: (payload: Record<string, unknown>) => {
+          inserted = payload;
+          return {
+            select: () => ({
+              single: async () => ({
+                data: {
+                  id: "token-1",
+                  prefix: "sk_live_test",
+                  label: "Runner",
+                  created_at: "2026-06-18T12:00:00.000Z",
+                  last_used_at: null,
+                  revoked_at: null,
+                },
+                error: null,
+              }),
+            }),
+          };
+        },
+      }),
+    } as never;
+
+    await issueAgentToken("Runner", client);
+
+    expect(inserted).toMatchObject({ org_id: "org-1", workspace_id: "workspace-uuid" });
   });
 });
