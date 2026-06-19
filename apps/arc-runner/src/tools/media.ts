@@ -20,7 +20,7 @@ export function mediaTools(
   client: ArcClient,
   step: StepFn,
   collectCard: (card: ArcActionCard) => void,
-  ctx: { level?: "fast" | "standard" } = {},
+  ctx: { level?: "fast" | "standard"; conversationId?: string } = {},
 ) {
   const generateImage = tool(
     "generate_image",
@@ -61,6 +61,7 @@ export function mediaTools(
             media_url: gen.media.url,
             media_path: gen.objectPath,
             media: gen.media,
+            ...(ctx.conversationId ? { conversation_id: ctx.conversationId } : {}),
           },
         );
         await step(label, "done");
@@ -143,6 +144,7 @@ export function mediaTools(
             media_url: withFormat.url,
             media_path: objectPath,
             media: withFormat,
+            ...(ctx.conversationId ? { conversation_id: ctx.conversationId } : {}),
           },
         );
         await step(label, "done");

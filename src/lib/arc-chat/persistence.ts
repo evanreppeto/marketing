@@ -644,6 +644,32 @@ export async function createProject(
   return toProject(data);
 }
 
+/**
+ * Link a conversation to the campaign it's working on, ensuring it has a project.
+ * Creates a project (named after the campaign) only when the conversation has
+ * none — otherwise reuses the existing one. Always sets campaign_id to the worked
+ * campaign. No-op if the conversation no longer exists.
+ */
+export async function linkConversationToCampaign(
+  conversationId: string,
+  campaignId: string,
+  projectName: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const conversation = await getConversation(conversationId, client);
+  if (!conversation) return;
+  let projectId = conversation.projectId;
+  if (!projectId) {
+    const project = await createProject({ operator: conversation.operator, name: projectName }, client);
+    projectId = project.id;
+  }
+  const { error } = await client
+    .from("arc_conversations")
+    .update({ project_id: projectId, campaign_id: campaignId })
+    .eq("id", conversationId);
+  assertOk("arc_conversations link campaign", error);
+}
+
 export async function listProjects(
   operator: string,
   client: SupabaseClient = getSupabaseAdminClient(),

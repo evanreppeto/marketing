@@ -52,4 +52,19 @@ describe("create_campaign_draft", () => {
     expect(cards).toHaveLength(0);
     expect(out.content[0].text).toContain("failed");
   });
+
+  it("forwards conversation_id from ctx to the draft-asset route", async () => {
+    const client = { apiPost: vi.fn(async () => ({ campaignId: "c1", assetId: "a1" })) } as unknown as ArcClient;
+    const noStep = vi.fn(async () => {});
+    const [createDraft] = draftWorkProductTools(client, noStep, () => {}, { conversationId: "conv1" });
+    await (createDraft.handler as (a: Record<string, unknown>, e?: unknown) => Promise<unknown>)({
+      asset_type: "email",
+      title: "x",
+      campaign_id: "c1",
+    });
+    expect(client.apiPost).toHaveBeenCalledWith(
+      "/api/v1/arc/campaigns/draft-asset",
+      expect.objectContaining({ conversation_id: "conv1" }),
+    );
+  });
 });

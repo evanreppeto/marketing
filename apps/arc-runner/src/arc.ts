@@ -163,7 +163,8 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     model: modelForRoute(payload.route),
     // Thread the turn's level so media tools tell the generate endpoints which
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
-    toolContext: { level: payload.route },
+    // Also thread conversationId so draft tools can link the chat to the campaign.
+    toolContext: { level: payload.route, conversationId: payload.conversationId },
     // Type the reply out live into the pending bubble as the model streams.
     onPartial: (text) => client.postChatChunk(payload.agentTaskId, text),
   });
