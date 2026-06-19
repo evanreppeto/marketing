@@ -158,11 +158,11 @@ export function appApprovalStrictness(value: unknown): ApprovalStrictness {
 }
 
 export const IMAGE_MODELS = [
-  "imagen-4.0-generate-001",
-  "imagen-4.0-ultra-generate-001",
+  "gemini-3-pro-image",
+  "gemini-3.1-flash-image",
   "gemini-2.5-flash-image",
 ] as const;
-export const VIDEO_MODELS = ["veo-2.0-generate-001", "veo-3.0-generate-001"] as const;
+export const VIDEO_MODELS = ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview"] as const;
 
 /** "" = Auto (inherit env/default); otherwise must be an allow-listed id. */
 export function appImageModel(value: unknown): string {
