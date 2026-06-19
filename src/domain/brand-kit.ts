@@ -9,6 +9,17 @@ export type DensityOption = "comfortable" | "compact";
 export type MotionOption = "standard" | "reduced";
 export type ProfileStatus = "draft" | "active";
 
+export type BrandColor = { label: string; hex: string };
+export type BrandPalette = {
+  primary: BrandColor;
+  secondary: BrandColor;
+  accent: BrandColor;
+  dark: BrandColor;
+  light: BrandColor;
+  headingFont: string;
+  bodyFont: string;
+};
+
 export type ProofPoint = {
   kind: "testimonial" | "certification" | "stat";
   label: string;
@@ -58,7 +69,14 @@ export type BusinessProfile = {
   services: string[];
   proofPoints: ProofPoint[];
   guardrails: BrandKitGuardrails;
+  brandPalette: BrandPalette;
   status: ProfileStatus;
+};
+
+const EMPTY_COLOR: BrandColor = { label: "", hex: "" };
+export const EMPTY_BRAND_PALETTE: BrandPalette = {
+  primary: { ...EMPTY_COLOR }, secondary: { ...EMPTY_COLOR }, accent: { ...EMPTY_COLOR },
+  dark: { ...EMPTY_COLOR }, light: { ...EMPTY_COLOR }, headingFont: "", bodyFont: "",
 };
 
 export const NEUTRAL_PERSONAS: PersonaDefinition[] = [
@@ -118,11 +136,27 @@ export const NEUTRAL_DEFAULTS: BusinessProfile = {
     complianceNotes:
       "Keep claims truthful and substantiated. Avoid promises the business cannot guarantee.",
   },
+  brandPalette: EMPTY_BRAND_PALETTE,
   status: "draft",
 };
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function asColor(value: unknown): BrandColor {
+  const v = (value ?? {}) as Record<string, unknown>;
+  return { label: asString(v.label, ""), hex: asString(v.hex, "") };
+}
+
+/** Map a raw brand_palette jsonb blob into a BrandPalette, tolerating missing keys. */
+export function parseBrandPalette(value: unknown): BrandPalette {
+  const raw = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  return {
+    primary: asColor(raw.primary), secondary: asColor(raw.secondary), accent: asColor(raw.accent),
+    dark: asColor(raw.dark), light: asColor(raw.light),
+    headingFont: asString(raw.headingFont, ""), bodyFont: asString(raw.bodyFont, ""),
+  };
 }
 
 function asProofPoints(value: unknown): ProofPoint[] {
@@ -180,6 +214,7 @@ export function parseBusinessProfile(row: Record<string, unknown>): BusinessProf
         NEUTRAL_DEFAULTS.guardrails.complianceNotes,
       ),
     },
+    brandPalette: parseBrandPalette(row.brand_palette),
     status,
   };
 }
@@ -195,6 +230,10 @@ export function validateBusinessProfile(profile: BusinessProfile): ProfileValida
   const errors: string[] = [];
   if (profile.displayName.trim().length === 0) errors.push("display_name_required");
   if (!HEX_COLOR.test(profile.accent)) errors.push("accent_invalid");
+  for (const slot of ["primary", "secondary", "accent", "dark", "light"] as const) {
+    const hex = profile.brandPalette[slot].hex;
+    if (hex.length > 0 && !HEX_COLOR.test(hex)) errors.push(`palette_${slot}_invalid`);
+  }
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }
 
