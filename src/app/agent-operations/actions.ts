@@ -48,7 +48,7 @@ export async function runArcDemoWorkflowAction() {
   revalidatePath("/agent-operations");
   revalidatePath("/approvals");
   revalidatePath("/crm");
-  revalidatePath("/persona-intelligence");
+  revalidatePath("/personas");
 
   redirect(`/agent-operations?action=arc-demo-run&approval=${result.approvalItemId}`);
 }
@@ -66,7 +66,7 @@ export async function runArcPartnerCampaignAction() {
   revalidatePath("/agent-operations");
   revalidatePath("/approvals");
   revalidatePath("/crm");
-  revalidatePath("/persona-intelligence");
+  revalidatePath("/personas");
 
   redirect(`/agent-operations?action=arc-run&approval=${result.approvalItemId}`);
 }

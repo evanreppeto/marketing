@@ -93,7 +93,7 @@ const SEEDS: Seed[] = [
     category: "agent",
     insightLabel: "Agent work",
     relatedLabel: "Property Manager",
-    href: "/persona-intelligence",
+    href: "/personas",
     agoMs: 2 * HOUR + 10 * MIN,
   },
   {
@@ -261,7 +261,7 @@ const SEEDS: Seed[] = [
     category: "agent",
     insightLabel: "Needs review",
     relatedLabel: "Landlord segment",
-    href: "/persona-intelligence",
+    href: "/personas",
     agoMs: 1 * DAY + 9 * HOUR,
   },
   {

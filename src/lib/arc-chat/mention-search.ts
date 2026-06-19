@@ -41,7 +41,7 @@ export async function getMentionables(): Promise<MentionGroup[]> {
       type: "persona" as const,
       id: key,
       label: personaLabel(key),
-      href: `/persona-intelligence?inspect=${key}`,
+      href: `/personas?inspect=${key}`,
     })),
   };
 
