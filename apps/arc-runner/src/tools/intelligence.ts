@@ -6,8 +6,9 @@ import { runTool, type StepFn } from "./helpers";
 
 /**
  * Read-only "vision" tools: let Arc see the opportunity inbox, persona
- * intelligence, the vault, and the activity timeline. Available in every mode;
- * each calls the app's bearer-gated /api/v1/arc/* route. No writes.
+ * intelligence, the vault, the activity timeline, and the uploaded brand
+ * documents. Available in every mode; each calls the app's bearer-gated
+ * /api/v1/arc/* route. No writes.
  */
 export function intelligenceTools(client: ArcClient, step: StepFn) {
   const listOpportunities = tool(
@@ -45,5 +46,19 @@ export function intelligenceTools(client: ArcClient, step: StepFn) {
     async () => runTool(step, "Reading activity", () => client.apiGet("/api/v1/arc/activity")),
   );
 
-  return [listOpportunities, readPersonaIntelligence, listVaultNotes, getVaultNote, readRecentActivity];
+  const listBrandDocuments = tool(
+    "list_brand_documents",
+    "List the uploaded brand source documents Arc can use (brand guidelines, voice docs, proof, offerings), with what's been learned from each. Use to see what source material exists before drafting.",
+    {},
+    async () => runTool(step, "Reading brand documents", () => client.apiGet("/api/v1/arc/brand/sources")),
+  );
+
+  const readBrandDocument = tool(
+    "read_brand_document",
+    "Read one brand document's details + the knowledge extracted from it (including items still pending approval). Use after list_brand_documents to ground copy in a specific source.",
+    { id: z.string().describe("The brand document id (from list_brand_documents).") },
+    async (args) => runTool(step, "Reading brand document", () => client.apiGet("/api/v1/arc/brand/sources", { id: args.id })),
+  );
+
+  return [listOpportunities, readPersonaIntelligence, listVaultNotes, getVaultNote, readRecentActivity, listBrandDocuments, readBrandDocument];
 }

@@ -32,6 +32,8 @@ const READ = [
   "list_vault_notes",
   "get_vault_note",
   "read_recent_activity",
+  "list_brand_documents",
+  "read_brand_document",
   "emit_card",
   "suggest_followups",
   "cite_sources",
