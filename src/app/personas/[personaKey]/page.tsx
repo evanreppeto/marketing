@@ -142,7 +142,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
           <div className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4">
             <div className="signal-eyebrow">Actions</div>
             <div className="mt-4 flex flex-col gap-2">
-              <Link href="/persona-intelligence" className={buttonClasses({ variant: "ghost" })}>
+              <Link href="/personas" className={buttonClasses({ variant: "ghost" })}>
                 Back to personas
               </Link>
               {livePersona ? (
@@ -163,7 +163,7 @@ function PersonaDetailTabs({ activeTab, personaKey, agentName }: { activeTab: Pe
     <nav aria-label="Persona detail sections" className="module-rise mb-5 flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3">
       {buildPersonaDetailTabs(agentName).map((tab) => {
         const selected = activeTab === tab.key;
-        const href = tab.key === "rule" ? `/persona-intelligence/${personaKey}` : `/persona-intelligence/${personaKey}?tab=${tab.key}`;
+        const href = tab.key === "rule" ? `/personas/${personaKey}` : `/personas/${personaKey}?tab=${tab.key}`;
 
         return (
           <Link

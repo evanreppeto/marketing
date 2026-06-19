@@ -74,7 +74,7 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
           key: tab.id,
           label: tab.label,
           detail: tab.detail,
-          href: `/persona-intelligence?tab=${tab.id}`,
+          href: `/personas?tab=${tab.id}`,
         }))}
       />
 
@@ -136,7 +136,7 @@ function SnapshotsTab({ rows }: { rows: PersonaTrackerRow[] }) {
           {rows.map((row) => (
             <Link
               className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-inset)] lg:grid-cols-[minmax(0,1.2fr)_140px_120px_auto]"
-              href={`/persona-intelligence?tab=snapshots&inspect=${row.key}`}
+              href={`/personas?tab=snapshots&inspect=${row.key}`}
               key={row.key}
             >
               <div className="min-w-0">
@@ -174,7 +174,7 @@ function SignalsTab({
           {rows.map((row, index) => (
             <Link
               className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-inset)] lg:grid-cols-[minmax(0,1fr)_140px_auto]"
-              href={`/persona-intelligence?tab=${tab}&inspect=${signalKey(row, index)}`}
+              href={`/personas?tab=${tab}&inspect=${signalKey(row, index)}`}
               key={signalKey(row, index)}
             >
               <div className="min-w-0">
@@ -197,7 +197,7 @@ function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTr
   return (
     <Link
       className="group block cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.04)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-      href={`/persona-intelligence?tab=personas&inspect=${personaSlug(rule.persona)}`}
+      href={`/personas?tab=personas&inspect=${personaSlug(rule.persona)}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={live ? live.tone : "gray"}>{rule.segment}</StatusPill>
@@ -260,7 +260,7 @@ function buildInspector(
         proofPoints: selected.snapshot?.riskFlags?.length ? selected.snapshot.riskFlags.map(humanize) : ["Human approval required"],
         actions: [
           { label: "Open related CRM", href: selected.crmPath, variant: "ghost" as const },
-          { label: "Open full persona rule", href: `/persona-intelligence/${selected.key}`, variant: "ghost" as const },
+          { label: "Open full persona rule", href: `/personas/${selected.key}`, variant: "ghost" as const },
         ],
       };
     }
@@ -310,7 +310,7 @@ function buildInspector(
     proofPoints: selectedRule ? [selectedRule.landingRule, selectedRule.guardrail] : ["Human approval required"],
     actions: selectedRule
       ? [
-          { label: "Open full persona rule", href: `/persona-intelligence/${personaSlug(selectedRule.persona)}`, variant: "primary" as const },
+          { label: "Open full persona rule", href: `/personas/${personaSlug(selectedRule.persona)}`, variant: "primary" as const },
           { label: "Open settings", href: "/settings", variant: "ghost" as const },
         ]
       : [{ label: "Open settings", href: "/settings", variant: "ghost" as const }],
