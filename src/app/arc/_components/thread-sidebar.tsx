@@ -397,7 +397,7 @@ export function ThreadSidebar({
   }, []);
   const asideClass = cx(
     variant === "overlay" ? "flex" : "hidden lg:flex",
-    "min-h-0 flex-col gap-1 overflow-y-auto p-3",
+    "min-h-0 flex-col gap-1 overflow-hidden p-3",
   );
   // Stable "now" for the render pass, refreshed periodically so relative
   // timestamps don't go stale. Lazy init keeps Date.now() out of render.
@@ -450,44 +450,48 @@ export function ThreadSidebar({
   if (showArchived) {
     return (
       <aside className={asideClass}>
-        <NewChatLink assistantName={assistantName} />
-        <Link
-          href="/arc"
-          className="mt-1 flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m12 5-5 5 5 5" />
-          </svg>
-          Back to chats
-        </Link>
-        <SectionLabel>Archived</SectionLabel>
-        <nav aria-label="Archived conversations" className="flex min-h-0 flex-col gap-0.5">
-          {archived.length === 0 ? (
-            <p className="px-2 py-3 text-xs text-[var(--text-muted)]">No archived chats.</p>
-          ) : (
-            archived.map((c) => (
-              <div key={c.id} className="group flex items-center gap-1">
-                <Link
-                  href={`/arc?c=${c.id}`}
-                  className="min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-                  title={c.title}
-                >
-                  {c.title}
-                </Link>
-                <form action={unarchiveThreadForm} className="shrink-0 pr-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-                  <input type="hidden" name="conversationId" value={c.id} />
-                  <button
-                    type="submit"
-                    title="Restore chat"
-                    className="rounded-md px-2 py-1 text-xs font-medium text-[var(--accent-contrast)] transition hover:bg-[var(--surface-inset)]"
+        <div className="flex shrink-0 flex-col gap-1">
+          <NewChatLink assistantName={assistantName} />
+          <Link
+            href="/arc"
+            className="mt-1 flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 5-5 5 5 5" />
+            </svg>
+            Back to chats
+          </Link>
+        </div>
+        <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
+          <SectionLabel>Archived</SectionLabel>
+          <nav aria-label="Archived conversations" className="flex min-h-0 flex-col gap-0.5">
+            {archived.length === 0 ? (
+              <p className="px-2 py-3 text-xs text-[var(--text-muted)]">No archived chats.</p>
+            ) : (
+              archived.map((c) => (
+                <div key={c.id} className="group flex items-center gap-1">
+                  <Link
+                    href={`/arc?c=${c.id}`}
+                    className="min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    title={c.title}
                   >
-                    Restore
-                  </button>
-                </form>
-              </div>
-            ))
-          )}
-        </nav>
+                    {c.title}
+                  </Link>
+                  <form action={unarchiveThreadForm} className="shrink-0 pr-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+                    <input type="hidden" name="conversationId" value={c.id} />
+                    <button
+                      type="submit"
+                      title="Restore chat"
+                      className="rounded-md px-2 py-1 text-xs font-medium text-[var(--accent-contrast)] transition hover:bg-[var(--surface-inset)]"
+                    >
+                      Restore
+                    </button>
+                  </form>
+                </div>
+              ))
+            )}
+          </nav>
+        </div>
       </aside>
     );
   }
@@ -508,141 +512,145 @@ export function ThreadSidebar({
 
   return (
     <aside className={asideClass}>
-      {onToggleCollapse ? (
-        <div className="flex justify-end px-1">
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            title="Collapse sidebar"
-            aria-label="Collapse sidebar"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-          >
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="14" height="12" rx="2" />
-              <path d="M8 4v12" />
-            </svg>
-          </button>
-        </div>
-      ) : null}
-      <NewChatLink assistantName={assistantName} />
+      <div className="flex shrink-0 flex-col gap-1">
+        {onToggleCollapse ? (
+          <div className="flex justify-end px-1">
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            >
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="14" height="12" rx="2" />
+                <path d="M8 4v12" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
+        <NewChatLink assistantName={assistantName} />
 
-      <label className="relative mt-1 block px-1">
-        <span className="sr-only">Search chats</span>
-        <svg
-          aria-hidden
-          className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 20 20"
-        >
-          <circle cx="9" cy="9" r="6" />
-          <path d="m18 18-4.5-4.5" strokeLinecap="round" />
-        </svg>
-        <input
-          ref={searchRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" && query) {
-              e.preventDefault();
-              setQuery("");
-            }
-          }}
-          placeholder="Search chats"
-          aria-label="Search chats"
-          className="h-8 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-8 pr-12 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-        />
-        {query ? (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              searchRef.current?.focus();
-            }}
-            aria-label="Clear search"
-            title="Clear search"
-            className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-          >
-            <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M5 5l10 10M15 5 5 15" />
-            </svg>
-          </button>
-        ) : (
-          <kbd
+        <label className="relative mt-1 block px-1">
+          <span className="sr-only">Search chats</span>
+          <svg
             aria-hidden
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 py-px font-mono text-[9px] text-[var(--text-muted)]"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 20 20"
           >
-            Ctrl K
-          </kbd>
-        )}
-      </label>
+            <circle cx="9" cy="9" r="6" />
+            <path d="m18 18-4.5-4.5" strokeLinecap="round" />
+          </svg>
+          <input
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && query) {
+                e.preventDefault();
+                setQuery("");
+              }
+            }}
+            placeholder="Search chats"
+            aria-label="Search chats"
+            className="h-8 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] pl-8 pr-12 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                searchRef.current?.focus();
+              }}
+              aria-label="Clear search"
+              title="Clear search"
+              className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M5 5l10 10M15 5 5 15" />
+              </svg>
+            </button>
+          ) : (
+            <kbd
+              aria-hidden
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 py-px font-mono text-[9px] text-[var(--text-muted)]"
+            >
+              Ctrl K
+            </kbd>
+          )}
+        </label>
 
-      <SkillsNav />
+        <SkillsNav />
+      </div>
 
-      {pinned.length > 0 ? (
-        <div className="flex flex-col gap-0.5">
-          <SectionLabel icon={<PinGlyph className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />}>Pinned</SectionLabel>
-          {pinned.map((c) => (
-            <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
-          ))}
-        </div>
-      ) : null}
+      <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
+        {pinned.length > 0 ? (
+          <div className="flex flex-col gap-0.5">
+            <SectionLabel icon={<PinGlyph className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />}>Pinned</SectionLabel>
+            {pinned.map((c) => (
+              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
+            ))}
+          </div>
+        ) : null}
 
-      <SectionLabel
-        action={
-          <button
-            type="button"
-            onClick={() => setCreatingProject((v) => !v)}
-            aria-label={creatingProject ? "Cancel new project" : "New project"}
-            title={creatingProject ? "Cancel" : "New project"}
-            className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-          >
-            <svg viewBox="0 0 20 20" className={cx("h-3.5 w-3.5 transition", creatingProject ? "rotate-45" : "")} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M10 4v12M4 10h12" />
-            </svg>
-          </button>
-        }
-      >
-        Projects
-      </SectionLabel>
-      {creatingProject ? <NewProjectForm onDone={() => setCreatingProject(false)} /> : null}
-      {projects.length === 0 && !creatingProject ? (
-        <p className="px-3 py-1 text-xs text-[var(--text-muted)]">Group related chats into a project.</p>
-      ) : null}
+        <SectionLabel
+          action={
+            <button
+              type="button"
+              onClick={() => setCreatingProject((v) => !v)}
+              aria-label={creatingProject ? "Cancel new project" : "New project"}
+              title={creatingProject ? "Cancel" : "New project"}
+              className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+            >
+              <svg viewBox="0 0 20 20" className={cx("h-3.5 w-3.5 transition", creatingProject ? "rotate-45" : "")} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M10 4v12M4 10h12" />
+              </svg>
+            </button>
+          }
+        >
+          Projects
+        </SectionLabel>
+        {creatingProject ? <NewProjectForm onDone={() => setCreatingProject(false)} /> : null}
+        {projects.length === 0 && !creatingProject ? (
+          <p className="px-3 py-1 text-xs text-[var(--text-muted)]">Group related chats into a project.</p>
+        ) : null}
 
-      {projects.map((project) => (
-        <ProjectGroup
-          key={project.id}
-          project={project}
-          rows={byProject.get(project.id) ?? []}
-          projects={projects}
-          activeId={activeId}
-          nowMs={nowMs}
-          runningIds={runningIds}
-          doneIds={doneIds}
-        />
-      ))}
+        {projects.map((project) => (
+          <ProjectGroup
+            key={project.id}
+            project={project}
+            rows={byProject.get(project.id) ?? []}
+            projects={projects}
+            activeId={activeId}
+            nowMs={nowMs}
+            runningIds={runningIds}
+            doneIds={doneIds}
+          />
+        ))}
 
-      <SectionLabel>Chats</SectionLabel>
-      <nav aria-label="Conversations" className="flex min-h-0 flex-col">
-        {unprojected.length === 0 ? (
-          <p className="px-2 py-3 text-xs text-[var(--text-muted)]">
-            {q ? "No matches." : `No conversations yet. Say hello to ${assistantName}.`}
-          </p>
-        ) : (
-          groupByDate(unprojected, nowMs).map((bucket) => (
-            <div key={bucket.label} className="flex flex-col gap-0.5">
-              <DateLabel>{bucket.label}</DateLabel>
-              {bucket.rows.map((c) => (
-                <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
-              ))}
-            </div>
-          ))
-        )}
-      </nav>
+        <SectionLabel>Chats</SectionLabel>
+        <nav aria-label="Conversations" className="flex min-h-0 flex-col">
+          {unprojected.length === 0 ? (
+            <p className="px-2 py-3 text-xs text-[var(--text-muted)]">
+              {q ? "No matches." : `No conversations yet. Say hello to ${assistantName}.`}
+            </p>
+          ) : (
+            groupByDate(unprojected, nowMs).map((bucket) => (
+              <div key={bucket.label} className="flex flex-col gap-0.5">
+                <DateLabel>{bucket.label}</DateLabel>
+                {bucket.rows.map((c) => (
+                  <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
+                ))}
+              </div>
+            ))
+          )}
+        </nav>
+      </div>
 
-      <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border-hairline)] pt-2">
+      <div className="shrink-0 flex flex-col gap-1 border-t border-[var(--border-hairline)] pt-2">
         <div className="flex items-center justify-between gap-2 px-2">
           <Link
             href="/arc/saved"
