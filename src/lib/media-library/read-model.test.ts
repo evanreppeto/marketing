@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { countUsage, toAssetView } from "./read-model";
-import { type MediaAssetRow } from "./types";
+import { buildFolderViews, countUsage, folderAndDescendantIds, toAssetView } from "./read-model";
+import { type MediaAssetRow, type MediaFolderRow } from "./types";
 
 const row = (over: Partial<MediaAssetRow> = {}): MediaAssetRow => ({
   id: "a1", folder_id: null, file_name: "before.jpg", storage_path: "library/o/a1-before.jpg",
@@ -48,5 +48,36 @@ describe("countUsage", () => {
     ]);
     expect(counts.get("a2")).toBe(2);
     expect(counts.get("a1")).toBe(0);
+  });
+});
+
+describe("folder tree helpers", () => {
+  const folders: MediaFolderRow[] = [
+    { id: "root", name: "Jobs", parent_id: null },
+    { id: "water", name: "Water", parent_id: "root" },
+    { id: "mold", name: "Mold", parent_id: "root" },
+    { id: "loose", name: "Loose", parent_id: null },
+  ];
+  const assets = [
+    row({ id: "a-root", folder_id: "root" }),
+    row({ id: "a-water", folder_id: "water" }),
+    row({ id: "a-loose", folder_id: "loose" }),
+    row({ id: "a-unfiled", folder_id: null }),
+  ];
+
+  it("builds depth-ordered folders with subtree counts", () => {
+    expect(buildFolderViews(folders, assets)).toEqual([
+      { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4 },
+      { id: "root", name: "Jobs", parentId: null, depth: 0, count: 2, directCount: 1 },
+      { id: "water", name: "Water", parentId: "root", depth: 1, count: 1, directCount: 1 },
+      { id: "mold", name: "Mold", parentId: "root", depth: 1, count: 0, directCount: 0 },
+      { id: "loose", name: "Loose", parentId: null, depth: 0, count: 1, directCount: 1 },
+    ]);
+  });
+
+  it("returns a folder and every descendant id for filtering", () => {
+    const views = buildFolderViews(folders, assets);
+    expect(folderAndDescendantIds(views, "root")).toEqual(new Set(["root", "water", "mold"]));
+    expect(folderAndDescendantIds(views, "loose")).toEqual(new Set(["loose"]));
   });
 });

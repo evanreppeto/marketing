@@ -95,11 +95,11 @@ export function AssetGrid({
           No assets match this filter.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {filtered.map((a) => (
             <figure
               key={a.id}
-              className="group relative overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] transition hover:border-[var(--accent-border-strong)]"
+              className="group relative overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] transition hover:-translate-y-0.5 hover:border-[var(--accent-border-strong)] hover:shadow-[var(--elev-card)]"
             >
               <button
                 type="button"
@@ -182,7 +182,7 @@ export function AssetGrid({
                 </CardAction>
               </div>
 
-              <figcaption className="px-2.5 py-2">
+              <figcaption className="px-3 py-2.5">
                 {renamingId === a.id ? (
                   <form
                     onSubmit={(event) => {

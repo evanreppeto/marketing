@@ -2,7 +2,7 @@ import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "@/app/_components/page-header";
 import { formatByteSize } from "@/domain";
-import { getMediaLibraryData } from "@/lib/media-library/read-model";
+import { folderAndDescendantIds, getMediaLibraryData } from "@/lib/media-library/read-model";
 
 import { AssetGrid } from "./_components/asset-grid";
 import { FolderRail } from "./_components/folder-rail";
@@ -30,8 +30,9 @@ export default async function LibraryPage({
   const folderParam = (await searchParams).folder;
   const activeFolderId = (Array.isArray(folderParam) ? folderParam[0] : folderParam) ?? "all";
   const isFolderActive = activeFolderId !== "all" && data.folders.some((f) => f.id === activeFolderId);
+  const activeFolderIds = isFolderActive ? folderAndDescendantIds(data.folders, activeFolderId) : null;
   const visibleAssets = isFolderActive
-    ? data.assets.filter((a) => a.folderId === activeFolderId)
+    ? data.assets.filter((a) => a.folderId !== null && activeFolderIds?.has(a.folderId))
     : data.assets;
   const arcCount = data.assets.filter((a) => a.availableToArc).length;
 
@@ -43,7 +44,7 @@ export default async function LibraryPage({
         aside={
           data.assets.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
-              <NewFolderButton />
+              <NewFolderButton parentFolderId={isFolderActive ? activeFolderId : null} />
               <GoogleDriveImport activeFolderId={isFolderActive ? activeFolderId : null} />
               <UploadButton activeFolderId={isFolderActive ? activeFolderId : null} />
             </div>
@@ -56,14 +57,15 @@ export default async function LibraryPage({
           detail="Upload photos, video, or logos and they'll appear here."
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
+              <NewFolderButton parentFolderId={null} />
               <GoogleDriveImport activeFolderId={null} />
               <UploadButton activeFolderId={null} />
             </div>
           }
         />
       ) : (
-        <div className="flex gap-5">
-          <FolderRail folders={data.folders} activeFolderId={isFolderActive ? activeFolderId : "all"} />
+        <div className="flex items-start gap-6">
+          <FolderRail assets={data.assets} folders={data.folders} activeFolderId={isFolderActive ? activeFolderId : "all"} />
           <AssetGrid assets={visibleAssets} folders={data.folders} />
         </div>
       )}

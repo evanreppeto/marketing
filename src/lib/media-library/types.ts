@@ -21,7 +21,20 @@ export type MediaAssetRow = {
   created_at: string;
 };
 
-export type MediaFolderView = { id: string; name: string; count: number };
+export type MediaFolderRow = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+};
+
+export type MediaFolderView = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  depth: number;
+  count: number;
+  directCount: number;
+};
 
 export type MediaAssetView = {
   id: string;
