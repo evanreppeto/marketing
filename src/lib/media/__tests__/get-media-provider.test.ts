@@ -41,17 +41,17 @@ describe("getMediaProvider precedence", () => {
   });
 
   it("explicit Advanced override beats the level", () => {
-    getMediaProvider({ level: "standard", imageModel: "imagen-4.0-generate-001" });
-    expect(lastOpts().imageModel).toBe("imagen-4.0-generate-001"); // override, not Studio's Ultra
+    getMediaProvider({ level: "standard", imageModel: "gemini-2.5-flash-image" });
+    expect(lastOpts().imageModel).toBe("gemini-2.5-flash-image"); // override, not Studio's Pro
   });
 
   it("level maps to its media tier when there is no override", () => {
     getMediaProvider({ level: "standard" });
-    expect(lastOpts().imageModel).toBe("imagen-4.0-ultra-generate-001");
-    expect(lastOpts().videoModel).toBe("veo-3.0-generate-001");
+    expect(lastOpts().imageModel).toBe("gemini-3-pro-image");
+    expect(lastOpts().videoModel).toBe("veo-3.1-generate-preview");
     getMediaProvider({ level: "fast" });
-    expect(lastOpts().imageModel).toBe("imagen-4.0-generate-001");
-    expect(lastOpts().videoModel).toBe("veo-2.0-generate-001");
+    expect(lastOpts().imageModel).toBe("gemini-3.1-flash-image");
+    expect(lastOpts().videoModel).toBe("veo-3.1-fast-generate-preview");
   });
 
   it("passes undefined (provider falls back to env/default) with neither override nor level", () => {
