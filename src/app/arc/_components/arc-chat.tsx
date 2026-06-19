@@ -182,6 +182,9 @@ export function ArcChat({
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ArcMessage[]>(initialMessages);
+  // Temp id of the optimistic "thinking" bubble appended on the latest send, so a
+  // failed send can resolve that exact bubble instead of hanging forever.
+  const lastSendPendingId = useRef<string | null>(null);
   // Preview-only optimistic review: real mode persists via the server action, but
   // in demo we flip the asset's status locally so the full approve/decline/revision
   // loop is demonstrable.
@@ -804,8 +807,21 @@ export function ArcChat({
                 onModeChange={setMode}
                 onRouteChange={setRoute}
                 assistantName={assistantName}
-                onOptimistic={(optimistic) => setMessages((prev) => [...prev, optimistic])}
+                onOptimistic={(optimistic) => {
+                  // Append the operator message AND an immediate "thinking"
+                  // bubble so there's no dead air between hitting enter and Arc
+                  // visibly starting — this also flips replyPending, which kicks
+                  // off the thread poll right away (ChatGPT/Claude feel).
+                  const pendingId = `temp-pending-send-${Date.now()}`;
+                  lastSendPendingId.current = pendingId;
+                  setMessages((prev) => [...prev, optimistic, pendingArcMessage(pendingId, activeId)]);
+                }}
+                onSendFailed={(message) => {
+                  if (lastSendPendingId.current) replacePendingWithFailure(lastSendPendingId.current, message);
+                  lastSendPendingId.current = null;
+                }}
                 onSent={(newConversationId) => {
+                  lastSendPendingId.current = null;
                   try {
                     window.sessionStorage.removeItem(draftKey);
                   } catch {

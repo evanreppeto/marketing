@@ -226,6 +226,7 @@ export function Composer({
   textareaRef,
   onOptimistic,
   onSent,
+  onSendFailed,
   registerSubmit,
   registerApplyCommand,
   replyPending,
@@ -261,6 +262,9 @@ export function Composer({
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   onOptimistic: (message: ArcMessage) => void;
   onSent: (conversationId?: string) => void;
+  /** Called when a send fails so the parent can resolve its optimistic
+   *  "thinking" bubble into a retryable failed reply. */
+  onSendFailed?: (message: string) => void;
   registerSubmit?: (fn: () => void) => void;
   registerApplyCommand?: (fn: (cmd: SlashCommand) => void) => void;
   replyPending?: boolean;
@@ -428,9 +432,12 @@ export function Composer({
           setAttachments([]);
           onSent(newId);
         });
+      } else {
+        // Resolve the parent's optimistic "thinking" bubble so it doesn't hang.
+        void Promise.resolve().then(() => onSendFailed?.(state.message));
       }
     }
-  }, [state, onSent, onDraftChange]);
+  }, [state, onSent, onDraftChange, onSendFailed]);
 
   const suggestions = useMemo(() => {
     if (query === null) return [];
@@ -607,6 +614,20 @@ export function Composer({
             return;
           }
           onOptimistic(tempMessage(conversationId, draft.trim() || "Shared an image for reference.", picked, attachments));
+          // Clear the composer immediately (ChatGPT/Claude feel) rather than
+          // waiting for the server round-trip — Arc's reply can take seconds.
+          // Deferred past this submit's synchronous form serialization so the
+          // body/mentions/command/attachments hidden inputs still send their
+          // current values. The success effect below re-clears (a no-op); on
+          // error, onSendFailed resolves the optimistic "thinking" bubble into a
+          // retryable failed reply (your message bubble stays in the thread).
+          requestAnimationFrame(() => {
+            onDraftChange("");
+            setPicked([]);
+            setSlash(null);
+            setCommand(null);
+            setAttachments([]);
+          });
         }}
       >
         <input type="hidden" name="conversationId" value={conversationId} />
@@ -666,7 +687,7 @@ export function Composer({
             setDragActive(false);
           }}
           className={cx(
-            "relative flex flex-col gap-2 rounded-[1.75rem] border bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]",
+            "arc-composer-glow relative flex flex-col gap-2 rounded-[1.75rem] border bg-[var(--surface-panel)] px-3 py-2.5 shadow-[var(--elev-panel)] transition duration-200 focus-within:border-[var(--accent)]",
             dragActive ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent-soft)]" : "border-[var(--border-hairline)]",
           )}
         >
@@ -789,7 +810,7 @@ export function Composer({
             aria-controls={menuOpen ? activeListId : undefined}
             aria-activedescendant={menuOpen ? `${activeListId}-opt-${activeIndex}` : undefined}
             aria-autocomplete="list"
-            className="max-h-[200px] min-h-12 w-full resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+            className="max-h-[200px] min-h-12 w-full resize-none bg-transparent px-1 py-1.5 text-sm leading-6 text-[var(--text-primary)] transition-[height] duration-150 ease-out placeholder:text-[var(--text-muted)] motion-reduce:transition-none"
           />
 
           <div className="flex items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-2">

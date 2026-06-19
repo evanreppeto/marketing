@@ -278,9 +278,14 @@ function PendingBlock({
           <span aria-hidden className="arc-caret" />
         </div>
       ) : !hasSteps ? (
-        <div className="flex items-center gap-2.5" role="status" aria-live="polite" aria-label={`${assistantName} is thinking`}>
-          <span className="arc-tstep-dot"><span className="core" /></span>
-          <span className="arc-shimmer text-sm font-medium">Thinking…</span>
+        <div className="flex flex-col gap-2" role="status" aria-live="polite" aria-label={`${assistantName} is thinking`}>
+          <div className="flex items-center gap-2.5">
+            <span className="arc-tstep-dot"><span className="core" /></span>
+            <span className="arc-shimmer text-sm font-medium">{assistantName} is thinking…</span>
+          </div>
+          {/* A quiet sweeping line under the label so the wait reads as active
+              work, not a stall (the avatar + shimmer carry the rest). */}
+          <div className="arc-progress w-40 max-w-full" aria-hidden><span /></div>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
@@ -482,7 +487,8 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: string[]; onPic
           key={`${i}-${s}`}
           type="button"
           onClick={() => onPick(s)}
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+          className="msg-rise inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+          style={{ animationDelay: `${i * 55}ms` }}
         >
           <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 10h11M11 6l4 4-4 4" />
@@ -653,17 +659,10 @@ function Message({
   return (
     <div className="group flex gap-3">
       {compact && !pending ? <span aria-hidden className="w-10 shrink-0" /> : <ArcAvatar size={42} state={avatarState} />}
-      <div className="min-w-0 flex-1 pt-0.5">
-        {compact && !pending ? null : (
-          <div className="mb-1 flex items-baseline gap-2">
-            <span style={{ fontFamily: "var(--font-serif)" }} className="text-[13px] font-semibold text-[var(--text-primary)]">{assistantName}</span>
-            {!pending ? (
-              <span className="text-[10px] tabular-nums text-[var(--text-muted)]" suppressHydrationWarning>
-                {formatTime(message.createdAt)}
-              </span>
-            ) : null}
-          </div>
-        )}
+      <div className="min-w-0 flex-1 pt-1.5">
+        {/* No "Arc · time" author label above replies — the avatar carries the
+            identity (ChatGPT/Claude style). The name surfaces only in the
+            in-flight "is thinking…" state. */}
         {pending ? (
           <PendingBlock
             assistantName={assistantName}
@@ -778,8 +777,38 @@ export function MessageList({
   // someone who scrolled up to re-read.
   const pinnedRef = useRef(true);
   const [pinned, setPinned] = useState(true);
+  // Track count + thread so we can pick the right scroll behaviour: a *new*
+  // message glides in (smooth), but a streaming update (the last reply growing
+  // text every poll) follows instantly — overlapping smooth scrolls is what made
+  // streaming feel jittery. Opening a thread / first paint jumps straight to the
+  // bottom instead of animating through the whole history.
+  const prevLenRef = useRef(messages.length);
+  const prevThreadRef = useRef(messages[0]?.conversationId);
+  const mountedRef = useRef(false);
   useEffect(() => {
-    if (pinnedRef.current) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const grew = messages.length > prevLenRef.current;
+    const thread = messages[0]?.conversationId;
+    const threadChanged = thread !== prevThreadRef.current;
+    const first = !mountedRef.current;
+    prevLenRef.current = messages.length;
+    prevThreadRef.current = thread;
+    mountedRef.current = true;
+    if (!pinnedRef.current) return; // reader scrolled up — never yank them down
+    const el = scrollRef.current;
+    const jump = () => {
+      if (el) el.scrollTop = el.scrollHeight;
+      else endRef.current?.scrollIntoView({ block: "end" });
+    };
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (first || threadChanged || reduce) {
+      jump(); // no long animated scroll on open
+    } else if (grew) {
+      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); // new turn glides in
+    } else {
+      jump(); // streaming text — stick to the bottom without animation fighting
+    }
   }, [messages]);
   function onScroll() {
     const el = scrollRef.current;
@@ -822,6 +851,13 @@ export function MessageList({
 
   return (
     <div className="relative min-h-0 flex-1">
+      {/* Soft top fade so messages dissolve under the header as they scroll up,
+          instead of clipping at a hard edge (premium depth cue). Pinned over the
+          viewport, never intercepts clicks. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-[var(--canvas)] to-transparent"
+      />
       <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto">
         <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-6 sm:px-6">
           {rows.map(({ m, day, showSeparator, compact }, i) => (
