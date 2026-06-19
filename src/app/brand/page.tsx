@@ -186,7 +186,7 @@ export default async function BrandPage() {
             <div className="signal-eyebrow">Command center</div>
             <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Brand knowledge</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              Upload the files Mark should learn from. New uploads are analyzed immediately and existing Library files show up as a queue.
+              Upload the files {agentName} should learn from. New uploads are analyzed immediately and existing Library files show up as a queue.
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
               <MiniStat label="New" value={sourceReadiness.readyToLearn} />
@@ -203,7 +203,7 @@ export default async function BrandPage() {
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div>
             <div className="signal-eyebrow">Snapshot</div>
-            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What Mark knows right now</h2>
+            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What {agentName} knows right now</h2>
           </div>
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
             Edit details
