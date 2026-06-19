@@ -164,6 +164,7 @@ export async function setTagsAction(formData: FormData): Promise<void> {
     .filter(Boolean);
   if (id) await setAssetTags(id, tags);
   revalidatePath("/library");
+  revalidatePath("/brand");
 }
 
 export async function toggleAvailableToArcAction(formData: FormData): Promise<void> {
@@ -172,6 +173,7 @@ export async function toggleAvailableToArcAction(formData: FormData): Promise<vo
   const value = String(formData.get("value") ?? "true") === "true";
   if (id) await setAvailableToArc(id, value);
   revalidatePath("/library");
+  revalidatePath("/brand");
 }
 
 export async function deleteAssetAction(formData: FormData): Promise<void> {

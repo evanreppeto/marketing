@@ -1,9 +1,15 @@
-import { type KnowledgeNodeInput, type MediaKind } from "@/domain";
+import { NEUTRAL_DEFAULTS, type KnowledgeNodeInput, type MediaKind } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { getBusinessProfile, upsertBusinessProfile } from "@/lib/brand-kit/persistence";
 import { createNode } from "@/lib/knowledge-graph/persistence";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-import { extractBrandKnowledgeWithGemini } from "./gemini-parser";
+import {
+  extractBrandKnowledgeBundleWithGemini,
+  mergeBrandProfileUpdate,
+  type BrandKnowledgeExtraction,
+  type BrandProfileUpdate,
+} from "./gemini-parser";
 import { classifyBrandSource, type BrandSourceClassification } from "./source-classifier";
 
 export type BrandKnowledgeAsset = {
@@ -22,13 +28,16 @@ export type BrandKnowledgeAsset = {
 type BrainSyncDeps = {
   client?: TypedSupabaseClient;
   orgId?: string;
+  extractKnowledge?: (asset: BrandKnowledgeAsset, classification: BrandSourceClassification) => Promise<BrandKnowledgeExtraction>;
   extractNodes?: (asset: BrandKnowledgeAsset, classification: BrandSourceClassification) => Promise<KnowledgeNodeInput[]>;
+  updateProfile?: (update: BrandProfileUpdate) => Promise<void>;
 };
 
 export type BrandKnowledgeSyncResult = {
   created: number;
   skipped: number;
   errors: string[];
+  updatedProfile?: boolean;
 };
 
 const KIND_BY_CATEGORY: Record<BrandSourceClassification["category"], string> = {
@@ -125,6 +134,21 @@ async function existingKeysForAsset(assetId: string, deps: { client: TypedSupaba
   );
 }
 
+async function defaultUpdateBrandProfile(orgId: string, update: BrandProfileUpdate) {
+  const current = (await getBusinessProfile(orgId)) ?? NEUTRAL_DEFAULTS;
+  await upsertBusinessProfile(orgId, mergeBrandProfileUpdate(current, update));
+}
+
+async function extractKnowledge(
+  asset: BrandKnowledgeAsset,
+  classification: BrandSourceClassification,
+  deps: BrainSyncDeps,
+): Promise<BrandKnowledgeExtraction> {
+  if (deps.extractKnowledge) return deps.extractKnowledge(asset, classification);
+  if (deps.extractNodes) return { nodes: await deps.extractNodes(asset, classification), profile: null };
+  return extractBrandKnowledgeBundleWithGemini(asset);
+}
+
 export async function learnBrandKnowledgeFromAsset(
   asset: BrandKnowledgeAsset,
   deps: BrainSyncDeps = {},
@@ -134,21 +158,30 @@ export async function learnBrandKnowledgeFromAsset(
 
   const classification = classifyBrandSource(asset);
   const sourceProposals = proposeBrandKnowledgeNodes(asset, classification);
-  const extractedProposals = await (deps.extractNodes ?? ((source) => extractBrandKnowledgeWithGemini(source)))(
-    asset,
-    classification,
-  ).catch(() => []);
-  const proposals = [...sourceProposals, ...extractedProposals];
-  if (proposals.length === 0) return { created: 0, skipped: 1, errors: [] };
-
-  let existingKeys: Set<string>;
-  try {
-    existingKeys = await existingKeysForAsset(asset.id, resolved);
-  } catch (error) {
-    return { created: 0, skipped: 0, errors: [error instanceof Error ? error.message : "Could not inspect Brain."] };
-  }
+  const extracted = await extractKnowledge(asset, classification, deps).catch(() => ({ nodes: [], profile: null }));
+  const proposals = [...sourceProposals, ...extracted.nodes];
+  if (proposals.length === 0 && !extracted.profile) return { created: 0, skipped: 1, errors: [] };
 
   const result: BrandKnowledgeSyncResult = { created: 0, skipped: 0, errors: [] };
+  if (extracted.profile) {
+    try {
+      if (deps.updateProfile) await deps.updateProfile(extracted.profile);
+      else await defaultUpdateBrandProfile(resolved.orgId, extracted.profile);
+      result.updatedProfile = true;
+    } catch (error) {
+      result.errors.push(error instanceof Error ? error.message : "Could not update the Brand profile.");
+    }
+  }
+
+  let existingKeys = new Set<string>();
+  if (proposals.length > 0) {
+    try {
+      existingKeys = await existingKeysForAsset(asset.id, resolved);
+    } catch (error) {
+      return { ...result, errors: [...result.errors, error instanceof Error ? error.message : "Could not inspect Brain."] };
+    }
+  }
+
   for (const proposal of proposals) {
     if (proposal.key && existingKeys.has(proposal.key)) {
       result.skipped += 1;
