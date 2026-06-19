@@ -149,6 +149,24 @@ describe("assembleArcContext", () => {
   });
 });
 
+describe("assembleArcContext brand identity", () => {
+  it("includes palette + visual identity fields", () => {
+    const profile = {
+      ...NEUTRAL_DEFAULTS, displayName: "BSR", logoUrl: "https://x/logo.png",
+      tagline: "Chicago's restoration crew", description: "We restore.", websiteUrl: "https://bsr.com",
+      serviceAreas: ["Chicago", "Suburbs"],
+      brandPalette: { ...NEUTRAL_DEFAULTS.brandPalette, accent: { label: "Gold", hex: "#C8A24B" }, headingFont: "Oswald" },
+    };
+    const ctx = assembleArcContext(profile, NEUTRAL_PERSONAS, []);
+    expect(ctx.logoUrl).toBe("https://x/logo.png");
+    expect(ctx.tagline).toBe("Chicago's restoration crew");
+    expect(ctx.websiteUrl).toBe("https://bsr.com");
+    expect(ctx.serviceAreas).toEqual(["Chicago", "Suburbs"]);
+    expect(ctx.palette.accent).toEqual({ label: "Gold", hex: "#C8A24B" });
+    expect(ctx.palette.headingFont).toBe("Oswald");
+  });
+});
+
 describe("parseBrandPalette", () => {
   it("maps a full jsonb palette", () => {
     const p = parseBrandPalette({

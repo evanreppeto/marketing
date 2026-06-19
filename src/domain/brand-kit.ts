@@ -366,6 +366,12 @@ export type ArcBusinessContext = {
   personas: PersonaDefinition[];
   guardrails: BrandKitGuardrails;
   brainFacts: string[];
+  palette: BrandPalette;
+  logoUrl: string | null;
+  tagline: string | null;
+  description: string | null;
+  websiteUrl: string | null;
+  serviceAreas: string[];
 };
 
 /**
@@ -391,5 +397,11 @@ export function assembleArcContext(
     personas: personas.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
     guardrails: profile.guardrails,
     brainFacts,
+    palette: profile.brandPalette,
+    logoUrl: profile.logoUrl,
+    tagline: profile.tagline,
+    description: profile.description,
+    websiteUrl: profile.websiteUrl,
+    serviceAreas: profile.serviceAreas,
   };
 }
