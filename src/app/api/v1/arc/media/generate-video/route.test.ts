@@ -41,7 +41,7 @@ function configure() {
 beforeEach(() => {
   startVideo.mockReset();
   pollVideo.mockReset();
-  startVideo.mockResolvedValue({ operationName: "op/123", model: "veo-2.0-generate-001", jobId: "j" });
+  startVideo.mockResolvedValue({ operationName: "op/123", model: "veo-3.1-fast-generate-preview", jobId: "j" });
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(env)) {
