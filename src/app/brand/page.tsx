@@ -239,6 +239,27 @@ export default async function BrandPage() {
             tone="rules"
           />
         </div>
+        {(() => {
+          const slots = [
+            profile.brandPalette.primary,
+            profile.brandPalette.secondary,
+            profile.brandPalette.accent,
+            profile.brandPalette.dark,
+            profile.brandPalette.light,
+          ].filter((c) => /^#[0-9a-fA-F]{6}$/.test(c.hex));
+          if (slots.length === 0) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border-hairline)] px-5 py-4">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Palette</span>
+              {slots.map((c) => (
+                <span key={c.hex + c.label} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <span aria-hidden className="h-5 w-5 rounded border border-[var(--border-hairline)]" style={{ backgroundColor: c.hex }} />
+                  {c.label || c.hex}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
       </Panel>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileBadge,
   MessageSquareQuote,
+  Palette,
   Save,
   ShieldCheck,
   UploadCloud,
@@ -16,7 +17,7 @@ import { cx } from "@/app/_components/theme";
 import { applyIndustryTemplate, INDUSTRY_TEMPLATES, type BusinessProfile } from "@/domain";
 import { saveBrandKitAction, type BrandKitActionState } from "@/app/settings/brand-kit-actions";
 
-type EditorTab = "company" | "voice" | "proof" | "rules";
+type EditorTab = "company" | "voice" | "palette" | "proof" | "rules";
 
 const sectionStyles: Record<
   EditorTab,
@@ -35,6 +36,11 @@ const sectionStyles: Record<
     bar: "bg-[var(--accent-contrast)]",
     border: "border-l-[var(--accent-border)]",
     surface: "bg-[color-mix(in_srgb,var(--accent-soft)_12%,var(--surface-panel))]",
+  },
+  palette: {
+    bar: "bg-[var(--accent)]",
+    border: "border-l-[var(--accent-border-strong)]",
+    surface: "bg-[color-mix(in_srgb,var(--accent-soft)_16%,var(--surface-panel))]",
   },
   proof: {
     bar: "bg-[var(--ok)]",
@@ -68,6 +74,18 @@ type FormValues = {
   disallowedClaims: string;
   complianceNotes: string;
   status: string;
+  paletteHeadingFont: string;
+  paletteBodyFont: string;
+  primaryHex: string;
+  primaryLabel: string;
+  secondaryHex: string;
+  secondaryLabel: string;
+  accentHex: string;
+  accentLabel: string;
+  darkHex: string;
+  darkLabel: string;
+  lightHex: string;
+  lightLabel: string;
 };
 
 const tabs: Array<{
@@ -87,6 +105,12 @@ const tabs: Array<{
     label: "Voice",
     detail: "Tone, phrases to use, phrases to avoid.",
     icon: <MessageSquareQuote aria-hidden />,
+  },
+  {
+    id: "palette",
+    label: "Palette",
+    detail: "Brand colors and fonts.",
+    icon: <Palette aria-hidden />,
   },
   {
     id: "proof",
@@ -144,6 +168,18 @@ function toValues(profile: BusinessProfile): FormValues {
     disallowedClaims: profile.guardrails.disallowedClaims.join("\n"),
     complianceNotes: profile.guardrails.complianceNotes,
     status: profile.status,
+    paletteHeadingFont: profile.brandPalette.headingFont,
+    paletteBodyFont: profile.brandPalette.bodyFont,
+    primaryHex: profile.brandPalette.primary.hex,
+    primaryLabel: profile.brandPalette.primary.label,
+    secondaryHex: profile.brandPalette.secondary.hex,
+    secondaryLabel: profile.brandPalette.secondary.label,
+    accentHex: profile.brandPalette.accent.hex,
+    accentLabel: profile.brandPalette.accent.label,
+    darkHex: profile.brandPalette.dark.hex,
+    darkLabel: profile.brandPalette.dark.label,
+    lightHex: profile.brandPalette.light.hex,
+    lightLabel: profile.brandPalette.light.label,
   };
 }
 
@@ -350,6 +386,55 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
             </EditorSection>
 
             <EditorSection
+              active={activeTab === "palette"}
+              detail="The brand colors and fonts Arc cites when packaging creative."
+              title="Brand palette"
+              tone="palette"
+            >
+              <div className="grid gap-4">
+                {([
+                  ["primary", "Primary", values.primaryHex, values.primaryLabel],
+                  ["secondary", "Secondary", values.secondaryHex, values.secondaryLabel],
+                  ["accent", "Accent", values.accentHex, values.accentLabel],
+                  ["dark", "Dark / ink", values.darkHex, values.darkLabel],
+                  ["light", "Light / background", values.lightHex, values.lightLabel],
+                ] as const).map(([slot, label, hex, name]) => (
+                  <ColorRow
+                    key={slot}
+                    slot={slot}
+                    label={label}
+                    hex={hex}
+                    name={name}
+                    onHex={(v) => update(`${slot}Hex` as keyof FormValues, v)}
+                    onLabel={(v) => update(`${slot}Label` as keyof FormValues, v)}
+                  />
+                ))}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-1.5">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Heading font</span>
+                  <input
+                    className={inputClass}
+                    name="palette_heading_font"
+                    onChange={(e) => update("paletteHeadingFont", e.target.value)}
+                    placeholder="e.g. Oswald"
+                    value={values.paletteHeadingFont}
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Body font</span>
+                  <input
+                    className={inputClass}
+                    name="palette_body_font"
+                    onChange={(e) => update("paletteBodyFont", e.target.value)}
+                    placeholder="e.g. Inter"
+                    value={values.paletteBodyFont}
+                  />
+                </label>
+              </div>
+            </EditorSection>
+
+            <EditorSection
               active={activeTab === "proof"}
               detail="Use one line per offering or proof point so Arc can pull clean facts."
               title="Offerings & proof"
@@ -451,6 +536,58 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
         <input name="status" type="hidden" value={values.status} />
       </form>
     </Panel>
+  );
+}
+
+function ColorRow({
+  slot,
+  label,
+  hex,
+  name,
+  onHex,
+  onLabel,
+}: {
+  slot: string;
+  label: string;
+  hex: string;
+  name: string;
+  onHex: (v: string) => void;
+  onLabel: (v: string) => void;
+}) {
+  const swatch = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#000000";
+  return (
+    <div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.4fr)]">
+      <label className="grid gap-1.5">
+        <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
+        <input
+          aria-label={`${label} color`}
+          className="h-10 w-14 cursor-pointer rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)]"
+          type="color"
+          value={swatch}
+          onChange={(e) => onHex(e.target.value)}
+        />
+      </label>
+      <label className="grid gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Hex</span>
+        <input
+          className={inputClass}
+          name={`palette_${slot}_hex`}
+          placeholder="#1B2A4A"
+          value={hex}
+          onChange={(e) => onHex(e.target.value)}
+        />
+      </label>
+      <label className="grid gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Label (optional)</span>
+        <input
+          className={inputClass}
+          name={`palette_${slot}_label`}
+          placeholder="e.g. Navy"
+          value={name}
+          onChange={(e) => onLabel(e.target.value)}
+        />
+      </label>
+    </div>
   );
 }
 
