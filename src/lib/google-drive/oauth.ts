@@ -16,6 +16,20 @@ export type GoogleDriveConfig =
       missing: string[];
     };
 
+export type GoogleDrivePickerConfig =
+  | {
+      ok: true;
+      apiKey: string;
+      appId: string;
+      missing: [];
+    }
+  | {
+      ok: false;
+      apiKey: string | null;
+      appId: string | null;
+      missing: string[];
+    };
+
 export function googleDriveRedirectUri(origin: string): string {
   return `${origin.replace(/\/$/, "")}/api/integrations/google-drive/callback`;
 }
@@ -44,6 +58,26 @@ export function resolveGoogleDriveConfig(
   }
 
   return { ok: true, clientId, clientSecret, redirectUri, missing: [] };
+}
+
+export function resolveGoogleDrivePickerConfig(env: Record<string, string | undefined> = process.env): GoogleDrivePickerConfig {
+  const apiKey = env.GOOGLE_DRIVE_PICKER_API_KEY?.trim() ?? "";
+  const appId = env.GOOGLE_DRIVE_APP_ID?.trim() ?? "";
+  const missing = [
+    !apiKey ? "GOOGLE_DRIVE_PICKER_API_KEY" : null,
+    !appId ? "GOOGLE_DRIVE_APP_ID" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      apiKey: apiKey || null,
+      appId: appId || null,
+      missing,
+    };
+  }
+
+  return { ok: true, apiKey, appId, missing: [] };
 }
 
 export function buildGoogleDriveAuthUrl(input: { clientId: string; redirectUri: string; state: string }): string {
