@@ -666,6 +666,14 @@ export async function renameProject(
   assertOk("arc_projects rename", error);
 }
 
+export async function deleteProject(
+  id: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client.from("arc_projects").delete().eq("id", id);
+  assertOk("arc_projects delete", error);
+}
+
 export async function assignConversationToProject(
   conversationId: string,
   projectId: string | null,
