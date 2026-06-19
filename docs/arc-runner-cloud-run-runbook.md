@@ -62,3 +62,47 @@ deploy — bills API credits instead of your Max plan.)
 `--min-instances 1` + `--no-cpu-throttling` keep one instance warm 24/7 (required
 so Arc's post-ack background work isn't killed). Expect a small constant cost
 rather than scale-to-zero.
+
+## Continuous deploy (auto-deploy on push to main)
+A Cloud Build trigger rebuilds + redeploys the runner whenever `apps/arc-runner/**`
+changes on `main` — so you never hand-run `deploy-cloud-run.sh` for code changes.
+Build config: `apps/arc-runner/cloudbuild.yaml` (build → push → `gcloud run deploy
+--image`; it preserves the service's env/secrets/scaling — only the image rolls).
+Changes anywhere else don't trigger it (Vercel auto-deploys the app as usual).
+
+One-time setup (operator, in Cloud Shell):
+
+    # 1. Artifact Registry repo for the runner image
+    gcloud artifacts repositories create arc-runner \
+      --repository-format=docker --location=us-central1
+
+    # 2. Grant the Cloud Build service account deploy permissions.
+    #    NOTE: confirm which SA your builds use — Cloud Build → Settings shows it.
+    #    Classic: <PROJECT_NUMBER>@cloudbuild.gserviceaccount.com
+    #    Newer projects default builds to the Compute SA: <PROJECT_NUMBER>-compute@developer.gserviceaccount.com
+    #    Grant to whichever the trigger runs as (do both if unsure).
+    PROJ_NUM=$(gcloud projects describe "$GCP_PROJECT" --format='value(projectNumber)')
+    CB_SA="${PROJ_NUM}@cloudbuild.gserviceaccount.com"
+    RUNTIME_SA="${PROJ_NUM}-compute@developer.gserviceaccount.com"
+    gcloud projects add-iam-policy-binding "$GCP_PROJECT" --member="serviceAccount:${CB_SA}" --role="roles/run.admin"
+    gcloud projects add-iam-policy-binding "$GCP_PROJECT" --member="serviceAccount:${CB_SA}" --role="roles/artifactregistry.writer"
+    gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" --member="serviceAccount:${CB_SA}" --role="roles/iam.serviceAccountUser"
+
+    # 3. Connect the GitHub repo to Cloud Build (one-time, console is easiest):
+    #    Cloud Build → Triggers → Connect Repository → GitHub → authorize evanreppeto/marketing.
+
+    # 4. Create the trigger (or do it in the console with the same values):
+    gcloud builds triggers create github \
+      --name=arc-runner-deploy \
+      --region=us-central1 \
+      --repo-name=marketing --repo-owner=evanreppeto \
+      --branch-pattern='^main$' \
+      --included-files='apps/arc-runner/**' \
+      --build-config=apps/arc-runner/cloudbuild.yaml
+
+Verify: merge a no-op change under `apps/arc-runner/` (or push the existing files),
+then watch Cloud Build → History for an `arc-runner-deploy` run that ends in a new
+Cloud Run revision. Roll back anytime via Cloud Run → Revisions.
+
+Note: CI only rolls the **image**. Config changes (new/rotated secrets, scaling or
+flag changes) still go through `deploy-cloud-run.sh` or `gcloud run services update`.
