@@ -558,6 +558,26 @@ export async function completeArcMessage(
   assertOk("arc_messages complete", error);
 }
 
+/**
+ * Live-stream a partial reply body into the pending message while Arc is still
+ * generating, so the chat types the answer out instead of it popping in at the
+ * end. Updates ONLY `body`, and ONLY while the row is still `pending` — once
+ * completeArcMessage flips it to `complete`, late chunks match nothing and are
+ * harmless no-ops (so a trailing chunk can never overwrite the final reply).
+ * Best-effort, like live steps.
+ */
+export async function streamArcMessageBody(
+  input: { agentTaskId: string; body: string },
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client
+    .from("arc_messages")
+    .update({ body: input.body })
+    .eq("agent_task_id", input.agentTaskId)
+    .eq("status", "pending");
+  assertOk("arc_messages body stream", error);
+}
+
 export async function failArcMessage(
   input: { messageId: string; body: string },
   client: SupabaseClient = getSupabaseAdminClient(),
