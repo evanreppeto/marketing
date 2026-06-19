@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseBrandKnowledgeJson, toBrandKnowledgeNodeInputs } from "./gemini-parser";
+import { extractBrandKnowledgeBundleWithGemini, parseBrandKnowledgeJson, toBrandKnowledgeNodeInputs } from "./gemini-parser";
 
 describe("parseBrandKnowledgeJson", () => {
   it("keeps only simple approved Brain node kinds from Gemini JSON", () => {
@@ -67,5 +67,33 @@ describe("toBrandKnowledgeNodeInputs", () => {
         tags: expect.arrayContaining(["brand-source", "ai-extracted", "certification"]),
       }),
     ]);
+  });
+});
+
+describe("extractBrandKnowledgeBundleWithGemini", () => {
+  it("asks Gemini to extract visual identity themes from media assets", async () => {
+    let prompt = "";
+
+    await extractBrandKnowledgeBundleWithGemini(
+      {
+        id: "image-1",
+        fileName: "Brand moodboard.png",
+        kind: "image",
+        source: "uploaded",
+        tags: ["brand source"],
+        availableToArc: true,
+        contentType: "image/png",
+        fileBytes: new Uint8Array([1, 2, 3]),
+      },
+      {
+        generateText: async (nextPrompt) => {
+          prompt = nextPrompt;
+          return JSON.stringify({ profile: null, nodes: [] });
+        },
+      },
+    );
+
+    expect(prompt).toContain("visual themes");
+    expect(prompt).toContain("colors");
   });
 });

@@ -10,10 +10,10 @@ import Link from "next/link";
 
 import { PageHeader, Panel, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
-import { uploadAssetsAction } from "@/app/library/actions";
 import { INDUSTRY_TEMPLATES, NEUTRAL_DEFAULTS, type BusinessProfile } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
+import { summarizeBrandSourceReadiness } from "@/lib/brand-knowledge/readiness";
 import { listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { type MediaAssetView } from "@/lib/media-library/types";
@@ -26,7 +26,8 @@ import {
 } from "@/lib/brand-knowledge/source-classifier";
 
 import { BrandProfileEditor } from "./_components/brand-profile-editor";
-import { syncBrandKnowledgeSourcesAction } from "./actions";
+import { BrandKnowledgeSyncButton } from "./_components/brand-knowledge-sync-button";
+import { BrandSourceUpload } from "./_components/brand-source-upload";
 
 export const dynamic = "force-dynamic";
 
@@ -91,8 +92,7 @@ function brandFiles(assets: MediaAssetView[]): BrandFileSource[] {
         brandSourceSortScore(a.classification, a.asset.availableToArc) -
         brandSourceSortScore(b.classification, b.asset.availableToArc)
       );
-    })
-    .slice(0, 6);
+    });
 }
 
 function factType(kind: string) {
@@ -153,7 +153,9 @@ export default async function BrandPage() {
 
   const facts = brain.status === "live" ? brandFacts(brain.nodes) : [];
   const brainNodes = brain.status === "live" ? brain.nodes : [];
-  const files = library.status === "live" ? brandFiles(library.assets) : [];
+  const allFiles = library.status === "live" ? brandFiles(library.assets) : [];
+  const files = allFiles.slice(0, 6);
+  const sourceReadiness = summarizeBrandSourceReadiness(allFiles, brainNodes);
   const approvedFacts = facts.filter((fact) => fact.trustTier === "trusted").length;
   const needsReview = facts.filter((fact) => fact.trustTier === "proposed").length;
 
@@ -176,6 +178,25 @@ export default async function BrandPage() {
           </>
         }
       />
+
+      <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.files.border)}>
+        <div aria-hidden className={cx("h-1", SECTION_TONE.files.bar)} />
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,0.6fr)_minmax(0,1fr)]">
+          <div className={cx("border-b border-[var(--border-hairline)] px-5 py-5 xl:border-b-0 xl:border-r", SECTION_TONE.files.surface)}>
+            <div className="signal-eyebrow">Primary source</div>
+            <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Add brand knowledge</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+              Upload the files Mark should learn from. New uploads are analyzed immediately and existing Library files show up as a queue.
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <MiniStat label="New" value={sourceReadiness.readyToLearn} />
+              <MiniStat label="Learned" value={sourceReadiness.learned} />
+              <MiniStat label="Blocked" value={sourceReadiness.blocked} />
+            </div>
+          </div>
+          <BrandSourceUpload placement="hero" />
+        </div>
+      </Panel>
 
       <Panel className="overflow-hidden p-0">
         <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
@@ -279,43 +300,17 @@ export default async function BrandPage() {
             <div aria-hidden className={cx("h-1", SECTION_TONE.files.bar)} />
             <SimpleHeader
               action={
-                <div className="flex flex-wrap gap-2">
-                  <form action={syncBrandKnowledgeSourcesAction}>
-                    <button className={buttonClasses({ variant: "ghost", size: "sm" })} type="submit">
-                      Send to Brain
-                    </button>
-                  </form>
+                <div className="flex flex-wrap items-start gap-2">
+                  <BrandKnowledgeSyncButton readyToLearn={sourceReadiness.readyToLearn} />
                   <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/library">
                     Add files
                   </Link>
                 </div>
               }
-              eyebrow={`${files.length} files`}
+              eyebrow={`${sourceReadiness.readyToLearn} new, ${sourceReadiness.learned} learned`}
               tone="files"
               title="Knowledge sources"
             />
-            <form
-              action={uploadAssetsAction}
-              className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4"
-              encType="multipart/form-data"
-            >
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md border border-dashed border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-secondary)] hover:border-[var(--accent)]">
-                  <UploadCloud aria-hidden className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-                  <span className="min-w-0 truncate">Upload brand guides, proof, source docs, logos, or reference files</span>
-                  <input
-                    accept="application/pdf,image/*,image/svg+xml,.svg,.ico"
-                    className="sr-only"
-                    multiple
-                    name="files"
-                    type="file"
-                  />
-                </label>
-                <button className={buttonClasses({ variant: "primary", size: "sm" })} type="submit">
-                  Upload
-                </button>
-              </div>
-            </form>
             <div className="divide-y divide-[var(--border-hairline)]">
               {files.length > 0 ? (
                 files.map((file) => <FileRow file={file} key={file.asset.id} stats={sourceStats(brainNodes, file.asset.id)} />)
@@ -323,7 +318,7 @@ export default async function BrandPage() {
                 <EmptyBrandState
                   actionHref="/library"
                   actionLabel="Import files"
-                  detail={library.status === "live" ? "Add Google Drive links, PDFs, brand guidelines, product docs, source docs, or proof files." : library.message}
+                  detail={library.status === "live" ? "Add Google Drive links, PDFs, brand guidelines, voice docs, offerings, proof files, rules, or source docs." : library.message}
                   title="No knowledge sources yet"
                 />
               )}
@@ -360,6 +355,15 @@ function StepCard({
         </div>
         <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
       </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
+      <div className="text-lg font-bold text-[var(--text-primary)]">{value}</div>
+      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }

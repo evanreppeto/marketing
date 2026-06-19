@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-import { type KnowledgeNodeInput } from "@/domain";
+import { NEUTRAL_DEFAULTS, type BusinessProfile, type KnowledgeNodeInput, type ProofPoint } from "@/domain";
 
 import { type BrandKnowledgeAsset } from "./brain-sync";
 
@@ -19,6 +19,29 @@ type GeminiDeps = {
   generateText?: (prompt: string, asset: BrandKnowledgeAsset) => Promise<string>;
 };
 
+export type BrandProfileUpdate = {
+  displayName?: string | null;
+  legalName?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  industry?: string | null;
+  websiteUrl?: string | null;
+  serviceAreas?: string[];
+  tone?: string | null;
+  voiceGuidance?: string | null;
+  preferredPhrases?: string[];
+  bannedPhrases?: string[];
+  services?: string[];
+  proofPoints?: string[];
+  disallowedClaims?: string[];
+  complianceNotes?: string | null;
+};
+
+export type BrandKnowledgeExtraction = {
+  nodes: KnowledgeNodeInput[];
+  profile: BrandProfileUpdate | null;
+};
+
 const ALLOWED_KINDS = new Set<ParsedBrandKnowledgeNode["kind"]>([
   "brand_fact",
   "messaging_angle",
@@ -30,6 +53,93 @@ const DEFAULT_TEXT_MODEL = "gemini-2.5-flash-lite";
 
 function cleanText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, maxLength).trim() : "";
+}
+
+function cleanOptionalText(value: string | null | undefined) {
+  return value?.replace(/\s+/g, " ").trim() || null;
+}
+
+function cleanArray(value: unknown, maxLength = 120) {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const cleaned = cleanText(item, maxLength);
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(cleaned);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+function mergeList(current: string[], incoming: string[] | undefined) {
+  const out = [...current];
+  const seen = new Set(out.map((item) => item.toLowerCase()));
+  for (const raw of incoming ?? []) {
+    const item = cleanOptionalText(raw);
+    if (!item) continue;
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function mergeProofPoints(current: ProofPoint[], incoming: string[] | undefined) {
+  const out = [...current];
+  const seen = new Set(out.map((point) => point.label.toLowerCase()));
+  for (const raw of incoming ?? []) {
+    const label = cleanOptionalText(raw);
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ kind: "stat", label });
+  }
+  return out;
+}
+
+function keepOrFill(current: string | null | undefined, incoming: string | null | undefined) {
+  const currentValue = cleanOptionalText(current);
+  return currentValue ?? cleanOptionalText(incoming);
+}
+
+function mergeText(current: string | null | undefined, incoming: string | null | undefined) {
+  const currentValue = cleanOptionalText(current);
+  const incomingValue = cleanOptionalText(incoming);
+  if (!incomingValue) return currentValue;
+  if (!currentValue) return incomingValue;
+  if (currentValue.toLowerCase().includes(incomingValue.toLowerCase())) return currentValue;
+  return `${currentValue}\n\n${incomingValue}`;
+}
+
+export function mergeBrandProfileUpdate(current: BusinessProfile, update: BrandProfileUpdate): BusinessProfile {
+  const tone = cleanOptionalText(update.tone);
+
+  return {
+    ...current,
+    displayName: keepOrFill(current.displayName, update.displayName) ?? current.displayName,
+    legalName: keepOrFill(current.legalName, update.legalName),
+    tagline: keepOrFill(current.tagline, update.tagline),
+    description: mergeText(current.description, update.description),
+    industry: keepOrFill(current.industry, update.industry),
+    websiteUrl: keepOrFill(current.websiteUrl, update.websiteUrl),
+    serviceAreas: mergeList(current.serviceAreas, update.serviceAreas),
+    tone: current.tone === NEUTRAL_DEFAULTS.tone && tone ? tone : current.tone,
+    voiceGuidance: mergeText(current.voiceGuidance, update.voiceGuidance),
+    preferredPhrases: mergeList(current.preferredPhrases, update.preferredPhrases),
+    bannedPhrases: mergeList(current.bannedPhrases, update.bannedPhrases),
+    services: mergeList(current.services, update.services),
+    proofPoints: mergeProofPoints(current.proofPoints, update.proofPoints),
+    guardrails: {
+      disallowedClaims: mergeList(current.guardrails.disallowedClaims, update.disallowedClaims),
+      complianceNotes: mergeText(current.guardrails.complianceNotes, update.complianceNotes) ?? "",
+    },
+  };
 }
 
 function cleanTags(value: unknown) {
@@ -62,19 +172,50 @@ function extractJson(value: string) {
 }
 
 export function parseBrandKnowledgeJson(value: string): ParsedBrandKnowledgeNode[] {
+  return parseBrandKnowledgeExtractionJson(value).nodes;
+}
+
+function parseProfile(value: unknown): BrandProfileUpdate | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const item = value as Record<string, unknown>;
+  const profile: BrandProfileUpdate = {
+    displayName: cleanText(item.displayName, 120) || null,
+    legalName: cleanText(item.legalName, 160) || null,
+    tagline: cleanText(item.tagline, 180) || null,
+    description: cleanText(item.description, 900) || null,
+    industry: cleanText(item.industry, 80) || null,
+    websiteUrl: cleanText(item.websiteUrl, 240) || null,
+    serviceAreas: cleanArray(item.serviceAreas),
+    tone: cleanText(item.tone, 60) || null,
+    voiceGuidance: cleanText(item.voiceGuidance, 900) || null,
+    preferredPhrases: cleanArray(item.preferredPhrases),
+    bannedPhrases: cleanArray(item.bannedPhrases),
+    services: cleanArray(item.services),
+    proofPoints: cleanArray(item.proofPoints),
+    disallowedClaims: cleanArray(item.disallowedClaims),
+    complianceNotes: cleanText(item.complianceNotes, 900) || null,
+  };
+  const hasValue = Object.values(profile).some((entry) => (Array.isArray(entry) ? entry.length > 0 : Boolean(entry)));
+  return hasValue ? profile : null;
+}
+
+export function parseBrandKnowledgeExtractionJson(value: string): {
+  nodes: ParsedBrandKnowledgeNode[];
+  profile: BrandProfileUpdate | null;
+} {
   let parsed: unknown;
   try {
     parsed = JSON.parse(extractJson(value));
   } catch {
-    return [];
+    return { nodes: [], profile: null };
   }
 
   const rawNodes = parsed && typeof parsed === "object" && "nodes" in parsed ? (parsed as { nodes?: unknown }).nodes : [];
-  if (!Array.isArray(rawNodes)) return [];
+  const sourceNodes = Array.isArray(rawNodes) ? rawNodes : [];
 
   const out: ParsedBrandKnowledgeNode[] = [];
   const seen = new Set<string>();
-  for (const raw of rawNodes) {
+  for (const raw of sourceNodes) {
     if (!raw || typeof raw !== "object") continue;
     const item = raw as Record<string, unknown>;
     const kind = cleanText(item.kind, 40) as ParsedBrandKnowledgeNode["kind"];
@@ -93,7 +234,10 @@ export function parseBrandKnowledgeJson(value: string): ParsedBrandKnowledgeNode
     });
     if (out.length >= 8) break;
   }
-  return out;
+  return {
+    nodes: out,
+    profile: parsed && typeof parsed === "object" && "profile" in parsed ? parseProfile((parsed as { profile?: unknown }).profile) : null,
+  };
 }
 
 function slug(value: string) {
@@ -131,13 +275,25 @@ export function toBrandKnowledgeNodeInputs(
   }));
 }
 
+export function toBrandKnowledgeExtraction(
+  asset: BrandKnowledgeAsset,
+  parsed: { nodes: ParsedBrandKnowledgeNode[]; profile: BrandProfileUpdate | null },
+): BrandKnowledgeExtraction {
+  return {
+    nodes: toBrandKnowledgeNodeInputs(asset, parsed.nodes),
+    profile: parsed.profile,
+  };
+}
+
 function buildPrompt(asset: BrandKnowledgeAsset) {
   const text = asset.extractedText?.trim();
   return [
     "Read this brand source and extract only facts Mark can use after human approval.",
     "Return JSON only with this shape:",
-    '{"nodes":[{"kind":"brand_fact|messaging_angle|proof_point|cta","label":"short fact","body":"supporting detail","summary":"optional short summary","confidence":80,"tags":["brand"]}]}',
+    '{"profile":{"displayName":null,"legalName":null,"tagline":null,"description":null,"industry":null,"websiteUrl":null,"serviceAreas":[],"tone":null,"voiceGuidance":null,"preferredPhrases":[],"bannedPhrases":[],"services":[],"proofPoints":[],"disallowedClaims":[],"complianceNotes":null},"nodes":[{"kind":"brand_fact|messaging_angle|proof_point|cta","label":"short fact","body":"supporting detail","summary":"optional short summary","confidence":80,"tags":["brand"]}]}',
     "Keep it conservative. Do not invent claims. If the source is weak, return an empty nodes array.",
+    "Use profile for editable Brand details: company, voice, offerings, proof, and rules.",
+    "For logos, photos, moodboards, and reference media, extract visual themes, colors, typography cues, logo usage, style rules, and brand-safe visual guidance.",
     `File name: ${asset.fileName}`,
     text ? `Document text:\n${text.slice(0, 16000)}` : "Use the attached file content.",
   ].join("\n\n");
@@ -177,10 +333,17 @@ export async function extractBrandKnowledgeWithGemini(
   asset: BrandKnowledgeAsset,
   deps: GeminiDeps = {},
 ): Promise<KnowledgeNodeInput[]> {
-  if (!asset.availableToArc) return [];
-  if (!asset.extractedText?.trim() && !asset.fileBytes) return [];
+  return (await extractBrandKnowledgeBundleWithGemini(asset, deps)).nodes;
+}
+
+export async function extractBrandKnowledgeBundleWithGemini(
+  asset: BrandKnowledgeAsset,
+  deps: GeminiDeps = {},
+): Promise<BrandKnowledgeExtraction> {
+  if (!asset.availableToArc) return { nodes: [], profile: null };
+  if (!asset.extractedText?.trim() && !asset.fileBytes) return { nodes: [], profile: null };
 
   const prompt = buildPrompt(asset);
   const text = deps.generateText ? await deps.generateText(prompt, asset) : await callGemini(prompt, asset, deps);
-  return toBrandKnowledgeNodeInputs(asset, parseBrandKnowledgeJson(text));
+  return toBrandKnowledgeExtraction(asset, parseBrandKnowledgeExtractionJson(text));
 }

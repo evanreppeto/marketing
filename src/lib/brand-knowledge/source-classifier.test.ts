@@ -35,6 +35,18 @@ describe("classifyBrandSource", () => {
     expect(result.confidence).toBe("medium");
   });
 
+  it("recognizes tagged media as brand reference material", () => {
+    const result = classifyBrandSource({
+      fileName: "hero-photo.jpg",
+      kind: "image",
+      source: "uploaded",
+      tags: ["brand source"],
+    });
+
+    expect(result.label).toBe("Visual identity");
+    expect(result.confidence).toBe("high");
+  });
+
   it("prefers high confidence and Arc-readable files in sorting", () => {
     const high = classifyBrandSource({ fileName: "Brand book.pdf", kind: "document", source: "uploaded" });
     const medium = classifyBrandSource({ fileName: "Notes.pdf", kind: "document", source: "uploaded" });

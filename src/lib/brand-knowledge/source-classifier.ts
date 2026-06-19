@@ -68,7 +68,22 @@ const RULES: Array<{
   {
     category: "visual_identity",
     label: "Visual identity",
-    keywords: ["logo", "logos", "colors", "color palette", "typography", "font", "visual identity", "identity"],
+    keywords: [
+      "brand asset",
+      "brand reference",
+      "brand source",
+      "colors",
+      "color palette",
+      "font",
+      "identity",
+      "logo",
+      "logos",
+      "moodboard",
+      "theme",
+      "themes",
+      "typography",
+      "visual identity",
+    ],
   },
   {
     category: "company_profile",

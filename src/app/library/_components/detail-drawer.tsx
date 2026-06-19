@@ -43,6 +43,17 @@ export function DetailDrawer({
     });
   }
 
+  function markAsBrandSource() {
+    const nextTags = Array.from(new Set([...asset.tags, "brand source", "visual identity"]));
+    setTags(nextTags.join(", "));
+    const formData = new FormData();
+    formData.set("id", asset.id);
+    formData.set("tags", nextTags.join(", "));
+    startTagsTransition(async () => {
+      await setTagsAction(formData);
+    });
+  }
+
   function toggleArc() {
     const formData = new FormData();
     formData.set("id", asset.id);
@@ -137,6 +148,14 @@ export function DetailDrawer({
             placeholder="Comma-separated tags"
             className="min-h-9 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           />
+          <button
+            className={buttonClasses({ variant: "ghost", size: "sm", className: "mt-2 w-full justify-center" })}
+            disabled={tagsPending}
+            onClick={markAsBrandSource}
+            type="button"
+          >
+            Mark as brand source
+          </button>
           {tagsPending ? <p className="mt-1 text-[10px] text-[var(--text-muted)]">Saving tags...</p> : null}
         </div>
 
