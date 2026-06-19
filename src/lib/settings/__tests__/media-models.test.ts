@@ -22,7 +22,7 @@ describe("appImageModel", () => {
   });
 
   it("rejects a video id (cross-list rejection)", () => {
-    expect(appImageModel("veo-3.0-generate-001")).toBe("");
+    expect(appImageModel("veo-3.1-generate-preview")).toBe("");
   });
 });
 
@@ -46,6 +46,6 @@ describe("appVideoModel", () => {
   });
 
   it("rejects an image id (cross-list rejection)", () => {
-    expect(appVideoModel("imagen-4.0-generate-001")).toBe("");
+    expect(appVideoModel("gemini-3-pro-image")).toBe("");
   });
 });

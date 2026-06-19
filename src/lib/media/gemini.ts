@@ -3,17 +3,17 @@ import { randomUUID } from "node:crypto";
 
 import type { GeneratedMedia, ImageGenInput, MediaProvider, VideoGenInput, VideoStart, VideoPoll } from "./types";
 
-// Default to Imagen 4 for best text-to-image photoreal quality. Override with
-// GEMINI_IMAGE_MODEL — e.g. "imagen-4.0-ultra-generate-001" (max quality) or
-// "gemini-2.5-flash-image" (Nano Banana: conversational editing + reference
-// images, the right tool for augmenting real media later).
-const DEFAULT_IMAGE_MODEL = "imagen-4.0-generate-001";
+// Default to gemini-2.5-flash-image (Nano Banana) for conversational editing
+// and reference-image augmentation. Override with GEMINI_IMAGE_MODEL — e.g.
+// "gemini-3-pro-image" (max quality) or an explicit Imagen id if you have
+// access and need the Imagen path.
+const DEFAULT_IMAGE_MODEL = "gemini-2.5-flash-image";
 
 // Aspect ratios accepted by both Imagen 4 and Gemini flash-image; anything else
 // falls back to the model default.
 const SUPPORTED_ASPECT_RATIOS = new Set(["1:1", "3:4", "4:3", "9:16", "16:9"]);
 
-const DEFAULT_VIDEO_MODEL = "veo-2.0-generate-001";
+const DEFAULT_VIDEO_MODEL = "veo-3.1-fast-generate-preview";
 const SUPPORTED_VIDEO_ASPECT = new Set(["16:9", "9:16"]);
 
 /** Pick a model: stored pref (if non-empty) -> env -> built-in default. Pure + testable. */

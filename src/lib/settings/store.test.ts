@@ -54,8 +54,8 @@ describe("settings store helpers", () => {
       { key: "appearance_accent", value: "emerald" },
       { key: "appearance_density", value: "compact" },
       { key: "appearance_motion", value: "reduced" },
-      { key: "image_model", value: "imagen-4.0-ultra-generate-001" },
-      { key: "video_model", value: "veo-3.0-generate-001" },
+      { key: "image_model", value: "gemini-3-pro-image" },
+      { key: "video_model", value: "veo-3.1-generate-preview" },
     ]);
 
     expect(settings).toEqual({
@@ -75,8 +75,8 @@ describe("settings store helpers", () => {
       appearanceAccent: "emerald",
       appearanceDensity: "compact",
       appearanceMotion: "reduced",
-      imageModel: "imagen-4.0-ultra-generate-001",
-      videoModel: "veo-3.0-generate-001",
+      imageModel: "gemini-3-pro-image",
+      videoModel: "veo-3.1-generate-preview",
     });
     expect(settings).not.toHaveProperty("markWebhookEnabled");
   });
