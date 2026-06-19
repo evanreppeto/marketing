@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Cog, PlusIcon } from "lucide-react";
+import { Cog, MoreHorizontal, PlusIcon } from "lucide-react";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
@@ -13,6 +13,15 @@ import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import FlowFieldBackground from "@/components/ui/flow-field-background";
 import { Workspaces, WorkspaceContent, WorkspaceTrigger, type Workspace } from "@/components/ui/workspaces";
 
@@ -21,6 +30,12 @@ type ConsoleBrand = {
   productLabel: string;
   shortName: string;
   logoUrl: string;
+};
+
+type OperatorShellProfile = {
+  avatarUrl: string | null;
+  email: string | null;
+  name: string;
 };
 
 function BrandMark() {
@@ -49,6 +64,13 @@ const sidebarGoldDividerBottom =
 const sidebarBottomDock =
   "relative mt-1 rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-soft)_58%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] before:absolute before:inset-x-3 before:-top-px before:h-px before:bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_72%,transparent),color-mix(in_srgb,var(--ok)_34%,transparent),transparent)] before:content-['']";
 
+function routeMatches(item: ShellNavItem, path: string) {
+  if (item.exact) {
+    return item.matches.some((match) => path === match);
+  }
+  return item.matches.some((match) => path === match || (match !== "/" && path.startsWith(match)));
+}
+
 /**
  * Persistent application chrome. Desktop uses the command rail; smaller screens
  * keep a compact top dock so core routes remain reachable.
@@ -57,10 +79,12 @@ export function ConsoleFrame({
   agentName,
   brand,
   children,
+  operator,
 }: {
   agentName: string;
   brand: ConsoleBrand;
   children: React.ReactNode;
+  operator: OperatorShellProfile;
 }) {
   const pathname = usePathname() ?? "/";
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -106,6 +130,10 @@ export function ConsoleFrame({
   const utilityNavItems: ShellNavItem[] = [
     { label: "Settings", href: "/settings?section=branding", icon: "settings", matches: ["/settings"] },
   ];
+  const mobilePrimaryNavItems = [homeNavItems[0], navItems[1], growthNavItems[0], growthNavItems[1]];
+  const mobileMoreNavItems = navItems.filter((item) => !mobilePrimaryNavItems.some((primary) => primary.href === item.href));
+  const activeMobileItem = [...navItems, ...utilityNavItems].find((item) => routeMatches(item, pathname));
+  const activeMobileLabel = activeMobileItem?.label ?? brand.productLabel;
 
   if (
     pathname === "/login" ||
@@ -126,27 +154,46 @@ export function ConsoleFrame({
             sidebarCollapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[280px_minmax(0,1fr)]",
           )}
         >
-          <header className="sticky top-0 z-40 flex min-h-[64px] items-center gap-2 overflow-x-auto border-b border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--canvas-deep)_92%,transparent)] px-3 py-2 backdrop-blur lg:hidden">
-            <Link
-              href="/"
-              className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition hover:bg-[var(--surface-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-              aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
-            >
-              <BrandMark />
-              <span className="hidden min-w-0 sm:block">
-                <BrandWordmark />
-                <span className="-mt-0.5 block max-w-[150px] truncate text-[0.69rem] leading-none text-[var(--text-muted)]">
-                  {brand.workspaceName}
+          <header className="sticky top-0 z-40 flex flex-col gap-2 border-b border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--canvas-deep)_94%,transparent)] px-3 pb-2 pt-2 backdrop-blur lg:hidden">
+            <div className="flex min-h-11 items-center gap-2">
+              <Link
+                href="/"
+                className="flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-1.5 py-1.5 transition hover:bg-[var(--surface-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                aria-label={`${brand.workspaceName} ${brand.productLabel} - go to home`}
+              >
+                <BrandMark />
+                <span className="hidden min-w-0 sm:block">
+                  <BrandWordmark />
                 </span>
-              </span>
-            </Link>
+              </Link>
 
-            <div className="min-w-0 flex-1">
-              <SideNav active={pathname} items={navItems} mobileDock />
+              <div className="min-w-0 flex-1 border-l border-[var(--border-hairline)] pl-3">
+                <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{activeMobileLabel}</div>
+                <div className="truncate text-[11px] leading-4 text-[var(--text-muted)]">{brand.workspaceName}</div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1">
+                <Link
+                  aria-label={`${operator.name} profile settings`}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+                  href="/settings?section=account"
+                  title="Profile settings"
+                >
+                  <OperatorAvatar operator={operator} size="mobile" />
+                </Link>
+                <Link
+                  aria-label="Settings"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+                  href={utilityNavItems[0].href}
+                  title="Settings"
+                >
+                  <Cog aria-hidden className="h-4.5 w-4.5" />
+                </Link>
+              </div>
             </div>
 
-            <div className="flex min-w-0 items-center">
-              <SideNav active={pathname} items={utilityNavItems} collapsed mobileDock />
+            <div className="min-w-0">
+              <MobileNavDock active={pathname} moreItems={mobileMoreNavItems} primaryItems={mobilePrimaryNavItems} />
             </div>
           </header>
 
@@ -221,7 +268,7 @@ export function ConsoleFrame({
                 </div>
               </div>
 
-              <SidebarBottomDock collapsed={sidebarCollapsed} settingsHref={utilityNavItems[0].href} workspaceName={brand.workspaceName} />
+              <SidebarBottomDock collapsed={sidebarCollapsed} operator={operator} settingsHref={utilityNavItems[0].href} workspaceName={brand.workspaceName} />
             </div>
           </aside>
 
@@ -248,6 +295,135 @@ export function ConsoleFrame({
         </div>
       </main>
     </AgentNameProvider>
+  );
+}
+
+function OperatorAvatar({ operator, size }: { operator: OperatorShellProfile; size: "mobile" | "desktop" }) {
+  const sizeClass = size === "mobile" ? "h-9 w-9 rounded-lg" : "h-9 w-9 rounded-lg";
+
+  return (
+    <Avatar className={cx(sizeClass, "border border-[var(--border-hairline)] bg-[var(--surface-soft)] shadow-[inset_0_1px_0_rgba(255,255,255,0.055)]")}>
+      {operator.avatarUrl ? <AvatarImage alt="" src={operator.avatarUrl} /> : null}
+      <AvatarFallback className="rounded-lg font-display text-xs font-semibold text-[var(--accent)]">
+        {operatorInitials(operator)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+function operatorInitials(operator: OperatorShellProfile) {
+  const source = operator.name || operator.email || "Operator";
+  const parts = source
+    .replace(/@.*/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean);
+
+  if (!parts.length) return "OP";
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+}
+
+function MobileNavDock({
+  active,
+  moreItems,
+  primaryItems,
+}: {
+  active: string;
+  moreItems: ShellNavItem[];
+  primaryItems: ShellNavItem[];
+}) {
+  const moreActive = moreItems.some((item) => routeMatches(item, active));
+
+  return (
+    <nav
+      aria-label="Mobile primary navigation"
+      className="grid grid-cols-5 gap-1 rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-soft)_70%,transparent)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+    >
+      {primaryItems.map((item) => {
+        const isActive = routeMatches(item, active);
+        return <MobileNavLink active={isActive} item={item} key={item.href} />;
+      })}
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            aria-label="More navigation"
+            aria-pressed={moreActive}
+            className={cx(
+              "group relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 text-[10px] font-semibold leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
+              moreActive
+                ? "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent-contrast)]"
+                : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)]",
+            )}
+            type="button"
+          >
+            <MoreHorizontal aria-hidden className={cx("h-5 w-5", moreActive ? "text-[var(--accent)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]")} />
+            <span className="max-w-full truncate">More</span>
+            {moreActive ? (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-x-4 bottom-0 h-px rounded-full bg-[color-mix(in_srgb,var(--accent)_62%,transparent)]"
+              />
+            ) : null}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="min-w-56 border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 text-[var(--text-primary)] shadow-[var(--elev-raised)]"
+          sideOffset={8}
+        >
+          <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            Navigate
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-[var(--border-hairline)]" />
+          {moreItems.map((item) => {
+            const isActive = routeMatches(item, active);
+            return (
+              <DropdownMenuItem asChild className="p-0 focus:bg-transparent focus:text-[var(--text-primary)]" key={item.href}>
+                <Link
+                  aria-current={isActive ? "page" : undefined}
+                  className={cx(
+                    "flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]",
+                    isActive
+                      ? "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent-contrast)]"
+                      : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)]",
+                  )}
+                  href={item.href}
+                  prefetch
+                >
+                  <NavIcon className={cx("h-4.5 w-4.5 shrink-0", isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]")} name={item.icon} />
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                </Link>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </nav>
+  );
+}
+
+function MobileNavLink({ active, item }: { active: boolean; item: ShellNavItem }) {
+  return (
+    <Link
+      aria-current={active ? "page" : undefined}
+      className={cx(
+        "group relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 text-[10px] font-semibold leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
+        active
+          ? "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent-contrast)]"
+          : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)]",
+      )}
+      href={item.href}
+      prefetch
+    >
+      <NavIcon className={cx("h-5 w-5 shrink-0", active ? "text-[var(--accent)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]")} name={item.icon} />
+      <span className="max-w-full truncate">{item.label}</span>
+      {active ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-4 bottom-0 h-px rounded-full bg-[color-mix(in_srgb,var(--accent)_62%,transparent)]"
+        />
+      ) : null}
+    </Link>
   );
 }
 
@@ -291,11 +467,21 @@ function ArcCommandLink({
   );
 }
 
-function SidebarBottomDock({ collapsed, settingsHref, workspaceName }: { collapsed?: boolean; settingsHref: string; workspaceName: string }) {
+function SidebarBottomDock({
+  collapsed,
+  operator,
+  settingsHref,
+  workspaceName,
+}: {
+  collapsed?: boolean;
+  operator: OperatorShellProfile;
+  settingsHref: string;
+  workspaceName: string;
+}) {
   return (
     <div className={cx(sidebarBottomDock, collapsed ? "space-y-2 px-1.5 py-2.5" : "space-y-3.5 px-3 py-3.5")}>
       <SidebarWorkspaceSwitcher collapsed={collapsed} workspaceName={workspaceName} />
-      <OperatorProfile collapsed={collapsed} settingsHref={settingsHref} />
+      <OperatorProfile collapsed={collapsed} operator={operator} settingsHref={settingsHref} />
     </div>
   );
 }
@@ -360,12 +546,12 @@ function SidebarSection({
   );
 }
 
-function OperatorProfile({ collapsed, settingsHref }: { collapsed?: boolean; settingsHref: string }) {
+function OperatorProfile({ collapsed, operator, settingsHref }: { collapsed?: boolean; operator: OperatorShellProfile; settingsHref: string }) {
   return (
     <div className={cx("flex items-center", collapsed ? "justify-center" : "gap-2 border-t border-[var(--border-hairline)] pt-3")}>
       <div className={cx("flex min-w-0 flex-1 items-center gap-3", collapsed ? "justify-center" : "")}>
-        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-display text-xs font-semibold text-[var(--accent)]">
-          ER
+        <div className="relative shrink-0">
+          <OperatorAvatar operator={operator} size="desktop" />
           <span
             aria-label="Active"
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-sidebar)] bg-[var(--ok)]"
@@ -373,8 +559,8 @@ function OperatorProfile({ collapsed, settingsHref }: { collapsed?: boolean; set
         </div>
         {!collapsed ? (
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Evan</div>
-            <div className="truncate text-[11px] text-[var(--text-muted)]">Operator</div>
+            <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{operator.name}</div>
+            <div className="truncate text-[11px] text-[var(--text-muted)]">{operator.email ?? "Operator"}</div>
           </div>
         ) : null}
       </div>
