@@ -4,6 +4,6 @@ import type { ArcRoute } from "./arc-chat";
  *  Maps the level (route) to the image/video model it should generate with. */
 export function levelMediaModels(route: ArcRoute): { image: string; video: string } {
   return route === "standard"
-    ? { image: "imagen-4.0-ultra-generate-001", video: "veo-3.0-generate-001" }
-    : { image: "imagen-4.0-generate-001", video: "veo-2.0-generate-001" };
+    ? { image: "gemini-3-pro-image", video: "veo-3.1-generate-preview" }
+    : { image: "gemini-3.1-flash-image", video: "veo-3.1-fast-generate-preview" };
 }
