@@ -181,16 +181,17 @@ export default async function BrandPage() {
 
       <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.files.border)}>
         <div aria-hidden className={cx("h-1", SECTION_TONE.files.bar)} />
-        <div className="grid gap-0 xl:grid-cols-[minmax(0,0.6fr)_minmax(0,1fr)]">
+        <div className="grid gap-0 xl:grid-cols-[minmax(320px,0.72fr)_minmax(0,1fr)]">
           <div className={cx("border-b border-[var(--border-hairline)] px-5 py-5 xl:border-b-0 xl:border-r", SECTION_TONE.files.surface)}>
-            <div className="signal-eyebrow">Primary source</div>
-            <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Add brand knowledge</h2>
+            <div className="signal-eyebrow">Command center</div>
+            <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Brand knowledge</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
               Upload the files Mark should learn from. New uploads are analyzed immediately and existing Library files show up as a queue.
             </p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="mt-4 grid gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
               <MiniStat label="New" value={sourceReadiness.readyToLearn} />
               <MiniStat label="Learned" value={sourceReadiness.learned} />
+              <MiniStat label="Review" value={needsReview} />
               <MiniStat label="Blocked" value={sourceReadiness.blocked} />
             </div>
           </div>
@@ -199,76 +200,48 @@ export default async function BrandPage() {
       </Panel>
 
       <Panel className="overflow-hidden p-0">
-        <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
-          <div className="signal-eyebrow">Setup</div>
-          <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">Brand workspace</h2>
-          <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-            Keep the basics, rules, and source files in one place so Arc has a clean company memory.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
+          <div>
+            <div className="signal-eyebrow">Snapshot</div>
+            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What Mark knows right now</h2>
+          </div>
+          <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
+            Edit details
+          </Link>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <StepCard
-            detail="Name, website, offerings, markets, and logo."
-            label="1"
-            title="Company info"
-            tone={profile.displayName ? "green" : "amber"}
+        <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
+          <SnapshotCard
+            icon={<FolderOpen aria-hidden />}
+            label="Company"
+            title={profile.displayName || "Company not set"}
+            value={formatIndustryLabel(profile.industry) || profile.websiteUrl || "Add company basics"}
+            tone="company"
           />
-          <StepCard
-            detail="Voice, preferred phrases, banned claims, and compliance notes."
-            label="2"
-            title="Brand rules"
-            tone={profile.voiceGuidance || profile.guardrails.disallowedClaims.length ? "green" : "amber"}
+          <SnapshotCard
+            icon={<MessageSquareQuote aria-hidden />}
+            label="Voice"
+            title={profile.tone ? formatTokenLabel(profile.tone) : "Tone not set"}
+            value={profile.voiceGuidance || "Add voice guidance"}
+            tone="files"
           />
-          <StepCard
-            detail="Drive files, PDFs, brand guides, product docs, source docs, and proof."
-            label="3"
-            title="Knowledge sources"
-            tone={files.length > 0 ? "green" : "amber"}
+          <SnapshotCard
+            icon={<FileText aria-hidden />}
+            label="Offerings"
+            title={profile.services.length ? `${profile.services.length} saved` : "No offerings yet"}
+            value={profile.services.slice(0, 3).join(", ") || "Add products, services, or offers"}
+            tone="facts"
+          />
+          <SnapshotCard
+            icon={<ShieldCheck aria-hidden />}
+            label="Rules"
+            title={profile.guardrails.disallowedClaims.length ? `${profile.guardrails.disallowedClaims.length} blocked claims` : "No blocked claims"}
+            value={profile.guardrails.disallowedClaims.slice(0, 3).join(", ") || profile.guardrails.complianceNotes || "Add claims and compliance notes"}
+            tone="rules"
           />
         </div>
       </Panel>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="grid gap-5">
-          <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.company.border)}>
-            <div aria-hidden className={cx("h-1", SECTION_TONE.company.bar)} />
-            <SimpleHeader
-              action={
-                <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
-                  Edit
-                </Link>
-              }
-              eyebrow="Company"
-              tone="company"
-              title="Company info"
-            />
-            <div className="grid gap-3 px-5 py-4">
-              <InfoRow label="Name" value={profile.displayName || "Not set"} />
-              <InfoRow label="Industry" value={formatIndustryLabel(profile.industry) || "Not set"} />
-              <InfoRow label="Website" value={profile.websiteUrl || "Not set"} />
-              <InfoRow label="Offerings" value={profile.services.length ? profile.services.join(", ") : "Not set"} />
-              <InfoRow label="Markets" value={profile.serviceAreas.length ? profile.serviceAreas.join(", ") : "Not set"} />
-            </div>
-          </Panel>
-
-          <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.rules.border)}>
-            <div aria-hidden className={cx("h-1", SECTION_TONE.rules.bar)} />
-            <SimpleHeader eyebrow="Rules" title="Brand rules" tone="rules" />
-            <div className="grid gap-3 px-5 py-4">
-              <RuleRow
-                icon={<MessageSquareQuote aria-hidden />}
-                label="How it should sound"
-                value={profile.voiceGuidance || `Use a ${profile.tone} tone.`}
-              />
-              <RuleRow
-                icon={<ShieldCheck aria-hidden />}
-                label="Claims to avoid"
-                value={profile.guardrails.disallowedClaims.slice(0, 4).join(", ") || "No blocked claims yet."}
-              />
-            </div>
-          </Panel>
-        </div>
-
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <div className="grid gap-5">
           <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.facts.border)}>
             <div aria-hidden className={cx("h-1", SECTION_TONE.facts.bar)} />
@@ -295,7 +268,9 @@ export default async function BrandPage() {
               )}
             </div>
           </Panel>
+        </div>
 
+        <div className="grid gap-5">
           <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.files.border)}>
             <div aria-hidden className={cx("h-1", SECTION_TONE.files.bar)} />
             <SimpleHeader
@@ -332,39 +307,43 @@ export default async function BrandPage() {
   );
 }
 
-function StepCard({
-  detail,
-  label,
-  title,
-  tone,
-}: {
-  detail: string;
-  label: string;
-  title: string;
-  tone: "green" | "amber";
-}) {
-  return (
-    <div className="flex min-w-0 gap-3 border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--surface-soft)] font-mono text-xs text-[var(--text-secondary)]">
-        {label}
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-bold text-[var(--text-primary)]">{title}</h2>
-          <StatusPill tone={tone}>{tone === "green" ? "Started" : "Needs setup"}</StatusPill>
-        </div>
-        <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
-      </div>
-    </div>
-  );
-}
-
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
       <div className="text-lg font-bold text-[var(--text-primary)]">{value}</div>
       <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
     </div>
+  );
+}
+
+function SnapshotCard({
+  icon,
+  label,
+  title,
+  tone,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  tone: SectionTone;
+  value: string;
+}) {
+  const toneStyle = SECTION_TONE[tone];
+  return (
+    <article className={cx("min-w-0 border-l-4 border border-[var(--border-hairline)] bg-[var(--surface-soft)]", toneStyle.border)}>
+      <div aria-hidden className={cx("h-1", toneStyle.bar)} />
+      <div className="flex gap-3 p-4">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-[var(--accent)] [&>svg]:h-4 [&>svg]:w-4">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+          <h3 className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{title}</h3>
+          <p className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -387,29 +366,6 @@ function SimpleHeader({
         <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1 border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2.5 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-      <div className="min-w-0 text-sm leading-6 text-[var(--text-secondary)]">{value}</div>
-    </div>
-  );
-}
-
-function RuleRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-[var(--accent)] [&>svg]:h-4 [&>svg]:w-4">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-sm font-bold text-[var(--text-primary)]">{label}</div>
-        <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
-      </div>
     </div>
   );
 }
