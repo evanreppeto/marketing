@@ -1,0 +1,42 @@
+# Auto-deploy the Arc runner to Cloud Run.
+#
+# Run by a Cloud Build trigger on push to `main` filtered to apps/arc-runner/**
+# (one-time setup in docs/arc-runner-cloud-run-runbook.md → "Continuous deploy").
+#
+# Builds + pushes the runner image (tagged with the commit SHA), then rolls it
+# onto the existing service. The deploy step ONLY swaps --image, so all env vars,
+# secrets, and scaling flags set by deploy-cloud-run.sh are preserved (gcloud run
+# deploy merges; unspecified settings are retained). Config changes (new secrets,
+# flag changes) still go through deploy-cloud-run.sh / `gcloud run services update`.
+substitutions:
+  _REGION: us-central1
+  _SERVICE: arc-runner
+  _REPO: arc-runner
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA
+      - apps/arc-runner
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA
+      - --region=${_REGION}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
