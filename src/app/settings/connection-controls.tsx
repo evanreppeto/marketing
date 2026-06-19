@@ -174,9 +174,9 @@ function SendTestEmail() {
 
 function ConnectGoogleDrive() {
   return (
-    <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="/api/integrations/google-drive/connect">
+    <a className={buttonClasses({ variant: "primary", size: "sm" })} href="/api/integrations/google-drive/connect">
       Connect Google Drive
-    </Link>
+    </a>
   );
 }
 

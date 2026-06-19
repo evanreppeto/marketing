@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -179,9 +178,9 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/api/integrations/google-drive/connect">
+            <a className={buttonClasses({ variant: "ghost", size: "sm" })} href="/api/integrations/google-drive/connect">
               Connect
-            </Link>
+            </a>
             <button
               aria-label="Close Google Drive import"
               className={buttonClasses({ variant: "ghost", size: "sm" })}
