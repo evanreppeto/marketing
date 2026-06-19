@@ -41,6 +41,20 @@ export type AppBusinessContext = {
   // includes more (audienceType, sortOrder, isActive, metadata); a later task maps them.
   personas: Array<{ key: string; label: string; [k: string]: unknown }>;
   guardrails: { disallowedClaims: string[]; complianceNotes: string };
+  palette: {
+    primary: { label: string; hex: string };
+    secondary: { label: string; hex: string };
+    accent: { label: string; hex: string };
+    dark: { label: string; hex: string };
+    light: { label: string; hex: string };
+    headingFont: string;
+    bodyFont: string;
+  };
+  logoUrl: string | null;
+  tagline: string | null;
+  description: string | null;
+  websiteUrl: string | null;
+  serviceAreas: string[];
 };
 
 /** Tenant-agnostic creative posture — the same for every business; brand specifics ride the other fields. */
@@ -69,10 +83,31 @@ export function fromAppContext(raw: AppBusinessContext): ArcBusinessContext {
       .filter((b): b is string => Boolean(b))
       .join(" ") || "No specific compliance constraints recorded; stay accurate and avoid unverifiable claims.";
 
+  const colorBits = (["primary", "secondary", "accent", "dark", "light"] as const)
+    .map((slot) => raw.palette[slot])
+    .filter((c) => c.hex.length > 0)
+    .map((c) => (c.label ? `${c.label} ${c.hex}` : c.hex));
+  const fonts = [
+    raw.palette.headingFont && `Heading: ${raw.palette.headingFont}`,
+    raw.palette.bodyFont && `Body: ${raw.palette.bodyFont}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const identity = [
+    raw.tagline ? `Tagline: ${raw.tagline}.` : null,
+    raw.websiteUrl ? `Website: ${raw.websiteUrl}.` : null,
+    raw.serviceAreas.length ? `Service areas: ${raw.serviceAreas.join(", ")}.` : null,
+    raw.logoUrl ? `Logo: ${raw.logoUrl}.` : null,
+    colorBits.length ? `Brand colors: ${colorBits.join(", ")}.` : null,
+    fonts ? `Fonts: ${fonts}.` : null,
+  ]
+    .filter((b): b is string => Boolean(b))
+    .join(" ");
+
   return {
     businessName: raw.businessName,
     industry: (raw.industry ?? "Not specified") + services,
-    brandVoice: voice,
+    brandVoice: [voice, identity].filter(Boolean).join(" "),
     creativePolicy: DEFAULT_CREATIVE_POLICY + proof,
     compliance,
   };
