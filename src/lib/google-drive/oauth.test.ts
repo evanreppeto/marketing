@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildGoogleDriveAuthUrl, resolveGoogleDriveConfig } from "./oauth";
+import { buildGoogleDriveAuthUrl, resolveGoogleDriveConfig, resolveGoogleDrivePickerConfig } from "./oauth";
 
 describe("resolveGoogleDriveConfig", () => {
   it("reports the missing env vars needed for Drive OAuth", () => {
@@ -8,6 +8,29 @@ describe("resolveGoogleDriveConfig", () => {
       "GOOGLE_DRIVE_CLIENT_ID",
       "GOOGLE_DRIVE_CLIENT_SECRET",
     ]);
+  });
+});
+
+describe("resolveGoogleDrivePickerConfig", () => {
+  it("reports the missing env vars needed for the Drive file picker", () => {
+    expect(resolveGoogleDrivePickerConfig({})).toMatchObject({
+      ok: false,
+      missing: ["GOOGLE_DRIVE_PICKER_API_KEY", "GOOGLE_DRIVE_APP_ID"],
+    });
+  });
+
+  it("returns the Picker API key and app id when configured", () => {
+    expect(
+      resolveGoogleDrivePickerConfig({
+        GOOGLE_DRIVE_PICKER_API_KEY: "picker-key",
+        GOOGLE_DRIVE_APP_ID: "1234567890",
+      }),
+    ).toEqual({
+      ok: true,
+      apiKey: "picker-key",
+      appId: "1234567890",
+      missing: [],
+    });
   });
 });
 
