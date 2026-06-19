@@ -835,7 +835,7 @@ export function ArcChat({
                 }}
               />
             </div>
-            {!hasMessages && !composerSlashOpen ? <ChatEmptyShortcuts assistantName={assistantName} onPick={pickSuggestion} pendingApprovals={pendingApprovals} /> : null}
+            {!hasMessages && !composerSlashOpen ? <ChatEmptyShortcuts assistantName={assistantName} onPick={pickSuggestion} pendingApprovals={pendingApprovals} pendingOpportunities={pendingOpportunities} /> : null}
           </div>
         </section>
 

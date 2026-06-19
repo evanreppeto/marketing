@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 
 import { ArcPersona } from "./arc-avatar";
 
@@ -114,13 +115,34 @@ export function ChatEmptyHero({
   );
 }
 
+/** A pill linking to real pending work (approvals, opportunities) so the blank
+ *  chat doubles as a launchpad instead of only offering prompts. */
+function PendingWorkChip({ href, count, label }: { href: string; count: number; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="group inline-flex items-center gap-2 rounded-full bg-[var(--surface-panel)] px-3.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+    >
+      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent-soft)] px-1.5 text-[11px] font-semibold tabular-nums text-[var(--accent-strong)]">
+        {count}
+      </span>
+      {label}
+      <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 -translate-x-1 text-[var(--text-muted)] opacity-0 transition-all group-hover:translate-x-0 group-hover:text-[var(--accent)] group-hover:opacity-100" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m8 5 5 5-5 5" />
+      </svg>
+    </Link>
+  );
+}
+
 export function ChatEmptyShortcuts({
   onPick,
   pendingApprovals,
+  pendingOpportunities = 0,
 }: {
   assistantName: string;
   onPick: (prompt: string) => void;
   pendingApprovals: number;
+  pendingOpportunities?: number;
 }) {
   const shortcuts: Shortcut[] = [
     {
@@ -150,9 +172,30 @@ export function ChatEmptyShortcuts({
     },
   ];
 
+  const hasPendingWork = pendingOpportunities > 0 || pendingApprovals > 0;
+
   return (
-    <div className="msg-rise grid w-full max-w-2xl gap-2 sm:grid-cols-2" style={{ animationDelay: "120ms" }}>
-      {shortcuts.map((s) => (
+    <div className="flex w-full max-w-2xl flex-col gap-3">
+      {hasPendingWork ? (
+        <div className="msg-rise flex flex-wrap items-center gap-2" style={{ animationDelay: "80ms" }} aria-label="Pending work">
+          {pendingOpportunities > 0 ? (
+            <PendingWorkChip
+              href="/opportunities"
+              count={pendingOpportunities}
+              label={`opportunit${pendingOpportunities === 1 ? "y" : "ies"} to review`}
+            />
+          ) : null}
+          {pendingApprovals > 0 ? (
+            <PendingWorkChip
+              href="/approvals"
+              count={pendingApprovals}
+              label={`awaiting approval`}
+            />
+          ) : null}
+        </div>
+      ) : null}
+      <div className="msg-rise grid gap-2 sm:grid-cols-2" style={{ animationDelay: "120ms" }}>
+        {shortcuts.map((s) => (
         <button
           key={s.label}
           type="button"
@@ -197,7 +240,8 @@ export function ChatEmptyShortcuts({
             <path d="m8 5 5 5-5 5" />
           </svg>
         </button>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

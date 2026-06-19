@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import ReactArcdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -78,6 +78,27 @@ function useElapsed(active: boolean): string {
   const mm = String(Math.floor(secs / 60)).padStart(2, "0");
   const ss = String(secs % 60).padStart(2, "0");
   return `${mm}:${ss}`;
+}
+
+/**
+ * True once `signature` has gone unchanged for `ms` — i.e. a pending reply has
+ * stopped producing new text/steps. Used to detect a worker that died mid-run
+ * (Cloud Run SIGTERM, dropped task) so we can surface a retry instead of
+ * spinning "thinking…" forever. Non-destructive: we never auto-fail a possibly
+ * still-alive reply, we just offer the option. Resets on every advance.
+ */
+function useStalled(signature: string, ms: number): boolean {
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    // Reset + re-arm via timers so we never setState directly in the effect body.
+    const reset = setTimeout(() => setStalled(false), 0);
+    const arm = setTimeout(() => setStalled(true), ms);
+    return () => {
+      clearTimeout(reset);
+      clearTimeout(arm);
+    };
+  }, [signature, ms]);
+  return stalled;
 }
 
 /**
@@ -250,6 +271,7 @@ function PendingBlock({
   reasoning,
   toolCalls,
   onStop,
+  onRetry,
 }: {
   assistantName: string;
   steps: ArcStep[];
@@ -257,6 +279,7 @@ function PendingBlock({
   reasoning: string | null;
   toolCalls: ArcToolCall[];
   onStop: () => void;
+  onRetry: () => void;
 }) {
   const elapsed = useElapsed(true);
   // Reveal streamed text character-by-character so chunked poll updates read as
@@ -264,6 +287,11 @@ function PendingBlock({
   const typed = useTypewriter(body, true);
   const hasSteps = steps.length > 0;
   const hasBody = body.trim().length > 0;
+  // If nothing has advanced for a while, the worker likely died — offer a retry
+  // instead of an endless spinner. Signature covers every live surface so any
+  // real progress resets the timer.
+  const progressSignature = `${body.length}|${steps.length}|${steps[steps.length - 1]?.status ?? ""}|${(reasoning ?? "").length}|${toolCalls.length}`;
+  const stalled = useStalled(progressSignature, 90_000);
   return (
     <div className="flex flex-col gap-2">
       {hasSteps ? <ThinkingTrace steps={steps} assistantName={assistantName} /> : null}
@@ -297,6 +325,21 @@ function PendingBlock({
         >
           Stop
         </button>
+        {stalled ? (
+          <>
+            <span className="text-[var(--text-muted)]">· taking longer than usual</span>
+            <button
+              type="button"
+              onClick={() => {
+                onStop();
+                onRetry();
+              }}
+              className="rounded-md border border-[var(--border-hairline)] px-2 py-0.5 font-semibold text-[var(--accent-contrast)] transition hover:border-[var(--accent)]"
+            >
+              Retry
+            </button>
+          </>
+        ) : null}
       </div>
     </div>
   );
@@ -437,7 +480,10 @@ const mdComponents: Components = {
   td: ({ children }) => <td className="border-b border-[var(--border-hairline)] py-1.5 pr-4 text-[var(--text-primary)]">{children}</td>,
 };
 
-function ArcBody({ body }: { body: string }) {
+// Memoized on `body`: the markdown only re-parses when the text actually
+// changes, so the 1s elapsed-timer tick (and other parent re-renders) during a
+// streaming reply don't re-parse the whole document needlessly.
+const ArcBody = memo(function ArcBody({ body }: { body: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-2.5">
       <ReactArcdown remarkPlugins={[remarkGfm]} components={mdComponents}>
@@ -445,7 +491,7 @@ function ArcBody({ body }: { body: string }) {
       </ReactArcdown>
     </div>
   );
-}
+});
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -671,6 +717,7 @@ function Message({
             reasoning={message.reasoning ?? null}
             toolCalls={message.toolCalls ?? []}
             onStop={onStop}
+            onRetry={onRetry}
           />
         ) : failed ? (
           <div className="whitespace-pre-wrap text-sm leading-7 text-[var(--priority-bright)]">{message.body}</div>
