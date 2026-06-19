@@ -1,26 +1,24 @@
-import { NextResponse } from "next/server";
-
-import { arcGuard } from "@/app/api/v1/arc/_lib/http";
-import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
+import { listAvailableArcMedia } from "@/lib/media-library/arc-handoff";
 
 /**
- * Arc-facing read of approved media available to the agent.
- *   GET /api/v1/arc/media   Authorization: Bearer <ARC_AGENT_API_TOKEN>
- *   200 -> { ok: true, assets: [...] }   401 -> bad token   503 -> not configured
+ * The org's Library media that the operator has marked available_to_arc, so Arc
+ * can reuse authentic approved BSR media instead of always generating new AI
+ * images. Read-only.
+ *
+ *   GET /api/v1/arc/media?kind=image&limit=50  ->  { ok, media: ArcMediaSummary[] }
  */
 export async function GET(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
-  if (!isSupabaseAdminConfigured()) {
-    return NextResponse.json({ ok: false, status: "not_configured" }, { status: 503 });
+  const url = new URL(request.url);
+  const kind = url.searchParams.get("kind")?.trim() || undefined;
+  const limitRaw = Number(url.searchParams.get("limit"));
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
+  try {
+    const media = await listAvailableArcMedia(allowed.scope.orgId, { kind, limit });
+    return ok({ media });
+  } catch (error) {
+    return fail("failed", error instanceof Error ? error.message : "Failed to list media.", 502);
   }
-  const table: string = "media_assets";
-  const { data, error } = await getSupabaseAdminClient()
-    .from(table)
-    .select("id, file_name, public_url, kind, source, provenance, risk_flags, tags, width, height")
-    .eq("org_id", allowed.scope.orgId)
-    .eq("available_to_arc", true)
-    .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ ok: false, status: "error", message: error.message }, { status: 502 });
-  return NextResponse.json({ ok: true, assets: data ?? [] }, { status: 200 });
 }
