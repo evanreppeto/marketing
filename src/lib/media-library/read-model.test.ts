@@ -53,10 +53,10 @@ describe("countUsage", () => {
 
 describe("folder tree helpers", () => {
   const folders: MediaFolderRow[] = [
-    { id: "root", name: "Jobs", parent_id: null },
-    { id: "water", name: "Water", parent_id: "root" },
-    { id: "mold", name: "Mold", parent_id: "root" },
-    { id: "loose", name: "Loose", parent_id: null },
+    { id: "root", name: "Jobs", parent_id: null, color: "#60A5FA" },
+    { id: "water", name: "Water", parent_id: "root", color: "#38BDF8" },
+    { id: "mold", name: "Mold", parent_id: "root", color: null },
+    { id: "loose", name: "Loose", parent_id: null, color: null },
   ];
   const assets = [
     row({ id: "a-root", folder_id: "root" }),
@@ -67,11 +67,11 @@ describe("folder tree helpers", () => {
 
   it("builds depth-ordered folders with subtree counts", () => {
     expect(buildFolderViews(folders, assets)).toEqual([
-      { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4 },
-      { id: "root", name: "Jobs", parentId: null, depth: 0, count: 2, directCount: 1 },
-      { id: "water", name: "Water", parentId: "root", depth: 1, count: 1, directCount: 1 },
-      { id: "mold", name: "Mold", parentId: "root", depth: 1, count: 0, directCount: 0 },
-      { id: "loose", name: "Loose", parentId: null, depth: 0, count: 1, directCount: 1 },
+      { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4, color: null },
+      { id: "root", name: "Jobs", parentId: null, depth: 0, count: 2, directCount: 1, color: "#60A5FA" },
+      { id: "water", name: "Water", parentId: "root", depth: 1, count: 1, directCount: 1, color: "#38BDF8" },
+      { id: "mold", name: "Mold", parentId: "root", depth: 1, count: 0, directCount: 0, color: null },
+      { id: "loose", name: "Loose", parentId: null, depth: 0, count: 1, directCount: 1, color: null },
     ]);
   });
 

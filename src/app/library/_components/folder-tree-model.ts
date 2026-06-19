@@ -1,6 +1,6 @@
 import { type MediaAssetView, type MediaFolderView } from "@/lib/media-library/types";
 
-import { folderToneForName } from "./folder-visuals";
+import { folderToneForColor, folderToneForName } from "./folder-visuals";
 import { type FilesystemNode } from "@/components/ui/filesystem-item";
 
 type BuildFilesystemTreeInput = {
@@ -50,7 +50,7 @@ export function buildFilesystemTree({ folders, assets, activeFolderId }: BuildFi
   });
 
   const toFolderNode = (folder: MediaFolderView): FilesystemNode => {
-    const tone = folderToneForName(folder.name);
+    const tone = folderToneForColor(folder.color) ?? folderToneForName(folder.name);
     const nodes = [...(childFolders.get(folder.id) ?? []).map(toFolderNode), ...(assetsByFolder.get(folder.id) ?? []).map(toFileNode)];
 
     return {

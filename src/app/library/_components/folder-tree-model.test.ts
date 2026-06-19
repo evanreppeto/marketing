@@ -4,11 +4,11 @@ import { buildFilesystemTree } from "./folder-tree-model";
 import { type MediaAssetView, type MediaFolderView } from "@/lib/media-library/types";
 
 const folders: MediaFolderView[] = [
-  { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4 },
-  { id: "jobs", name: "[Demo] Job Photos", parentId: null, depth: 0, count: 3, directCount: 0 },
-  { id: "water", name: "[Demo] Water Damage", parentId: "jobs", depth: 1, count: 2, directCount: 0 },
-  { id: "before", name: "[Demo] Before", parentId: "water", depth: 2, count: 1, directCount: 1 },
-  { id: "brand", name: "[Demo] Brand Assets", parentId: null, depth: 0, count: 1, directCount: 1 },
+  { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4, color: null },
+  { id: "jobs", name: "[Demo] Job Photos", parentId: null, depth: 0, count: 3, directCount: 0, color: null },
+  { id: "water", name: "[Demo] Water Damage", parentId: "jobs", depth: 1, count: 2, directCount: 0, color: null },
+  { id: "before", name: "[Demo] Before", parentId: "water", depth: 2, count: 1, directCount: 1, color: null },
+  { id: "brand", name: "[Demo] Brand Assets", parentId: null, depth: 0, count: 1, directCount: 1, color: "#D6B25E" },
 ];
 
 const asset = (overrides: Partial<MediaAssetView>): MediaAssetView => ({
@@ -74,5 +74,20 @@ describe("buildFilesystemTree", () => {
     expect(jobs).toMatchObject({ defaultOpen: true, accent: "#60A5FA" });
     expect(water).toMatchObject({ defaultOpen: true, accent: "#38BDF8" });
     expect(before).toMatchObject({ defaultOpen: true, isActive: true, accent: "#F43F5E" });
+  });
+
+  it("uses a stored folder color before falling back to name-derived tones", () => {
+    const [root] = buildFilesystemTree({
+      folders: [
+        { id: "all", name: "All media", parentId: null, depth: 0, count: 1, directCount: 1, color: null },
+        { id: "custom", name: "Anything", parentId: null, depth: 0, count: 0, directCount: 0, color: "#14B8A6" },
+      ],
+      assets: [],
+      activeFolderId: "all",
+    });
+
+    expect(root.nodes?.find((node) => node.id === "folder:custom")).toMatchObject({
+      accent: "#14B8A6",
+    });
   });
 });
