@@ -1,6 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/arc-api", () => ({ listAgentTasks: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    orgSlug: "org",
+    orgName: "Org",
+    workspaceId: "workspace-1",
+    workspaceKey: "default",
+    workspaceSlug: "default",
+    workspaceName: "Default",
+    role: null,
+    userId: null,
+    source: "default-org",
+  })),
+}));
 
 import { listAgentTasks } from "@/lib/arc-api";
 
@@ -56,13 +70,21 @@ describe("GET /api/v1/arc/tasks", () => {
     configureSupabase();
     const res = await GET(tasksRequest("Bearer secret", "?status=pending"));
     expect(res.status).toBe(200);
-    expect(listAgentTasksMock).toHaveBeenCalledWith(expect.objectContaining({ status: "queued" }));
+    expect(listAgentTasksMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "queued" }),
+      undefined,
+      expect.objectContaining({ orgId: "org-1", workspaceId: "workspace-1" }),
+    );
   });
 
   it("accepts the native status 'blocked' directly", async () => {
     configureSupabase();
     await GET(tasksRequest("Bearer secret", "?status=blocked"));
-    expect(listAgentTasksMock).toHaveBeenCalledWith(expect.objectContaining({ status: "blocked" }));
+    expect(listAgentTasksMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "blocked" }),
+      undefined,
+      expect.objectContaining({ orgId: "org-1", workspaceId: "workspace-1" }),
+    );
   });
 
   it("rejects an unknown status with 400", async () => {

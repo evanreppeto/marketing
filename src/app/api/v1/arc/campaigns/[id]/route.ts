@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 
 /**
@@ -8,13 +8,13 @@ import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
  *   GET /api/v1/arc/campaigns/:id
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const { id } = await params;
 
   try {
-    const detail = await getCampaignWorkspaceDetail(id);
+    const detail = await getCampaignWorkspaceDetail(id, undefined, "Arc", allowed.scope.orgId);
     if (detail.status === "not_found") {
       return fail("not_found", "No campaign with that id.", 404);
     }

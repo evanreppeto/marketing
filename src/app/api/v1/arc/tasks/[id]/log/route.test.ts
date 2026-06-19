@@ -1,6 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/arc-api", () => ({ appendAgentRunLog: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    orgSlug: "org",
+    orgName: "Org",
+    workspaceId: "workspace-1",
+    workspaceKey: "default",
+    workspaceSlug: "default",
+    workspaceName: "Default",
+    role: null,
+    userId: null,
+    source: "default-org",
+  })),
+}));
 
 import { appendAgentRunLog } from "@/lib/arc-api";
 
@@ -58,7 +72,12 @@ describe("POST /api/v1/arc/tasks/:id/log", () => {
     const res = await POST(logRequest("Bearer secret", { message: "made progress" }), { params });
     expect(res.status).toBe(201);
     expect((await res.json()).status).toBe("recorded");
-    expect(logMock).toHaveBeenCalledWith("t1", expect.objectContaining({ message: "made progress" }));
+    expect(logMock).toHaveBeenCalledWith(
+      "t1",
+      expect.objectContaining({ message: "made progress" }),
+      undefined,
+      expect.objectContaining({ orgId: "org-1", workspaceId: "workspace-1" }),
+    );
   });
 
   it("returns 404 when the task is missing", async () => {

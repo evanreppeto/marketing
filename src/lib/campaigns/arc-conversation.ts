@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 
 export type ArcDirectiveInput = {
@@ -41,9 +42,12 @@ export async function sendArcDirective(
     throw new Error(`${agentName} isn't connected to this workspace yet, so the message can't be queued.`);
   }
 
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { data: task, error: taskError } = await client
     .from("agent_tasks")
     .insert({
+      ...tenant,
       agent_id: agent.id,
       status: "queued",
       priority: "high",

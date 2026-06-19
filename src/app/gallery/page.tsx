@@ -2,8 +2,10 @@ import { connection } from "next/server";
 import Link from "next/link";
 
 import { EmptyState, PageHeader, StatusPill } from "@/app/_components/page-header";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { getGalleryData } from "@/lib/gallery/read-model";
 import { getMediaGallery } from "@/lib/campaigns/gallery";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import "./gallery.css";
 import { AggregateStrip } from "./_components/aggregate-strip";
@@ -85,7 +87,8 @@ async function MediaTab() {
 }
 
 async function ShowcaseTab() {
-  const data = await getGalleryData();
+  const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
+  const data = await getGalleryData(undefined, orgId);
   if (data.status === "unavailable") {
     return <EmptyState title="Gallery unavailable" detail={data.message} />;
   }

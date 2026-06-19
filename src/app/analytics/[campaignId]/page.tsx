@@ -5,6 +5,8 @@ import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getCampaignPerformance } from "@/lib/performance/campaign-performance";
 import { getAppSettings } from "@/lib/settings/store";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { CampaignAnalyticsDetail } from "../_components/campaign-analytics-detail";
 import { CampaignAnalyticsDemoDetail } from "../_components/campaign-analytics-demo-detail";
@@ -34,8 +36,9 @@ export default async function CampaignAnalyticsPage({ params }: CampaignAnalytic
 
   const { assistantName } = await getAppSettings();
   const agentName = getAgentDisplayName(assistantName);
+  const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
   const [detail, performance] = await Promise.all([
-    getCampaignWorkspaceDetail(campaignId, undefined, agentName),
+    getCampaignWorkspaceDetail(campaignId, undefined, agentName, orgId),
     getCampaignPerformance(campaignId),
   ]);
 

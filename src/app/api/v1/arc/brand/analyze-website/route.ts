@@ -1,6 +1,6 @@
 import { lookup } from "node:dns/promises";
 
-import { INVALID_JSON, fail, guard, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, ok, readJson } from "@/app/api/v1/arc/_lib/http";
 import { assertPublicHttpUrl, extractBrandSignal } from "@/lib/brand-kit/website";
 
 export const runtime = "nodejs"; // needs node:dns + fetch with redirect control
@@ -32,8 +32,8 @@ function isPrivateAddress(address: string, family: number): boolean {
  *   -> 200 { ok, title, description, faviconUrl, text }
  */
 export async function POST(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const payload = await readJson(request);
   if (payload === INVALID_JSON || typeof payload !== "object" || payload === null) {

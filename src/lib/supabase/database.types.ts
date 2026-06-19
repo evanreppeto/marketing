@@ -1282,6 +1282,8 @@ export type Database = {
       agent_tasks: {
         Row: {
           id: string;
+          org_id: string;
+          workspace_id: string;
           agent_id: string;
           status: Database["public"]["Enums"]["agent_task_status"];
           priority: Database["public"]["Enums"]["agent_task_priority"];
@@ -1311,6 +1313,8 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          org_id?: string;
+          workspace_id: string;
           agent_id: string;
           status?: Database["public"]["Enums"]["agent_task_status"];
           priority?: Database["public"]["Enums"]["agent_task_priority"];
@@ -1340,6 +1344,8 @@ export type Database = {
         };
         Update: {
           id?: string;
+          org_id?: string;
+          workspace_id?: string;
           agent_id?: string;
           status?: Database["public"]["Enums"]["agent_task_status"];
           priority?: Database["public"]["Enums"]["agent_task_priority"];
@@ -1769,6 +1775,54 @@ export type Database = {
           status?: string;
           invited_by?: string | null;
           joined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      workspace_invites: {
+        Row: {
+          id: string;
+          org_id: string;
+          workspace_id: string;
+          code_hash: string;
+          invited_email: string | null;
+          role: string;
+          status: string;
+          expires_at: string | null;
+          invited_by: string | null;
+          used_by: string | null;
+          used_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          workspace_id: string;
+          code_hash: string;
+          invited_email?: string | null;
+          role?: string;
+          status?: string;
+          expires_at?: string | null;
+          invited_by?: string | null;
+          used_by?: string | null;
+          used_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          workspace_id?: string;
+          code_hash?: string;
+          invited_email?: string | null;
+          role?: string;
+          status?: string;
+          expires_at?: string | null;
+          invited_by?: string | null;
+          used_by?: string | null;
+          used_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

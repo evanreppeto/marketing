@@ -34,6 +34,7 @@ export function createPartnerCampaignDraft(
     `${companyName} decision makers who may need ${servicesPhrase}.`;
   const offerSummary =
     request.campaign.offerSummary ?? `A simple handoff lane with ${servicesPhrase}.`;
+  const approvedBrainFacts = context.brainFacts.slice(0, 8);
   const draftOutput = buildDraftOutput({ request, firstName, businessName, offerSummary, servicesPhrase });
   const guardrails = checkArcGeneratedCopy({
     draftOutput,
@@ -51,6 +52,7 @@ export function createPartnerCampaignDraft(
       `Tone: ${request.campaign.tone}`,
       `CTA: ${request.campaign.cta}`,
       `Guardrail: no disallowed claims`,
+      approvedBrainFacts.length > 0 ? `Approved Brain facts:\n${approvedBrainFacts.join("\n")}` : "",
     ].join("\n"),
     promptInputs: {
       objective: request.objective,
@@ -61,6 +63,7 @@ export function createPartnerCampaignDraft(
       target_company: companyName,
       target_contact: `${request.contact.firstName} ${request.contact.lastName}`,
       guardrail_summary: "compliance-checked",
+      approved_brain_facts: approvedBrainFacts,
     },
     draftOutput,
     audienceSummary,
@@ -76,6 +79,7 @@ export function createPartnerCampaignDraft(
         service_area_zips: request.company.serviceAreaZips,
         lead_score: request.lead.leadScore,
         partner_score: request.lead.partnerScore,
+        approved_brain_facts: approvedBrainFacts,
       },
       recommended_action:
         "Approve lead and edit/approve the first-touch outreach asset if the source data is acceptable.",

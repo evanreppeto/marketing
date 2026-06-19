@@ -22,6 +22,8 @@ import { ChannelBars } from "./_components/overview/channel-bars";
 import { AnalyticsExplorer } from "./_components/overview/analytics-explorer";
 import { StatStrip, type StatItem } from "../_components/page-header";
 import { ConversionTab, ContractTab, LeadVolumeTab, PartnerSignalsTab, RevenueTab } from "./_components/performance-breakdowns";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export const metadata = {
   title: "Analytics",
@@ -46,9 +48,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
     { v: 365, label: "1 year", short: "1y" },
   ] as const;
   const activeRange = RANGES.find((r) => String(r.v) === rawRange) ?? RANGES[0];
+  const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
 
   const [list, performance, settings, identity] = await Promise.all([
-    getCampaignWorkspaceList(),
+    getCampaignWorkspaceList(undefined, "Arc", orgId),
     getPerformanceReadModel(undefined, activeRange.v),
     getAppSettings(),
     resolveBrandIdentity(),

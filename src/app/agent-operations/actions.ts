@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { type OperatorDropTarget, OPERATOR_DROP_TARGETS } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getAgentName } from "@/lib/settings/agent-name";
 import { moveAgentTask } from "@/lib/arc-api";
 import { runArcDemoWorkflow } from "@/lib/arc/demo-workflow";
@@ -88,10 +89,12 @@ export async function createArcTaskAction(formData: FormData) {
   const template = markTaskTemplates[taskKey];
   const agentName = await getAgentName();
   const now = new Date().toISOString();
+  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { data, error } = await supabase
     .from("agent_tasks")
     .insert({
+      ...tenant,
       agent_id: agentId,
       status: "queued",
       priority: template.priority,
@@ -195,10 +198,12 @@ export async function createTaskAction(formData: FormData): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const agentId = await ensureArcAgent();
   const now = new Date().toISOString();
+  const tenant = await getCurrentAgentTaskTenantFields();
 
   const { data, error } = await supabase
     .from("agent_tasks")
     .insert({
+      ...tenant,
       agent_id: agentId,
       status,
       priority,

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { parseArcRoute } from "@/domain";
 
-import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
@@ -17,8 +17,8 @@ import { getAppSettings } from "@/lib/settings/store";
  * Flag- + credential-guarded; key + storage stay server-side. No outbound.
  */
 export async function POST(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
   if (!isMediaGenEnabled()) {
     return fail("not_configured", "Video generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
   }
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     if (operationName) {
       const result = await provider.pollVideo(operationName);
       if (result.status === "running") return NextResponse.json({ ok: true, status: "running" }, { status: 200 });
-      const objectPath = `arc-generated/${randomUUID()}.mp4`;
+      const objectPath = `arc-generated/${allowed.scope.orgId}/${allowed.scope.workspaceId}/${randomUUID()}.mp4`;
       const url = await storeGeneratedMedia(objectPath, result.bytes, result.contentType);
       const media = {
         kind: "video" as const,

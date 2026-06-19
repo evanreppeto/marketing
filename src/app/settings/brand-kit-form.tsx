@@ -161,7 +161,7 @@ export function BrandKitForm({
           ))}
         </select>
         <span className="text-xs text-[var(--text-muted)]">
-          Only fills empty fields — anything you have already typed stays untouched.
+          Only fills empty fields - anything you have already typed stays untouched.
         </span>
       </div>
 
@@ -268,7 +268,7 @@ export function BrandKitForm({
           <div>
             <div className="text-sm font-semibold text-[var(--text-primary)]">Upload logo</div>
             <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-              PNG, JPG, WebP, GIF, or SVG up to 550 KB. Stored inline — no storage setup needed.
+              PNG, JPG, WebP, GIF, or SVG up to 550 KB. Stored inline - no storage setup needed.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -359,7 +359,7 @@ export function BrandKitForm({
             value={voiceGuidance}
             name="voiceGuidance"
             onChange={(e) => setVoiceGuidance(e.target.value)}
-            placeholder="Sound like a trusted local expert — not a national brand. Use first names when possible."
+            placeholder="Sound like a trusted local expert - not a national brand. Use first names when possible."
           />
           <span className="text-xs text-[var(--text-muted)]">
             Free-form style notes shown to Arc before drafting any copy.
@@ -479,7 +479,7 @@ export function BrandKitForm({
             />
           </span>
           <span className="text-sm font-semibold text-[var(--text-primary)]">
-            {status === "active" ? "Active — Arc is using this Brand Kit" : "Draft — not yet active"}
+            {status === "active" ? "Active - Arc is using this brand profile" : "Draft - not yet active"}
           </span>
         </label>
         <input name="status" type="hidden" value={status} />
@@ -487,7 +487,7 @@ export function BrandKitForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={pending} size="sm" type="submit" variant="primary">
-          Save Brand Kit
+          Save brand profile
         </Button>
         <Feedback state={state} />
       </div>

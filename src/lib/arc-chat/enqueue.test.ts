@@ -4,6 +4,21 @@ import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { enqueueArcChatTask } from "./enqueue";
 
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    orgSlug: "org",
+    orgName: "Org",
+    workspaceId: "workspace-1",
+    workspaceKey: "default",
+    workspaceSlug: "default",
+    workspaceName: "Default",
+    role: null,
+    userId: null,
+    source: "default-org",
+  })),
+}));
+
 vi.mock("@/lib/agent/connection", () => ({
   resolveAgentConnection: vi.fn().mockResolvedValue({
     agentKey: "arc",
@@ -40,6 +55,8 @@ describe("enqueueArcChatTask", () => {
     );
 
     expect(taskInsert?.[1]).toMatchObject({
+      org_id: "org-1",
+      workspace_id: "workspace-1",
       metadata: {
         model_route: "standard",
         mode: "draft",

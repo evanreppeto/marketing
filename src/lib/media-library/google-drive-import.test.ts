@@ -46,4 +46,40 @@ describe("importGoogleDriveFiles", () => {
       }),
     ]);
   });
+
+  it("notifies the brand knowledge hook after importing a Drive file", async () => {
+    const learned: unknown[] = [];
+
+    const result = await importGoogleDriveFiles({
+      orgId: "org-1",
+      folderId: null,
+      fileIds: ["drive-brand-guide"],
+      uploadedBy: "operator",
+      accessToken: "ya29.access",
+      downloader: async ({ fileId }) => ({
+        fileId,
+        name: "Brand Guidelines.pdf",
+        mimeType: "application/pdf",
+        bytes: new Uint8Array([1]),
+        webViewLink: "https://drive.google.com/file/d/drive-brand-guide/view",
+        modifiedTime: "2026-06-18T12:00:00.000Z",
+        size: 1,
+      }),
+      insert: async () => "asset-brand-guide",
+      afterInsert: async (asset) => {
+        learned.push(asset);
+      },
+    });
+
+    expect(result.imported).toBe(1);
+    expect(learned).toEqual([
+      expect.objectContaining({
+        id: "asset-brand-guide",
+        fileName: "Brand Guidelines.pdf",
+        kind: "document",
+        source: "google_drive",
+        availableToArc: true,
+      }),
+    ]);
+  });
 });

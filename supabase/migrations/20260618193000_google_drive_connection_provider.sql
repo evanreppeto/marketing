@@ -8,4 +8,3 @@ begin
     alter type public.connection_provider add value if not exists 'google_drive';
   end if;
 end $$;
-

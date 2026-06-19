@@ -180,7 +180,7 @@ describe("listApprovalCards", () => {
       },
     });
 
-    const cards = await listApprovalCards({}, supabase);
+    const cards = await listApprovalCards({ orgId: "org-1" }, supabase);
 
     expect(cards).toHaveLength(1);
     expect(cards[0]).toMatchObject({
@@ -266,6 +266,7 @@ describe("listApprovalCards", () => {
         }),
       ]),
     );
+    expect(supabase.calls.filter((call) => call[0] === "eq" && call[1] === "org_id" && call[2] === "org-1")).toHaveLength(7);
   });
 
   it("queries active approval statuses by default", async () => {

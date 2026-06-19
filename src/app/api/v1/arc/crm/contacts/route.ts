@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { type ContactStatus } from "@/domain";
 import { listContacts } from "@/lib/repos";
 
@@ -8,8 +8,8 @@ import { listContacts } from "@/lib/repos";
  *   GET /api/v1/arc/crm/contacts?status=active&persona=...&company_id=...&limit=50
  */
 export async function GET(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? undefined;
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const contacts = await listContacts({ status: status as ContactStatus | undefined, persona, companyId, q, limit });
+    const contacts = await listContacts({ orgId: allowed.scope.orgId, status: status as ContactStatus | undefined, persona, companyId, q, limit });
     return ok({ contacts });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list contacts.", 502);

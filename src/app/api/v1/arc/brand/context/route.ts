@@ -1,5 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
-import { getCurrentOrgId } from "@/lib/auth/org";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { getBusinessContext } from "@/lib/brand-kit/read-model";
 
 /**
@@ -11,10 +10,10 @@ import { getBusinessContext } from "@/lib/brand-kit/read-model";
  *   GET /api/v1/arc/brand/context  ->  { ok, context }
  */
 export async function GET(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
   try {
-    const context = await getBusinessContext(await getCurrentOrgId());
+    const context = await getBusinessContext(allowed.scope.orgId);
     return ok({ context });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to load brand context.", 502);

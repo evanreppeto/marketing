@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { listApprovalsForApi } from "@/lib/arc-api";
 
 /**
@@ -9,8 +9,8 @@ import { listApprovalsForApi } from "@/lib/arc-api";
  * `status` may be comma-separated. Omitting it returns the active queue.
  */
 export async function GET(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const url = new URL(request.url);
   const statusParam = url.searchParams.get("status");
@@ -21,7 +21,11 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const approvals = await listApprovalsForApi({ statuses, limit });
+    const approvals = await listApprovalsForApi(
+      { statuses, limit },
+      undefined,
+      { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId },
+    );
     return ok({ approvals });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list approvals.", 502);

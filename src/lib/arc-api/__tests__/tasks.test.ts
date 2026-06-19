@@ -48,6 +48,15 @@ describe("listAgentTasks", () => {
     expect(supabase.calls).toContainEqual(["order", "updated_at", { ascending: false }]);
   });
 
+  it("scopes task lists to the Arc workspace boundary", async () => {
+    const supabase = createSupabaseQueryMock({ agent_tasks: { data: [taskRow("queued")], error: null } });
+
+    await listAgentTasks({}, supabase, { orgId: "org-1", workspaceId: "workspace-1" });
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
+  });
+
   it("returns [] for an unknown assignee without querying tasks", async () => {
     const supabase = createSupabaseQueryMock({ agents: { data: null, error: null } });
 
@@ -69,6 +78,15 @@ describe("claimAgentTask", () => {
       "update",
       expect.objectContaining({ status: "running" }),
     ]);
+  });
+
+  it("only claims a task inside the scoped workspace", async () => {
+    const supabase = createSupabaseQueryMock({ agent_tasks: { data: taskRow("queued"), error: null } });
+
+    await claimAgentTask(TASK_ID, supabase, { orgId: "org-1", workspaceId: "workspace-1" });
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
   });
 
   it("returns conflict when the task is not queued", async () => {
@@ -142,6 +160,21 @@ describe("appendAgentRunLog", () => {
     expect(supabase.calls).toContainEqual(["from", "agent_run_logs"]);
     // Logging must NOT change task lifecycle state.
     expect(updateCalls(supabase)).toHaveLength(0);
+  });
+
+  it("requires the target task to be inside the scoped workspace before logging", async () => {
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: { data: { agent_id: "a1" }, error: null },
+      agent_run_logs: { data: { id: "log-9" }, error: null },
+    });
+
+    await appendAgentRunLog(TASK_ID, { message: "progress" }, supabase, {
+      orgId: "org-1",
+      workspaceId: "workspace-1",
+    });
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
   });
 
   it("returns not_found when the task is missing", async () => {

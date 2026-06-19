@@ -1,6 +1,5 @@
-import { INVALID_JSON, fail, guard, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, ok, readJson } from "@/app/api/v1/arc/_lib/http";
 import { NEUTRAL_DEFAULTS, validateBusinessProfile, type BusinessProfile, type ProofPoint } from "@/domain";
-import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile, upsertBusinessProfile } from "@/lib/brand-kit/persistence";
 
 /**
@@ -16,8 +15,8 @@ import { getBusinessProfile, upsertBusinessProfile } from "@/lib/brand-kit/persi
  *   -> 200 { ok, profile } | 409 locked | 400 rejected
  */
 export async function PUT(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const payload = await readJson(request);
   if (payload === INVALID_JSON || typeof payload !== "object" || payload === null) {
@@ -25,12 +24,7 @@ export async function PUT(request: Request) {
   }
   const body = payload as Record<string, unknown>;
 
-  let orgId: string;
-  try {
-    orgId = await getCurrentOrgId();
-  } catch (error) {
-    return fail("failed", error instanceof Error ? error.message : "No organization available.", 502);
-  }
+  const orgId = allowed.scope.orgId;
 
   const current = (await getBusinessProfile(orgId)) ?? NEUTRAL_DEFAULTS;
   if (current.status === "active") {

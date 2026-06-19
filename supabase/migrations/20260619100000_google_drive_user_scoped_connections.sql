@@ -9,4 +9,3 @@ alter table if exists public.google_drive_connections
 
 create unique index if not exists google_drive_connections_org_user_unique_idx
   on public.google_drive_connections (org_id, connected_by);
-

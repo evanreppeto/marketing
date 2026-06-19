@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 
 export const APPROVAL_DECISION_ACTIONS = ["approve", "reject", "revise", "archive"] as const;
@@ -275,7 +276,10 @@ async function createRevisionTask(input: {
     return;
   }
 
+  const tenant = await getCurrentAgentTaskTenantFields();
+
   const { error } = await input.client.from("agent_tasks").insert({
+    ...tenant,
     agent_id: agent.id,
     status: "queued",
     priority: "medium",

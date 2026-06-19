@@ -1,27 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { checkAgentBearer } from "@/lib/auth/api-token";
+import { arcGuard } from "@/app/api/v1/arc/_lib/http";
 import { runArcSocialAd } from "@/lib/arc/social-ad-orchestrator";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  const auth = await checkAgentBearer(request);
-  if (!auth.ok) {
-    return NextResponse.json(
-      auth.reason === "not_configured"
-        ? { ok: false, status: "not_configured", message: "Set ARC_AGENT_API_TOKEN before enabling Arc API runs." }
-        : { ok: false, status: "unauthorized", message: "Arc API runs require a valid bearer token." },
-      { status: auth.status },
-    );
-  }
-
-  if (!isSupabaseAdminConfigured()) {
-    return NextResponse.json(
-      { ok: false, status: "not_configured", message: "Supabase admin env vars are required before Arc can persist work." },
-      { status: 503 },
-    );
-  }
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
+  const tenant = { org_id: allowed.scope.orgId, workspace_id: allowed.scope.workspaceId };
 
   let payload: unknown;
   try {
@@ -31,7 +17,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runArcSocialAd(payload);
+    const result = await runArcSocialAd(payload, undefined, undefined, tenant);
     return NextResponse.json({ ok: true, status: result.status, result, outboundDispatchAllowed: false }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

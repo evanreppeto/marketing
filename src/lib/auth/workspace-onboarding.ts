@@ -1,3 +1,5 @@
+import type { User } from "@supabase/supabase-js";
+
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
 
@@ -254,6 +256,18 @@ export async function createWorkspaceForAuthenticatedUser(input: CreateWorkspace
     return { ok: false, status: "not_authenticated", message: "Sign in before creating a workspace." };
   }
 
+  return createWorkspaceForUser(getSupabaseAdminClient(), user, input);
+}
+
+export async function createWorkspaceForUser(
+  client: TypedSupabaseClient,
+  user: User,
+  input: CreateWorkspaceInput,
+): Promise<CreateWorkspaceResult> {
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, status: "not_configured", message: "Supabase admin env vars are required to create a workspace." };
+  }
+
   const email = user.email?.trim().toLowerCase();
   const organizationName = normalizeName(input.organizationName);
   const workspaceName = normalizeName(input.workspaceName, organizationName);
@@ -262,8 +276,6 @@ export async function createWorkspaceForAuthenticatedUser(input: CreateWorkspace
   if (!email || organizationName.length < 2 || workspaceName.length < 2) {
     return { ok: false, status: "invalid_input", message: "Enter an organization and workspace name." };
   }
-
-  const client = getSupabaseAdminClient();
 
   try {
     const existingMembership = await getActiveMembershipForUser(client, user.id);

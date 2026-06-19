@@ -21,6 +21,7 @@ describe("createCampaignShell", () => {
       persona: "persona_landlord",
       restorationFocus: "flood",
       client: supabase,
+      tenant: { org_id: "org-1", workspace_id: "workspace-1" },
     });
 
     expect(campaignId).toBe("camp-1");
@@ -29,7 +30,9 @@ describe("createCampaignShell", () => {
     expect(campaign.launch_locked).toBe(true);
     expect(campaign.persona).toBe("persona_landlord");
     expect(campaign.restoration_focus).toBe("flood");
+    expect(campaign.org_id).toBe("org-1");
     expect(event.event_type).toBe("created");
+    expect(event.org_id).toBe("org-1");
   });
 });
 
@@ -49,6 +52,7 @@ describe("promoteAssetToCampaign", () => {
       body: "copy",
       mediaUrl: null,
       client: supabase,
+      tenant: { org_id: "org-1", workspace_id: "workspace-1" },
     });
 
     expect(assetId).toBe("asset-1");
@@ -56,8 +60,11 @@ describe("promoteAssetToCampaign", () => {
     expect(asset.status).toBe("pending_approval");
     expect(asset.dispatch_locked).toBe(true);
     expect(asset.tool_source).toBe("arc_saved");
+    expect(asset.org_id).toBe("org-1");
     expect(gate.campaign_asset_id).toBe("asset-1");
     expect(gate.status).toBe("pending_approval");
+    expect(gate.org_id).toBe("org-1");
     expect(event.event_type).toBe("asset_generated");
+    expect(event.org_id).toBe("org-1");
   });
 });
