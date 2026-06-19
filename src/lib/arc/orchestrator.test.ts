@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type ArcBusinessContext } from "@/domain";
+import { type ArcBusinessContext, EMPTY_BRAND_PALETTE } from "@/domain";
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { runArcPartnerCampaign } from "./orchestrator";
@@ -17,6 +17,12 @@ const TEST_CONTEXT: ArcBusinessContext = {
   personas: [],
   guardrails: { disallowedClaims: [], complianceNotes: "Coverage-neutral language required." },
   brainFacts: [],
+  palette: EMPTY_BRAND_PALETTE,
+  logoUrl: null,
+  tagline: null,
+  description: null,
+  websiteUrl: null,
+  serviceAreas: [],
 };
 
 type InsertArg = {
