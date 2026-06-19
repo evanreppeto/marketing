@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { appendAgentRunLog } from "@/lib/arc-api";
 
 /**
@@ -11,8 +11,8 @@ import { appendAgentRunLog } from "@/lib/arc-api";
  *   body: { message?, reasoning_summary?, run_status?, model_provider?, model_name?, metadata? }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const { id } = await params;
 
@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       modelProvider: typeof body.model_provider === "string" ? body.model_provider : undefined,
       modelName: typeof body.model_name === "string" ? body.model_name : undefined,
       metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : undefined,
-    });
+    }, undefined, allowed.scope);
     if (!result.ok) {
       return fail("not_found", "No task with that id.", 404);
     }

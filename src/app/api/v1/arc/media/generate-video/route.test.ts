@@ -1,21 +1,44 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/auth/api-token", () => ({
+  checkAgentBearer: vi.fn(async () => ({
+    ok: true,
+    tokenSource: "database",
+    orgId: "org-2",
+    workspaceId: "20000000-0000-4000-8000-000000000002",
+  })),
+}));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    workspaceId: "10000000-0000-4000-8000-000000000001",
+    workspaceKey: "default",
+    role: "admin",
+  })),
+}));
+
 const startVideo = vi.fn();
 const pollVideo = vi.fn();
+const storeGeneratedMedia = vi.hoisted(() =>
+  vi.fn(async (objectPath: string) => {
+    return `https://cdn.example/storage/v1/object/public/campaign-media/${objectPath}`;
+  }),
+);
 vi.mock("@/lib/media", () => ({
   isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ startVideo, pollVideo }),
 }));
 vi.mock("@/lib/media/storage", () => ({
-  storeGeneratedMedia: vi.fn(
-    async () => "https://cdn.example/storage/v1/object/public/campaign-media/arc-generated/v.mp4",
-  ),
+  storeGeneratedMedia,
 }));
 vi.mock("@/lib/settings/store", () => ({
   getAppSettings: async () => ({ imageModel: "", videoModel: "", markDefaultRoute: "fast" }),
 }));
 
 import { POST } from "./route";
+import { checkAgentBearer } from "@/lib/auth/api-token";
+
+const bearerMock = vi.mocked(checkAgentBearer);
 
 function req(authorization: string | undefined, body?: unknown) {
   return new Request("http://localhost/api/v1/arc/media/generate-video", {
@@ -39,9 +62,17 @@ function configure() {
 }
 
 beforeEach(() => {
+  bearerMock.mockReset();
+  bearerMock.mockResolvedValue({
+    ok: true,
+    tokenSource: "database",
+    orgId: "org-2",
+    workspaceId: "20000000-0000-4000-8000-000000000002",
+  });
   startVideo.mockReset();
   pollVideo.mockReset();
-  startVideo.mockResolvedValue({ operationName: "op/123", model: "veo-3.1-fast-generate-preview", jobId: "j" });
+  storeGeneratedMedia.mockClear();
+  startVideo.mockResolvedValue({ operationName: "op/123", model: "veo-2.0-generate-001", jobId: "j" });
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(env)) {
@@ -54,6 +85,7 @@ describe("POST /api/v1/arc/media/generate-video", () => {
   it("401 without a valid token, no start", async () => {
     process.env.ARC_AGENT_API_TOKEN = "secret";
     process.env.ARC_MEDIA_ENABLED = "1";
+    bearerMock.mockResolvedValue({ ok: false, reason: "unauthorized", status: 401 });
     const res = await POST(req("Bearer wrong", { prompt: "x" }));
     expect(res.status).toBe(401);
     expect(startVideo).not.toHaveBeenCalled();
@@ -102,9 +134,14 @@ describe("POST /api/v1/arc/media/generate-video", () => {
     expect(json.status).toBe("done");
     expect(json.media).toMatchObject({
       kind: "video",
-      url: "https://cdn.example/storage/v1/object/public/campaign-media/arc-generated/v.mp4",
+      url: expect.stringContaining("campaign-media/arc-generated/org-2/20000000-0000-4000-8000-000000000002/"),
       source: "ai_generated",
     });
-    expect(json.objectPath).toMatch(/^arc-generated\//);
+    expect(json.objectPath).toMatch(/^arc-generated\/org-2\/20000000-0000-4000-8000-000000000002\//);
+    expect(storeGeneratedMedia).toHaveBeenCalledWith(
+      expect.stringMatching(/^arc-generated\/org-2\/20000000-0000-4000-8000-000000000002\/.+\.mp4$/),
+      Buffer.from("x"),
+      "video/mp4",
+    );
   });
 });

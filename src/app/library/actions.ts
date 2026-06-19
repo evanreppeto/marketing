@@ -8,6 +8,7 @@ import { getCurrentOrgId } from "@/lib/auth/org";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import { parseGoogleDriveFileIds } from "@/lib/google-drive/drive-client";
 import { recordGoogleDriveImportResult, resolveGoogleDriveAccessToken } from "@/lib/google-drive/connection";
+import { learnBrandKnowledgeFromAsset } from "@/lib/brand-knowledge/brain-sync";
 import {
   createConversation,
   insertOperatorMessage,
@@ -67,18 +68,31 @@ export async function uploadAssetsAction(formData: FormData): Promise<void> {
     const check = validateUpload({ contentType: file.type, byteSize: file.size });
     if (!check.ok) continue;
     const bytes = new Uint8Array(await file.arrayBuffer());
-    await insertAsset({
+    const kind = classifyKind(file.type, file.name);
+    const assetId = await insertAsset({
       orgId,
       folderId,
       fileName: file.name,
       bytes,
       contentType: file.type,
-      kind: classifyKind(file.type, file.name),
+      kind,
       byteSize: file.size,
       uploadedBy: getOperatorActor(),
     });
+    await learnBrandKnowledgeFromAsset({
+      id: assetId,
+      fileName: file.name,
+      kind,
+      source: "uploaded",
+      tags: [],
+      availableToArc: true,
+      contentType: file.type,
+      fileBytes: bytes,
+    }, { orgId });
   }
   revalidatePath("/library");
+  revalidatePath("/brand");
+  revalidatePath("/brain");
 }
 
 export async function importFromGoogleDriveAction(
@@ -102,6 +116,7 @@ export async function importFromGoogleDriveAction(
       fileIds,
       uploadedBy: operator,
       accessToken,
+      afterInsert: (asset) => learnBrandKnowledgeFromAsset(asset, { orgId }).then(() => undefined),
     });
     await recordGoogleDriveImportResult({
       orgId,
@@ -110,6 +125,8 @@ export async function importFromGoogleDriveAction(
       error: result.errors[0] ?? null,
     });
     revalidatePath("/library");
+    revalidatePath("/brand");
+    revalidatePath("/brain");
     if (result.imported === 0) {
       return { ok: false, message: result.errors[0] ?? "No Drive files were imported." };
     }
@@ -147,6 +164,7 @@ export async function setTagsAction(formData: FormData): Promise<void> {
     .filter(Boolean);
   if (id) await setAssetTags(id, tags);
   revalidatePath("/library");
+  revalidatePath("/brand");
 }
 
 export async function toggleAvailableToArcAction(formData: FormData): Promise<void> {
@@ -155,6 +173,7 @@ export async function toggleAvailableToArcAction(formData: FormData): Promise<vo
   const value = String(formData.get("value") ?? "true") === "true";
   if (id) await setAvailableToArc(id, value);
   revalidatePath("/library");
+  revalidatePath("/brand");
 }
 
 export async function deleteAssetAction(formData: FormData): Promise<void> {

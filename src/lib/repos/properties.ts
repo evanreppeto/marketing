@@ -8,6 +8,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListPropertiesFilter = {
+  orgId?: string;
   persona?: string;
   city?: string;
   state?: string;
@@ -23,7 +24,7 @@ export async function listProperties(
   filter: ListPropertiesFilter = {},
   client?: SupabaseClient,
 ): Promise<Property[]> {
-  const orgId = client ? null : await getCurrentOrgId();
+  const orgId = filter.orgId ?? (client ? null : await getCurrentOrgId());
   const supabase = client ?? getSupabaseAdminClient();
   let query = supabase.from("properties").select("*");
 

@@ -35,12 +35,12 @@ describe("checkAgentBearer", () => {
 
     const result = await checkAgentBearer(req("env-secret"), { recordSeen: async () => undefined });
 
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, tokenSource: "env" });
   });
 
   it("accepts a DB token when the env token does not match", async () => {
     process.env.ARC_AGENT_API_TOKEN = "env-secret";
-    const verify = vi.fn().mockResolvedValue({ ok: true, workspaceId: "default" });
+    const verify = vi.fn().mockResolvedValue({ ok: true, orgId: "org-1", workspaceId: "workspace-1" });
 
     const result = await checkAgentBearer(req("sk_live_db"), {
       verify,
@@ -48,7 +48,7 @@ describe("checkAgentBearer", () => {
       recordSeen: async () => undefined,
     });
 
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, tokenSource: "database", orgId: "org-1", workspaceId: "workspace-1" });
     expect(verify).toHaveBeenCalledWith("sk_live_db");
   });
 

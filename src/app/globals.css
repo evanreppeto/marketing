@@ -519,6 +519,16 @@ h4, .font-display {
   outline-offset: 0 !important;
 }
 
+.mobile-route-dock {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 0.75rem;
+}
+
+.mobile-route-dock::-webkit-scrollbar {
+  display: none;
+}
+
 .chicago-dark nav[aria-label="CRM object navigation"] {
   background-color: var(--surface-inset) !important;
   border-color: var(--border-panel) !important;

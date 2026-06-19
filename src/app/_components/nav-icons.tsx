@@ -1,5 +1,6 @@
 import {
   Activity,
+  Building2,
   Brain,
   ChartSpline,
   Columns3,
@@ -26,6 +27,7 @@ export type NavIconName =
   | "settings"
   | "board"
   | "analytics"
+  | "brand"
   | "brain"
   | "activity"
   | "opportunities";
@@ -33,6 +35,7 @@ export type NavIconName =
 const icons: Record<Exclude<NavIconName, "arc">, LucideIcon> = {
   activity: Activity,
   analytics: ChartSpline,
+  brand: Building2,
   board: Columns3,
   brain: Brain,
   campaigns: Megaphone,

@@ -6,6 +6,7 @@ import { getSupabaseAdminClient } from "../supabase/server";
 import { type ArcBusinessContext } from "@/domain";
 import { getBusinessContext } from "../brand-kit/read-model";
 import { getCurrentOrgId } from "../auth/org";
+import { getCurrentAgentTaskTenantFields, type AgentTaskTenantFields } from "../agent-tasks/scope";
 
 export type ArcRunResult = {
   runId: string;
@@ -28,15 +29,17 @@ export async function runArcPartnerCampaign(
   input: unknown = {},
   client: SupabaseClient = getSupabaseAdminClient(),
   context?: ArcBusinessContext,
+  tenant?: AgentTaskTenantFields,
 ): Promise<ArcRunResult> {
   const request = parseArcPartnerCampaignRequest(input);
-  const businessContext = context ?? (await getBusinessContext(await getCurrentOrgId()));
+  const orgId = tenant?.org_id ?? (await getCurrentOrgId());
+  const businessContext = context ?? (await getBusinessContext(orgId));
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
   const startedAt = new Date().toISOString();
   const agentId = await upsertArcAgent(client);
   const draft = createPartnerCampaignDraft(request, businessContext);
 
-  const companyId = await insertOne(client, "companies", {
+  const companyId = await insertOne(client, "companies", withOrg({
     name: `${request.company.name} ${runId}`,
     persona: request.persona,
     status: "active",
@@ -50,9 +53,9 @@ export async function runArcPartnerCampaign(
       service_area_zips: request.company.serviceAreaZips,
       source_note: request.lead.lossSummary,
     },
-  });
+  }, tenant));
 
-  const contactId = await insertOne(client, "contacts", {
+  const contactId = await insertOne(client, "contacts", withOrg({
     company_id: companyId,
     persona: request.persona,
     status: "active",
@@ -67,9 +70,9 @@ export async function runArcPartnerCampaign(
       relationship_stage: "new_target",
       confidence_score: request.lead.partnerScore,
     },
-  });
+  }, tenant));
 
-  const leadId = await insertOne(client, "leads", {
+  const leadId = await insertOne(client, "leads", withOrg({
     company_id: companyId,
     contact_id: contactId,
     persona: request.persona,
@@ -90,9 +93,9 @@ export async function runArcPartnerCampaign(
       recommended_action: draft.recommendedAction,
       guardrail_flags: draft.guardrails.flags,
     },
-  });
+  }, tenant));
 
-  const campaignId = await insertOne(client, "campaigns", {
+  const campaignId = await insertOne(client, "campaigns", withOrg({
     name: `${draft.campaignName} ${runId}`,
     persona: request.persona,
     restoration_focus: request.restorationFocus,
@@ -122,7 +125,7 @@ export async function runArcPartnerCampaign(
       provider: "local_deterministic",
       outbound_locked: true,
     },
-  });
+  }, tenant));
 
   const personaSnapshotId = await insertOne(client, "persona_snapshots", {
     persona: request.persona,
@@ -151,7 +154,7 @@ export async function runArcPartnerCampaign(
     },
   });
 
-  const campaignAssetId = await insertOne(client, "campaign_assets", {
+  const campaignAssetId = await insertOne(client, "campaign_assets", withOrg({
     campaign_id: campaignId,
     asset_type: request.channel === "call_script" ? "script" : request.channel,
     channel: request.channel,
@@ -171,7 +174,7 @@ export async function runArcPartnerCampaign(
       run_id: runId,
       blocked_phrases: draft.guardrails.blockedPhrases,
     },
-  });
+  }, tenant));
 
   await insertCreativeAssets(client, {
     campaignId,
@@ -179,9 +182,10 @@ export async function runArcPartnerCampaign(
     runId,
     approvalStatus: draft.guardrails.approvalStatus,
     creativeAssets: request.creativeAssets,
+    tenant,
   });
 
-  const approvalItemId = await insertOne(client, "approval_items", {
+  const approvalItemId = await insertOne(client, "approval_items", withOrg({
     campaign_id: campaignId,
     campaign_asset_id: campaignAssetId,
     company_id: companyId,
@@ -203,11 +207,14 @@ export async function runArcPartnerCampaign(
       provider: "local_deterministic",
       outbound_locked: true,
     },
-  });
+  }, tenant));
 
-  await updateById(client, "campaigns", campaignId, { approval_item_id: approvalItemId });
+  await updateById(client, "campaigns", campaignId, { approval_item_id: approvalItemId }, tenant);
+
+  const taskTenant = tenant ?? (await getCurrentAgentTaskTenantFields());
 
   const agentTaskId = await insertOne(client, "agent_tasks", {
+    ...taskTenant,
     agent_id: agentId,
     status: draft.guardrails.riskLevel === "blocked" ? "blocked" : "needs_approval",
     priority: draft.guardrails.riskLevel === "blocked" ? "urgent" : "high",
@@ -242,7 +249,7 @@ export async function runArcPartnerCampaign(
     },
   });
 
-  const agentOutputId = await insertOne(client, "agent_outputs", {
+  const agentOutputId = await insertOne(client, "agent_outputs", withOrg({
     task_id: agentTaskId,
     approval_item_id: approvalItemId,
     campaign_asset_id: campaignAssetId,
@@ -263,7 +270,7 @@ export async function runArcPartnerCampaign(
     risk_level: draft.guardrails.riskLevel,
     compliance_status: draft.guardrails.approvalStatus,
     approval_status: draft.guardrails.approvalStatus,
-  });
+  }, taskTenant));
 
   await insertOne(client, "agent_run_logs", {
     task_id: agentTaskId,
@@ -286,7 +293,7 @@ export async function runArcPartnerCampaign(
     },
   });
 
-  await insertOne(client, "campaign_events", {
+  await insertOne(client, "campaign_events", withOrg({
     campaign_id: campaignId,
     campaign_asset_id: campaignAssetId,
     approval_item_id: approvalItemId,
@@ -300,7 +307,7 @@ export async function runArcPartnerCampaign(
       risk_level: draft.guardrails.riskLevel,
       outbound_locked: true,
     },
-  });
+  }, taskTenant));
 
   return {
     runId,
@@ -397,12 +404,13 @@ async function insertCreativeAssets(
     runId: string;
     approvalStatus: string;
     creativeAssets: ArcPartnerCampaignRequest["creativeAssets"];
+    tenant?: AgentTaskTenantFields;
   },
 ) {
   for (const [index, creative] of input.creativeAssets.entries()) {
     const title = creative.title ?? defaultCreativeTitle(creative.type);
 
-    await insertOne(client, "campaign_assets", {
+    await insertOne(client, "campaign_assets", withOrg({
       campaign_id: input.campaignId,
       asset_type: CREATIVE_ASSET_TYPE[creative.type],
       channel: creative.type,
@@ -428,7 +436,7 @@ async function insertCreativeAssets(
           },
         ],
       },
-    });
+    }, input.tenant));
   }
 }
 
@@ -442,10 +450,24 @@ async function insertOne(client: SupabaseClient, table: string, values: Record<s
   return data.id;
 }
 
-async function updateById(client: SupabaseClient, table: string, id: string, values: Record<string, unknown>) {
-  const { error } = await client.from(table).update(values).eq("id", id);
+async function updateById(
+  client: SupabaseClient,
+  table: string,
+  id: string,
+  values: Record<string, unknown>,
+  tenant?: AgentTaskTenantFields,
+) {
+  let query = client.from(table).update(values).eq("id", id);
+  if (tenant) {
+    query = query.eq("org_id", tenant.org_id);
+  }
+  const { error } = await query;
 
   if (error) {
     throw new Error(`${table} update failed: ${error.message}`);
   }
+}
+
+function withOrg(values: Record<string, unknown>, tenant?: Pick<AgentTaskTenantFields, "org_id">) {
+  return tenant ? { ...values, org_id: tenant.org_id } : values;
 }

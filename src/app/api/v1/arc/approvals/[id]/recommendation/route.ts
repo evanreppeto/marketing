@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { addApprovalRecommendation } from "@/lib/arc-api";
 
 /**
@@ -12,8 +12,8 @@ import { addApprovalRecommendation } from "@/lib/arc-api";
  *   body: { recommendation, rationale?, risk_flags?, suggested_edits?, agent?, metadata? }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const { id } = await params;
 
@@ -39,15 +39,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     : undefined;
 
   try {
-    const result = await addApprovalRecommendation({
-      approvalItemId: id,
-      agent: typeof body.agent === "string" ? body.agent : undefined,
-      recommendation,
-      rationale: typeof body.rationale === "string" ? body.rationale : undefined,
-      riskFlags,
-      suggestedEdits: typeof body.suggested_edits === "string" ? body.suggested_edits : undefined,
-      metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : undefined,
-    });
+    const result = await addApprovalRecommendation(
+      {
+        approvalItemId: id,
+        agent: typeof body.agent === "string" ? body.agent : undefined,
+        recommendation,
+        rationale: typeof body.rationale === "string" ? body.rationale : undefined,
+        riskFlags,
+        suggestedEdits: typeof body.suggested_edits === "string" ? body.suggested_edits : undefined,
+        metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : undefined,
+      },
+      undefined,
+      { orgId: allowed.scope.orgId, workspaceId: allowed.scope.workspaceId },
+    );
     if (!result.ok) {
       return fail("not_found", "No approval item with that id.", 404);
     }

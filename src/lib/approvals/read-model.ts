@@ -12,6 +12,7 @@ const ACTIVE_APPROVAL_STATUSES = [
 export type ApprovalQueueFilter = {
   statuses?: string[];
   limit?: number;
+  orgId?: string;
   /** Operator-configured agent display name used in rendered source/author labels. */
   agentName?: string;
 };
@@ -218,11 +219,14 @@ export async function listApprovalCards(
   const limit = filter.limit ?? 50;
   const agentName = filter.agentName ?? "Agent";
 
-  const query = client
-    .from("approval_items")
-    .select(
-      "id,campaign_id,campaign_asset_id,company_id,contact_id,lead_id,item_type,status,prompt_inputs,draft_output,edited_output,requested_by,locked_until_approved,submitted_at,risk_level,compliance_notes,decision_notes,reasoning_payload,audit_payload,created_at,updated_at",
-    )
+  const query = applyOrgScope(
+    client
+      .from("approval_items")
+      .select(
+        "id,campaign_id,campaign_asset_id,company_id,contact_id,lead_id,item_type,status,prompt_inputs,draft_output,edited_output,requested_by,locked_until_approved,submitted_at,risk_level,compliance_notes,decision_notes,reasoning_payload,audit_payload,created_at,updated_at",
+      ),
+    filter.orgId,
+  )
     .in("status", statuses)
     .order("submitted_at", { ascending: false })
     .limit(limit);
@@ -245,17 +249,19 @@ export async function listApprovalCards(
       "campaigns",
       "id,name,persona,status,objective,audience_summary,offer_summary,compliance_notes",
       collectIds(approvalItems, "campaign_id"),
+      filter.orgId,
     ),
     fetchByIds<CampaignAssetRow>(
       client,
       "campaign_assets",
       "id,title,asset_type,channel,status,prompt_input,prompt_inputs,draft_body,edited_body,approved_body,compliance_notes,reasoning_payload",
       collectIds(approvalItems, "campaign_asset_id"),
+      filter.orgId,
     ),
-    fetchByIds<CompanyRow>(client, "companies", "id,name,persona,partner_tier", collectIds(approvalItems, "company_id")),
-    fetchByIds<ContactRow>(client, "contacts", "id,full_name,email,phone,title", collectIds(approvalItems, "contact_id")),
-    fetchByIds<LeadRow>(client, "leads", "id,source,status,lead_score,loss_summary,metadata", collectIds(approvalItems, "lead_id")),
-    fetchAgentOutputs(client, approvalItems.map((item) => item.id)),
+    fetchByIds<CompanyRow>(client, "companies", "id,name,persona,partner_tier", collectIds(approvalItems, "company_id"), filter.orgId),
+    fetchByIds<ContactRow>(client, "contacts", "id,full_name,email,phone,title", collectIds(approvalItems, "contact_id"), filter.orgId),
+    fetchByIds<LeadRow>(client, "leads", "id,source,status,lead_score,loss_summary,metadata", collectIds(approvalItems, "lead_id"), filter.orgId),
+    fetchAgentOutputs(client, approvalItems.map((item) => item.id), filter.orgId),
   ]);
 
   const campaignById = indexById(campaigns);
@@ -284,12 +290,13 @@ async function fetchByIds<Row extends { id: string }>(
   table: string,
   select: string,
   ids: string[],
+  orgId?: string,
 ): Promise<Row[]> {
   if (ids.length === 0) {
     return [];
   }
 
-  const { data, error } = await client.from(table).select(select).in("id", ids);
+  const { data, error } = await applyOrgScope(client.from(table).select(select).in("id", ids), orgId);
 
   if (error) {
     throw new Error(`${table} lookup failed: ${error.message}`);
@@ -298,22 +305,29 @@ async function fetchByIds<Row extends { id: string }>(
   return (data ?? []) as unknown as Row[];
 }
 
-async function fetchAgentOutputs(client: SupabaseClient, approvalItemIds: string[]): Promise<AgentOutputRow[]> {
+async function fetchAgentOutputs(client: SupabaseClient, approvalItemIds: string[], orgId?: string): Promise<AgentOutputRow[]> {
   if (approvalItemIds.length === 0) {
     return [];
   }
 
-  const { data, error } = await client
-    .from("agent_outputs")
-    .select("id,approval_item_id,output_type,title,body,risk_level,approval_status,structured_payload")
-    .in("approval_item_id", approvalItemIds)
-    .order("created_at", { ascending: false });
+  const { data, error } = await applyOrgScope(
+    client
+      .from("agent_outputs")
+      .select("id,approval_item_id,output_type,title,body,risk_level,approval_status,structured_payload")
+      .in("approval_item_id", approvalItemIds),
+    orgId,
+  ).order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(`agent_outputs lookup failed: ${error.message}`);
   }
 
   return (data ?? []) as unknown as AgentOutputRow[];
+}
+
+function applyOrgScope<Query>(query: Query, orgId?: string): Query {
+  if (!orgId) return query;
+  return (query as { eq(column: string, value: string): Query }).eq("org_id", orgId);
 }
 
 function mapApprovalCard(input: {

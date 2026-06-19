@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getSupabaseAdminClient } from "../supabase/server";
+import { type AgentTaskTenantFields } from "../agent-tasks/scope";
 
 export type ApprovalDecision = "approved" | "declined" | "archived";
 
@@ -9,6 +10,7 @@ export type DecideApprovalInput = {
   decision: ApprovalDecision;
   operator: string;
   notes?: string;
+  tenant?: AgentTaskTenantFields;
 };
 
 const VALID_CAMPAIGN_STATUSES = new Set([
@@ -40,20 +42,23 @@ export async function decideApprovalItem(
   input: DecideApprovalInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { approvalItemId, decision, operator, notes } = input;
+  const { approvalItemId, decision, operator, notes, tenant } = input;
   const now = new Date().toISOString();
 
-  const { data: item, error: itemError } = await client
-    .from("approval_items")
-    .select("id,status,campaign_id,campaign_asset_id")
-    .eq("id", approvalItemId)
-    .maybeSingle<{ id: string; status: string; campaign_id: string | null; campaign_asset_id: string | null }>();
+  const { data: item, error: itemError } = await applyOrgScope(
+    client
+      .from("approval_items")
+      .select("id,status,campaign_id,campaign_asset_id")
+      .eq("id", approvalItemId),
+    tenant,
+  ).maybeSingle<{ id: string; status: string; campaign_id: string | null; campaign_asset_id: string | null }>();
   assertOk("approval_items lookup", itemError);
   if (!item) {
     throw new Error("Approval item not found.");
   }
 
   const { error: decisionError } = await client.from("approval_decisions").insert({
+    ...orgTenantFields(tenant),
     approval_item_id: item.id,
     decision,
     decided_by: operator,
@@ -64,10 +69,13 @@ export async function decideApprovalItem(
   });
   assertOk("approval_decisions insert", decisionError);
 
-  const { error: updateItemError } = await client
-    .from("approval_items")
-    .update({ status: decision, reviewed_by: operator, reviewed_at: now, decision_notes: notes ?? null })
-    .eq("id", item.id);
+  const { error: updateItemError } = await applyOrgScope(
+    client
+      .from("approval_items")
+      .update({ status: decision, reviewed_by: operator, reviewed_at: now, decision_notes: notes ?? null })
+      .eq("id", item.id),
+    tenant,
+  );
   assertOk("approval_items update", updateItemError);
 
   if (item.campaign_asset_id) {
@@ -76,15 +84,16 @@ export async function decideApprovalItem(
       assetUpdate.approved_by = operator;
       assetUpdate.approved_at = now;
     }
-    const { error: assetError } = await client.from("campaign_assets").update(assetUpdate).eq("id", item.campaign_asset_id);
+    const { error: assetError } = await applyOrgScope(client.from("campaign_assets").update(assetUpdate).eq("id", item.campaign_asset_id), tenant);
     assertOk("campaign_assets update", assetError);
   }
 
   if (item.campaign_id) {
-    const { error: campaignError } = await client.from("campaigns").update({ status: decisionToCampaignStatus(decision) }).eq("id", item.campaign_id);
+    const { error: campaignError } = await applyOrgScope(client.from("campaigns").update({ status: decisionToCampaignStatus(decision) }).eq("id", item.campaign_id), tenant);
     assertOk("campaigns update", campaignError);
 
     const { error: eventError } = await client.from("campaign_events").insert({
+      ...orgTenantFields(tenant),
       campaign_id: item.campaign_id,
       campaign_asset_id: item.campaign_asset_id,
       approval_item_id: item.id,
@@ -105,6 +114,7 @@ export type DecideAssetInput = {
   decision: ApprovalDecision;
   operator: string;
   notes?: string;
+  tenant?: AgentTaskTenantFields;
 };
 
 /**
@@ -118,19 +128,21 @@ export async function decideAsset(
   input: DecideAssetInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { assetId, campaignId, decision, operator, notes } = input;
+  const { assetId, campaignId, decision, operator, notes, tenant } = input;
 
-  const { data: approval, error: approvalError } = await client
-    .from("approval_items")
-    .select("id")
-    .eq("campaign_asset_id", assetId)
-    .order("submitted_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string }>();
+  const { data: approval, error: approvalError } = await applyOrgScope(
+    client
+      .from("approval_items")
+      .select("id")
+      .eq("campaign_asset_id", assetId)
+      .order("submitted_at", { ascending: false })
+      .limit(1),
+    tenant,
+  ).maybeSingle<{ id: string }>();
   assertOk("approval_items (asset) lookup", approvalError);
 
   if (approval) {
-    return decideApprovalItem({ approvalItemId: approval.id, decision, operator, notes }, client);
+    return decideApprovalItem({ approvalItemId: approval.id, decision, operator, notes, tenant }, client);
   }
 
   // No gate yet — act on the asset directly so it's never a dead-end draft.
@@ -140,10 +152,11 @@ export async function decideAsset(
     assetUpdate.approved_by = operator;
     assetUpdate.approved_at = now;
   }
-  const { error: assetError } = await client.from("campaign_assets").update(assetUpdate).eq("id", assetId);
+  const { error: assetError } = await applyOrgScope(client.from("campaign_assets").update(assetUpdate).eq("id", assetId), tenant);
   assertOk("campaign_assets decide", assetError);
 
   const { error: eventError } = await client.from("campaign_events").insert({
+    ...orgTenantFields(tenant),
     campaign_id: campaignId || null,
     campaign_asset_id: assetId,
     event_type: decision === "archived" ? "archived" : "approval_decided",
@@ -160,6 +173,7 @@ export type ReopenAssetInput = {
   assetId: string;
   campaignId: string;
   operator: string;
+  tenant?: AgentTaskTenantFields;
 };
 
 /**
@@ -173,20 +187,23 @@ export async function reopenAsset(
   input: ReopenAssetInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { assetId, campaignId, operator } = input;
+  const { assetId, campaignId, operator, tenant } = input;
   const now = new Date().toISOString();
 
-  const { data: approval, error: approvalError } = await client
-    .from("approval_items")
-    .select("id,status")
-    .eq("campaign_asset_id", assetId)
-    .order("submitted_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; status: string }>();
+  const { data: approval, error: approvalError } = await applyOrgScope(
+    client
+      .from("approval_items")
+      .select("id,status")
+      .eq("campaign_asset_id", assetId)
+      .order("submitted_at", { ascending: false })
+      .limit(1),
+    tenant,
+  ).maybeSingle<{ id: string; status: string }>();
   assertOk("approval_items lookup", approvalError);
 
   if (approval) {
     const { error: decisionError } = await client.from("approval_decisions").insert({
+      ...orgTenantFields(tenant),
       approval_item_id: approval.id,
       decision: "reverted",
       decided_by: operator,
@@ -197,20 +214,27 @@ export async function reopenAsset(
     });
     assertOk("approval_decisions insert (reopen)", decisionError);
 
-    const { error: updateApprovalError } = await client
-      .from("approval_items")
-      .update({ status: "pending_approval", reviewed_by: null, reviewed_at: null, decision_notes: null })
-      .eq("id", approval.id);
+    const { error: updateApprovalError } = await applyOrgScope(
+      client
+        .from("approval_items")
+        .update({ status: "pending_approval", reviewed_by: null, reviewed_at: null, decision_notes: null })
+        .eq("id", approval.id),
+      tenant,
+    );
     assertOk("approval_items update (reopen)", updateApprovalError);
   }
 
-  const { error: assetError } = await client
-    .from("campaign_assets")
-    .update({ status: "pending_approval", approved_by: null, approved_at: null, dispatch_locked: true })
-    .eq("id", assetId);
+  const { error: assetError } = await applyOrgScope(
+    client
+      .from("campaign_assets")
+      .update({ status: "pending_approval", approved_by: null, approved_at: null, dispatch_locked: true })
+      .eq("id", assetId),
+    tenant,
+  );
   assertOk("campaign_assets update (reopen)", assetError);
 
   const { error: eventError } = await client.from("campaign_events").insert({
+    ...orgTenantFields(tenant),
     campaign_id: campaignId || null,
     campaign_asset_id: assetId,
     approval_item_id: approval?.id ?? null,
@@ -227,6 +251,7 @@ export async function reopenAsset(
 export type UndoDecisionInput = {
   approvalItemId: string;
   operator: string;
+  tenant?: AgentTaskTenantFields;
 };
 
 /**
@@ -240,15 +265,17 @@ export async function undoDecision(
   input: UndoDecisionInput,
   client: SupabaseClient = getSupabaseAdminClient(),
 ) {
-  const { approvalItemId, operator } = input;
+  const { approvalItemId, operator, tenant } = input;
 
-  const { data: last, error: lastError } = await client
-    .from("approval_decisions")
-    .select("id,decision,previous_status,next_status")
-    .eq("approval_item_id", approvalItemId)
-    .order("decided_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; decision: string; previous_status: string | null; next_status: string }>();
+  const { data: last, error: lastError } = await applyOrgScope(
+    client
+      .from("approval_decisions")
+      .select("id,decision,previous_status,next_status")
+      .eq("approval_item_id", approvalItemId)
+      .order("decided_at", { ascending: false })
+      .limit(1),
+    tenant,
+  ).maybeSingle<{ id: string; decision: string; previous_status: string | null; next_status: string }>();
   assertOk("approval_decisions lookup", lastError);
   if (!last) {
     throw new Error("No decision to undo for this approval item.");
@@ -259,17 +286,20 @@ export async function undoDecision(
 
   const restoredStatus = last.previous_status ?? "pending_approval";
 
-  const { data: item, error: itemError } = await client
-    .from("approval_items")
-    .select("id,status,campaign_id,campaign_asset_id")
-    .eq("id", approvalItemId)
-    .maybeSingle<{ id: string; status: string; campaign_id: string | null; campaign_asset_id: string | null }>();
+  const { data: item, error: itemError } = await applyOrgScope(
+    client
+      .from("approval_items")
+      .select("id,status,campaign_id,campaign_asset_id")
+      .eq("id", approvalItemId),
+    tenant,
+  ).maybeSingle<{ id: string; status: string; campaign_id: string | null; campaign_asset_id: string | null }>();
   assertOk("approval_items lookup", itemError);
   if (!item) {
     throw new Error("Approval item not found.");
   }
 
   const { error: decisionError } = await client.from("approval_decisions").insert({
+    ...orgTenantFields(tenant),
     approval_item_id: approvalItemId,
     decision: "reverted",
     decided_by: operator,
@@ -279,25 +309,32 @@ export async function undoDecision(
   });
   assertOk("approval_decisions insert (revert)", decisionError);
 
-  const { error: updateItemError } = await client
-    .from("approval_items")
-    .update({ status: restoredStatus, reviewed_by: null, reviewed_at: null })
-    .eq("id", approvalItemId);
+  const { error: updateItemError } = await applyOrgScope(
+    client
+      .from("approval_items")
+      .update({ status: restoredStatus, reviewed_by: null, reviewed_at: null })
+      .eq("id", approvalItemId),
+    tenant,
+  );
   assertOk("approval_items update (revert)", updateItemError);
 
   if (item.campaign_asset_id) {
-    const { error: assetError } = await client
-      .from("campaign_assets")
-      .update({ status: restoredStatus, approved_by: null, approved_at: null })
-      .eq("id", item.campaign_asset_id);
+    const { error: assetError } = await applyOrgScope(
+      client
+        .from("campaign_assets")
+        .update({ status: restoredStatus, approved_by: null, approved_at: null })
+        .eq("id", item.campaign_asset_id),
+      tenant,
+    );
     assertOk("campaign_assets update (revert)", assetError);
   }
 
   if (item.campaign_id) {
-    const { error: campaignError } = await client.from("campaigns").update({ status: toCampaignStatus(restoredStatus) }).eq("id", item.campaign_id);
+    const { error: campaignError } = await applyOrgScope(client.from("campaigns").update({ status: toCampaignStatus(restoredStatus) }).eq("id", item.campaign_id), tenant);
     assertOk("campaigns update (revert)", campaignError);
 
     const { error: eventError } = await client.from("campaign_events").insert({
+      ...orgTenantFields(tenant),
       campaign_id: item.campaign_id,
       campaign_asset_id: item.campaign_asset_id,
       approval_item_id: approvalItemId,
@@ -316,4 +353,13 @@ function assertOk(label: string, error: { message: string } | null) {
   if (error) {
     throw new Error(`${label} failed: ${error.message}`);
   }
+}
+
+function applyOrgScope<Query>(query: Query, tenant?: AgentTaskTenantFields): Query {
+  if (!tenant) return query;
+  return (query as { eq(column: string, value: string): Query }).eq("org_id", tenant.org_id);
+}
+
+function orgTenantFields(tenant?: AgentTaskTenantFields): Record<string, string> {
+  return tenant ? { org_id: tenant.org_id } : {};
 }

@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { getLead } from "@/lib/repos";
 
 /**
@@ -7,13 +7,13 @@ import { getLead } from "@/lib/repos";
  *   GET /api/v1/arc/crm/leads/:id
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const { id } = await params;
 
   try {
-    const lead = await getLead(id);
+    const lead = await getLead(id, undefined, { orgId: allowed.scope.orgId });
     if (!lead) {
       return fail("not_found", "No lead with that id.", 404);
     }

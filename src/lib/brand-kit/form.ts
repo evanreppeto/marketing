@@ -33,6 +33,9 @@ export function buildBusinessProfileFromForm(
   }));
   const logoUpload = str(formData, "logoUpload");
   const logoUrl = str(formData, "logoUrl");
+  const faviconUpload = str(formData, "faviconUpload");
+  const faviconUrl = str(formData, "faviconUrl");
+  const submittedStatus = formData.get("status");
   return {
     ...current,
     displayName: str(formData, "displayName") || current.displayName,
@@ -42,7 +45,7 @@ export function buildBusinessProfileFromForm(
     industry: nullable(formData, "industry"),
     websiteUrl: nullable(formData, "websiteUrl"),
     logoUrl: logoUpload || logoUrl || null,
-    faviconUrl: nullable(formData, "faviconUrl"),
+    faviconUrl: faviconUpload || faviconUrl || null,
     shortMark: nullable(formData, "shortMark"),
     serviceAreas: splitLines(str(formData, "serviceAreas")),
     tone: str(formData, "tone") || current.tone || NEUTRAL_DEFAULTS.tone,
@@ -55,6 +58,6 @@ export function buildBusinessProfileFromForm(
       disallowedClaims: splitLines(str(formData, "disallowedClaims")),
       complianceNotes: str(formData, "complianceNotes") || current.guardrails.complianceNotes,
     },
-    status: formData.get("status") === "active" ? "active" : current.status,
+    status: submittedStatus === "active" ? "active" : submittedStatus === "draft" ? "draft" : current.status,
   };
 }

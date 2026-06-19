@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { parseArcSocialAdRequest } from "./social-ad-contract";
+import { type AgentTaskTenantFields } from "../agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 
 const sourceSystem = "arc_agent_orchestrator";
@@ -32,11 +33,12 @@ export async function runArcSocialAd(
   input: unknown = {},
   client: SupabaseClient = getSupabaseAdminClient(),
   upload: ImageUploader = defaultUploader(client),
+  tenant?: AgentTaskTenantFields,
 ): Promise<ArcSocialAdResult> {
   const req = parseArcSocialAdRequest(input);
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
 
-  const campaignId = await insertOne(client, "campaigns", {
+  const campaignId = await insertOne(client, "campaigns", withOrg({
     name: `${req.name} ${runId}`,
     persona: req.persona,
     restoration_focus: req.restorationFocus,
@@ -53,7 +55,7 @@ export async function runArcSocialAd(
     source_signal: { run_id: runId, source_campaign_id: req.sourceCampaignId ?? null },
     reasoning_payload: {},
     audit_payload: { provider: "social_ad_ingest", outbound_locked: true },
-  });
+  }, tenant));
 
   const campaignAssetIds: string[] = [];
   const approvalItemIds: string[] = [];
@@ -64,7 +66,7 @@ export async function runArcSocialAd(
     const path = `social-ads/${runId}/${index}-${asset.format ?? "image"}.png`;
     const imageUrl = await upload(path, bytes, "image/png");
 
-    const campaignAssetId = await insertOne(client, "campaign_assets", {
+    const campaignAssetId = await insertOne(client, "campaign_assets", withOrg({
       campaign_id: campaignId,
       asset_type: "social_ad",
       channel: "social",
@@ -93,9 +95,9 @@ export async function runArcSocialAd(
           thumbnail_url: imageUrl,
         }],
       },
-    });
+    }, tenant));
 
-    const approvalItemId = await insertOne(client, "approval_items", {
+    const approvalItemId = await insertOne(client, "approval_items", withOrg({
       campaign_id: campaignId,
       campaign_asset_id: campaignAssetId,
       item_type: "social_ad_campaign_asset",
@@ -108,9 +110,9 @@ export async function runArcSocialAd(
       risk_level: "medium",
       reasoning_payload: {},
       audit_payload: { run_id: runId, outbound_locked: true },
-    });
+    }, tenant));
 
-    await insertOne(client, "campaign_events", {
+    await insertOne(client, "campaign_events", withOrg({
       campaign_id: campaignId,
       campaign_asset_id: campaignAssetId,
       approval_item_id: approvalItemId,
@@ -118,13 +120,13 @@ export async function runArcSocialAd(
       actor: "Arc Social Ad Ingest",
       detail: "Arc submitted a social ad deliverable for human approval.",
       payload: { run_id: runId, outbound_locked: true },
-    });
+    }, tenant));
 
     campaignAssetIds.push(campaignAssetId);
     approvalItemIds.push(approvalItemId);
   }
 
-  await updateById(client, "campaigns", campaignId, { approval_item_id: approvalItemIds[0] });
+  await updateById(client, "campaigns", campaignId, { approval_item_id: approvalItemIds[0] }, tenant);
 
   return { runId, campaignId, campaignAssetIds, approvalItemIds, status: "needs_approval" };
 }
@@ -137,9 +139,23 @@ async function insertOne(client: SupabaseClient, table: string, values: Record<s
   return data.id;
 }
 
-async function updateById(client: SupabaseClient, table: string, id: string, values: Record<string, unknown>) {
-  const { error } = await client.from(table).update(values).eq("id", id);
+async function updateById(
+  client: SupabaseClient,
+  table: string,
+  id: string,
+  values: Record<string, unknown>,
+  tenant?: AgentTaskTenantFields,
+) {
+  let query = client.from(table).update(values).eq("id", id);
+  if (tenant) {
+    query = query.eq("org_id", tenant.org_id);
+  }
+  const { error } = await query;
   if (error) {
     throw new Error(`${table} update failed: ${error.message}`);
   }
+}
+
+function withOrg(values: Record<string, unknown>, tenant?: Pick<AgentTaskTenantFields, "org_id">) {
+  return tenant ? { ...values, org_id: tenant.org_id } : values;
 }

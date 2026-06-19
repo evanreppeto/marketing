@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cx } from "@/app/_components/theme";
 import type { ArcConversation, ArcProject } from "@/lib/arc-chat/persistence";
 
-import { createProjectForm, unarchiveThreadForm } from "../actions";
+import { createProjectForm, deleteProjectForm, renameProjectForm, unarchiveThreadForm } from "../actions";
 import { relativeTime } from "./relative-time";
 import { ThreadContextMenu, ThreadMenu } from "./thread-menu";
 
@@ -131,6 +131,115 @@ function PinGlyph({ className = "h-3 w-3 shrink-0 text-[var(--accent)]" }: { cla
       <path d="M12 17v5" />
       <path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
     </svg>
+  );
+}
+
+const projectMenuItemCls =
+  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]";
+
+function ProjectDotsIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+      <circle cx="4" cy="10" r="1.6" />
+      <circle cx="10" cy="10" r="1.6" />
+      <circle cx="16" cy="10" r="1.6" />
+    </svg>
+  );
+}
+
+function ProjectMenu({ project }: { project: ArcProject }) {
+  const [open, setOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        aria-label="Project options"
+        title="Project options"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((v) => !v);
+          setRenaming(false);
+          setConfirmDelete(false);
+        }}
+        className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+      >
+        <ProjectDotsIcon />
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="msg-rise absolute right-0 top-7 z-20 w-52 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]"
+        >
+          {renaming ? (
+            <form action={renameProjectForm} onSubmit={() => setOpen(false)} className="p-0.5">
+              <input type="hidden" name="projectId" value={project.id} />
+              <input
+                name="name"
+                defaultValue={project.name}
+                autoFocus
+                aria-label="Rename project"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setRenaming(false);
+                  }
+                }}
+                className="w-full rounded-md border border-[var(--accent)] bg-[var(--surface-inset)] px-2 py-1 text-xs text-[var(--text-primary)] focus-visible:outline-none"
+              />
+              <p className="px-1 pt-1 text-[10px] text-[var(--text-muted)]">Enter to save Â· Esc to cancel</p>
+            </form>
+          ) : (
+            <>
+              <button type="button" role="menuitem" onClick={() => setRenaming(true)} className={projectMenuItemCls}>
+                Rename
+              </button>
+              {confirmDelete ? (
+                <form action={deleteProjectForm} onSubmit={() => setOpen(false)}>
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <button
+                    type="submit"
+                    role="menuitem"
+                    className={cx(projectMenuItemCls, "text-[var(--priority-bright)] hover:bg-[var(--priority-soft)]")}
+                  >
+                    Delete project? Chats stay
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setConfirmDelete(true)}
+                  className={cx(projectMenuItemCls, "text-[var(--priority-bright)] hover:bg-[var(--priority-soft)]")}
+                >
+                  Delete
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -297,13 +406,16 @@ function ProjectGroup({
           href={`/arc?project=${project.id}`}
           title={`New chat in ${project.name}`}
           aria-label={`New chat in ${project.name}`}
-          className="hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] group-hover/proj:flex focus-visible:flex"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-muted)] opacity-0 transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] group-hover/proj:opacity-100 focus:opacity-100"
         >
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M10 4v12M4 10h12" />
           </svg>
         </Link>
-        <span className="shrink-0 px-1 text-[10px] tabular-nums text-[var(--text-muted)] group-hover/proj:hidden">
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center opacity-0 transition group-hover/proj:opacity-100 focus-within:opacity-100">
+          <ProjectMenu project={project} />
+        </div>
+        <span className="shrink-0 px-1 text-[10px] tabular-nums text-[var(--text-muted)] group-hover/proj:hidden group-focus-within/proj:hidden">
           {rows.length}
         </span>
       </div>

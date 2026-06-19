@@ -6,6 +6,12 @@ vi.mock("@/lib/campaigns/create", () => ({
 }));
 
 vi.mock("@/lib/opportunities/persistence", () => ({ markOpportunityDrafted: vi.fn(async () => ({ ok: true })) }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    workspaceId: "workspace-1",
+  })),
+}));
 
 vi.mock("@/lib/arc-chat/persistence", () => ({ linkConversationToCampaign: vi.fn(async () => undefined) }));
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
@@ -101,8 +107,17 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       assetId: "asset_1",
     });
     expect(shellMock).toHaveBeenCalledOnce();
+    expect(shellMock).toHaveBeenCalledWith(
+      expect.objectContaining({ tenant: { org_id: "org-1", workspace_id: "workspace-1" } }),
+    );
     expect(promoteMock).toHaveBeenCalledWith(
-      expect.objectContaining({ campaignId: "camp_1", assetType: "social_ad", title: "Fall ad", operator: "Arc" }),
+      expect.objectContaining({
+        campaignId: "camp_1",
+        assetType: "social_ad",
+        title: "Fall ad",
+        operator: "Arc",
+        tenant: { org_id: "org-1", workspace_id: "workspace-1" },
+      }),
     );
   });
 
@@ -112,14 +127,18 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     expect(res.status).toBe(201);
     expect(shellMock).not.toHaveBeenCalled();
     expect(promoteMock).toHaveBeenCalledWith(
-      expect.objectContaining({ campaignId: "camp_existing", assetType: "email" }),
+      expect.objectContaining({
+        campaignId: "camp_existing",
+        assetType: "email",
+        tenant: { org_id: "org-1", workspace_id: "workspace-1" },
+      }),
     );
   });
 
   it("links the opportunity when opportunity_id is provided", async () => {
     configure();
     await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "email", title: "Re-engage", opportunity_id: "opp-1" }));
-    expect(markOpportunityDrafted).toHaveBeenCalledWith("opp-1", "camp_existing");
+    expect(markOpportunityDrafted).toHaveBeenCalledWith("opp-1", "camp_existing", undefined, { orgId: "org-1" });
   });
 
   it("does not link an opportunity when opportunity_id is absent", async () => {

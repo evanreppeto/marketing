@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { type OutcomeStatus } from "@/domain";
 import { listOutcomes } from "@/lib/repos";
 
@@ -8,8 +8,8 @@ import { listOutcomes } from "@/lib/repos";
  *   GET /api/v1/arc/crm/outcomes?status=won&persona=...&company_id=...&limit=50
  */
 export async function GET(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? undefined;
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const outcomes = await listOutcomes({ status: status as OutcomeStatus | undefined, persona, companyId, limit });
+    const outcomes = await listOutcomes({ orgId: allowed.scope.orgId, status: status as OutcomeStatus | undefined, persona, companyId, limit });
     return ok({ outcomes });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list outcomes.", 502);

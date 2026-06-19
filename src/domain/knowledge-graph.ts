@@ -56,6 +56,7 @@ export const REFERENCEABLE_TABLES = [
   "outcomes",
   "campaigns",
   "campaign_assets",
+  "media_assets",
 ] as const;
 export type ReferenceableTable = (typeof REFERENCEABLE_TABLES)[number];
 

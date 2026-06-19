@@ -1,18 +1,43 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/auth/api-token", () => ({
+  checkAgentBearer: vi.fn(async () => ({
+    ok: true,
+    tokenSource: "database",
+    orgId: "org-2",
+    workspaceId: "20000000-0000-4000-8000-000000000002",
+  })),
+}));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    workspaceId: "10000000-0000-4000-8000-000000000001",
+    workspaceKey: "default",
+    role: "admin",
+  })),
+}));
+
+const storeGeneratedImage = vi.hoisted(() =>
+  vi.fn(async (objectPath: string) => {
+    return `https://cdn.example/storage/v1/object/public/campaign-media/${objectPath}`;
+  }),
+);
 const generateImage = vi.fn();
 vi.mock("@/lib/media", () => ({
   isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ generateImage }),
 }));
 vi.mock("@/lib/media/storage", () => ({
-  storeGeneratedImage: vi.fn(async () => "https://cdn.example/storage/v1/object/public/campaign-media/arc-generated/x.png"),
+  storeGeneratedImage,
 }));
 vi.mock("@/lib/settings/store", () => ({
   getAppSettings: async () => ({ imageModel: "", videoModel: "", markDefaultRoute: "fast" }),
 }));
 
 import { POST } from "./route";
+import { checkAgentBearer } from "@/lib/auth/api-token";
+
+const bearerMock = vi.mocked(checkAgentBearer);
 
 function req(authorization: string | undefined, body?: unknown) {
   return new Request("http://localhost/api/v1/arc/media/generate-image", {
@@ -36,7 +61,15 @@ function configure() {
 }
 
 beforeEach(() => {
+  bearerMock.mockReset();
+  bearerMock.mockResolvedValue({
+    ok: true,
+    tokenSource: "database",
+    orgId: "org-2",
+    workspaceId: "20000000-0000-4000-8000-000000000002",
+  });
   generateImage.mockReset();
+  storeGeneratedImage.mockClear();
   generateImage.mockResolvedValue({
     bytes: Buffer.from("x"),
     contentType: "image/png",
@@ -55,6 +88,7 @@ describe("POST /api/v1/arc/media/generate-image", () => {
   it("401 without a valid token, no generation", async () => {
     process.env.ARC_AGENT_API_TOKEN = "secret";
     process.env.ARC_MEDIA_ENABLED = "1";
+    bearerMock.mockResolvedValue({ ok: false, reason: "unauthorized", status: 401 });
     const res = await POST(req("Bearer wrong", { prompt: "x" }));
     expect(res.status).toBe(401);
     expect(generateImage).not.toHaveBeenCalled();
@@ -81,13 +115,18 @@ describe("POST /api/v1/arc/media/generate-image", () => {
     const json = await res.json();
     expect(json.media).toMatchObject({
       kind: "image",
-      url: "https://cdn.example/storage/v1/object/public/campaign-media/arc-generated/x.png",
+      url: expect.stringContaining("campaign-media/arc-generated/org-2/20000000-0000-4000-8000-000000000002/"),
       source: "ai_generated",
       format: "9:16",
       model: "gemini-2.5-flash-image",
     });
     expect(typeof json.objectPath).toBe("string");
-    expect(json.objectPath).toMatch(/^arc-generated\//);
+    expect(json.objectPath).toMatch(/^arc-generated\/org-2\/20000000-0000-4000-8000-000000000002\//);
+    expect(storeGeneratedImage).toHaveBeenCalledWith(
+      expect.stringMatching(/^arc-generated\/org-2\/20000000-0000-4000-8000-000000000002\/.+\.png$/),
+      Buffer.from("x"),
+      "image/png",
+    );
     // The prompt is hardened before the provider sees it: caller intent + no-text guard.
     const call = generateImage.mock.calls[0][0];
     expect(call.aspectRatio).toBe("9:16");

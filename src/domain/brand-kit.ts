@@ -326,6 +326,7 @@ export type ArcBusinessContext = {
   proofPoints: ProofPoint[];
   personas: PersonaDefinition[];
   guardrails: BrandKitGuardrails;
+  brainFacts: string[];
 };
 
 /**
@@ -336,6 +337,7 @@ export type ArcBusinessContext = {
 export function assembleArcContext(
   profile: BusinessProfile,
   personas: PersonaDefinition[],
+  brainFacts: string[] = [],
 ): ArcBusinessContext {
   const businessName = profile.displayName.trim().length > 0 ? profile.displayName.trim() : "the business";
   return {
@@ -349,5 +351,6 @@ export function assembleArcContext(
     proofPoints: profile.proofPoints,
     personas: personas.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
     guardrails: profile.guardrails,
+    brainFacts,
   };
 }

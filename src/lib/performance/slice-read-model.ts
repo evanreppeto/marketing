@@ -3,7 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { aggregateBySlice, type ResultRow, type SliceDimension, type SliceStat } from "@/domain";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-export type SliceFilter = { dimension?: SliceDimension; days?: number; persona?: string; channel?: string };
+export type SliceFilter = { dimension?: SliceDimension; days?: number; persona?: string; channel?: string; orgId?: string };
 
 /** PostgREST returns an embedded relation as an object (to-one) or array (to-many); normalize to one. */
 function embedOne<T>(value: unknown): T | null {
@@ -25,12 +25,15 @@ export async function getPerformanceBySlice(
   const days = filter.days ?? 90;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-  const { data, error } = await client
+  let query = client
     .from("campaign_results")
     .select(
       "channel, impressions, clicks, leads, jobs, won_revenue_cents, spend_cents, period_end, campaigns(persona), campaign_assets(asset_type, channel)",
     )
     .gte("period_end", since);
+  if (filter.orgId) query = query.eq("org_id", filter.orgId);
+
+  const { data, error } = await query;
   if (error || !data) return { dimension, slices: [] };
 
   const rows: ResultRow[] = (data as unknown as Array<Record<string, unknown>>).map((r) => {

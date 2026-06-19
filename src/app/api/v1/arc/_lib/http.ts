@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { checkAgentBearer } from "@/lib/auth/api-token";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
  * Shared guards + response helpers for the Arc Operations API
@@ -37,6 +38,103 @@ export function supabaseGuard(): NextResponse | null {
     },
     { status: 503 },
   );
+}
+
+export type ArcWorkspaceScope = {
+  orgId: string;
+  workspaceId: string;
+  source: "agent-token" | "legacy-env-token";
+};
+
+export type ArcGuardResult =
+  | { ok: true; scope: ArcWorkspaceScope }
+  | { ok: false; response: NextResponse };
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveWorkspaceIdForToken(orgId: string, workspaceIdOrKey: string): Promise<string | null> {
+  if (UUID_RE.test(workspaceIdOrKey)) {
+    return workspaceIdOrKey;
+  }
+
+  const { data, error } = await getSupabaseAdminClient()
+    .from("workspaces")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("key", workspaceIdOrKey)
+    .maybeSingle<{ id: string }>();
+
+  if (error || !data?.id) {
+    return null;
+  }
+
+  return data.id;
+}
+
+/**
+ * Bearer + Supabase guard that also resolves the workspace boundary for this
+ * Arc API request. DB-issued tokens are scoped directly; the legacy env token
+ * keeps the previous current-workspace fallback for local/dev compatibility.
+ */
+export async function arcGuard(request: Request): Promise<ArcGuardResult> {
+  const auth = await checkAgentBearer(request);
+  if (!auth.ok) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        auth.reason === "not_configured"
+          ? {
+              ok: false,
+              status: "not_configured",
+              message: "Set ARC_AGENT_API_TOKEN before using the Arc Operations API.",
+            }
+          : { ok: false, status: "unauthorized", message: "The Arc Operations API requires a valid bearer token." },
+        { status: auth.status },
+      ),
+    };
+  }
+
+  const supabaseDenied = supabaseGuard();
+  if (supabaseDenied) {
+    return { ok: false, response: supabaseDenied };
+  }
+
+  if (auth.tokenSource === "database") {
+    if (!auth.orgId || !auth.workspaceId) {
+      return {
+        ok: false,
+        response: fail("workspace_required", "The Arc token is not tied to an active workspace.", 409),
+      };
+    }
+
+    const workspaceId = await resolveWorkspaceIdForToken(auth.orgId, auth.workspaceId);
+    if (!workspaceId) {
+      return {
+        ok: false,
+        response: fail("workspace_required", "The Arc token is not tied to an active workspace.", 409),
+      };
+    }
+    return { ok: true, scope: { orgId: auth.orgId, workspaceId, source: "agent-token" } };
+  }
+
+  try {
+    const context = await getCurrentWorkspaceContext();
+    if (!context.workspaceId) {
+      return {
+        ok: false,
+        response: fail("workspace_required", "No active workspace is available for this Arc request.", 409),
+      };
+    }
+    return {
+      ok: true,
+      scope: { orgId: context.orgId, workspaceId: context.workspaceId, source: "legacy-env-token" },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      response: fail("workspace_required", error instanceof Error ? error.message : "No workspace is available.", 409),
+    };
+  }
 }
 
 /** Bearer + Supabase guard in one call (the common case). */

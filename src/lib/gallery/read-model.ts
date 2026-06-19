@@ -46,13 +46,13 @@ type DispatchRow = { campaign_id: string; status: string };
 type ResultRow = CampaignResultMetricRow & { campaign_id: string };
 
 /** Live (deployed) campaigns + their dispatch funnel + marketing metrics. */
-export async function getGalleryData(client?: SupabaseClient): Promise<GalleryData> {
+export async function getGalleryData(client?: SupabaseClient, orgId?: string): Promise<GalleryData> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
 
   try {
-    const list = await getCampaignWorkspaceList(client);
+    const list = await getCampaignWorkspaceList(client, "Arc", orgId);
     if (list.status === "unavailable") {
       return { status: "unavailable", message: list.message };
     }
@@ -65,16 +65,20 @@ export async function getGalleryData(client?: SupabaseClient): Promise<GalleryDa
     const supabase = client ?? getSupabaseAdminClient();
     const ids = live.map((campaign) => campaign.id);
 
-    const { data: dispatchData, error: dispatchError } = await supabase
+    let dispatchQuery = supabase
       .from("campaign_dispatches")
       .select("campaign_id,status")
       .in("campaign_id", ids);
+    if (orgId) dispatchQuery = dispatchQuery.eq("org_id", orgId);
+    const { data: dispatchData, error: dispatchError } = await dispatchQuery;
     if (dispatchError) throw new Error(`campaign_dispatches: ${dispatchError.message}`);
 
-    const { data: resultData, error: resultError } = await supabase
+    let resultQuery = supabase
       .from("campaign_results")
       .select("campaign_id,impressions,clicks,calls,forms,leads,jobs,won_revenue_cents,spend_cents")
       .in("campaign_id", ids);
+    if (orgId) resultQuery = resultQuery.eq("org_id", orgId);
+    const { data: resultData, error: resultError } = await resultQuery;
     if (resultError) throw new Error(`campaign_results: ${resultError.message}`);
 
     const dispatchByCampaign = new Map<string, DispatchRow[]>();

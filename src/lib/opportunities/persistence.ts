@@ -6,6 +6,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 
 export type PersistResult = { ok: true; count: number } | { ok: false; error: string };
 export type MutateResult = { ok: true } | { ok: false; error: string };
+export type OpportunityScope = { orgId: string };
 
 const NOT_CONFIGURED = "Supabase isn't configured, so opportunities can't be saved.";
 const OPEN_STATUSES = ["pending", "drafting", "drafted"];
@@ -60,26 +61,27 @@ async function setStatus(
   id: string,
   patch: Record<string, unknown>,
   client: SupabaseClient,
+  scope?: OpportunityScope,
 ): Promise<MutateResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const orgId = await getCurrentOrgId();
+  const orgId = scope?.orgId ?? await getCurrentOrgId();
   const { error } = await client.from("opportunities").update(patch).eq("org_id", orgId).eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
-export function dismissOpportunity(id: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  return setStatus(id, { status: "dismissed", dismissed_at: new Date().toISOString() }, client);
+export function dismissOpportunity(id: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+  return setStatus(id, { status: "dismissed", dismissed_at: new Date().toISOString() }, client, scope);
 }
 
-export function snoozeOpportunity(id: string, untilIso: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  return setStatus(id, { status: "snoozed", snoozed_until: untilIso }, client);
+export function snoozeOpportunity(id: string, untilIso: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+  return setStatus(id, { status: "snoozed", snoozed_until: untilIso }, client, scope);
 }
 
-export function markOpportunityDrafting(id: string, agentTaskId: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  return setStatus(id, { status: "drafting", agent_task_id: agentTaskId }, client);
+export function markOpportunityDrafting(id: string, agentTaskId: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+  return setStatus(id, { status: "drafting", agent_task_id: agentTaskId }, client, scope);
 }
 
-export function markOpportunityDrafted(id: string, campaignId: string, client: SupabaseClient = getSupabaseAdminClient()) {
-  return setStatus(id, { status: "drafted", campaign_id: campaignId }, client);
+export function markOpportunityDrafted(id: string, campaignId: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+  return setStatus(id, { status: "drafted", campaign_id: campaignId }, client, scope);
 }

@@ -15,6 +15,7 @@ describe("createApprovalDraft (safety)", () => {
     const result = await createApprovalDraft(
       { itemType: "partner_outreach", draft: "Draft outreach copy", riskLevel: "low" },
       supabase,
+      { orgId: "org-1", workspaceId: "workspace-1" },
     );
 
     expect(result).toMatchObject({ ok: true, approvalItemId: "ap-1", agentOutputId: null });
@@ -23,6 +24,7 @@ describe("createApprovalDraft (safety)", () => {
     expect(payload.locked_until_approved).toBe(true);
     expect(payload.approval_required).toBe(true);
     expect(payload.risk_level).toBe("low");
+    expect(payload.org_id).toBe("org-1");
     // No decision ledger, no campaign launch/dispatch touched.
     expect(supabase.calls).not.toContainEqual(["from", "approval_decisions"]);
     expect(supabase.calls).not.toContainEqual(["from", "campaign_dispatches"]);
@@ -48,12 +50,14 @@ describe("createApprovalDraft (safety)", () => {
     const result = await createApprovalDraft(
       { itemType: "campaign_copy", draft: "body", taskId: "task-1" },
       supabase,
+      { orgId: "org-1", workspaceId: "workspace-1" },
     );
 
     expect(result.agentOutputId).toBe("out-3");
     const outputInsert = insertCalls(supabase).find(([, p]) => "task_id" in p);
     expect(outputInsert?.[1].approval_status).toBe("pending_approval");
     expect(outputInsert?.[1].compliance_status).toBe("pending_approval");
+    expect(outputInsert?.[1].org_id).toBe("org-1");
   });
 
   it("redacts secrets in the draft body before storing", async () => {

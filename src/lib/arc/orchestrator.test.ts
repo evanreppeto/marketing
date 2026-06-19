@@ -16,9 +16,12 @@ const TEST_CONTEXT: ArcBusinessContext = {
   proofPoints: [],
   personas: [],
   guardrails: { disallowedClaims: [], complianceNotes: "Coverage-neutral language required." },
+  brainFacts: [],
 };
 
 type InsertArg = {
+  org_id?: string;
+  workspace_id?: string;
   channel?: string;
   asset_type?: string;
   dispatch_locked?: boolean;
@@ -38,6 +41,7 @@ describe("runArcPartnerCampaign creativeAssets", () => {
       },
       supabase,
       TEST_CONTEXT,
+      { org_id: "org-1", workspace_id: "workspace-1" },
     );
 
     const inserts = supabase.calls.filter(([method]) => method === "insert").map(([, arg]) => arg as InsertArg);
@@ -58,5 +62,23 @@ describe("runArcPartnerCampaign creativeAssets", () => {
       expect(arg).not.toHaveProperty("dispatch_locked", false);
     }
     expect(image?.dispatch_locked).toBe(true);
+  });
+
+  it("stamps generated campaign, approval, output, and task rows with the Arc token tenant", async () => {
+    const supabase = createSupabaseQueryMock({});
+
+    await runArcPartnerCampaign(
+      {},
+      supabase,
+      TEST_CONTEXT,
+      { org_id: "org-1", workspace_id: "workspace-1" },
+    );
+
+    const inserts = supabase.calls.filter(([method]) => method === "insert").map(([, arg]) => arg as InsertArg);
+    const tenantOwnedRows = inserts.filter((arg) => "org_id" in arg);
+
+    expect(tenantOwnedRows.length).toBeGreaterThan(0);
+    expect(tenantOwnedRows.every((arg) => arg.org_id === "org-1")).toBe(true);
+    expect(tenantOwnedRows.some((arg) => arg.workspace_id === "workspace-1")).toBe(true);
   });
 });

@@ -28,7 +28,6 @@ export async function SettingsHome() {
   const connections = await getConnections();
   const emailReady = connections.some((connection) => connection.kind === "email" && connection.status === "connected");
   const socialReady = connections.some((connection) => connection.kind === "social" && connection.status === "connected");
-  const hasLogo = Boolean(settings.brandLogoUrl);
   const hasSupport = Boolean(settings.supportEmail || getSupportContactEmail(settings));
   const hasBehavior =
     settings.assistantTone !== "direct" ||
@@ -39,11 +38,18 @@ export async function SettingsHome() {
 
   const cards: HomeCard[] = [
     {
-      title: "Branding",
-      detail: hasLogo ? "Logo and names are customized." : "Names are set. Add a logo when you want the app to feel fully yours.",
+      title: "Workspace & product",
+      detail: "Product label, assistant name, and workspace type.",
       href: "/settings?section=branding",
-      action: hasLogo ? "Review branding" : "Add logo",
+      action: "Review setup",
       done: Boolean(settings.workspaceName && settings.productLabel && settings.assistantName),
+    },
+    {
+      title: "Company brand",
+      detail: "Business identity, voice, proof, rules, and source documents live in the Brand workspace.",
+      href: "/brand",
+      action: "Open Brand",
+      done: true,
     },
     {
       title: "Appearance",

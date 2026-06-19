@@ -1,4 +1,4 @@
-import { fail, guard, ok } from "@/app/api/v1/arc/_lib/http";
+import { arcGuard, fail, ok } from "@/app/api/v1/arc/_lib/http";
 import { type LeadStatus } from "@/domain";
 import { listLeads } from "@/lib/repos";
 
@@ -8,8 +8,8 @@ import { listLeads } from "@/lib/repos";
  *   GET /api/v1/arc/crm/leads?status=qualified&persona=...&source=...&limit=50
  */
 export async function GET(request: Request) {
-  const denied = await guard(request);
-  if (denied) return denied;
+  const allowed = await arcGuard(request);
+  if (!allowed.ok) return allowed.response;
 
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? undefined;
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   const limit = Number.isInteger(limitParam) && limitParam > 0 ? limitParam : undefined;
 
   try {
-    const leads = await listLeads({ status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
+    const leads = await listLeads({ orgId: allowed.scope.orgId, status: status as LeadStatus | undefined, persona, source, q, minScore, maxScore, limit });
     return ok({ leads });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list leads.", 502);

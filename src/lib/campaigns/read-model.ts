@@ -441,7 +441,7 @@ export async function listCampaignNames(client?: SupabaseClient): Promise<Campai
   }
 }
 
-export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Arc"): Promise<CampaignWorkspaceList> {
+export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Arc", orgId?: string): Promise<CampaignWorkspaceList> {
   if (!client && !isSupabaseAdminConfigured()) {
     // Local preview has no database. Rather than show an empty "unavailable"
     // shell, render a realistic, read-only campaign library so the workspace
@@ -451,14 +451,18 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
 
   try {
     const supabase = client ?? getSupabaseAdminClient();
-    const { data, error } = await supabase.from("campaigns").select(CAMPAIGN_SELECT).order("updated_at", { ascending: false }).limit(100);
+    const resolvedOrgId = orgId;
+    const { data, error } = await applyOrgScope(
+      supabase.from("campaigns").select(CAMPAIGN_SELECT),
+      resolvedOrgId,
+    ).order("updated_at", { ascending: false }).limit(100);
     assertSupabaseResult("campaigns", error);
 
     const campaigns = (data ?? []) as CampaignRow[];
     const campaignIds = campaigns.map((campaign) => campaign.id);
     const [assets, approvals] = await Promise.all([
-      selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at"),
-      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at"),
+      selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", campaignIds, "updated_at", resolvedOrgId),
+      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", campaignIds, "submitted_at", resolvedOrgId),
     ]);
     const approvalOutputs = await selectIn<AgentOutputRow>(
       supabase,
@@ -467,6 +471,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
       "approval_item_id",
       approvals.map((approval) => approval.id),
       "created_at",
+      resolvedOrgId,
     );
     const mediaByCampaign = buildMediaByCampaign(campaigns, assets, approvals, approvalOutputs, agentName);
     const sourceCountByCampaign = buildSourceCountByCampaign(campaigns, approvals, approvalOutputs);
@@ -1430,6 +1435,7 @@ export async function getCampaignWorkspaceDetail(
   campaignId: string,
   client?: SupabaseClient,
   agentName = "Arc",
+  orgId?: string,
 ): Promise<CampaignWorkspaceDetail> {
   if (!client && !isSupabaseAdminConfigured()) {
     // Local preview has no database. Build the same rich review workspace from
@@ -1442,7 +1448,11 @@ export async function getCampaignWorkspaceDetail(
 
   try {
     const supabase = client ?? getSupabaseAdminClient();
-    const { data, error } = await supabase.from("campaigns").select(CAMPAIGN_SELECT).eq("id", campaignId).maybeSingle();
+    const resolvedOrgId = orgId;
+    const { data, error } = await applyOrgScope(
+      supabase.from("campaigns").select(CAMPAIGN_SELECT).eq("id", campaignId),
+      resolvedOrgId,
+    ).maybeSingle();
     assertSupabaseResult("campaigns", error);
 
     if (!data) {
@@ -1451,28 +1461,28 @@ export async function getCampaignWorkspaceDetail(
 
     const campaign = data as CampaignRow;
     const [assets, events, agentTasks] = await Promise.all([
-      selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", [campaignId], "updated_at"),
-      selectIn<CampaignEventRow>(supabase, "campaign_events", "id,event_type,actor,detail,occurred_at", "campaign_id", [campaignId], "occurred_at"),
-      selectIn<AgentTaskRow>(supabase, "agent_tasks", AGENT_TASK_SELECT, "campaign_id", [campaignId], "created_at"),
+      selectIn<CampaignAssetRow>(supabase, "campaign_assets", ASSET_SELECT, "campaign_id", [campaignId], "updated_at", resolvedOrgId),
+      selectIn<CampaignEventRow>(supabase, "campaign_events", "id,event_type,actor,detail,occurred_at", "campaign_id", [campaignId], "occurred_at", resolvedOrgId),
+      selectIn<AgentTaskRow>(supabase, "agent_tasks", AGENT_TASK_SELECT, "campaign_id", [campaignId], "created_at", resolvedOrgId),
     ]);
     const assetIds = assets.map((asset) => asset.id);
     const [campaignApprovals, assetApprovals] = await Promise.all([
-      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", [campaignId], "submitted_at"),
-      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_asset_id", assetIds, "submitted_at"),
+      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_id", [campaignId], "submitted_at", resolvedOrgId),
+      selectIn<ApprovalItemRow>(supabase, "approval_items", APPROVAL_SELECT, "campaign_asset_id", assetIds, "submitted_at", resolvedOrgId),
     ]);
     const approvals = uniqueById([...campaignApprovals, ...assetApprovals]);
     const approvalIds = approvals.map((approval) => approval.id);
     const [assetOutputs, approvalOutputs] = await Promise.all([
-      selectIn<AgentOutputRow>(supabase, "agent_outputs", OUTPUT_SELECT, "campaign_asset_id", assetIds, "created_at"),
-      selectIn<AgentOutputRow>(supabase, "agent_outputs", OUTPUT_SELECT, "approval_item_id", approvalIds, "created_at"),
+      selectIn<AgentOutputRow>(supabase, "agent_outputs", OUTPUT_SELECT, "campaign_asset_id", assetIds, "created_at", resolvedOrgId),
+      selectIn<AgentOutputRow>(supabase, "agent_outputs", OUTPUT_SELECT, "approval_item_id", approvalIds, "created_at", resolvedOrgId),
     ]);
     const outputs = uniqueById([...assetOutputs, ...approvalOutputs]);
-    const decisions = await selectIn<ApprovalDecisionRow>(supabase, "approval_decisions", DECISION_SELECT, "approval_item_id", approvalIds, "decided_at");
+    const decisions = await selectIn<ApprovalDecisionRow>(supabase, "approval_decisions", DECISION_SELECT, "approval_item_id", approvalIds, "decided_at", resolvedOrgId);
     const relatedIds = collectRelatedIds(campaign, approvals);
     const [companies, contacts, leads] = await Promise.all([
-      selectIn<CompanyRow>(supabase, "companies", "id,name,website_url,phone,email,partner_tier", "id", relatedIds.companyIds),
-      selectIn<ContactRow>(supabase, "contacts", "id,full_name,email,phone,title", "id", relatedIds.contactIds),
-      selectIn<LeadRow>(supabase, "leads", "id,source,status,loss_summary,lead_score,metadata", "id", relatedIds.leadIds),
+      selectIn<CompanyRow>(supabase, "companies", "id,name,website_url,phone,email,partner_tier", "id", relatedIds.companyIds, undefined, resolvedOrgId),
+      selectIn<ContactRow>(supabase, "contacts", "id,full_name,email,phone,title", "id", relatedIds.contactIds, undefined, resolvedOrgId),
+      selectIn<LeadRow>(supabase, "leads", "id,source,status,loss_summary,lead_score,metadata", "id", relatedIds.leadIds, undefined, resolvedOrgId),
     ]);
 
     const assetsView = addPreviewCampaignPieces(campaignId, buildWorkspaceAssets(assets, approvals, outputs, agentName), campaign.updated_at);
@@ -2339,11 +2349,12 @@ export async function selectIn<T>(
   column: string,
   values: string[],
   orderBy?: string,
+  orgId?: string,
 ): Promise<T[]> {
   const uniqueValues = [...new Set(values.filter(Boolean))];
   if (uniqueValues.length === 0) return [];
 
-  let query = client.from(table).select(columns).in(column, uniqueValues);
+  let query = applyOrgScope(client.from(table).select(columns).in(column, uniqueValues), orgId);
   if (orderBy) {
     query = query.order(orderBy, { ascending: false });
   }
@@ -2351,6 +2362,11 @@ export async function selectIn<T>(
   const { data, error } = await query;
   assertSupabaseResult(table, error);
   return (data ?? []) as T[];
+}
+
+function applyOrgScope<Query>(query: Query, orgId?: string): Query {
+  if (!orgId) return query;
+  return (query as { eq(column: string, value: string): Query }).eq("org_id", orgId);
 }
 
 function collectRelatedIds(campaign: CampaignRow, approvals: ApprovalItemRow[]) {

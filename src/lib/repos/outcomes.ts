@@ -8,6 +8,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListOutcomesFilter = {
+  orgId?: string;
   status?: OutcomeStatus;
   persona?: string;
   companyId?: string;
@@ -18,7 +19,7 @@ export async function listOutcomes(
   filter: ListOutcomesFilter = {},
   client?: SupabaseClient,
 ): Promise<Outcome[]> {
-  const orgId = client ? null : await getCurrentOrgId();
+  const orgId = filter.orgId ?? (client ? null : await getCurrentOrgId());
   const supabase = client ?? getSupabaseAdminClient();
   let query = supabase.from("outcomes").select("*");
 

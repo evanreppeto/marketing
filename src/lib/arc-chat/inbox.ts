@@ -33,8 +33,18 @@ type TaskRow = {
   retry_count?: number | null;
 };
 
+export type ArcChatTaskScope = { orgId: string; workspaceId: string };
+
 function assertOk(label: string, error: { message: string } | null) {
   if (error) throw new Error(`${label} failed: ${error.message}`);
+}
+
+function applyScope<Query>(query: Query, scope?: ArcChatTaskScope): Query {
+  if (!scope) return query;
+  type EqQuery = { eq(column: string, value: string): EqQuery };
+  return (query as unknown as EqQuery)
+    .eq("org_id", scope.orgId)
+    .eq("workspace_id", scope.workspaceId) as unknown as Query;
 }
 
 function toInboxItem(row: TaskRow): ChatInboxItem {
@@ -58,12 +68,16 @@ function toInboxItem(row: TaskRow): ChatInboxItem {
 export async function listQueuedChatTasks(
   limit = 20,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcChatTaskScope,
 ): Promise<ChatInboxItem[]> {
-  const { data, error } = await client
-    .from("agent_tasks")
-    .select("id, objective, metadata, created_at")
-    .eq("task_type", "arc_chat_message")
-    .eq("status", "queued")
+  const { data, error } = await applyScope(
+    client
+      .from("agent_tasks")
+      .select("id, objective, metadata, created_at")
+      .eq("task_type", "arc_chat_message")
+      .eq("status", "queued"),
+    scope,
+  )
     .order("created_at", { ascending: true })
     .limit(limit);
   assertOk("agent_tasks inbox list", error);
@@ -79,12 +93,16 @@ export async function listQueuedChatTasks(
 export async function claimChatTask(
   agentTaskId: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcChatTaskScope,
 ): Promise<boolean> {
-  const { data, error } = await client
-    .from("agent_tasks")
-    .update({ status: "running", started_at: new Date().toISOString() })
-    .eq("id", agentTaskId)
-    .eq("status", "queued")
+  const { data, error } = await applyScope(
+    client
+      .from("agent_tasks")
+      .update({ status: "running", started_at: new Date().toISOString() })
+      .eq("id", agentTaskId)
+      .eq("status", "queued"),
+    scope,
+  )
     .select("id")
     .maybeSingle<{ id: string }>();
   assertOk("agent_tasks claim", error);
@@ -104,6 +122,7 @@ export async function claimChatTask(
 export async function reclaimStaleChatTasks(
   opts: { staleMs?: number; maxRetries?: number; limit?: number; agentName?: string } = {},
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcChatTaskScope,
 ): Promise<ChatInboxItem[]> {
   const staleMs = opts.staleMs ?? STALE_RUNNING_MS;
   const maxRetries = opts.maxRetries ?? MAX_CHAT_RETRIES;
@@ -111,12 +130,15 @@ export async function reclaimStaleChatTasks(
   const agentName = opts.agentName?.trim() || "Agent";
   const cutoff = new Date(Date.now() - staleMs).toISOString();
 
-  const { data, error } = await client
-    .from("agent_tasks")
-    .select("id, objective, metadata, created_at, retry_count")
-    .eq("task_type", "arc_chat_message")
-    .eq("status", "running")
-    .lt("started_at", cutoff)
+  const { data, error } = await applyScope(
+    client
+      .from("agent_tasks")
+      .select("id, objective, metadata, created_at, retry_count")
+      .eq("task_type", "arc_chat_message")
+      .eq("status", "running")
+      .lt("started_at", cutoff),
+    scope,
+  )
     .order("created_at", { ascending: true })
     .limit(limit);
   assertOk("agent_tasks stale list", error);
@@ -127,7 +149,7 @@ export async function reclaimStaleChatTasks(
 
     if (retries >= maxRetries) {
       // Out of retries — fail the task and its pending bubble, best-effort.
-      await settleChatTask(row.id, "failed", client).catch(() => undefined);
+      await settleChatTask(row.id, "failed", client, scope).catch(() => undefined);
       const pending = await findPendingMessageByTask(row.id, client).catch(() => null);
       if (pending) {
         await failArcMessage(
@@ -138,12 +160,15 @@ export async function reclaimStaleChatTasks(
       continue;
     }
 
-    const { data: claimed, error: claimError } = await client
-      .from("agent_tasks")
-      .update({ started_at: new Date().toISOString(), retry_count: retries + 1 })
-      .eq("id", row.id)
-      .eq("status", "running")
-      .lt("started_at", cutoff)
+    const { data: claimed, error: claimError } = await applyScope(
+      client
+        .from("agent_tasks")
+        .update({ started_at: new Date().toISOString(), retry_count: retries + 1 })
+        .eq("id", row.id)
+        .eq("status", "running")
+        .lt("started_at", cutoff),
+      scope,
+    )
       .select("id")
       .maybeSingle<{ id: string }>();
     assertOk("agent_tasks reclaim", claimError);
@@ -158,7 +183,8 @@ export async function settleChatTask(
   agentTaskId: string,
   status: "completed" | "failed" = "completed",
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcChatTaskScope,
 ): Promise<void> {
-  const { error } = await client.from("agent_tasks").update({ status }).eq("id", agentTaskId);
+  const { error } = await applyScope(client.from("agent_tasks").update({ status }).eq("id", agentTaskId), scope);
   assertOk("agent_tasks settle", error);
 }

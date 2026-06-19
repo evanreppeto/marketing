@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/arc-api", () => ({ createApprovalDraft: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    workspaceId: "workspace-1",
+  })),
+}));
 
 import { createApprovalDraft } from "@/lib/arc-api";
 
@@ -62,6 +68,8 @@ describe("POST /api/v1/arc/drafts", () => {
     expect((await res.json()).status).toBe("drafted");
     expect(createDraftMock).toHaveBeenCalledWith(
       expect.objectContaining({ itemType: "partner_outreach", draft: "copy" }),
+      undefined,
+      { orgId: "org-1", workspaceId: "workspace-1" },
     );
   });
 });

@@ -34,13 +34,13 @@ describe("checkBearerToken (required, default — agent endpoints)", () => {
 
   it("accepts a matching bearer token", () => {
     process.env[ENV] = "secret";
-    expect(checkBearerToken(req("Bearer secret"), ENV)).toEqual({ ok: true });
+    expect(checkBearerToken(req("Bearer secret"), ENV)).toEqual({ ok: true, tokenSource: "env" });
   });
 });
 
 describe("checkBearerToken (required: false — public-ish intake)", () => {
   it("allows the request when no token is configured (back-compat)", () => {
-    expect(checkBearerToken(req(undefined), ENV, { required: false })).toEqual({ ok: true });
+    expect(checkBearerToken(req(undefined), ENV, { required: false })).toEqual({ ok: true, tokenSource: "env" });
   });
 
   it("enforces the token once it IS configured", () => {
@@ -50,6 +50,6 @@ describe("checkBearerToken (required: false — public-ish intake)", () => {
       status: 401,
       reason: "unauthorized",
     });
-    expect(checkBearerToken(req("Bearer secret"), ENV, { required: false })).toEqual({ ok: true });
+    expect(checkBearerToken(req("Bearer secret"), ENV, { required: false })).toEqual({ ok: true, tokenSource: "env" });
   });
 });

@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   getOperatorActor: vi.fn(),
   getSupabaseAdminClient: vi.fn(),
   isSupabaseAdminConfigured: vi.fn(),
+  getCurrentAgentTaskTenantFields: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
@@ -40,6 +41,10 @@ vi.mock("@/lib/supabase/server", () => ({
   isSupabaseAdminConfigured: mocks.isSupabaseAdminConfigured,
 }));
 
+vi.mock("@/lib/agent-tasks/scope", () => ({
+  getCurrentAgentTaskTenantFields: mocks.getCurrentAgentTaskTenantFields,
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: mocks.revalidatePath,
 }));
@@ -50,11 +55,15 @@ describe("task detail actions", () => {
     mocks.requireOperator.mockResolvedValue(undefined);
     mocks.getOperatorActor.mockReturnValue("owner@example.com");
     mocks.isSupabaseAdminConfigured.mockReturnValue(true);
+    mocks.getCurrentAgentTaskTenantFields.mockResolvedValue({ org_id: "org-1", workspace_id: "workspace-1" });
   });
 
   it("updates an editable task field and writes a property_changed event", async () => {
     const supabase = mockSupabase({
-      agent_tasks: { data: null, error: null },
+      agent_tasks: [
+        { data: { id: "task-1" }, error: null },
+        { data: null, error: null },
+      ],
       agent_task_events: { data: null, error: null },
     });
 
@@ -62,8 +71,11 @@ describe("task detail actions", () => {
 
     expect(result).toEqual({ ok: true });
     expect(supabase.calls).toContainEqual(["from", "agent_tasks"]);
+    expect(supabase.calls).toContainEqual(["select", "id"]);
     expect(supabase.calls).toContainEqual(["update", { priority: "high" }]);
     expect(supabase.calls).toContainEqual(["eq", "id", "task-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
     expect(eventInsertPayload(supabase)).toMatchObject({
       task_id: "task-1",
       actor_kind: "human",
@@ -77,6 +89,22 @@ describe("task detail actions", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/agent-operations");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/board");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("does not update or write an event when the task is outside the current workspace", async () => {
+    const supabase = mockSupabase({
+      agent_tasks: { data: null, error: null },
+      agent_task_events: { data: null, error: null },
+    });
+
+    const result = await updateTaskFieldAction("task-1", { field: "priority", value: "high" });
+
+    expect(result).toEqual({ ok: false, message: "Task no longer exists." });
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
+    expect(supabase.calls.some((call) => call[0] === "update")).toBe(false);
+    expect(supabase.calls.some((call) => call[0] === "insert")).toBe(false);
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("rejects unsafe field names before updating", async () => {
@@ -110,6 +138,7 @@ describe("task detail actions", () => {
 
   it("adds a human instruction event", async () => {
     const supabase = mockSupabase({
+      agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_events: { data: null, error: null },
     });
 
@@ -119,6 +148,9 @@ describe("task detail actions", () => {
     });
 
     expect(result).toEqual({ ok: true });
+    expect(supabase.calls).toContainEqual(["from", "agent_tasks"]);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
     expect(eventInsertPayload(supabase)).toMatchObject({
       task_id: "task-1",
       actor_kind: "human",
@@ -144,18 +176,21 @@ describe("task detail actions", () => {
 
   it("updates acceptance criteria metadata and writes an event", async () => {
     const supabase = mockSupabase({
-      agent_tasks: {
-        data: {
-          metadata: {
-            risk_level: "medium",
-            acceptance_criteria: [
-              { id: "ac-1", label: "Partner-facing copy is approved", completed: false },
-              { id: "ac-2", label: "Outbound remains locked", completed: false },
-            ],
+      agent_tasks: [
+        {
+          data: {
+            metadata: {
+              risk_level: "medium",
+              acceptance_criteria: [
+                { id: "ac-1", label: "Partner-facing copy is approved", completed: false },
+                { id: "ac-2", label: "Outbound remains locked", completed: false },
+              ],
+            },
           },
+          error: null,
         },
-        error: null,
-      },
+        { data: null, error: null },
+      ],
       agent_task_events: { data: null, error: null },
     });
 
@@ -164,6 +199,8 @@ describe("task detail actions", () => {
     expect(result).toEqual({ ok: true });
     expect(supabase.calls).toContainEqual(["select", "metadata"]);
     expect(supabase.calls).toContainEqual(["eq", "id", "task-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
     expect(supabase.calls).toContainEqual(["update", {
       metadata: {
         risk_level: "medium",

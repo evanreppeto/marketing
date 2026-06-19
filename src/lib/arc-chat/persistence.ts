@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { type ArcActionCard, type ArcMedia, type ArcMention, type ArcMode, type ArcQuestion, type ArcRoute, parseActions, parseMedia, parseMentions, parseQuestions } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
+import { type ArcChatTaskScope } from "./inbox";
 
 export type ArcConversation = {
   id: string;
@@ -226,6 +227,28 @@ function parseOptionalRoute(value: unknown): ArcRoute | undefined {
 
 function assertOk(label: string, error: { message: string } | null) {
   if (error) throw new Error(`${label} failed: ${error.message}`);
+}
+
+function applyTaskScope<Query>(query: Query, scope?: ArcChatTaskScope): Query {
+  if (!scope) return query;
+  type EqQuery = { eq(column: string, value: string): EqQuery };
+  return (query as unknown as EqQuery)
+    .eq("org_id", scope.orgId)
+    .eq("workspace_id", scope.workspaceId) as unknown as Query;
+}
+
+async function taskBelongsToScope(
+  agentTaskId: string,
+  client: SupabaseClient,
+  scope?: ArcChatTaskScope,
+): Promise<boolean> {
+  if (!scope) return true;
+  const { data, error } = await applyTaskScope(
+    client.from("agent_tasks").select("id").eq("id", agentTaskId),
+    scope,
+  ).maybeSingle<{ id: string }>();
+  assertOk("agent_tasks scope lookup", error);
+  return Boolean(data);
 }
 
 export async function listConversations(
@@ -530,7 +553,12 @@ export async function insertFailedArcMessage(
 export async function findPendingMessageByTask(
   agentTaskId: string,
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcChatTaskScope,
 ): Promise<ArcMessage | null> {
+  if (!(await taskBelongsToScope(agentTaskId, client, scope))) {
+    return null;
+  }
+
   const { data, error } = await client
     .from("arc_messages")
     .select(MESSAGE_COLUMNS)
@@ -664,6 +692,14 @@ export async function renameProject(
   assertOk("arc_projects rename", error);
 }
 
+export async function deleteProject(
+  id: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client.from("arc_projects").delete().eq("id", id);
+  assertOk("arc_projects delete", error);
+}
+
 export async function assignConversationToProject(
   conversationId: string,
   projectId: string | null,
@@ -766,7 +802,12 @@ export function mergeStep(steps: ArcStep[], step: ArcStep): ArcStep[] {
 export async function appendArcStep(
   input: { agentTaskId: string; label: string; status: "running" | "done"; at: string },
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcChatTaskScope,
 ): Promise<boolean> {
+  if (!(await taskBelongsToScope(input.agentTaskId, client, scope))) {
+    return false;
+  }
+
   const { data, error } = await client
     .from("arc_messages")
     .select("id, metadata")

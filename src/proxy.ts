@@ -7,6 +7,7 @@ import {
   getSafeOperatorReturnPath,
   isValidOperatorValue,
 } from "@/lib/auth/operator-shared";
+import { getWorkspaceAccessDecision } from "@/lib/auth/route-protection";
 import { type Database } from "@/lib/supabase/database.types";
 
 async function getSupabaseProxySession(request: NextRequest) {
@@ -29,12 +30,32 @@ async function getSupabaseProxySession(request: NextRequest) {
   const { data, error } = await supabase.auth.getUser();
   return {
     response,
+    supabase,
     user: error ? null : data.user,
   };
 }
 
+async function hasActiveWorkspaceMembership(supabase: Awaited<ReturnType<typeof createServerClient<Database>>>, userId: string) {
+  const { data, error } = await supabase
+    .from("workspace_memberships")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return false;
+  return Boolean(data);
+}
+
 function redirectToLogin(request: NextRequest) {
   const url = new URL("/login", request.url);
+  url.searchParams.set("from", getSafeOperatorReturnPath(`${request.nextUrl.pathname}${request.nextUrl.search}`));
+  return NextResponse.redirect(url);
+}
+
+function redirectToOnboarding(request: NextRequest) {
+  const url = new URL("/onboarding", request.url);
   url.searchParams.set("from", getSafeOperatorReturnPath(`${request.nextUrl.pathname}${request.nextUrl.search}`));
   return NextResponse.redirect(url);
 }
@@ -48,12 +69,16 @@ export async function proxy(request: NextRequest) {
   }
 
   if (authMode === "supabase") {
-    const { response, user } = await getSupabaseProxySession(request);
+    const { response, supabase, user } = await getSupabaseProxySession(request);
+    const hasWorkspace = user ? await hasActiveWorkspaceMembership(supabase, user.id) : false;
+    const decision = getWorkspaceAccessDecision({
+      hasWorkspace,
+      isSignedIn: Boolean(user),
+      pathname: request.nextUrl.pathname,
+    });
 
-    if (user) {
-      return response;
-    }
-
+    if (decision.action === "allow") return response;
+    if (decision.action === "onboarding") return redirectToOnboarding(request);
     return redirectToLogin(request);
   }
 

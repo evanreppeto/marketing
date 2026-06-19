@@ -4,7 +4,6 @@ import { AgentBehaviorSettings } from "./agent-behavior-settings";
 import { AgentPanel } from "./agent-panel";
 import { AppearanceSettings } from "./appearance-settings";
 import { BrandingSettings } from "./branding-settings";
-import { BrandKitSettings } from "./brand-kit-settings";
 import { ConnectionsPanel } from "./connections-panel";
 import { GeneralSettings } from "./general-settings";
 import { MediaModelsSettings } from "./media-models-settings";
@@ -13,6 +12,7 @@ import { SettingsShell } from "./settings-shell";
 import { SettingsHome } from "./settings-home";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "./settings-sections";
 import { SystemStatus } from "./system-status";
+import { WorkspaceTeamSettings } from "./workspace-team-settings";
 
 function activeSection(value: string | string[] | undefined): SettingsSectionId {
   const section = Array.isArray(value) ? value[0] : value;
@@ -41,10 +41,10 @@ export default async function SettingsPage({
             home: <SettingsHome />,
             general: <GeneralSettings />,
             branding: <BrandingSettings />,
-            "brand-kit": <BrandKitSettings />,
             appearance: <AppearanceSettings />,
             behavior: <AgentBehaviorSettings />,
             media: <MediaModelsSettings />,
+            workspace: <WorkspaceTeamSettings />,
             account: <AccountSettings />,
             connections: <ConnectionsPanel />,
             agent: <AgentPanel />,

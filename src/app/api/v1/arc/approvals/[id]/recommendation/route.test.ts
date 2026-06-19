@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/arc-api", () => ({ addApprovalRecommendation: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({
+    orgId: "org-1",
+    workspaceId: "workspace-1",
+  })),
+}));
 
 import { addApprovalRecommendation } from "@/lib/arc-api";
 
@@ -72,6 +78,8 @@ describe("POST /api/v1/arc/approvals/:id/recommendation (safety)", () => {
     // there is no approve/launch/send path reachable from here.
     expect(addRecommendationMock).toHaveBeenCalledWith(
       expect.objectContaining({ approvalItemId: "ap1", recommendation: "Tighten the CTA." }),
+      undefined,
+      { orgId: "org-1", workspaceId: "workspace-1" },
     );
   });
 

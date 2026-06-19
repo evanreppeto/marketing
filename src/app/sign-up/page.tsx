@@ -70,7 +70,7 @@ export default async function SignUpRoute({
 
   return (
     <SignUpPage
-      canCreateAccount={authMode === "supabase"}
+      canCreateAccount={authMode === "supabase" || showPreview}
       errorMessage={getSignUpErrorMessage(query.error)}
       from={from}
       showSocialAuth={authMode === "supabase"}

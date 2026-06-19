@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock, type MockSupabase } from "@/lib/repos/__tests__/test-helpers";
 
-import { createProject, assignConversationToProject, unarchiveConversation } from "./persistence";
+import { createProject, assignConversationToProject, deleteProject, unarchiveConversation } from "./persistence";
 
 function calls(supabase: MockSupabase, method: string): Array<Record<string, unknown>> {
   return supabase.calls.filter(([m]) => m === method).map(([, arg]) => arg as Record<string, unknown>);
@@ -28,6 +28,13 @@ describe("mark projects / archive persistence", () => {
     const supabase = createSupabaseQueryMock({ arc_conversations: { data: null, error: null } });
     await assignConversationToProject("c1", null, supabase);
     expect(calls(supabase, "update")[0]).toMatchObject({ project_id: null });
+  });
+
+  it("deleteProject hard-deletes the project row", async () => {
+    const supabase = createSupabaseQueryMock({ arc_projects: { data: null, error: null } });
+    await deleteProject("p1", supabase);
+    expect(supabase.calls).toContainEqual(["delete"]);
+    expect(supabase.calls).toContainEqual(["eq", "id", "p1"]);
   });
 
   it("unarchiveConversation sets status back to active", async () => {

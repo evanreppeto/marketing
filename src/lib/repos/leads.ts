@@ -8,6 +8,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 type PersonaMapping = Database["public"]["Enums"]["persona_mapping"];
 
 export type ListLeadsFilter = {
+  orgId?: string;
   status?: LeadStatus;
   persona?: string;
   source?: string;
@@ -23,7 +24,7 @@ export async function listLeads(
   filter: ListLeadsFilter = {},
   client?: SupabaseClient,
 ): Promise<Lead[]> {
-  const orgId = client ? null : await getCurrentOrgId();
+  const orgId = filter.orgId ?? (client ? null : await getCurrentOrgId());
   const supabase = client ?? getSupabaseAdminClient();
   let query = supabase.from("leads").select("*");
 
@@ -65,8 +66,9 @@ export async function listLeads(
 export async function getLead(
   id: string,
   client?: SupabaseClient,
+  filter: Pick<ListLeadsFilter, "orgId"> = {},
 ): Promise<Lead | null> {
-  const orgId = client ? null : await getCurrentOrgId();
+  const orgId = filter.orgId ?? (client ? null : await getCurrentOrgId());
   const supabase = client ?? getSupabaseAdminClient();
   let query = supabase
     .from("leads")
@@ -92,7 +94,7 @@ export async function countLeads(
   filter: ListLeadsFilter = {},
   client?: SupabaseClient,
 ): Promise<number> {
-  const orgId = client ? null : await getCurrentOrgId();
+  const orgId = filter.orgId ?? (client ? null : await getCurrentOrgId());
   const supabase = client ?? getSupabaseAdminClient();
   let query = supabase.from("leads").select("*", { count: "exact", head: true });
 

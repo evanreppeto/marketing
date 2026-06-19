@@ -29,7 +29,7 @@ describe("persistCompetitorIntel", () => {
       competitor_campaigns: { data: { id: "ci-1" }, error: null },
     });
 
-    const result = await persistCompetitorIntel(valid, supabase);
+    const result = await persistCompetitorIntel(valid, supabase, { org_id: "org-1", workspace_id: "workspace-1" });
     expect(result.status).toBe("needs_review");
     expect(result.competitorCampaignId).toBe("ci-1");
 
@@ -38,6 +38,7 @@ describe("persistCompetitorIntel", () => {
     expect(rows[0].source).toBe("meta_ad_library");
     expect(rows[0].competitor_name).toBe("ServiceMaster Chicago");
     expect(rows[0].status).toBe("needs_review");
+    expect(rows[0].org_id).toBe("org-1");
   });
 
   it("rejects an invalid payload before any insert", async () => {
