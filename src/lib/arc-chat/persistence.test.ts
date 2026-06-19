@@ -7,6 +7,7 @@ import {
   cancelPendingArcMessage,
   completeArcMessage,
   deleteConversation,
+  linkConversationToCampaign,
   listConversations,
   setConversationPinned,
   setArcMessageFeedback,
@@ -155,6 +156,79 @@ describe("assignConversationToCampaign", () => {
 
     const update = calls(supabase, "update")[0];
     expect(update).toEqual({ campaign_id: null });
+  });
+});
+
+describe("linkConversationToCampaign", () => {
+  function makeConvRow(overrides: Partial<{
+    project_id: string | null;
+    campaign_id: string | null;
+  }> = {}) {
+    return {
+      id: "conv-1",
+      operator: "evan",
+      title: "Test chat",
+      status: "active",
+      pinned_at: null,
+      project_id: null,
+      campaign_id: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      last_message_at: "2026-01-01T00:00:00Z",
+      ...overrides,
+    };
+  }
+
+  it("creates a project and updates conversation when projectId is null", async () => {
+    // arc_conversations: first call = getConversation (returns row), second = update (returns null)
+    // arc_projects: insert returns new project
+    const supabase = createSupabaseQueryMock({
+      arc_conversations: [
+        { data: makeConvRow({ project_id: null }), error: null },
+        { data: null, error: null },
+      ],
+      arc_projects: { data: { id: "proj-new", operator: "evan", name: "Fall Campaign", created_at: "t", updated_at: "t" }, error: null },
+    });
+
+    await linkConversationToCampaign("conv-1", "camp-1", "Fall Campaign", supabase);
+
+    // createProject must have been called (arc_projects insert)
+    expect(supabase.calls).toContainEqual(["from", "arc_projects"]);
+    expect(supabase.calls).toContainEqual(["insert", { operator: "evan", name: "Fall Campaign" }]);
+
+    // Update must set both project_id and campaign_id
+    const updateCalls = supabase.calls.filter(([m]) => m === "update").map(([, arg]) => arg as Record<string, unknown>);
+    expect(updateCalls).toContainEqual(expect.objectContaining({ project_id: "proj-new", campaign_id: "camp-1" }));
+  });
+
+  it("reuses existing projectId without calling createProject", async () => {
+    const supabase = createSupabaseQueryMock({
+      arc_conversations: [
+        { data: makeConvRow({ project_id: "pExisting" }), error: null },
+        { data: null, error: null },
+      ],
+    });
+
+    await linkConversationToCampaign("conv-1", "camp-2", "Unused Name", supabase);
+
+    // No arc_projects interaction
+    expect(supabase.calls).not.toContainEqual(["from", "arc_projects"]);
+
+    // Update must use the existing project_id
+    const updateCalls = supabase.calls.filter(([m]) => m === "update").map(([, arg]) => arg as Record<string, unknown>);
+    expect(updateCalls).toContainEqual(expect.objectContaining({ project_id: "pExisting", campaign_id: "camp-2" }));
+  });
+
+  it("is a no-op when getConversation returns null", async () => {
+    const supabase = createSupabaseQueryMock({
+      arc_conversations: { data: null, error: null },
+    });
+
+    await linkConversationToCampaign("conv-missing", "camp-1", "Name", supabase);
+
+    expect(supabase.calls).not.toContainEqual(["from", "arc_projects"]);
+    const updateCalls = supabase.calls.filter(([m]) => m === "update");
+    expect(updateCalls).toHaveLength(0);
   });
 });
 
