@@ -38,3 +38,4 @@ export * from "./opportunity-briefing";
 export * from "./performance-slicing";
 export * from "./arc-levels";
 export * from "./media-library";
+export * from "./brain-provenance";
