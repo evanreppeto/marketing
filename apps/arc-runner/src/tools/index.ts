@@ -3,6 +3,7 @@ import { crmReadTools } from "./crm";
 import { brainReadTools, brainWriteTools } from "./brain";
 import { campaignReadTools } from "./campaigns";
 import { performanceReadTools } from "./performance";
+import { intelligenceTools } from "./intelligence";
 import { interactionWriteTools } from "./interactions";
 import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
@@ -23,6 +24,7 @@ function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
     ...brainReadTools(client, step),
     ...campaignReadTools(client, step),
     ...performanceReadTools(client, step),
+    ...intelligenceTools(client, step),
     emitCardTool(sink.card),
     suggestFollowupsTool(sink.suggestion),
     citeSourcesTool(sink.source),
