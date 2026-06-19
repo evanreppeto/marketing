@@ -162,12 +162,12 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
   }
 
   return (
-    <details className="group relative">
+    <details className="group relative z-[200]">
       <summary className={buttonClasses({ variant: "ghost", size: "sm" })}>
         <DriveIcon />
         Drive
       </summary>
-      <div className="absolute right-0 z-20 mt-2 w-[min(28rem,calc(100vw-2rem))] rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] p-4 shadow-[var(--elev-overlay)]">
+      <div className="absolute right-0 z-[1000] mt-2 w-[min(28rem,calc(100vw-2rem))] rounded-md border border-[var(--border-hairline)] bg-[var(--surface-raised)] p-4 shadow-[var(--elev-overlay)]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm font-bold text-[var(--text-primary)]">Import from Google Drive</div>
