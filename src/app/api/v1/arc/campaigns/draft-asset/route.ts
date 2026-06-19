@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { INVALID_JSON, fail, guard, readJson } from "@/app/api/v1/arc/_lib/http";
+import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
   const mediaUrl = str(body.media_url) || null;
   const mediaPath = str(body.media_path) || null;
   const opportunityId = str(body.opportunity_id) || null;
+  const conversationId = str(body.conversation_id) || null;
 
   // Optional generation provenance (AI source / model / jobId / risk flags) so the
   // AI tag survives on the durable asset record, not just the chat card.
@@ -90,6 +92,10 @@ export async function POST(request: Request) {
       // Best-effort: the draft asset is already created, so a link hiccup must
       // not turn a successful 201 into a 502.
       await markOpportunityDrafted(opportunityId, campaignId).catch(() => undefined);
+    }
+
+    if (conversationId) {
+      await linkConversationToCampaign(conversationId, campaignId, str(body.name) || "Campaign workspace").catch(() => undefined);
     }
 
     return NextResponse.json(

@@ -7,6 +7,10 @@ vi.mock("@/lib/campaigns/create", () => ({
 
 vi.mock("@/lib/opportunities/persistence", () => ({ markOpportunityDrafted: vi.fn(async () => ({ ok: true })) }));
 
+vi.mock("@/lib/arc-chat/persistence", () => ({ linkConversationToCampaign: vi.fn(async () => undefined) }));
+import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
+const linkMock = vi.mocked(linkConversationToCampaign);
+
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
@@ -40,9 +44,11 @@ beforeEach(() => {
   shellMock.mockReset();
   promoteMock.mockReset();
   markDraftedMock.mockReset();
+  linkMock.mockReset();
   shellMock.mockResolvedValue({ campaignId: "camp_1" });
   promoteMock.mockResolvedValue({ assetId: "asset_1" });
   markDraftedMock.mockResolvedValue({ ok: true });
+  linkMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -142,5 +148,39 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
         media: expect.objectContaining({ source: "ai_generated", model: "gemini-2.5-flash-image", jobId: "job_1", riskFlags: ["claim risk"] }),
       }),
     );
+  });
+
+  it("calls linkConversationToCampaign with conversation_id and campaign_id when provided", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", {
+        campaign_id: "camp_existing",
+        asset_type: "email",
+        title: "Hi",
+        conversation_id: "conv1",
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(linkMock).toHaveBeenCalledWith("conv1", "camp_existing", expect.any(String));
+  });
+
+  it("does not call linkConversationToCampaign when conversation_id is absent", async () => {
+    configure();
+    await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "email", title: "Plain" }));
+    expect(linkMock).not.toHaveBeenCalled();
+  });
+
+  it("still returns 201 when linkConversationToCampaign throws (best-effort)", async () => {
+    configure();
+    linkMock.mockRejectedValue(new Error("boom"));
+    const res = await POST(
+      req("Bearer secret", {
+        campaign_id: "camp_existing",
+        asset_type: "email",
+        title: "Hi",
+        conversation_id: "conv1",
+      }),
+    );
+    expect(res.status).toBe(201);
   });
 });
