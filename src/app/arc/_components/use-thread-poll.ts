@@ -46,21 +46,33 @@ export function useThreadPoll(
     if (!activeId || !awaitingReply) return;
     let cancelled = false;
     let polls = 0;
+    // Consecutive polls where the server row didn't change. 0 == the reply is
+    // actively producing new text right now (streaming).
+    let idle = 0;
+    let prevFresh: ArcMessage[] | null = null;
     let timer: ReturnType<typeof setTimeout>;
-    // Ramped cadence: check soon after the send, stay snappy for the first few
-    // seconds (so Arc's reply starts streaming almost immediately), then back
-    // off to a calm 2.5s so a long run doesn't hammer the server.
+    // Activity-aware cadence: stay fast (~750ms) the whole time the reply is
+    // actively streaming new text, so it reads as continuous typing rather than
+    // arriving in 2.5s lumps. Only back off when the server goes quiet (tool
+    // work / waiting), so an idle thread isn't polled hard. First check fires
+    // soon after send.
     function nextDelay(): number {
-      if (polls <= 1) return 600;
-      if (polls <= 6) return 1000;
-      return 2500;
+      if (polls <= 1) return 600; // snappy first checks right after send
+      if (idle === 0) return 750; // streaming — keep it smooth
+      if (idle <= 4) return 1400; // just paused — stay responsive
+      return 2500; // quiet — back off
     }
     async function tick() {
       if (cancelled) return;
-      if (polls++ > 240) return; // ~10 min safety cap so we never poll forever
+      if (polls++ > 600) return; // safety cap so we never poll forever
       const fresh = await getThreadMessagesAction(activeIdRef.current);
       if (!cancelled && activeIdRef.current === activeId && fresh.length > 0) {
         setMessages((prev) => (sameMessages(prev, fresh) ? prev : fresh));
+        // Compare consecutive fetches: still advancing => still streaming =>
+        // keep polling fast; otherwise let the cadence ramp down.
+        const advancing = prevFresh === null || !sameMessages(prevFresh, fresh);
+        prevFresh = fresh;
+        idle = advancing ? 0 : idle + 1;
       }
       if (!cancelled) timer = setTimeout(tick, nextDelay());
     }
