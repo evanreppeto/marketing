@@ -940,6 +940,17 @@ h4, .font-display {
   animation: text-shimmer 1.6s linear infinite;
 }
 
+/* Composer focus glow: a soft gold ring blooms around the input box when it
+   takes focus, layered over the existing panel elevation. Plain CSS (not a
+   Tailwind arbitrary ring) so the two shadows compose reliably. */
+.arc-composer-glow { transition: box-shadow 200ms ease, border-color 200ms ease; }
+.arc-composer-glow:focus-within {
+  box-shadow: var(--elev-panel), 0 0 0 3px var(--accent-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  .arc-composer-glow { transition: none; }
+}
+
 /* Streaming reveal: soft bottom fade on Arc's in-progress reply, so chunked
    poll updates read as continuous text emerging rather than hard jumps. */
 .arc-streaming {

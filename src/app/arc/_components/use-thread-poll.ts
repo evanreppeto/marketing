@@ -46,18 +46,28 @@ export function useThreadPoll(
     if (!activeId || !awaitingReply) return;
     let cancelled = false;
     let polls = 0;
-    const timer = setInterval(async () => {
-      if (polls++ > 240) {
-        clearInterval(timer); // ~10 min safety cap so we never poll forever
-        return;
-      }
+    let timer: ReturnType<typeof setTimeout>;
+    // Ramped cadence: check soon after the send, stay snappy for the first few
+    // seconds (so Arc's reply starts streaming almost immediately), then back
+    // off to a calm 2.5s so a long run doesn't hammer the server.
+    function nextDelay(): number {
+      if (polls <= 1) return 600;
+      if (polls <= 6) return 1000;
+      return 2500;
+    }
+    async function tick() {
+      if (cancelled) return;
+      if (polls++ > 240) return; // ~10 min safety cap so we never poll forever
       const fresh = await getThreadMessagesAction(activeIdRef.current);
-      if (cancelled || activeIdRef.current !== activeId || fresh.length === 0) return;
-      setMessages((prev) => (sameMessages(prev, fresh) ? prev : fresh));
-    }, 2500);
+      if (!cancelled && activeIdRef.current === activeId && fresh.length > 0) {
+        setMessages((prev) => (sameMessages(prev, fresh) ? prev : fresh));
+      }
+      if (!cancelled) timer = setTimeout(tick, nextDelay());
+    }
+    timer = setTimeout(tick, nextDelay());
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, [activeId, awaitingReply, setMessages]);
 }
