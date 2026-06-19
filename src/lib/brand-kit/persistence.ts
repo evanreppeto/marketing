@@ -50,6 +50,7 @@ export async function upsertBusinessProfile(
     services: profile.services as never,
     proof_points: profile.proofPoints as never,
     guardrails: profile.guardrails as never,
+    brand_palette: profile.brandPalette as never,
     status: profile.status,
   };
   const { data, error } = await supabase
