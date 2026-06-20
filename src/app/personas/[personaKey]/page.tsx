@@ -40,7 +40,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
     return (
       <>
         <Header title="Persona not found" subtitle="This persona is not part of the official Arc routing taxonomy." />
-        <EmptyState title="Unknown persona" detail="Use one of the official persona routes from Persona Intelligence." />
+        <EmptyState title="Unknown persona" detail="Use one of the official persona routes from Personas." />
       </>
     );
   }
@@ -206,7 +206,6 @@ function PersonaDetailTabs({ activeTab, personaKey, agentName }: { activeTab: Pe
 function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <PageHeader
-      eyebrow="Persona intelligence"
       title={title}
       description={subtitle}
       aside={
