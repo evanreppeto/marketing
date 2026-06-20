@@ -1,4 +1,6 @@
-import { INVALID_JSON, arcGuard, fail, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { NextResponse } from "next/server";
+
+import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { resolveAvailableArcMediaAsset } from "@/lib/media-library/arc-handoff";
 
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
       ...(asset.risk_flags.length ? { riskFlags: asset.risk_flags } : {}),
     };
 
-    return ok({ campaignId, assetId: promoted.assetId, media }, 201);
+    return NextResponse.json({ ok: true, status: "created", campaignId, assetId: promoted.assetId, media }, { status: 201 });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to attach library media.", 502);
   }
