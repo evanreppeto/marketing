@@ -86,7 +86,8 @@ export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: 
   }
 
   const prov = nodeProvenance(selected);
-  const confidence = selected.confidence != null ? Math.round(selected.confidence * 100) : null;
+  // confidence is stored 0–100 (knowledge_nodes.confidence is an integer 0–100), not a 0–1 float.
+  const confidence = selected.confidence != null ? Math.round(selected.confidence) : null;
   const learnedLabel = prov.learnedBy === "brand_sync" ? "Brand sync" : prov.learnedBy === "arc" ? agentName : "Operator";
 
   return (
