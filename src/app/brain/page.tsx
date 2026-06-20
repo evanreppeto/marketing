@@ -9,7 +9,13 @@ import { getAgentName } from "@/lib/settings/agent-name";
 
 export const dynamic = "force-dynamic";
 
-export default async function BrainPage() {
+export default async function BrainPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ persona?: string | string[] }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const initialPersona = Array.isArray(params.persona) ? params.persona[0] : params.persona;
   const [graph, proposed, all, summary, agentName] = await Promise.all([
     getBrainGraph(),
     listProposed(),
@@ -57,7 +63,7 @@ export default async function BrainPage() {
       {summary.status === "live" ? <StatStrip items={stats} columns={4} /> : null}
       {/* Hero workspace — category rail · interactive Cytoscape knowledge web ·
           selected-node detail. One graph, legible, matching the concept. */}
-      <BrainWorkspace nodes={graphNodes} edges={graphEdges} agentName={agentName} />
+      <BrainWorkspace nodes={graphNodes} edges={graphEdges} agentName={agentName} initialPersona={initialPersona} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <RecentlyLearned nodes={allNodes} />
         <ApprovalQueue nodes={proposedNodes} />
