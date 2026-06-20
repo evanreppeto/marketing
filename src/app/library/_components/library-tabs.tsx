@@ -10,7 +10,8 @@ export function LibraryTabs({ active }: { active: "assets" | "brand" }) {
       href={href}
       aria-current={active === key ? "page" : undefined}
       className={cx(
-        "rounded-md px-3 py-1.5 text-sm font-semibold transition-colors",
+        "rounded-md px-3 py-1.5 text-sm font-semibold transition duration-150 ease-out",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
         active === key
           ? "bg-[var(--surface-raised)] text-[var(--text-primary)]"
           : "text-[var(--text-muted)] hover:text-[var(--text-primary)]",
@@ -20,9 +21,12 @@ export function LibraryTabs({ active }: { active: "assets" | "brand" }) {
     </Link>
   );
   return (
-    <div className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1">
+    <nav
+      aria-label="Library views"
+      className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1"
+    >
       {tab("/library", "assets", "Assets")}
       {tab("/library/brand", "brand", "Brand")}
-    </div>
+    </nav>
   );
 }
