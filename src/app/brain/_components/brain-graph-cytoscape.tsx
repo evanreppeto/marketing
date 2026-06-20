@@ -111,12 +111,13 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
               width: "data(size)",
               height: "data(size)",
               "background-color": "data(color)",
-              "background-opacity": 0.95,
+              "background-opacity": 0.92,
               "border-width": 1.5,
               "border-color": palette.chip,
+              // Soft outer bloom — a calm Obsidian-style halo around every node.
               "underlay-color": "data(color)",
-              "underlay-opacity": 0.18,
-              "underlay-padding": 5,
+              "underlay-opacity": 0.16,
+              "underlay-padding": 9,
               "underlay-shape": "ellipse",
               label: "data(showLabel)",
               color: palette.secondary,
@@ -125,16 +126,16 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
               "font-weight": 500,
               "text-valign": "bottom",
               "text-halign": "center",
-              "text-margin-y": 6,
-              "text-max-width": "130px",
+              "text-margin-y": 7,
+              "text-max-width": "132px",
               "text-wrap": "ellipsis",
-              "text-background-color": palette.chip,
-              "text-background-opacity": 0.55,
-              "text-background-padding": "3px",
-              "text-background-shape": "roundrectangle",
-              "min-zoomed-font-size": 6,
+              // Clean label legibility via a soft ink outline instead of a boxed chip.
+              "text-outline-color": palette.chip,
+              "text-outline-width": 3,
+              "text-outline-opacity": 0.85,
+              "min-zoomed-font-size": 7,
               "transition-property": "background-opacity, border-color, underlay-opacity, opacity, color",
-              "transition-duration": 90,
+              "transition-duration": 140,
             },
           },
           {
@@ -143,12 +144,12 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
               "background-color": palette.accent,
               "border-width": 3,
               "border-color": palette.accentStrong,
-              "underlay-opacity": 0.3,
-              "underlay-padding": 10,
+              "underlay-opacity": 0.26,
+              "underlay-padding": 16,
               color: palette.ivory,
               "font-size": 15,
               "font-weight": 700,
-              "text-margin-y": 8,
+              "text-margin-y": 9,
               "z-index": 30,
             },
           },
@@ -161,50 +162,55 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
             style: {
               width: 1,
               "line-color": palette.edge,
-              "curve-style": "straight",
-              opacity: 0.38,
+              // Gentle curve gives the web an organic, premium settle (vs. rigid spokes).
+              "curve-style": "bezier",
+              "control-point-step-size": 28,
+              opacity: 0.3,
               "transition-property": "opacity, line-color, width",
-              "transition-duration": 90,
+              "transition-duration": 140,
             },
           },
-          // Selection focus (click) — persistent dim of everything else.
-          { selector: "node.faded", style: { opacity: 0.1 } },
-          { selector: "edge.faded", style: { opacity: 0.04 } },
+          // Selection focus (click) — persistent dim of everything else so the
+          // selected fact's neighborhood reads as a lit constellation.
+          { selector: "node.faded", style: { opacity: 0.07 } },
+          { selector: "edge.faded", style: { opacity: 0.025 } },
           {
             selector: "node.focus",
-            style: { "border-width": 3, "border-color": palette.accentStrong, "underlay-opacity": 0.4, "underlay-padding": 9, color: palette.ivory },
+            style: { "border-width": 3, "border-color": palette.accentStrong, "underlay-opacity": 0.46, "underlay-padding": 13, color: palette.ivory },
           },
           { selector: "node.neighbor", style: { "background-opacity": 1, color: palette.ivory } },
-          { selector: "edge.lit", style: { "line-color": palette.accent, opacity: 0.8, width: 1.8 } },
+          { selector: "edge.lit", style: { "line-color": palette.accent, opacity: 0.85, width: 2 } },
           // Hover glow (transient) — layered on top of selection.
-          { selector: "node.hglow", style: { "underlay-opacity": 0.42, "underlay-padding": 9, "border-color": palette.accentStrong, color: palette.ivory } },
+          { selector: "node.hglow", style: { "underlay-opacity": 0.46, "underlay-padding": 13, "border-color": palette.accentStrong, color: palette.ivory } },
           { selector: "node.hnbr", style: { "background-opacity": 1, color: palette.ivory } },
-          { selector: "edge.hlit", style: { "line-color": palette.accent, opacity: 0.85, width: 1.8 } },
+          { selector: "edge.hlit", style: { "line-color": palette.accent, opacity: 0.88, width: 2 } },
         ],
         layout: {
           name: "cola",
-          // Continuous physics — like Obsidian: drag a node and the web springs
-          // and settles. Never fully stops, so the graph feels alive and bouncy.
-          infinite: true,
+          // Premium Obsidian feel: the web springs out, then SETTLES into a calm,
+          // stable constellation and rests (no perpetual bounce — matches DESIGN.md's
+          // calm-motion rule). Nodes stay draggable for manual arrangement.
+          infinite: false,
           fit: false,
           animate: true,
           centerGraph: true,
           randomize: false,
           handleDisconnected: true,
           avoidOverlap: true,
-          nodeSpacing: () => 16,
-          edgeLength: () => 132,
-          maxSimulationTime: 4000,
-          convergenceThreshold: 0.001,
+          nodeSpacing: () => 20,
+          edgeLength: () => 140,
+          maxSimulationTime: 3200,
+          convergenceThreshold: 0.01,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cola options not in cytoscape's narrow layout typings
         } as any,
       });
 
       cyRef.current = cy;
-      // Let the physics spread the web, then frame it once (infinite layout keeps running).
-      cy.ready(() => {
-        setTimeout(() => cy && !cy.destroyed() && cy.animate({ fit: { eles: cy.elements(), padding: 48 }, duration: 420, easing: "ease-out" }), 700);
-      });
+      // Frame the web once it settles (and a safety fit shortly after, in case the
+      // layout converges before emitting layoutstop).
+      const frame = () => cy && !cy.destroyed() && cy.animate({ fit: { eles: cy.elements(), padding: 52 }, duration: 480, easing: "ease-out" });
+      cy.one("layoutstop", () => setTimeout(frame, 60));
+      cy.ready(() => setTimeout(frame, 1400));
 
       cy.on("tap", "node", (evt) => onSelect(evt.target.id()));
       cy.on("tap", (evt) => {
