@@ -98,7 +98,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
           ) : null}
 
           {activeTab === "arc-use" ? (
-            <WorkspacePanel eyebrow={`${agentName} use`} title={`How ${agentName} should use this`}>
+            <WorkspacePanel eyebrow={`How ${agentName} uses it`} title={`How ${agentName} should use this`}>
               <div className="grid gap-3 p-4 md:grid-cols-2">
                 {[
                   ["Campaign briefs", "Use the CTA and message angle when drafting reviewable campaign packages."],
