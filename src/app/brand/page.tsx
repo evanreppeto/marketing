@@ -18,6 +18,7 @@ import { listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { type MediaAssetView } from "@/lib/media-library/types";
 import { getAgentName } from "@/lib/settings/agent-name";
+import { getPersonaIntelligenceData } from "@/lib/persona-intelligence/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import {
   brandSourceSortScore,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/brand-knowledge/source-classifier";
 
 import { BrandProfileEditor } from "./_components/brand-profile-editor";
+import { BrandPersonas } from "./_components/brand-personas";
 import { BrandKnowledgeSyncButton } from "./_components/brand-knowledge-sync-button";
 import { BrandSourceUpload } from "./_components/brand-source-upload";
 
@@ -144,11 +146,12 @@ function formatIndustryLabel(value: string | null | undefined) {
 }
 
 export default async function BrandPage() {
-  const [profile, brain, library, agentName] = await Promise.all([
+  const [profile, brain, library, agentName, personaData] = await Promise.all([
     loadBrandProfile(),
     listNodes({}),
     getMediaLibraryData(),
     getAgentName(),
+    getPersonaIntelligenceData(),
   ]);
 
   const facts = brain.status === "live" ? brandFacts(brain.nodes) : [];
@@ -322,6 +325,8 @@ export default async function BrandPage() {
           </Panel>
         </div>
       </section>
+
+      <BrandPersonas data={personaData} />
 
       <BrandProfileEditor profile={profile} />
     </div>
