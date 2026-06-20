@@ -7,6 +7,7 @@ import { folderAndDescendantIds, getMediaLibraryData } from "@/lib/media-library
 import { AssetGrid } from "./_components/asset-grid";
 import { FolderRail } from "./_components/folder-rail";
 import { GoogleDriveImport } from "./_components/google-drive-import";
+import { LibraryTabs } from "./_components/library-tabs";
 import { NewFolderButton } from "./_components/new-folder-button";
 import { UploadButton } from "./_components/upload-button";
 
@@ -21,6 +22,7 @@ export default async function LibraryPage({
   if (data.status === "unavailable") {
     return (
       <>
+        <LibraryTabs active="assets" />
         <PageHeader title="Library" description={data.message} />
         <EmptyState title="Library unavailable" detail={data.message} />
       </>
@@ -38,6 +40,7 @@ export default async function LibraryPage({
 
   return (
     <>
+      <LibraryTabs active="assets" />
       <PageHeader
         title="Library"
         description={`${data.assets.length} assets · ${formatByteSize(data.totalBytes)} · ${arcCount} available to Arc.`}

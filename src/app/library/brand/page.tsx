@@ -25,6 +25,8 @@ import {
   type BrandSourceClassification,
 } from "@/lib/brand-knowledge/source-classifier";
 
+import { LibraryTabs } from "../_components/library-tabs";
+
 import { BrandProfileEditor } from "./_components/brand-profile-editor";
 import { BrandKnowledgeSyncButton } from "./_components/brand-knowledge-sync-button";
 import { BrandSourceUpload } from "./_components/brand-source-upload";
@@ -161,6 +163,7 @@ export default async function BrandPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <LibraryTabs active="brand" />
       <PageHeader
         eyebrow="Brand"
         title={profile.displayName || "Company brand"}
