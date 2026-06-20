@@ -2,13 +2,16 @@
 
 import { useMemo, useState } from "react";
 
+import Link from "next/link";
+
 import { StatusPill } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
 import type { BrainEdge, BrainNode } from "@/lib/knowledge-graph/read-model";
 
 import { BrainGraphCytoscape } from "./brain-graph-cytoscape";
+import { pickInitialNodeId } from "./initial-node";
 
-type Props = { nodes: BrainNode[]; edges: BrainEdge[]; agentName: string };
+type Props = { nodes: BrainNode[]; edges: BrainEdge[]; agentName: string; initialPersona?: string };
 
 const KIND_LABELS: Record<string, string> = {
   arc: "Core",
@@ -48,16 +51,16 @@ function trustTone(tier: string): "green" | "amber" | "gray" {
   return "gray";
 }
 
-export function BrainWorkspace({ nodes, edges, agentName }: Props) {
+export function BrainWorkspace({ nodes, edges, agentName, initialPersona }: Props) {
   const hub = useMemo(
     () => nodes.find((n) => n.kind === "arc" || n.kind === "hub") ?? null,
     [nodes],
   );
-  // Default focus: the flagship campaign node if present, else the hub.
-  const initial = useMemo(() => {
-    const flagship = nodes.find((n) => /emergency water/i.test(n.label));
-    return flagship?.id ?? hub?.id ?? nodes[0]?.id ?? null;
-  }, [nodes, hub]);
+  // Default focus: persona match (from ?persona=) → flagship campaign → hub.
+  const initial = useMemo(
+    () => pickInitialNodeId(nodes, { persona: initialPersona, hubId: hub?.id ?? null }),
+    [nodes, hub, initialPersona],
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(initial);
 
@@ -179,6 +182,14 @@ export function BrainWorkspace({ nodes, edges, agentName }: Props) {
             {(selected.summary || selected.body) && (
               <p className="text-sm leading-6 text-[var(--text-secondary)]">{selected.summary ?? selected.body}</p>
             )}
+            {selected.persona ? (
+              <Link
+                href={`/personas/${selected.persona.replace(/^persona_/, "").replaceAll("_", "-")}`}
+                className="mt-3 inline-flex text-sm font-bold text-[var(--accent)] hover:underline"
+              >
+                Open in Personas →
+              </Link>
+            ) : null}
             {confidence != null && (
               <div>
                 <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--text-muted)]">

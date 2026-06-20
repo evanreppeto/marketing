@@ -45,7 +45,7 @@ function context(): LinkResolutionContext {
   return {
     notes: new Map([["apex-plumbing-co-intel", "/notebook/apex-plumbing-co-intel"]]),
     records: new Map([["apex-plumbing-co", "/crm/companies/apex-plumbing-co"]]),
-    personas: new Map([["persona_insurance_agent", "/persona-intelligence"]]),
+    personas: new Map([["persona_insurance_agent", "/personas"]]),
   };
 }
 

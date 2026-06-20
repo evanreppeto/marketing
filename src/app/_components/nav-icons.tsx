@@ -4,6 +4,7 @@ import {
   Brain,
   ChartSpline,
   Columns3,
+  Contact,
   GalleryHorizontalEnd,
   Home,
   Images,
@@ -30,7 +31,8 @@ export type NavIconName =
   | "brand"
   | "brain"
   | "activity"
-  | "opportunities";
+  | "opportunities"
+  | "personas";
 
 const icons: Record<Exclude<NavIconName, "arc">, LucideIcon> = {
   activity: Activity,
@@ -45,6 +47,7 @@ const icons: Record<Exclude<NavIconName, "arc">, LucideIcon> = {
   library: GalleryHorizontalEnd,
   opportunities: Target,
   outbox: Send,
+  personas: Contact,
   settings: Settings2,
 };
 

@@ -13,15 +13,16 @@ type PersonaDetailPageProps = {
   searchParams?: Promise<{ tab?: string | string[] }>;
 };
 
-type PersonaDetailTab = "rule" | "memory" | "arc-use";
+type PersonaDetailTab = "rule" | "memory" | "arc-use" | "performance";
 
-const PERSONA_DETAIL_TAB_KEYS: PersonaDetailTab[] = ["rule", "memory", "arc-use"];
+const PERSONA_DETAIL_TAB_KEYS: PersonaDetailTab[] = ["rule", "memory", "arc-use", "performance"];
 
 function buildPersonaDetailTabs(agentName: string): Array<{ key: PersonaDetailTab; label: string; detail: string }> {
   return [
-    { key: "rule", label: "CTA rule", detail: "Approved internal language" },
-    { key: "memory", label: "Live memory", detail: "Supabase snapshot if available" },
-    { key: "arc-use", label: `${agentName} use`, detail: "How the agent applies it" },
+    { key: "rule", label: "Rulebook", detail: "Approved CTA and landing guidance" },
+    { key: "memory", label: "Live snapshot", detail: "Supabase persona memory if available" },
+    { key: "arc-use", label: `How ${agentName} uses it`, detail: "How the agent applies it" },
+    { key: "performance", label: "Performance", detail: "Coming soon" },
   ];
 }
 
@@ -39,7 +40,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
     return (
       <>
         <Header title="Persona not found" subtitle="This persona is not part of the official Arc routing taxonomy." />
-        <EmptyState title="Unknown persona" detail="Use one of the official persona routes from Persona Intelligence." />
+        <EmptyState title="Unknown persona" detail="Use one of the official persona routes from Personas." />
       </>
     );
   }
@@ -97,7 +98,7 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
           ) : null}
 
           {activeTab === "arc-use" ? (
-            <WorkspacePanel eyebrow={`${agentName} use`} title={`How ${agentName} should use this`}>
+            <WorkspacePanel eyebrow={`How ${agentName} uses it`} title={`How ${agentName} should use this`}>
               <div className="grid gap-3 p-4 md:grid-cols-2">
                 {[
                   ["Campaign briefs", "Use the CTA and message angle when drafting reviewable campaign packages."],
@@ -111,6 +112,19 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
                   </div>
                 ))}
               </div>
+            </WorkspacePanel>
+          ) : null}
+
+          {activeTab === "performance" ? (
+            <WorkspacePanel
+              eyebrow="Performance"
+              title="Persona performance is coming soon"
+              description="Conversion, pipeline, and what's working per persona will appear here once the persona-to-outcome join is wired."
+            >
+              <EmptyState
+                title="Not yet wired"
+                detail="This tab will show real campaign and outcome data attributed to this persona. It is intentionally empty until that data is connected — no placeholder numbers."
+              />
             </WorkspacePanel>
           ) : null}
         </div>
@@ -142,7 +156,10 @@ export default async function PersonaDetailPage({ params, searchParams }: Person
           <div className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4">
             <div className="signal-eyebrow">Actions</div>
             <div className="mt-4 flex flex-col gap-2">
-              <Link href="/persona-intelligence" className={buttonClasses({ variant: "ghost" })}>
+              <Link href={`/brain?persona=${personaSlug(rule.persona)}`} className={buttonClasses({ variant: "ghost" })}>
+                Open in Brain
+              </Link>
+              <Link href="/personas" className={buttonClasses({ variant: "ghost" })}>
                 Back to personas
               </Link>
               {livePersona ? (
@@ -163,7 +180,7 @@ function PersonaDetailTabs({ activeTab, personaKey, agentName }: { activeTab: Pe
     <nav aria-label="Persona detail sections" className="module-rise mb-5 flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3">
       {buildPersonaDetailTabs(agentName).map((tab) => {
         const selected = activeTab === tab.key;
-        const href = tab.key === "rule" ? `/persona-intelligence/${personaKey}` : `/persona-intelligence/${personaKey}?tab=${tab.key}`;
+        const href = tab.key === "rule" ? `/personas/${personaKey}` : `/personas/${personaKey}?tab=${tab.key}`;
 
         return (
           <Link
@@ -189,7 +206,6 @@ function PersonaDetailTabs({ activeTab, personaKey, agentName }: { activeTab: Pe
 function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <PageHeader
-      eyebrow="Persona intelligence"
       title={title}
       description={subtitle}
       aside={

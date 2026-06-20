@@ -20,9 +20,9 @@ type PageProps = {
 
 function buildTabs(agentName: string): Array<{ id: IntelligenceTab; label: string; detail: string }> {
   return [
-    { id: "personas", label: "Persona rules", detail: "Approved CTA and language rules" },
+    { id: "personas", label: "Roster", detail: "All 12 personas — rules and live memory" },
     { id: "snapshots", label: "Live snapshots", detail: "Current Supabase persona memory" },
-    { id: "signals", label: "Knowledge signals", detail: `Entries ${agentName} can reference` },
+    { id: "signals", label: "Knowledge", detail: `Reference entries ${agentName} can cite` },
     { id: "guardrails", label: "Guardrails", detail: "Copy and compliance checks" },
   ];
 }
@@ -47,13 +47,12 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
   return (
     <>
       <PageHeader
-        eyebrow="Persona intelligence"
-        title={`Inspect persona rules before ${agentName} uses them.`}
-        description="Use the tabs to inspect one type of intelligence at a time. Nothing here publishes pages, sends outreach, or launches campaigns."
+        title="Personas"
+        description={`Who BSR sells to and how ${agentName} should talk to them. Inspect each persona's rulebook and live memory. Nothing here publishes pages, sends outreach, or launches campaigns.`}
         aside={
           <div className="flex flex-wrap items-center gap-2">
-            <StatusPill tone={data.status === "live" ? "green" : "amber"}>{data.status === "live" ? "Live memory" : "Unavailable"}</StatusPill>
-            <StatusPill tone="amber">No publishing</StatusPill>
+            <StatusPill tone={data.status === "live" ? "green" : "amber"}>{data.status === "live" ? "Live memory" : "Rules only"}</StatusPill>
+            <StatusPill tone="amber">Inspect-only</StatusPill>
           </div>
         }
       />
@@ -74,7 +73,7 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
           key: tab.id,
           label: tab.label,
           detail: tab.detail,
-          href: `/persona-intelligence?tab=${tab.id}`,
+          href: `/personas?tab=${tab.id}`,
         }))}
       />
 
@@ -136,7 +135,7 @@ function SnapshotsTab({ rows }: { rows: PersonaTrackerRow[] }) {
           {rows.map((row) => (
             <Link
               className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-inset)] lg:grid-cols-[minmax(0,1.2fr)_140px_120px_auto]"
-              href={`/persona-intelligence?tab=snapshots&inspect=${row.key}`}
+              href={`/personas?tab=snapshots&inspect=${row.key}`}
               key={row.key}
             >
               <div className="min-w-0">
@@ -174,7 +173,7 @@ function SignalsTab({
           {rows.map((row, index) => (
             <Link
               className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-inset)] lg:grid-cols-[minmax(0,1fr)_140px_auto]"
-              href={`/persona-intelligence?tab=${tab}&inspect=${signalKey(row, index)}`}
+              href={`/personas?tab=${tab}&inspect=${signalKey(row, index)}`}
               key={signalKey(row, index)}
             >
               <div className="min-w-0">
@@ -197,7 +196,7 @@ function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTr
   return (
     <Link
       className="group block cursor-pointer rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4 shadow-[inset_0_1px_0_oklch(0.98_0.01_240/0.04)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-      href={`/persona-intelligence?tab=personas&inspect=${personaSlug(rule.persona)}`}
+      href={`/personas?tab=personas&inspect=${personaSlug(rule.persona)}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={live ? live.tone : "gray"}>{rule.segment}</StatusPill>
@@ -211,6 +210,13 @@ function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTr
         <RuleField label="Primary CTA" value={rule.primaryCta} />
         <RuleField label="Secondary CTA" value={rule.secondaryCta} />
       </div>
+
+      {live ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <RuleField label="Stage" value={humanize(live.stage)} />
+          <RuleField label="Confidence" value={`${live.score}%`} />
+        </div>
+      ) : null}
 
       <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold text-[var(--accent)]">
         Inspect in side panel
@@ -260,7 +266,7 @@ function buildInspector(
         proofPoints: selected.snapshot?.riskFlags?.length ? selected.snapshot.riskFlags.map(humanize) : ["Human approval required"],
         actions: [
           { label: "Open related CRM", href: selected.crmPath, variant: "ghost" as const },
-          { label: "Open full persona rule", href: `/persona-intelligence/${selected.key}`, variant: "ghost" as const },
+          { label: "Open full persona rule", href: `/personas/${selected.key}`, variant: "ghost" as const },
         ],
       };
     }
@@ -310,7 +316,7 @@ function buildInspector(
     proofPoints: selectedRule ? [selectedRule.landingRule, selectedRule.guardrail] : ["Human approval required"],
     actions: selectedRule
       ? [
-          { label: "Open full persona rule", href: `/persona-intelligence/${personaSlug(selectedRule.persona)}`, variant: "primary" as const },
+          { label: "Open full persona rule", href: `/personas/${personaSlug(selectedRule.persona)}`, variant: "primary" as const },
           { label: "Open settings", href: "/settings", variant: "ghost" as const },
         ]
       : [{ label: "Open settings", href: "/settings", variant: "ghost" as const }],

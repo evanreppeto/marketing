@@ -336,9 +336,9 @@ const MENTION_GROUPS: MentionGroup[] = [
     type: "persona",
     label: "Personas",
     items: [
-      { type: "persona", id: "persona_property_manager", label: "Property Manager", href: "/persona-intelligence?inspect=persona_property_manager" },
-      { type: "persona", id: "persona_landlord", label: "Landlord", href: "/persona-intelligence?inspect=persona_landlord" },
-      { type: "persona", id: "persona_insurance_agent", label: "Insurance Agent", href: "/persona-intelligence?inspect=persona_insurance_agent" },
+      { type: "persona", id: "persona_property_manager", label: "Property Manager", href: "/personas?inspect=persona_property_manager" },
+      { type: "persona", id: "persona_landlord", label: "Landlord", href: "/personas?inspect=persona_landlord" },
+      { type: "persona", id: "persona_insurance_agent", label: "Insurance Agent", href: "/personas?inspect=persona_insurance_agent" },
     ],
   },
   {

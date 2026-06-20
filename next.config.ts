@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: "bottom-right",
   },
+  async redirects() {
+    return [
+      { source: "/persona-intelligence", destination: "/personas", permanent: true },
+      { source: "/persona-intelligence/:personaKey", destination: "/personas/:personaKey", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
