@@ -38,8 +38,9 @@ export function AssetGrid({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const assetId = params.get("asset");
-    if (assetId) setSelectedId(assetId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deferred to a microtask so the set-state happens outside the effect body
+    // (matches the repo's set-state-in-effect rule; same pattern as command-palette).
+    if (assetId) void Promise.resolve().then(() => setSelectedId(assetId));
   }, []);
 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
