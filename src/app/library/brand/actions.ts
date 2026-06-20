@@ -66,7 +66,7 @@ export async function syncBrandKnowledgeSourcesAction(
     totals.errors.push(...result.errors);
   }
 
-  revalidatePath("/brand");
+  revalidatePath("/library/brand");
   revalidatePath("/brain");
   return summarizeBrandKnowledgeSync(totals);
 }
@@ -130,7 +130,7 @@ export async function uploadAndAnalyzeBrandSourcesAction(
     }
   }
 
-  revalidatePath("/brand");
+  revalidatePath("/library/brand");
   revalidatePath("/library");
   revalidatePath("/brain");
   return summarizeBrandKnowledgeSync(totals);

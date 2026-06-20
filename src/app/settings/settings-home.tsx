@@ -47,7 +47,7 @@ export async function SettingsHome() {
     {
       title: "Company brand",
       detail: "Business identity, voice, proof, rules, and source documents live in the Brand workspace.",
-      href: "/brand",
+      href: "/library/brand",
       action: "Open Brand",
       done: true,
     },

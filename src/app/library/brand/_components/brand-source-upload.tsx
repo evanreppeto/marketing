@@ -4,7 +4,7 @@ import { useActionState, useRef } from "react";
 import { CheckCircle2, FileUp, RefreshCw, TriangleAlert, UploadCloud } from "lucide-react";
 
 import { buttonClasses, StatusPill } from "@/app/_components/page-header";
-import { type BrandUploadActionState, uploadAndAnalyzeBrandSourcesAction } from "@/app/brand/actions";
+import { type BrandUploadActionState, uploadAndAnalyzeBrandSourcesAction } from "@/app/library/brand/actions";
 
 const initialState: BrandUploadActionState = null;
 
