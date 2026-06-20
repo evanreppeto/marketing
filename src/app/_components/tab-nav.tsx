@@ -31,12 +31,17 @@ export function TabNav({
   columns: string;
   className?: string;
 }) {
+  // `columns` is intended as a Tailwind grid-cols-* string. When provided, lay
+  // the tabs out as an even, gap-separated grid (each tab gets its own cell).
+  // Otherwise fall back to a scrollable flex row. (A hardcoded `flex` here used
+  // to silently override the grid columns, packing tabs together.)
+  const isGrid = columns.includes("grid-cols");
   return (
     <nav
       aria-label={ariaLabel}
       className={cx(
         theme.control.tabList,
-        columns,
+        isGrid ? cx("grid gap-x-3 gap-y-2", columns) : "flex gap-1 overflow-x-auto",
         className,
       )}
     >
