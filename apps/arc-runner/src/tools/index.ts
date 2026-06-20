@@ -8,6 +8,7 @@ import { interactionWriteTools } from "./interactions";
 import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
 import { mediaTools } from "./media";
+import { libraryReadTools, libraryDraftTools } from "./library";
 import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
 import { brandTools } from "./brand";
 import type { StepFn, TurnSink } from "./helpers";
@@ -25,6 +26,7 @@ function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
     ...campaignReadTools(client, step),
     ...performanceReadTools(client, step),
     ...intelligenceTools(client, step),
+    ...libraryReadTools(client, step),
     emitCardTool(sink.card),
     suggestFollowupsTool(sink.suggestion),
     citeSourcesTool(sink.source),
@@ -42,6 +44,7 @@ function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolCo
   return [
     ...draftWorkProductTools(client, step, sink.card, ctx),
     ...mediaTools(client, step, sink.card, ctx),
+    ...libraryDraftTools(client, step, sink.card),
     ...brandTools(client, step, sink.card),
   ];
 }
