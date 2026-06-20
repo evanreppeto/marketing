@@ -31,6 +31,22 @@ const KIND_LABELS: Record<string, string> = {
 };
 const kindLabel = (k: string) => KIND_LABELS[k] ?? k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+function RelationRow({ node, relation, onSelect }: Relation & { onSelect: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(node.id)}
+      className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-[var(--surface-inset)]"
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SOURCE_DOT[nodeProvenance(node).system] }} />
+        <span className="truncate text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{node.label}</span>
+      </span>
+      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{relation.replace(/_/g, " ")}</span>
+    </button>
+  );
+}
+
 export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: Props) {
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
@@ -72,20 +88,6 @@ export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: 
   const prov = nodeProvenance(selected);
   const confidence = selected.confidence != null ? Math.round(selected.confidence * 100) : null;
   const learnedLabel = prov.learnedBy === "brand_sync" ? "Brand sync" : prov.learnedBy === "arc" ? agentName : "Operator";
-
-  const RelationRow = ({ node, relation }: Relation) => (
-    <button
-      type="button"
-      onClick={() => onSelect(node.id)}
-      className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-[var(--surface-inset)]"
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SOURCE_DOT[nodeProvenance(node).system] }} />
-        <span className="truncate text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{node.label}</span>
-      </span>
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{relation.replace(/_/g, " ")}</span>
-    </button>
-  );
 
   return (
     <aside className="signal-panel min-w-0 p-4">
@@ -132,14 +134,14 @@ export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: 
         {backlinks.length > 0 && (
           <div className="border-t border-[var(--border-hairline)] pt-3">
             <div className="signal-eyebrow mb-2">↩ Linked references · {backlinks.length}</div>
-            <div className="flex flex-col gap-1">{backlinks.map((r) => <RelationRow key={`b-${r.node.id}`} {...r} />)}</div>
+            <div className="flex flex-col gap-1">{backlinks.map((r) => <RelationRow key={`b-${r.node.id}`} node={r.node} relation={r.relation} onSelect={onSelect} />)}</div>
           </div>
         )}
 
         {outgoing.length > 0 && (
           <div className="border-t border-[var(--border-hairline)] pt-3">
             <div className="signal-eyebrow mb-2">→ Links · {outgoing.length}</div>
-            <div className="flex flex-col gap-1">{outgoing.map((r) => <RelationRow key={`o-${r.node.id}`} {...r} />)}</div>
+            <div className="flex flex-col gap-1">{outgoing.map((r) => <RelationRow key={`o-${r.node.id}`} node={r.node} relation={r.relation} onSelect={onSelect} />)}</div>
           </div>
         )}
 
@@ -148,7 +150,7 @@ export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: 
             <div className="signal-eyebrow mb-1.5">⟡ What {agentName} recalls here</div>
             <p className="mb-1.5 text-[11px] text-[var(--text-muted)]">When reasoning near this fact, {agentName} also pulls:</p>
             <ul className="flex flex-col gap-1 font-mono text-[11px] leading-relaxed text-[var(--text-secondary)]">
-              {recallLines.map((line, i) => <li key={i}>{line}</li>)}
+              {recallLines.map((line) => <li key={line}>{line}</li>)}
             </ul>
           </div>
         )}

@@ -63,6 +63,10 @@ export function BrainQuickSwitcher({ nodes, onSelect }: { nodes: BrainNode[]; on
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Jump to a fact…"
             aria-label="Search facts"
+            role="combobox"
+            aria-expanded={true}
+            aria-controls="brain-qs-list"
+            aria-activedescendant={results[active] ? `brain-qs-opt-${results[active].id}` : undefined}
             style={{ outline: "none" }}
             className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             onKeyDown={(e) => {
@@ -74,12 +78,12 @@ export function BrainQuickSwitcher({ nodes, onSelect }: { nodes: BrainNode[]; on
           />
           <span className="hidden shrink-0 rounded border border-[var(--border-hairline)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)] sm:inline">esc</span>
         </div>
-        <ul role="listbox" className="max-h-72 overflow-y-auto p-1.5">
+        <ul id="brain-qs-list" role="listbox" className="max-h-72 overflow-y-auto p-1.5">
           {results.length === 0 ? (
             <li className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">No matching facts</li>
           ) : (
             results.map((n, i) => (
-              <li key={n.id} role="option" aria-selected={i === active}>
+              <li key={n.id} id={`brain-qs-opt-${n.id}`} role="option" aria-selected={i === active}>
                 <button
                   type="button"
                   onMouseEnter={() => setActive(i)}

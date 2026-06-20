@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 import { cx } from "@/app/_components/theme";
 import type { BrainEdge, BrainNode } from "@/lib/knowledge-graph/read-model";
@@ -26,14 +26,6 @@ const kindLabel = (k: string) => KIND_LABELS[k] ?? k.replace(/_/g, " ").replace(
 
 export function BrainWorkspace({ nodes, edges, agentName, selectedId, onSelect }: Props) {
   const hub = useMemo(() => nodes.find((n) => n.kind === "arc" || n.kind === "hub") ?? null, [nodes]);
-
-  useEffect(() => {
-    if (selectedId) return;
-    const flagship = nodes.find((n) => /emergency water/i.test(n.label));
-    const initial = flagship?.id ?? hub?.id ?? nodes[0]?.id ?? null;
-    if (initial) onSelect(initial);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes]);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selectedId ? byId.get(selectedId) ?? null : null;

@@ -30,7 +30,11 @@ function matchesSource(node: BrainNode, filter: SourceFilter): boolean {
 
 export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, agentName }: Props) {
   const [source, setSource] = useState<SourceFilter>("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const flagship = graphNodes.find((n) => /emergency water/i.test(n.label));
+    const hub = graphNodes.find((n) => n.kind === "arc" || n.kind === "hub");
+    return flagship?.id ?? hub?.id ?? graphNodes[0]?.id ?? null;
+  });
 
   const filteredGraphNodes = useMemo(() => graphNodes.filter((n) => matchesSource(n, source)), [graphNodes, source]);
   const filteredGraphIds = useMemo(() => new Set(filteredGraphNodes.map((n) => n.id)), [filteredGraphNodes]);
@@ -55,7 +59,13 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
         <ApprovalQueue nodes={proposedNodes} />
       </div>
       <BrainBrowser nodes={filteredAll} agentName={agentName} />
-      <BrainQuickSwitcher nodes={graphNodes} onSelect={setSelectedId} />
+      <BrainQuickSwitcher
+        nodes={graphNodes}
+        onSelect={(id) => {
+          setSource("all");
+          setSelectedId(id);
+        }}
+      />
     </div>
   );
 }
