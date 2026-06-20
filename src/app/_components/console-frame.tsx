@@ -109,6 +109,7 @@ export function ConsoleFrame({
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
+    { label: "Personas", href: "/personas", icon: "personas", matches: ["/personas"] },
   ];
 
   const assetNavItems: ShellNavItem[] = [
