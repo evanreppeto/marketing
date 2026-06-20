@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { BSR_CONTEXT, fromAppContext, resolveBusinessContext, type AppBusinessContext } from "./business-context";
 import type { ArcClient } from "./arc-client";
 
+const emptyColor = { label: "", hex: "" };
+
 const APP: AppBusinessContext = {
   businessName: "Acme Co",
   industry: "plumbing",
@@ -13,6 +15,20 @@ const APP: AppBusinessContext = {
   proofPoints: [{ kind: "stat", label: "20 years in business" }],
   personas: [{ key: "homeowner", label: "Homeowner" }],
   guardrails: { disallowedClaims: ["same-day always"], complianceNotes: "Stay licensed-scope." },
+  palette: { primary: emptyColor, secondary: emptyColor, accent: emptyColor, dark: emptyColor, light: emptyColor, headingFont: "", bodyFont: "" },
+  logoUrl: null,
+  tagline: null,
+  description: null,
+  websiteUrl: null,
+  serviceAreas: [],
+};
+
+const baseApp: AppBusinessContext = {
+  businessName: "BSR", industry: "Restoration", services: [], tone: "calm", voiceGuidance: null,
+  preferredPhrases: [], bannedPhrases: [], proofPoints: [], personas: [],
+  guardrails: { disallowedClaims: [], complianceNotes: "" },
+  palette: { primary: { label: "Navy", hex: "#1B2A4A" }, secondary: emptyColor, accent: { label: "Gold", hex: "#C8A24B" }, dark: emptyColor, light: emptyColor, headingFont: "Oswald", bodyFont: "" },
+  logoUrl: "https://x/logo.png", tagline: "Chicago's crew", description: null, websiteUrl: "https://bsr.com", serviceAreas: ["Chicago"],
 };
 
 describe("fromAppContext", () => {
@@ -42,5 +58,25 @@ describe("resolveBusinessContext", () => {
     const client = { apiGet: vi.fn(async () => { throw new Error("boom"); }) } as unknown as ArcClient;
     const c = await resolveBusinessContext(client);
     expect(c).toEqual(BSR_CONTEXT);
+  });
+});
+
+describe("fromAppContext brand identity", () => {
+  it("renders palette colors, fonts, logo, tagline, website, service areas", () => {
+    const ctx = fromAppContext(baseApp);
+    const text = JSON.stringify(ctx);
+    expect(text).toContain("#1B2A4A");
+    expect(text).toContain("Navy");
+    expect(text).toContain("#C8A24B");
+    expect(text).toContain("Oswald");
+    expect(text).toContain("https://x/logo.png");
+    expect(text).toContain("Chicago's crew");
+    expect(text).toContain("https://bsr.com");
+  });
+  it("omits empty palette slots and empty identity fields", () => {
+    const ctx = fromAppContext({ ...baseApp, palette: { ...baseApp.palette, primary: emptyColor, accent: emptyColor, headingFont: "", bodyFont: "" }, logoUrl: null, tagline: null });
+    const text = JSON.stringify(ctx);
+    expect(text).not.toContain("Navy");
+    expect(text).not.toContain("logo.png");
   });
 });

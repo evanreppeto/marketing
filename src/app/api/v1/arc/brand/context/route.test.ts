@@ -18,6 +18,7 @@ vi.mock("@/lib/brand-kit/read-model", () => ({ getBusinessContext: vi.fn() }));
 
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getBusinessContext } from "@/lib/brand-kit/read-model";
+import { EMPTY_BRAND_PALETTE } from "@/domain";
 import { GET } from "./route";
 
 const workspaceMock = vi.mocked(getCurrentWorkspaceContext);
@@ -55,6 +56,12 @@ beforeEach(() => {
     personas: [],
     guardrails: { disallowedClaims: [], complianceNotes: "" },
     brainFacts: [],
+    palette: EMPTY_BRAND_PALETTE,
+    logoUrl: null,
+    tagline: null,
+    description: null,
+    websiteUrl: null,
+    serviceAreas: [],
   });
 });
 afterEach(() => {

@@ -18,6 +18,7 @@ import { listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { type MediaAssetView } from "@/lib/media-library/types";
 import { getAgentName } from "@/lib/settings/agent-name";
+import { getPersonaIntelligenceData } from "@/lib/persona-intelligence/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import {
   brandSourceSortScore,
@@ -25,11 +26,11 @@ import {
   type BrandSourceClassification,
 } from "@/lib/brand-knowledge/source-classifier";
 
-import { LibraryTabs } from "../_components/library-tabs";
-
 import { BrandProfileEditor } from "./_components/brand-profile-editor";
+import { BrandPersonas } from "./_components/brand-personas";
 import { BrandKnowledgeSyncButton } from "./_components/brand-knowledge-sync-button";
 import { BrandSourceUpload } from "./_components/brand-source-upload";
+import { LibraryTabs } from "../_components/library-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -146,11 +147,12 @@ function formatIndustryLabel(value: string | null | undefined) {
 }
 
 export default async function BrandPage() {
-  const [profile, brain, library, agentName] = await Promise.all([
+  const [profile, brain, library, agentName, personaData] = await Promise.all([
     loadBrandProfile(),
     listNodes({}),
     getMediaLibraryData(),
     getAgentName(),
+    getPersonaIntelligenceData(),
   ]);
 
   const facts = brain.status === "live" ? brandFacts(brain.nodes) : [];
@@ -189,7 +191,7 @@ export default async function BrandPage() {
             <div className="signal-eyebrow">Command center</div>
             <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Brand knowledge</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              Upload the files Mark should learn from. New uploads are analyzed immediately and existing Library files show up as a queue.
+              Upload the files {agentName} should learn from. New uploads are analyzed immediately and existing Library files show up as a queue.
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
               <MiniStat label="New" value={sourceReadiness.readyToLearn} />
@@ -206,7 +208,7 @@ export default async function BrandPage() {
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div>
             <div className="signal-eyebrow">Snapshot</div>
-            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What Mark knows right now</h2>
+            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What {agentName} knows right now</h2>
           </div>
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
             Edit details
@@ -242,6 +244,27 @@ export default async function BrandPage() {
             tone="rules"
           />
         </div>
+        {(() => {
+          const slots = [
+            profile.brandPalette.primary,
+            profile.brandPalette.secondary,
+            profile.brandPalette.accent,
+            profile.brandPalette.dark,
+            profile.brandPalette.light,
+          ].filter((c) => /^#[0-9a-fA-F]{6}$/.test(c.hex));
+          if (slots.length === 0) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border-hairline)] px-5 py-4">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Palette</span>
+              {slots.map((c) => (
+                <span key={c.hex + c.label} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <span aria-hidden className="h-5 w-5 rounded border border-[var(--border-hairline)]" style={{ backgroundColor: c.hex }} />
+                  {c.label || c.hex}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
       </Panel>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -304,6 +327,8 @@ export default async function BrandPage() {
           </Panel>
         </div>
       </section>
+
+      <BrandPersonas data={personaData} />
 
       <BrandProfileEditor profile={profile} />
     </div>
