@@ -108,7 +108,6 @@ export function ConsoleFrame({
   const intelligenceNavItems: ShellNavItem[] = [
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
-    { label: "Brand", href: "/brand", icon: "brand", matches: ["/brand"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
   ];
 
