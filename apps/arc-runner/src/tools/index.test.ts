@@ -32,6 +32,7 @@ const READ = [
   "list_vault_notes",
   "get_vault_note",
   "read_recent_activity",
+  "list_media",
   "list_brand_documents",
   "read_brand_document",
   "emit_card",
@@ -40,7 +41,7 @@ const READ = [
   "ask_operator",
 ];
 const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
-const DRAFT = ["create_campaign_draft", "generate_image", "generate_video", "analyze_website", "propose_brand_profile"];
+const DRAFT = ["create_campaign_draft", "generate_image", "generate_video", "analyze_website", "propose_brand_profile", "attach_media"];
 
 describe("toolsForMode", () => {
   it("ask mode exposes only read tools (no writes)", () => {

@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { BrainCircuit, CheckCircle2, RefreshCw, TriangleAlert } from "lucide-react";
 
 import { buttonClasses, StatusPill } from "@/app/_components/page-header";
-import { type BrandKnowledgeSyncActionState, syncBrandKnowledgeSourcesAction } from "@/app/brand/actions";
+import { type BrandKnowledgeSyncActionState, syncBrandKnowledgeSourcesAction } from "@/app/library/brand/actions";
 
 const initialState: BrandKnowledgeSyncActionState = null;
 
