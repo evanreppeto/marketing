@@ -20,9 +20,9 @@ type PageProps = {
 
 function buildTabs(agentName: string): Array<{ id: IntelligenceTab; label: string; detail: string }> {
   return [
-    { id: "personas", label: "Persona rules", detail: "Approved CTA and language rules" },
+    { id: "personas", label: "Roster", detail: "All 12 personas — rules and live memory" },
     { id: "snapshots", label: "Live snapshots", detail: "Current Supabase persona memory" },
-    { id: "signals", label: "Knowledge signals", detail: `Entries ${agentName} can reference` },
+    { id: "signals", label: "Knowledge", detail: `Reference entries ${agentName} can cite` },
     { id: "guardrails", label: "Guardrails", detail: "Copy and compliance checks" },
   ];
 }
@@ -47,13 +47,12 @@ export default async function PersonaIntelligencePage({ searchParams }: PageProp
   return (
     <>
       <PageHeader
-        eyebrow="Persona intelligence"
-        title={`Inspect persona rules before ${agentName} uses them.`}
-        description="Use the tabs to inspect one type of intelligence at a time. Nothing here publishes pages, sends outreach, or launches campaigns."
+        title="Personas"
+        description={`Who BSR sells to and how ${agentName} should talk to them. Inspect each persona's rulebook and live memory. Nothing here publishes pages, sends outreach, or launches campaigns.`}
         aside={
           <div className="flex flex-wrap items-center gap-2">
-            <StatusPill tone={data.status === "live" ? "green" : "amber"}>{data.status === "live" ? "Live memory" : "Unavailable"}</StatusPill>
-            <StatusPill tone="amber">No publishing</StatusPill>
+            <StatusPill tone={data.status === "live" ? "green" : "amber"}>{data.status === "live" ? "Live memory" : "Rules only"}</StatusPill>
+            <StatusPill tone="amber">Inspect-only</StatusPill>
           </div>
         }
       />
@@ -211,6 +210,13 @@ function PersonaRuleCard({ rule, live }: { rule: PersonaCtaRule; live: PersonaTr
         <RuleField label="Primary CTA" value={rule.primaryCta} />
         <RuleField label="Secondary CTA" value={rule.secondaryCta} />
       </div>
+
+      {live ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <RuleField label="Stage" value={humanize(live.stage)} />
+          <RuleField label="Confidence" value={`${live.score}%`} />
+        </div>
+      ) : null}
 
       <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold text-[var(--accent)]">
         Inspect in side panel
