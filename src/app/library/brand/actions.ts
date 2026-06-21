@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { learnBrandKnowledgeFromAsset } from "@/lib/brand-knowledge/brain-sync";
 import { brandSourceSortScore, classifyBrandSource } from "@/lib/brand-knowledge/source-classifier";
 import { summarizeBrandKnowledgeSync, type BrandKnowledgeSyncSummary } from "@/lib/brand-knowledge/sync-summary";
-import { fetchUrlSource } from "@/lib/brand-knowledge/url-source";
+import { discoverWebsiteSourceUrls, fetchUrlSource, type UrlSourceDocument } from "@/lib/brand-knowledge/url-source";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
@@ -18,7 +18,7 @@ function brandKnowledgeSources(assets: MediaAssetView[]) {
   return assets
     .map((asset) => ({ asset, classification: classifyBrandSource(asset) }))
     .filter(({ asset, classification }) => {
-      return asset.kind === "document" || asset.source === "google_drive" || classification.confidence === "high";
+      return asset.kind === "document" || asset.source === "google_drive" || asset.source === "url" || classification.confidence === "high";
     })
     .sort((a, b) => {
       return (
@@ -31,6 +31,8 @@ function brandKnowledgeSources(assets: MediaAssetView[]) {
 export type BrandKnowledgeSyncActionState = BrandKnowledgeSyncSummary | null;
 export type BrandUploadActionState = BrandKnowledgeSyncSummary | null;
 export type BrandUrlImportActionState = BrandKnowledgeSyncSummary | null;
+export type BrandWebsiteImportActionState = BrandKnowledgeSyncSummary | null;
+type ImportedUrlSourceResult = { created: number; skipped: number; updatedProfile: boolean; errors: string[] };
 
 const NOT_CONFIGURED: BrandKnowledgeSyncSummary = {
   ok: false,
@@ -138,6 +140,58 @@ export async function uploadAndAnalyzeBrandSourcesAction(
   return summarizeBrandKnowledgeSync(totals);
 }
 
+async function importUrlSourceDocument(input: {
+  orgId: string;
+  source: UrlSourceDocument;
+  uploadedBy: string;
+}): Promise<ImportedUrlSourceResult> {
+  const bytes = new TextEncoder().encode(input.source.text);
+  const assetId = await insertAsset({
+    orgId: input.orgId,
+    folderId: null,
+    fileName: input.source.fileName,
+    bytes,
+    contentType: "text/plain",
+    kind: "document",
+    byteSize: input.source.byteSize,
+    source: "url",
+    provenance: {
+      brandSource: true,
+      sourceUrl: input.source.url,
+      sourceTitle: input.source.title,
+      fetchedContentType: input.source.contentType,
+    },
+    uploadedBy: input.uploadedBy,
+  });
+  const result = await learnBrandKnowledgeFromAsset(
+    {
+      id: assetId,
+      fileName: input.source.fileName,
+      kind: "document",
+      source: "url",
+      tags: ["brand source", "url"],
+      availableToArc: true,
+      url: input.source.url,
+      extractedText: input.source.text,
+      contentType: "text/plain",
+      fileBytes: bytes,
+    },
+    { orgId: input.orgId },
+  );
+  return {
+    created: result.created,
+    skipped: result.skipped,
+    updatedProfile: Boolean(result.updatedProfile),
+    errors: result.errors,
+  };
+}
+
+function revalidateBrandSourceViews() {
+  revalidatePath("/library/brand");
+  revalidatePath("/library");
+  revalidatePath("/brain");
+}
+
 export async function importAndAnalyzeBrandUrlAction(
   _previous: BrandUrlImportActionState,
   formData: FormData,
@@ -158,40 +212,11 @@ export async function importAndAnalyzeBrandUrlAction(
   const totals = { sources: 1, created: 0, skipped: 0, updatedProfiles: 0, errors: [] as string[] };
 
   try {
-    const source = await fetchUrlSource({ url: rawUrl });
-    const bytes = new TextEncoder().encode(source.text);
-    const assetId = await insertAsset({
+    const result = await importUrlSourceDocument({
       orgId,
-      folderId: null,
-      fileName: source.fileName,
-      bytes,
-      contentType: "text/plain",
-      kind: "document",
-      byteSize: source.byteSize,
-      source: "url",
-      provenance: {
-        brandSource: true,
-        sourceUrl: source.url,
-        sourceTitle: source.title,
-        fetchedContentType: source.contentType,
-      },
       uploadedBy: getOperatorActor(),
+      source: await fetchUrlSource({ url: rawUrl }),
     });
-    const result = await learnBrandKnowledgeFromAsset(
-      {
-        id: assetId,
-        fileName: source.fileName,
-        kind: "document",
-        source: "url",
-        tags: ["brand source", "url"],
-        availableToArc: true,
-        url: source.url,
-        extractedText: source.text,
-        contentType: "text/plain",
-        fileBytes: bytes,
-      },
-      { orgId },
-    );
     totals.created += result.created;
     totals.skipped += result.skipped;
     if (result.updatedProfile) totals.updatedProfiles += 1;
@@ -200,8 +225,53 @@ export async function importAndAnalyzeBrandUrlAction(
     totals.errors.push(error instanceof Error ? error.message : "URL import failed.");
   }
 
-  revalidatePath("/library/brand");
-  revalidatePath("/library");
-  revalidatePath("/brain");
+  revalidateBrandSourceViews();
+  return summarizeBrandKnowledgeSync(totals);
+}
+
+export async function importAndAnalyzeBrandWebsiteAction(
+  _previous: BrandWebsiteImportActionState,
+  formData: FormData,
+): Promise<BrandWebsiteImportActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const rawUrl = String(formData.get("websiteUrl") ?? "").trim();
+  if (!rawUrl) {
+    return {
+      ok: false,
+      message: "No website entered.",
+      items: ["Paste a public homepage or sitemap entry point"],
+    };
+  }
+
+  const orgId = await getCurrentOrgId();
+  const uploadedBy = getOperatorActor();
+  const totals = { sources: 0, created: 0, skipped: 0, updatedProfiles: 0, errors: [] as string[] };
+
+  try {
+    const urls = await discoverWebsiteSourceUrls({ url: rawUrl, maxUrls: 6 });
+    totals.sources = urls.length;
+    for (const url of urls) {
+      try {
+        const result = await importUrlSourceDocument({
+          orgId,
+          uploadedBy,
+          source: await fetchUrlSource({ url }),
+        });
+        totals.created += result.created;
+        totals.skipped += result.skipped;
+        if (result.updatedProfile) totals.updatedProfiles += 1;
+        totals.errors.push(...result.errors.map((error) => `${url}: ${error}`));
+      } catch (error) {
+        totals.errors.push(error instanceof Error ? `${url}: ${error.message}` : `${url}: URL import failed.`);
+      }
+    }
+  } catch (error) {
+    totals.sources = 1;
+    totals.errors.push(error instanceof Error ? error.message : "Website import failed.");
+  }
+
+  revalidateBrandSourceViews();
   return summarizeBrandKnowledgeSync(totals);
 }
