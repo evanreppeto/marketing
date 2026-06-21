@@ -30,7 +30,7 @@ export default async function PersonasPage({ searchParams }: PageProps) {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <PageHeader
         title="Personas"
         description="Who you sell to, and how to reach each one."
