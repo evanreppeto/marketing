@@ -96,7 +96,7 @@ export function BrainWorkspace({ nodes, edges, agentName, selectedId, onSelect }
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-dashed border-[var(--text-muted)]" />Proposed</span>
           </div>
         </div>
-        <div className="relative h-[74vh] min-h-[620px] w-full bg-[radial-gradient(120%_90%_at_50%_8%,rgba(200,162,74,0.05),transparent_60%)]">
+        <div className="relative h-[74vh] min-h-[620px] w-full bg-[radial-gradient(105%_80%_at_50%_38%,rgba(200,162,74,0.08),transparent_58%),linear-gradient(180deg,var(--canvas-deep),var(--canvas))]">
           {nodes.length > 0 ? (
             <BrainGraphCytoscape nodes={nodes} edges={edges} selectedId={selectedId} onSelect={onSelect} />
           ) : (

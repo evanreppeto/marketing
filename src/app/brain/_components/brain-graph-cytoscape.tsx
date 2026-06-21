@@ -19,6 +19,33 @@ function cssVar(name: string, fallback: string): string {
   return v || fallback;
 }
 
+// ── Small colour helpers so each node can render as a lit orb (radial gradient)
+//    rather than a flat disc — the single biggest lift toward a premium feel.
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  const n = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  return [parseInt(n.slice(0, 2), 16), parseInt(n.slice(2, 4), 16), parseInt(n.slice(4, 6), 16)];
+}
+function rgbToHex(r: number, g: number, b: number): string {
+  return "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+}
+/** Blend toward white by `amt` (0–1). */
+function lighten(hex: string, amt: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(r + (255 - r) * amt, g + (255 - g) * amt, b + (255 - b) * amt);
+}
+/** Blend toward black by `amt` (0–1). */
+function darken(hex: string, amt: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(r * (1 - amt), g * (1 - amt), b * (1 - amt));
+}
+/** Mix two hex colours, `t` toward `b`. */
+function mix(a: string, b: string, t: number): string {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  return rgbToHex(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t);
+}
+
 /**
  * Interactive knowledge graph rendered with Cytoscape, tuned to feel like
  * Obsidian's graph view: a force web that settles in on load, draggable nodes,
@@ -46,15 +73,20 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
       }
       if (cancelled || !containerRef.current) return;
 
+      const accent = cssVar("--accent", "#c8a24a");
+      const chip = cssVar("--canvas-deep", "#101013");
       const palette = {
-        accent: cssVar("--accent", "#c8a24a"),
+        accent,
         accentStrong: cssVar("--accent-strong", "#d8b65e"),
-        ok: cssVar("--ok", "#7fb89a"),
-        muted: cssVar("--text-muted", "#86868e"),
+        // A touch deeper/less minty than --ok so the orb gradient supplies the light.
+        ok: mix(cssVar("--ok", "#7fb89a"), "#5d8270", 0.22),
+        muted: mix(cssVar("--text-muted", "#86868e"), chip, 0.18),
         ivory: cssVar("--text-primary", "#f1ede2"),
         secondary: cssVar("--text-secondary", "#b9b9c0"),
-        edge: cssVar("--border-strong", "#3a3a42"),
-        chip: cssVar("--canvas-deep", "#101013"),
+        // Warm, dim edge tone (gold pulled toward canvas) — cohesive with obsidian+gold,
+        // not the cold grey of a default force graph.
+        edge: mix(accent, chip, 0.66),
+        chip,
       };
 
       // Degree drives node size + label visibility, so the hub and well-connected
@@ -79,13 +111,18 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
         ...nodes.map((n) => {
           const isHub = n.kind === "arc" || n.kind === "hub";
           const deg = degree.get(n.id) ?? 0;
-          const size = isHub ? 86 : 26 + (deg / maxDeg) * 42;
+          const size = isHub ? 76 : 24 + (deg / maxDeg) * 40;
+          const base = tierColor(n);
+          // Lit-orb gradient: bright crown → base → shaded rim, for depth.
+          const grad = `${lighten(base, isHub ? 0.5 : 0.42)} ${base} ${darken(base, 0.26)}`;
           return {
             data: {
               id: n.id,
               label: n.label,
               isHub: isHub ? 1 : 0,
-              color: tierColor(n),
+              color: base,
+              grad,
+              ring: darken(base, 0.42),
               size,
               // Labels are hidden by default and revealed on hover / selection
               // (Obsidian behaviour) so the resting web reads calm, not crowded.
@@ -112,14 +149,20 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
             style: {
               width: "data(size)",
               height: "data(size)",
+              // Lit-orb: radial gradient gives each node real depth vs. a flat disc.
               "background-color": "data(color)",
-              "background-opacity": 0.92,
-              "border-width": 1.5,
-              "border-color": palette.chip,
+              "background-fill": "radial-gradient",
+              "background-gradient-stop-colors": "data(grad)",
+              "background-gradient-stop-positions": "0 52 100",
+              "background-opacity": 1,
+              // A thin, colour-matched rim (not a hard black outline) reads refined.
+              "border-width": 1,
+              "border-color": "data(ring)",
+              "border-opacity": 0.9,
               // Soft outer bloom — a calm Obsidian-style halo around every node.
               "underlay-color": "data(color)",
-              "underlay-opacity": 0.16,
-              "underlay-padding": 9,
+              "underlay-opacity": 0.14,
+              "underlay-padding": 10,
               "underlay-shape": "ellipse",
               label: "data(showLabel)",
               color: palette.secondary,
@@ -143,31 +186,33 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
           {
             selector: 'node[isHub = 1]',
             style: {
-              "background-color": palette.accent,
-              "border-width": 3,
+              // Focal hub: a brighter gold ring + a wider warm bloom anchors the web.
+              "border-width": 2.5,
               "border-color": palette.accentStrong,
-              "underlay-opacity": 0.26,
-              "underlay-padding": 16,
+              "border-opacity": 1,
+              "underlay-color": palette.accent,
+              "underlay-opacity": 0.3,
+              "underlay-padding": 20,
               color: palette.ivory,
               "font-size": 15,
               "font-weight": 700,
-              "text-margin-y": 9,
+              "text-margin-y": 10,
               "z-index": 30,
             },
           },
           {
             selector: 'node[proposed = 1]',
-            style: { "border-color": palette.muted, "border-style": "dashed", "background-opacity": 0.45, "underlay-opacity": 0.08 },
+            style: { "border-color": palette.muted, "border-style": "dashed", "background-opacity": 0.4, "underlay-opacity": 0.06 },
           },
           {
             selector: "edge",
             style: {
-              width: 1,
+              width: 0.8,
               "line-color": palette.edge,
               // Gentle curve gives the web an organic, premium settle (vs. rigid spokes).
               "curve-style": "bezier",
-              "control-point-step-size": 28,
-              opacity: 0.3,
+              "control-point-step-size": 30,
+              opacity: 0.32,
               "transition-property": "opacity, line-color, width",
               "transition-duration": 140,
             },
@@ -186,7 +231,8 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
           { selector: "node.hglow", style: { "underlay-opacity": 0.46, "underlay-padding": 13, "border-color": palette.accentStrong, color: palette.ivory, label: "data(label)" } },
           { selector: "node.hnbr", style: { "background-opacity": 1, color: palette.ivory, label: "data(label)" } },
           { selector: "edge.hlit", style: { "line-color": palette.accent, opacity: 0.88, width: 2 } },
-        ],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- gradient stop-colors via data() mapper aren't in cytoscape's narrow style typings
+        ] as any,
         layout: {
           name: "cola",
           // Premium Obsidian feel: the web springs out, then SETTLES into a calm,
