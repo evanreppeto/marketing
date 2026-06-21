@@ -3,6 +3,8 @@ import { createHash, randomInt } from "node:crypto";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
+import { recordWorkspaceAudit } from "./workspace-audit";
+
 export type WorkspaceInviteRole = "admin" | "marketer" | "reviewer" | "member" | "viewer";
 
 type IssueWorkspaceInviteInput = {
@@ -167,6 +169,16 @@ export async function issueWorkspaceInviteCode(input: IssueWorkspaceInviteInput)
 
     if (insertError) throw insertError;
 
+    await recordWorkspaceAudit({
+      orgId: access.membership.org_id,
+      workspaceId,
+      actorUserId: access.user.id,
+      action: "invite.created",
+      summary: `Invite created for ${invitedEmail ?? "anyone"} (${role})`,
+      subjectTable: "workspace_invites",
+      metadata: { role, invitedEmail },
+    });
+
     return { ok: true, code, expiresAt, orgId: access.membership.org_id, workspaceId };
   } catch (error) {
     return {
@@ -248,6 +260,16 @@ export async function cancelWorkspaceInvite(input: WorkspaceInviteInput): Promis
       .eq("workspace_id", workspaceId)
       .eq("status", "active");
     if (error) throw error;
+
+    await recordWorkspaceAudit({
+      orgId: access.membership.org_id,
+      workspaceId,
+      actorUserId: access.user.id,
+      action: "invite.revoked",
+      summary: "Invite revoked",
+      subjectTable: "workspace_invites",
+      subjectId: inviteId,
+    });
 
     return { ok: true };
   } catch (error) {
