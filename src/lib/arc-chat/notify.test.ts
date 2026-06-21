@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { notifyArcWebhook } from "./notify";
+import { notifyArcWebhook, notifyOpportunityScan } from "./notify";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -134,5 +134,48 @@ describe("notifyArcWebhook", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("boom")));
 
     await expect(notifyArcWebhook(basePayload)).resolves.toBe(false);
+  });
+});
+
+describe("notifyOpportunityScan", () => {
+  it("POSTs type:arc_opportunity_scan with the scan payload", async () => {
+    process.env.ARC_RUNNER_URL = "https://arc.example/webhooks/runner";
+    delete process.env.ARC_WEBHOOK_URL;
+    const fetchMock = mockFetch();
+
+    const delivered = await notifyOpportunityScan({
+      agentTaskId: "task-123",
+      message: "Scan the CRM.",
+      operator: "Operator",
+    });
+
+    expect(delivered).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://arc.example/webhooks/runner");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({
+      type: "arc_opportunity_scan",
+      agentTaskId: "task-123",
+      message: "Scan the CRM.",
+      operator: "Operator",
+    });
+    // Must NOT carry opportunityId
+    expect(body).not.toHaveProperty("opportunityId");
+  });
+
+  it("reports not delivered when no runner URL is set", async () => {
+    delete process.env.ARC_RUNNER_URL;
+    delete process.env.ARC_WEBHOOK_URL;
+    const fetchMock = mockFetch();
+
+    const delivered = await notifyOpportunityScan({
+      agentTaskId: "task-456",
+      message: "Scan.",
+      operator: "Operator",
+    });
+
+    expect(delivered).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
