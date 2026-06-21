@@ -22,15 +22,15 @@ export function BrainSourceFilter({ nodes, active, onChange }: Props) {
         onClick={() => onChange(key)}
         aria-pressed={isActive}
         className={cx(
-          "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+          "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition",
           isActive
-            ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]"
-            : "border-[var(--border-hairline)] text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]",
+            ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] font-semibold text-[var(--accent-contrast)]"
+            : "border-[var(--border-hairline)] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]",
         )}
       >
         {dot ? <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} /> : null}
         <span>{label}</span>
-        <span className={cx("font-mono", isActive ? "text-[var(--on-accent)]" : "text-[var(--text-muted)]")}>{count}</span>
+        <span className={cx("font-mono", isActive ? "text-[var(--accent-contrast)]" : "text-[var(--text-muted)]")}>{count}</span>
       </button>
     );
   };
