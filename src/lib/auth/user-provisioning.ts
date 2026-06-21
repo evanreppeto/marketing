@@ -27,6 +27,21 @@ export type ProvisionUserResult =
   | { ok: true; status: "profile_only"; orgId: null; workspaceId: null }
   | { ok: false; status: "not_configured" | "missing_workspace" | "missing_email" | "failed"; message: string };
 
+export type RedeemWorkspaceInviteCodeResult =
+  | { ok: true; status: "invited_member"; orgId: string; workspaceId: string }
+  | {
+      ok: false;
+      status:
+        | "not_configured"
+        | "invalid_input"
+        | "missing_email"
+        | "not_found"
+        | "email_mismatch"
+        | "expired"
+        | "failed";
+      message: string;
+    };
+
 function userDisplayName(user: User) {
   const metadata = user.user_metadata ?? {};
   const name = metadata.full_name ?? metadata.name ?? metadata.display_name;
@@ -188,9 +203,17 @@ async function acceptPendingInvite(client: TypedSupabaseClient, user: User, emai
   return invite;
 }
 
-async function acceptPendingInviteCode(client: TypedSupabaseClient, user: User, email: string): Promise<PendingWorkspaceInvite | null> {
-  const inviteCode = getPendingInviteCode(user);
-  if (!inviteCode) return null;
+async function redeemInviteCode(
+  client: TypedSupabaseClient,
+  user: User,
+  email: string,
+  inviteCodeInput: string,
+): Promise<
+  | { status: "redeemed"; invite: PendingWorkspaceInvite }
+  | { status: "empty" | "not_found" | "email_mismatch" | "expired" }
+> {
+  const inviteCode = normalizeInviteCode(inviteCodeInput);
+  if (!inviteCode) return { status: "empty" };
 
   const { data: invite, error } = await client
     .from("workspace_invites")
@@ -199,13 +222,13 @@ async function acceptPendingInviteCode(client: TypedSupabaseClient, user: User, 
     .eq("status", "active")
     .maybeSingle<PendingWorkspaceInviteCode>();
 
-  if (error || !invite) return null;
+  if (error || !invite) return { status: "not_found" };
 
   const invitedEmail = normalizeEmail(invite.invited_email);
-  if (invitedEmail && invitedEmail !== email) return null;
+  if (invitedEmail && invitedEmail !== email) return { status: "email_mismatch" };
 
   if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) {
-    return null;
+    return { status: "expired" };
   }
 
   const now = new Date().toISOString();
@@ -231,7 +254,12 @@ async function acceptPendingInviteCode(client: TypedSupabaseClient, user: User, 
     .eq("id", invite.id);
   if (updateError) throw updateError;
 
-  return invite;
+  return { status: "redeemed", invite };
+}
+
+async function acceptPendingInviteCode(client: TypedSupabaseClient, user: User, email: string): Promise<PendingWorkspaceInvite | null> {
+  const redeemed = await redeemInviteCode(client, user, email, getPendingInviteCode(user));
+  return redeemed.status === "redeemed" ? redeemed.invite : null;
 }
 
 async function getActiveWorkspaceMembership(client: TypedSupabaseClient, userId: string) {
@@ -300,6 +328,47 @@ export async function provisionAuthenticatedUser(user: User): Promise<ProvisionU
       ok: false,
       status: "failed",
       message: error instanceof Error ? error.message : "User provisioning failed.",
+    };
+  }
+}
+
+export async function redeemWorkspaceInviteCodeForUser(
+  client: TypedSupabaseClient,
+  user: User,
+  inviteCode: string,
+): Promise<RedeemWorkspaceInviteCodeResult> {
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, status: "not_configured", message: "Supabase admin env vars are required to join a workspace." };
+  }
+
+  const email = normalizeEmail(user.email);
+  if (!email) return { ok: false, status: "missing_email", message: "Supabase user is missing an email address." };
+
+  try {
+    const redeemed = await redeemInviteCode(client, user, email, inviteCode);
+    if (redeemed.status === "redeemed") {
+      return {
+        ok: true,
+        status: "invited_member",
+        orgId: redeemed.invite.org_id,
+        workspaceId: redeemed.invite.workspace_id,
+      };
+    }
+    if (redeemed.status === "empty") {
+      return { ok: false, status: "invalid_input", message: "Enter a workspace invite code." };
+    }
+    if (redeemed.status === "email_mismatch") {
+      return { ok: false, status: "email_mismatch", message: "That invite code is tied to a different email address." };
+    }
+    if (redeemed.status === "expired") {
+      return { ok: false, status: "expired", message: "That invite code has expired. Ask an owner for a new one." };
+    }
+    return { ok: false, status: "not_found", message: "That invite code is invalid or has already been used." };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "failed",
+      message: error instanceof Error ? error.message : "Workspace invite could not be redeemed.",
     };
   }
 }
