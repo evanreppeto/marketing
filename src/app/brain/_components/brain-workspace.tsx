@@ -90,13 +90,16 @@ export function BrainWorkspace({ nodes, edges, agentName, selectedId, onSelect }
             <span className="text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Knowledge web</span>
             <span className="text-xs text-[var(--text-muted)]">{agentName}&apos;s connected memory</span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--ok)]" />Trusted</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--accent)]" />Observed</span>
+          <div className="hidden items-center gap-3 text-[11px] text-[var(--text-muted)] md:flex">
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#d8b65e" }} />Hub</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#9a8fc4" }} />Persona</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#c47055" }} />Brand</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#6faa84" }} />Proof</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#6a86bd" }} />Campaign</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-dashed border-[var(--text-muted)]" />Proposed</span>
           </div>
         </div>
-        <div className="relative h-[74vh] min-h-[620px] w-full bg-[radial-gradient(105%_80%_at_50%_38%,rgba(200,162,74,0.08),transparent_58%),linear-gradient(180deg,var(--canvas-deep),var(--canvas))]">
+        <div className="relative h-[74vh] min-h-[620px] w-full bg-[#0d0d10]">
           {nodes.length > 0 ? (
             <BrainGraphCytoscape nodes={nodes} edges={edges} selectedId={selectedId} onSelect={onSelect} />
           ) : (
