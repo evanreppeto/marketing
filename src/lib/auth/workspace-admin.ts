@@ -1,7 +1,8 @@
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
 
-import { ASSIGNABLE_WORKSPACE_ROLES, isAssignableRole, type WorkspaceRoleKey } from "./workspace-roles";
+import { recordWorkspaceAudit } from "./workspace-audit";
+import { ASSIGNABLE_WORKSPACE_ROLES, isAssignableRole, roleLabel, type WorkspaceRoleKey } from "./workspace-roles";
 
 export type UserWorkspace = {
   workspaceId: string;
@@ -11,6 +12,14 @@ export type UserWorkspace = {
   orgId: string;
   orgName: string;
   role: string;
+};
+
+export type WorkspaceActivityEntry = {
+  id: string;
+  action: string;
+  summary: string | null;
+  actorEmail: string | null;
+  createdAt: string;
 };
 
 export type MemberMutationResult =
@@ -34,18 +43,18 @@ async function requireWorkspaceAdmin(workspaceId: string) {
   const client = getSupabaseAdminClient();
   const { data: membership, error } = await client
     .from("workspace_memberships")
-    .select("role,status")
+    .select("org_id,role,status")
     .eq("workspace_id", workspaceId)
     .eq("user_id", user.id)
     .eq("status", "active")
-    .maybeSingle<{ role: string; status: string }>();
+    .maybeSingle<{ org_id: string; role: string; status: string }>();
 
   if (error) throw error;
   if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
     return { ok: false as const, status: "not_authorized" as const, message: "Only workspace owners and admins can manage the team." };
   }
 
-  return { ok: true as const, client, user, role: membership.role };
+  return { ok: true as const, client, user, role: membership.role, orgId: membership.org_id };
 }
 
 /** Every active workspace the signed-in user belongs to, with org + role context. */
@@ -92,15 +101,49 @@ export async function listWorkspacesForUser(): Promise<UserWorkspace[]> {
     .filter((value): value is UserWorkspace => value !== null);
 }
 
+/** Recent audit events for a workspace (admin-only), with actor emails resolved. */
+export async function listWorkspaceActivity(workspaceId: string, limit = 12): Promise<WorkspaceActivityEntry[]> {
+  const access = await requireWorkspaceAdmin(workspaceId.trim());
+  if (!access.ok) return [];
+
+  const { data, error } = await access.client
+    .from("audit_events")
+    .select("id,action,summary,actor_user_id,created_at")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data?.length) return [];
+
+  const actorIds = [...new Set(data.map((row) => row.actor_user_id).filter((id): id is string => Boolean(id)))];
+  let emailByActor = new Map<string, string | null>();
+  if (actorIds.length) {
+    const { data: profiles } = await access.client.from("profiles").select("id,email").in("id", actorIds);
+    emailByActor = new Map((profiles ?? []).map((row) => [row.id, row.email ?? null]));
+  }
+
+  return data.map((row) => ({
+    id: row.id,
+    action: row.action,
+    summary: row.summary ?? null,
+    actorEmail: row.actor_user_id ? emailByActor.get(row.actor_user_id) ?? null : null,
+    createdAt: row.created_at,
+  }));
+}
+
 async function fetchTargetMembership(client: TypedSupabaseClient, workspaceId: string, membershipId: string) {
   const { data, error } = await client
     .from("workspace_memberships")
-    .select("id,role,user_id,status")
+    .select("id,role,user_id,invited_email,status")
     .eq("id", membershipId)
     .eq("workspace_id", workspaceId)
-    .maybeSingle<{ id: string; role: string; user_id: string | null; status: string }>();
+    .maybeSingle<{ id: string; role: string; user_id: string | null; invited_email: string | null; status: string }>();
   if (error) throw error;
   return data ?? null;
+}
+
+function memberLabel(email: string | null): string {
+  return email ?? "a member";
 }
 
 /** Change a member's workspace role. Owners can't be re-roled; you can't change your own. */
@@ -135,6 +178,17 @@ export async function changeWorkspaceMemberRole(input: {
       .eq("workspace_id", workspaceId);
     if (error) throw error;
 
+    await recordWorkspaceAudit({
+      orgId: access.orgId,
+      workspaceId,
+      actorUserId: access.user.id,
+      action: "member.role_changed",
+      summary: `Changed ${memberLabel(target.invited_email)} to ${roleLabel(nextRole)}`,
+      subjectTable: "workspace_memberships",
+      subjectId: membershipId,
+      metadata: { from: target.role, to: nextRole },
+    });
+
     return { ok: true };
   } catch (error) {
     return { ok: false, status: "failed", message: error instanceof Error ? error.message : "The role could not be updated." };
@@ -167,6 +221,17 @@ export async function removeWorkspaceMember(input: {
       .eq("id", membershipId)
       .eq("workspace_id", workspaceId);
     if (error) throw error;
+
+    await recordWorkspaceAudit({
+      orgId: access.orgId,
+      workspaceId,
+      actorUserId: access.user.id,
+      action: "member.removed",
+      summary: `Removed ${memberLabel(target.invited_email)}`,
+      subjectTable: "workspace_memberships",
+      subjectId: membershipId,
+      metadata: { role: target.role },
+    });
 
     return { ok: true };
   } catch (error) {

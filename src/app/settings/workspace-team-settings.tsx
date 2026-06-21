@@ -1,12 +1,57 @@
-import { LockKeyhole, ShieldCheck, UsersRound } from "lucide-react";
+import { History, LockKeyhole, ShieldCheck, UsersRound } from "lucide-react";
 
 import { StatusPill } from "../_components/page-header";
 import { getCurrentWorkspaceContext, type WorkspaceRole } from "@/lib/auth/workspace";
+import { listWorkspaceActivity, type WorkspaceActivityEntry } from "@/lib/auth/workspace-admin";
 import { listWorkspaceTeamAccess } from "@/lib/auth/workspace-invites";
+import { auditActionLabel } from "@/lib/auth/workspace-audit";
 import { WORKSPACE_ROLES, roleLabel } from "@/lib/auth/workspace-roles";
 import { WorkspaceAccessList } from "./workspace-access-list";
 import { SettingsSection } from "./settings-section";
 import { WorkspaceInviteForm } from "./workspace-invite-form";
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diffMs = Date.now() - then;
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function ActivityFeed({ entries }: { entries: WorkspaceActivityEntry[] }) {
+  return (
+    <section className="border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+      <div className="flex items-center gap-2 border-b border-[var(--border-hairline)] px-4 py-3 text-sm font-bold text-[var(--text-primary)]">
+        <History aria-hidden className="h-4 w-4 text-[var(--accent)]" />
+        Activity
+      </div>
+      {entries.length ? (
+        <ul className="divide-y divide-[var(--border-hairline)]">
+          {entries.map((entry) => (
+            <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3" key={entry.id}>
+              <div className="min-w-0">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">{auditActionLabel(entry.action)}</span>
+                {entry.summary ? <span className="ml-2 text-xs text-[var(--text-muted)]">{entry.summary}</span> : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-2 text-xs text-[var(--text-muted)]">
+                {entry.actorEmail ? <span className="text-[var(--text-secondary)]">{entry.actorEmail}</span> : null}
+                <span>{relativeTime(entry.createdAt)}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="px-4 py-4 text-sm text-[var(--text-muted)]">No activity recorded yet.</div>
+      )}
+    </section>
+  );
+}
 
 function canIssueInvites(role: WorkspaceRole | null | undefined) {
   return role === "owner" || role === "admin";
@@ -53,6 +98,7 @@ export async function WorkspaceTeamSettings() {
   const canIssue = hasWorkspace && canIssueInvites(context?.role);
   const teamAccess = context?.workspaceId ? await listWorkspaceTeamAccess(context.workspaceId) : null;
   const memberCount = teamAccess?.ok ? teamAccess.members.length : null;
+  const activity = canIssue && context?.workspaceId ? await listWorkspaceActivity(context.workspaceId) : [];
 
   return (
     <SettingsSection
@@ -98,6 +144,8 @@ export async function WorkspaceTeamSettings() {
                 Workspace access records will appear here after signing in with a workspace member account.
               </div>
             )}
+
+            <ActivityFeed entries={activity} />
           </>
         ) : hasWorkspace && context?.workspaceId && teamAccess?.ok ? (
           <WorkspaceAccessList
