@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 
 import { cx, theme } from "@/app/_components/theme";
-import { nodeProvenance, type BrainSourceSystem } from "@/domain";
+import { analyzeBrainHealth, nodeProvenance, type BrainSourceSystem } from "@/domain";
 import type { BrainEdge, BrainNode } from "@/lib/knowledge-graph/read-model";
 
 import { ApprovalQueue } from "./approval-queue";
 import { BrainBrowser } from "./brain-browser";
+import { BrainHealth } from "./brain-health";
 import { BrainQuickSwitcher } from "./brain-quick-switcher";
 import { BrainSourceFilter } from "./brain-source-filter";
 import { BrainWorkspace } from "./brain-workspace";
@@ -24,11 +25,16 @@ type Props = {
 /** "all" plus the six source systems. */
 export type SourceFilter = "all" | BrainSourceSystem;
 
-type Tab = "web" | "recent" | "review" | "facts";
+type Tab = "web" | "health" | "recent" | "review" | "facts";
 
 function matchesSource(node: BrainNode, filter: SourceFilter): boolean {
   if (filter === "all") return true;
   return nodeProvenance(node).system === filter;
+}
+
+// Wrapped so the wall-clock read isn't a bare impure call inside render/useMemo.
+function nowMs(): number {
+  return Date.now();
 }
 
 export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, agentName }: Props) {
@@ -49,8 +55,13 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
   const filteredAll = useMemo(() => allNodes.filter((n) => matchesSource(n, source)), [allNodes, source]);
   const filteredProposed = useMemo(() => proposedNodes.filter((n) => matchesSource(n, source)), [proposedNodes, source]);
 
+  // Health is a whole-brain concern — computed over the full graph, not the filter.
+  const health = useMemo(() => analyzeBrainHealth(graphNodes, graphEdges, nowMs()), [graphNodes, graphEdges]);
+  const healthIssues = health.orphans.length + health.coverageGaps.length + health.lowConfidence.length + health.stale.length;
+
   const tabs: Array<{ key: Tab; label: string; count?: number }> = [
     { key: "web", label: "Knowledge Web", count: filteredGraphNodes.length },
+    { key: "health", label: "Health", count: healthIssues },
     { key: "recent", label: "Recently Learned" },
     { key: "review", label: "Needs Review", count: filteredProposed.length },
     { key: "facts", label: "All Facts", count: filteredAll.length },
@@ -101,6 +112,7 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
           onSelect={setSelectedId}
         />
       )}
+      {tab === "health" && <BrainHealth health={health} onSelect={jumpTo} />}
       {tab === "recent" && <RecentlyLearned nodes={filteredAll} />}
       {tab === "review" && <ApprovalQueue nodes={filteredProposed} />}
       {tab === "facts" && <BrainBrowser nodes={filteredAll} agentName={agentName} />}
