@@ -11,9 +11,10 @@ import { mediaTools } from "./media";
 import { libraryReadTools, libraryDraftTools } from "./library";
 import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
 import { brandTools } from "./brand";
+import { proposeOpportunityTool } from "./opportunities";
 import type { StepFn, TurnSink } from "./helpers";
 
-export type ArcMode = "ask" | "act" | "draft";
+export type ArcMode = "ask" | "act" | "draft" | "scan";
 
 /** Extra per-turn context threaded into work-product tools (e.g. the opportunity a draft links back to, the Arc level driving media models). */
 export type ToolContext = { opportunityId?: string; level?: "fast" | "standard"; conversationId?: string };
@@ -70,6 +71,7 @@ export function toolsForMode(
   // pushing differently-typed tools into a narrowed array won't compile.
   const read = readTools(client, step, sink);
   if (mode === "ask") return [...read];
+  if (mode === "scan") return [...read, proposeOpportunityTool(client, step)];
   const write = writeTools(client, step);
   return [...read, ...write, ...draftTools(client, step, sink, ctx)];
 }
