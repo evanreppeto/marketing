@@ -83,9 +83,9 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
         muted: mix(cssVar("--text-muted", "#86868e"), chip, 0.18),
         ivory: cssVar("--text-primary", "#f1ede2"),
         secondary: cssVar("--text-secondary", "#b9b9c0"),
-        // Warm, dim edge tone (gold pulled toward canvas) — cohesive with obsidian+gold,
-        // not the cold grey of a default force graph.
-        edge: mix(accent, chip, 0.66),
+        // Warm edge tone (gold pulled toward canvas) — cohesive with obsidian+gold,
+        // not the cold grey of a default force graph. Kept bright enough to read.
+        edge: mix(accent, chip, 0.42),
         chip,
       };
 
@@ -142,7 +142,9 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
         elements,
         minZoom: 0.25,
         maxZoom: 3,
-        wheelSensitivity: 0.22,
+        // Don't hijack the mouse wheel — the page should scroll normally over the
+        // graph. Users still drag the background to pan and drag nodes to arrange.
+        userZoomingEnabled: false,
         style: [
           {
             selector: "node",
@@ -207,21 +209,22 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
           {
             selector: "edge",
             style: {
-              width: 0.6,
+              width: 1,
               "line-color": palette.edge,
               // Gentle curve gives the web an organic, premium settle (vs. rigid spokes).
               "curve-style": "bezier",
               "control-point-step-size": 30,
-              // Faint at rest — connections read as quiet threads; selection/hover lights them.
-              opacity: 0.18,
+              // Visible quiet threads at rest; selection/hover lights them gold.
+              opacity: 0.5,
               "transition-property": "opacity, line-color, width",
               "transition-duration": 140,
             },
           },
-          // Selection focus (click) — persistent dim of everything else so the
-          // selected fact's neighborhood reads as a lit constellation.
-          { selector: "node.faded", style: { opacity: 0.07 } },
-          { selector: "edge.faded", style: { opacity: 0.025 } },
+          // Selection focus (click) — gently recede everything else so the selected
+          // fact's neighborhood reads as a lit constellation, but the whole web
+          // stays visible (no blacking-out).
+          { selector: "node.faded", style: { opacity: 0.32 } },
+          { selector: "edge.faded", style: { opacity: 0.14 } },
           {
             selector: "node.focus",
             style: { "border-width": 3, "border-color": palette.accentStrong, "underlay-opacity": 0.46, "underlay-padding": 13, color: palette.ivory, label: "data(label)" },
