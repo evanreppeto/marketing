@@ -8,7 +8,7 @@ import {
   isOperatorGateEnabled,
   isValidOperatorValue,
 } from "./operator-shared";
-import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
+import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 
 /**
  * Operator access gate. A single shared-secret cookie protects the human-facing
@@ -31,10 +31,24 @@ export async function requireOperator() {
   }
 
   if (authMode === "supabase") {
-    const user = await getSupabaseAuthenticatedUser();
+    const supabase = await createSupabaseAuthServerClient();
+    const { data, error } = await supabase.auth.getUser();
+    const user = error ? null : data.user;
 
     if (!user) {
       redirect("/login");
+    }
+
+    const { data: membership, error: membershipError } = await supabase
+      .from("workspace_memberships")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    if (membershipError || !membership) {
+      redirect("/onboarding");
     }
 
     return;
