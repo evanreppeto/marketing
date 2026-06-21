@@ -2,12 +2,11 @@ import { Lock } from "lucide-react";
 
 import { EmptyState, PageHeader, StatusPill } from "@/app/_components/page-header";
 import { cx, type ThemeTone } from "@/app/_components/theme";
-import { WorkspacePanel } from "@/app/_components/workspace";
+import { DetailStack, WorkspacePanel } from "@/app/_components/workspace";
 import {
   SCORE_SIGNALS,
   getPersonaBySlug,
   segmentLabel,
-  type DemoPersona,
   type PersonaStage,
 } from "../_data/demo-personas";
 
@@ -52,81 +51,142 @@ export default async function PersonaDetailPage({ params }: PageProps) {
         }
       />
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-        <ScorePanel persona={persona} />
-        <ArcPanel persona={persona} />
+      <section className="module-rise mb-5 flex items-center gap-5 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-6 py-5 shadow-[var(--elev-panel)]">
+        <Monogram initials={persona.initials} live={persona.live} />
+        <p className="min-w-0 font-serif text-[18px] italic leading-snug text-[var(--text-secondary)]">
+          &ldquo;{persona.quote}&rdquo;
+        </p>
+      </section>
+
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <main className="min-w-0 space-y-5">
+          <WorkspacePanel title="Who they are">
+            <div className="space-y-5 px-5 py-5">
+              <p className="max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">{persona.profile}</p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <TraitList title="What they want" items={persona.goals} tone="ok" />
+                <TraitList title="What holds them back" items={persona.objections} tone="amber" />
+              </div>
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel title="Why this score" description="How ready and valuable this audience is to act on right now — and the evidence behind it.">
+            <div className="px-5 py-5">
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-4xl font-bold tracking-[-0.04em] tabular-nums text-[var(--text-primary)]">{persona.score}</span>
+                <span className="text-sm text-[var(--text-muted)]">/ 100 lead score</span>
+              </div>
+
+              <div className="mt-6 space-y-6">
+                {SCORE_SIGNALS.map((signal) => (
+                  <SignalBlock
+                    key={signal.key}
+                    label={signal.label}
+                    hint={signal.hint}
+                    value={persona.signals[signal.key]}
+                    drivers={persona.signalDrivers[signal.key]}
+                  />
+                ))}
+              </div>
+
+              <p className="mt-6 border-t border-[var(--border-hairline)] pt-4 text-[12px] leading-5 text-[var(--text-muted)]">
+                Scores are deterministic and explainable — computed by the app from these signals, not a model black box.
+              </p>
+            </div>
+          </WorkspacePanel>
+        </main>
+
+        <aside className="min-w-0 space-y-5">
+          <WorkspacePanel title="Snapshot">
+            <DetailStack
+              items={[
+                { label: "Segment", value: segmentLabel(persona.segment) },
+                { label: "Lifecycle stage", value: <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill> },
+                { label: "Lead score", value: <span className="font-mono tabular-nums">{persona.score} / 100</span> },
+                { label: "Preferred channel", value: persona.channel },
+              ]}
+            />
+          </WorkspacePanel>
+
+          <WorkspacePanel title={`How ${AGENT_NAME} uses this persona`} description="The inputs the agent draws on to prepare reviewable work.">
+            <div className="space-y-4 px-5 py-5">
+              <Field label="Message angle">{persona.angle}</Field>
+              <Field label="Recommended CTA">{persona.cta}</Field>
+              <Field label="Next best action">{persona.nextAction}</Field>
+              <div>
+                <FieldLabel>Proof points</FieldLabel>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {persona.proofPoints.map((point) => (
+                    <span key={point} className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
+                      {point}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <p className="flex items-start gap-2 border-t border-[var(--border-hairline)] pt-4 text-[12px] leading-5 text-[var(--text-muted)]">
+                <Lock aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--accent)]" strokeWidth={1.9} />
+                {AGENT_NAME} drafts campaigns for this persona. A human approves — nothing goes out until then.
+              </p>
+            </div>
+          </WorkspacePanel>
+        </aside>
       </div>
     </>
   );
 }
 
-function ScorePanel({ persona }: { persona: DemoPersona }) {
+function Monogram({ initials, live }: { initials: string; live: boolean }) {
   return (
-    <WorkspacePanel title="Lead score" description="How ready and valuable this audience is to act on right now.">
-      <div className="px-5 py-5">
-        <div className="flex items-baseline gap-2">
-          <span className="font-display text-4xl font-bold tracking-[-0.04em] tabular-nums text-[var(--text-primary)]">{persona.score}</span>
-          <span className="text-sm text-[var(--text-muted)]">/ 100</span>
-        </div>
-
-        <div className="mt-5 space-y-4">
-          {SCORE_SIGNALS.map((signal) => (
-            <SignalRow key={signal.key} label={signal.label} value={persona.signals[signal.key]} hint={signal.hint} />
-          ))}
-        </div>
-
-        <p className="mt-5 border-t border-[var(--border-hairline)] pt-4 text-[12px] leading-5 text-[var(--text-muted)]">
-          Scores are deterministic and explainable — computed by the app from these signals, not a model black box.
-        </p>
-      </div>
-    </WorkspacePanel>
+    <span
+      aria-hidden
+      className={cx(
+        "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border text-[18px] font-semibold tracking-[0.02em]",
+        live
+          ? "border-[color-mix(in_srgb,var(--accent)_32%,transparent)] bg-[color-mix(in_srgb,var(--accent)_13%,transparent)] text-[var(--accent)]"
+          : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)]",
+      )}
+    >
+      {initials}
+    </span>
   );
 }
 
-function ArcPanel({ persona }: { persona: DemoPersona }) {
+function TraitList({ title, items, tone }: { title: string; items: string[]; tone: "ok" | "amber" }) {
+  const dot = tone === "ok" ? "bg-[var(--ok)]" : "bg-[var(--warn)]";
   return (
-    <WorkspacePanel title={`How ${AGENT_NAME} uses this persona`} description="The inputs the agent draws on to prepare reviewable work for this audience.">
-      <div className="space-y-4 px-5 py-5">
-        <Field label="Message angle">{persona.angle}</Field>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Recommended CTA">{persona.cta}</Field>
-          <Field label="Preferred channel">{persona.channel}</Field>
-        </div>
-
-        <Field label="Next best action">{persona.nextAction}</Field>
-
-        <div>
-          <FieldLabel>Proof points</FieldLabel>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {persona.proofPoints.map((point) => (
-              <span key={point} className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
-                {point}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <p className="flex items-center gap-2 border-t border-[var(--border-hairline)] pt-4 text-[12px] leading-5 text-[var(--text-muted)]">
-          <Lock aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" strokeWidth={1.9} />
-          {AGENT_NAME} drafts campaigns for this persona. A human approves — nothing goes out until then.
-        </p>
-      </div>
-    </WorkspacePanel>
+    <div>
+      <FieldLabel>{title}</FieldLabel>
+      <ul className="mt-3 space-y-2.5">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2.5 text-sm leading-6 text-[var(--text-secondary)]">
+            <span aria-hidden className={cx("mt-2 h-1.5 w-1.5 shrink-0 rounded-full", dot)} />
+            <span className="min-w-0">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function SignalRow({ label, value, hint }: { label: string; value: number; hint: string }) {
+function SignalBlock({ label, hint, value, drivers }: { label: string; hint: string; value: number; drivers: string[] }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] font-medium text-[var(--text-primary)]">{label}</span>
-        <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">{value}</span>
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</span>
+        <span className="font-mono text-sm tabular-nums text-[var(--text-secondary)]">{value}</span>
       </div>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--text-primary)_10%,transparent)]">
-        <span className={cx("block h-full rounded-full bg-[var(--accent)]")} style={{ width: `${value}%` }} />
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--text-primary)_10%,transparent)]">
+        <span className="block h-full rounded-full bg-[var(--accent)]" style={{ width: `${value}%` }} />
       </div>
       <div className="mt-1.5 text-[11.5px] leading-5 text-[var(--text-muted)]">{hint}</div>
+      <ul className="mt-2.5 space-y-1.5">
+        {drivers.map((driver) => (
+          <li key={driver} className="flex gap-2 text-[12.5px] leading-5 text-[var(--text-secondary)]">
+            <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--text-muted)]" />
+            <span className="min-w-0">{driver}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
