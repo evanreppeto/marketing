@@ -28,7 +28,13 @@ export async function GET(request: Request) {
 
   if (data.user) {
     const provisioned = await provisionAuthenticatedUser(data.user);
-    if (provisioned.ok && provisioned.status === "profile_only") {
+    if (!provisioned.ok) {
+      return NextResponse.redirect(
+        new URL(`/login?error=provision&from=${encodeURIComponent(next)}`, url.origin),
+        { status: 303 },
+      );
+    }
+    if (provisioned.status === "profile_only") {
       return NextResponse.redirect(
         new URL(`/onboarding?from=${encodeURIComponent(next)}`, url.origin),
         { status: 303 },
