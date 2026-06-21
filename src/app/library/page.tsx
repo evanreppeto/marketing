@@ -13,7 +13,7 @@ import { UploadButton } from "./_components/upload-button";
 export default async function LibraryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ folder?: string | string[] }>;
+  searchParams: Promise<{ detail?: string | string[]; folder?: string | string[]; googleDrive?: string | string[] }>;
 }) {
   await connection();
   const data = await getMediaLibraryData();
@@ -27,7 +27,10 @@ export default async function LibraryPage({
     );
   }
 
-  const folderParam = (await searchParams).folder;
+  const params = await searchParams;
+  const folderParam = params.folder;
+  const driveStatus = firstParam(params.googleDrive);
+  const driveDetail = firstParam(params.detail);
   const activeFolderId = (Array.isArray(folderParam) ? folderParam[0] : folderParam) ?? "all";
   const isFolderActive = activeFolderId !== "all" && data.folders.some((f) => f.id === activeFolderId);
   const visibleAssets = isFolderActive
@@ -44,19 +47,28 @@ export default async function LibraryPage({
           data.assets.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
               <NewFolderButton />
-              <GoogleDriveImport activeFolderId={isFolderActive ? activeFolderId : null} />
+              <GoogleDriveImport
+                activeFolderId={isFolderActive ? activeFolderId : null}
+                defaultOpen={driveStatus === "connected"}
+                initialMessage={driveStatus === "connected" ? "Google Drive connected. Choose files to import." : null}
+              />
               <UploadButton activeFolderId={isFolderActive ? activeFolderId : null} />
             </div>
           ) : undefined
         }
       />
+      <GoogleDriveNotice status={driveStatus} detail={driveDetail} />
       {data.assets.length === 0 ? (
         <EmptyState
           title="No media yet"
           detail="Upload photos, video, or logos and they'll appear here."
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <GoogleDriveImport activeFolderId={null} />
+              <GoogleDriveImport
+                activeFolderId={null}
+                defaultOpen={driveStatus === "connected"}
+                initialMessage={driveStatus === "connected" ? "Google Drive connected. Choose files to import." : null}
+              />
               <UploadButton activeFolderId={null} />
             </div>
           }
@@ -68,5 +80,30 @@ export default async function LibraryPage({
         </div>
       )}
     </>
+  );
+}
+
+function firstParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+function GoogleDriveNotice({ status, detail }: { status: string | null; detail: string | null }) {
+  if (!status) return null;
+  const ok = status === "connected";
+  const message = ok
+    ? "Google Drive connected. Choose files from Drive to copy them into Library."
+    : `Google Drive did not connect${detail ? `: ${detail}` : "."}`;
+
+  return (
+    <div
+      className={`mb-4 rounded-md border px-4 py-3 text-sm font-semibold ${
+        ok
+          ? "border-[var(--ok-border-soft)] bg-[var(--ok-soft)] text-[var(--ok-text)]"
+          : "border-[var(--priority-border-soft)] bg-[var(--priority-soft)] text-[var(--priority-text)]"
+      }`}
+    >
+      {message}
+    </div>
   );
 }

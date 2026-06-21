@@ -10,10 +10,12 @@ import {
   type ConnectionProvider,
 } from "@/domain";
 
-import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { recordConnectionTest, recordConnectionUse, setConnectionEnabled } from "@/lib/connections/persistence";
 import { sendResendEmail, testResendConnection } from "@/lib/connections/resend-client";
 import { executeResendDispatch } from "@/lib/dispatch/execute-resend";
+import { resolveGoogleDriveAccessToken } from "@/lib/google-drive/connection";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type ConnectionActionState = { ok: boolean; message: string } | null;
@@ -72,6 +74,29 @@ export async function testConnectionAction(
   }
 
   const { kind, label } = providerMeta(provider);
+
+  if (provider === "google_drive") {
+    const missing = missingRequiredEnvVars(provider, process.env);
+    const client = getSupabaseAdminClient();
+    if (missing.length > 0) {
+      const result = { ok: false as const, error: `Missing env vars: ${missing.join(", ")}` };
+      await recordConnectionTest(client, provider, result).catch(() => undefined);
+      revalidatePath("/settings");
+      return { ok: false, message: result.error };
+    }
+
+    try {
+      await resolveGoogleDriveAccessToken({ orgId: await getCurrentOrgId(), connectedBy: getOperatorActor(), client });
+      await recordConnectionTest(client, provider, { ok: true });
+      revalidatePath("/settings");
+      return { ok: true, message: "Google Drive connection is healthy." };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Google Drive test failed.";
+      await recordConnectionTest(client, provider, { ok: false, error: message }).catch(() => undefined);
+      revalidatePath("/settings");
+      return { ok: false, message };
+    }
+  }
 
   // Social/storage providers have no live transport here. "Test" verifies that
   // every required env var is present (no external API call).

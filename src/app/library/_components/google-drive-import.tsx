@@ -111,10 +111,18 @@ function selectedFileIds(data: Record<string, unknown>, picker: GooglePicker): s
     .filter((value): value is string => Boolean(value));
 }
 
-export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string | null }) {
+export function GoogleDriveImport({
+  activeFolderId,
+  defaultOpen = false,
+  initialMessage = null,
+}: {
+  activeFolderId: string | null;
+  defaultOpen?: boolean;
+  initialMessage?: string | null;
+}) {
   const [state, action, pending] = useActionState(importFromGoogleDriveAction, null);
-  const [open, setOpen] = useState(false);
-  const [pickerMessage, setPickerMessage] = useState<string | null>(null);
+  const [open, setOpen] = useState(defaultOpen);
+  const [pickerMessage, setPickerMessage] = useState<string | null>(initialMessage);
   const [pickerPending, setPickerPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
