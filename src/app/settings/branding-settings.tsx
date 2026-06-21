@@ -8,8 +8,8 @@ export async function BrandingSettings() {
 
   return (
     <SettingsSection
-      description="Product label, assistant name, and workspace type. Company brand, logo, voice, proof, and source knowledge live in Brand."
-      title="Workspace &amp; product"
+      description="The product label and assistant name shown across the app. Your workspaces and team live under Workspaces and Team; company brand lives in Brand."
+      title="Product"
     >
       <BrandingSettingsForm
         initialWorkspaceProfile={settings.workspaceProfile}

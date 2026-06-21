@@ -12,6 +12,9 @@ type QueryClient = SupabaseClient;
 export const DEFAULT_ORG_SLUG = process.env.DEFAULT_ORG_SLUG ?? "big-shoulders-restoration";
 export const DEFAULT_WORKSPACE_KEY = process.env.DEFAULT_WORKSPACE_KEY ?? "default";
 
+/** Cookie that pins which of a user's workspaces is active (set by the workspace switcher). */
+export const ACTIVE_WORKSPACE_COOKIE = "signal_active_workspace";
+
 export type WorkspaceRole = "owner" | "admin" | "marketer" | "reviewer" | "member" | "viewer";
 
 export type WorkspaceContext = {
@@ -161,12 +164,32 @@ async function fetchFirstMembership(client: QueryClient, userId: string): Promis
   return data ?? null;
 }
 
+/** A specific active membership for this user — used to honor the active-workspace cookie. */
+async function fetchMembershipForWorkspace(
+  client: QueryClient,
+  userId: string,
+  workspaceId: string,
+): Promise<WorkspaceMembershipRow | null> {
+  const { data, error } = await client
+    .from("workspace_memberships")
+    .select("org_id,workspace_id,role")
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
+    .eq("status", "active")
+    .maybeSingle<WorkspaceMembershipRow>();
+  if (error) throw new WorkspaceUnavailableError(error.message);
+  return data ?? null;
+}
+
 export async function resolveWorkspaceContextForUser(
   client: QueryClient,
   userId: string | null,
+  preferredWorkspaceId?: string | null,
 ): Promise<WorkspaceContext> {
   if (userId) {
-    const membership = await fetchFirstMembership(client, userId);
+    const membership =
+      (preferredWorkspaceId ? await fetchMembershipForWorkspace(client, userId, preferredWorkspaceId) : null) ??
+      (await fetchFirstMembership(client, userId));
     if (membership) {
       const [workspace, org] = await Promise.all([
         fetchWorkspaceById(client, membership.workspace_id),
@@ -196,13 +219,24 @@ export async function resolveWorkspaceContextForUser(
   return fetchDefaultWorkspace(client, org);
 }
 
+async function getPreferredWorkspaceId(userId: string | null): Promise<string | null> {
+  if (!userId) return null;
+  try {
+    const cookieStore = await cookies();
+    return cookieStore.get(ACTIVE_WORKSPACE_COOKIE)?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const getCurrentWorkspaceContext = cache(async (): Promise<WorkspaceContext> => {
   if (!isSupabaseAdminConfigured()) {
     throw new WorkspaceUnavailableError("Supabase is not configured, so no workspace is available.");
   }
 
   const userId = await getSupabaseSessionUserId();
-  return resolveWorkspaceContextForUser(getSupabaseAdminClient(), userId);
+  const preferredWorkspaceId = await getPreferredWorkspaceId(userId);
+  return resolveWorkspaceContextForUser(getSupabaseAdminClient(), userId, preferredWorkspaceId);
 });
 
 export async function getCurrentWorkspaceKey(): Promise<string> {

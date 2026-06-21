@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 
 import { useAgentName } from "../_components/agent-name-context";
 import { Button } from "../_components/page-header";
+import { InstantSelect, Row, SaveHint, Segmented, Swatches, Toggle } from "./controls";
 import {
   saveAgentBehaviorSettingsAction,
   saveAppearanceSettingsAction,
@@ -40,39 +41,34 @@ export function MediaModelsForm({
   const [state, action, pending] = useActionState(saveMediaModelsAction, null);
 
   return (
-    <form action={action} className="grid gap-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Image model</span>
-          <select className={inputClass} defaultValue={initialImageModel} name="imageModel">
-            <option value="">Auto — follow Arc level</option>
-            <option value="gemini-3-pro-image">Nano Banana Pro — 4K, text, max quality</option>
-            <option value="gemini-3.1-flash-image">Nano Banana 2 — fast, high-volume</option>
-            <option value="gemini-2.5-flash-image">Nano Banana — editing / reference</option>
-          </select>
-          <span className="text-xs text-[var(--text-muted)]">
-            Auto follows your Arc level (Swift → Nano Banana 2, Studio → Nano Banana Pro). Pick one to pin it regardless of level.
-          </span>
-        </label>
-
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Video model</span>
-          <select className={inputClass} defaultValue={initialVideoModel} name="videoModel">
-            <option value="">Auto — follow Arc level</option>
-            <option value="veo-3.1-generate-preview">Veo 3.1 — cinematic, synced audio</option>
-            <option value="veo-3.1-fast-generate-preview">Veo 3.1 Lite — fast & economical</option>
-          </select>
-          <span className="text-xs text-[var(--text-muted)]">
-            Auto follows your Arc level (Swift → Veo 3.1 Lite, Studio → Veo 3.1). Video generation needs billing on the Gemini key.
-          </span>
-        </label>
+    <form action={action}>
+      <div className="divide-y divide-[var(--border-hairline)]">
+        <Row
+          control={
+            <InstantSelect defaultValue={initialImageModel} name="imageModel">
+              <option value="">Auto — follow Arc level</option>
+              <option value="gemini-3-pro-image">Nano Banana Pro — 4K, max quality</option>
+              <option value="gemini-3.1-flash-image">Nano Banana 2 — fast, high-volume</option>
+              <option value="gemini-2.5-flash-image">Nano Banana — editing / reference</option>
+            </InstantSelect>
+          }
+          description="Auto follows your Arc level. Pick one to pin it regardless of level."
+          title="Image model"
+        />
+        <Row
+          control={
+            <InstantSelect defaultValue={initialVideoModel} name="videoModel">
+              <option value="">Auto — follow Arc level</option>
+              <option value="veo-3.1-generate-preview">Veo 3.1 — cinematic, synced audio</option>
+              <option value="veo-3.1-fast-generate-preview">Veo 3.1 Lite — fast & economical</option>
+            </InstantSelect>
+          }
+          description="Video generation needs billing on the Gemini key."
+          title="Video model"
+        />
       </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={pending} size="sm" type="submit" variant="primary">
-          Save media models
-        </Button>
-        <Feedback state={state} />
+      <div className="border-t border-[var(--border-hairline)]">
+        <SaveHint pending={pending} state={state} />
       </div>
     </form>
   );
@@ -242,102 +238,40 @@ export function AppearanceSettingsForm({
   initialMotion: "standard" | "reduced";
 }) {
   const [state, action, pending] = useActionState(saveAppearanceSettingsAction, null);
-  const [accent, setAccent] = useState(initialAccent);
-  const [density, setDensity] = useState(initialDensity);
-  const [motion, setMotion] = useState(initialMotion);
-  const accentColor = {
-    gold: "#c8a24a",
-    blue: "#5bb7e8",
-    red: "#d98080",
-    steel: "#aeb5c2",
-    emerald: "#7fb89a",
-  }[accent];
 
   return (
-    <form action={action} className="grid gap-5">
-      <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">Live preview</div>
-        <div
-          className={`mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] ${
-            density === "compact" ? "p-2 text-xs" : "p-4 text-sm"
-          }`}
-          style={{ boxShadow: `inset 0 0 0 1px ${accentColor}44` }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-bold text-[var(--text-primary)]">Example control</span>
-            <span className="rounded-md px-2 py-1 text-xs font-bold text-black" style={{ backgroundColor: accentColor }}>
-              Accent
-            </span>
-          </div>
-          <p className="mt-2 text-[var(--text-muted)]">
-            {density === "compact" ? "Compact layout" : "Comfortable layout"} with {motion === "reduced" ? "minimal motion" : "standard motion"}.
-          </p>
-        </div>
+    <form action={action}>
+      <div className="divide-y divide-[var(--border-hairline)]">
+        <Row
+          control={
+            <Swatches
+              defaultValue={initialAccent}
+              name="appearanceAccent"
+              options={[
+                { value: "gold", label: "Signal Gold", color: "#c8a24a" },
+                { value: "blue", label: "Signal Blue", color: "#5bb7e8" },
+                { value: "red", label: "Restoration Red", color: "#d98080" },
+                { value: "steel", label: "Steel", color: "#aeb5c2" },
+                { value: "emerald", label: "Emerald", color: "#7fb89a" },
+              ]}
+            />
+          }
+          description="The highlight color used across buttons, links, and active states."
+          title="Accent color"
+        />
+        <Row
+          control={<Toggle defaultOn={initialDensity === "compact"} label="Compact layout" name="appearanceDensity" offValue="comfortable" onValue="compact" />}
+          description="Tighten spacing to fit more on screen."
+          title="Compact layout"
+        />
+        <Row
+          control={<Toggle defaultOn={initialMotion === "reduced"} label="Reduce motion" name="appearanceMotion" offValue="standard" onValue="reduced" />}
+          description="Minimize animations and transitions across the console."
+          title="Reduce motion"
+        />
       </div>
-
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-semibold text-[var(--text-primary)]">Accent color</legend>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            ["gold", "Signal Gold", "#c8a24a"],
-            ["blue", "Signal Blue", "#5bb7e8"],
-            ["red", "Restoration Red", "#d98080"],
-            ["steel", "Steel", "#aeb5c2"],
-            ["emerald", "Emerald", "#7fb89a"],
-          ].map(([value, label, color]) => (
-            <label className={radioCardClass} key={value}>
-              <input
-                className="sr-only"
-                checked={accent === value}
-                name="appearanceAccent"
-                onChange={() => setAccent(value as "gold" | "blue" | "red" | "steel" | "emerald")}
-                type="radio"
-                value={value}
-              />
-              <span className="h-5 w-5 rounded-full border border-[var(--border-strong)]" style={{ backgroundColor: color }} />
-              <span className="font-semibold">{label}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-semibold text-[var(--text-primary)]">Interface density</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <label className={radioCardClass}>
-            <input className="sr-only" checked={density === "comfortable"} name="appearanceDensity" onChange={() => setDensity("comfortable")} type="radio" value="comfortable" />
-            <span className="font-semibold">Comfortable</span>
-            <span className="ml-auto text-xs text-[var(--text-muted)]">More breathing room</span>
-          </label>
-          <label className={radioCardClass}>
-            <input className="sr-only" checked={density === "compact"} name="appearanceDensity" onChange={() => setDensity("compact")} type="radio" value="compact" />
-            <span className="font-semibold">Compact</span>
-            <span className="ml-auto text-xs text-[var(--text-muted)]">Fits more on screen</span>
-          </label>
-        </div>
-      </fieldset>
-
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-semibold text-[var(--text-primary)]">Motion</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <label className={radioCardClass}>
-            <input className="sr-only" checked={motion === "standard"} name="appearanceMotion" onChange={() => setMotion("standard")} type="radio" value="standard" />
-            <span className="font-semibold">Standard</span>
-            <span className="ml-auto text-xs text-[var(--text-muted)]">Normal transitions</span>
-          </label>
-          <label className={radioCardClass}>
-            <input className="sr-only" checked={motion === "reduced"} name="appearanceMotion" onChange={() => setMotion("reduced")} type="radio" value="reduced" />
-            <span className="font-semibold">Reduced</span>
-            <span className="ml-auto text-xs text-[var(--text-muted)]">Minimal animation</span>
-          </label>
-        </div>
-      </fieldset>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={pending} size="sm" type="submit" variant="primary">
-          Save appearance
-        </Button>
-        <Feedback state={state} />
+      <div className="border-t border-[var(--border-hairline)]">
+        <SaveHint pending={pending} state={state} />
       </div>
     </form>
   );
@@ -359,125 +293,84 @@ export function AgentBehaviorSettingsForm({
   initialRoute: "fast" | "standard";
 }) {
   const [state, action, pending] = useActionState(saveAgentBehaviorSettingsAction, null);
-  const [tone, setTone] = useState(initialTone);
-  const [style, setStyle] = useState(initialResponseStyle);
-  const [strictness, setStrictness] = useState(initialApprovalStrictness);
 
   return (
-    <form action={action} className="grid gap-5">
-      <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">Live behavior preview</div>
-        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-          {assistantName} will answer in a <span className="font-semibold text-[var(--text-primary)]">{tone}</span> tone,
-          keep responses <span className="font-semibold text-[var(--text-primary)]">{style}</span>, and use{" "}
-          <span className="font-semibold text-[var(--text-primary)]">{strictness}</span> approval guardrails.
-        </p>
+    <form action={action}>
+      <div className="divide-y divide-[var(--border-hairline)]">
+        <Row
+          control={
+            <InstantSelect defaultValue={initialTone} name="assistantTone">
+              <option value="direct">Direct</option>
+              <option value="friendly">Friendly</option>
+              <option value="formal">Formal</option>
+              <option value="sales">Sales-focused</option>
+            </InstantSelect>
+          }
+          description={`How ${assistantName} sounds when it writes and replies.`}
+          title="Tone"
+        />
+        <Row
+          control={
+            <Segmented
+              defaultValue={initialResponseStyle}
+              name="assistantResponseStyle"
+              options={[
+                { value: "brief", label: "Brief" },
+                { value: "balanced", label: "Balanced" },
+                { value: "detailed", label: "Detailed" },
+              ]}
+            />
+          }
+          description="How much detail replies include by default."
+          title="Response length"
+        />
+        <Row
+          control={
+            <Segmented
+              defaultValue={initialApprovalStrictness}
+              name="approvalStrictness"
+              options={[
+                { value: "light", label: "Light" },
+                { value: "standard", label: "Standard" },
+                { value: "strict", label: "Strict" },
+              ]}
+            />
+          }
+          description="How cautious the guardrails are. Outbound always stays locked until you approve."
+          title="Approval guardrails"
+        />
+        <Row
+          control={
+            <Segmented
+              defaultValue={initialMode}
+              name="markDefaultMode"
+              options={[
+                { value: "ask", label: "Ask" },
+                { value: "act", label: "Act" },
+                { value: "draft", label: "Draft" },
+              ]}
+            />
+          }
+          description="What new chats lean toward: answering, working in the app, or drafting assets."
+          title="Default stance"
+        />
+        <Row
+          control={
+            <Segmented
+              defaultValue={initialRoute}
+              name="markDefaultRoute"
+              options={[
+                { value: "fast", label: "Swift" },
+                { value: "standard", label: "Studio" },
+              ]}
+            />
+          }
+          description="Swift is quicker and lighter; Studio uses deeper reasoning and higher-quality media. Switchable per message."
+          title="Quality level"
+        />
       </div>
-
-      <fieldset className="grid gap-2">
-        <legend className="text-sm font-semibold text-[var(--text-primary)]">Tone</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {[
-            ["direct", "Direct", "Concise, clear, operator-first"],
-            ["friendly", "Friendly", "Warmer and more conversational"],
-            ["formal", "Formal", "More polished and conservative"],
-            ["sales", "Sales-focused", "More persuasive campaign language"],
-          ].map(([value, label, hint]) => (
-            <label className={radioCardClass} key={value}>
-              <input
-                className="sr-only"
-                checked={tone === value}
-                name="assistantTone"
-                onChange={() => setTone(value as "direct" | "friendly" | "formal" | "sales")}
-                type="radio"
-                value={value}
-              />
-              <span className="grid gap-0.5">
-                <span className="font-semibold">{label}</span>
-                <span className="text-xs text-[var(--text-muted)]">{hint}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className="grid gap-5 md:grid-cols-2">
-        <fieldset className="grid gap-2">
-          <legend className="text-sm font-semibold text-[var(--text-primary)]">Response style</legend>
-          {[
-            ["brief", "Brief", "Short answers unless asked for depth"],
-            ["balanced", "Balanced", "Useful detail without walls of text"],
-            ["detailed", "Detailed", "More reasoning, context, and options"],
-          ].map(([value, label, hint]) => (
-            <label className={radioCardClass} key={value}>
-              <input
-                className="sr-only"
-                checked={style === value}
-                name="assistantResponseStyle"
-                onChange={() => setStyle(value as "brief" | "balanced" | "detailed")}
-                type="radio"
-                value={value}
-              />
-              <span className="grid gap-0.5">
-                <span className="font-semibold">{label}</span>
-                <span className="text-xs text-[var(--text-muted)]">{hint}</span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-
-        <fieldset className="grid gap-2">
-          <legend className="text-sm font-semibold text-[var(--text-primary)]">Approval strictness</legend>
-          {[
-            ["light", "Light", "Fewer warnings; still blocks outbound"],
-            ["standard", "Standard", "Balanced safety checks"],
-            ["strict", "Strict", "Extra cautious around claims and sends"],
-          ].map(([value, label, hint]) => (
-            <label className={radioCardClass} key={value}>
-              <input
-                className="sr-only"
-                checked={strictness === value}
-                name="approvalStrictness"
-                onChange={() => setStrictness(value as "light" | "standard" | "strict")}
-                type="radio"
-                value={value}
-              />
-              <span className="grid gap-0.5">
-                <span className="font-semibold">{label}</span>
-                <span className="text-xs text-[var(--text-muted)]">{hint}</span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Default chat stance</span>
-          <select className={inputClass} defaultValue={initialMode} name="markDefaultMode">
-            <option value="ask">Ask - answer only</option>
-            <option value="act">Act - work inside the app</option>
-            <option value="draft">Draft - bias toward campaign assets</option>
-          </select>
-        </label>
-
-        <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Default Arc level</span>
-          <select className={inputClass} defaultValue={initialRoute} name="markDefaultRoute">
-            <option value="fast">Swift — quick & economical (Nano Banana 2 · Veo 3.1 Lite)</option>
-            <option value="standard">Studio — best quality (Nano Banana Pro · Veo 3.1)</option>
-          </select>
-          <span className="text-xs text-[var(--text-muted)]">
-            Your default level. Studio uses deeper reasoning and higher-quality media; you can switch per message in the composer.
-          </span>
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={pending} size="sm" type="submit" variant="primary">
-          Save behavior
-        </Button>
-        <Feedback state={state} />
+      <div className="border-t border-[var(--border-hairline)]">
+        <SaveHint pending={pending} state={state} />
       </div>
     </form>
   );
