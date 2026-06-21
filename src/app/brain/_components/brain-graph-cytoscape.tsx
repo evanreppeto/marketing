@@ -52,7 +52,7 @@ function mix(a: string, b: string, t: number): string {
  * gold "glow" underlays, labels that ride on small chips for legibility, and a
  * focus/hover mode that lifts a node's neighborhood while the rest recedes.
  */
-let colaRegistered = false;
+let fcoseRegistered = false;
 
 export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,11 +65,11 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
 
     (async () => {
       const cytoscape = (await import("cytoscape")).default;
-      if (!colaRegistered) {
-        const cola = (await import("cytoscape-cola")).default;
+      if (!fcoseRegistered) {
+        const fcose = (await import("cytoscape-fcose")).default;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- extension has no bundled types
-        cytoscape.use(cola as any);
-        colaRegistered = true;
+        cytoscape.use(fcose as any);
+        fcoseRegistered = true;
       }
       if (cancelled || !containerRef.current) return;
 
@@ -207,12 +207,13 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
           {
             selector: "edge",
             style: {
-              width: 0.8,
+              width: 0.6,
               "line-color": palette.edge,
               // Gentle curve gives the web an organic, premium settle (vs. rigid spokes).
               "curve-style": "bezier",
               "control-point-step-size": 30,
-              opacity: 0.32,
+              // Faint at rest — connections read as quiet threads; selection/hover lights them.
+              opacity: 0.18,
               "transition-property": "opacity, line-color, width",
               "transition-duration": 140,
             },
@@ -234,22 +235,33 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- gradient stop-colors via data() mapper aren't in cytoscape's narrow style typings
         ] as any,
         layout: {
-          name: "cola",
-          // Premium Obsidian feel: the web springs out, then SETTLES into a calm,
-          // stable constellation and rests (no perpetual bounce — matches DESIGN.md's
-          // calm-motion rule). Nodes stay draggable for manual arrangement.
-          infinite: false,
-          fit: false,
+          // fCoSE — the high-quality force layout professional graph products use.
+          // It untangles dense, cross-linked graphs into well-separated clusters
+          // with far fewer crossings than a plain force sim, then rests (no bounce).
+          name: "fcose",
+          quality: "proof",
+          randomize: true,
           animate: true,
-          centerGraph: true,
-          randomize: false,
-          handleDisconnected: true,
-          avoidOverlap: true,
-          nodeSpacing: () => 32,
-          edgeLength: () => 188,
-          maxSimulationTime: 3600,
-          convergenceThreshold: 0.01,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cola options not in cytoscape's narrow layout typings
+          animationDuration: 700,
+          animationEasing: "ease-out",
+          fit: false,
+          padding: 60,
+          nodeDimensionsIncludeLabels: false,
+          uniformNodeDimensions: false,
+          packComponents: true,
+          // Strong repulsion + generous edge length spread the hub's spokes and
+          // the persona chain into legible arcs instead of a knot.
+          nodeRepulsion: 9000,
+          idealEdgeLength: 125,
+          edgeElasticity: 0.4,
+          nestingFactor: 0.1,
+          gravity: 0.28,
+          gravityRange: 3.6,
+          numIter: 2600,
+          tile: true,
+          tilingPaddingVertical: 24,
+          tilingPaddingHorizontal: 24,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- fcose options not in cytoscape's narrow layout typings
         } as any,
       });
 

@@ -95,6 +95,9 @@ importers:
       cytoscape-cola:
         specifier: ^2.5.1
         version: 2.5.1(cytoscape@3.34.0)
+      cytoscape-fcose:
+        specifier: ^2.2.0
+        version: 2.2.0(cytoscape@3.34.0)
       lucide-react:
         specifier: ^1.20.0
         version: 1.20.0(react@19.2.4)
