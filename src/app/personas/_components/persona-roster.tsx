@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill } from "@/app/_components/page-header";
 import { cx, type ThemeTone } from "@/app/_components/theme";
-import { type DemoPersona, type PersonaStage } from "../_data/demo-personas";
+import { segmentLabel, type DemoPersona, type PersonaStage } from "../_data/demo-personas";
 
 const STAGE_TONE: Record<PersonaStage, ThemeTone> = {
   New: "gray",
@@ -88,10 +88,11 @@ export function PersonaRoster({ personas }: { personas: DemoPersona[] }) {
 }
 
 function PersonaRow({ persona }: { persona: DemoPersona }) {
+  const trendDelta = persona.scoreTrend[persona.scoreTrend.length - 1] - persona.scoreTrend[0];
   return (
     <Link
       href={`/personas/${persona.slug}`}
-      className="group flex items-center gap-3.5 rounded-[10px] px-3.5 py-3 transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+      className="group flex items-center gap-4 rounded-[10px] px-3.5 py-3 transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
     >
       <Monogram initials={persona.initials} live={persona.live} />
       <span className="min-w-0 flex-1">
@@ -103,12 +104,40 @@ function PersonaRow({ persona }: { persona: DemoPersona }) {
         </span>
         <span className="mt-0.5 block truncate text-[12px] leading-[1.4] text-[var(--text-secondary)]">{persona.angle}</span>
       </span>
-      <span className="hidden shrink-0 sm:block">
+      <span className="hidden w-24 shrink-0 text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)] lg:block">
+        {segmentLabel(persona.segment)}
+      </span>
+      <span className="hidden shrink-0 items-center gap-1.5 md:flex" title={trendDelta >= 0 ? "Trending up" : "Trending down"}>
+        <MiniSparkline points={persona.scoreTrend} rising={trendDelta >= 0} />
+        <span className={cx("font-mono text-[11px] font-semibold tabular-nums", trendDelta >= 0 ? "text-[var(--ok)]" : "text-[var(--warn)]")}>
+          {trendDelta >= 0 ? "+" : "−"}
+          {Math.abs(trendDelta)}
+        </span>
+      </span>
+      <span className="hidden w-[88px] shrink-0 sm:flex sm:justify-end">
         <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill>
       </span>
       <ScoreMeter score={persona.score} />
       <ChevronRight aria-hidden className="hidden h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--accent)] sm:block" strokeWidth={1.8} />
     </Link>
+  );
+}
+
+function MiniSparkline({ points, rising }: { points: number[]; rising: boolean }) {
+  if (points.length < 2) return null;
+  const w = 50;
+  const h = 16;
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const range = max - min || 1;
+  const step = w / (points.length - 1);
+  const d = points
+    .map((value, i) => `${i === 0 ? "M" : "L"} ${(i * step).toFixed(1)} ${(h - ((value - min) / range) * h).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" aria-hidden className="shrink-0">
+      <path d={d} stroke={rising ? "var(--accent)" : "var(--warn)"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
