@@ -46,7 +46,7 @@ export const theme = {
     focus: "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
     input:
       "min-h-11 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
-    tabList: "module-rise flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3",
+    tabList: "module-rise border-b border-[var(--border-hairline)] pb-3",
     tabBase:
       "group relative inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[4px] px-3.5 py-2 text-sm font-semibold transition duration-150 ease-out hover:bg-[color-mix(in_srgb,var(--surface-inset)_46%,transparent)] active:translate-y-px",
     tabActive: "text-[var(--text-primary)]",

@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Trash2, UserRound } from "lucide-react";
+import { RefreshCw, Trash2, UserCog, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
@@ -100,7 +100,63 @@ export function WorkspaceAccessList({
   const router = useRouter();
   const [pendingInviteId, setPendingInviteId] = useState<string | null>(null);
   const [visibleInvites, setVisibleInvites] = useState(invites);
+  const [visibleMembers, setVisibleMembers] = useState(members);
+  const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  async function updateRole(memberId: string, role: string) {
+    setPendingMemberId(memberId);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/auth/workspace-members", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberId, role, workspaceId }),
+      });
+      const body = (await response.json()) as { ok: boolean; message?: string; role?: string };
+      if (!body.ok || !body.role) {
+        setMessage(body.message || "Member role could not be updated.");
+        return;
+      }
+
+      setVisibleMembers((current) =>
+        current.map((member) => (member.id === memberId ? { ...member, role: body.role ?? role } : member)),
+      );
+      setMessage("Member role updated.");
+      router.refresh();
+    } catch {
+      setMessage("Member role could not be updated.");
+    } finally {
+      setPendingMemberId(null);
+    }
+  }
+
+  async function removeMember(memberId: string) {
+    setPendingMemberId(memberId);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/auth/workspace-members", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberId, workspaceId }),
+      });
+      const body = (await response.json()) as { ok: boolean; message?: string };
+      if (!body.ok) {
+        setMessage(body.message || "Member could not be removed.");
+        return;
+      }
+
+      setVisibleMembers((current) => current.filter((member) => member.id !== memberId));
+      setMessage("Member removed.");
+      router.refresh();
+    } catch {
+      setMessage("Member could not be removed.");
+    } finally {
+      setPendingMemberId(null);
+    }
+  }
 
   async function revokeInvite(inviteId: string) {
     setPendingInviteId(inviteId);
@@ -136,7 +192,7 @@ export function WorkspaceAccessList({
             <UserRound aria-hidden className="h-4 w-4 text-[var(--accent)]" />
             Members
           </div>
-          <StatusPill tone="gray">{members.length}</StatusPill>
+          <StatusPill tone="gray">{visibleMembers.length}</StatusPill>
         </div>
         <div className="divide-y divide-[var(--border-hairline)]">
           {members.length ? (

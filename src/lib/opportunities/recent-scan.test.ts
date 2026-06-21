@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/agent-tasks/scope", () => ({ getCurrentAgentTaskTenantFields: vi.fn(async () => ({ org_id: "o1", workspace_id: "w1" })) }));
 vi.mock("@/lib/supabase/server", async () => ({
   isSupabaseAdminConfigured: () => true,
-  getSupabaseAdminClient: () => globalThis.__client,
+  getSupabaseAdminClient: () => (globalThis as Record<string, unknown>).__client,
 }));
 import { hasRecentOpportunityScan } from "./recent-scan";
 

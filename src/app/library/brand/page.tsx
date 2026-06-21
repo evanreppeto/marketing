@@ -14,6 +14,7 @@ import { INDUSTRY_TEMPLATES, NEUTRAL_DEFAULTS, type BusinessProfile } from "@/do
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
 import { summarizeBrandSourceReadiness } from "@/lib/brand-knowledge/readiness";
+import { loadSourceControlData } from "@/lib/brand-knowledge/source-control";
 import { listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { type MediaAssetView } from "@/lib/media-library/types";
@@ -30,6 +31,7 @@ import { BrandProfileEditor } from "./_components/brand-profile-editor";
 import { BrandPersonas } from "./_components/brand-personas";
 import { BrandKnowledgeSyncButton } from "./_components/brand-knowledge-sync-button";
 import { BrandSourceUpload } from "./_components/brand-source-upload";
+import { SourceControlCenter } from "./_components/source-control-center";
 import { LibraryTabs } from "../_components/library-tabs";
 
 export const dynamic = "force-dynamic";
@@ -147,12 +149,13 @@ function formatIndustryLabel(value: string | null | undefined) {
 }
 
 export default async function BrandPage() {
-  const [profile, brain, library, agentName, personaData] = await Promise.all([
+  const [profile, brain, library, agentName, personaData, sourceControl] = await Promise.all([
     loadBrandProfile(),
     listNodes({}),
     getMediaLibraryData(),
     getAgentName(),
     getPersonaIntelligenceData(),
+    loadSourceControlData(),
   ]);
 
   const facts = brain.status === "live" ? brandFacts(brain.nodes) : [];
@@ -203,6 +206,8 @@ export default async function BrandPage() {
           <BrandSourceUpload placement="hero" />
         </div>
       </Panel>
+
+      <SourceControlCenter data={sourceControl} />
 
       <Panel className="overflow-hidden p-0">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
