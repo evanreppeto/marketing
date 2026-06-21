@@ -2,10 +2,12 @@
 
 import { RefreshCw, Trash2, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button, StatusPill } from "../_components/page-header";
+import { ASSIGNABLE_WORKSPACE_ROLES, roleLabel } from "@/lib/auth/workspace-roles";
 import type { WorkspaceInviteSummary, WorkspaceTeamMember } from "@/lib/auth/workspace-invites";
+import { changeMemberRoleAction, removeMemberAction } from "./workspace-actions";
 
 function formatDate(value: string | null) {
   if (!value) return "Pending";
@@ -16,16 +18,84 @@ function labelForEmail(member: WorkspaceTeamMember) {
   return member.email || (member.userId ? `User ${member.userId.slice(0, 8)}` : "Invited member");
 }
 
+function MemberRow({
+  member,
+  workspaceId,
+  canManage,
+  isSelf,
+}: {
+  member: WorkspaceTeamMember;
+  workspaceId: string;
+  canManage: boolean;
+  isSelf: boolean;
+}) {
+  const [roleState, roleAction] = useActionState(changeMemberRoleAction, null);
+  const [removeState, removeAction, removing] = useActionState(removeMemberAction, null);
+  const isOwner = member.role === "owner";
+  const editable = canManage && !isOwner && !isSelf;
+  const error = (roleState && !roleState.ok && roleState.message) || (removeState && !removeState.ok && removeState.message) || null;
+
+  return (
+    <div className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{labelForEmail(member)}</span>
+          {isSelf ? <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">You</span> : null}
+          <StatusPill tone={member.status === "active" ? "green" : "amber"}>{member.status}</StatusPill>
+        </div>
+        <div className="mt-0.5 text-xs text-[var(--text-muted)]">Joined {formatDate(member.joinedAt)}</div>
+        {error ? <div className="mt-1 text-xs font-semibold text-[var(--priority-text)]">{error}</div> : null}
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        {editable ? (
+          <form action={roleAction}>
+            <input name="workspaceId" type="hidden" value={workspaceId} />
+            <input name="membershipId" type="hidden" value={member.id} />
+            <select
+              aria-label={`Role for ${labelForEmail(member)}`}
+              className="min-h-9 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-2.5 text-xs font-semibold text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              defaultValue={member.role}
+              name="role"
+              onChange={(event) => event.currentTarget.form?.requestSubmit()}
+            >
+              {ASSIGNABLE_WORKSPACE_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabel(role)}
+                </option>
+              ))}
+            </select>
+          </form>
+        ) : (
+          <span className="text-xs font-semibold text-[var(--text-secondary)]">{roleLabel(member.role)}</span>
+        )}
+
+        {editable ? (
+          <form action={removeAction}>
+            <input name="workspaceId" type="hidden" value={workspaceId} />
+            <input name="membershipId" type="hidden" value={member.id} />
+            <Button aria-label={`Remove ${labelForEmail(member)}`} disabled={removing} size="sm" type="submit" variant="ghost">
+              <Trash2 aria-hidden className="h-4 w-4" />
+            </Button>
+          </form>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function WorkspaceAccessList({
   canManage,
   invites,
   members,
   workspaceId,
+  currentUserId,
 }: {
   canManage: boolean;
   invites: WorkspaceInviteSummary[];
   members: WorkspaceTeamMember[];
   workspaceId: string;
+  currentUserId: string | null;
 }) {
   const router = useRouter();
   const [pendingInviteId, setPendingInviteId] = useState<string | null>(null);
@@ -71,14 +141,13 @@ export function WorkspaceAccessList({
         <div className="divide-y divide-[var(--border-hairline)]">
           {members.length ? (
             members.map((member) => (
-              <div className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_110px_120px] sm:items-center" key={member.id}>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{labelForEmail(member)}</div>
-                  <div className="mt-0.5 text-xs text-[var(--text-muted)]">Joined {formatDate(member.joinedAt)}</div>
-                </div>
-                <div className="text-xs font-semibold capitalize text-[var(--text-secondary)]">{member.role}</div>
-                <StatusPill tone={member.status === "active" ? "green" : "amber"}>{member.status}</StatusPill>
-              </div>
+              <MemberRow
+                canManage={canManage}
+                isSelf={Boolean(currentUserId && member.userId === currentUserId)}
+                key={member.id}
+                member={member}
+                workspaceId={workspaceId}
+              />
             ))
           ) : (
             <div className="px-4 py-4 text-sm text-[var(--text-muted)]">No workspace members yet.</div>
@@ -101,7 +170,7 @@ export function WorkspaceAccessList({
                   </div>
                   <div className="mt-0.5 text-xs text-[var(--text-muted)]">Created {formatDate(invite.createdAt)}</div>
                 </div>
-                <div className="text-xs font-semibold capitalize text-[var(--text-secondary)]">{invite.role}</div>
+                <div className="text-xs font-semibold text-[var(--text-secondary)]">{roleLabel(invite.role)}</div>
                 <div className="text-xs text-[var(--text-muted)]">Expires {formatDate(invite.expiresAt)}</div>
                 {canManage ? (
                   <Button

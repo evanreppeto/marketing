@@ -8,8 +8,9 @@ export async function MediaModelsSettings() {
 
   return (
     <SettingsSection
-      description="Advanced — pin a specific image or video model. This overrides your Arc level (Swift/Studio); leave on Auto to follow the level."
-      title="Media models (Advanced)"
+      bodyClassName="p-0"
+      description="Advanced — pin a specific image or video model. Overrides your Arc level; leave on Auto to follow it. Changes save automatically."
+      title="Media models"
     >
       <MediaModelsForm initialImageModel={settings.imageModel} initialVideoModel={settings.videoModel} />
     </SettingsSection>

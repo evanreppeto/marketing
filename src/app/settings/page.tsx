@@ -12,6 +12,7 @@ import { SettingsShell } from "./settings-shell";
 import { SettingsHome } from "./settings-home";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "./settings-sections";
 import { SystemStatus } from "./system-status";
+import { WorkspacesSettings } from "./workspaces-settings";
 import { WorkspaceTeamSettings } from "./workspace-team-settings";
 
 function activeSection(value: string | string[] | undefined): SettingsSectionId {
@@ -29,17 +30,17 @@ export default async function SettingsPage({
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
         title="Settings"
-        description="App configuration and integration status. Connections and outbound execution stay locked until configured and approved."
+        description="Everything that configures this workspace, in one place. Connections and outbound execution stay locked until configured and approved."
       />
 
-      <div className="mx-auto w-full max-w-[1040px]">
+      <div className="mx-auto w-full max-w-[1120px]">
         <SettingsShell
           active={active}
           panels={{
             home: <SettingsHome />,
             general: <GeneralSettings />,
+            workspaces: <WorkspacesSettings />,
             branding: <BrandingSettings />,
             appearance: <AppearanceSettings />,
             behavior: <AgentBehaviorSettings />,
