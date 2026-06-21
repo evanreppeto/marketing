@@ -280,5 +280,36 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
     });
   }, [selectedId]);
 
-  return <div ref={containerRef} className="h-full w-full" aria-label="Knowledge graph" role="img" />;
+  const adjustZoom = (factor: number) => {
+    const cy = cyRef.current;
+    if (!cy || cy.destroyed()) return;
+    const cont = containerRef.current;
+    const center = { x: (cont?.clientWidth ?? 0) / 2, y: (cont?.clientHeight ?? 0) / 2 };
+    const level = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), cy.zoom() * factor));
+    cy.animate({ zoom: { level, renderedPosition: center } }, { duration: 180, easing: "ease-out" });
+  };
+  const fitAll = () => {
+    const cy = cyRef.current;
+    if (!cy || cy.destroyed()) return;
+    cy.animate({ fit: { eles: cy.elements(), padding: 56 } }, { duration: 280, easing: "ease-out" });
+  };
+
+  const zoomBtn = "flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)]/85 text-[var(--text-secondary)] backdrop-blur transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] active:translate-y-px";
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full" aria-label="Knowledge graph" role="img" />
+      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
+        <button type="button" onClick={() => adjustZoom(1.25)} aria-label="Zoom in" className={zoomBtn}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M10 5v10M5 10h10" /></svg>
+        </button>
+        <button type="button" onClick={() => adjustZoom(0.8)} aria-label="Zoom out" className={zoomBtn}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M5 10h10" /></svg>
+        </button>
+        <button type="button" onClick={fitAll} aria-label="Fit graph to view" className={zoomBtn}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V4h3M16 7V4h-3M4 13v3h3M16 13v3h-3" /></svg>
+        </button>
+      </div>
+    </div>
+  );
 }
