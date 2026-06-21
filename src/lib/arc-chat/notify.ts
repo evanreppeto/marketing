@@ -86,6 +86,17 @@ export async function notifyArcOpportunityDraft(payload: ArcOpportunityDraftWake
   return postArcWake({ type: "arc_opportunity_draft", ...payload });
 }
 
+export type ArcOpportunityScanWake = {
+  agentTaskId: string;
+  message: string;
+  operator: string;
+};
+
+/** Best-effort wake for an operator-triggered opportunity scan — same transport/signing as the chat wake. */
+export async function notifyOpportunityScan(payload: ArcOpportunityScanWake): Promise<boolean> {
+  return postArcWake({ type: "arc_opportunity_scan", ...payload });
+}
+
 /**
  * Shared transport for every Arc wake: resolve the agent connection (webhook url +
  * secret), HMAC-sign the already-formed body, and POST it with a short timeout.

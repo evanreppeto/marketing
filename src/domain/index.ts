@@ -34,6 +34,7 @@ export * from "./campaign-performance";
 export * from "./brand-kit";
 export * from "./dispatch-scheduling";
 export * from "./opportunity-detection";
+export * from "./opportunity-proposal";
 export * from "./opportunity-briefing";
 export * from "./performance-slicing";
 export * from "./arc-levels";

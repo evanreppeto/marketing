@@ -10,6 +10,7 @@ import type {
   ArcActionCard,
   ArcMention,
   ArcOpportunityDraftPayload,
+  ArcOpportunityScanPayload,
   ArcQuestion,
   MarkChatMessagePayload,
 } from "./types";
@@ -205,5 +206,41 @@ export async function runArcOpportunityDraft(
     prompt: payload.message,
     model: modelForRoute("standard"),
     toolContext: { opportunityId: payload.opportunityId },
+  });
+}
+
+/**
+ * Run an Arc turn for an `arc_opportunity_scan` wake: scan tool set (read tools +
+ * propose_opportunity only), the scan briefing used verbatim as the prompt. Arc
+ * proposes pending opportunities; nothing drafts or goes outbound.
+ */
+export async function runArcOpportunityScan(
+  payload: ArcOpportunityScanPayload,
+  client: ArcClient,
+): Promise<ArcTurnResult> {
+  const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
+
+  const business = await resolveBusinessContext(client);
+  const memory = await resolveRecallMemory(client, payload.message);
+  const ctx: ArcTurnContext = {
+    business,
+    mode: "scan",
+    scope: {
+      conversationId: payload.agentTaskId,
+      projectId: null,
+      campaignId: null,
+      operator: payload.operator,
+    },
+    mentions: [],
+    memory,
+  };
+
+  return runArcQuery({
+    step,
+    mode: "scan",
+    ctx,
+    client,
+    prompt: payload.message,
+    model: modelForRoute("standard"),
   });
 }

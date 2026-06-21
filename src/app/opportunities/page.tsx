@@ -5,6 +5,7 @@ import { buildOpportunityBuckets, listOpenOpportunities } from "@/lib/opportunit
 import {
   dismissOpportunityAction,
   draftOpportunityWithArcAction,
+  requestArcOpportunityScanAction,
   scanOpportunitiesAction,
   snoozeOpportunityAction,
 } from "./actions";
@@ -67,14 +68,24 @@ export default async function OpportunitiesPage({
         task="Review source-backed opportunities"
         detail="Arc scans the CRM for cold leads worth re-engaging and surfaces them here. Scanning only prepares records for review — it never contacts anyone."
         primary={
-          <form action={scanOpportunitiesAction}>
-            <button
-              type="submit"
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--on-accent)]"
-            >
-              Scan for opportunities
-            </button>
-          </form>
+          <div className="flex flex-wrap gap-2">
+            <form action={scanOpportunitiesAction}>
+              <button
+                type="submit"
+                className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--on-accent)]"
+              >
+                Scan for opportunities
+              </button>
+            </form>
+            <form action={requestArcOpportunityScanAction}>
+              <button
+                type="submit"
+                className="rounded-md px-3 py-1.5 text-sm font-semibold text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:shadow-[inset_0_0_0_1px_var(--accent)]"
+              >
+                Ask Arc to find opportunities
+              </button>
+            </form>
+          </div>
         }
       />
 
@@ -82,6 +93,7 @@ export default async function OpportunitiesPage({
         action={action}
         messages={{
           scanned: "Scan complete.",
+          "arc-scanning": "Arc is scanning — new opportunities appear here for approval.",
           drafting: "Arc is drafting a campaign — it'll appear in Campaigns for approval.",
           "draft-error": "Couldn't load that opportunity.",
         }}

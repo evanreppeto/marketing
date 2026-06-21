@@ -1,7 +1,7 @@
-import { runArcOpportunityDraft, runArcTurn } from "./arc";
+import { runArcOpportunityDraft, runArcOpportunityScan, runArcTurn } from "./arc";
 import type { Config } from "./config";
 import type { ArcClient } from "./arc-client";
-import type { ArcOpportunityDraftPayload, MarkChatMessagePayload } from "./types";
+import type { ArcOpportunityDraftPayload, ArcOpportunityScanPayload, MarkChatMessagePayload } from "./types";
 
 /**
  * Handle one operator chat message: run it through Arc (Claude Agent SDK) and
@@ -67,5 +67,26 @@ export async function handleOpportunityDraft(
     );
   } catch (error) {
     console.error(`[arc-runner] opportunity-draft run failed for ${payload.opportunityId}:`, error);
+  }
+}
+
+/**
+ * Handle an `arc_opportunity_scan` wake: run Arc in SCAN mode to survey CRM /
+ * personas / brand / activity and propose pending opportunities. Everything stays
+ * approval-gated — the scan tool set has no outbound or draft tools beyond
+ * propose_opportunity (status=pending). Outbound stays locked.
+ */
+export async function handleOpportunityScan(
+  client: ArcClient,
+  _config: Config,
+  payload: ArcOpportunityScanPayload,
+): Promise<void> {
+  console.log(`[arc-runner] opportunity-scan wake received → scanning (task ${payload.agentTaskId})`);
+  const started = Date.now();
+  try {
+    const result = await runArcOpportunityScan(payload, client);
+    console.log(`[arc-runner] opportunity scan finished in ${Date.now() - started}ms (${result.actions.length} card(s))`);
+  } catch (error) {
+    console.error(`[arc-runner] opportunity-scan run failed (task ${payload.agentTaskId}):`, error);
   }
 }

@@ -19,14 +19,14 @@ export type ColdLeadInput = {
 export type DetectionConfig = { now: string; coldDays?: number };
 
 export type OpportunityCandidate = {
-  kind: "crm_inactivity";
-  subjectType: "lead";
+  kind: string;            // was "crm_inactivity"
+  subjectType: string;     // was "lead"
   subjectId: string;
   title: string;
   summary: string;
   confidence: number; // 0–100
   urgency: "low" | "medium" | "high";
-  evidence: { daysCold: number; leadScore: number; persona: string; lastActivityAt: string };
+  evidence: Record<string, unknown>;  // was the cold-lead-specific object
   recommendedAction: string;
   recommendedCampaignType: string;
 };

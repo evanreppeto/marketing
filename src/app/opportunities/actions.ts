@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { buildOpportunityBriefing } from "@/domain";
 import { notifyArcOpportunityDraft } from "@/lib/arc-chat/notify";
 import { requireOperator } from "@/lib/auth/operator";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { runColdLeadDetection } from "@/lib/opportunities/detector";
-import { enqueueArcOpportunityTask } from "@/lib/opportunities/enqueue";
+import { enqueueArcOpportunityTask, enqueueOpportunityScanTask } from "@/lib/opportunities/enqueue";
 import { dismissOpportunity, markOpportunityDrafting, snoozeOpportunity } from "@/lib/opportunities/persistence";
 import { getOpportunityForDraft } from "@/lib/opportunities/read-model";
 
@@ -16,6 +17,14 @@ export async function scanOpportunitiesAction(): Promise<void> {
   await runColdLeadDetection();
   revalidatePath("/opportunities");
   redirect("/opportunities?action=scanned");
+}
+
+export async function requestArcOpportunityScanAction(): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  await enqueueOpportunityScanTask({ operator: "Operator" });
+  revalidatePath("/opportunities");
+  redirect("/opportunities?action=arc-scanning");
 }
 
 export async function dismissOpportunityAction(formData: FormData): Promise<void> {
