@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTable, type Column } from "@/app/_components/data-table";
@@ -16,35 +16,57 @@ const STAGE_ORDER: Record<PersonaStage, number> = {
   Dormant: 5,
 };
 
-type SortKey = "score" | "name" | "stage" | "audience";
+type SortKey = "name" | "segment" | "stage" | "audience" | "score";
+type SortDir = "asc" | "desc";
+type SortState = { key: SortKey; dir: SortDir };
+
+const DEFAULT_DIR: Record<SortKey, SortDir> = {
+  name: "asc",
+  segment: "asc",
+  stage: "asc",
+  audience: "desc",
+  score: "desc",
+};
 
 function needsAttention(stage: PersonaStage): boolean {
   return stage === "At risk" || stage === "Dormant";
 }
 
-const HEAD = "text-[11px] font-medium uppercase tracking-[0.07em] text-[var(--text-muted)]";
+function compare(a: DemoPersona, b: DemoPersona, key: SortKey): number {
+  switch (key) {
+    case "name":
+      return a.name.localeCompare(b.name);
+    case "segment":
+      return segmentLabel(a.segment).localeCompare(segmentLabel(b.segment)) || b.score - a.score;
+    case "stage":
+      return STAGE_ORDER[a.stage] - STAGE_ORDER[b.stage] || b.score - a.score;
+    case "audience":
+      return a.audienceShare - b.audienceShare;
+    default:
+      return a.score - b.score;
+  }
+}
 
 export function PersonaRoster({ personas }: { personas: DemoPersona[] }) {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortKey>("score");
+  const [sort, setSort] = useState<SortState>({ key: "score", dir: "desc" });
+
+  function onSort(key: SortKey) {
+    setSort((current) => (current.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: DEFAULT_DIR[key] }));
+  }
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = needle
       ? personas.filter((p) => p.name.toLowerCase().includes(needle) || p.angle.toLowerCase().includes(needle))
       : personas;
-    return filtered.slice().sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
-      if (sort === "stage") return STAGE_ORDER[a.stage] - STAGE_ORDER[b.stage] || b.score - a.score;
-      if (sort === "audience") return b.audienceShare - a.audienceShare;
-      return b.score - a.score;
-    });
+    return filtered.slice().sort((a, b) => (sort.dir === "asc" ? compare(a, b, sort.key) : compare(b, a, sort.key)));
   }, [personas, query, sort]);
 
   const columns: Array<Column<DemoPersona>> = [
     {
       key: "persona",
-      header: <span className={HEAD}>Persona</span>,
+      header: <SortHead label="Persona" sortKey="name" sort={sort} onSort={onSort} />,
       cell: (p) => (
         <div className="min-w-0 py-1">
           <div className="flex items-center gap-2">
@@ -57,32 +79,32 @@ export function PersonaRoster({ personas }: { personas: DemoPersona[] }) {
     },
     {
       key: "segment",
-      header: <span className={HEAD}>Segment</span>,
+      header: <SortHead label="Segment" sortKey="segment" sort={sort} onSort={onSort} />,
       width: "w-[150px]",
       cell: (p) => <span className="text-[13px] text-[var(--text-secondary)]">{segmentLabel(p.segment)}</span>,
     },
     {
       key: "stage",
-      header: <span className={HEAD}>Stage</span>,
+      header: <SortHead label="Stage" sortKey="stage" sort={sort} onSort={onSort} />,
       width: "w-[120px]",
       cell: (p) => <span className={cx("text-[13px]", needsAttention(p.stage) ? "text-[var(--warn)]" : "text-[var(--text-secondary)]")}>{p.stage}</span>,
     },
     {
       key: "trend",
-      header: <span className={HEAD}>30-day trend</span>,
+      header: <span className={HEAD_CLASS}>30-day trend</span>,
       width: "w-[128px]",
       cell: (p) => <Trend points={p.scoreTrend} />,
     },
     {
       key: "audience",
-      header: <span className={HEAD}>Audience</span>,
+      header: <SortHead label="Audience" sortKey="audience" sort={sort} onSort={onSort} align="right" />,
       align: "right",
       width: "w-[110px]",
       cell: (p) => <span className="font-mono text-[13px] tabular-nums text-[var(--text-secondary)]">{p.audienceShare}%</span>,
     },
     {
       key: "score",
-      header: <span className={HEAD}>Lead score</span>,
+      header: <SortHead label="Lead score" sortKey="score" sort={sort} onSort={onSort} align="right" />,
       align: "right",
       width: "w-[104px]",
       cell: (p) => <span className="font-mono text-[16px] font-medium tabular-nums tracking-[-0.01em] text-[var(--text-primary)]">{p.score}</span>,
@@ -101,20 +123,6 @@ export function PersonaRoster({ personas }: { personas: DemoPersona[] }) {
           aria-label="Search personas"
           className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
         />
-        <label className="flex shrink-0 items-center gap-2 text-[12px] text-[var(--text-muted)]">
-          Sort
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as SortKey)}
-            aria-label="Sort personas"
-            className="cursor-pointer bg-transparent text-[13px] text-[var(--text-secondary)] focus:outline-none"
-          >
-            <option value="score">Lead score</option>
-            <option value="audience">Audience</option>
-            <option value="name">Name</option>
-            <option value="stage">Stage</option>
-          </select>
-        </label>
       </div>
 
       <DataTable
@@ -126,6 +134,44 @@ export function PersonaRoster({ personas }: { personas: DemoPersona[] }) {
         emptyState={<p className="px-3 py-12 text-center text-sm text-[var(--text-muted)]">No personas match &ldquo;{query.trim()}&rdquo;.</p>}
       />
     </div>
+  );
+}
+
+const HEAD_CLASS = "text-[11px] font-medium uppercase tracking-[0.07em] text-[var(--text-muted)]";
+
+function SortHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: SortState;
+  onSort: (key: SortKey) => void;
+  align?: "right";
+}) {
+  const active = sort.key === sortKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      aria-label={`Sort by ${label}`}
+      className={cx(
+        "group inline-flex items-center gap-1 transition",
+        HEAD_CLASS,
+        align === "right" && "flex-row-reverse",
+        active ? "text-[var(--text-secondary)]" : "hover:text-[var(--text-secondary)]",
+      )}
+    >
+      {label}
+      <ChevronDown
+        aria-hidden
+        strokeWidth={2.2}
+        className={cx("h-3 w-3 transition", active ? "opacity-100" : "opacity-0 group-hover:opacity-40", active && sort.dir === "asc" && "rotate-180")}
+      />
+    </button>
   );
 }
 
