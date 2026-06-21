@@ -3,7 +3,7 @@ import { createHash, randomInt } from "node:crypto";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-type WorkspaceInviteRole = "admin" | "marketer" | "reviewer" | "member" | "viewer";
+export type WorkspaceInviteRole = "admin" | "marketer" | "reviewer" | "member" | "viewer";
 
 type IssueWorkspaceInviteInput = {
   expiresInDays?: number;
@@ -14,6 +14,17 @@ type IssueWorkspaceInviteInput = {
 
 type WorkspaceInviteInput = {
   inviteId: string;
+  workspaceId: string;
+};
+
+type WorkspaceMemberRoleInput = {
+  memberId: string;
+  role: string;
+  workspaceId: string;
+};
+
+type WorkspaceMemberInput = {
+  memberId: string;
   workspaceId: string;
 };
 
@@ -47,6 +58,14 @@ export type CancelWorkspaceInviteResult =
   | { ok: true }
   | { ok: false; status: "not_authenticated" | "not_configured" | "not_authorized" | "invalid_input" | "failed"; message: string };
 
+export type UpdateWorkspaceMemberRoleResult =
+  | { ok: true; role: WorkspaceInviteRole }
+  | { ok: false; status: "not_authenticated" | "not_configured" | "not_authorized" | "invalid_input" | "failed"; message: string };
+
+export type RemoveWorkspaceMemberResult =
+  | { ok: true }
+  | { ok: false; status: "not_authenticated" | "not_configured" | "not_authorized" | "invalid_input" | "failed"; message: string };
+
 const inviteRoles = new Set<WorkspaceInviteRole>(["admin", "marketer", "reviewer", "member", "viewer"]);
 const inviteAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -72,6 +91,10 @@ function normalizeEmail(value: string | undefined) {
 
 function normalizeRole(value: string | undefined): WorkspaceInviteRole {
   return inviteRoles.has(value as WorkspaceInviteRole) ? (value as WorkspaceInviteRole) : "member";
+}
+
+function isValidRole(value: string): value is WorkspaceInviteRole {
+  return inviteRoles.has(value as WorkspaceInviteRole);
 }
 
 function expiresAtFromDays(days: number | undefined) {
@@ -102,11 +125,11 @@ async function getCurrentWorkspaceMembership(workspaceId: string) {
   const client = getSupabaseAdminClient();
   const { data: membership, error } = await client
     .from("workspace_memberships")
-    .select("org_id,role,status")
+    .select("id,org_id,role,status")
     .eq("workspace_id", workspaceId)
     .eq("user_id", user.id)
     .eq("status", "active")
-    .maybeSingle<{ org_id: string; role: string; status: string }>();
+    .maybeSingle<{ id: string; org_id: string; role: string; status: string }>();
 
   if (error) throw error;
   if (!membership) {
@@ -232,6 +255,115 @@ export async function cancelWorkspaceInvite(input: WorkspaceInviteInput): Promis
       ok: false,
       status: "failed",
       message: error instanceof Error ? error.message : "Workspace invite could not be revoked.",
+    };
+  }
+}
+
+async function getTargetMember(
+  client: ReturnType<typeof getSupabaseAdminClient>,
+  input: WorkspaceMemberInput,
+) {
+  const { data, error } = await client
+    .from("workspace_memberships")
+    .select("id,org_id,workspace_id,user_id,role,status")
+    .eq("id", input.memberId)
+    .eq("workspace_id", input.workspaceId)
+    .maybeSingle<{ id: string; org_id: string; workspace_id: string; user_id: string | null; role: string; status: string }>();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+export async function updateWorkspaceMemberRole(input: WorkspaceMemberRoleInput): Promise<UpdateWorkspaceMemberRoleResult> {
+  const memberId = input.memberId.trim();
+  const workspaceId = input.workspaceId.trim();
+  const role = input.role.trim();
+  if (!memberId || !workspaceId || !isValidRole(role)) {
+    return { ok: false, status: "invalid_input", message: "Member id, workspace id, and a valid role are required." };
+  }
+
+  try {
+    const access = await getCurrentWorkspaceMembership(workspaceId);
+    if (!access.ok) return access;
+    if (!isWorkspaceAdmin(access.membership.role)) {
+      return { ok: false, status: "not_authorized", message: "Only workspace owners and admins can change member roles." };
+    }
+
+    const target = await getTargetMember(access.client, { memberId, workspaceId });
+    if (!target || target.status !== "active" || !target.user_id) {
+      return { ok: false, status: "invalid_input", message: "Choose an active workspace member." };
+    }
+    if (target.id === access.membership.id || target.user_id === access.user.id) {
+      return { ok: false, status: "not_authorized", message: "You cannot change your own workspace role." };
+    }
+    if (target.role === "owner") {
+      return { ok: false, status: "not_authorized", message: "Owner access cannot be changed here." };
+    }
+
+    const { error: updateError } = await access.client
+      .from("workspace_memberships")
+      .update({ role })
+      .eq("id", memberId)
+      .eq("workspace_id", workspaceId)
+      .eq("status", "active");
+    if (updateError) throw updateError;
+
+    const orgRole = role === "admin" ? "admin" : "member";
+    const { error: orgError } = await access.client
+      .from("organization_memberships")
+      .update({ role: orgRole })
+      .eq("org_id", target.org_id)
+      .eq("user_id", target.user_id)
+      .eq("status", "active");
+    if (orgError) throw orgError;
+
+    return { ok: true, role };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "failed",
+      message: error instanceof Error ? error.message : "Workspace member role could not be updated.",
+    };
+  }
+}
+
+export async function removeWorkspaceMember(input: WorkspaceMemberInput): Promise<RemoveWorkspaceMemberResult> {
+  const memberId = input.memberId.trim();
+  const workspaceId = input.workspaceId.trim();
+  if (!memberId || !workspaceId) return { ok: false, status: "invalid_input", message: "Member id and workspace id are required." };
+
+  try {
+    const access = await getCurrentWorkspaceMembership(workspaceId);
+    if (!access.ok) return access;
+    if (!isWorkspaceAdmin(access.membership.role)) {
+      return { ok: false, status: "not_authorized", message: "Only workspace owners and admins can remove members." };
+    }
+
+    const target = await getTargetMember(access.client, { memberId, workspaceId });
+    if (!target || target.status !== "active" || !target.user_id) {
+      return { ok: false, status: "invalid_input", message: "Choose an active workspace member." };
+    }
+    if (target.id === access.membership.id || target.user_id === access.user.id) {
+      return { ok: false, status: "not_authorized", message: "You cannot remove yourself from the workspace." };
+    }
+    if (target.role === "owner") {
+      return { ok: false, status: "not_authorized", message: "Owner access cannot be removed here." };
+    }
+
+    const { error } = await access.client
+      .from("workspace_memberships")
+      .update({ status: "removed" })
+      .eq("id", memberId)
+      .eq("workspace_id", workspaceId)
+      .eq("status", "active");
+    if (error) throw error;
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "failed",
+      message: error instanceof Error ? error.message : "Workspace member could not be removed.",
     };
   }
 }

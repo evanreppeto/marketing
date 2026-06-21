@@ -10,7 +10,13 @@ vi.mock("@/lib/supabase/server", () => ({
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-import { cancelWorkspaceInvite, issueWorkspaceInviteCode, listWorkspaceTeamAccess } from "./workspace-invites";
+import {
+  cancelWorkspaceInvite,
+  issueWorkspaceInviteCode,
+  listWorkspaceTeamAccess,
+  removeWorkspaceMember,
+  updateWorkspaceMemberRole,
+} from "./workspace-invites";
 
 const getSupabaseAuthenticatedUserMock = vi.mocked(getSupabaseAuthenticatedUser);
 const getSupabaseAdminClientMock = vi.mocked(getSupabaseAdminClient);
@@ -211,5 +217,122 @@ describe("cancelWorkspaceInvite", () => {
     expect(result).toEqual({ ok: true });
     const updateCall = client.builders.find((builder) => builder.table === "workspace_invites")?.calls.find((call) => call[0] === "update");
     expect(updateCall?.[1]).toEqual(expect.objectContaining({ status: "revoked" }));
+  });
+});
+
+describe("updateWorkspaceMemberRole", () => {
+  it("updates a non-owner workspace member role and aligned organization role", async () => {
+    const responses = new Map<string, unknown[]>();
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: { id: "admin-membership", org_id: "org-1", role: "admin", status: "active" },
+      error: null,
+    });
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: {
+        id: "member-1",
+        org_id: "org-1",
+        workspace_id: "workspace-1",
+        user_id: "member-user",
+        role: "member",
+        status: "active",
+      },
+      error: null,
+    });
+    queue(responses, "workspace_memberships", "then", { data: null, error: null });
+    queue(responses, "organization_memberships", "then", { data: null, error: null });
+    const client = createClient(responses);
+    getSupabaseAdminClientMock.mockReturnValue(client as never);
+
+    const result = await updateWorkspaceMemberRole({ memberId: "member-1", role: "admin", workspaceId: "workspace-1" });
+
+    expect(result).toEqual({ ok: true, role: "admin" });
+    const workspaceUpdate = client.builders.find((builder) => builder.table === "workspace_memberships" && builder.calls.some((call) => call[0] === "update" && (call[1] as { role?: string }).role === "admin"));
+    expect(workspaceUpdate?.calls).toContainEqual(["eq", "id", "member-1"]);
+    expect(workspaceUpdate?.calls).toContainEqual(["eq", "workspace_id", "workspace-1"]);
+    const orgUpdate = client.builders.find((builder) => builder.table === "organization_memberships")?.calls.find((call) => call[0] === "update");
+    expect(orgUpdate?.[1]).toEqual({ role: "admin" });
+  });
+
+  it("does not allow owner role changes", async () => {
+    const responses = new Map<string, unknown[]>();
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: { id: "admin-membership", org_id: "org-1", role: "admin", status: "active" },
+      error: null,
+    });
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: {
+        id: "owner-membership",
+        org_id: "org-1",
+        workspace_id: "workspace-1",
+        user_id: "owner-user",
+        role: "owner",
+        status: "active",
+      },
+      error: null,
+    });
+    const client = createClient(responses);
+    getSupabaseAdminClientMock.mockReturnValue(client as never);
+
+    const result = await updateWorkspaceMemberRole({ memberId: "owner-membership", role: "member", workspaceId: "workspace-1" });
+
+    expect(result).toEqual({ ok: false, status: "not_authorized", message: "Owner access cannot be changed here." });
+    expect(client.builders.some((builder) => builder.table === "workspace_memberships" && builder.calls.some((call) => call[0] === "update"))).toBe(false);
+  });
+});
+
+describe("removeWorkspaceMember", () => {
+  it("marks a non-owner workspace member as removed", async () => {
+    const responses = new Map<string, unknown[]>();
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: { id: "admin-membership", org_id: "org-1", role: "owner", status: "active" },
+      error: null,
+    });
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: {
+        id: "member-1",
+        org_id: "org-1",
+        workspace_id: "workspace-1",
+        user_id: "member-user",
+        role: "member",
+        status: "active",
+      },
+      error: null,
+    });
+    queue(responses, "workspace_memberships", "then", { data: null, error: null });
+    const client = createClient(responses);
+    getSupabaseAdminClientMock.mockReturnValue(client as never);
+
+    const result = await removeWorkspaceMember({ memberId: "member-1", workspaceId: "workspace-1" });
+
+    expect(result).toEqual({ ok: true });
+    const updateCall = client.builders
+      .find((builder) => builder.table === "workspace_memberships" && builder.calls.some((call) => call[0] === "update"))
+      ?.calls.find((call) => call[0] === "update");
+    expect(updateCall?.[1]).toEqual({ status: "removed" });
+  });
+
+  it("does not allow removing your own membership", async () => {
+    const responses = new Map<string, unknown[]>();
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: { id: "admin-membership", org_id: "org-1", role: "owner", status: "active" },
+      error: null,
+    });
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: {
+        id: "admin-membership",
+        org_id: "org-1",
+        workspace_id: "workspace-1",
+        user_id: "admin-user",
+        role: "owner",
+        status: "active",
+      },
+      error: null,
+    });
+    const client = createClient(responses);
+    getSupabaseAdminClientMock.mockReturnValue(client as never);
+
+    const result = await removeWorkspaceMember({ memberId: "admin-membership", workspaceId: "workspace-1" });
+
+    expect(result).toEqual({ ok: false, status: "not_authorized", message: "You cannot remove yourself from the workspace." });
   });
 });
