@@ -1,7 +1,7 @@
-import { ArrowLeft, ArrowRight, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Lock } from "lucide-react";
 import Link from "next/link";
 
-import { EmptyState, PageHeader, StatStrip, StatusPill, type StatItem } from "@/app/_components/page-header";
+import { EmptyState, PageHeader, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { cx, type ThemeTone } from "@/app/_components/theme";
 import { DetailStack, WorkspacePanel } from "@/app/_components/workspace";
 import { listPersonas, type Persona } from "@/lib/personas/console";
@@ -45,47 +45,139 @@ export default async function PersonaDetailPage({ params }: PageProps) {
   const next = index >= 0 && index < personas.length - 1 ? personas[index + 1] : null;
   const related = personas.filter((entry) => entry.segment === persona.segment && entry.slug !== persona.slug).slice(0, 4);
   const trendDelta = persona.scoreTrend[persona.scoreTrend.length - 1] - persona.scoreTrend[0];
-  const stats: StatItem[] = [
-    { label: "Lead score", value: persona.score, hint: "out of 100", tone: "accent" },
-    { label: "Audience share", value: `${persona.audienceShare}%`, hint: "of all contacts" },
-    {
-      label: "30-day trend",
-      value: `${trendDelta >= 0 ? "+" : "−"}${Math.abs(trendDelta)}`,
-      hint: trendDelta >= 0 ? "trending up" : "trending down",
-      tone: trendDelta >= 0 ? "ok" : "amber",
-      delta: `${trendDelta >= 0 ? "+" : "−"}${Math.abs(trendDelta)}`,
-      deltaTone: trendDelta >= 0 ? "ok" : "amber",
-      spark: persona.scoreTrend.map((value) => value / 100),
-    },
-    { label: "Preferred channel", value: persona.channel },
-  ];
+  const awaiting = persona.arcActivity.filter((item) => item.status === "Awaiting approval").length;
 
   return (
     <>
-      <PageHeader
-        backHref="/personas"
-        backLabel="All personas"
-        title={persona.name}
-        description={`${segmentLabel(persona.segment)} · ${persona.audience}`}
-        aside={
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill>
-            {persona.live ? <StatusPill tone="green">Live data</StatusPill> : <StatusPill tone="gray">No live data</StatusPill>}
-          </div>
-        }
-      />
+      <Link
+        href="/personas"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+      >
+        <ArrowLeft aria-hidden className="h-4 w-4" strokeWidth={1.9} />
+        All personas
+      </Link>
 
-      <section className="module-rise mb-5 flex items-center gap-5 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] px-6 py-5 shadow-[var(--elev-panel)]">
-        <Monogram initials={persona.initials} live={persona.live} />
-        <p className="min-w-0 font-serif text-[18px] italic leading-snug text-[var(--text-secondary)]">
-          &ldquo;{persona.quote}&rdquo;
-        </p>
+      <section className="module-rise mb-5 overflow-hidden rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[var(--elev-panel)]">
+        <div className="grid gap-7 p-6 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="min-w-0">
+            <div className="flex items-center gap-4">
+              <Monogram initials={persona.initials} live={persona.live} size="lg" />
+              <div className="min-w-0">
+                <h1 className="truncate font-display text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">{persona.name}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{segmentLabel(persona.segment)}</span>
+                  {persona.live ? <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--ok)]">Live data</span> : null}
+                </div>
+              </div>
+            </div>
+            <p className="mt-5 max-w-[60ch] font-serif text-[19px] italic leading-snug text-[var(--text-secondary)]">
+              &ldquo;{persona.quote}&rdquo;
+            </p>
+          </div>
+
+          <div className="flex shrink-0 gap-8 border-t border-[var(--border-hairline)] pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Lead score</div>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="font-display text-5xl font-bold leading-none tracking-[-0.05em] tabular-nums text-[var(--text-primary)]">{persona.score}</span>
+                <span className="text-sm text-[var(--text-muted)]">/100</span>
+              </div>
+              <div className="mt-3 flex items-center gap-2.5">
+                <Sparkline points={persona.scoreTrend} rising={trendDelta >= 0} />
+                <span className={cx("font-mono text-xs font-semibold tabular-nums", trendDelta >= 0 ? "text-[var(--ok)]" : "text-[var(--warn)]")}>
+                  {trendDelta >= 0 ? "+" : "−"}
+                  {Math.abs(trendDelta)}
+                </span>
+              </div>
+            </div>
+            <div className="border-l border-[var(--border-hairline)] pl-8">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Audience</div>
+              <div className="mt-1 font-display text-5xl font-bold leading-none tracking-[-0.05em] tabular-nums text-[var(--text-primary)]">{persona.audienceShare}%</div>
+              <div className="mt-3 text-xs text-[var(--text-muted)]">of all contacts</div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <StatStrip className="mb-5" columns={4} items={stats} />
+      <section className="module-rise mb-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,var(--border-panel))] bg-[color-mix(in_srgb,var(--accent)_6%,var(--surface-panel))] shadow-[var(--elev-panel)] [animation-delay:60ms]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--accent)_18%,transparent)] px-6 py-4">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">{AGENT_NAME}</div>
+            <h2 className="mt-0.5 font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Working this persona for you</h2>
+          </div>
+          {awaiting > 0 ? <StatusPill tone="amber">{awaiting} awaiting approval</StatusPill> : <StatusPill tone="gray">Up to date</StatusPill>}
+        </div>
+
+        <div className="grid gap-x-8 gap-y-6 p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="space-y-4">
+            <Field label="Message angle">{persona.angle}</Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Recommended CTA">{persona.cta}</Field>
+              <Field label="Preferred channel">{persona.channel}</Field>
+            </div>
+            <Field label="Next best action">{persona.nextAction}</Field>
+            <div>
+              <FieldLabel>Proof points</FieldLabel>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {persona.proofPoints.map((point) => (
+                  <span key={point} className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
+                    {point}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Recently prepared</FieldLabel>
+            <div className="mt-2.5 overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+              <div className="divide-y divide-[var(--border-hairline)]">
+                {persona.arcActivity.map((item) => (
+                  <div className="flex items-center justify-between gap-3 px-4 py-3" key={item.title}>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-[var(--text-primary)]">{item.title}</div>
+                      <div className="mt-0.5 text-xs text-[var(--text-muted)]">{item.when}</div>
+                    </div>
+                    <StatusPill tone={ACTIVITY_TONE[item.status]}>{item.status}</StatusPill>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color-mix(in_srgb,var(--accent)_18%,transparent)] px-6 py-4">
+          <span className="flex items-center gap-2 text-[12px] leading-5 text-[var(--text-muted)]">
+            <Lock aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" strokeWidth={1.9} />
+            {AGENT_NAME} drafts; you approve. Nothing goes out until then.
+          </span>
+          <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="/arc">
+            Draft with {AGENT_NAME}
+            <ArrowUpRight aria-hidden className="h-4 w-4" strokeWidth={2} />
+          </Link>
+        </div>
+      </section>
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <main className="min-w-0 space-y-5">
+          <WorkspacePanel title="Why this score" description="What makes up the lead score — and the evidence behind each signal.">
+            <div className="space-y-6 px-5 py-5">
+              {SCORE_SIGNALS.map((signal) => (
+                <SignalBlock
+                  key={signal.key}
+                  label={signal.label}
+                  hint={signal.hint}
+                  value={persona.signals[signal.key]}
+                  drivers={persona.signalDrivers[signal.key]}
+                />
+              ))}
+              <p className="border-t border-[var(--border-hairline)] pt-4 text-[12px] leading-5 text-[var(--text-muted)]">
+                Scores are deterministic and explainable — computed by the app from these signals, not a model black box.
+              </p>
+            </div>
+          </WorkspacePanel>
+
           <WorkspacePanel title="Who they are">
             <div className="space-y-5 px-5 py-5">
               <p className="max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">{persona.profile}</p>
@@ -93,48 +185,6 @@ export default async function PersonaDetailPage({ params }: PageProps) {
                 <TraitList title="What they want" items={persona.goals} tone="ok" />
                 <TraitList title="What holds them back" items={persona.objections} tone="amber" />
               </div>
-            </div>
-          </WorkspacePanel>
-
-          <WorkspacePanel title="Why this score" description="How ready and valuable this audience is to act on right now — and the evidence behind it.">
-            <div className="px-5 py-5">
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-4xl font-bold tracking-[-0.04em] tabular-nums text-[var(--text-primary)]">{persona.score}</span>
-                <span className="text-sm text-[var(--text-muted)]">/ 100 lead score</span>
-              </div>
-
-              <div className="mt-6 space-y-6">
-                {SCORE_SIGNALS.map((signal) => (
-                  <SignalBlock
-                    key={signal.key}
-                    label={signal.label}
-                    hint={signal.hint}
-                    value={persona.signals[signal.key]}
-                    drivers={persona.signalDrivers[signal.key]}
-                  />
-                ))}
-              </div>
-
-              <p className="mt-6 border-t border-[var(--border-hairline)] pt-4 text-[12px] leading-5 text-[var(--text-muted)]">
-                Scores are deterministic and explainable — computed by the app from these signals, not a model black box.
-              </p>
-            </div>
-          </WorkspacePanel>
-
-          <WorkspacePanel
-            title={`Recent ${AGENT_NAME} activity`}
-            description="What the agent has prepared for this persona. Everything stays locked until you approve it."
-          >
-            <div className="divide-y divide-[var(--border-hairline)]">
-              {persona.arcActivity.map((item) => (
-                <div className="flex items-center justify-between gap-3 px-5 py-3.5" key={item.title}>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-[var(--text-primary)]">{item.title}</div>
-                    <div className="mt-0.5 text-xs text-[var(--text-muted)]">{item.when}</div>
-                  </div>
-                  <StatusPill tone={ACTIVITY_TONE[item.status]}>{item.status}</StatusPill>
-                </div>
-              ))}
             </div>
           </WorkspacePanel>
         </main>
@@ -145,11 +195,18 @@ export default async function PersonaDetailPage({ params }: PageProps) {
               items={[
                 { label: "Segment", value: segmentLabel(persona.segment) },
                 { label: "Lifecycle stage", value: <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill> },
-                { label: "Lead score", value: <span className="font-mono tabular-nums">{persona.score} / 100</span> },
                 { label: "Preferred channel", value: persona.channel },
                 { label: "Best timing", value: persona.bestTiming },
               ]}
             />
+          </WorkspacePanel>
+
+          <WorkspacePanel title="Recommended message" description="An example of what Arc would draft — for review, never auto-sent.">
+            <div className="px-5 py-5">
+              <FieldLabel>Subject</FieldLabel>
+              <div className="mt-1.5 text-sm font-semibold text-[var(--text-primary)]">{persona.sampleMessage.subject}</div>
+              <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{persona.sampleMessage.preview}</p>
+            </div>
           </WorkspacePanel>
 
           {related.length > 0 ? (
@@ -171,36 +228,6 @@ export default async function PersonaDetailPage({ params }: PageProps) {
               </div>
             </WorkspacePanel>
           ) : null}
-
-          <WorkspacePanel title="Recommended message" description="An example of what Arc would draft — for review, never auto-sent.">
-            <div className="px-5 py-5">
-              <FieldLabel>Subject</FieldLabel>
-              <div className="mt-1.5 text-sm font-semibold text-[var(--text-primary)]">{persona.sampleMessage.subject}</div>
-              <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{persona.sampleMessage.preview}</p>
-            </div>
-          </WorkspacePanel>
-
-          <WorkspacePanel title={`How ${AGENT_NAME} uses this persona`} description="The inputs the agent draws on to prepare reviewable work.">
-            <div className="space-y-4 px-5 py-5">
-              <Field label="Message angle">{persona.angle}</Field>
-              <Field label="Recommended CTA">{persona.cta}</Field>
-              <Field label="Next best action">{persona.nextAction}</Field>
-              <div>
-                <FieldLabel>Proof points</FieldLabel>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {persona.proofPoints.map((point) => (
-                    <span key={point} className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
-                      {point}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <p className="flex items-start gap-2 border-t border-[var(--border-hairline)] pt-4 text-[12px] leading-5 text-[var(--text-muted)]">
-                <Lock aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--accent)]" strokeWidth={1.9} />
-                {AGENT_NAME} drafts campaigns for this persona. A human approves — nothing goes out until then.
-              </p>
-            </div>
-          </WorkspacePanel>
         </aside>
       </div>
 
@@ -209,6 +236,24 @@ export default async function PersonaDetailPage({ params }: PageProps) {
         {next ? <AdjacentLink persona={next} direction="next" /> : <span aria-hidden />}
       </nav>
     </>
+  );
+}
+
+function Sparkline({ points, rising }: { points: number[]; rising: boolean }) {
+  if (points.length < 2) return null;
+  const w = 96;
+  const h = 30;
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const range = max - min || 1;
+  const step = w / (points.length - 1);
+  const d = points
+    .map((value, i) => `${i === 0 ? "M" : "L"} ${(i * step).toFixed(1)} ${(h - ((value - min) / range) * h).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" aria-hidden className="shrink-0">
+      <path d={d} stroke={rising ? "var(--accent)" : "var(--warn)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -235,12 +280,13 @@ function AdjacentLink({ persona, direction }: { persona: Persona; direction: "pr
   );
 }
 
-function Monogram({ initials, live }: { initials: string; live: boolean }) {
+function Monogram({ initials, live, size = "md" }: { initials: string; live: boolean; size?: "md" | "lg" }) {
   return (
     <span
       aria-hidden
       className={cx(
-        "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border text-[18px] font-semibold tracking-[0.02em]",
+        "flex shrink-0 items-center justify-center rounded-xl border font-semibold tracking-[0.02em]",
+        size === "lg" ? "h-16 w-16 text-[20px]" : "h-14 w-14 text-[18px]",
         live
           ? "border-[color-mix(in_srgb,var(--accent)_32%,transparent)] bg-[color-mix(in_srgb,var(--accent)_13%,transparent)] text-[var(--accent)]"
           : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)]",
