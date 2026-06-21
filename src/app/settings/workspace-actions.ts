@@ -10,12 +10,8 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
 
 export type WorkspaceActionState = { ok: boolean; message: string } | null;
 
-/** Switch the active workspace by pinning the cookie the context resolver reads. */
-export async function setActiveWorkspaceAction(
-  _previous: WorkspaceActionState,
-  formData: FormData,
-): Promise<WorkspaceActionState> {
-  const workspaceId = String(formData.get("workspaceId") ?? "").trim();
+/** Validate membership and pin the active-workspace cookie the resolver reads. */
+async function applyActiveWorkspace(workspaceId: string): Promise<{ ok: boolean; message: string }> {
   if (!workspaceId) return { ok: false, message: "Pick a workspace to switch to." };
   if (!isSupabaseAdminConfigured()) return { ok: false, message: "Supabase isn't configured." };
 
@@ -45,6 +41,19 @@ export async function setActiveWorkspaceAction(
   revalidatePath("/", "layout");
   revalidatePath("/settings");
   return { ok: true, message: "Workspace switched." };
+}
+
+/** Switch the active workspace from a form (settings Workspaces panel). */
+export async function setActiveWorkspaceAction(
+  _previous: WorkspaceActionState,
+  formData: FormData,
+): Promise<WorkspaceActionState> {
+  return applyActiveWorkspace(String(formData.get("workspaceId") ?? "").trim());
+}
+
+/** Switch the active workspace by id (sidebar switcher's direct call). */
+export async function switchWorkspaceAction(workspaceId: string): Promise<{ ok: boolean; message: string }> {
+  return applyActiveWorkspace(workspaceId.trim());
 }
 
 export async function changeMemberRoleAction(

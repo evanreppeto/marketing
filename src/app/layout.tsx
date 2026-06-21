@@ -8,8 +8,17 @@ import { getConfiguredOperatorCredentials } from "@/lib/auth/operator-shared";
 import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 import { resolveBrandIdentity } from "@/lib/brand-kit/identity";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { listWorkspacesForUser } from "@/lib/auth/workspace-admin";
+import { roleLabel } from "@/lib/auth/workspace-roles";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+const WORKSPACE_TYPE_LABEL: Record<string, string> = {
+  individual: "Personal",
+  company: "Company",
+  agency: "Agency",
+};
 
 // Geist — the modern product grotesk (Linear/Vercel-grade). One family carries
 // display, headings, and body so the UI reads as a single, intentional system.
@@ -129,6 +138,15 @@ export default async function RootLayout({
   const identity = await resolveBrandIdentity();
   const operator = await getOperatorShellProfile();
 
+  const userWorkspaces = await listWorkspacesForUser();
+  const activeWorkspaceId =
+    userWorkspaces.length > 0 ? (await getCurrentWorkspaceContext().catch(() => null))?.workspaceId ?? undefined : undefined;
+  const switcherWorkspaces = userWorkspaces.map((workspace) => ({
+    id: workspace.workspaceId,
+    name: workspace.workspaceName,
+    plan: `${WORKSPACE_TYPE_LABEL[workspace.workspaceType] ?? "Workspace"} · ${roleLabel(workspace.role)}`,
+  }));
+
   return (
     <html
       lang="en"
@@ -147,6 +165,8 @@ export default async function RootLayout({
             logoUrl: identity.logoUrl ?? settings.brandLogoUrl,
           }}
           operator={operator}
+          workspaces={switcherWorkspaces}
+          activeWorkspaceId={activeWorkspaceId}
         >
           {children}
         </ConsoleFrame>
