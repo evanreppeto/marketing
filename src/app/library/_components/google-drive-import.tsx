@@ -4,8 +4,10 @@ import { useActionState, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buttonClasses } from "@/app/_components/page-header";
+import { type GoogleDriveSourceView } from "@/lib/google-drive/sources";
 
-import { importFromGoogleDriveAction } from "../actions";
+import { deleteGoogleDriveSourceAction, importFromGoogleDriveAction, syncGoogleDriveSourceAction } from "../actions";
+import { TrashIcon } from "./icons";
 
 type PickerTokenResponse =
   | {
@@ -114,7 +116,27 @@ function selectedFileIds(data: Record<string, unknown>, picker: GooglePicker): s
     .filter((value): value is string => Boolean(value));
 }
 
-export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string | null }) {
+function formatSyncTime(value: string | null): string {
+  if (!value) return "Never synced";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function sourceLabel(source: GoogleDriveSourceView): string {
+  return source.driveFolderName ?? `Drive folder ${source.driveFolderId.slice(0, 8)}`;
+}
+
+export function GoogleDriveImport({
+  activeFolderId,
+  sources = [],
+}: {
+  activeFolderId: string | null;
+  sources?: GoogleDriveSourceView[];
+}) {
   const [state, action, pending] = useActionState(importFromGoogleDriveAction, null);
   const [open, setOpen] = useState(false);
   const [pickerMessage, setPickerMessage] = useState<string | null>(null);
@@ -197,6 +219,47 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
             </button>
           </div>
         </div>
+        {sources.length > 0 ? (
+          <div className="mt-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-3 py-2">
+              <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Drive sources</div>
+              <div className="text-xs font-semibold text-[var(--text-muted)]">{sources.length}</div>
+            </div>
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {sources.map((source) => (
+                <div key={source.id} className="grid gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{sourceLabel(source)}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
+                      <span>{formatSyncTime(source.lastSyncedAt)}</span>
+                      {source.lastSyncedAt ? <span>{source.lastImportedCount} imported last sync</span> : null}
+                      {source.status === "error" ? <span className="font-semibold text-[var(--priority-text)]">Needs attention</span> : null}
+                    </div>
+                    {source.lastError ? <div className="mt-1 text-xs text-[var(--priority-text)]">{source.lastError}</div> : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <form action={syncGoogleDriveSourceAction}>
+                      <input name="sourceId" type="hidden" value={source.id} />
+                      <button className={buttonClasses({ variant: "primary", size: "sm" })} type="submit">
+                        Sync
+                      </button>
+                    </form>
+                    <form action={deleteGoogleDriveSourceAction}>
+                      <input name="sourceId" type="hidden" value={source.id} />
+                      <button
+                        aria-label={`Remove ${sourceLabel(source)}`}
+                        className={buttonClasses({ variant: "ghost", size: "sm" })}
+                        type="submit"
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <form ref={formRef} action={action} className="mt-3 grid gap-3">
           {activeFolderId ? <input name="folderId" type="hidden" value={activeFolderId} /> : null}
           <div className="flex flex-wrap gap-2">
@@ -229,6 +292,16 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
             name="driveFolders"
             placeholder="Drive folder links or IDs"
           />
+          <label className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+            <input
+              className="h-4 w-4 rounded border-[var(--border-hairline)] accent-[var(--accent)]"
+              defaultChecked
+              name="saveDriveSource"
+              type="checkbox"
+              value="true"
+            />
+            Save selected folders
+          </label>
           <div className="flex flex-wrap items-center justify-between gap-2">
             {state ? (
               <p className={`text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>

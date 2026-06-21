@@ -2,6 +2,7 @@ import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "@/app/_components/page-header";
 import { formatByteSize } from "@/domain";
+import { listGoogleDriveSourcesForCurrentOperator } from "@/lib/google-drive/sources";
 import { folderAndDescendantIds, getMediaLibraryData } from "@/lib/media-library/read-model";
 
 import { AssetGrid } from "./_components/asset-grid";
@@ -37,6 +38,7 @@ export default async function LibraryPage({
     ? data.assets.filter((a) => a.folderId !== null && activeFolderIds?.has(a.folderId))
     : data.assets;
   const arcCount = data.assets.filter((a) => a.availableToArc).length;
+  const driveSources = await listGoogleDriveSourcesForCurrentOperator().catch(() => []);
 
   return (
     <>
@@ -48,7 +50,7 @@ export default async function LibraryPage({
           data.assets.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
               <NewFolderButton parentFolderId={isFolderActive ? activeFolderId : null} />
-              <GoogleDriveImport activeFolderId={isFolderActive ? activeFolderId : null} />
+              <GoogleDriveImport activeFolderId={isFolderActive ? activeFolderId : null} sources={driveSources} />
               <UploadButton activeFolderId={isFolderActive ? activeFolderId : null} />
             </div>
           ) : undefined
@@ -61,7 +63,7 @@ export default async function LibraryPage({
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
               <NewFolderButton parentFolderId={null} />
-              <GoogleDriveImport activeFolderId={null} />
+              <GoogleDriveImport activeFolderId={null} sources={driveSources} />
               <UploadButton activeFolderId={null} />
             </div>
           }

@@ -59,6 +59,14 @@ export type GoogleDriveDownloadedFile = {
   plainText?: string | null;
 };
 
+export type GoogleDriveFileMetadata = {
+  id: string;
+  name: string;
+  mimeType: string;
+  webViewLink: string | null;
+  modifiedTime: string | null;
+};
+
 export type DownloadGoogleDriveFileInput = {
   fileId: string;
   accessToken: string;
@@ -106,6 +114,12 @@ export type GoogleDriveFolderFileList = {
   errors: string[];
 };
 
+export type GetGoogleDriveFileMetadataInput = {
+  fileId: string;
+  accessToken: string;
+  fetcher?: typeof fetch;
+};
+
 function ensurePdfName(name: string): string {
   return /\.pdf$/i.test(name) ? name : `${name}.pdf`;
 }
@@ -116,6 +130,29 @@ async function parseDriveJson<T>(response: Response): Promise<T> {
     throw new Error(body || `Google Drive request failed (${response.status})`);
   }
   return JSON.parse(body) as T;
+}
+
+export async function getGoogleDriveFileMetadata({
+  fileId,
+  accessToken,
+  fetcher = fetch,
+}: GetGoogleDriveFileMetadataInput): Promise<GoogleDriveFileMetadata> {
+  const metadataUrl = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`);
+  metadataUrl.searchParams.set("fields", "id,name,mimeType,webViewLink,modifiedTime");
+  metadataUrl.searchParams.set("supportsAllDrives", "true");
+
+  const metadataResponse = await fetcher(metadataUrl.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const metadata = await parseDriveJson<DriveFileMetadata>(metadataResponse);
+
+  return {
+    id: metadata.id,
+    name: metadata.name,
+    mimeType: metadata.mimeType,
+    webViewLink: metadata.webViewLink ?? null,
+    modifiedTime: metadata.modifiedTime ?? null,
+  };
 }
 
 export async function listGoogleDriveFolderFileIds({
