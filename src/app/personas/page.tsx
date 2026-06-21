@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -41,8 +41,9 @@ export default async function PersonasPage({ searchParams }: PageProps) {
   const activeSegment = parsePersonaSegment(valueOf(params.segment));
   const action = valueOf(params.action);
 
-  const visible =
-    activeSegment === "all" ? DEMO_PERSONAS : DEMO_PERSONAS.filter((persona) => persona.segment === activeSegment);
+  const visible = (activeSegment === "all" ? DEMO_PERSONAS : DEMO_PERSONAS.filter((persona) => persona.segment === activeSegment))
+    .slice()
+    .sort((a, b) => b.score - a.score);
 
   const avgScore = Math.round(DEMO_PERSONAS.reduce((sum, persona) => sum + persona.score, 0) / DEMO_PERSONAS.length);
   const needAttention = DEMO_PERSONAS.filter((persona) => persona.stage === "At risk" || persona.stage === "Dormant").length;
@@ -158,6 +159,7 @@ function PersonaConsoleRow({ persona }: { persona: DemoPersona }) {
         <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill>
       </span>
       <ScoreMeter score={persona.score} />
+      <ChevronRight aria-hidden className="hidden h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--accent)] sm:block" strokeWidth={1.8} />
     </Link>
   );
 }

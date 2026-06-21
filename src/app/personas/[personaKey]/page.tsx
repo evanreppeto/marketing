@@ -1,12 +1,16 @@
-import { Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Lock } from "lucide-react";
+import Link from "next/link";
 
-import { EmptyState, PageHeader, StatusPill } from "@/app/_components/page-header";
+import { EmptyState, PageHeader, StatStrip, StatusPill, type StatItem } from "@/app/_components/page-header";
 import { cx, type ThemeTone } from "@/app/_components/theme";
 import { DetailStack, WorkspacePanel } from "@/app/_components/workspace";
 import {
   SCORE_SIGNALS,
+  getAdjacentPersonas,
   getPersonaBySlug,
   segmentLabel,
+  type ArcActivityStatus,
+  type DemoPersona,
   type PersonaStage,
 } from "../_data/demo-personas";
 
@@ -19,6 +23,12 @@ const STAGE_TONE: Record<PersonaStage, ThemeTone> = {
   Champion: "green",
   "At risk": "amber",
   Dormant: "gray",
+};
+
+const ACTIVITY_TONE: Record<ArcActivityStatus, ThemeTone> = {
+  "Awaiting approval": "amber",
+  "Draft ready": "blue",
+  Prepared: "gray",
 };
 
 type PageProps = { params: Promise<{ personaKey: string }> };
@@ -35,6 +45,23 @@ export default async function PersonaDetailPage({ params }: PageProps) {
       </>
     );
   }
+
+  const { prev, next } = getAdjacentPersonas(persona.slug);
+  const trendDelta = persona.scoreTrend[persona.scoreTrend.length - 1] - persona.scoreTrend[0];
+  const stats: StatItem[] = [
+    { label: "Lead score", value: persona.score, hint: "out of 100", tone: "accent" },
+    { label: "Audience share", value: `${persona.audienceShare}%`, hint: "of all contacts" },
+    {
+      label: "30-day trend",
+      value: `${trendDelta >= 0 ? "+" : "−"}${Math.abs(trendDelta)}`,
+      hint: trendDelta >= 0 ? "trending up" : "trending down",
+      tone: trendDelta >= 0 ? "ok" : "amber",
+      delta: `${trendDelta >= 0 ? "+" : "−"}${Math.abs(trendDelta)}`,
+      deltaTone: trendDelta >= 0 ? "ok" : "amber",
+      spark: persona.scoreTrend.map((value) => value / 100),
+    },
+    { label: "Preferred channel", value: persona.channel },
+  ];
 
   return (
     <>
@@ -57,6 +84,8 @@ export default async function PersonaDetailPage({ params }: PageProps) {
           &ldquo;{persona.quote}&rdquo;
         </p>
       </section>
+
+      <StatStrip className="mb-5" columns={4} items={stats} />
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <main className="min-w-0 space-y-5">
@@ -94,6 +123,23 @@ export default async function PersonaDetailPage({ params }: PageProps) {
               </p>
             </div>
           </WorkspacePanel>
+
+          <WorkspacePanel
+            title={`Recent ${AGENT_NAME} activity`}
+            description="What the agent has prepared for this persona. Everything stays locked until you approve it."
+          >
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {persona.arcActivity.map((item) => (
+                <div className="flex items-center justify-between gap-3 px-5 py-3.5" key={item.title}>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-[var(--text-primary)]">{item.title}</div>
+                    <div className="mt-0.5 text-xs text-[var(--text-muted)]">{item.when}</div>
+                  </div>
+                  <StatusPill tone={ACTIVITY_TONE[item.status]}>{item.status}</StatusPill>
+                </div>
+              ))}
+            </div>
+          </WorkspacePanel>
         </main>
 
         <aside className="min-w-0 space-y-5">
@@ -104,8 +150,17 @@ export default async function PersonaDetailPage({ params }: PageProps) {
                 { label: "Lifecycle stage", value: <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill> },
                 { label: "Lead score", value: <span className="font-mono tabular-nums">{persona.score} / 100</span> },
                 { label: "Preferred channel", value: persona.channel },
+                { label: "Best timing", value: persona.bestTiming },
               ]}
             />
+          </WorkspacePanel>
+
+          <WorkspacePanel title="Recommended message" description="An example of what Arc would draft — for review, never auto-sent.">
+            <div className="px-5 py-5">
+              <FieldLabel>Subject</FieldLabel>
+              <div className="mt-1.5 text-sm font-semibold text-[var(--text-primary)]">{persona.sampleMessage.subject}</div>
+              <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{persona.sampleMessage.preview}</p>
+            </div>
           </WorkspacePanel>
 
           <WorkspacePanel title={`How ${AGENT_NAME} uses this persona`} description="The inputs the agent draws on to prepare reviewable work.">
@@ -131,7 +186,35 @@ export default async function PersonaDetailPage({ params }: PageProps) {
           </WorkspacePanel>
         </aside>
       </div>
+
+      <nav aria-label="Persona navigation" className="mt-5 grid gap-3 sm:grid-cols-2">
+        {prev ? <AdjacentLink persona={prev} direction="prev" /> : <span aria-hidden />}
+        {next ? <AdjacentLink persona={next} direction="next" /> : <span aria-hidden />}
+      </nav>
     </>
+  );
+}
+
+function AdjacentLink({ persona, direction }: { persona: DemoPersona; direction: "prev" | "next" }) {
+  const isNext = direction === "next";
+  return (
+    <Link
+      href={`/personas/${persona.slug}`}
+      className={cx(
+        "group flex items-center gap-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 py-3 transition hover:border-[var(--accent)] hover:bg-[var(--surface-inset)]",
+        isNext && "sm:flex-row-reverse sm:text-right",
+      )}
+    >
+      {isNext ? (
+        <ArrowRight aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--accent)]" strokeWidth={1.9} />
+      ) : (
+        <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--accent)]" strokeWidth={1.9} />
+      )}
+      <span className="min-w-0">
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{isNext ? "Next" : "Previous"}</span>
+        <span className="block truncate text-sm font-medium text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{persona.name}</span>
+      </span>
+    </Link>
   );
 }
 
