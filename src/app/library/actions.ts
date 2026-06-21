@@ -6,7 +6,7 @@ import { classifyKind, deriveThreadTitle, validateUpload } from "@/domain";
 import { requireOperator, getOperatorActor } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
-import { parseGoogleDriveFileIds } from "@/lib/google-drive/drive-client";
+import { listGoogleDriveFolderFileIds, parseGoogleDriveFileIds, parseGoogleDriveFolderIds } from "@/lib/google-drive/drive-client";
 import { recordGoogleDriveImportResult, resolveGoogleDriveAccessToken } from "@/lib/google-drive/connection";
 import { learnBrandKnowledgeFromAsset } from "@/lib/brand-knowledge/brain-sync";
 import {
@@ -103,18 +103,45 @@ export async function importFromGoogleDriveAction(
   const orgId = await guard();
   const folderId = (String(formData.get("folderId") ?? "") || null) as string | null;
   const raw = String(formData.get("driveFiles") ?? "");
+  const rawFolders = String(formData.get("driveFolders") ?? "");
   const fileIds = parseGoogleDriveFileIds(raw);
-  if (fileIds.length === 0) {
-    return { ok: false, message: "Paste at least one Google Drive file link or ID." };
+  const driveFolderIds = parseGoogleDriveFolderIds(rawFolders);
+  if (fileIds.length === 0 && driveFolderIds.length === 0) {
+    return { ok: false, message: "Paste at least one Google Drive file or folder link." };
   }
 
   try {
     const operator = getOperatorActor();
     const accessToken = await resolveGoogleDriveAccessToken({ orgId, connectedBy: operator });
+    let importFileIds = fileIds;
+    let folderSummary = "";
+    let folderWarnings: string[] = [];
+
+    if (driveFolderIds.length > 0) {
+      const folderFiles = await listGoogleDriveFolderFileIds({
+        folderIds: driveFolderIds,
+        accessToken,
+        maxFiles: 100,
+        maxFolders: 25,
+      });
+      importFileIds = [...new Set([...fileIds, ...folderFiles.fileIds])];
+      folderSummary = ` from ${folderFiles.scannedFolders} Drive folder${folderFiles.scannedFolders === 1 ? "" : "s"}`;
+      folderWarnings = [
+        folderFiles.truncated ? "Import was capped at 100 files." : null,
+        folderFiles.skippedFolders > 0 ? `${folderFiles.skippedFolders} folder${folderFiles.skippedFolders === 1 ? "" : "s"} skipped.` : null,
+        ...folderFiles.errors,
+      ].filter((value): value is string => Boolean(value));
+    }
+
+    if (importFileIds.length === 0) {
+      const detail = folderWarnings[0] ? ` ${folderWarnings[0]}` : "";
+      return { ok: false, message: `No importable Drive files were found.${detail}` };
+    }
+
     const result = await importGoogleDriveFiles({
       orgId,
       folderId,
-      fileIds,
+      fileIds: importFileIds,
       uploadedBy: operator,
       accessToken,
       afterInsert: (asset) => learnBrandKnowledgeFromAsset(asset, { orgId }).then(() => undefined),
@@ -132,7 +159,11 @@ export async function importFromGoogleDriveAction(
       return { ok: false, message: result.errors[0] ?? "No Drive files were imported." };
     }
     const skipped = result.skipped > 0 ? ` ${result.skipped} skipped.` : "";
-    return { ok: true, message: `Imported ${result.imported} Drive file${result.imported === 1 ? "" : "s"}.${skipped}` };
+    const warning = folderWarnings[0] ? ` ${folderWarnings[0]}` : "";
+    return {
+      ok: true,
+      message: `Imported ${result.imported} Drive file${result.imported === 1 ? "" : "s"}${folderSummary}.${skipped}${warning}`,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google Drive import failed.";
     await recordGoogleDriveImportResult({ orgId, connectedBy: getOperatorActor(), ok: false, error: message }).catch(() => undefined);

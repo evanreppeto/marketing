@@ -40,10 +40,13 @@ type GooglePicker = {
   Document: { ID: string; NAME: string };
   Feature: { MULTISELECT_ENABLED: string; SUPPORT_DRIVES?: string };
   Response: { DOCUMENTS: string };
+  DocsView?: new (viewId: string) => PickerView;
   View: new (viewId: string) => PickerView;
-  ViewId: { DOCS: string };
+  ViewId: { DOCS: string; FOLDERS?: string };
   PickerBuilder: new () => PickerBuilder;
 };
+
+type PickerMode = "files" | "folders";
 
 declare global {
   interface Window {
@@ -117,9 +120,10 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
   const [pickerMessage, setPickerMessage] = useState<string | null>(null);
   const [pickerPending, setPickerPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const folderTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  async function openPicker() {
+  async function openPicker(mode: PickerMode) {
     setPickerPending(true);
     setPickerMessage(null);
     try {
@@ -136,9 +140,10 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
         return;
       }
 
-      const view = new picker.View(picker.ViewId.DOCS);
-      view.setIncludeFolders?.(true);
-      view.setSelectFolderEnabled?.(false);
+      const ViewCtor = mode === "folders" ? (picker.DocsView ?? picker.View) : picker.View;
+      const view = new ViewCtor(mode === "folders" ? (picker.ViewId.FOLDERS ?? picker.ViewId.DOCS) : picker.ViewId.DOCS);
+      view.setIncludeFolders?.(mode === "files");
+      view.setSelectFolderEnabled?.(mode === "folders");
 
       const builder = new picker.PickerBuilder()
         .enableFeature(picker.Feature.MULTISELECT_ENABLED)
@@ -149,8 +154,9 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
         .setCallback((data) => {
           const ids = selectedFileIds(data, picker);
           if (ids.length === 0) return;
-          if (textareaRef.current) textareaRef.current.value = ids.join("\n");
-          setPickerMessage(`Selected ${ids.length} file${ids.length === 1 ? "" : "s"}. Importing...`);
+          const target = mode === "folders" ? folderTextareaRef.current : fileTextareaRef.current;
+          if (target) target.value = ids.join("\n");
+          setPickerMessage(`Selected ${ids.length} Drive ${mode === "folders" ? "folder" : "file"}${ids.length === 1 ? "" : "s"}. Importing...`);
           formRef.current?.requestSubmit();
         });
       if (picker.Feature.SUPPORT_DRIVES) builder.enableFeature(picker.Feature.SUPPORT_DRIVES);
@@ -193,19 +199,35 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
         </div>
         <form ref={formRef} action={action} className="mt-3 grid gap-3">
           {activeFolderId ? <input name="folderId" type="hidden" value={activeFolderId} /> : null}
-          <button
-            className={buttonClasses({ variant: "primary", size: "sm" })}
-            disabled={pickerPending || pending}
-            onClick={openPicker}
-            type="button"
-          >
-            {pickerPending ? "Opening..." : "Choose from Drive"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={buttonClasses({ variant: "primary", size: "sm" })}
+              disabled={pickerPending || pending}
+              onClick={() => openPicker("files")}
+              type="button"
+            >
+              {pickerPending ? "Opening..." : "Choose files"}
+            </button>
+            <button
+              className={buttonClasses({ variant: "ghost", size: "sm" })}
+              disabled={pickerPending || pending}
+              onClick={() => openPicker("folders")}
+              type="button"
+            >
+              Choose folder
+            </button>
+          </div>
           <textarea
-            ref={textareaRef}
+            ref={fileTextareaRef}
             className="min-h-24 resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
             name="driveFiles"
-            placeholder="https://drive.google.com/file/d/.../view"
+            placeholder="Drive file links or IDs"
+          />
+          <textarea
+            ref={folderTextareaRef}
+            className="min-h-16 resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            name="driveFolders"
+            placeholder="Drive folder links or IDs"
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             {state ? (
