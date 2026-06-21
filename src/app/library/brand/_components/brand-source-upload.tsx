@@ -6,13 +6,16 @@ import { CheckCircle2, FileUp, Link2, RefreshCw, TriangleAlert, UploadCloud } fr
 import { buttonClasses, StatusPill } from "@/app/_components/page-header";
 import {
   importAndAnalyzeBrandUrlAction,
+  importAndAnalyzeBrandWebsiteAction,
   type BrandUploadActionState,
   type BrandUrlImportActionState,
+  type BrandWebsiteImportActionState,
   uploadAndAnalyzeBrandSourcesAction,
 } from "@/app/library/brand/actions";
 
 const initialState: BrandUploadActionState = null;
 const initialUrlState: BrandUrlImportActionState = null;
+const initialWebsiteState: BrandWebsiteImportActionState = null;
 
 function resultTone(state: BrandUploadActionState) {
   if (!state) return "gray";
@@ -22,6 +25,7 @@ function resultTone(state: BrandUploadActionState) {
 export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero" | "inline" }) {
   const [state, action, pending] = useActionState(uploadAndAnalyzeBrandSourcesAction, initialState);
   const [urlState, urlAction, urlPending] = useActionState(importAndAnalyzeBrandUrlAction, initialUrlState);
+  const [websiteState, websiteAction, websitePending] = useActionState(importAndAnalyzeBrandWebsiteAction, initialWebsiteState);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const isHero = placement === "hero";
 
@@ -75,7 +79,7 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
           <label className="grid min-w-0 gap-2">
             <span className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
               <Link2 aria-hidden className="h-4 w-4 text-[var(--accent)]" />
-              Add website source
+              Add single page
             </span>
             <input
               className="min-h-10 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
@@ -90,6 +94,28 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
           </button>
         </div>
         {urlState ? <ResultPanel state={urlState} /> : null}
+      </form>
+
+      <form action={websiteAction} className="mt-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <label className="grid min-w-0 gap-2">
+            <span className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+              <Link2 aria-hidden className="h-4 w-4 text-[var(--accent)]" />
+              Import key website pages
+            </span>
+            <input
+              className="min-h-10 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              name="websiteUrl"
+              placeholder="https://example.com"
+              type="url"
+            />
+          </label>
+          <button className={buttonClasses({ variant: "ghost", size: "sm", className: "justify-center" })} disabled={websitePending} type="submit">
+            {websitePending ? <RefreshCw aria-hidden className="h-4 w-4 animate-spin" /> : <Link2 aria-hidden className="h-4 w-4" />}
+            {websitePending ? "Crawling..." : "Import site"}
+          </button>
+        </div>
+        {websiteState ? <ResultPanel state={websiteState} /> : null}
       </form>
     </div>
   );

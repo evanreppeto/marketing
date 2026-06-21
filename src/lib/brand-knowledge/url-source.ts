@@ -23,7 +23,31 @@ export type FetchUrlSourceInput = {
   fetcher?: typeof fetch;
 };
 
-function assertPublicHttpUrl(value: string): URL {
+export type DiscoverWebsiteSourceUrlsInput = {
+  url: string;
+  maxUrls?: number;
+  fetcher?: typeof fetch;
+};
+
+const SOURCE_PATH_KEYWORDS = [
+  "about",
+  "services",
+  "service",
+  "products",
+  "product",
+  "solutions",
+  "capabilities",
+  "work",
+  "case-study",
+  "case-studies",
+  "reviews",
+  "testimonials",
+  "pricing",
+  "contact",
+  "faq",
+] as const;
+
+export function assertPublicHttpUrl(value: string): URL {
   let parsed: URL;
   try {
     parsed = new URL(value.trim());
@@ -107,15 +131,93 @@ function isAllowedContentType(contentType: string): boolean {
   return ALLOWED_CONTENT_TYPES.some((allowed) => normalized === allowed);
 }
 
+function fetchHeaders() {
+  return {
+    accept: "text/html,text/plain,text/markdown,application/json;q=0.9,*/*;q=0.1",
+    "user-agent": "ArcBrandSourceImporter/1.0",
+  };
+}
+
+function sourceLinkScore(url: URL): number {
+  const path = `${url.pathname.toLowerCase()} ${url.search.toLowerCase()}`;
+  const keywordIndex = SOURCE_PATH_KEYWORDS.findIndex((keyword) => path.includes(keyword));
+  const depth = url.pathname.split("/").filter(Boolean).length;
+  const keywordScore = keywordIndex >= 0 ? keywordIndex : 99;
+  return keywordScore * 10 + depth;
+}
+
+function shouldSkipSourceLink(url: URL): boolean {
+  return /\.(avi|css|docx?|gif|ico|jpe?g|js|mov|mp3|mp4|pdf|png|svg|webp|xlsx?|zip)$/i.test(url.pathname);
+}
+
+function normalizeSameOriginLink(base: URL, href: string): string | null {
+  if (!href || href.startsWith("#") || /^(mailto|tel|sms|javascript):/i.test(href)) return null;
+  let candidate: URL;
+  try {
+    candidate = new URL(href, base);
+  } catch {
+    return null;
+  }
+  if (candidate.origin !== base.origin) return null;
+  if (!["http:", "https:"].includes(candidate.protocol)) return null;
+  candidate.hash = "";
+  for (const key of [...candidate.searchParams.keys()]) {
+    if (/^(utm_|fbclid|gclid|msclkid)/i.test(key)) candidate.searchParams.delete(key);
+  }
+  if (shouldSkipSourceLink(candidate)) return null;
+  return candidate.toString();
+}
+
+function extractSameOriginLinks(html: string, base: URL): string[] {
+  const links = new Set<string>();
+  const anchorPattern = /<a\b[^>]*\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi;
+  for (const match of html.matchAll(anchorPattern)) {
+    const link = normalizeSameOriginLink(base, match[1] ?? match[2] ?? match[3] ?? "");
+    if (link) links.add(link);
+  }
+  return [...links];
+}
+
+export async function discoverWebsiteSourceUrls({
+  url,
+  maxUrls = 6,
+  fetcher = fetch,
+}: DiscoverWebsiteSourceUrlsInput): Promise<string[]> {
+  const parsed = assertPublicHttpUrl(url);
+  const response = await fetcher(parsed.toString(), {
+    headers: fetchHeaders(),
+    redirect: "follow",
+  });
+  if (!response.ok) throw new Error(`URL returned ${response.status}.`);
+  const finalUrl = response.url ? assertPublicHttpUrl(response.url) : parsed;
+
+  const contentType = response.headers.get("content-type") ?? "text/plain";
+  const normalizedType = contentType.split(";")[0].trim().toLowerCase();
+  if (normalizedType !== "text/html" && normalizedType !== "application/xhtml+xml") {
+    return [finalUrl.toString()];
+  }
+
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_SOURCE_BYTES) throw new Error("URL source is too large to inspect.");
+  const html = await response.text();
+  if (new TextEncoder().encode(html).byteLength > MAX_SOURCE_BYTES) throw new Error("URL source is too large to inspect.");
+
+  const base = finalUrl;
+  const homepage = base.toString();
+  const candidates = extractSameOriginLinks(html, base)
+    .filter((candidate) => candidate !== homepage)
+    .sort((a, b) => sourceLinkScore(new URL(a)) - sourceLinkScore(new URL(b)));
+
+  return [homepage, ...candidates].slice(0, Math.max(1, maxUrls));
+}
+
 export async function fetchUrlSource({ url, fetcher = fetch }: FetchUrlSourceInput): Promise<UrlSourceDocument> {
   const parsed = assertPublicHttpUrl(url);
   const response = await fetcher(parsed.toString(), {
-    headers: {
-      accept: "text/html,text/plain,text/markdown,application/json;q=0.9,*/*;q=0.1",
-      "user-agent": "ArcBrandSourceImporter/1.0",
-    },
+    headers: fetchHeaders(),
     redirect: "follow",
   });
+  const finalUrl = response.url ? assertPublicHttpUrl(response.url) : parsed;
 
   if (!response.ok) {
     throw new Error(`URL returned ${response.status}.`);
@@ -140,7 +242,7 @@ export async function fetchUrlSource({ url, fetcher = fetch }: FetchUrlSourceInp
   const normalizedType = contentType.split(";")[0].trim().toLowerCase();
   const html = normalizedType === "text/html" || normalizedType === "application/xhtml+xml";
   const parsedText = html ? readableHtml(raw) : { title: null, text: raw.replace(/\s+/g, " ").trim() };
-  const title = parsedText.title || titleFromUrl(parsed);
+  const title = parsedText.title || titleFromUrl(finalUrl);
   const text = parsedText.text.slice(0, MAX_SOURCE_BYTES).trim();
 
   if (text.length < 20) {
@@ -148,7 +250,7 @@ export async function fetchUrlSource({ url, fetcher = fetch }: FetchUrlSourceInp
   }
 
   return {
-    url: parsed.toString(),
+    url: finalUrl.toString(),
     title,
     fileName: sanitizeFileName(title),
     contentType,
