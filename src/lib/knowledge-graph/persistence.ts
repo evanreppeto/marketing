@@ -83,13 +83,13 @@ async function embedNodeBestEffort(
   client: TypedSupabaseClient,
   orgId: string,
   id: string,
-  value: { label: string; summary: string | null | undefined; body: string | null | undefined },
+  value: { label: string; summary?: string | null; body?: string | null },
 ): Promise<void> {
   try {
     const text = [value.label, value.summary, value.body].filter(Boolean).join("\n").trim();
     const embedding = await embedText(text);
     if (!embedding) return;
-    await client.from("knowledge_nodes").update({ embedding: JSON.stringify(embedding) as never }).eq("id", id).eq("org_id", orgId);
+    await client.from("knowledge_nodes").update({ embedding: JSON.stringify(embedding) } as never).eq("id", id).eq("org_id", orgId);
   } catch {
     // swallow — best-effort
   }

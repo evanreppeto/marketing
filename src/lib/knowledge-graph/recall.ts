@@ -17,7 +17,7 @@ async function semanticCandidates(
 ): Promise<RecallCandidate[]> {
   const embedding = await embedText(message);
   if (!embedding) return [];
-  const { data, error } = await client.rpc("match_knowledge_nodes", {
+  const { data, error } = await (client as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("match_knowledge_nodes", {
     query_embedding: JSON.stringify(embedding),
     match_org_id: orgId,
     match_count: SEMANTIC_K,
