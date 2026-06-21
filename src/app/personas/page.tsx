@@ -1,369 +1,253 @@
-import { ChevronRight } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
-import { connection } from "next/server";
 
 import { IntelligencePanel } from "../_components/intelligence-panel";
-import { EmptyState, PageHeader, StatusPill, buttonClasses } from "../_components/page-header";
-import { TabNav } from "../_components/tab-nav";
-import { cx } from "../_components/theme";
+import {
+  ActionFeedback,
+  PageHeader,
+  StatStrip,
+  StatusPill,
+  buttonClasses,
+  type StatItem,
+} from "../_components/page-header";
+import { cx, type ThemeTone } from "../_components/theme";
 import { WorkspacePanel } from "../_components/workspace";
-import { getPersonaIntelligenceData, type PersonaContentSignal, type PersonaTrackerRow } from "@/lib/persona-intelligence/read-model";
-import { PERSONA_CTA_RULES, personaSlug, type PersonaCtaRule } from "@/lib/persona-intelligence/cta-rules";
-import { getAgentName } from "@/lib/settings/agent-name";
-
-type IntelligenceTab = "personas" | "snapshots" | "signals" | "guardrails";
+import {
+  DEMO_PERSONAS,
+  PERSONA_SEGMENTS,
+  parsePersonaSegment,
+  type DemoPersona,
+  type PersonaSegmentKey,
+  type PersonaStage,
+} from "./_data/demo-personas";
 
 type PageProps = {
   searchParams?: Promise<{
-    tab?: string | string[];
+    segment?: string | string[];
     inspect?: string | string[];
+    action?: string | string[];
   }>;
 };
 
-function buildTabs(agentName: string): Array<{ id: IntelligenceTab; label: string; detail: string }> {
-  return [
-    { id: "personas", label: "Roster", detail: "All 12 personas — rules and live memory" },
-    { id: "snapshots", label: "Live snapshots", detail: "Current Supabase persona memory" },
-    { id: "signals", label: "Knowledge", detail: `Reference entries ${agentName} can cite` },
-    { id: "guardrails", label: "Guardrails", detail: "Copy and compliance checks" },
+const STAGE_TONE: Record<PersonaStage, ThemeTone> = {
+  New: "gray",
+  "Hot lead": "blue",
+  Active: "green",
+  Champion: "green",
+  "At risk": "amber",
+  Dormant: "gray",
+};
+
+export default async function PersonasPage({ searchParams }: PageProps) {
+  const params = (await searchParams) ?? {};
+  const activeSegment = parsePersonaSegment(valueOf(params.segment));
+  const action = valueOf(params.action);
+  const inspectSlug = valueOf(params.inspect);
+
+  const visible =
+    activeSegment === "all" ? DEMO_PERSONAS : DEMO_PERSONAS.filter((persona) => persona.segment === activeSegment);
+  const selected = visible.find((persona) => persona.slug === inspectSlug) ?? visible[0] ?? DEMO_PERSONAS[0];
+
+  const avgScore = Math.round(DEMO_PERSONAS.reduce((sum, persona) => sum + persona.score, 0) / DEMO_PERSONAS.length);
+  const needAttention = DEMO_PERSONAS.filter((persona) => persona.stage === "At risk" || persona.stage === "Dormant").length;
+  const stats: StatItem[] = [
+    { label: "Personas", value: DEMO_PERSONAS.length, hint: "Audiences defined", tone: "accent" },
+    { label: "Segments", value: PERSONA_SEGMENTS.length, hint: "Lifecycle groups" },
+    { label: "Avg lead score", value: avgScore, hint: "Across all personas", tone: "ok" },
+    { label: "Need attention", value: needAttention, hint: needAttention > 0 ? "At risk or dormant" : "All healthy", tone: needAttention > 0 ? "amber" : "neutral" },
   ];
-}
 
-const TAB_IDS: IntelligenceTab[] = ["personas", "snapshots", "signals", "guardrails"];
-
-export default async function PersonaIntelligencePage({ searchParams }: PageProps) {
-  await connection();
-
-  const params = await searchParams;
-  const activeTab = parseTab(valueOf(params?.tab));
-  const inspectedKey = valueOf(params?.inspect);
-  const [data, agentName] = await Promise.all([getPersonaIntelligenceData(), getAgentName()]);
-  const tabs = buildTabs(agentName);
-  const livePersonas = data.status === "live" ? data.personas : [];
-  const liveBySlug = new Map(livePersonas.map((persona) => [persona.key, persona]));
-  const personaRows = PERSONA_CTA_RULES.map((rule) => ({ rule, live: liveBySlug.get(personaSlug(rule.persona)) ?? null }));
-  const contentSignals = data.status === "live" ? data.contentSignals : [];
-  const guardrailSignals = data.status === "live" ? data.guardrailSignals : [];
-  const inspector = buildInspector(activeTab, inspectedKey, personaRows, livePersonas, contentSignals, guardrailSignals, agentName);
-  const activePersonaSlug =
-    inspectedKey && personaRows.some((row) => personaSlug(row.rule.persona) === inspectedKey)
-      ? inspectedKey
-      : personaSlug(personaRows[0]?.rule.persona ?? "");
+  const activeLabel =
+    activeSegment === "all" ? "All personas" : PERSONA_SEGMENTS.find((segment) => segment.key === activeSegment)?.label ?? "Personas";
+  const activeBlurb =
+    activeSegment === "all"
+      ? "Every audience you've defined, across the full customer lifecycle."
+      : PERSONA_SEGMENTS.find((segment) => segment.key === activeSegment)?.blurb ?? "";
 
   return (
     <>
       <PageHeader
         title="Personas"
-        description={`Who BSR sells to, and how ${agentName} should talk to them — the rulebook and live memory behind all 12 personas.`}
+        description="Define who you sell to and how to reach each one — your audience intelligence in one place."
         aside={
-          <StatusPill tone={data.status === "live" ? "green" : "gray"}>
-            {data.status === "live" ? "Live memory" : "Rulebook only"}
-          </StatusPill>
+          <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/personas?action=new">
+            <Plus aria-hidden className="h-4 w-4 text-[var(--accent)]" strokeWidth={2} />
+            New persona
+          </Link>
         }
       />
 
-      {data.status === "unavailable" ? (
-        <p className="module-rise mb-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-2.5 text-sm leading-6 text-[var(--text-secondary)]">
-          Live persona memory isn&apos;t connected here — showing the approved rulebook for each persona.
-        </p>
-      ) : null}
-
-      <TabNav
-        ariaLabel="Persona Intelligence sections"
-        activeKey={activeTab}
-        columns="sm:grid-cols-2 xl:grid-cols-4"
-        className="mb-4"
-        tabs={tabs.map((tab) => ({
-          key: tab.id,
-          label: tab.label,
-          detail: tab.detail,
-          href: `/personas?tab=${tab.id}`,
-        }))}
+      <ActionFeedback
+        action={action}
+        messages={{
+          new: "Preview: creating personas isn't wired up yet — coming soon.",
+          edit: "Preview: editing personas isn't wired up yet — coming soon.",
+        }}
       />
 
-      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
-        <main className="min-w-0">
-          {activeTab === "personas" ? <PersonaRulesTab rows={personaRows} activeSlug={activePersonaSlug} /> : null}
-          {activeTab === "snapshots" ? <SnapshotsTab rows={livePersonas} /> : null}
-          {activeTab === "signals" ? <SignalsTab empty="No active persona knowledge entries are available yet." rows={contentSignals} tab="signals" title="Knowledge signals" /> : null}
-          {activeTab === "guardrails" ? <SignalsTab empty="No active guardrail rules are available yet." rows={guardrailSignals} tab="guardrails" title="Guardrail checks" /> : null}
+      <StatStrip className="mb-5" columns={4} items={stats} />
+
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
+        <main className="grid min-w-0 gap-5 lg:grid-cols-[176px_minmax(0,1fr)]">
+          <SegmentRail active={activeSegment} />
+          <WorkspacePanel
+            title={activeLabel}
+            description={activeBlurb}
+            aside={
+              <span className="font-mono text-xs tabular-nums text-[var(--text-muted)]">
+                {visible.length} {visible.length === 1 ? "persona" : "personas"}
+              </span>
+            }
+          >
+            <div className="p-1.5">
+              {visible.map((persona) => (
+                <PersonaConsoleRow key={persona.slug} persona={persona} segment={activeSegment} selected={persona.slug === selected?.slug} />
+              ))}
+            </div>
+          </WorkspacePanel>
         </main>
 
-        <aside className="min-w-0 space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
-          <IntelligencePanel
-            model={{
-              title: inspector.title,
-              persona: inspector.persona,
-              confidence: inspector.confidence,
-              journeyStage: inspector.stage,
-              urgency: "Human approval required",
-              attentionReason: inspector.reason,
-              nextBestAction: inspector.nextAction,
-              cta: inspector.cta,
-              messageAngle: inspector.messageAngle,
-              guardrailStatus: inspector.guardrail,
-              scores: inspector.scores,
-              proofPoints: inspector.proofPoints,
-              actions: inspector.actions,
-              outboundLocked: true,
-            }}
-            agentName={agentName}
-          />
+        <aside className="min-w-0 2xl:sticky 2xl:top-5 2xl:self-start">
+          {selected ? <PersonaInspector persona={selected} /> : null}
         </aside>
       </div>
     </>
   );
 }
 
-type PersonaRow = { rule: PersonaCtaRule; live: PersonaTrackerRow | null };
+function SegmentRail({ active }: { active: PersonaSegmentKey | "all" }) {
+  const items: Array<{ key: PersonaSegmentKey | "all"; label: string; count: number }> = [
+    { key: "all", label: "All personas", count: DEMO_PERSONAS.length },
+    ...PERSONA_SEGMENTS.map((segment) => ({
+      key: segment.key,
+      label: segment.label,
+      count: DEMO_PERSONAS.filter((persona) => persona.segment === segment.key).length,
+    })),
+  ];
 
-const PERSONA_SEGMENTS: Array<{ key: PersonaCtaRule["segment"]; label: string }> = [
-  { key: "Homeowner", label: "Homeowners" },
-  { key: "Professional", label: "Professionals" },
-  { key: "Partner", label: "Partners" },
-];
-
-function PersonaRulesTab({ rows, activeSlug }: { rows: PersonaRow[]; activeSlug: string }) {
   return (
-    <div className="space-y-5">
-      {PERSONA_SEGMENTS.map(({ key, label }) => {
-        const group = rows.filter(({ rule }) => rule.segment === key);
-        if (group.length === 0) return null;
+    <nav aria-label="Persona segments" className="flex flex-col gap-0.5 lg:sticky lg:top-5 lg:self-start">
+      <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Segments</div>
+      {items.map((item) => {
+        const isActive = active === item.key;
         return (
-          <WorkspacePanel
-            key={key}
-            title={label}
-            aside={
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                {group.length} {group.length === 1 ? "persona" : "personas"}
-              </span>
-            }
+          <Link
+            key={item.key}
+            aria-current={isActive ? "page" : undefined}
+            href={item.key === "all" ? "/personas" : `/personas?segment=${item.key}`}
+            className={cx(
+              "flex items-center justify-between rounded-lg px-3 py-2.5 text-[13px] transition",
+              isActive
+                ? "bg-[color-mix(in_srgb,var(--text-primary)_5%,transparent)] text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+            )}
           >
-            <div className="divide-y divide-[var(--border-hairline)]">
-              {group.map(({ rule, live }) => (
-                <PersonaRosterRow key={rule.persona} rule={rule} live={live} selected={personaSlug(rule.persona) === activeSlug} />
-              ))}
-            </div>
-          </WorkspacePanel>
+            <span className="flex items-center gap-2">
+              <span className={cx("h-1.5 w-1.5 rounded-full", isActive ? "bg-[var(--accent)]" : "bg-transparent")} aria-hidden />
+              {item.label}
+            </span>
+            <span className="font-mono text-[11px] tabular-nums text-[var(--text-muted)]">{item.count}</span>
+          </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
 
-function PersonaRosterRow({ rule, live, selected }: PersonaRow & { selected: boolean }) {
+function PersonaConsoleRow({
+  persona,
+  segment,
+  selected,
+}: {
+  persona: DemoPersona;
+  segment: PersonaSegmentKey | "all";
+  selected: boolean;
+}) {
+  const href =
+    segment === "all" ? `/personas?inspect=${persona.slug}` : `/personas?segment=${segment}&inspect=${persona.slug}`;
+
   return (
     <Link
       aria-current={selected ? "true" : undefined}
+      href={href}
       className={cx(
-        "group flex items-center gap-4 px-5 py-4 transition focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
-        selected ? "bg-[var(--surface-inset)]" : "hover:bg-[var(--surface-inset)]",
+        "group flex items-center gap-3.5 rounded-[10px] px-3.5 py-3 transition focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
+        selected ? "bg-[color-mix(in_srgb,var(--text-primary)_5%,transparent)]" : "hover:bg-[var(--surface-inset)]",
       )}
-      href={`/personas?tab=personas&inspect=${personaSlug(rule.persona)}`}
     >
-      <span
-        aria-hidden
-        title={live ? "Live memory" : "Rulebook only"}
-        className={cx(
-          "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-          live ? "bg-[var(--ok)]" : "bg-[color-mix(in_srgb,var(--text-muted)_45%,transparent)]",
-        )}
-      />
+      <Monogram initials={persona.initials} live={persona.live} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-display text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">
-          {rule.label}
+        <span className="flex items-center gap-2">
+          <span className="truncate font-display text-[14.5px] font-semibold tracking-[-0.01em] text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">
+            {persona.name}
+          </span>
+          {persona.live ? <span aria-hidden title="Live data" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--ok)]" /> : null}
         </span>
-        <span className="mt-0.5 block truncate text-[13px] leading-5 text-[var(--text-secondary)]">{rule.messageAngle}</span>
+        <span className="mt-0.5 block truncate text-[12px] leading-[1.4] text-[var(--text-secondary)]">{persona.angle}</span>
       </span>
-      <span className="hidden shrink-0 text-right md:block">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Primary CTA</span>
-        <span className="mt-0.5 block text-[13px] font-medium text-[var(--text-primary)]">{rule.primaryCta}</span>
+      <span className="hidden shrink-0 sm:block">
+        <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill>
       </span>
-      <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--accent)]" strokeWidth={1.8} />
+      <ScoreMeter score={persona.score} />
     </Link>
   );
 }
 
-function SnapshotsTab({ rows }: { rows: PersonaTrackerRow[] }) {
+function Monogram({ initials, live }: { initials: string; live: boolean }) {
   return (
-    <WorkspacePanel eyebrow="Live snapshots" title="Supabase persona memory" description="Open a snapshot to inspect its current posture and related CRM record.">
-      {rows.length > 0 ? (
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {rows.map((row) => (
-            <Link
-              className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-inset)] lg:grid-cols-[minmax(0,1.2fr)_140px_120px_auto]"
-              href={`/personas?tab=snapshots&inspect=${row.key}`}
-              key={row.key}
-            >
-              <div className="min-w-0">
-                <div className="truncate font-bold text-[var(--text-primary)]">{row.persona}</div>
-                <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{row.intent}</p>
-              </div>
-              <RuleField label="Stage" value={humanize(row.stage)} />
-              <RuleField label="Score" value={`${row.score}`} />
-              <span className={buttonClasses({ variant: "ghost", size: "sm", className: "self-center" })}>Inspect</span>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <EmptyState title="No live snapshots yet" detail="Persona rules are still available, but no Supabase persona snapshot records are attached yet." />
+    <span
+      aria-hidden
+      className={cx(
+        "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] border text-[13px] font-semibold tracking-[0.02em]",
+        live
+          ? "border-[color-mix(in_srgb,var(--accent)_32%,transparent)] bg-[color-mix(in_srgb,var(--accent)_13%,transparent)] text-[var(--accent)]"
+          : "border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)]",
       )}
-    </WorkspacePanel>
+    >
+      {initials}
+    </span>
   );
 }
 
-function SignalsTab({
-  rows,
-  title,
-  tab,
-  empty,
-}: {
-  rows: PersonaContentSignal[];
-  title: string;
-  tab: "signals" | "guardrails";
-  empty: string;
-}) {
+function ScoreMeter({ score }: { score: number }) {
   return (
-    <WorkspacePanel eyebrow={tab === "signals" ? "Knowledge feed" : "Guardrails"} title={title} description="Each row opens in the inspector panel on the right.">
-      {rows.length > 0 ? (
-        <div className="divide-y divide-[var(--border-hairline)]">
-          {rows.map((row, index) => (
-            <Link
-              className="grid gap-3 px-5 py-4 transition hover:bg-[var(--surface-inset)] lg:grid-cols-[minmax(0,1fr)_140px_auto]"
-              href={`/personas?tab=${tab}&inspect=${signalKey(row, index)}`}
-              key={signalKey(row, index)}
-            >
-              <div className="min-w-0">
-                <div className="font-bold text-[var(--text-primary)]">{row.signal}</div>
-                <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{row.engineUse}</p>
-              </div>
-              <RuleField label="Source" value={humanize(row.source)} />
-              <span className={buttonClasses({ variant: "ghost", size: "sm", className: "self-center" })}>Inspect</span>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <EmptyState title="No live signal yet" detail={empty} />
-      )}
-    </WorkspacePanel>
+    <span className="w-[62px] shrink-0">
+      <span className="block text-right text-[9.5px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">Score</span>
+      <span className="block text-right font-display text-[15px] font-semibold tabular-nums leading-none text-[var(--text-primary)]">{score}</span>
+      <span className="mt-1.5 block h-[3px] overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--text-primary)_10%,transparent)]">
+        <span className="block h-full rounded-full bg-[var(--accent)]" style={{ width: `${score}%` }} />
+      </span>
+    </span>
   );
 }
 
-function RuleField({ label, value }: { label: string; value: string }) {
+function PersonaInspector({ persona }: { persona: DemoPersona }) {
   return (
-    <div className="min-w-0 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]" title={value}>
-        {value}
-      </div>
-    </div>
+    <IntelligencePanel
+      model={{
+        title: persona.name,
+        persona: persona.name,
+        confidence: `${persona.score}`,
+        journeyStage: persona.stage,
+        urgency: "Human approval required",
+        attentionReason: persona.audience,
+        nextBestAction: persona.nextAction,
+        cta: persona.cta,
+        messageAngle: persona.angle,
+        guardrailStatus: "No message sends, publishes, or launches until a human approves it.",
+        scores: [
+          { label: "Lead score", value: persona.score, detail: "Likelihood to convert" },
+          { label: "Stage", value: persona.stage, detail: "Lifecycle", tone: STAGE_TONE[persona.stage] },
+          { label: "Channel", value: persona.channel, detail: "Preferred", tone: "blue" },
+        ],
+        proofPoints: persona.proofPoints,
+        actions: [{ label: "Edit persona", href: `/personas?action=edit&inspect=${persona.slug}`, variant: "ghost" }],
+        outboundLocked: true,
+      }}
+    />
   );
-}
-
-function buildInspector(
-  tab: IntelligenceTab,
-  inspectedKey: string | undefined,
-  personaRows: Array<{ rule: PersonaCtaRule; live: PersonaTrackerRow | null }>,
-  snapshots: PersonaTrackerRow[],
-  signals: PersonaContentSignal[],
-  guardrails: PersonaContentSignal[],
-  agentName: string,
-) {
-  if (tab === "snapshots") {
-    const selected = snapshots.find((row) => row.key === inspectedKey) ?? snapshots[0] ?? null;
-    if (selected) {
-      return {
-        title: selected.persona,
-        persona: selected.persona,
-        confidence: selected.snapshot?.confidence ?? `${selected.score}%`,
-        stage: humanize(selected.stage),
-        reason: selected.intent,
-        nextAction: selected.nextAction,
-        cta: selected.offer,
-        messageAngle: selected.snapshot?.messagePosture ?? selected.accelerator,
-        guardrail: "Snapshot is inspect-only. Any outbound-facing work still requires approval.",
-        scores: [
-          { label: "Score", value: selected.score, detail: selected.segment, tone: selected.tone },
-          { label: "Channel", value: humanize(selected.snapshot?.preferredChannel ?? "review"), detail: "Preferred", tone: "blue" as const },
-          { label: "Outbound", value: "Locked", detail: "Approval gate", tone: "amber" as const },
-        ],
-        proofPoints: selected.snapshot?.riskFlags?.length ? selected.snapshot.riskFlags.map(humanize) : ["Human approval required"],
-        actions: [
-          { label: "Open related CRM", href: selected.crmPath, variant: "ghost" as const },
-          { label: "Open full persona rule", href: `/personas/${selected.key}`, variant: "ghost" as const },
-        ],
-      };
-    }
-  }
-
-  if (tab === "signals" || tab === "guardrails") {
-    const rows = tab === "signals" ? signals : guardrails;
-    const selected = rows.find((row, index) => signalKey(row, index) === inspectedKey) ?? rows[0] ?? null;
-    if (selected) {
-      return {
-        title: selected.signal,
-        persona: humanize(selected.source),
-        confidence: selected.priority,
-        stage: tab === "signals" ? "Knowledge entry" : "Guardrail rule",
-        reason: selected.engineUse,
-        nextAction: tab === "signals" ? "Use this as evidence in a draft, then create an approval item." : "Flag any draft that violates this rule before review.",
-        cta: "Internal use only",
-        messageAngle: selected.engineUse,
-        guardrail: "No send, publish, launch, spend, or contact action is enabled from this page.",
-        scores: [
-          { label: "Priority", value: selected.priority, detail: humanize(selected.source), tone: selected.priority.toLowerCase().includes("high") ? ("amber" as const) : ("blue" as const) },
-          { label: "Action", value: "Inspect", detail: "Read-only", tone: "gray" as const },
-          { label: "Outbound", value: "Locked", detail: "Approval gate", tone: "amber" as const },
-        ],
-        proofPoints: [selected.engineUse],
-        actions: tab === "guardrails" ? [{ label: "Open settings", href: "/settings", variant: "ghost" as const }] : [],
-      };
-    }
-  }
-
-  const selectedRule = personaRows.find(({ rule }) => personaSlug(rule.persona) === inspectedKey)?.rule ?? personaRows[0]?.rule;
-  return {
-    title: selectedRule?.label ?? "Persona operating rules",
-    persona: selectedRule?.label ?? "All personas",
-    confidence: "Rules defined",
-    stage: selectedRule?.segment ?? "Internal planning",
-    reason: selectedRule?.messageAngle ?? `${agentName} should use persona rules to prepare reviewable work, not to publish or contact anyone.`,
-    nextAction: selectedRule?.landingRule ?? "Use persona CTA rules when generating campaign briefs and approval cards.",
-    cta: selectedRule ? `${selectedRule.primaryCta} / ${selectedRule.secondaryCta}` : "Call Now / Upload Photos, Request Vendor Packet, Refer a Client, or Become a Partner.",
-    messageAngle: selectedRule?.messageAngle ?? "Restoration, mitigation, documentation, rebuild, and partner handoff.",
-    guardrail: selectedRule?.guardrail ?? "Persona rules are internal only. No page publishing, sending, launch, spend, or contact action is enabled.",
-    scores: [
-      { label: "Personas", value: PERSONA_CTA_RULES.length, detail: "Official tags", tone: "blue" as const },
-      { label: "Publishing", value: "Locked", detail: "Internal planning only", tone: "amber" as const },
-      { label: "Approval", value: "Required", detail: "Before outbound", tone: "green" as const },
-    ],
-    proofPoints: selectedRule ? [selectedRule.landingRule, selectedRule.guardrail] : ["Human approval required"],
-    actions: selectedRule
-      ? [
-          { label: "Open full persona rule", href: `/personas/${personaSlug(selectedRule.persona)}`, variant: "primary" as const },
-          { label: "Open settings", href: "/settings", variant: "ghost" as const },
-        ]
-      : [{ label: "Open settings", href: "/settings", variant: "ghost" as const }],
-  };
-}
-
-function parseTab(tab: string | undefined): IntelligenceTab {
-  return TAB_IDS.some((id) => id === tab) ? (tab as IntelligenceTab) : "personas";
 }
 
 function valueOf(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function signalKey(row: PersonaContentSignal, index: number) {
-  return `${index}-${row.source}-${row.signal}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
-function humanize(value: string) {
-  return value
-    .replace(/^persona_/, "")
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
