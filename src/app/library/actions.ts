@@ -336,6 +336,8 @@ export async function deleteGoogleDriveSourceAction(formData: FormData): Promise
   if (!id) return;
   await deleteGoogleDriveSource({ id, orgId, connectedBy: getOperatorActor() });
   revalidatePath("/library");
+  revalidatePath("/library/brand");
+  revalidatePath("/brain");
 }
 
 export async function renameAssetAction(formData: FormData): Promise<void> {
