@@ -12,6 +12,8 @@ export type PersonaSegmentKey = "acquisition" | "engagement" | "retention";
 
 export type PersonaStage = "New" | "Hot lead" | "Active" | "Champion" | "At risk" | "Dormant";
 
+export type ScoreSignalKey = "engagement" | "fit" | "intent";
+
 export type DemoPersona = {
   slug: string;
   name: string;
@@ -19,6 +21,7 @@ export type DemoPersona = {
   segment: PersonaSegmentKey;
   stage: PersonaStage;
   score: number;
+  signals: Record<ScoreSignalKey, number>;
   live: boolean;
   angle: string;
   audience: string;
@@ -36,6 +39,16 @@ export const PERSONA_SEGMENTS: PersonaSegment[] = [
   { key: "retention", label: "Retention", blurb: "Keeping, growing, and winning back customers." },
 ];
 
+/**
+ * The explainable signals a lead score is composed of. Scoring is deterministic
+ * and app-owned (not a model black box) — the persona page shows this breakdown.
+ */
+export const SCORE_SIGNALS: Array<{ key: ScoreSignalKey; label: string; hint: string }> = [
+  { key: "engagement", label: "Engagement", hint: "Recency and frequency of activity" },
+  { key: "fit", label: "Fit", hint: "Match to your ideal customer profile" },
+  { key: "intent", label: "Intent", hint: "Buying and readiness signals" },
+];
+
 export const DEMO_PERSONAS: DemoPersona[] = [
   {
     slug: "new-prospect",
@@ -44,6 +57,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "acquisition",
     stage: "New",
     score: 71,
+    signals: { engagement: 55, fit: 80, intent: 78 },
     live: false,
     angle: "Discovering you for the first time — needs trust and a reason to start.",
     audience: "First-touch visitors who don't know you yet.",
@@ -59,6 +73,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "acquisition",
     stage: "Hot lead",
     score: 86,
+    signals: { engagement: 82, fit: 84, intent: 92 },
     live: true,
     angle: "Actively comparing options and close to a decision.",
     audience: "Engaged leads showing strong buying signals.",
@@ -74,6 +89,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "acquisition",
     stage: "New",
     score: 58,
+    signals: { engagement: 60, fit: 50, intent: 64 },
     live: false,
     angle: "Price-driven — responds to offers and clear proof of value.",
     audience: "Deal-sensitive shoppers weighing cost against value.",
@@ -89,6 +105,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "engagement",
     stage: "Active",
     score: 79,
+    signals: { engagement: 85, fit: 78, intent: 74 },
     live: false,
     angle: "Just converted — needs a confident, simple onboarding.",
     audience: "Brand-new customers in their first days with you.",
@@ -104,6 +121,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "engagement",
     stage: "Active",
     score: 84,
+    signals: { engagement: 90, fit: 82, intent: 80 },
     live: true,
     angle: "Comes back regularly and is ready for more.",
     audience: "Returning customers with steady, healthy activity.",
@@ -119,6 +137,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "retention",
     stage: "Champion",
     score: 95,
+    signals: { engagement: 97, fit: 95, intent: 93 },
     live: false,
     angle: "Loves you — ready to refer and leave a review.",
     audience: "Your happiest, most engaged customers.",
@@ -134,6 +153,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "retention",
     stage: "At risk",
     score: 46,
+    signals: { engagement: 35, fit: 60, intent: 43 },
     live: false,
     angle: "Engagement slipping — needs a reason to stay.",
     audience: "Customers trending toward churn.",
@@ -149,6 +169,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     segment: "retention",
     stage: "Dormant",
     score: 34,
+    signals: { engagement: 20, fit: 55, intent: 27 },
     live: false,
     angle: "Gone quiet — a win-back moment worth timing well.",
     audience: "Previously active customers who have lapsed.",
@@ -161,4 +182,12 @@ export const DEMO_PERSONAS: DemoPersona[] = [
 
 export function parsePersonaSegment(value: string | undefined): PersonaSegmentKey | "all" {
   return PERSONA_SEGMENTS.some((segment) => segment.key === value) ? (value as PersonaSegmentKey) : "all";
+}
+
+export function getPersonaBySlug(slug: string | undefined): DemoPersona | null {
+  return DEMO_PERSONAS.find((persona) => persona.slug === slug) ?? null;
+}
+
+export function segmentLabel(key: PersonaSegmentKey): string {
+  return PERSONA_SEGMENTS.find((segment) => segment.key === key)?.label ?? key;
 }

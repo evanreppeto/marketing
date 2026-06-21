@@ -1,7 +1,6 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { IntelligencePanel } from "../_components/intelligence-panel";
 import {
   ActionFeedback,
   PageHeader,
@@ -24,7 +23,6 @@ import {
 type PageProps = {
   searchParams?: Promise<{
     segment?: string | string[];
-    inspect?: string | string[];
     action?: string | string[];
   }>;
 };
@@ -42,11 +40,9 @@ export default async function PersonasPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const activeSegment = parsePersonaSegment(valueOf(params.segment));
   const action = valueOf(params.action);
-  const inspectSlug = valueOf(params.inspect);
 
   const visible =
     activeSegment === "all" ? DEMO_PERSONAS : DEMO_PERSONAS.filter((persona) => persona.segment === activeSegment);
-  const selected = visible.find((persona) => persona.slug === inspectSlug) ?? visible[0] ?? DEMO_PERSONAS[0];
 
   const avgScore = Math.round(DEMO_PERSONAS.reduce((sum, persona) => sum + persona.score, 0) / DEMO_PERSONAS.length);
   const needAttention = DEMO_PERSONAS.filter((persona) => persona.stage === "At risk" || persona.stage === "Dormant").length;
@@ -77,39 +73,27 @@ export default async function PersonasPage({ searchParams }: PageProps) {
         }
       />
 
-      <ActionFeedback
-        action={action}
-        messages={{
-          new: "Preview: creating personas isn't wired up yet — coming soon.",
-          edit: "Preview: editing personas isn't wired up yet — coming soon.",
-        }}
-      />
+      <ActionFeedback action={action} messages={{ new: "Preview: creating personas isn't wired up yet — coming soon." }} />
 
       <StatStrip className="mb-5" columns={4} items={stats} />
 
-      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
-        <main className="grid min-w-0 gap-5 lg:grid-cols-[176px_minmax(0,1fr)]">
-          <SegmentRail active={activeSegment} />
-          <WorkspacePanel
-            title={activeLabel}
-            description={activeBlurb}
-            aside={
-              <span className="font-mono text-xs tabular-nums text-[var(--text-muted)]">
-                {visible.length} {visible.length === 1 ? "persona" : "personas"}
-              </span>
-            }
-          >
-            <div className="p-1.5">
-              {visible.map((persona) => (
-                <PersonaConsoleRow key={persona.slug} persona={persona} segment={activeSegment} selected={persona.slug === selected?.slug} />
-              ))}
-            </div>
-          </WorkspacePanel>
-        </main>
-
-        <aside className="min-w-0 2xl:sticky 2xl:top-5 2xl:self-start">
-          {selected ? <PersonaInspector persona={selected} /> : null}
-        </aside>
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[184px_minmax(0,1fr)]">
+        <SegmentRail active={activeSegment} />
+        <WorkspacePanel
+          title={activeLabel}
+          description={activeBlurb}
+          aside={
+            <span className="font-mono text-xs tabular-nums text-[var(--text-muted)]">
+              {visible.length} {visible.length === 1 ? "persona" : "personas"}
+            </span>
+          }
+        >
+          <div className="p-1.5">
+            {visible.map((persona) => (
+              <PersonaConsoleRow key={persona.slug} persona={persona} />
+            ))}
+          </div>
+        </WorkspacePanel>
       </div>
     </>
   );
@@ -154,26 +138,11 @@ function SegmentRail({ active }: { active: PersonaSegmentKey | "all" }) {
   );
 }
 
-function PersonaConsoleRow({
-  persona,
-  segment,
-  selected,
-}: {
-  persona: DemoPersona;
-  segment: PersonaSegmentKey | "all";
-  selected: boolean;
-}) {
-  const href =
-    segment === "all" ? `/personas?inspect=${persona.slug}` : `/personas?segment=${segment}&inspect=${persona.slug}`;
-
+function PersonaConsoleRow({ persona }: { persona: DemoPersona }) {
   return (
     <Link
-      aria-current={selected ? "true" : undefined}
-      href={href}
-      className={cx(
-        "group flex items-center gap-3.5 rounded-[10px] px-3.5 py-3 transition focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
-        selected ? "bg-[color-mix(in_srgb,var(--text-primary)_5%,transparent)]" : "hover:bg-[var(--surface-inset)]",
-      )}
+      href={`/personas/${persona.slug}`}
+      className="group flex items-center gap-3.5 rounded-[10px] px-3.5 py-3 transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
     >
       <Monogram initials={persona.initials} live={persona.live} />
       <span className="min-w-0 flex-1">
@@ -218,33 +187,6 @@ function ScoreMeter({ score }: { score: number }) {
         <span className="block h-full rounded-full bg-[var(--accent)]" style={{ width: `${score}%` }} />
       </span>
     </span>
-  );
-}
-
-function PersonaInspector({ persona }: { persona: DemoPersona }) {
-  return (
-    <IntelligencePanel
-      model={{
-        title: persona.name,
-        persona: persona.name,
-        confidence: `${persona.score}`,
-        journeyStage: persona.stage,
-        urgency: "Human approval required",
-        attentionReason: persona.audience,
-        nextBestAction: persona.nextAction,
-        cta: persona.cta,
-        messageAngle: persona.angle,
-        guardrailStatus: "No message sends, publishes, or launches until a human approves it.",
-        scores: [
-          { label: "Lead score", value: persona.score, detail: "Likelihood to convert" },
-          { label: "Stage", value: persona.stage, detail: "Lifecycle", tone: STAGE_TONE[persona.stage] },
-          { label: "Channel", value: persona.channel, detail: "Preferred", tone: "blue" },
-        ],
-        proofPoints: persona.proofPoints,
-        actions: [{ label: "Edit persona", href: `/personas?action=edit&inspect=${persona.slug}`, variant: "ghost" }],
-        outboundLocked: true,
-      }}
-    />
   );
 }
 
