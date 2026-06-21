@@ -4,15 +4,8 @@ import Link from "next/link";
 import { EmptyState, PageHeader, StatStrip, StatusPill, type StatItem } from "@/app/_components/page-header";
 import { cx, type ThemeTone } from "@/app/_components/theme";
 import { DetailStack, WorkspacePanel } from "@/app/_components/workspace";
-import {
-  SCORE_SIGNALS,
-  getAdjacentPersonas,
-  getPersonaBySlug,
-  segmentLabel,
-  type ArcActivityStatus,
-  type DemoPersona,
-  type PersonaStage,
-} from "../_data/demo-personas";
+import { listPersonas, type Persona } from "@/lib/personas/console";
+import { SCORE_SIGNALS, segmentLabel, type ArcActivityStatus, type PersonaStage } from "../_data/demo-personas";
 
 const AGENT_NAME = "Arc";
 
@@ -35,7 +28,8 @@ type PageProps = { params: Promise<{ personaKey: string }> };
 
 export default async function PersonaDetailPage({ params }: PageProps) {
   const { personaKey } = await params;
-  const persona = getPersonaBySlug(personaKey);
+  const personas = await listPersonas();
+  const persona = personas.find((entry) => entry.slug === personaKey) ?? null;
 
   if (!persona) {
     return (
@@ -46,7 +40,10 @@ export default async function PersonaDetailPage({ params }: PageProps) {
     );
   }
 
-  const { prev, next } = getAdjacentPersonas(persona.slug);
+  const index = personas.findIndex((entry) => entry.slug === persona.slug);
+  const prev = index > 0 ? personas[index - 1] : null;
+  const next = index >= 0 && index < personas.length - 1 ? personas[index + 1] : null;
+  const related = personas.filter((entry) => entry.segment === persona.segment && entry.slug !== persona.slug).slice(0, 4);
   const trendDelta = persona.scoreTrend[persona.scoreTrend.length - 1] - persona.scoreTrend[0];
   const stats: StatItem[] = [
     { label: "Lead score", value: persona.score, hint: "out of 100", tone: "accent" },
@@ -155,6 +152,26 @@ export default async function PersonaDetailPage({ params }: PageProps) {
             />
           </WorkspacePanel>
 
+          {related.length > 0 ? (
+            <WorkspacePanel title={`More ${segmentLabel(persona.segment)} personas`}>
+              <div className="divide-y divide-[var(--border-hairline)]">
+                {related.map((entry) => (
+                  <Link
+                    key={entry.slug}
+                    href={`/personas/${entry.slug}`}
+                    className="group flex items-center justify-between gap-3 px-5 py-3 transition hover:bg-[var(--surface-inset)]"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{entry.name}</span>
+                      <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{entry.stage}</span>
+                    </span>
+                    <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">{entry.score}</span>
+                  </Link>
+                ))}
+              </div>
+            </WorkspacePanel>
+          ) : null}
+
           <WorkspacePanel title="Recommended message" description="An example of what Arc would draft — for review, never auto-sent.">
             <div className="px-5 py-5">
               <FieldLabel>Subject</FieldLabel>
@@ -195,7 +212,7 @@ export default async function PersonaDetailPage({ params }: PageProps) {
   );
 }
 
-function AdjacentLink({ persona, direction }: { persona: DemoPersona; direction: "prev" | "next" }) {
+function AdjacentLink({ persona, direction }: { persona: Persona; direction: "prev" | "next" }) {
   const isNext = direction === "next";
   return (
     <Link
