@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { learnBrandKnowledgeFromAsset } from "@/lib/brand-knowledge/brain-sync";
 import { brandSourceSortScore, classifyBrandSource } from "@/lib/brand-knowledge/source-classifier";
 import { summarizeBrandKnowledgeSync, type BrandKnowledgeSyncSummary } from "@/lib/brand-knowledge/sync-summary";
+import { fetchUrlSource } from "@/lib/brand-knowledge/url-source";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
@@ -29,6 +30,7 @@ function brandKnowledgeSources(assets: MediaAssetView[]) {
 
 export type BrandKnowledgeSyncActionState = BrandKnowledgeSyncSummary | null;
 export type BrandUploadActionState = BrandKnowledgeSyncSummary | null;
+export type BrandUrlImportActionState = BrandKnowledgeSyncSummary | null;
 
 const NOT_CONFIGURED: BrandKnowledgeSyncSummary = {
   ok: false,
@@ -128,6 +130,74 @@ export async function uploadAndAnalyzeBrandSourcesAction(
     } catch (error) {
       totals.errors.push(error instanceof Error ? `${file.name}: ${error.message}` : `${file.name}: Upload failed`);
     }
+  }
+
+  revalidatePath("/library/brand");
+  revalidatePath("/library");
+  revalidatePath("/brain");
+  return summarizeBrandKnowledgeSync(totals);
+}
+
+export async function importAndAnalyzeBrandUrlAction(
+  _previous: BrandUrlImportActionState,
+  formData: FormData,
+): Promise<BrandUrlImportActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const rawUrl = String(formData.get("url") ?? "").trim();
+  if (!rawUrl) {
+    return {
+      ok: false,
+      message: "No URL entered.",
+      items: ["Paste a public page with brand facts, services, proof, rules, or messaging"],
+    };
+  }
+
+  const orgId = await getCurrentOrgId();
+  const totals = { sources: 1, created: 0, skipped: 0, updatedProfiles: 0, errors: [] as string[] };
+
+  try {
+    const source = await fetchUrlSource({ url: rawUrl });
+    const bytes = new TextEncoder().encode(source.text);
+    const assetId = await insertAsset({
+      orgId,
+      folderId: null,
+      fileName: source.fileName,
+      bytes,
+      contentType: "text/plain",
+      kind: "document",
+      byteSize: source.byteSize,
+      source: "url",
+      provenance: {
+        brandSource: true,
+        sourceUrl: source.url,
+        sourceTitle: source.title,
+        fetchedContentType: source.contentType,
+      },
+      uploadedBy: getOperatorActor(),
+    });
+    const result = await learnBrandKnowledgeFromAsset(
+      {
+        id: assetId,
+        fileName: source.fileName,
+        kind: "document",
+        source: "url",
+        tags: ["brand source", "url"],
+        availableToArc: true,
+        url: source.url,
+        extractedText: source.text,
+        contentType: "text/plain",
+        fileBytes: bytes,
+      },
+      { orgId },
+    );
+    totals.created += result.created;
+    totals.skipped += result.skipped;
+    if (result.updatedProfile) totals.updatedProfiles += 1;
+    totals.errors.push(...result.errors);
+  } catch (error) {
+    totals.errors.push(error instanceof Error ? error.message : "URL import failed.");
   }
 
   revalidatePath("/library/brand");

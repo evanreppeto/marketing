@@ -35,6 +35,17 @@ describe("classifyBrandSource", () => {
     expect(result.confidence).toBe("medium");
   });
 
+  it("treats generic URL imports as source documents", () => {
+    const result = classifyBrandSource({
+      fileName: "page.txt",
+      kind: "document",
+      source: "url",
+    });
+
+    expect(result.label).toBe("Source document");
+    expect(result.confidence).toBe("medium");
+  });
+
   it("recognizes tagged media as brand reference material", () => {
     const result = classifyBrandSource({
       fileName: "hero-photo.jpg",

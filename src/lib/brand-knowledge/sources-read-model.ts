@@ -20,7 +20,7 @@ const NODE_CAP = 40;
 
 /** An uploaded asset counts as a brand source the same way the /brand page decides. */
 function isBrandSource(asset: MediaAssetView, c: BrandSourceClassification): boolean {
-  return asset.kind === "document" || asset.source === "google_drive" || c.confidence === "high";
+  return asset.kind === "document" || asset.source === "google_drive" || asset.source === "url" || c.confidence === "high";
 }
 
 function summarize(asset: MediaAssetView, c: BrandSourceClassification, nodes: BrainNode[]): BrandSourceSummary {
