@@ -87,8 +87,10 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
               isHub: isHub ? 1 : 0,
               color: tierColor(n),
               size,
-              // Show labels for the hub + connected nodes; isolated tails stay clean.
-              showLabel: isHub || deg >= 1 ? n.label : "",
+              // Labels are hidden by default and revealed on hover / selection
+              // (Obsidian behaviour) so the resting web reads calm, not crowded.
+              // Only the hub keeps a permanent label as the anchor.
+              showLabel: isHub ? n.label : "",
               proposed: n.trustTier === "proposed" ? 1 : 0,
             },
           };
@@ -176,13 +178,13 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
           { selector: "edge.faded", style: { opacity: 0.025 } },
           {
             selector: "node.focus",
-            style: { "border-width": 3, "border-color": palette.accentStrong, "underlay-opacity": 0.46, "underlay-padding": 13, color: palette.ivory },
+            style: { "border-width": 3, "border-color": palette.accentStrong, "underlay-opacity": 0.46, "underlay-padding": 13, color: palette.ivory, label: "data(label)" },
           },
-          { selector: "node.neighbor", style: { "background-opacity": 1, color: palette.ivory } },
+          { selector: "node.neighbor", style: { "background-opacity": 1, color: palette.ivory, label: "data(label)" } },
           { selector: "edge.lit", style: { "line-color": palette.accent, opacity: 0.85, width: 2 } },
-          // Hover glow (transient) — layered on top of selection.
-          { selector: "node.hglow", style: { "underlay-opacity": 0.46, "underlay-padding": 13, "border-color": palette.accentStrong, color: palette.ivory } },
-          { selector: "node.hnbr", style: { "background-opacity": 1, color: palette.ivory } },
+          // Hover glow (transient) — layered on top of selection; reveals labels.
+          { selector: "node.hglow", style: { "underlay-opacity": 0.46, "underlay-padding": 13, "border-color": palette.accentStrong, color: palette.ivory, label: "data(label)" } },
+          { selector: "node.hnbr", style: { "background-opacity": 1, color: palette.ivory, label: "data(label)" } },
           { selector: "edge.hlit", style: { "line-color": palette.accent, opacity: 0.88, width: 2 } },
         ],
         layout: {
@@ -197,9 +199,9 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
           randomize: false,
           handleDisconnected: true,
           avoidOverlap: true,
-          nodeSpacing: () => 20,
-          edgeLength: () => 140,
-          maxSimulationTime: 3200,
+          nodeSpacing: () => 32,
+          edgeLength: () => 188,
+          maxSimulationTime: 3600,
           convergenceThreshold: 0.01,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cola options not in cytoscape's narrow layout typings
         } as any,
