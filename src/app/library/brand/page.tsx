@@ -88,7 +88,7 @@ function brandFiles(assets: MediaAssetView[]): BrandFileSource[] {
   return assets
     .map((asset) => ({ asset, classification: classifyBrandSource(asset) }))
     .filter(({ asset, classification }) => {
-      return asset.kind === "document" || asset.source === "google_drive" || classification.confidence === "high";
+      return asset.kind === "document" || asset.source === "google_drive" || asset.source === "url" || classification.confidence === "high";
     })
     .sort((a, b) => {
       return (
@@ -450,8 +450,8 @@ function FileRow({ file, stats }: { file: BrandFileSource; stats: BrainSourceSta
           <StatusPill tone={sourceTone(classification, asset.availableToArc)}>
             {classification.label}
           </StatusPill>
-          <StatusPill tone={asset.source === "google_drive" ? "green" : "gray"}>
-            {asset.source === "google_drive" ? "Drive" : asset.badge}
+          <StatusPill tone={asset.source === "google_drive" || asset.source === "url" ? "green" : "gray"}>
+            {asset.source === "google_drive" ? "Drive" : asset.source === "url" ? "URL" : asset.badge}
           </StatusPill>
           <StatusPill tone={linked.tone}>{linked.label}</StatusPill>
         </div>
