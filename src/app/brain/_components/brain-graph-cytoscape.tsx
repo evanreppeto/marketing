@@ -129,8 +129,9 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
         elements,
         minZoom: 0.3,
         maxZoom: 2.5,
-        // Don't hijack the mouse wheel — the page scrolls normally over the graph.
-        userZoomingEnabled: false,
+        // Scroll-to-zoom, but gentle (the default is jumpy). Pan by dragging the bg.
+        userZoomingEnabled: true,
+        wheelSensitivity: 0.15,
         style: [
           {
             selector: "node",
@@ -286,7 +287,7 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
     const cont = containerRef.current;
     const center = { x: (cont?.clientWidth ?? 0) / 2, y: (cont?.clientHeight ?? 0) / 2 };
     const level = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), cy.zoom() * factor));
-    cy.animate({ zoom: { level, renderedPosition: center } }, { duration: 180, easing: "ease-out" });
+    cy.zoom({ level, renderedPosition: center });
   };
   const fitAll = () => {
     const cy = cyRef.current;
