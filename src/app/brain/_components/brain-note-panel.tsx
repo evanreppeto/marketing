@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { StatusPill } from "@/app/_components/page-header";
-import { nodeProvenance, traverseFrom } from "@/domain";
+import { nodeProvenance } from "@/domain";
 import type { BrainEdge, BrainNode } from "@/lib/knowledge-graph/read-model";
 
 import { SOURCE_DOT } from "./brain-colors";
+import { BrainFactModal } from "./brain-fact-modal";
+import { deriveLinks, deriveRecall, kindLabel, RecallRow, RelationRow, trustTone } from "./brain-fact-parts";
 
-type Relation = { node: BrainNode; relation: string };
-type RecallHop = { node: BrainNode; relation: string; direction: "in" | "out"; hops: number };
 type Props = {
   selected: BrainNode | null;
   nodes: BrainNode[];
@@ -19,100 +19,13 @@ type Props = {
   onSelect: (id: string) => void;
 };
 
-function trustTone(tier: string): "green" | "amber" | "gray" {
-  if (tier === "trusted") return "green";
-  if (tier === "observed") return "amber";
-  return "gray";
-}
-
-const KIND_LABELS: Record<string, string> = {
-  arc: "Core", hub: "Core", brand_fact: "Brand fact", persona: "Persona", proof_point: "Proof point",
-  campaign: "Campaign", objection: "Objection", channel: "Channel", service: "Service",
-  learning: "Learning", signal: "Signal", messaging_angle: "Messaging", campaign_ref: "Campaign ref", cta: "CTA",
-};
-const kindLabel = (k: string) => KIND_LABELS[k] ?? k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-function RelationRow({ node, relation, onSelect }: Relation & { onSelect: (id: string) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(node.id)}
-      className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-[var(--surface-inset)]"
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SOURCE_DOT[nodeProvenance(node).system] }} />
-        <span className="truncate text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{node.label}</span>
-      </span>
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{relation.replace(/_/g, " ")}</span>
-    </button>
-  );
-}
-
-const relationPhrase = (relation: string) => relation.replace(/_/g, " ");
-
-/** A single fact Arc pulls into working memory, shown as a premium connected row:
- *  a direction node, the recalled fact's label, and its relation/kind/distance. */
-function RecallRow({ node, relation, direction, hops, onSelect }: RecallHop & { onSelect: (id: string) => void }) {
-  const dot = SOURCE_DOT[nodeProvenance(node).system];
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(node.id)}
-      className="group relative flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-[var(--surface-panel)]"
-    >
-      {/* direction node on a connecting rail */}
-      <span
-        className="relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--accent-border-strong)] bg-[var(--canvas)] text-[var(--accent)]"
-        aria-hidden
-      >
-        <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-          {direction === "out" ? <path d="M4 8h8M9 5l3 3-3 3" /> : <path d="M12 8H4M7 5L4 8l3 3" />}
-        </svg>
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dot }} />
-          <span className="truncate text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{node.label}</span>
-        </span>
-        <span className="mt-0.5 block truncate text-[10px] uppercase tracking-[0.04em] text-[var(--text-muted)]">
-          {relationPhrase(relation)} · {kindLabel(node.kind)}
-          {hops > 1 ? ` · ${hops} hops` : ""}
-        </span>
-      </span>
-    </button>
-  );
-}
-
 export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
-  const { backlinks, outgoing } = useMemo(() => {
-    const back: Relation[] = [];
-    const out: Relation[] = [];
-    if (!selected) return { backlinks: back, outgoing: out };
-    for (const e of edges) {
-      if (e.toNodeId === selected.id) {
-        const n = byId.get(e.fromNodeId);
-        if (n) back.push({ node: n, relation: e.relation });
-      } else if (e.fromNodeId === selected.id) {
-        const n = byId.get(e.toNodeId);
-        if (n) out.push({ node: n, relation: e.relation });
-      }
-    }
-    return { backlinks: back.slice(0, 8), outgoing: out.slice(0, 8) };
-  }, [selected, edges, byId]);
-
-  // Structured multi-hop recall: exactly what Arc pulls into working memory around
-  // this fact (same traversal the runner uses), as rich rows instead of raw text.
-  const recall = useMemo<RecallHop[]>(() => {
-    if (!selected) return [];
-    const graphEdges = edges.map((e) => ({ fromNodeId: e.fromNodeId, toNodeId: e.toNodeId, relation: e.relation }));
-    const conns = traverseFrom([selected.id], graphEdges, { depth: 2, maxPerSeed: 5 }).get(selected.id) ?? [];
-    return conns.flatMap((c) => {
-      const node = byId.get(c.nodeId);
-      return node ? [{ node, relation: c.relation, direction: c.direction, hops: c.hops }] : [];
-    });
-  }, [selected, edges, byId]);
+  // Compact panel trims long lists; the full modal shows everything.
+  const { backlinks, outgoing } = useMemo(() => deriveLinks(selected, byId, edges, 8), [selected, byId, edges]);
+  const recall = useMemo(() => deriveRecall(selected, byId, edges, 5), [selected, byId, edges]);
 
   if (!selected) {
     return (
@@ -133,11 +46,24 @@ export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <span className="signal-eyebrow">{kindLabel(selected.kind)}</span>
-          <StatusPill tone={trustTone(selected.trustTier)}>{selected.trustTier}</StatusPill>
+          <div className="flex items-center gap-1.5">
+            <StatusPill tone={trustTone(selected.trustTier)}>{selected.trustTier}</StatusPill>
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              aria-label="Open full fact"
+              title="Open full view"
+              className="rounded-md border border-[var(--border-hairline)] p-1 text-[var(--text-muted)] transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-inset)] hover:text-[var(--accent)]"
+            >
+              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H4.5A1.5 1.5 0 0 0 3 4.5V8M12 3h3.5A1.5 1.5 0 0 1 17 4.5V8M8 17H4.5A1.5 1.5 0 0 1 3 15.5V12M12 17h3.5a1.5 1.5 0 0 0 1.5-1.5V12" />
+              </svg>
+            </button>
+          </div>
         </div>
         <h3 className="font-serif text-lg font-semibold leading-tight tracking-[-0.01em] text-[var(--text-primary)]">{selected.label}</h3>
         {(selected.summary || selected.body) && (
-          <p className="text-sm leading-6 text-[var(--text-secondary)]">{selected.summary ?? selected.body}</p>
+          <p className="line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{selected.summary ?? selected.body}</p>
         )}
 
         <div className="flex flex-col gap-2 border-t border-[var(--border-hairline)] pt-3 text-xs">
@@ -197,7 +123,6 @@ export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: 
             <p className="mb-2 pl-7 text-[11px] leading-5 text-[var(--text-muted)]">
               Reasoning near this fact, {agentName} pulls {recall.length} connected {recall.length === 1 ? "memory" : "memories"}.
             </p>
-            {/* connecting rail behind the direction nodes */}
             <div className="relative">
               <span aria-hidden className="absolute bottom-3 left-[18px] top-3 w-px bg-[var(--accent-border)]" />
               <div className="relative flex flex-col gap-0.5">
@@ -217,6 +142,17 @@ export function BrainNotePanel({ selected, nodes, edges, agentName, onSelect }: 
           </div>
         )}
       </div>
+
+      {expanded && (
+        <BrainFactModal
+          selected={selected}
+          nodes={nodes}
+          edges={edges}
+          agentName={agentName}
+          onSelect={onSelect}
+          onClose={() => setExpanded(false)}
+        />
+      )}
     </aside>
   );
 }
