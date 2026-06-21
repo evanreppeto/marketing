@@ -224,7 +224,7 @@ export async function runArcOpportunityScan(
   const memory = await resolveRecallMemory(client, payload.message);
   const ctx: ArcTurnContext = {
     business,
-    mode: "draft", // prompt framing only; the scan tool set comes from mode:"scan" below
+    mode: "scan",
     scope: {
       conversationId: payload.agentTaskId,
       projectId: null,
