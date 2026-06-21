@@ -49,10 +49,18 @@ export type ArcOpportunityDraftPayload = {
   operator: string;
 };
 
+export type ArcOpportunityScanPayload = {
+  type: "arc_opportunity_scan";
+  agentTaskId: string;
+  message: string;
+  operator: string;
+};
+
 export type WakePayload =
   | MarkChatMessagePayload
   | MarkPingPayload
   | ArcOpportunityDraftPayload
+  | ArcOpportunityScanPayload
   | { type?: string };
 
 /** Structured cards Arc attaches to a reply (rendered by the app from metadata.actions). */
