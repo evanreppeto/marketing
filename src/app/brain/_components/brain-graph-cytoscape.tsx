@@ -129,9 +129,9 @@ export function BrainGraphCytoscape({ nodes, edges, selectedId, onSelect }: Prop
         elements,
         minZoom: 0.3,
         maxZoom: 2.5,
-        // Scroll-to-zoom, but gentle (the default is jumpy). Pan by dragging the bg.
+        // Scroll-to-zoom — responsive without the jumpy default. Pan by dragging the bg.
         userZoomingEnabled: true,
-        wheelSensitivity: 0.15,
+        wheelSensitivity: 0.45,
         style: [
           {
             selector: "node",
