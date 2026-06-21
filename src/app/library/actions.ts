@@ -6,8 +6,19 @@ import { classifyKind, deriveThreadTitle, validateUpload } from "@/domain";
 import { requireOperator, getOperatorActor } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
-import { listGoogleDriveFolderFileIds, parseGoogleDriveFileIds, parseGoogleDriveFolderIds } from "@/lib/google-drive/drive-client";
+import {
+  getGoogleDriveFileMetadata,
+  listGoogleDriveFolderFileIds,
+  parseGoogleDriveFileIds,
+  parseGoogleDriveFolderIds,
+} from "@/lib/google-drive/drive-client";
 import { recordGoogleDriveImportResult, resolveGoogleDriveAccessToken } from "@/lib/google-drive/connection";
+import {
+  deleteGoogleDriveSource,
+  getGoogleDriveSource,
+  recordGoogleDriveSourceSync,
+  saveGoogleDriveSource,
+} from "@/lib/google-drive/sources";
 import { learnBrandKnowledgeFromAsset } from "@/lib/brand-knowledge/brain-sync";
 import {
   createConversation,
@@ -37,6 +48,107 @@ async function guard() {
 }
 
 export type GoogleDriveImportActionState = { ok: boolean; message: string } | null;
+
+async function saveSelectedDriveSources(input: {
+  orgId: string;
+  connectedBy: string;
+  accessToken: string;
+  driveFolderIds: string[];
+  libraryFolderId: string | null;
+}): Promise<number> {
+  let saved = 0;
+  for (const driveFolderId of input.driveFolderIds) {
+    let driveFolderName: string | null = null;
+    try {
+      const metadata = await getGoogleDriveFileMetadata({ fileId: driveFolderId, accessToken: input.accessToken });
+      driveFolderName = metadata.name;
+    } catch {
+      driveFolderName = null;
+    }
+    await saveGoogleDriveSource({
+      orgId: input.orgId,
+      connectedBy: input.connectedBy,
+      driveFolderId,
+      driveFolderName,
+      libraryFolderId: input.libraryFolderId,
+    });
+    saved += 1;
+  }
+  return saved;
+}
+
+async function importDriveFolderSource(input: {
+  orgId: string;
+  connectedBy: string;
+  accessToken: string;
+  sourceId: string;
+  driveFolderId: string;
+  libraryFolderId: string | null;
+}): Promise<void> {
+  let discoveredFileIds: string[] = [];
+  try {
+    const folderFiles = await listGoogleDriveFolderFileIds({
+      folderIds: [input.driveFolderId],
+      accessToken: input.accessToken,
+      maxFiles: 100,
+      maxFolders: 25,
+    });
+    discoveredFileIds = folderFiles.fileIds;
+
+    if (discoveredFileIds.length === 0) {
+      const detail = folderFiles.errors[0] ?? "No importable Drive files were found.";
+      await recordGoogleDriveSourceSync({
+        id: input.sourceId,
+        orgId: input.orgId,
+        connectedBy: input.connectedBy,
+        importedCount: 0,
+        fileIds: [],
+        ok: false,
+        error: detail,
+      });
+      return;
+    }
+
+    const result = await importGoogleDriveFiles({
+      orgId: input.orgId,
+      folderId: input.libraryFolderId,
+      fileIds: discoveredFileIds,
+      uploadedBy: input.connectedBy,
+      accessToken: input.accessToken,
+      afterInsert: (asset) => learnBrandKnowledgeFromAsset(asset, { orgId: input.orgId }).then(() => undefined),
+    });
+    const syncError = [...folderFiles.errors, ...result.errors][0] ?? null;
+    await recordGoogleDriveSourceSync({
+      id: input.sourceId,
+      orgId: input.orgId,
+      connectedBy: input.connectedBy,
+      importedCount: result.imported,
+      fileIds: discoveredFileIds,
+      ok: result.errors.length === 0 && folderFiles.errors.length === 0,
+      error: syncError,
+    });
+    await recordGoogleDriveImportResult({
+      orgId: input.orgId,
+      connectedBy: input.connectedBy,
+      ok: result.errors.length === 0,
+      error: result.errors[0] ?? folderFiles.errors[0] ?? null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Google Drive source sync failed.";
+    await recordGoogleDriveSourceSync({
+      id: input.sourceId,
+      orgId: input.orgId,
+      connectedBy: input.connectedBy,
+      importedCount: 0,
+      fileIds: discoveredFileIds,
+      ok: false,
+      error: message,
+    }).catch(() => undefined);
+    await recordGoogleDriveImportResult({ orgId: input.orgId, connectedBy: input.connectedBy, ok: false, error: message }).catch(
+      () => undefined,
+    );
+  }
+}
 
 export async function createFolderAction(formData: FormData): Promise<void> {
   const orgId = await guard();
@@ -104,6 +216,7 @@ export async function importFromGoogleDriveAction(
   const folderId = (String(formData.get("folderId") ?? "") || null) as string | null;
   const raw = String(formData.get("driveFiles") ?? "");
   const rawFolders = String(formData.get("driveFolders") ?? "");
+  const shouldSaveSource = String(formData.get("saveDriveSource") ?? "") === "true";
   const fileIds = parseGoogleDriveFileIds(raw);
   const driveFolderIds = parseGoogleDriveFolderIds(rawFolders);
   if (fileIds.length === 0 && driveFolderIds.length === 0) {
@@ -133,6 +246,16 @@ export async function importFromGoogleDriveAction(
       ].filter((value): value is string => Boolean(value));
     }
 
+    const savedSources = shouldSaveSource && driveFolderIds.length > 0
+      ? await saveSelectedDriveSources({
+          orgId,
+          connectedBy: operator,
+          accessToken,
+          driveFolderIds,
+          libraryFolderId: folderId,
+        })
+      : 0;
+
     if (importFileIds.length === 0) {
       const detail = folderWarnings[0] ? ` ${folderWarnings[0]}` : "";
       return { ok: false, message: `No importable Drive files were found.${detail}` };
@@ -160,15 +283,59 @@ export async function importFromGoogleDriveAction(
     }
     const skipped = result.skipped > 0 ? ` ${result.skipped} skipped.` : "";
     const warning = folderWarnings[0] ? ` ${folderWarnings[0]}` : "";
+    const sourceNote = savedSources > 0 ? ` Saved ${savedSources} Drive source${savedSources === 1 ? "" : "s"}.` : "";
     return {
       ok: true,
-      message: `Imported ${result.imported} Drive file${result.imported === 1 ? "" : "s"}${folderSummary}.${skipped}${warning}`,
+      message: `Imported ${result.imported} Drive file${result.imported === 1 ? "" : "s"}${folderSummary}.${skipped}${warning}${sourceNote}`,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google Drive import failed.";
     await recordGoogleDriveImportResult({ orgId, connectedBy: getOperatorActor(), ok: false, error: message }).catch(() => undefined);
     return { ok: false, message };
   }
+}
+
+export async function syncGoogleDriveSourceAction(formData: FormData): Promise<void> {
+  const orgId = await guard();
+  const sourceId = String(formData.get("sourceId") ?? "");
+  if (!sourceId) return;
+
+  const connectedBy = getOperatorActor();
+  const source = await getGoogleDriveSource({ id: sourceId, orgId, connectedBy });
+  if (!source) return;
+  try {
+    const accessToken = await resolveGoogleDriveAccessToken({ orgId, connectedBy });
+    await importDriveFolderSource({
+      orgId,
+      connectedBy,
+      accessToken,
+      sourceId: source.id,
+      driveFolderId: source.driveFolderId,
+      libraryFolderId: source.libraryFolderId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Google Drive source sync failed.";
+    await recordGoogleDriveSourceSync({
+      id: source.id,
+      orgId,
+      connectedBy,
+      importedCount: 0,
+      fileIds: [],
+      ok: false,
+      error: message,
+    }).catch(() => undefined);
+  }
+  revalidatePath("/library");
+  revalidatePath("/library/brand");
+  revalidatePath("/brain");
+}
+
+export async function deleteGoogleDriveSourceAction(formData: FormData): Promise<void> {
+  const orgId = await guard();
+  const id = String(formData.get("sourceId") ?? "");
+  if (!id) return;
+  await deleteGoogleDriveSource({ id, orgId, connectedBy: getOperatorActor() });
+  revalidatePath("/library");
 }
 
 export async function renameAssetAction(formData: FormData): Promise<void> {

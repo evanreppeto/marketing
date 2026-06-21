@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   downloadGoogleDriveFile,
+  getGoogleDriveFileMetadata,
   listGoogleDriveFolderFileIds,
   parseGoogleDriveFileIds,
   parseGoogleDriveFolderIds,
@@ -140,5 +141,35 @@ describe("downloadGoogleDriveFile", () => {
     expect(file.mimeType).toBe("application/pdf");
     expect(file.plainText).toBe("Brand voice: clear and confident.");
     expect(urls.some((url) => url.includes("mimeType=text%2Fplain"))).toBe(true);
+  });
+});
+
+describe("getGoogleDriveFileMetadata", () => {
+  it("reads Drive metadata for saved folder labels", async () => {
+    const requestedUrls: string[] = [];
+    const fetcher: typeof fetch = async (url) => {
+      requestedUrls.push(String(url));
+      return new Response(
+        JSON.stringify({
+          id: "folder-1",
+          name: "Marketing Source Folder",
+          mimeType: "application/vnd.google-apps.folder",
+          webViewLink: "https://drive.google.com/drive/folders/folder-1",
+          modifiedTime: "2026-06-20T12:00:00.000Z",
+        }),
+        { status: 200 },
+      );
+    };
+
+    const metadata = await getGoogleDriveFileMetadata({ fileId: "folder-1", accessToken: "token", fetcher });
+
+    expect(metadata).toEqual({
+      id: "folder-1",
+      name: "Marketing Source Folder",
+      mimeType: "application/vnd.google-apps.folder",
+      webViewLink: "https://drive.google.com/drive/folders/folder-1",
+      modifiedTime: "2026-06-20T12:00:00.000Z",
+    });
+    expect(requestedUrls[0]).toContain("supportsAllDrives=true");
   });
 });
