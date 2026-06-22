@@ -13,6 +13,9 @@ import {
 } from "@/lib/agent-operations/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Board" };
+
 export default async function BoardPage() {
   await connection();
 

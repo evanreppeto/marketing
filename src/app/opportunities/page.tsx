@@ -10,6 +10,9 @@ import {
   snoozeOpportunityAction,
 } from "./actions";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Opportunities" };
+
 export default async function OpportunitiesPage({
   searchParams,
 }: {

@@ -15,6 +15,9 @@ import { SystemStatus } from "./system-status";
 import { WorkspacesSettings } from "./workspaces-settings";
 import { WorkspaceTeamSettings } from "./workspace-team-settings";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Settings" };
+
 function activeSection(value: string | string[] | undefined): SettingsSectionId {
   const section = Array.isArray(value) ? value[0] : value;
   return SETTINGS_SECTIONS.some((item) => item.id === section) ? (section as SettingsSectionId) : SETTINGS_SECTIONS[0].id;

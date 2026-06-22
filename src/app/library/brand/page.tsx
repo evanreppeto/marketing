@@ -34,6 +34,9 @@ import { BrandSourceUpload } from "./_components/brand-source-upload";
 import { SourceControlCenter } from "./_components/source-control-center";
 import { LibraryTabs } from "../_components/library-tabs";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Brand" };
+
 export const dynamic = "force-dynamic";
 
 const BRAND_KINDS = new Set(["brand_fact", "proof_point", "messaging_angle", "cta", "service"]);

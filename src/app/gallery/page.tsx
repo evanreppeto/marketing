@@ -12,6 +12,9 @@ import { AggregateStrip } from "./_components/aggregate-strip";
 import { GalleryGrid } from "./_components/gallery-grid";
 import { GalleryView } from "./_components/gallery-view";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Gallery" };
+
 type GalleryViewParam = "media" | "showcase";
 
 export default async function GalleryPage({

@@ -12,6 +12,9 @@ import {
 import { provisionAuthenticatedUser } from "@/lib/auth/user-provisioning";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Create account" };
+
 type SignUpSearchParams = {
   from?: string;
   error?: string;

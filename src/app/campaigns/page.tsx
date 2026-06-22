@@ -14,6 +14,9 @@ import type { CampaignManagerView } from "./_components/library-model";
 import { ConnectAgentPanel } from "../_components/connect-agent-panel";
 import { CampaignLibrary } from "./_components/campaign-library";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Campaigns" };
+
 type CampaignsPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };

@@ -23,6 +23,9 @@ import { ArcChat } from "./_components/arc-chat";
 import { SLASH_COMMANDS } from "./_components/slash-commands";
 import { getDemoChat } from "./_data/demo";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Chat" };
+
 type ArcPageProps = {
   searchParams?: Promise<{ c?: string | string[]; archived?: string | string[]; project?: string | string[]; skill?: string | string[] }>;
 };
