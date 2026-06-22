@@ -52,13 +52,48 @@ Real per-user auth exists (Supabase mode + `workspace_memberships`, see `require
 
 ---
 
-### P1-3. `vault_notes` not org-scoped (discovered while fixing P0-1)
+### P1-3. `vault_notes` not org-scoped — BLOCKED on a schema-drift question
 
 `listVaultNotes` (`src/lib/vault/persistence.ts`) reads all `vault_notes` with no org
-filter, and the table has **no `org_id` column** (`20260601120000_vault_notes.sql`). It
-surfaces in the Arc @-mention catalog, so vault notes leak across orgs. Fixing it
-properly needs a migration (add `org_id` + backfill), so it's deferred rather than
-half-fixed. The campaign-name leak in the same catalog **is** fixed.
+filter, and **no migration ever adds an `org_id` column** to `vault_notes`. It surfaces
+in the Arc @-mention catalog, so vault notes leak across orgs.
+
+**But the fix is blocked by a deeper discovery.** Migration
+`20260618185612_org_member_read_policies.sql` creates `for select using
+(app_private.is_org_member(org_id))` RLS policies on ~40 tables **including
+`vault_notes`, `arc_conversations`, and `arc_messages`** — none of which have an
+`org_id` column anywhere in the migration history. A clean `supabase db push` of the
+migration set would therefore **error** at that file. This means one of:
+
+1. Prod has significant **out-of-band schema drift** (those `org_id` columns were added
+   directly, not via a committed migration), or
+2. That RLS migration never applied cleanly to prod and those tables are **not** actually
+   protected by org RLS.
+
+I **cannot tell which** — the Supabase MCP only sees the unrelated `askvisible` project,
+not prod (`tegdgejiyxurgvgheshi`), and the generated `database.types.ts` is stale (it
+doesn't even list `vault_notes`). Adding app-layer `.eq("org_id", …)` to vault, or
+shipping another `org_id` migration, without knowing the real column state risks either
+breaking the live vault feature (if the column is absent) or duplicating work.
+
+**To unblock:** run this against prod (Supabase SQL editor or psql) and share the result:
+
+```sql
+select table_name, column_name
+from information_schema.columns
+where table_schema = 'public'
+  and column_name = 'org_id'
+  and table_name in ('vault_notes', 'arc_conversations', 'arc_messages', 'agent_outputs');
+```
+
+Then the vault fix is: add `org_id` (if truly absent) + backfill, swap `unique(slug)` →
+`unique(org_id, slug)`, set the upsert `onConflict` to `org_id,slug`, and pass `orgId`
+through the 5 persistence fns + 3 actions + 2 read-model wrappers. The campaign-name leak
+in the same @-mention catalog **is** already fixed.
+
+> Note: the committed P0-1 fixes are unaffected — `agent_tasks`, `campaigns`, and
+> `approval_items` have `org_id` via self-consistent migrations (with backfills), so
+> scoping them is sound regardless of the drift question above.
 
 ## 🟡 P1 — Fix soon (rough edges a teammate will hit)
 
