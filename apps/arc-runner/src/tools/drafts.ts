@@ -40,7 +40,12 @@ export function draftWorkProductTools(
       try {
         const r = await client.apiPost<{ campaignId: string; assetId: string }>(
           "/api/v1/arc/campaigns/draft-asset",
-          { ...args, ...(ctx.opportunityId ? { opportunity_id: ctx.opportunityId } : {}), ...(ctx.conversationId ? { conversation_id: ctx.conversationId } : {}) },
+          {
+            ...args,
+            ...(args.campaign_id ? {} : ctx.campaignId ? { campaign_id: ctx.campaignId } : {}),
+            ...(ctx.opportunityId ? { opportunity_id: ctx.opportunityId } : {}),
+            ...(ctx.conversationId ? { conversation_id: ctx.conversationId } : {}),
+          },
         );
         await step(label, "done");
         collectCard({

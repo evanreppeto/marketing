@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { type MediaAssetView, type MediaFolderView } from "@/lib/media-library/types";
 
@@ -32,6 +32,17 @@ export function AssetGrid({
 }) {
   const [filter, setFilter] = useState<AssetFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Open a specific asset's drawer when arriving from a deep-link (e.g. the Brain
+  // tab links to /library?asset=<id>). Runs once on mount; no-op without the param.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const assetId = params.get("asset");
+    // Deferred to a microtask so the set-state happens outside the effect body
+    // (matches the repo's set-state-in-effect rule; same pattern as command-palette).
+    if (assetId) void Promise.resolve().then(() => setSelectedId(assetId));
+  }, []);
+
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

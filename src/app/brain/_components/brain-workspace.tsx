@@ -1,68 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import Link from "next/link";
-
-import { StatusPill } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
 import type { BrainEdge, BrainNode } from "@/lib/knowledge-graph/read-model";
 
 import { BrainGraphCytoscape } from "./brain-graph-cytoscape";
-import { pickInitialNodeId } from "./initial-node";
+import { BrainNotePanel } from "./brain-note-panel";
+import { KIND_DOT } from "./brain-colors";
 
-type Props = { nodes: BrainNode[]; edges: BrainEdge[]; agentName: string; initialPersona?: string };
+type Props = {
+  nodes: BrainNode[];
+  edges: BrainEdge[];
+  agentName: string;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+};
 
 const KIND_LABELS: Record<string, string> = {
-  arc: "Core",
-  hub: "Core",
-  brand_fact: "Brand facts",
-  persona: "Personas",
-  proof_point: "Proof points",
-  campaign: "Campaigns",
-  objection: "Objections",
-  channel: "Channels",
-  service: "Services",
-  learning: "Learnings",
-  signal: "Signals",
-  messaging_angle: "Messaging",
-  campaign_ref: "Campaign refs",
-  cta: "CTAs",
+  arc: "Core", hub: "Core", brand_fact: "Brand facts", persona: "Personas", proof_point: "Proof points",
+  campaign: "Campaigns", objection: "Objections", channel: "Channels", service: "Services",
+  learning: "Learnings", signal: "Signals", messaging_angle: "Messaging", campaign_ref: "Campaign refs", cta: "CTAs",
 };
+const kindLabel = (k: string) => KIND_LABELS[k] ?? k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-function kindLabel(kind: string): string {
-  return KIND_LABELS[kind] ?? kind.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-const KIND_DOT: Record<string, string> = {
-  brand_fact: "var(--accent)",
-  persona: "var(--ok)",
-  proof_point: "var(--accent-strong)",
-  campaign: "var(--accent)",
-  objection: "var(--priority)",
-  channel: "var(--text-secondary)",
-  service: "var(--ok)",
-  learning: "var(--warn)",
-};
-
-function trustTone(tier: string): "green" | "amber" | "gray" {
-  if (tier === "trusted") return "green";
-  if (tier === "observed") return "amber";
-  return "gray";
-}
-
-export function BrainWorkspace({ nodes, edges, agentName, initialPersona }: Props) {
-  const hub = useMemo(
-    () => nodes.find((n) => n.kind === "arc" || n.kind === "hub") ?? null,
-    [nodes],
-  );
-  // Default focus: persona match (from ?persona=) → flagship campaign → hub.
-  const initial = useMemo(
-    () => pickInitialNodeId(nodes, { persona: initialPersona, hubId: hub?.id ?? null }),
-    [nodes, hub, initialPersona],
-  );
-
-  const [selectedId, setSelectedId] = useState<string | null>(initial);
+export function BrainWorkspace({ nodes, edges, agentName, selectedId, onSelect }: Props) {
+  const hub = useMemo(() => nodes.find((n) => n.kind === "arc" || n.kind === "hub") ?? null, [nodes]);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selectedId ? byId.get(selectedId) ?? null : null;
@@ -76,31 +39,13 @@ export function BrainWorkspace({ nodes, edges, agentName, initialPersona }: Prop
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [nodes]);
 
-  const connections = useMemo(() => {
-    if (!selectedId) return [];
-    const out: { node: BrainNode; relation: string }[] = [];
-    for (const e of edges) {
-      if (e.fromNodeId === selectedId) {
-        const n = byId.get(e.toNodeId);
-        if (n) out.push({ node: n, relation: e.relation });
-      } else if (e.toNodeId === selectedId) {
-        const n = byId.get(e.fromNodeId);
-        if (n) out.push({ node: n, relation: e.relation });
-      }
-    }
-    return out.slice(0, 8);
-  }, [selectedId, edges, byId]);
-
-  const confidence = selected?.confidence != null ? Math.round(selected.confidence * 100) : null;
-
   return (
     <div className="grid gap-3 lg:grid-cols-[208px_minmax(0,1fr)_320px]">
-      {/* Category rail */}
       <aside className="signal-panel hidden min-w-0 flex-col p-3 lg:flex">
         <div className="signal-eyebrow mb-2.5 px-1">Explore</div>
         <button
           type="button"
-          onClick={() => setSelectedId(hub?.id ?? null)}
+          onClick={() => hub && onSelect(hub.id)}
           className={cx(
             "mb-1 flex items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition",
             !selected || selected.id === hub?.id
@@ -122,19 +67,14 @@ export function BrainWorkspace({ nodes, edges, agentName, initialPersona }: Prop
               <button
                 key={kind}
                 type="button"
-                onClick={() => rep && setSelectedId(rep.id)}
+                onClick={() => rep && onSelect(rep.id)}
                 className={cx(
                   "flex items-center justify-between rounded-md px-2.5 py-1.5 text-left text-sm transition",
-                  active
-                    ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]",
+                  active ? "bg-[var(--surface-inset)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]",
                 )}
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: KIND_DOT[kind] ?? "var(--text-muted)" }}
-                  />
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: KIND_DOT[kind] ?? "var(--text-muted)" }} />
                   <span className="truncate">{kindLabel(kind)}</span>
                 </span>
                 <span className="font-mono text-xs text-[var(--text-muted)]">{count}</span>
@@ -144,124 +84,31 @@ export function BrainWorkspace({ nodes, edges, agentName, initialPersona }: Prop
         </div>
       </aside>
 
-      {/* Graph hero */}
       <section className="signal-panel relative min-w-0 overflow-hidden p-0">
         <div className="flex items-center justify-between border-b border-[var(--border-hairline)] px-4 py-2.5">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Knowledge web</span>
             <span className="text-xs text-[var(--text-muted)]">{agentName}&apos;s connected memory</span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--ok)]" />Trusted</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--accent)]" />Observed</span>
+          <div className="hidden items-center gap-3 text-[11px] text-[var(--text-muted)] md:flex">
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#d8b65e" }} />Hub</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#9a8fc4" }} />Persona</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#c47055" }} />Brand</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#6faa84" }} />Proof</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: "#6a86bd" }} />Campaign</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-dashed border-[var(--text-muted)]" />Proposed</span>
           </div>
         </div>
-        <div className="relative h-[74vh] min-h-[620px] w-full bg-[radial-gradient(120%_90%_at_50%_8%,rgba(200,162,74,0.05),transparent_60%)]">
+        <div className="relative h-[74vh] min-h-[620px] w-full bg-[#0d0d10]">
           {nodes.length > 0 ? (
-            <BrainGraphCytoscape nodes={nodes} edges={edges} selectedId={selectedId} onSelect={setSelectedId} />
+            <BrainGraphCytoscape nodes={nodes} edges={edges} selectedId={selectedId} onSelect={onSelect} />
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-[var(--text-muted)]">
-              The brain is empty.
-            </div>
+            <div className="flex h-full items-center justify-center text-sm text-[var(--text-muted)]">No facts match this filter.</div>
           )}
         </div>
       </section>
 
-      {/* Selected node detail */}
-      <aside className="signal-panel min-w-0 p-4">
-        {selected ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="signal-eyebrow">{kindLabel(selected.kind)}</span>
-              <StatusPill tone={trustTone(selected.trustTier)}>{selected.trustTier}</StatusPill>
-            </div>
-            <h3 className="font-serif text-lg font-semibold leading-tight tracking-[-0.01em] text-[var(--text-primary)]">
-              {selected.label}
-            </h3>
-            {(selected.summary || selected.body) && (
-              <p className="text-sm leading-6 text-[var(--text-secondary)]">{selected.summary ?? selected.body}</p>
-            )}
-            {selected.persona ? (
-              <Link
-                href={`/personas/${selected.persona.replace(/^persona_/, "").replaceAll("_", "-")}`}
-                className="mt-3 inline-flex text-sm font-bold text-[var(--accent)] hover:underline"
-              >
-                Open in Personas →
-              </Link>
-            ) : null}
-            {confidence != null && (
-              <div>
-                <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-                  <span>Confidence</span>
-                  <span className="font-mono text-[var(--text-secondary)]">{confidence}%</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-inset)]">
-                  <div
-                    className="h-full rounded-full bg-[var(--accent)]"
-                    style={{ width: `${confidence}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2 border-t border-[var(--border-hairline)] pt-3 text-xs">
-              <div>
-                <div className="text-[var(--text-muted)]">Source</div>
-                <div className="mt-0.5 text-[var(--text-secondary)]">{selected.source ?? "Arc inference"}</div>
-              </div>
-              <div>
-                <div className="text-[var(--text-muted)]">Connections</div>
-                <div className="mt-0.5 font-mono text-[var(--text-secondary)]">{connections.length}</div>
-              </div>
-            </div>
-            {selected.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {selected.tags.slice(0, 6).map((t) => (
-                  <span
-                    key={t}
-                    className="rounded border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]"
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-            {connections.length > 0 && (
-              <div className="border-t border-[var(--border-hairline)] pt-3">
-                <div className="signal-eyebrow mb-2">Related</div>
-                <div className="flex flex-col gap-1">
-                  {connections.map(({ node, relation }) => (
-                    <button
-                      key={node.id}
-                      type="button"
-                      onClick={() => setSelectedId(node.id)}
-                      className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-[var(--surface-inset)]"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className="h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ background: KIND_DOT[node.kind] ?? "var(--text-muted)" }}
-                        />
-                        <span className="truncate text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">
-                          {node.label}
-                        </span>
-                      </span>
-                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
-                        {relation.replace(/_/g, " ")}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-            <div className="text-sm font-medium text-[var(--text-secondary)]">Select a node</div>
-            <p className="text-xs text-[var(--text-muted)]">Tap any node in the web to inspect what {agentName} knows.</p>
-          </div>
-        )}
-      </aside>
+      <BrainNotePanel selected={selected} nodes={nodes} edges={edges} agentName={agentName} onSelect={onSelect} />
     </div>
   );
 }

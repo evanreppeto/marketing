@@ -10,6 +10,7 @@ import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { type ApprovalDecision, decideApprovalItem, decideAsset, reopenAsset } from "@/lib/campaigns/decisions";
 import { deployAsset, launchCampaign } from "@/lib/campaigns/launch";
 import { sendArcDirective } from "@/lib/campaigns/arc-conversation";
+import { queueCampaignBuildTask, queueCampaignDirectiveTask } from "@/lib/campaigns/queue";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getAgentName } from "@/lib/settings/agent-name";
@@ -500,23 +501,17 @@ export async function askArcToBuildCampaignAction(formData: FormData): Promise<v
     client,
   );
 
-  await client.from("agent_tasks").insert({
-    ...tenant,
-    agent_id: await ensureArcAgentId(agentName, client),
-    status: "queued",
-    priority: "high",
-    objective: `Build campaign package: ${prompt.slice(0, 180)}`,
-    task_type: "campaign_brief_draft",
-    campaign_id: campaignId,
-    source_type: "campaign_directive",
-    source_id: campaignId,
-    metadata: {
-      requested_from: "campaigns_ask_mark",
-      conversation_id: conversation.id,
-      human_approval_required: true,
-      outbound_dispatch_allowed: false,
+  await queueCampaignBuildTask(
+    {
+      agentName,
+      campaignId,
+      conversationId: conversation.id,
+      operator,
+      prompt,
+      tenant,
     },
-  });
+    client,
+  );
 
   revalidatePath("/campaigns");
   redirect(`/arc?c=${conversation.id}`);
@@ -535,43 +530,19 @@ export async function handToArcAction(formData: FormData): Promise<void> {
 
   const client = getSupabaseAdminClient();
   const tenant = await getCurrentAgentTaskTenantFields();
-  await client.from("agent_tasks").insert({
-    ...tenant,
-    agent_id: await ensureArcAgentId(agentName, client),
-    status: "queued",
-    priority: "medium",
-    objective: "Continue building this campaign — draft the remaining assets.",
-    task_type: "campaign_directive",
-    campaign_id: campaignId,
-    source_type: "campaign_directive",
-    source_id: campaignId,
-    metadata: { requested_from: "campaign_overview_hand_to_mark", human_approval_required: true, outbound_dispatch_allowed: false },
-  });
+  await queueCampaignDirectiveTask(
+    {
+      agentName,
+      campaignId,
+      operator: getOperatorActor(),
+      prompt: "Continue building this campaign - draft the remaining assets.",
+      tenant,
+    },
+    client,
+  );
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
   redirect(`/campaigns/${campaignId}?action=handed-to-arc`);
-}
 
-/** Ensure the Arc agent row exists; return its id.
- *  Canonical full definition lives in ensureArcAgent (agent-operations/actions.ts).
- *  This carries the safety-critical subset; a shared helper is a future cleanup.
- *  `agentName` is the operator-configured display name stored on the row. */
-async function ensureArcAgentId(agentName: string, client = getSupabaseAdminClient()): Promise<string> {
-  const { data, error } = await client
-    .from("agents")
-    .upsert(
-      {
-        key: "arc",
-        name: agentName,
-        status: "ready",
-        blocked_actions: ["send_email", "send_sms", "publish_social_post", "launch_ads", "change_ad_spend"],
-        default_approval_policy: "human_required_before_outbound",
-      },
-      { onConflict: "key" },
-    )
-    .select("id")
-    .single<{ id: string }>();
-  if (error) throw new Error(`agents upsert failed: ${error.message}`);
-  return data.id;
 }

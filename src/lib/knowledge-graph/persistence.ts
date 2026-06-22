@@ -11,6 +11,7 @@ import {
   validateNodeInput,
 } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { embedText } from "@/lib/embeddings/gemini-embeddings";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type WriteResult = { ok: true; id: string } | { ok: false; error: string };
@@ -72,7 +73,26 @@ export async function createNode(input: KnowledgeNodeInput, deps: WriteDeps = {}
     .single<{ id: string }>();
   if (error) return { ok: false, error: error.message };
   if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
+  // Best-effort: make the node semantically searchable. A failure here must
+  // never fail node creation (recall degrades to keyword/graph without it).
+  await embedNodeBestEffort(client, orgId, data.id, value);
   return { ok: true, id: data.id };
+}
+
+async function embedNodeBestEffort(
+  client: TypedSupabaseClient,
+  orgId: string,
+  id: string,
+  value: { label: string; summary?: string | null; body?: string | null },
+): Promise<void> {
+  try {
+    const text = [value.label, value.summary, value.body].filter(Boolean).join("\n").trim();
+    const embedding = await embedText(text);
+    if (!embedding) return;
+    await client.from("knowledge_nodes").update({ embedding: JSON.stringify(embedding) } as never).eq("id", id).eq("org_id", orgId);
+  } catch {
+    // swallow — best-effort
+  }
 }
 
 export async function createEdge(input: KnowledgeEdgeInput, deps: WriteDeps = {}): Promise<WriteResult> {

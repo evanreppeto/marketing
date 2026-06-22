@@ -2,9 +2,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 
 import type { Config } from "./config";
 import { createArcClient } from "./arc-client";
-import { handleChatMessage, handleOpportunityDraft, handleOpportunityScan } from "./handler";
+import { handleCampaignTask, handleChatMessage, handleOpportunityDraft, handleOpportunityScan } from "./handler";
 import { verifySignature } from "./verify";
-import type { ArcOpportunityDraftPayload, ArcOpportunityScanPayload, MarkChatMessagePayload, WakePayload } from "./types";
+import type { ArcCampaignTaskPayload, ArcOpportunityDraftPayload, ArcOpportunityScanPayload, MarkChatMessagePayload, WakePayload } from "./types";
 
 function readRawBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -77,6 +77,12 @@ export function createRunnerServer(config: Config) {
       if (payload.type === "arc_opportunity_scan") {
         sendJson(res, 200, { ok: true, status: "accepted" });
         void handleOpportunityScan(client, config, payload as ArcOpportunityScanPayload);
+        return;
+      }
+
+      if (payload.type === "arc_campaign_task") {
+        sendJson(res, 200, { ok: true, status: "accepted" });
+        void handleCampaignTask(client, config, payload as ArcCampaignTaskPayload);
         return;
       }
 

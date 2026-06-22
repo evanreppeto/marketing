@@ -1,15 +1,17 @@
+"use client";
+
 import Link from "next/link";
 
+import { DataTable, type Column } from "@/app/_components/data-table";
 import { Panel, StatusPill } from "@/app/_components/page-header";
 import { type ThemeTone } from "@/app/_components/theme";
+import { nodeProvenance } from "@/domain";
 import { type BrainNode } from "@/lib/knowledge-graph/read-model";
 
+import { SOURCE_DOT } from "./brain-colors";
+
 const TIER_TONE: Record<string, ThemeTone> = {
-  trusted: "green",
-  proposed: "amber",
-  observed: "blue",
-  rejected: "red",
-  archived: "gray",
+  trusted: "green", proposed: "amber", observed: "blue", rejected: "red", archived: "gray",
 };
 
 export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[]; agentName?: string }) {
@@ -18,52 +20,67 @@ export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[];
       <Panel>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Brain</h2>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">
-          The brain is empty. Run{" "}
-          <code className="rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-xs text-[var(--text-primary)]">
-            pnpm seed:brain
-          </code>{" "}
+          No facts for this filter. Run{" "}
+          <code className="rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-xs text-[var(--text-primary)]">pnpm seed:brain</code>{" "}
           or let {agentName} start recording what it learns.
         </p>
       </Panel>
     );
   }
 
+  const columns: Array<Column<BrainNode>> = [
+    {
+      key: "fact",
+      header: "Fact",
+      cell: (n) => (
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-[var(--text-primary)]">{n.label}</p>
+          {n.body ? <p className="truncate text-sm leading-6 text-[var(--text-secondary)]">{n.body}</p> : null}
+        </div>
+      ),
+    },
+    {
+      key: "kind",
+      header: "Kind",
+      cell: (n) => <span className="text-xs uppercase tracking-[0.08em] text-[var(--text-muted)]">{n.kind.replace(/_/g, " ")}</span>,
+    },
+    {
+      key: "source",
+      header: "Source",
+      cell: (n) => {
+        const prov = nodeProvenance(n);
+        return (
+          <span className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: SOURCE_DOT[prov.system] }} />
+            {prov.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "trust",
+      header: "Trust",
+      cell: (n) => <StatusPill tone={TIER_TONE[n.trustTier] ?? "blue"}>{n.trustTier}</StatusPill>,
+    },
+    {
+      key: "link",
+      header: "",
+      align: "right",
+      cell: (n) => {
+        const prov = nodeProvenance(n);
+        return prov.deepLink ? (
+          <Link href={prov.deepLink.href} className="text-xs text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--accent)] hover:underline">
+            {prov.deepLink.label} ↗
+          </Link>
+        ) : null;
+      },
+    },
+  ];
+
   return (
     <Panel>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-        Brain ({nodes.length})
-      </h2>
-      <ul className="flex flex-col divide-y divide-[var(--border-hairline)]">
-        {nodes.map((node) => (
-          <li key={node.id} className="flex items-center justify-between gap-3 py-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                  {node.kind}
-                </span>
-                {node.persona ? (
-                  <span className="text-xs text-[var(--text-muted)]">{node.persona}</span>
-                ) : null}
-              </div>
-              <p className="truncate font-semibold text-[var(--text-primary)]">{node.label}</p>
-              {node.body ? (
-                <p className="truncate text-sm leading-6 text-[var(--text-secondary)]">{node.body}</p>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <StatusPill tone={TIER_TONE[node.trustTier] ?? "blue"}>{node.trustTier}</StatusPill>
-              {node.refTable && node.refId ? (
-                <Link
-                  href={`/crm/${node.refTable}/${node.refId}`}
-                  className="text-xs text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
-                >
-                  linked record
-                </Link>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Brain ({nodes.length})</h2>
+      <DataTable columns={columns} rows={nodes} rowKey={(n) => n.id} minWidth="min-w-[760px]" />
     </Panel>
   );
 }
