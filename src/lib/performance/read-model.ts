@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 import { buildTrendBuckets, computeDelta, sumTwoPeriods, type KpiDelta, type TrendPoint } from "./overview-shape";
 
@@ -186,9 +187,11 @@ type EngagementEventRow = {
 
 export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays: number = 30): Promise<PerformanceReadModel> {
   if (!client && !isSupabaseAdminConfigured()) {
-    // No DB in this environment (local preview, demo): render an illustrative BSR dashboard
-    // instead of an empty page. Clearly flagged via `isDemo` so nothing reads as real records.
-    return buildDemoPerformanceReadModel(rangeDays);
+    // No DB in this environment (local preview, demo): when the flag is on, render an
+    // illustrative dashboard flagged via `isDemo`. When off, return unavailable.
+    return isDemoDataEnabled()
+      ? buildDemoPerformanceReadModel(rangeDays)
+      : { status: "unavailable", message: "Performance data is unavailable." };
   }
 
   try {
@@ -235,9 +238,9 @@ export async function getPerformanceReadModel(client?: SupabaseClient, rangeDays
     const trendWeeks = Math.min(Math.max(Math.ceil(rangeDays / 7), 8), 26);
 
     // If the DB is reachable but holds nothing yet, the page would read as empty.
-    // Fall back to the illustrative demo dataset so the dashboard is never blank.
+    // Fall back to the illustrative demo dataset only when the demo flag is on.
     if (leadRows.length === 0 && jobRows.length === 0 && outcomeRows.length === 0 && campaignRows.length === 0) {
-      return buildDemoPerformanceReadModel(rangeDays);
+      if (isDemoDataEnabled()) return buildDemoPerformanceReadModel(rangeDays);
     }
 
     return {

@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup } from "@/domain";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export const CAMPAIGN_SELECT =
@@ -443,10 +444,12 @@ export async function listCampaignNames(client?: SupabaseClient): Promise<Campai
 
 export async function getCampaignWorkspaceList(client?: SupabaseClient, agentName = "Arc", orgId?: string): Promise<CampaignWorkspaceList> {
   if (!client && !isSupabaseAdminConfigured()) {
-    // Local preview has no database. Rather than show an empty "unavailable"
-    // shell, render a realistic, read-only campaign library so the workspace
-    // reads like a populated DB view. Nothing here is sendable — demo data only.
-    return buildDemoCampaignWorkspaceList(agentName);
+    // Local preview has no database. When the demo flag is on, render a realistic
+    // read-only campaign library. When off, return an empty live list so real
+    // workspaces show real (possibly empty) data.
+    return isDemoDataEnabled()
+      ? buildDemoCampaignWorkspaceList(agentName)
+      : { status: "live", campaigns: [], totals: { campaigns: 0, assets: 0, approvals: 0, media: 0 } };
   }
 
   try {
@@ -520,11 +523,10 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
       };
     });
 
-    // An empty real table in local preview is indistinguishable from a not-yet-seeded
-    // workspace; show the demo library instead of a blank page. Tests pass an explicit
-    // client, so they keep getting the real (possibly empty) result.
+    // An empty real table: when the demo flag is on, show the demo library instead of
+    // a blank page. When off, fall through to return the real (empty) result.
     if (!client && items.length === 0) {
-      return buildDemoCampaignWorkspaceList(agentName);
+      if (isDemoDataEnabled()) return buildDemoCampaignWorkspaceList(agentName);
     }
 
     return {

@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export type CrmTone = "amber" | "green" | "red" | "blue";
@@ -1023,14 +1024,16 @@ function buildOverviewFromBundle(data: CrmBundleShape): Extract<CrmOverviewData,
 
 export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOverviewData> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return buildOverviewFromBundle(buildDemoCrmBundle());
+    return isDemoDataEnabled()
+      ? buildOverviewFromBundle(buildDemoCrmBundle())
+      : { status: "unavailable", message: "CRM data is unavailable." };
   }
 
   try {
     const orgId = client ? null : await getCurrentOrgId();
     const data = await getCrmTableBundle(client, orgId);
     if (isDemoBundleEmpty(data)) {
-      return buildOverviewFromBundle(buildDemoCrmBundle());
+      if (isDemoDataEnabled()) return buildOverviewFromBundle(buildDemoCrmBundle());
     }
     return buildOverviewFromBundle(data);
   } catch {
@@ -1059,14 +1062,16 @@ function buildObjectDataFromBundle(key: CrmObjectKey, data: CrmBundleShape): Crm
 
 export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClient): Promise<CrmObjectReadResult> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return buildObjectDataFromBundle(key, buildDemoCrmBundle());
+    return isDemoDataEnabled()
+      ? buildObjectDataFromBundle(key, buildDemoCrmBundle())
+      : { status: "unavailable", message: "CRM data is unavailable." };
   }
 
   try {
     const orgId = client ? null : await getCurrentOrgId();
     const data = await getCrmTableBundle(client, orgId);
     if (isDemoBundleEmpty(data)) {
-      return buildObjectDataFromBundle(key, buildDemoCrmBundle());
+      if (isDemoDataEnabled()) return buildObjectDataFromBundle(key, buildDemoCrmBundle());
     }
     return buildObjectDataFromBundle(key, data);
   } catch {
@@ -1104,7 +1109,9 @@ export async function getCrmMentionSamples(
 
 export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCounts> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return { status: "live", counts: demoNavCounts() };
+    return isDemoDataEnabled()
+      ? { status: "live", counts: demoNavCounts() }
+      : { status: "unavailable", message: "CRM data is unavailable." };
   }
 
   try {
@@ -1120,7 +1127,7 @@ export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCo
     ]);
 
     if (companies + contacts + properties + leads + jobs + outcomes === 0) {
-      return { status: "live", counts: demoNavCounts() };
+      if (isDemoDataEnabled()) return { status: "live", counts: demoNavCounts() };
     }
 
     return {
@@ -1189,14 +1196,16 @@ function buildRecordDataFromBundle(key: CrmObjectKey, recordId: string, data: Cr
 
 export async function getCrmRecordData(key: CrmObjectKey, recordId: string, client?: SupabaseClient, agentName: string = "Agent"): Promise<CrmRecordReadResult> {
   if (!client && !isSupabaseAdminConfigured()) {
-    return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
+    return isDemoDataEnabled()
+      ? buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName)
+      : { status: "unavailable", message: "CRM data is unavailable." };
   }
 
   try {
     const orgId = client ? null : await getCurrentOrgId();
     const data = await getCrmTableBundle(client, orgId);
     if (isDemoBundleEmpty(data)) {
-      return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
+      if (isDemoDataEnabled()) return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
     }
     return buildRecordDataFromBundle(key, recordId, data, agentName);
   } catch {
