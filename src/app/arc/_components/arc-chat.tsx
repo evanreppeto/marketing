@@ -605,7 +605,7 @@ export function ArcChat({
     <div className="flex h-full min-h-0 flex-col">
       <div
         className={cx(
-          "grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)]",
+          "arc-graphite grid min-h-0 flex-1 overflow-hidden bg-[var(--canvas)]",
           // Literal class strings (both states) so Tailwind's JIT emits them.
           sidebarCollapsed ? "lg:grid-cols-[3.5rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_minmax(0,1fr)]",
           activeId && canvasOpen
@@ -630,7 +630,7 @@ export function ArcChat({
         <section className="relative flex min-h-0 flex-col lg:border-l lg:border-[var(--border-hairline)]">
           {/* Ambient silk backdrop — the 21st.dev MeshGradient shader, obsidian+gold. */}
           <ArcBackdrop />
-          <header className="relative z-20 flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] px-3 py-2 sm:px-4">
+          <header className="relative z-20 flex min-h-12 items-center gap-3 border-b border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-sidebar)_72%,transparent)] px-3 py-2 shadow-[inset_0_-1px_0_rgba(232,224,205,0.04)] backdrop-blur-xl sm:px-4">
             <button
               type="button"
               onClick={() => setThreadsOpen(true)}
@@ -776,7 +776,7 @@ export function ArcChat({
               <ChatEmptyHero assistantName={assistantName} operatorName={operatorName} project={emptyHeroProject} />
             )}
             <div
-              className={hasMessages ? "w-full" : "msg-rise w-full max-w-2xl"}
+              className={hasMessages ? "w-full" : "msg-rise w-full max-w-[72rem]"}
               style={hasMessages ? undefined : { animationDelay: "60ms" }}
             >
               <QuestionPanel questions={activeQuestions} onAnswer={answerQuestion} />

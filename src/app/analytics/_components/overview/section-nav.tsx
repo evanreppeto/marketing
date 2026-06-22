@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { theme } from "@/app/_components/theme";
+
 export type SectionLink = { id: string; label: string };
 
 /** Sticky in-page nav. Highlights the section currently in view; clicking smooth-scrolls to it. */
@@ -34,10 +36,10 @@ export function SectionNav({ links }: { links: SectionLink[] }) {
           key={link.id}
           href={`#${link.id}`}
           aria-current={active === link.id ? "true" : undefined}
-          className={`relative rounded px-3 py-2 text-sm font-semibold transition active:translate-y-px ${active === link.id ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          className={`relative rounded-[8px] px-3 py-2 text-sm font-semibold transition active:translate-y-px ${active === link.id ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
         >
           {link.label}
-          {active === link.id ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+          {active === link.id ? <span aria-hidden className={theme.control.tabMarker} /> : null}
         </a>
       ))}
     </nav>

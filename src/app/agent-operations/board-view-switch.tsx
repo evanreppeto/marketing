@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { cx, theme } from "@/app/_components/theme";
 import { AgentTaskBoard } from "./agent-task-board";
 import { NewTaskDialog } from "./new-task-dialog";
 import { TaskKanbanBoard } from "./task-kanban-board";
@@ -13,7 +14,7 @@ export function BoardViewSwitch({ tasks }: { tasks: AgentOperationsTask[] }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-3">
-        <div className="inline-flex gap-1 border-b border-[var(--border-hairline)] text-xs font-bold">
+        <div className="inline-flex gap-1 border-b border-[var(--border-hairline)] pb-2 text-xs font-bold">
           {(["board", "table"] as const).map((key) => {
             const active = view === key;
             return (
@@ -22,14 +23,14 @@ export function BoardViewSwitch({ tasks }: { tasks: AgentOperationsTask[] }) {
                 aria-pressed={active}
                 onClick={() => setView(key)}
                 type="button"
-                className={`relative rounded px-3 py-2 capitalize transition duration-150 active:translate-y-px ${
+                className={cx(`relative rounded-[8px] px-3 py-2 capitalize transition duration-150 active:translate-y-px ${
                   active
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
+                }`)}
               >
                 {key}
-                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+                {active ? <span aria-hidden className={theme.control.tabMarker} /> : null}
               </button>
             );
           })}

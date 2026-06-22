@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 
+import { cx, theme } from "@/app/_components/theme";
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import type { CampaignWorkspaceSource } from "@/lib/campaigns/read-model";
 
@@ -56,7 +57,7 @@ export function CampaignBriefTabs({
           {activeStep ? <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${stepDotClass(activeStep.state)}`} title={activeStep.label} /> : null}
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-1 border-b border-[var(--border-hairline)]">
+        <div className="mt-3 grid grid-cols-3 gap-1 border-b border-[var(--border-hairline)] pb-3">
           {tabs.map((tab) => {
             const active = activeTab === tab.key;
             return (
@@ -64,7 +65,7 @@ export function CampaignBriefTabs({
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`relative min-h-9 rounded px-2 text-xs font-bold transition ${
+                className={`relative min-h-9 rounded-[8px] px-2 text-xs font-bold transition ${
                   active
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -72,7 +73,7 @@ export function CampaignBriefTabs({
               >
                 {tab.label}
                 {typeof tab.count === "number" ? <span className="ml-1 font-mono text-[11px] opacity-80">{tab.count}</span> : null}
-                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
+                {active ? <span aria-hidden className={cx(theme.control.tabMarker, "bottom-[-0.75rem]")} /> : null}
               </button>
             );
           })}
@@ -134,7 +135,7 @@ function MiniFact({ label, value }: { label: string; value: string }) {
 function LinkedRecords({ sources }: { sources: CampaignWorkspaceSource[] }) {
   if (sources.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-3 text-xs leading-5 text-[var(--text-muted)]">
+      <div className="rounded-lg border border-[var(--border-panel)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-soft)_78%,transparent),color-mix(in_srgb,var(--surface-inset)_72%,transparent))] px-3 py-3 text-xs leading-5 text-[var(--text-muted)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
         No CRM records linked yet.
       </div>
     );

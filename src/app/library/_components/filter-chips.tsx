@@ -1,6 +1,6 @@
 "use client";
 
-import { cx } from "@/app/_components/theme";
+import { cx, theme } from "@/app/_components/theme";
 
 export type AssetFilter = "all" | "photos" | "video" | "arc" | "unused";
 
@@ -24,7 +24,7 @@ export function FilterChips({
   onChange: (filter: AssetFilter) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)]">
+    <div className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
       {FILTERS.map((f) => {
         const on = f.value === active;
         return (
@@ -34,14 +34,14 @@ export function FilterChips({
             onClick={() => onChange(f.value)}
             aria-pressed={on}
             className={cx(
-              "relative rounded px-3 py-2 text-[11.5px] font-semibold transition active:translate-y-px",
+              "relative rounded-[8px] px-3 py-2 text-[11.5px] font-semibold transition active:translate-y-px",
               on
                 ? "text-[var(--text-primary)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
             )}
           >
             {f.label}
-            {on ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+            {on ? <span aria-hidden className={theme.control.tabMarker} /> : null}
           </button>
         );
       })}

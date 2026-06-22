@@ -1,3 +1,4 @@
+import { theme } from "@/app/_components/theme";
 import { computeGraphLayout, type GraphEdge, type GraphNode } from "@/domain";
 
 const KIND_FILL: Record<GraphNode["kind"], string> = {
@@ -24,8 +25,9 @@ export function NoteGraph({
   // calm placeholder instead of an empty/!broken SVG.
   if (nodes.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-center text-sm text-[var(--text-muted)]">
-        No links to graph yet.
+      <div className={`${theme.surface.dashedEmpty} p-6 text-center text-sm text-[var(--text-muted)]`}>
+        <div className="relative font-semibold text-[var(--text-primary)]">No links to graph yet</div>
+        <p className="relative mt-1 text-xs leading-5 text-[var(--text-secondary)]">Link this note to records, personas, or other notes to build the graph.</p>
       </div>
     );
   }

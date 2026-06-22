@@ -175,7 +175,7 @@ export function ChatEmptyShortcuts({
   const hasPendingWork = pendingOpportunities > 0 || pendingApprovals > 0;
 
   return (
-    <div className="flex w-full max-w-2xl flex-col gap-3">
+    <div className="flex w-full max-w-[72rem] flex-col gap-3">
       {hasPendingWork ? (
         <div className="msg-rise flex flex-wrap items-center gap-2" style={{ animationDelay: "80ms" }} aria-label="Pending work">
           {pendingOpportunities > 0 ? (
@@ -194,7 +194,7 @@ export function ChatEmptyShortcuts({
           ) : null}
         </div>
       ) : null}
-      <div className="msg-rise grid gap-2 sm:grid-cols-2" style={{ animationDelay: "120ms" }}>
+      <div className="msg-rise grid gap-2 sm:grid-cols-2 2xl:grid-cols-4" style={{ animationDelay: "120ms" }}>
         {shortcuts.map((s) => (
         <button
           key={s.label}

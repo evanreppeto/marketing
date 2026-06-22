@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { Button, StatusPill } from "@/app/_components/page-header";
+import { theme } from "@/app/_components/theme";
 import { groupByStatus, statusLabel, STATUS_TONE, type DispatchView } from "@/lib/dispatch/status";
 
 import {
@@ -18,10 +19,13 @@ export function OutboxConsole({ dispatches }: { dispatches: DispatchView[] }) {
 
   if (dispatches.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
-        Nothing queued yet. When you launch a campaign, each approved deliverable lands here as a queued dispatch. The app records
+      <div className={`${theme.surface.dashedEmpty} p-6 text-sm text-[var(--text-muted)]`}>
+        <div className="relative text-sm font-semibold text-[var(--text-primary)]">Nothing queued yet</div>
+        <p className="relative mt-2 max-w-[72ch] text-sm leading-6 text-[var(--text-secondary)]">
+          When you launch a campaign, each approved deliverable lands here as a queued dispatch. The app records
         and hands off — it never sends.
-      </p>
+        </p>
+      </div>
     );
   }
 

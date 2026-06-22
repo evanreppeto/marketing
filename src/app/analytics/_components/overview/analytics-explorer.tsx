@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { ChannelLogo } from "@/app/_components/brand-logos";
+import { theme } from "@/app/_components/theme";
 import { WorkspacePanel } from "@/app/_components/workspace";
 import { DataTable, type Column } from "@/app/_components/data-table";
 import { EmptyState } from "@/app/_components/page-header";
@@ -213,7 +214,7 @@ function FilterGroup({
           </svg>
         </div>
       ) : (
-        <div className="inline-flex flex-wrap gap-1 border-b border-[var(--border-hairline)]">
+        <div className="inline-flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
           {options.map((o) => {
             const active = o.value === value;
             return (
@@ -221,7 +222,7 @@ function FilterGroup({
                 key={o.value}
                 type="button"
                 onClick={() => onChange(o.value)}
-                className={`relative inline-flex items-center gap-1.5 rounded px-3 py-2 text-xs font-semibold transition duration-150 active:translate-y-px ${
+                className={`relative inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-xs font-semibold transition duration-150 active:translate-y-px ${
                   active
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -229,7 +230,7 @@ function FilterGroup({
               >
                 {withLogos && o.channel ? <ChannelLogo channel={o.channel} size={15} /> : null}
                 {o.label}
-                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+                {active ? <span aria-hidden className={theme.control.tabMarker} /> : null}
               </button>
             );
           })}

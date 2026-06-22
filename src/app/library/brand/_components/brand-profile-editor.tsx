@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button, Panel, StatusPill } from "@/app/_components/page-header";
-import { cx } from "@/app/_components/theme";
+import { cx, theme } from "@/app/_components/theme";
 import { applyIndustryTemplate, INDUSTRY_TEMPLATES, type BusinessProfile } from "@/domain";
 import { saveBrandKitAction, type BrandKitActionState } from "@/app/settings/brand-kit-actions";
 
@@ -658,7 +658,7 @@ function FileField({
   return (
     <label className="grid gap-1.5">
       <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
-      <span className="flex min-h-20 cursor-pointer items-center gap-3 rounded-md border border-dashed border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-3 text-sm text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-inset)]">
+      <span className={cx(theme.surface.dashedEmpty, "flex min-h-20 cursor-pointer items-center gap-3 px-3 py-3 text-sm text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-inset)]")}>
         <UploadCloud aria-hidden className="h-4 w-4 shrink-0 text-[var(--accent)]" />
         <span className="min-w-0">
           <span className="block font-semibold text-[var(--text-primary)]">{fileName || "Choose file"}</span>

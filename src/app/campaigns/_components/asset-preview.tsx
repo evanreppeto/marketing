@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { theme } from "@/app/_components/theme";
 import type { CampaignMediaAsset, CampaignWorkspaceAsset } from "@/lib/campaigns/read-model";
 
 export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
@@ -19,7 +20,7 @@ export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
       {asset.body ? (
         <ReadableCopy body={asset.body} expandLabel={expandLabelFor(asset)} />
       ) : !hasMedia ? (
-        <p className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-3 text-sm text-[var(--text-muted)]">
+        <p className={`${theme.surface.dashedEmpty} p-3 text-sm text-[var(--text-muted)]`}>
           {asset.preview}
         </p>
       ) : null}

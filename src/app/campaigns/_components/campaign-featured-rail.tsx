@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 import { BrandGlyph, ChannelLogo, ChannelRow } from "@/app/_components/brand-logos";
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
-import { cx } from "@/app/_components/theme";
+import { cx, theme } from "@/app/_components/theme";
 import type { CampaignListContentPiece, CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
 type TabKey = "overview" | "email" | "sms" | "ads" | "landing";
@@ -128,7 +128,7 @@ export function CampaignFeaturedRail({
         </div>
 
         {/* Tab bar */}
-        <div role="tablist" aria-label="Campaign channels" className="flex gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2">
+        <div role="tablist" aria-label="Campaign channels" className="flex gap-1 border-b border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 pb-3 pt-2">
           {TABS.map((entry) => {
             const active = entry.key === tab;
             return (
@@ -141,14 +141,15 @@ export function CampaignFeaturedRail({
                 className={cx(
                   "inline-flex min-h-7 flex-1 items-center justify-center gap-1.5 border-b px-1 text-[11px] font-semibold tracking-[0.01em] transition",
                   active
-                    ? "border-[var(--accent)] text-[var(--accent-contrast)]"
-                    : "border-transparent text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]",
+                    ? "relative rounded-[8px] border-transparent text-[var(--accent-contrast)]"
+                    : "relative rounded-[8px] border-transparent text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
                 )}
               >
                 {entry.channel ? (
                   <BrandGlyph channel={entry.channel} className="h-3.5 w-3.5 shrink-0" />
                 ) : null}
                 {entry.label}
+                {active ? <span aria-hidden className={theme.control.tabMarker} /> : null}
               </button>
             );
           })}
@@ -218,7 +219,7 @@ export function CampaignFeaturedRail({
               </li>
             ))}
           </ul>
-          <Link href={campaign.href} className={buttonClasses({ size: "sm", className: "mt-3.5 w-full justify-center rounded-[4px]" })}>
+          <Link href={campaign.href} className={buttonClasses({ size: "sm", className: "mt-3.5 w-full justify-center" })}>
             Open full campaign packet
           </Link>
         </div>
@@ -267,7 +268,7 @@ function EmailPreview({ heroUrl, subject, body }: { heroUrl: string; subject: st
         </div>
         <p className="mt-1.5 text-sm font-bold leading-snug text-[var(--text-primary)]">{subject}</p>
         <p className="mt-2 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{body}</p>
-        <span className="mt-3 inline-flex rounded-[4px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]">
+        <span className="mt-3 inline-flex rounded-[8px] border border-[color-mix(in_srgb,var(--accent)_66%,#fff_8%)] bg-[linear-gradient(180deg,var(--accent-hover),var(--accent))] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
           Request emergency crew
         </span>
       </div>
@@ -322,7 +323,7 @@ function LandingPreview({ piece, heroUrl }: { piece: CampaignListContentPiece | 
       </div>
       <div className="p-3.5">
         <p className="line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{split.body}</p>
-        <span className="mt-2.5 inline-flex rounded-[4px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]">
+        <span className="mt-2.5 inline-flex rounded-[8px] border border-[color-mix(in_srgb,var(--accent)_66%,#fff_8%)] bg-[linear-gradient(180deg,var(--accent-hover),var(--accent))] px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
           See live response times
         </span>
       </div>

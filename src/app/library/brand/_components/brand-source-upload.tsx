@@ -4,6 +4,7 @@ import { useActionState, useRef } from "react";
 import { CheckCircle2, FileUp, Link2, RefreshCw, TriangleAlert, UploadCloud } from "lucide-react";
 
 import { buttonClasses, StatusPill } from "@/app/_components/page-header";
+import { theme } from "@/app/_components/theme";
 import {
   importAndAnalyzeBrandUrlAction,
   importAndAnalyzeBrandWebsiteAction,
@@ -32,7 +33,7 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
   return (
     <div className={isHero ? "self-start bg-[var(--surface-panel)] p-5" : "border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] p-5"}>
       <form action={action} encType="multipart/form-data">
-        <div className="rounded-md border border-dashed border-[var(--accent-border-strong)] bg-[var(--surface-soft)] p-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-inset)]">
+        <div className={`${theme.surface.dashedEmpty} p-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-inset)]`}>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <label className="flex min-w-0 cursor-pointer items-center gap-4 text-sm text-[var(--text-secondary)]">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--accent)]">

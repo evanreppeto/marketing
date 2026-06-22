@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { EmptyState, StatusPill } from "@/app/_components/page-header";
 import { PaginationControls } from "@/app/_components/pagination-controls";
+import { theme } from "@/app/_components/theme";
 import { type ApprovalHistoryEntry } from "@/lib/approvals/read-model";
 
 type DecisionFilter = "all" | "approved" | "revision" | "declined" | "archived";
@@ -128,7 +129,7 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-1 border-b border-[var(--border-hairline)]">
+        <div className="mt-4 flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
           {DECISION_FILTERS.map((item) => {
             const selected = filter === item.key;
             const count = decisions.filter((decision) => item.key === "all" || decisionBucket(decision.decision) === item.key).length;
@@ -136,7 +137,7 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
             return (
               <button
                 aria-pressed={selected}
-                className={`relative inline-flex min-h-9 cursor-pointer items-center rounded px-3 text-sm font-semibold transition active:translate-y-px ${
+                className={`relative inline-flex min-h-9 cursor-pointer items-center rounded-[8px] px-3 text-sm font-semibold transition active:translate-y-px ${
                   selected
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -150,7 +151,7 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
               >
                 {item.label}
                 <span className={`ml-2 font-mono text-xs tabular-nums ${selected ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>{count}</span>
-                {selected ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+                {selected ? <span aria-hidden className={theme.control.tabMarker} /> : null}
               </button>
             );
           })}

@@ -58,10 +58,8 @@ function BrandWordmark() {
   );
 }
 
-const sidebarGoldDividerTop =
-  "relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] before:opacity-50 before:content-['']";
-const sidebarGoldDividerBottom =
-  "after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] after:opacity-35 after:content-['']";
+const sidebarGoldDividerTop = "relative";
+const sidebarGoldDividerBottom = "";
 const sidebarBottomDock =
   "relative mt-1 rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-soft)_58%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] before:absolute before:inset-x-3 before:-top-px before:h-px before:bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_72%,transparent),color-mix(in_srgb,var(--ok)_34%,transparent),transparent)] before:content-['']";
 
@@ -97,7 +95,7 @@ export function ConsoleFrame({
   const sidebarExpanded = isSidebarExpanded({
     focusWithin: sidebarFocusWithin,
     hovered: sidebarHovered,
-    pinned: false,
+    pinned: true,
   });
   const sidebarCollapsed = !sidebarExpanded;
 
@@ -159,7 +157,7 @@ export function ConsoleFrame({
         <div
           className={cx(
             "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-200 lg:ease-out",
-            sidebarCollapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[280px_minmax(0,1fr)]",
+            sidebarCollapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[244px_minmax(0,1fr)]",
           )}
         >
           <header className="sticky top-0 z-40 flex flex-col gap-2 border-b border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--canvas-deep)_94%,transparent)] px-3 pb-2 pt-2 backdrop-blur lg:hidden">
@@ -252,7 +250,7 @@ export function ConsoleFrame({
                 </Link>
               </div>
 
-              <div className={cx("py-3", sidebarGoldDividerTop, sidebarGoldDividerBottom, sidebarCollapsed ? "flex justify-center" : "")}>
+              <div className={cx("py-2", sidebarGoldDividerTop, sidebarGoldDividerBottom, sidebarCollapsed ? "flex justify-center" : "")}>
                 <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
               </div>
 
@@ -285,17 +283,17 @@ export function ConsoleFrame({
               <ShellContent>{children}</ShellContent>
             </section>
           ) : (
-            <section className="relative isolate min-w-0 flex-1 lg:min-h-0 lg:overflow-hidden">
+            <section className="arc-graphite relative isolate min-w-0 flex-1 lg:min-h-0 lg:overflow-hidden">
               <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
                 <FlowFieldBackground
-                  className="absolute inset-0 opacity-70"
-                  particleCount={520}
-                  speed={0.64}
-                  trailOpacity={0.13}
+                  className="absolute inset-0 opacity-22"
+                  particleCount={360}
+                  speed={0.38}
+                  trailOpacity={0.08}
                 />
                 <div className="absolute inset-0 bg-[radial-gradient(90%_65%_at_8%_-8%,rgba(200,162,74,0.12),transparent_50%),radial-gradient(70%_54%_at_105%_0%,rgba(127,184,154,0.06),transparent_48%),linear-gradient(180deg,rgba(22,22,26,0.22),rgba(22,22,26,0.72)_62%,rgba(22,22,26,0.93))]" />
               </div>
-              <div className="px-4 py-4 sm:px-6 lg:h-screen lg:overflow-y-auto lg:px-8 lg:py-5 xl:px-10">
+              <div className="h-full w-full px-3 py-4 sm:px-5 lg:h-screen lg:overflow-y-auto lg:px-5 lg:py-5 xl:px-6 2xl:px-7">
                 <ShellContent>{children}</ShellContent>
               </div>
             </section>
@@ -454,8 +452,8 @@ function ArcCommandLink({
           ? "mx-auto h-10 w-10 justify-center"
           : "min-h-11 gap-2.5 px-2.5",
         active
-          ? "bg-[rgba(255,255,255,0.055)] text-[var(--text-primary)]"
-          : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--text-primary)]",
+          ? "border border-[var(--accent-border)] bg-[linear-gradient(90deg,color-mix(in_srgb,var(--accent)_11%,transparent),rgba(255,255,255,0.035))] text-[var(--accent-contrast)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+          : "border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[rgba(255,255,255,0.035)] hover:text-[var(--text-primary)]",
       )}
       href="/arc"
       prefetch
@@ -570,10 +568,11 @@ function SidebarSection({
   label?: string;
 }) {
   return (
-    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-1.5 pt-3", !collapsed ? sidebarGoldDividerTop : "")} aria-label={label}>
+    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-2 pt-4")} aria-label={label}>
       {!collapsed && label ? (
-        <div className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          {label}
+        <div className="flex items-center gap-2 px-2.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">{label}</span>
+          <span aria-hidden className="h-px flex-1 bg-[linear-gradient(90deg,color-mix(in_srgb,var(--accent)_28%,transparent),transparent)]" />
         </div>
       ) : null}
       {children}

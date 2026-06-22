@@ -70,7 +70,7 @@ function ActivityHeader({ selectedRange }: { selectedRange: string }) {
         title="Activity"
         description="A clear record of human actions, Arc work, approvals, risks, and marketing progress."
       />
-      <nav aria-label="Activity time range" className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--border-hairline)]">
+      <nav aria-label="Activity time range" className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
         {rangeFilters.map((range) => {
           const active = range.value === selectedRange;
           return (
@@ -80,12 +80,12 @@ function ActivityHeader({ selectedRange }: { selectedRange: string }) {
               aria-current={active ? "page" : undefined}
               className={
                 active
-                  ? "relative rounded px-3 py-2 text-[12px] font-semibold text-[var(--text-primary)] transition active:translate-y-px"
-                  : "relative rounded px-3 py-2 text-[12px] font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] active:translate-y-px"
+                  ? "relative rounded-[8px] px-3 py-2 text-[12px] font-semibold text-[var(--text-primary)] transition active:translate-y-px"
+                  : "relative rounded-[8px] px-3 py-2 text-[12px] font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] active:translate-y-px"
               }
             >
               {range.label}
-              {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+              {active ? <span aria-hidden className={theme.control.tabMarker} /> : null}
             </Link>
           );
         })}

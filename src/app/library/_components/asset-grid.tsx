@@ -102,8 +102,9 @@ export function AssetGrid({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm text-[var(--text-muted)]">
-          No assets match this filter.
+        <div className="relative overflow-hidden rounded-[10px] border border-[var(--border-panel)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-panel)_86%,transparent),color-mix(in_srgb,var(--surface-inset)_76%,transparent))] p-5 text-sm text-[var(--text-muted)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_50%,transparent),transparent)] before:content-['']">
+          <div className="relative font-semibold text-[var(--text-primary)]">No assets match this filter</div>
+          <p className="relative mt-1 text-sm leading-6 text-[var(--text-secondary)]">Widen the filter or open a different folder to bring more media back into view.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

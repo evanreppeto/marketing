@@ -65,7 +65,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   const outputsHref = `/agent-operations/tasks/${task.id}?section=outputs`;
 
   return (
-    <div className="mx-auto w-full max-w-[940px]">
+    <div className="w-full">
       <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted)]" aria-label="Breadcrumb">
         <Link className="transition hover:text-[var(--text-primary)]" href="/board">
           Task board

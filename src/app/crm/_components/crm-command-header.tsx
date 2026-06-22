@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { crmObjects } from "../../_data/growth-engine";
 import { StatusPill } from "../../_components/page-header";
+import { theme } from "../../_components/theme";
 
 type CrmObjectKey = (typeof crmObjects)[number]["key"];
 
@@ -33,11 +34,11 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
         <div className="mt-3">
           <nav
             aria-label="CRM object navigation"
-            className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)]"
+            className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3"
           >
             <Link
               aria-current={!activeObject ? "page" : undefined}
-              className={`relative inline-flex min-h-9 shrink-0 cursor-pointer items-center rounded px-3 text-sm font-semibold transition ${
+              className={`relative inline-flex min-h-9 shrink-0 cursor-pointer items-center rounded-[8px] px-3 text-sm font-semibold transition ${
                 activeObject
                   ? "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   : "text-[var(--text-primary)]"
@@ -45,7 +46,7 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
               href="/crm"
             >
               Home
-              {!activeObject ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
+              {!activeObject ? <span aria-hidden className={theme.control.tabMarker} /> : null}
             </Link>
             {crmObjects.map((object) => {
               const isActive = object.key === activeObject;
@@ -53,7 +54,7 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
               return (
                 <Link
                   aria-current={isActive ? "page" : undefined}
-                  className={`relative inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-2 rounded px-3 text-sm font-semibold transition ${
+                  className={`relative inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-2 rounded-[8px] px-3 text-sm font-semibold transition ${
                     isActive
                       ? "text-[var(--text-primary)]"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -65,7 +66,7 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
                   <span className={`font-mono text-[11px] ${isActive ? "text-[var(--accent)]" : "text-[var(--accent)] opacity-80"}`}>
                     {counts?.[object.key] ?? 0}
                   </span>
-                  {isActive ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
+                  {isActive ? <span aria-hidden className={theme.control.tabMarker} /> : null}
                 </Link>
               );
             })}

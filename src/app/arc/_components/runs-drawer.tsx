@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { StatusPill } from "@/app/_components/page-header";
-import type { ThemeTone } from "@/app/_components/theme";
+import { theme, type ThemeTone } from "@/app/_components/theme";
 import type { ArcRun, ArcRunStatus } from "@/lib/arc-chat/persistence";
 
 import { getArcRunsAction } from "../actions";
@@ -187,14 +187,14 @@ export function RunsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           {loading ? (
             <p className="text-xs text-[var(--text-muted)]">Loading runs…</p>
           ) : error && runs.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-[var(--border-hairline)] p-6 text-center">
+            <div className={`${theme.surface.dashedEmpty} p-6 text-center`}>
               <p className="text-sm font-medium text-[var(--text-primary)]">Couldn&rsquo;t load runs</p>
               <p className="mx-auto mt-1.5 max-w-[42ch] text-xs leading-5 text-[var(--text-muted)]">
                 The run list is temporarily unavailable. It&rsquo;ll refresh on the next poll.
               </p>
             </div>
           ) : runs.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-[var(--border-hairline)] p-6 text-center">
+            <div className={`${theme.surface.dashedEmpty} p-6 text-center`}>
               <p className="text-sm font-medium text-[var(--text-primary)]">No runs yet</p>
               <p className="mx-auto mt-1.5 max-w-[42ch] text-xs leading-5 text-[var(--text-muted)]">
                 When Arc is working a thread, it shows up here with live status — queued, running, and done — across every conversation.

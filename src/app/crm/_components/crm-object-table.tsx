@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState, StatusPill, buttonClasses } from "../../_components/page-header";
+import { theme } from "../../_components/theme";
 import { CRM_FIELD_PRESETS, type CrmObjectKey, type CrmTableColumnKey } from "./crm-field-presets";
 import { type CrmObjectRow } from "@/lib/crm/read-model";
 
@@ -226,11 +227,11 @@ export function CrmObjectTable({
             {filteredRows.length.toLocaleString("en-US")}
             {filteredRows.length === rows.length ? "" : ` matched from ${rows.length.toLocaleString("en-US")}`}.
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 border-b border-[var(--border-hairline)] pb-3">
             {views.map((view) => (
               <Link
                 aria-current={activeView === view.key ? "page" : undefined}
-                className={`relative inline-flex min-h-8 items-center gap-2 rounded px-2.5 text-xs font-semibold transition duration-150 ${
+                className={`relative inline-flex min-h-8 items-center gap-2 rounded-[8px] px-2.5 text-xs font-semibold transition duration-150 ${
                   activeView === view.key
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -241,7 +242,7 @@ export function CrmObjectTable({
               >
                 {view.label}
                 <span className="font-mono text-[var(--text-muted)]">{view.count}</span>
-                {activeView === view.key ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
+                {activeView === view.key ? <span aria-hidden className={theme.control.tabMarker} /> : null}
               </Link>
             ))}
           </div>

@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import Link from "next/link";
 
 import { PageHeader } from "../../_components/page-header";
+import { theme } from "../../_components/theme";
 import { getAgentName } from "@/lib/settings/agent-name";
 import { SLASH_COMMANDS } from "../_components/slash-commands";
 
@@ -41,7 +42,7 @@ export default async function ArcSkillsPage() {
         title="Skills"
         description={`What ${agentName} can do. Launch a skill to start a chat already set up for it — connectors and plugins land here as they come online.`}
         backHref="/arc"
-        backLabel="Back to chat"
+        backLabel="chat"
       />
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -73,7 +74,7 @@ export default async function ArcSkillsPage() {
           <span aria-hidden className="h-2.5 w-px rounded-full bg-[var(--accent)]" />
           Plugins &amp; connectors
         </p>
-        <div className="rounded-xl border border-dashed border-[var(--border-hairline)] p-6 text-center">
+        <div className={`${theme.surface.dashedEmpty} p-6 text-center`}>
           <p className="text-sm font-medium text-[var(--text-primary)]">Connectors are on the way</p>
           <p className="mx-auto mt-1.5 max-w-[52ch] text-xs leading-5 text-[var(--text-muted)]">
             Soon you&rsquo;ll connect external tools here — like ad-production and creative services —

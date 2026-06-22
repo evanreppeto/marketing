@@ -1,9 +1,11 @@
 import { connection } from "next/server";
 import Link from "next/link";
 
-import { EmptyState, PageHeader } from "../_components/page-header";
+import { EmptyState } from "../_components/page-header";
 import { WorkspacePanel } from "../_components/workspace";
 import { DataTable, type Column } from "../_components/data-table";
+import { theme } from "../_components/theme";
+import { DossierPanel, WorkbenchFrame } from "../_components/workbench";
 import { buildPortfolioSplit } from "./_components/campaign-analytics-model";
 import { DonutSplit, type DonutSegment } from "./_components/charts/donut-split";
 import { SegmentedBar } from "./_components/charts/segmented-bar";
@@ -60,13 +62,17 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
 
   if (list.status === "unavailable") {
     return (
-      <>
-        <AnalyticsHeader brand={brand} />
+      <WorkbenchFrame
+        actions={<AnalyticsBrandBadge brand={brand} />}
+        description="Source-backed performance reporting for leads, booked work, revenue, approvals, and next actions."
+        eyebrow="Executive reporting"
+        title="Analytics"
+      >
         <EmptyState
           title="No campaign data to show yet"
           detail="Once campaigns are connected, this page will show how each one is doing and what is waiting on you."
         />
-      </>
+      </WorkbenchFrame>
     );
   }
 
@@ -102,34 +108,23 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
   ];
 
   return (
-    <>
-      <AnalyticsHeader brand={brand} demo={Boolean(perf?.isDemo)} />
+    <WorkbenchFrame
+      actions={<AnalyticsBrandBadge brand={brand} demo={Boolean(perf?.isDemo)} />}
+      aside={
+        <AnalyticsNarrativeDossier
+          activeRange={activeRange.label}
+          readyCount={readyCount}
+          takeaway={takeaway}
+          waitingOnYou={waitingOnYou}
+        />
+      }
+      description="Source-backed performance reporting for leads, booked work, revenue, approvals, and next actions."
+      eyebrow="Executive reporting"
+      tabs={<AnalyticsRangeTabs activeRange={activeRange.v} ranges={RANGES} />}
+      title="Analytics"
+    >
 
       {/* General analytics + range filter — the at-a-glance read */}
-      <div className="mb-5 flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Range</span>
-        <div className="inline-flex gap-1 border-b border-[var(--border-hairline)]">
-          {RANGES.map((r) => {
-            const active = activeRange.v === r.v;
-            return (
-              <Link
-                key={r.v}
-                href={`/analytics?range=${r.v}`}
-                aria-current={active ? "true" : undefined}
-                className={`relative rounded px-3 py-2 text-xs font-semibold transition duration-150 active:translate-y-px ${
-                  active
-                    ? "text-[var(--text-primary)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                {r.label}
-                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
       {statItems ? <StatStrip items={statItems} /> : <KpiBand kpis={fallbackKpis} />}
       <TakeawayBanner text={takeaway} />
 
@@ -209,7 +204,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
           </div>
         </details>
       ) : null}
-    </>
+    </WorkbenchFrame>
   );
 }
 
@@ -336,27 +331,111 @@ function StateBadge({ row }: { row: ComparisonRowData }) {
   );
 }
 
-function AnalyticsHeader({ brand, demo = false }: { brand: { workspaceName: string; logoUrl: string | null | undefined }; demo?: boolean }) {
+function AnalyticsRangeTabs({
+  activeRange,
+  ranges,
+}: {
+  activeRange: number;
+  ranges: ReadonlyArray<{ v: number; label: string; short: string }>;
+}) {
   return (
-    <div className="mb-5">
-      <PageHeader
-        title="Analytics"
-        description="How your campaigns are performing — leads, booked work, and revenue impact."
-        aside={
-          <div className="flex items-center gap-2 px-1.5 py-0.5">
-            {demo ? (
-              <span className="rounded-md border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--warn-text)]">
-                Demo data
-              </span>
-            ) : null}
-            {brand.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or a data URL.
-              <img alt="" className="h-5 w-5 shrink-0 rounded object-contain" src={brand.logoUrl} />
-            ) : null}
-            <span className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{brand.workspaceName}</span>
-          </div>
-        }
-      />
+    <nav aria-label="Analytics range" className={theme.control.tabList}>
+      {ranges.map((range) => {
+        const active = activeRange === range.v;
+        return (
+          <Link
+            aria-current={active ? "true" : undefined}
+            className={`relative min-h-10 shrink-0 rounded-[8px] px-3 py-2 text-sm font-semibold transition duration-150 active:translate-y-px ${
+              active
+                ? "text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+            href={`/analytics?range=${range.v}`}
+            key={range.v}
+          >
+            {range.label}
+            {active ? <span aria-hidden className={theme.control.tabMarker} /> : null}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function AnalyticsBrandBadge({
+  brand,
+  demo = false,
+}: {
+  brand: { workspaceName: string; logoUrl: string | null | undefined };
+  demo?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
+      {demo ? (
+        <span className="rounded-[4px] border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--warn-text)]">
+          Demo data
+        </span>
+      ) : null}
+      {brand.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- user-configured logo may be external or a data URL.
+        <img alt="" className="h-5 w-5 shrink-0 rounded object-contain" src={brand.logoUrl} />
+      ) : null}
+      <span className="max-w-[14rem] truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{brand.workspaceName}</span>
+    </div>
+  );
+}
+
+function AnalyticsNarrativeDossier({
+  activeRange,
+  readyCount,
+  takeaway,
+  waitingOnYou,
+}: {
+  activeRange: string;
+  readyCount: number;
+  takeaway: string;
+  waitingOnYou: number;
+}) {
+  return (
+    <DossierPanel title="Arc narrative">
+      <div className="space-y-4">
+        <div>
+          <div className="signal-eyebrow">Range</div>
+          <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">{activeRange}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <DossierStat label="Waiting" value={waitingOnYou} tone={waitingOnYou > 0 ? "accent" : "ok"} />
+          <DossierStat label="Ready" value={readyCount} tone={readyCount > 0 ? "ok" : "neutral"} />
+        </div>
+        <div className="rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
+          <div className="signal-eyebrow">Takeaway</div>
+          <p className="mt-2 text-sm font-semibold leading-6 text-[var(--text-primary)]">{takeaway}</p>
+        </div>
+        <div className="rounded-[8px] border border-[var(--accent-border)] bg-[var(--accent-soft)] p-3">
+          <div className="signal-eyebrow text-[var(--accent-contrast)]">Recommended action</div>
+          <p className="mt-2 text-sm font-semibold leading-6 text-[var(--text-primary)]">
+            Resolve approval waits before reading trend movement as campaign performance.
+          </p>
+        </div>
+      </div>
+    </DossierPanel>
+  );
+}
+
+function DossierStat({
+  label,
+  tone = "neutral",
+  value,
+}: {
+  label: string;
+  tone?: "neutral" | "accent" | "ok";
+  value: React.ReactNode;
+}) {
+  const valueClass = tone === "ok" ? "text-[var(--ok-text)]" : tone === "accent" ? "text-[var(--accent-contrast)]" : "text-[var(--text-primary)]";
+  return (
+    <div className="rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
+      <div className={`font-display text-xl font-semibold tabular-nums ${valueClass}`}>{value}</div>
+      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }

@@ -197,7 +197,7 @@ function mergeVoiceTranscript(base: string, transcript: string): string {
 }
 
 /** Keyboard-hint footer shown under the slash/mention popovers (Codex-style). */
-function PopoverHint() {
+export function PopoverHint() {
   const key = "rounded border border-[var(--border-strong)] px-1 font-mono text-[9px] leading-none text-[var(--text-secondary)]";
   return (
     <div className="flex items-center gap-3 border-t border-[var(--border-hairline)] px-3 py-1.5 text-[10px] text-[var(--text-muted)]">
@@ -349,6 +349,22 @@ export function Composer({
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const appliedInitialSkillRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (conversationId || !initialSkill || appliedInitialSkillRef.current === initialSkill) return;
+    const commandForSkill = SLASH_COMMANDS.find((c) => c.cmd.replace(/^\//, "") === initialSkill);
+    if (!commandForSkill) return;
+    appliedInitialSkillRef.current = initialSkill;
+    void Promise.resolve().then(() => {
+      setCommand(commandForSkill.cmd.replace(/^\//, ""));
+      if (commandForSkill.mode) onModeChange(commandForSkill.mode);
+      onDraftChange("");
+      setSlash(null);
+      setActiveIndex(0);
+      textareaRef.current?.focus();
+    });
+  }, [conversationId, initialSkill, onDraftChange, onModeChange, textareaRef]);
 
   useEffect(() => {
     let cancelled = false;
@@ -599,7 +615,7 @@ export function Composer({
   const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
+    <div className="mx-auto w-full max-w-[92rem] px-4 pb-4 pt-2 sm:px-6 xl:px-8">
       <form
         ref={formRef}
         action={demo ? undefined : formAction}

@@ -134,11 +134,14 @@ export function EmptyWorkspace({
   action?: React.ReactNode;
 }) {
   return (
-    <div className={cx("m-4 rounded-xl p-8", theme.surface.dashedEmpty)}>
-      <div className="max-w-xl">
-        <div className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</div>
-        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
-        {action ? <div className="mt-5">{action}</div> : null}
+    <div className={cx("m-4 p-6 sm:p-8", theme.surface.dashedEmpty)}>
+      <div className="relative flex max-w-2xl gap-4">
+        <span className="mt-0.5 h-10 w-1 shrink-0 rounded-full bg-[linear-gradient(180deg,var(--accent),color-mix(in_srgb,var(--accent)_18%,transparent))] shadow-[0_0_18px_color-mix(in_srgb,var(--accent)_28%,transparent)]" />
+        <div className="min-w-0">
+          <div className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</div>
+          <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
+          {action ? <div className="mt-5 flex flex-wrap gap-2">{action}</div> : null}
+        </div>
       </div>
     </div>
   );
