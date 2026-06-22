@@ -256,6 +256,58 @@ const SEEDS: DemoNodeSeed[] = [
     daysAgo: 8,
   },
 
+  // -- Source-system coverage nodes -----------------------------------------
+  // One node per missing source so the filter bar and provenance UI exercise
+  // every system in local/demo mode. Rules from nodeProvenance:
+  //   brand   → refTable:"media_assets" + tag "brand-source"
+  //   library → refTable:"media_assets" WITHOUT "brand-source" (and a refId)
+  //   crm     → refTable in CRM_TABLES + refId
+  {
+    id: "demo_brand_asset",
+    kind: "brand_fact",
+    label: "Before/after hero photo — water damage",
+    body: "Approved brand photo showing a flooded Chicago basement before extraction and the dried, restored space after. Primary creative for Emergency Homeowner campaigns.",
+    summary: "Approved before/after hero photo for emergency campaigns.",
+    trustTier: "trusted",
+    confidence: 94,
+    source: "Brand media library",
+    tags: ["brand-source", "before-after", "water"],
+    refTable: "media_assets",
+    refId: "demo-brand-hero-water-2026",
+    createdBy: "operator",
+    daysAgo: 35,
+  },
+  {
+    id: "demo_library_asset",
+    kind: "proof_point",
+    label: "Mold remediation crew photo",
+    body: "On-site photo of IICRC-certified crew in full PPE during a mold containment job. Available for use in paid social and landing pages.",
+    summary: "Crew PPE photo for mold remediation campaigns.",
+    trustTier: "trusted",
+    confidence: 88,
+    source: "Media library",
+    tags: ["mold", "crew", "social-proof"],
+    refTable: "media_assets",
+    refId: "demo-library-crew-mold-2026",
+    createdBy: "operator",
+    daysAgo: 28,
+  },
+  {
+    id: "demo_crm_contact",
+    kind: "proof_point",
+    label: "Referral contact — Lincoln Park plumber",
+    body: "Verified plumbing partner who referred three water-damage jobs in Q1. High-value referral source in the Trade Partner persona segment.",
+    summary: "Top-referring plumber contact in CRM.",
+    trustTier: "trusted",
+    confidence: 86,
+    source: "CRM",
+    tags: ["partner", "referral"],
+    refTable: "contacts",
+    refId: "demo-contact-plumber-lincoln-park",
+    createdBy: "operator",
+    daysAgo: 17,
+  },
+
   // -- Customer objections --------------------------------------------------
   {
     id: "obj_insurance",
@@ -524,6 +576,11 @@ const EDGE_SEEDS: Array<[string, string, string]> = [
   ["persona_insurance_agent", "relates_to", "persona_listing_agent"],
   ["persona_landlord", "relates_to", "persona_property_manager"],
   ["persona_property_manager", "relates_to", "persona_hoa_board"],
+
+  // Source-system coverage edges.
+  ["demo_brand_asset", "used_in", "camp_ewr"],
+  ["demo_library_asset", "governs", "svc_mold"],
+  ["demo_crm_contact", "targets", "persona_plumbing_partner"],
 
   // Proposed nodes link to where they would attach once trusted.
   ["prop_response_2hr", "proves", "bf_24_7"],

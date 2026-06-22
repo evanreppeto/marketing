@@ -1,9 +1,5 @@
 import { PageHeader, StatStrip, type StatItem } from "@/app/_components/page-header";
-import { BrainBrowser } from "@/app/brain/_components/brain-browser";
-import { BrainWorkspace } from "@/app/brain/_components/brain-workspace";
-import { RecentlyLearned } from "@/app/brain/_components/recently-learned";
-import { SourceReviewQueue } from "@/app/brain/_components/source-review-queue";
-import { buildBrainSourceReviewData } from "@/lib/brand-knowledge/source-review";
+import { BrainShell } from "@/app/brain/_components/brain-shell";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
@@ -68,12 +64,13 @@ export default async function BrainPage({
         description={`${agentName}'s durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
       />
       {summary.status === "live" ? <StatStrip items={stats} columns={4} /> : null}
-      {/* Hero workspace — category rail · interactive Cytoscape knowledge web ·
-          selected-node detail. One graph, legible, matching the concept. */}
-      <BrainWorkspace nodes={graphNodes} edges={graphEdges} agentName={agentName} initialPersona={initialPersona} />
-      <SourceReviewQueue data={sourceReview} />
-      <RecentlyLearned nodes={allNodes} />
-      <BrainBrowser nodes={allNodes} agentName={agentName} />
+      <BrainShell
+        graphNodes={graphNodes}
+        graphEdges={graphEdges}
+        allNodes={allNodes}
+        proposedNodes={proposedNodes}
+        agentName={agentName}
+      />
     </div>
   );
 }
