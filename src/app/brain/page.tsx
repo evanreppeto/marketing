@@ -1,5 +1,6 @@
 import { PageHeader, StatStrip, type StatItem } from "@/app/_components/page-header";
 import { BrainShell } from "@/app/brain/_components/brain-shell";
+import { buildBrainSourceReviewData } from "@/lib/brand-knowledge/source-review";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
@@ -7,13 +8,7 @@ import { getAgentName } from "@/lib/settings/agent-name";
 
 export const dynamic = "force-dynamic";
 
-export default async function BrainPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ persona?: string | string[] }>;
-}) {
-  const params = searchParams ? await searchParams : {};
-  const initialPersona = Array.isArray(params.persona) ? params.persona[0] : params.persona;
+export default async function BrainPage() {
   const [graph, proposed, all, summary, agentName, library] = await Promise.all([
     getBrainGraph(),
     listProposed(),
@@ -68,8 +63,8 @@ export default async function BrainPage({
         graphNodes={graphNodes}
         graphEdges={graphEdges}
         allNodes={allNodes}
-        proposedNodes={proposedNodes}
         agentName={agentName}
+        sourceReview={sourceReview}
       />
     </div>
   );

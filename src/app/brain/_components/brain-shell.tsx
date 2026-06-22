@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 
 import { cx, theme } from "@/app/_components/theme";
 import { analyzeBrainHealth, nodeProvenance, type BrainSourceSystem } from "@/domain";
+import type { BrainSourceReviewData } from "@/lib/brand-knowledge/source-review";
 import type { BrainEdge, BrainNode } from "@/lib/knowledge-graph/read-model";
 
-import { ApprovalQueue } from "./approval-queue";
 import { BrainBrowser } from "./brain-browser";
 import { BrainHealth } from "./brain-health";
 import { BrainQuickSwitcher } from "./brain-quick-switcher";
@@ -14,13 +14,14 @@ import { BrainRecallTester } from "./brain-recall-tester";
 import { BrainSourceFilter } from "./brain-source-filter";
 import { BrainWorkspace } from "./brain-workspace";
 import { RecentlyLearned } from "./recently-learned";
+import { SourceReviewQueue } from "./source-review-queue";
 
 type Props = {
   graphNodes: BrainNode[];
   graphEdges: BrainEdge[];
   allNodes: BrainNode[];
-  proposedNodes: BrainNode[];
   agentName: string;
+  sourceReview: BrainSourceReviewData;
 };
 
 /** "all" plus the six source systems. */
@@ -38,7 +39,7 @@ function nowMs(): number {
   return Date.now();
 }
 
-export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, agentName }: Props) {
+export function BrainShell({ graphNodes, graphEdges, allNodes, agentName, sourceReview }: Props) {
   const [source, setSource] = useState<SourceFilter>("all");
   const [tab, setTab] = useState<Tab>("web");
   const [selectedId, setSelectedId] = useState<string | null>(() => {
@@ -66,7 +67,7 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
     [graphEdges, filteredGraphIds],
   );
   const filteredAll = useMemo(() => allNodes.filter((n) => matchesSource(n, source)), [allNodes, source]);
-  const filteredProposed = useMemo(() => proposedNodes.filter((n) => matchesSource(n, source)), [proposedNodes, source]);
+  const reviewCount = sourceReview.stats.linkedItems + sourceReview.stats.unlinkedItems;
 
   // Health is a whole-brain concern — computed over the full graph, not the filter.
   const health = useMemo(() => analyzeBrainHealth(graphNodes, graphEdges, nowMs()), [graphNodes, graphEdges]);
@@ -77,7 +78,7 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
     { key: "health", label: "Health", count: healthIssues },
     { key: "recall", label: "Ask Arc" },
     { key: "recent", label: "Recently Learned" },
-    { key: "review", label: "Needs Review", count: filteredProposed.length },
+    { key: "review", label: "Needs Review", count: reviewCount },
     { key: "facts", label: "All Facts", count: filteredAll.length },
   ];
 
@@ -129,7 +130,7 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
       {tab === "health" && <BrainHealth health={health} onSelect={jumpTo} />}
       {tab === "recall" && <BrainRecallTester nodes={graphNodes} edges={graphEdges} agentName={agentName} onSelect={jumpTo} />}
       {tab === "recent" && <RecentlyLearned nodes={filteredAll} />}
-      {tab === "review" && <ApprovalQueue nodes={filteredProposed} />}
+      {tab === "review" && <SourceReviewQueue data={sourceReview} />}
       {tab === "facts" && <BrainBrowser nodes={filteredAll} agentName={agentName} />}
 
       <BrainQuickSwitcher nodes={graphNodes} onSelect={jumpTo} />
