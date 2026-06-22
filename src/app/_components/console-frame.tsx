@@ -121,7 +121,8 @@ export function ConsoleFrame({
 
   const assetNavItems: ShellNavItem[] = [
     { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
-    { label: "Library", href: "/library", icon: "library", matches: ["/library"] },
+    { label: "Library", href: "/library", icon: "library", matches: ["/library"], exact: true },
+    { label: "Brand", href: "/library/brand", icon: "brand", matches: ["/library/brand"] },
     { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
   ];
