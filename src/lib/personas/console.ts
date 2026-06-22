@@ -106,7 +106,7 @@ export async function listPersonas(): Promise<Persona[]> {
     }
     return (data as PersonaRow[]).map(mapRow);
   } catch {
-    return DEMO_PERSONAS;
+    return isDemoDataEnabled() ? DEMO_PERSONAS : [];
   }
 }
 
