@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import type { User } from "@supabase/supabase-js";
 
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
@@ -103,6 +105,70 @@ async function createOrganization(client: TypedSupabaseClient, name: string, slu
 
   if (error) throw error;
   return data;
+}
+
+const SLUG_SUFFIX_CAP = 20;
+
+function shortSlugSuffix(): string {
+  return randomBytes(3).toString("hex"); // 6 url-safe hex chars
+}
+
+/**
+ * A free org slug derived from the name: base, else base-2..base-CAP, else base-<rand>.
+ * Never returns a slug already in use. Base is trimmed so suffixed slugs stay ≤72 chars.
+ *
+ * `exists` is injectable so callers can pass a real Supabase lookup or a test spy.
+ * Defaults to checking `findOrganizationBySlug` against the provided client.
+ */
+export async function uniqueOrgSlug(
+  nameOrClient: string | TypedSupabaseClient,
+  existsOrName: ((slug: string) => Promise<boolean>) | string,
+): Promise<string> {
+  // Overload: uniqueOrgSlug(baseName, exists) — injectable form (used in tests)
+  // Overload: uniqueOrgSlug(client, baseName) — production form
+  let base: string;
+  let exists: (slug: string) => Promise<boolean>;
+
+  if (typeof nameOrClient === "string") {
+    // Injectable form: uniqueOrgSlug(baseName, existsFn)
+    base = slugify(nameOrClient);
+    exists = existsOrName as (slug: string) => Promise<boolean>;
+  } else {
+    // Production form: uniqueOrgSlug(client, baseName)
+    const client = nameOrClient;
+    base = slugify(existsOrName as string);
+    exists = async (slug: string) => Boolean(await findOrganizationBySlug(client, slug));
+  }
+
+  if (!(await exists(base))) return base;
+  const root = base.slice(0, 64); // leave room for "-<suffix>"
+  for (let n = 2; n <= SLUG_SUFFIX_CAP; n += 1) {
+    const candidate = `${root}-${n}`;
+    if (!(await exists(candidate))) return candidate;
+  }
+  return `${root}-${shortSlugSuffix()}`;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: string }).code === "23505";
+}
+
+/** Create an org with a unique slug, retrying on a slug race (unique violation). */
+async function createOrganizationUnique(
+  client: TypedSupabaseClient,
+  name: string,
+  baseName: string,
+): Promise<OrganizationRow> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const slug = await uniqueOrgSlug(client, baseName);
+    try {
+      return await createOrganization(client, name, slug);
+    } catch (error) {
+      if (isUniqueViolation(error) && attempt < 2) continue; // raced; recompute + retry
+      throw error;
+    }
+  }
+  throw new Error("Could not allocate a unique organization slug.");
 }
 
 async function upsertDefaultWorkspace(
@@ -288,25 +354,13 @@ export async function createWorkspaceForUser(
       };
     }
 
-    const orgSlug = slugify(organizationName);
-    const existingOrg = await findOrganizationBySlug(client, orgSlug);
-    const claimedExistingOrg = Boolean(existingOrg);
-
-    if (existingOrg && (await organizationHasMemberships(client, existingOrg.id))) {
-      return {
-        ok: false,
-        status: "already_claimed",
-        message: "That organization already has members. Ask an owner or admin to invite you.",
-      };
-    }
-
-    const org = existingOrg ?? (await createOrganization(client, organizationName, orgSlug));
+    const org = await createOrganizationUnique(client, organizationName, organizationName);
     const workspace = await upsertDefaultWorkspace(client, org, workspaceName, workspaceType, user.id);
 
     await createOwnerMemberships(client, org.id, workspace.id, user.id, email);
     await createWorkspaceDefaults(client, org, workspace, user.id);
 
-    return { ok: true, orgId: org.id, workspaceId: workspace.id, claimedExistingOrg };
+    return { ok: true, orgId: org.id, workspaceId: workspace.id, claimedExistingOrg: false };
   } catch (error) {
     return {
       ok: false,
