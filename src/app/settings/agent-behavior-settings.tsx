@@ -8,7 +8,8 @@ export async function AgentBehaviorSettings() {
 
   return (
     <SettingsSection
-      description="Set how the chat agent behaves when new messages are queued. These values travel with new agent tasks."
+      bodyClassName="p-0"
+      description="How the chat agent sounds and behaves. Changes save automatically and travel with new agent tasks."
       title="Agent behavior"
     >
       <AgentBehaviorSettingsForm

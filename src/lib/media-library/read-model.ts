@@ -15,7 +15,17 @@ import {
 /** Pure: one DB row → view model. `usedIn` is the count of campaign assets referencing it. */
 export function toAssetView(row: MediaAssetRow, usedIn: number): MediaAssetView {
   const badge =
-    row.source === "ai_generated" ? "AI" : row.kind === "logo" ? "LOGO" : row.kind === "video" ? "VIDEO" : "PHOTO";
+    row.source === "ai_generated"
+      ? "AI"
+      : row.source === "url"
+        ? "URL"
+        : row.kind === "document"
+          ? "DOC"
+          : row.kind === "logo"
+            ? "LOGO"
+            : row.kind === "video"
+              ? "VIDEO"
+              : "PHOTO";
   return {
     id: row.id,
     folderId: row.folder_id,

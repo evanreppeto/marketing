@@ -4,8 +4,10 @@ import { useActionState, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buttonClasses } from "@/app/_components/page-header";
+import { type GoogleDriveSourceView } from "@/lib/google-drive/sources";
 
-import { importFromGoogleDriveAction } from "../actions";
+import { deleteGoogleDriveSourceAction, importFromGoogleDriveAction, syncGoogleDriveSourceAction } from "../actions";
+import { TrashIcon } from "./icons";
 
 type PickerTokenResponse =
   | {
@@ -40,10 +42,13 @@ type GooglePicker = {
   Document: { ID: string; NAME: string };
   Feature: { MULTISELECT_ENABLED: string; SUPPORT_DRIVES?: string };
   Response: { DOCUMENTS: string };
+  DocsView?: new (viewId: string) => PickerView;
   View: new (viewId: string) => PickerView;
-  ViewId: { DOCS: string };
+  ViewId: { DOCS: string; FOLDERS?: string };
   PickerBuilder: new () => PickerBuilder;
 };
+
+type PickerMode = "files" | "folders";
 
 declare global {
   interface Window {
@@ -111,15 +116,36 @@ function selectedFileIds(data: Record<string, unknown>, picker: GooglePicker): s
     .filter((value): value is string => Boolean(value));
 }
 
-export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string | null }) {
+function formatSyncTime(value: string | null): string {
+  if (!value) return "Never synced";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function sourceLabel(source: GoogleDriveSourceView): string {
+  return source.driveFolderName ?? `Drive folder ${source.driveFolderId.slice(0, 8)}`;
+}
+
+export function GoogleDriveImport({
+  activeFolderId,
+  sources = [],
+}: {
+  activeFolderId: string | null;
+  sources?: GoogleDriveSourceView[];
+}) {
   const [state, action, pending] = useActionState(importFromGoogleDriveAction, null);
   const [open, setOpen] = useState(false);
   const [pickerMessage, setPickerMessage] = useState<string | null>(null);
   const [pickerPending, setPickerPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const folderTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  async function openPicker() {
+  async function openPicker(mode: PickerMode) {
     setPickerPending(true);
     setPickerMessage(null);
     try {
@@ -136,9 +162,10 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
         return;
       }
 
-      const view = new picker.View(picker.ViewId.DOCS);
-      view.setIncludeFolders?.(true);
-      view.setSelectFolderEnabled?.(false);
+      const ViewCtor = mode === "folders" ? (picker.DocsView ?? picker.View) : picker.View;
+      const view = new ViewCtor(mode === "folders" ? (picker.ViewId.FOLDERS ?? picker.ViewId.DOCS) : picker.ViewId.DOCS);
+      view.setIncludeFolders?.(mode === "files");
+      view.setSelectFolderEnabled?.(mode === "folders");
 
       const builder = new picker.PickerBuilder()
         .enableFeature(picker.Feature.MULTISELECT_ENABLED)
@@ -149,8 +176,9 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
         .setCallback((data) => {
           const ids = selectedFileIds(data, picker);
           if (ids.length === 0) return;
-          if (textareaRef.current) textareaRef.current.value = ids.join("\n");
-          setPickerMessage(`Selected ${ids.length} file${ids.length === 1 ? "" : "s"}. Importing...`);
+          const target = mode === "folders" ? folderTextareaRef.current : fileTextareaRef.current;
+          if (target) target.value = ids.join("\n");
+          setPickerMessage(`Selected ${ids.length} Drive ${mode === "folders" ? "folder" : "file"}${ids.length === 1 ? "" : "s"}. Importing...`);
           formRef.current?.requestSubmit();
         });
       if (picker.Feature.SUPPORT_DRIVES) builder.enableFeature(picker.Feature.SUPPORT_DRIVES);
@@ -191,22 +219,89 @@ export function GoogleDriveImport({ activeFolderId }: { activeFolderId: string |
             </button>
           </div>
         </div>
+        {sources.length > 0 ? (
+          <div className="mt-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-3 py-2">
+              <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Drive sources</div>
+              <div className="text-xs font-semibold text-[var(--text-muted)]">{sources.length}</div>
+            </div>
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {sources.map((source) => (
+                <div key={source.id} className="grid gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{sourceLabel(source)}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
+                      <span>{formatSyncTime(source.lastSyncedAt)}</span>
+                      {source.lastSyncedAt ? <span>{source.lastImportedCount} imported last sync</span> : null}
+                      {source.status === "error" ? <span className="font-semibold text-[var(--priority-text)]">Needs attention</span> : null}
+                    </div>
+                    {source.lastError ? <div className="mt-1 text-xs text-[var(--priority-text)]">{source.lastError}</div> : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <form action={syncGoogleDriveSourceAction}>
+                      <input name="sourceId" type="hidden" value={source.id} />
+                      <button className={buttonClasses({ variant: "primary", size: "sm" })} type="submit">
+                        Sync
+                      </button>
+                    </form>
+                    <form action={deleteGoogleDriveSourceAction}>
+                      <input name="sourceId" type="hidden" value={source.id} />
+                      <button
+                        aria-label={`Remove ${sourceLabel(source)}`}
+                        className={buttonClasses({ variant: "ghost", size: "sm" })}
+                        type="submit"
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <form ref={formRef} action={action} className="mt-3 grid gap-3">
           {activeFolderId ? <input name="folderId" type="hidden" value={activeFolderId} /> : null}
-          <button
-            className={buttonClasses({ variant: "primary", size: "sm" })}
-            disabled={pickerPending || pending}
-            onClick={openPicker}
-            type="button"
-          >
-            {pickerPending ? "Opening..." : "Choose from Drive"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={buttonClasses({ variant: "primary", size: "sm" })}
+              disabled={pickerPending || pending}
+              onClick={() => openPicker("files")}
+              type="button"
+            >
+              {pickerPending ? "Opening..." : "Choose files"}
+            </button>
+            <button
+              className={buttonClasses({ variant: "ghost", size: "sm" })}
+              disabled={pickerPending || pending}
+              onClick={() => openPicker("folders")}
+              type="button"
+            >
+              Choose folder
+            </button>
+          </div>
           <textarea
-            ref={textareaRef}
+            ref={fileTextareaRef}
             className="min-h-24 resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
             name="driveFiles"
-            placeholder="https://drive.google.com/file/d/.../view"
+            placeholder="Drive file links or IDs"
           />
+          <textarea
+            ref={folderTextareaRef}
+            className="min-h-16 resize-y rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            name="driveFolders"
+            placeholder="Drive folder links or IDs"
+          />
+          <label className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+            <input
+              className="h-4 w-4 rounded border-[var(--border-hairline)] accent-[var(--accent)]"
+              defaultChecked
+              name="saveDriveSource"
+              type="checkbox"
+              value="true"
+            />
+            Save selected folders
+          </label>
           <div className="flex flex-wrap items-center justify-between gap-2">
             {state ? (
               <p className={`text-xs font-semibold ${state.ok ? "text-[var(--ok-text)]" : "text-[var(--priority-text)]"}`}>

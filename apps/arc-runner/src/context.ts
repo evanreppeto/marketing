@@ -24,7 +24,7 @@ export type ArcTurnScope = {
 
 export type ArcTurnContext = {
   business: ArcBusinessContext;
-  mode: "ask" | "act" | "draft";
+  mode: "ask" | "act" | "draft" | "scan";
   scope: ArcTurnScope;
   mentions: MarkMention[];
   /** Durable memory recalled from the brain across past chats (may be empty). */
@@ -49,9 +49,15 @@ function personasBlock(): string {
   return ["PERSONA TAXONOMY (use these exact keys when mapping or filtering by persona):", ...lines].join("\n");
 }
 
-function modeBlock(mode: "ask" | "act" | "draft"): string {
+function modeBlock(mode: "ask" | "act" | "draft" | "scan"): string {
   if (mode === "ask") {
     return "MODE: ask — read-only. Answer and analyze using read tools only. Do not create, modify, or draft anything.";
+  }
+  if (mode === "scan") {
+    return [
+      "MODE: scan — survey the read tools (CRM, personas, brand, activity, the opportunity inbox) and propose source-backed opportunities by calling propose_opportunity. Each proposal lands status=pending for human approval.",
+      "You may ONLY read and call propose_opportunity. Do NOT draft campaigns, generate media, edit records, log interactions, or take any outbound action.",
+    ].join("\n");
   }
   if (mode === "act") {
     return [

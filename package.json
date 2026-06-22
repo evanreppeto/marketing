@@ -7,6 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit --pretty false",
+    "test:smoke": "vitest run src/lib/product-readiness/app-surface.test.ts src/lib/product-readiness/backend-boundary.test.ts src/lib/auth/route-protection.test.ts src/app/api/auth/sign-in/route.test.ts src/app/api/auth/sign-up/route.test.ts src/app/api/auth/workspace-invites/route.test.ts src/app/api/auth/workspace-members/route.test.ts src/app/api/v1/arc/health/route.test.ts src/app/api/v1/arc/tasks/route.test.ts",
+    "smoke:http": "node scripts/smoke-http.mjs",
+    "health:supabase": "node scripts/check-supabase-health.mjs",
+    "health:constraints": "node scripts/check-agent-task-constraints.mjs",
+    "verify": "node scripts/verify-product.mjs",
+    "verify:live": "node scripts/verify-product.mjs && node scripts/check-supabase-health.mjs && node scripts/check-agent-task-constraints.mjs",
     "seed:arc-demo": "node scripts/seed-arc-demo.mjs",
     "seed:test-campaign": "node scripts/seed-test-campaign.mjs",
     "seed:media-campaign": "node scripts/seed-media-campaign.mjs",
@@ -15,6 +22,7 @@
     "seed:brand-kit-bsr": "node scripts/seed-bsr-brand-kit.mjs",
     "migrate:bsr-branding": "node scripts/migrate-bsr-branding.mjs",
     "diagnose:arc": "node scripts/diagnose-arc-connection.mjs",
+    "backfill:embeddings": "node scripts/backfill-embeddings.mjs",
     "test": "vitest run"
   },
   "dependencies": {

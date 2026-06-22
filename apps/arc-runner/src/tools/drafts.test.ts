@@ -67,4 +67,19 @@ describe("create_campaign_draft", () => {
       expect.objectContaining({ conversation_id: "conv1" }),
     );
   });
+
+  it("defaults to the active campaign from ctx when Arc omits campaign_id", async () => {
+    const client = { apiPost: vi.fn(async () => ({ campaignId: "campaign-ctx", assetId: "asset-1" })) } as unknown as ArcClient;
+    const noStep = vi.fn(async () => {});
+    const [createDraft] = draftWorkProductTools(client, noStep, () => {}, { campaignId: "campaign-ctx" });
+    await (createDraft.handler as (a: Record<string, unknown>, e?: unknown) => Promise<unknown>)({
+      asset_type: "email",
+      title: "Follow-up email",
+      body: "Copy",
+    });
+    expect(client.apiPost).toHaveBeenCalledWith(
+      "/api/v1/arc/campaigns/draft-asset",
+      expect.objectContaining({ campaign_id: "campaign-ctx" }),
+    );
+  });
 });

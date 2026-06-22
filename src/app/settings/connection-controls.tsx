@@ -5,6 +5,7 @@ import { useActionState } from "react";
 
 import { Button, StatusPill, buttonClasses } from "../_components/page-header";
 import { type ThemeTone } from "../_components/theme";
+import { Toggle } from "./controls";
 import {
   type ConnectionActionState,
   sendTestEmailAction,
@@ -116,16 +117,14 @@ function SetupSteps({ connection }: { connection: ConnectionRowView }) {
 }
 
 function ToggleConnection({ connection }: { connection: ConnectionRowView }) {
-  const [state, action, pending] = useActionState(setConnectionEnabledAction, null);
+  const [state, action] = useActionState(setConnectionEnabledAction, null);
 
   return (
-    <div className="grid gap-1">
-      <form action={action}>
+    <div className="grid justify-items-end gap-1">
+      <form action={action} className="flex items-center gap-2.5">
         <input name="provider" type="hidden" value={connection.provider} />
-        <input name="enabled" type="hidden" value={connection.enabled ? "false" : "true"} />
-        <Button disabled={pending} size="sm" type="submit" variant={connection.enabled ? "ghost" : "primary"}>
-          {connection.enabled ? "Pause" : "Enable"}
-        </Button>
+        <span className="text-xs font-semibold text-[var(--text-muted)]">{connection.enabled ? "On" : "Off"}</span>
+        <Toggle defaultOn={connection.enabled} label={`Enable ${connection.label}`} name="enabled" />
       </form>
       <Feedback state={state} />
     </div>

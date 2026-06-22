@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-import { provisionAuthenticatedUser } from "./user-provisioning";
+import { provisionAuthenticatedUser, redeemWorkspaceInviteCodeForUser } from "./user-provisioning";
 
 const getSupabaseAdminClientMock = vi.mocked(getSupabaseAdminClient);
 const isSupabaseAdminConfiguredMock = vi.mocked(isSupabaseAdminConfigured);
@@ -47,13 +47,11 @@ class QueryBuilder {
   insert(...args: unknown[]) {
     this.calls.push(["insert", ...args]);
     const response = this.shiftResponse("insert", { data: null, error: null });
-    const thenableBuilder = this;
-    Object.assign(thenableBuilder, {
+    return Object.assign(this, {
       then(resolve: (value: unknown) => unknown) {
         return Promise.resolve(resolve(response));
       },
     });
-    return thenableBuilder;
   }
 
   update(...args: unknown[]) {
@@ -186,5 +184,55 @@ describe("provisionAuthenticatedUser", () => {
     expect(client.builders.some((builder) => builder.table === "workspace_invites" && builder.calls.some((call) => call[0] === "update" && (call[1] as { status?: string }).status === "used"))).toBe(true);
     expect(client.builders.some((builder) => builder.table === "organization_memberships" && builder.calls.some((call) => call[0] === "insert"))).toBe(true);
     expect(client.builders.some((builder) => builder.table === "workspace_memberships" && builder.calls.some((call) => call[0] === "insert"))).toBe(true);
+  });
+
+  it("redeems an onboarding invite code into active workspace access", async () => {
+    const responses = new Map<string, unknown[]>();
+    queue(responses, "workspace_invites", "maybeSingle", {
+      data: {
+        id: "invite-1",
+        org_id: "org-1",
+        workspace_id: "workspace-1",
+        role: "reviewer",
+        invited_email: "new.operator@example.com",
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+      },
+      error: null,
+    });
+    queue(responses, "organization_memberships", "maybeSingle", { data: null, error: null });
+    queue(responses, "workspace_memberships", "maybeSingle", { data: null, error: null });
+    const client = createClient(responses);
+
+    const result = await redeemWorkspaceInviteCodeForUser(client as never, user(), " bsr 7k2m ");
+
+    expect(result).toEqual({ ok: true, status: "invited_member", orgId: "org-1", workspaceId: "workspace-1" });
+    expect(client.builders.some((builder) => builder.table === "workspace_invites" && builder.calls.some((call) => call[0] === "eq" && call[1] === "code_hash"))).toBe(true);
+    expect(client.builders.some((builder) => builder.table === "workspace_invites" && builder.calls.some((call) => call[0] === "update" && (call[1] as { status?: string }).status === "used"))).toBe(true);
+    expect(client.builders.some((builder) => builder.table === "workspace_memberships" && builder.calls.some((call) => call[0] === "insert" && (call[1] as { role?: string }).role === "reviewer"))).toBe(true);
+  });
+
+  it("rejects an onboarding invite code tied to a different email", async () => {
+    const responses = new Map<string, unknown[]>();
+    queue(responses, "workspace_invites", "maybeSingle", {
+      data: {
+        id: "invite-1",
+        org_id: "org-1",
+        workspace_id: "workspace-1",
+        role: "member",
+        invited_email: "someone.else@example.com",
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+      },
+      error: null,
+    });
+    const client = createClient(responses);
+
+    const result = await redeemWorkspaceInviteCodeForUser(client as never, user(), "BSR-7K2M");
+
+    expect(result).toEqual({
+      ok: false,
+      status: "email_mismatch",
+      message: "That invite code is tied to a different email address.",
+    });
+    expect(client.builders.some((builder) => builder.table === "workspace_memberships" && builder.calls.some((call) => call[0] === "insert"))).toBe(false);
   });
 });

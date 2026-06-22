@@ -2,11 +2,13 @@ import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "@/app/_components/page-header";
 import { formatByteSize } from "@/domain";
+import { listGoogleDriveSourcesForCurrentOperator } from "@/lib/google-drive/sources";
 import { folderAndDescendantIds, getMediaLibraryData } from "@/lib/media-library/read-model";
 
 import { AssetGrid } from "./_components/asset-grid";
 import { FolderRail } from "./_components/folder-rail";
 import { GoogleDriveImport } from "./_components/google-drive-import";
+import { LibraryTabs } from "./_components/library-tabs";
 import { NewFolderButton } from "./_components/new-folder-button";
 import { UploadButton } from "./_components/upload-button";
 
@@ -21,6 +23,7 @@ export default async function LibraryPage({
   if (data.status === "unavailable") {
     return (
       <>
+        <LibraryTabs active="assets" />
         <PageHeader title="Library" description={data.message} />
         <EmptyState title="Library unavailable" detail={data.message} />
       </>
@@ -35,9 +38,11 @@ export default async function LibraryPage({
     ? data.assets.filter((a) => a.folderId !== null && activeFolderIds?.has(a.folderId))
     : data.assets;
   const arcCount = data.assets.filter((a) => a.availableToArc).length;
+  const driveSources = await listGoogleDriveSourcesForCurrentOperator().catch(() => []);
 
   return (
     <>
+      <LibraryTabs active="assets" />
       <PageHeader
         title="Library"
         description={`${data.assets.length} assets · ${formatByteSize(data.totalBytes)} · ${arcCount} available to Arc.`}
@@ -45,7 +50,7 @@ export default async function LibraryPage({
           data.assets.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
               <NewFolderButton parentFolderId={isFolderActive ? activeFolderId : null} />
-              <GoogleDriveImport activeFolderId={isFolderActive ? activeFolderId : null} />
+              <GoogleDriveImport activeFolderId={isFolderActive ? activeFolderId : null} sources={driveSources} />
               <UploadButton activeFolderId={isFolderActive ? activeFolderId : null} />
             </div>
           ) : undefined
@@ -58,7 +63,7 @@ export default async function LibraryPage({
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
               <NewFolderButton parentFolderId={null} />
-              <GoogleDriveImport activeFolderId={null} />
+              <GoogleDriveImport activeFolderId={null} sources={driveSources} />
               <UploadButton activeFolderId={null} />
             </div>
           }

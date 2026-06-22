@@ -19,7 +19,7 @@ export function buildLinkContext(notes: VaultNote[] = vaultNotes): LinkResolutio
   const noteMap = new Map(notes.map((n) => [n.slug, `/vault/${n.slug}`]));
 
   const personaMap = new Map<string, string>(
-    OFFICIAL_PERSONA_MAPPINGS.map((persona) => [persona, "/persona-intelligence"]),
+    OFFICIAL_PERSONA_MAPPINGS.map((persona) => [persona, "/personas"]),
   );
 
   return { notes: noteMap, records: new Map<string, string>(), personas: personaMap };

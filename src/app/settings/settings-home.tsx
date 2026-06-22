@@ -38,16 +38,16 @@ export async function SettingsHome() {
 
   const cards: HomeCard[] = [
     {
-      title: "Workspace & product",
-      detail: "Product label, assistant name, and workspace type.",
-      href: "/settings?section=branding",
-      action: "Review setup",
+      title: "Workspace & team",
+      detail: "Switch workspaces, manage members, roles, and invite codes.",
+      href: "/settings?section=workspaces",
+      action: "Open workspaces",
       done: Boolean(settings.workspaceName && settings.productLabel && settings.assistantName),
     },
     {
       title: "Company brand",
       detail: "Business identity, voice, proof, rules, and source documents live in the Brand workspace.",
-      href: "/brand",
+      href: "/library/brand",
       action: "Open Brand",
       done: true,
     },

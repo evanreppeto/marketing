@@ -122,7 +122,7 @@ export function classifyBrandSource(candidate: BrandSourceCandidate): BrandSourc
     }
   }
 
-  if (candidate.source === "google_drive" || candidate.kind === "document") {
+  if (candidate.source === "google_drive" || candidate.source === "url" || candidate.kind === "document") {
     return {
       category: "source_document",
       label: "Source document",

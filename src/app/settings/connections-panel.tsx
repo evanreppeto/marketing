@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 
 import { getConnections } from "@/lib/connections/read-model";
+import { loadGoogleDriveHealth } from "@/lib/google-drive/health";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { StatusPill } from "../_components/page-header";
 import { AgentConnectionShortcut, ConnectionSetupCard } from "./connection-controls";
+import { GoogleDriveHealthCard } from "./google-drive-health-card";
 import { ProviderLogo } from "./provider-logo";
 import { SettingsSection } from "./settings-section";
 
@@ -18,7 +20,7 @@ function summaryTone(ok: boolean) {
  * connection enables and what the next human action is.
  */
 export async function ConnectionsPanel() {
-  const connections = await getConnections();
+  const [connections, driveHealth] = await Promise.all([getConnections(), loadGoogleDriveHealth()]);
   const email = connections.filter((connection) => connection.kind === "email");
   const storage = connections.filter((connection) => connection.kind === "storage");
   const social = connections.filter((connection) => connection.kind === "social");
@@ -49,6 +51,7 @@ export async function ConnectionsPanel() {
         {storage.map((connection) => (
           <ConnectionSetupCard connection={connection} key={connection.provider} />
         ))}
+        <GoogleDriveHealthCard health={driveHealth} />
         <AgentConnectionShortcut />
       </ul>
 

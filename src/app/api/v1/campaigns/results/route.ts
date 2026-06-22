@@ -6,10 +6,23 @@ import { persistCampaignResults } from "@/lib/gallery/results-persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  const auth = checkBearerToken(request, "CAMPAIGN_RESULTS_API_TOKEN", { required: false });
+  const persistenceConfigured = isSupabaseAdminConfigured();
+  const auth = checkBearerToken(request, "CAMPAIGN_RESULTS_API_TOKEN", { required: persistenceConfigured });
   if (!auth.ok) {
+    const notConfigured = auth.reason === "not_configured";
     return NextResponse.json(
-      { ok: false, status: "unauthorized", errors: [{ code: "unauthorized", message: "Campaign results ingest requires a valid bearer token." }] },
+      {
+        ok: false,
+        status: notConfigured ? "not_configured" : "unauthorized",
+        errors: [
+          {
+            code: notConfigured ? "not_configured" : "unauthorized",
+            message: notConfigured
+              ? "Set CAMPAIGN_RESULTS_API_TOKEN before enabling persistent campaign results ingestion."
+              : "Campaign results ingest requires a valid bearer token.",
+          },
+        ],
+      },
       { status: auth.status },
     );
   }
@@ -31,7 +44,7 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  if (!isSupabaseAdminConfigured()) {
+  if (!persistenceConfigured) {
     return NextResponse.json(
       { ok: true, status: "accepted", received: parsed.length, persistence: { status: "not_configured", message: "Supabase persistence is not connected." } },
       { status: 202 },

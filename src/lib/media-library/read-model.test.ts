@@ -26,6 +26,10 @@ describe("toAssetView", () => {
     expect(toAssetView(row({ kind: "logo" }), 0).badge).toBe("LOGO");
     expect(toAssetView(row({ kind: "video", content_type: "video/mp4" }), 0).badge).toBe("VIDEO");
   });
+  it("labels URL and document sources clearly", () => {
+    expect(toAssetView(row({ source: "url", kind: "document", content_type: "text/plain" }), 0).badge).toBe("URL");
+    expect(toAssetView(row({ kind: "document", content_type: "application/pdf" }), 0).badge).toBe("DOC");
+  });
 });
 
 describe("countUsage", () => {

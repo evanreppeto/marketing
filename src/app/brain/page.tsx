@@ -2,23 +2,35 @@ import { PageHeader, StatStrip, type StatItem } from "@/app/_components/page-hea
 import { BrainShell } from "@/app/brain/_components/brain-shell";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
+import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
 export const dynamic = "force-dynamic";
 
-export default async function BrainPage() {
-  const [graph, proposed, all, summary, agentName] = await Promise.all([
+export default async function BrainPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ persona?: string | string[] }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const initialPersona = Array.isArray(params.persona) ? params.persona[0] : params.persona;
+  const [graph, proposed, all, summary, agentName, library] = await Promise.all([
     getBrainGraph(),
     listProposed(),
     listNodes({}),
     brainSummary(),
     getAgentName(),
+    getMediaLibraryData(),
   ]);
 
   const graphNodes = graph.status === "live" ? graph.nodes : [];
   const graphEdges = graph.status === "live" ? graph.edges : [];
   const proposedNodes = proposed.status === "live" ? proposed.nodes : [];
   const allNodes = all.status === "live" ? all.nodes : [];
+  const sourceReview = buildBrainSourceReviewData({
+    assets: library.status === "live" ? library.assets : [],
+    proposedNodes,
+  });
 
   const total = summary.status === "live" ? summary.total : 0;
   const trusted = summary.status === "live" ? (summary.byTier.trusted ?? 0) : 0;

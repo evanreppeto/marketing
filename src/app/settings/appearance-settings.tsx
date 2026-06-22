@@ -8,7 +8,8 @@ export async function AppearanceSettings() {
 
   return (
     <SettingsSection
-      description="Change how the console feels across every page. These preferences are saved and applied by the app layout."
+      bodyClassName="p-0"
+      description="Change how the console feels across every page. Changes save automatically."
       title="Appearance"
     >
       <AppearanceSettingsForm

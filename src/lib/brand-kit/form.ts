@@ -36,6 +36,19 @@ export function buildBusinessProfileFromForm(
   const faviconUpload = str(formData, "faviconUpload");
   const faviconUrl = str(formData, "faviconUrl");
   const submittedStatus = formData.get("status");
+  const color = (slot: string) => ({
+    label: str(formData, `palette_${slot}_label`),
+    hex: str(formData, `palette_${slot}_hex`),
+  });
+  const brandPalette = {
+    primary: color("primary"),
+    secondary: color("secondary"),
+    accent: color("accent"),
+    dark: color("dark"),
+    light: color("light"),
+    headingFont: str(formData, "palette_heading_font"),
+    bodyFont: str(formData, "palette_body_font"),
+  };
   return {
     ...current,
     displayName: str(formData, "displayName") || current.displayName,
@@ -58,6 +71,7 @@ export function buildBusinessProfileFromForm(
       disallowedClaims: splitLines(str(formData, "disallowedClaims")),
       complianceNotes: str(formData, "complianceNotes") || current.guardrails.complianceNotes,
     },
+    brandPalette,
     status: submittedStatus === "active" ? "active" : submittedStatus === "draft" ? "draft" : current.status,
   };
 }

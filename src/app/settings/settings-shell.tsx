@@ -11,7 +11,7 @@ export function SettingsShell({
   panels: Record<SettingsSectionId, ReactNode>;
 }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
+    <div className="grid gap-6 lg:grid-cols-[236px_minmax(0,1fr)] lg:gap-10">
       <SettingsNav active={active} />
 
       <div className="min-w-0">

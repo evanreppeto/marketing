@@ -8,16 +8,25 @@ import { persistPersonaIntelligenceForLead } from "@/lib/persona-intelligence/pe
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  // Enforced only when LEADS_INGEST_API_TOKEN is set, so the documented dev/contract
-  // flow keeps working while any configured deployment requires a valid token.
-  const auth = checkBearerToken(request, "LEADS_INGEST_API_TOKEN", { required: false });
+  const persistenceConfigured = isSupabaseAdminConfigured();
+  // Non-persistent dev/contract mode stays open. Once Supabase persistence is
+  // connected, ingestion must be authenticated before it can write data.
+  const auth = checkBearerToken(request, "LEADS_INGEST_API_TOKEN", { required: persistenceConfigured });
 
   if (!auth.ok) {
+    const notConfigured = auth.reason === "not_configured";
     return NextResponse.json(
       {
         ok: false,
-        status: "unauthorized",
-        errors: [{ code: "unauthorized", message: "Lead ingestion requires a valid bearer token." }],
+        status: notConfigured ? "not_configured" : "unauthorized",
+        errors: [
+          {
+            code: notConfigured ? "not_configured" : "unauthorized",
+            message: notConfigured
+              ? "Set LEADS_INGEST_API_TOKEN before enabling persistent lead ingestion."
+              : "Lead ingestion requires a valid bearer token.",
+          },
+        ],
       },
       { status: auth.status },
     );
@@ -51,7 +60,7 @@ export async function POST(request: Request) {
 
   const { normalizedInput, ...responseResult } = result;
 
-  if (!isSupabaseAdminConfigured()) {
+  if (!persistenceConfigured) {
     return NextResponse.json(
       {
         ...responseResult,

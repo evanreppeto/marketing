@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Cog, MoreHorizontal, PlusIcon } from "lucide-react";
+
+import { switchWorkspaceAction } from "../settings/workspace-actions";
 
 import { AgentNameProvider } from "./agent-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
@@ -79,11 +81,15 @@ export function ConsoleFrame({
   brand,
   children,
   operator,
+  workspaces,
+  activeWorkspaceId,
 }: {
   agentName: string;
   brand: ConsoleBrand;
   children: React.ReactNode;
   operator: OperatorShellProfile;
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string;
 }) {
   const pathname = usePathname() ?? "/";
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -108,8 +114,8 @@ export function ConsoleFrame({
   const intelligenceNavItems: ShellNavItem[] = [
     { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
     { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
-    { label: "Brand", href: "/brand", icon: "brand", matches: ["/brand"] },
     { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
+    { label: "Personas", href: "/personas", icon: "personas", matches: ["/personas"] },
   ];
 
   const assetNavItems: ShellNavItem[] = [
@@ -268,7 +274,7 @@ export function ConsoleFrame({
                 </div>
               </div>
 
-              <SidebarBottomDock collapsed={sidebarCollapsed} operator={operator} settingsHref={utilityNavItems[0].href} workspaceName={brand.workspaceName} />
+              <SidebarBottomDock activeWorkspaceId={activeWorkspaceId} collapsed={sidebarCollapsed} operator={operator} settingsHref={utilityNavItems[0].href} workspaceName={brand.workspaceName} workspaces={workspaces} />
             </div>
           </aside>
 
@@ -472,37 +478,64 @@ function SidebarBottomDock({
   operator,
   settingsHref,
   workspaceName,
+  workspaces,
+  activeWorkspaceId,
 }: {
   collapsed?: boolean;
   operator: OperatorShellProfile;
   settingsHref: string;
   workspaceName: string;
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string;
 }) {
   return (
     <div className={cx(sidebarBottomDock, collapsed ? "space-y-2 px-1.5 py-2.5" : "space-y-3.5 px-3 py-3.5")}>
-      <SidebarWorkspaceSwitcher collapsed={collapsed} workspaceName={workspaceName} />
+      <SidebarWorkspaceSwitcher
+        activeWorkspaceId={activeWorkspaceId}
+        collapsed={collapsed}
+        workspaceName={workspaceName}
+        workspaces={workspaces}
+      />
       <OperatorProfile collapsed={collapsed} operator={operator} settingsHref={settingsHref} />
     </div>
   );
 }
 
-function SidebarWorkspaceSwitcher({ collapsed, workspaceName }: { collapsed?: boolean; workspaceName: string }) {
-  const workspaces: Workspace[] = [
-    {
-      id: "current",
-      name: workspaceName,
-      plan: "Company workspace",
-    },
-  ];
+function SidebarWorkspaceSwitcher({
+  collapsed,
+  workspaceName,
+  workspaces,
+  activeWorkspaceId,
+}: {
+  collapsed?: boolean;
+  workspaceName: string;
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string;
+}) {
+  const router = useRouter();
+  const [switching, startSwitch] = useTransition();
+
+  // Fall back to a single read-only entry when there's no signed-in workspace
+  // list (open/dev mode, or Supabase not configured).
+  const list: Workspace[] = workspaces?.length ? workspaces : [{ id: "current", name: workspaceName, plan: "Workspace" }];
+  const selectedId = activeWorkspaceId && list.some((workspace) => workspace.id === activeWorkspaceId) ? activeWorkspaceId : list[0]?.id;
+
+  function handleChange(workspace: Workspace) {
+    if (switching || workspace.id === "current" || workspace.id === selectedId) return;
+    startSwitch(async () => {
+      const result = await switchWorkspaceAction(workspace.id);
+      if (result.ok) router.refresh();
+    });
+  }
 
   return (
-    <div className={cx(collapsed ? "flex justify-center" : "")}>
+    <div className={cx(collapsed ? "flex justify-center" : "", switching ? "pointer-events-none opacity-70" : "")}>
       {!collapsed ? (
         <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          Workspace
+          {switching ? "Switching…" : "Workspace"}
         </div>
       ) : null}
-      <Workspaces workspaces={workspaces} selectedWorkspaceId="current">
+      <Workspaces onWorkspaceChange={handleChange} selectedWorkspaceId={selectedId} workspaces={list}>
         <WorkspaceTrigger collapsed={collapsed} />
         <WorkspaceContent align={collapsed ? "center" : "start"} side={collapsed ? "right" : "top"} sideOffset={10} title="Workspaces">
           <Link

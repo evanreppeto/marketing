@@ -93,9 +93,11 @@ export function OperatorLoginPage({ from, error, authMode }: { from: string; err
           ? "Google sign-in could not be completed. Try again or use email."
           : error === "config"
             ? "Operator credentials are not configured yet."
-            : error
-              ? "That email or password was not accepted. Try again."
-              : null;
+            : error === "provision"
+              ? "Your account signed in, but workspace access could not be prepared. Ask an administrator to check memberships."
+              : error
+                ? "That email or password was not accepted. Try again."
+                : null;
 
   return (
     <SignInPage
