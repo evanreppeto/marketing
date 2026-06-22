@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Cog, MoreHorizontal, PlusIcon } from "lucide-react";
+import { Cog, LogOut, MoreHorizontal, PlusIcon } from "lucide-react";
 
 import { switchWorkspaceAction } from "../settings/workspace-actions";
 
@@ -598,14 +598,26 @@ function OperatorProfile({ collapsed, operator, settingsHref }: { collapsed?: bo
         ) : null}
       </div>
       {!collapsed ? (
-        <Link
-          aria-label="Settings"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
-          href={settingsHref}
-          title="Settings"
-        >
-          <Cog aria-hidden className="h-4.5 w-4.5" />
-        </Link>
+        <div className="flex shrink-0 items-center gap-1">
+          <Link
+            aria-label="Settings"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+            href={settingsHref}
+            title="Settings"
+          >
+            <Cog aria-hidden className="h-4.5 w-4.5" />
+          </Link>
+          <form action="/api/auth/sign-out" method="post" className="contents">
+            <button
+              aria-label="Sign out"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+              title="Sign out"
+              type="submit"
+            >
+              <LogOut aria-hidden className="h-4.5 w-4.5" />
+            </button>
+          </form>
+        </div>
       ) : null}
     </div>
   );
