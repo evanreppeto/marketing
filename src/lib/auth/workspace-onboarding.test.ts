@@ -165,11 +165,8 @@ describe("uniqueOrgSlug", () => {
     for (let n = 2; n <= 20; n++) taken.add(`acme-${n}`);
     const exists = vi.fn().mockImplementation(async (slug: string) => taken.has(slug));
     const result = await uniqueOrgSlug("Acme", exists);
-    // Must match base-<non-numeric-suffix>
-    expect(result).toMatch(/^acme-[a-z0-9]+$/);
-    // The suffix must NOT be purely numeric (distinguishes from the -2..-20 range)
-    const suffix = result.replace(/^acme-/, "");
-    expect(/^\d+$/.test(suffix)).toBe(false);
+    // Must match base-<6-char hex suffix> — shortSlugSuffix returns randomBytes(3).toString("hex")
+    expect(result).toMatch(/^acme-[a-f0-9]{6}$/);
   });
 });
 
