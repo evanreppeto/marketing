@@ -147,7 +147,8 @@ export function ConsoleFrame({
     pathname === "/sign-in" ||
     pathname === "/sign-up" ||
     pathname === "/forgot-password" ||
-    pathname === "/onboarding"
+    pathname === "/onboarding" ||
+    pathname === "/welcome"
   ) {
     return <AgentNameProvider value={agentName}>{children}</AgentNameProvider>;
   }
