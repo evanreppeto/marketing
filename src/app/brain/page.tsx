@@ -1,10 +1,12 @@
 import { PageHeader, StatStrip, type StatItem } from "@/app/_components/page-header";
-import { ApprovalQueue } from "@/app/brain/_components/approval-queue";
 import { BrainBrowser } from "@/app/brain/_components/brain-browser";
 import { BrainWorkspace } from "@/app/brain/_components/brain-workspace";
 import { RecentlyLearned } from "@/app/brain/_components/recently-learned";
+import { SourceReviewQueue } from "@/app/brain/_components/source-review-queue";
+import { buildBrainSourceReviewData } from "@/lib/brand-knowledge/source-review";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
+import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
 export const dynamic = "force-dynamic";
@@ -16,18 +18,23 @@ export default async function BrainPage({
 }) {
   const params = searchParams ? await searchParams : {};
   const initialPersona = Array.isArray(params.persona) ? params.persona[0] : params.persona;
-  const [graph, proposed, all, summary, agentName] = await Promise.all([
+  const [graph, proposed, all, summary, agentName, library] = await Promise.all([
     getBrainGraph(),
     listProposed(),
     listNodes({}),
     brainSummary(),
     getAgentName(),
+    getMediaLibraryData(),
   ]);
 
   const graphNodes = graph.status === "live" ? graph.nodes : [];
   const graphEdges = graph.status === "live" ? graph.edges : [];
   const proposedNodes = proposed.status === "live" ? proposed.nodes : [];
   const allNodes = all.status === "live" ? all.nodes : [];
+  const sourceReview = buildBrainSourceReviewData({
+    assets: library.status === "live" ? library.assets : [],
+    proposedNodes,
+  });
 
   const total = summary.status === "live" ? summary.total : 0;
   const trusted = summary.status === "live" ? (summary.byTier.trusted ?? 0) : 0;
@@ -64,10 +71,8 @@ export default async function BrainPage({
       {/* Hero workspace — category rail · interactive Cytoscape knowledge web ·
           selected-node detail. One graph, legible, matching the concept. */}
       <BrainWorkspace nodes={graphNodes} edges={graphEdges} agentName={agentName} initialPersona={initialPersona} />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <RecentlyLearned nodes={allNodes} />
-        <ApprovalQueue nodes={proposedNodes} />
-      </div>
+      <SourceReviewQueue data={sourceReview} />
+      <RecentlyLearned nodes={allNodes} />
       <BrainBrowser nodes={allNodes} agentName={agentName} />
     </div>
   );
