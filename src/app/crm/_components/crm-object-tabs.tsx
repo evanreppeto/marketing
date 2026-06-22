@@ -47,8 +47,11 @@ export function CrmObjectTabs({
   counts?: Partial<Record<CrmObjectKey, number>>;
 }) {
   return (
-    <section className="module-rise border-b border-[var(--border-hairline)] pb-3 [animation-delay:40ms]">
-      <nav aria-label="CRM object tabs" className="flex gap-1 overflow-x-auto">
+    <section className="module-rise [animation-delay:40ms]">
+      <nav
+        aria-label="CRM object tabs"
+        className="flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3"
+      >
         {objectTabOrder.map((tab) => {
           const isHome = tab.key === "home";
           const isBuilder = tab.key === "builder";

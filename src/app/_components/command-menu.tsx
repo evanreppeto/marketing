@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { navItems } from "../_data/growth-engine";
 import { useAgentName } from "./agent-name-context";
@@ -15,6 +15,22 @@ type JumpItem = {
   href: string;
 };
 
+type CommandMenuContextValue = {
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+};
+
+const CommandMenuContext = createContext<CommandMenuContextValue | null>(null);
+
+/** Open the shared command palette from anywhere inside the app shell. */
+export function useCommandMenu(): CommandMenuContextValue {
+  const value = useContext(CommandMenuContext);
+  // No-op fallback so isolated previews/tests that render a consumer without
+  // the provider don't crash.
+  return value ?? { open: () => {}, close: () => {}, toggle: () => {} };
+}
+
 function buildItems(agentName: string): JumpItem[] {
   return navItems.map((item) => ({
     key: `nav:${item.href}`,
@@ -24,7 +40,13 @@ function buildItems(agentName: string): JumpItem[] {
   }));
 }
 
-export function QuickJump() {
+/**
+ * Mounts the global command palette once and wires the Ctrl/Cmd+K shortcut.
+ * Any descendant can trigger it via {@link useCommandMenu}. Previously this
+ * lived in an unmounted `QuickJump` component, so the shortcut did nothing and
+ * the workbench "Arc command" box was decorative.
+ */
+export function CommandMenuProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const agentName = useAgentName();
   const [open, setOpen] = useState(false);
@@ -37,17 +59,20 @@ export function QuickJump() {
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return allItems.slice(0, 10);
-    return allItems
-      .filter((item) => `${item.label} ${item.subtitle}`.toLowerCase().includes(q))
-      .slice(0, 12);
+    return allItems.filter((item) => `${item.label} ${item.subtitle}`.toLowerCase().includes(q)).slice(0, 12);
   }, [allItems, query]);
 
   const selectedIndex = Math.min(activeIndex, Math.max(0, items.length - 1));
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
+  const controls = useMemo<CommandMenuContextValue>(
+    () => ({
+      open: () => {
+        setQuery("");
+        setActiveIndex(0);
+        setOpen(true);
+      },
+      close: () => setOpen(false),
+      toggle: () =>
         setOpen((value) => {
           const nextOpen = !value;
           if (nextOpen) {
@@ -55,17 +80,28 @@ export function QuickJump() {
             setActiveIndex(0);
           }
           return nextOpen;
-        });
+        }),
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        controls.toggle();
         return;
       }
-      if (event.key === "Escape" && open) {
-        event.preventDefault();
-        setOpen(false);
+      if (event.key === "Escape") {
+        setOpen((value) => {
+          if (value) event.preventDefault();
+          return false;
+        });
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [controls]);
 
   useEffect(() => {
     if (!open) return;
@@ -91,24 +127,8 @@ export function QuickJump() {
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          setQuery("");
-          setActiveIndex(0);
-          setOpen(true);
-        }}
-        className="inline-flex items-center gap-1.5 rounded px-1 text-xs text-[var(--text-muted)] transition hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-        aria-label="Open quick jump (Ctrl or Cmd + K)"
-      >
-        <kbd className="hidden items-center gap-1 rounded border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)] sm:inline-flex">
-          <span>⌘</span>
-          <span>K</span>
-        </kbd>
-        <span className="hidden sm:inline">Quick jump</span>
-      </button>
-
+    <CommandMenuContext.Provider value={controls}>
+      {children}
       {open ? (
         <div
           className={cx(theme.shell.overlay, "flex items-start justify-center px-4 pt-[12vh]")}
@@ -120,7 +140,7 @@ export function QuickJump() {
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Quick jump"
+            aria-label="Command palette"
           >
             <div className="border-b border-[var(--border-hairline)] px-3 py-2">
               <input
@@ -185,6 +205,6 @@ export function QuickJump() {
           </div>
         </div>
       ) : null}
-    </>
+    </CommandMenuContext.Provider>
   );
 }
