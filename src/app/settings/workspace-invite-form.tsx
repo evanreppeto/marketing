@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "../_components/page-header";
 
 type InviteResult =
-  | { ok: true; code: string; expiresAt: string }
+  | { ok: true; code: string; expiresAt: string; emailed?: boolean; emailError?: string | null }
   | { ok: false; message: string; status?: string };
 
 const inputClass =
@@ -16,6 +16,8 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [result, setResult] = useState<InviteResult | null>(null);
+  const [email, setEmail] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +27,7 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
 
     const form = new FormData(event.currentTarget);
     const invitedEmail = String(form.get("invitedEmail") ?? "").trim();
+    setSubmittedEmail(invitedEmail);
     const role = String(form.get("role") ?? "member");
     const expiresInDays = Number(form.get("expiresInDays") ?? 14);
 
@@ -58,9 +61,16 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
     <form className="grid gap-4" onSubmit={handleSubmit}>
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_180px_150px]">
         <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Email restriction</span>
-          <input className={inputClass} name="invitedEmail" placeholder="teammate@company.com" type="email" />
-          <span className="text-xs text-[var(--text-muted)]">Leave blank to let anyone with the code redeem it.</span>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Invite by email (optional)</span>
+          <input
+            className={inputClass}
+            name="invitedEmail"
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="teammate@company.com"
+            type="email"
+            value={email}
+          />
+          <span className="text-xs text-[var(--text-muted)]">We'll email them a join link. Leave blank to just generate a code.</span>
         </label>
 
         <label className="grid gap-1.5">
@@ -88,10 +98,10 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={pending} size="sm" type="submit" variant="primary">
           {pending ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <UserPlus aria-hidden className="h-4 w-4" />}
-          Generate invite code
+          {email.trim() ? "Send invite" : "Generate invite code"}
         </Button>
         <span aria-live="polite" className="text-xs font-semibold text-[var(--text-muted)]">
-          {pending ? "Issuing code..." : null}
+          {pending ? (email.trim() ? "Sending invite..." : "Issuing code...") : null}
         </span>
       </div>
 
@@ -106,6 +116,11 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
           {result.ok ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
+                {result.emailed ? (
+                  <div className="mb-2 text-sm font-semibold text-[var(--ok-text)]">Invited {submittedEmail}</div>
+                ) : submittedEmail && result.emailed === false ? (
+                  <div className="mb-2 text-sm font-semibold text-[var(--priority-text)]">Couldn't email them — share this code instead.</div>
+                ) : null}
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ok-text)]">Invite code</div>
                 <div className="mt-1 font-mono text-xl font-bold tracking-[0.08em] text-[var(--text-primary)]">{result.code}</div>
                 <div className="mt-1 text-xs text-[var(--text-muted)]">Expires {new Date(result.expiresAt).toLocaleDateString()}.</div>
