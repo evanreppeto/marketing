@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { cancelWorkspaceInvite, issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 function statusCodeFor(status: string) {
   if (status === "not_authenticated") return 401;
@@ -27,6 +28,24 @@ export async function POST(request: Request) {
 
   if (!result.ok) {
     return NextResponse.json(result, { status: statusCodeFor(result.status) });
+  }
+
+  const invitedEmail = typeof body.invitedEmail === "string" ? body.invitedEmail.trim() : "";
+  if (invitedEmail) {
+    const origin = new URL(request.url).origin;
+    try {
+      const { error } = await getSupabaseAdminClient().auth.admin.inviteUserByEmail(invitedEmail, {
+        data: { pending_invite_code: result.code },
+        redirectTo: `${origin}/auth/callback`,
+      });
+      return NextResponse.json({ ...result, emailed: !error, emailError: error?.message ?? null });
+    } catch (error) {
+      return NextResponse.json({
+        ...result,
+        emailed: false,
+        emailError: error instanceof Error ? error.message : "Invite email could not be sent.",
+      });
+    }
   }
 
   return NextResponse.json(result);

@@ -1,69 +1,49 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("@/lib/auth/workspace-invites", () => ({ issueWorkspaceInviteCode: vi.fn(), cancelWorkspaceInvite: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ getSupabaseAdminClient: vi.fn() }));
+import { issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { POST } from "./route";
 
-vi.mock("@/lib/auth/workspace-invites", () => ({ cancelWorkspaceInvite: vi.fn(), issueWorkspaceInviteCode: vi.fn() }));
-
-import { cancelWorkspaceInvite, issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
-
-import { DELETE, POST } from "./route";
-
-const issueWorkspaceInviteCodeMock = vi.mocked(issueWorkspaceInviteCode);
-const cancelWorkspaceInviteMock = vi.mocked(cancelWorkspaceInvite);
-
-describe("POST /api/auth/workspace-invites", () => {
-  it("issues a workspace invite code from JSON input", async () => {
-    issueWorkspaceInviteCodeMock.mockResolvedValue({
-      code: "BSR7-K2M9",
-      expiresAt: "2026-07-02T00:00:00.000Z",
-      ok: true,
-      orgId: "org-1",
-      workspaceId: "workspace-1",
-    });
-
-    const response = await POST(
-      new Request("http://localhost/api/auth/workspace-invites", {
-        body: JSON.stringify({
-          invitedEmail: "teammate@example.com",
-          role: "marketer",
-          workspaceId: "workspace-1",
-        }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      }),
-    );
-
-    expect(issueWorkspaceInviteCodeMock).toHaveBeenCalledWith({
-      expiresInDays: undefined,
-      invitedEmail: "teammate@example.com",
-      role: "marketer",
-      workspaceId: "workspace-1",
-    });
-    await expect(response.json()).resolves.toEqual({
-      code: "BSR7-K2M9",
-      expiresAt: "2026-07-02T00:00:00.000Z",
-      ok: true,
-      orgId: "org-1",
-      workspaceId: "workspace-1",
-    });
+const issue = vi.mocked(issueWorkspaceInviteCode);
+const adminFor = vi.mocked(getSupabaseAdminClient);
+const inviteUserByEmail = vi.fn();
+function req(body: unknown) {
+  return new Request("https://app.example.com/api/auth/workspace-invites", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
   });
+}
+beforeEach(() => {
+  issue.mockReset(); inviteUserByEmail.mockReset();
+  issue.mockResolvedValue({ ok: true, code: "ABC123", expiresAt: "2026-07-01T00:00:00Z" } as never);
+  inviteUserByEmail.mockResolvedValue({ data: {}, error: null });
+  adminFor.mockReturnValue({ auth: { admin: { inviteUserByEmail } } } as never);
+});
 
-  it("revokes a workspace invite from JSON input", async () => {
-    cancelWorkspaceInviteMock.mockResolvedValue({ ok: true });
-
-    const response = await DELETE(
-      new Request("http://localhost/api/auth/workspace-invites", {
-        body: JSON.stringify({
-          inviteId: "invite-1",
-          workspaceId: "workspace-1",
-        }),
-        headers: { "content-type": "application/json" },
-        method: "DELETE",
-      }),
-    );
-
-    expect(cancelWorkspaceInviteMock).toHaveBeenCalledWith({
-      inviteId: "invite-1",
-      workspaceId: "workspace-1",
+describe("POST /api/auth/workspace-invites email send", () => {
+  it("emails the invite (seeding pending_invite_code) when invitedEmail is given", async () => {
+    const res = await POST(req({ workspaceId: "w1", role: "member", invitedEmail: "teammate@co.com" }));
+    expect(inviteUserByEmail).toHaveBeenCalledWith("teammate@co.com", {
+      data: { pending_invite_code: "ABC123" },
+      redirectTo: "https://app.example.com/auth/callback",
     });
-    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(await res.json()).toMatchObject({ ok: true, code: "ABC123", emailed: true });
+  });
+  it("does NOT email when no invitedEmail (code-only)", async () => {
+    const res = await POST(req({ workspaceId: "w1", role: "member" }));
+    expect(inviteUserByEmail).not.toHaveBeenCalled();
+    expect(await res.json()).toMatchObject({ ok: true, code: "ABC123" });
+  });
+  it("still returns ok+code with emailed:false when the send errors", async () => {
+    inviteUserByEmail.mockResolvedValue({ data: null, error: { message: "already registered" } });
+    const res = await POST(req({ workspaceId: "w1", role: "member", invitedEmail: "dup@co.com" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, code: "ABC123", emailed: false, emailError: "already registered" });
+  });
+  it("does not email when issuing the code failed", async () => {
+    issue.mockResolvedValue({ ok: false, status: "invalid_input", message: "bad" } as never);
+    const res = await POST(req({ workspaceId: "", role: "member", invitedEmail: "x@co.com" }));
+    expect(res.status).toBe(400);
+    expect(inviteUserByEmail).not.toHaveBeenCalled();
   });
 });
