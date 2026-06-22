@@ -59,3 +59,127 @@ export function estimateMediaCostCents(
   const count = units ?? 1;
   return MEDIA_PRICING[service] * count;
 }
+
+export type UsageRollupEvent = {
+  service: AiUsageService;
+  model: string;
+  actorUser: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  units: number | null;
+  costCents: number;
+  occurredAt: string; // ISO timestamp
+};
+
+export type ServiceRollup = {
+  service: AiUsageService;
+  costCents: number;
+  inputTokens: number;
+  outputTokens: number;
+  units: number;
+  count: number;
+};
+
+export type ModelRollup = { model: string; costCents: number; count: number };
+export type UserRollup = {
+  actorUser: string | null;
+  costCents: number;
+  count: number;
+  inputTokens: number;
+  outputTokens: number;
+  units: number;
+};
+
+export type UsageSummary = {
+  totalCostCents: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalUnits: number;
+  eventCount: number;
+  byService: ServiceRollup[];
+  byModel: ModelRollup[];
+  byUser: UserRollup[];
+};
+
+export function summarizeUsage(events: UsageRollupEvent[]): UsageSummary {
+  const summary: UsageSummary = {
+    totalCostCents: 0,
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    totalUnits: 0,
+    eventCount: events.length,
+    byService: [],
+    byModel: [],
+    byUser: [],
+  };
+
+  const services = new Map<AiUsageService, ServiceRollup>();
+  const models = new Map<string, ModelRollup>();
+  const users = new Map<string, UserRollup>();
+
+  for (const e of events) {
+    const inTok = e.inputTokens ?? 0;
+    const outTok = e.outputTokens ?? 0;
+    const units = e.units ?? 0;
+
+    summary.totalCostCents += e.costCents;
+    summary.totalInputTokens += inTok;
+    summary.totalOutputTokens += outTok;
+    summary.totalUnits += units;
+
+    const svc = services.get(e.service) ?? {
+      service: e.service,
+      costCents: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      units: 0,
+      count: 0,
+    };
+    svc.costCents += e.costCents;
+    svc.inputTokens += inTok;
+    svc.outputTokens += outTok;
+    svc.units += units;
+    svc.count += 1;
+    services.set(e.service, svc);
+
+    const mdl = models.get(e.model) ?? { model: e.model, costCents: 0, count: 0 };
+    mdl.costCents += e.costCents;
+    mdl.count += 1;
+    models.set(e.model, mdl);
+
+    const userKey = e.actorUser ?? " autonomous";
+    const usr = users.get(userKey) ?? {
+      actorUser: e.actorUser,
+      costCents: 0,
+      count: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      units: 0,
+    };
+    usr.costCents += e.costCents;
+    usr.count += 1;
+    usr.inputTokens += inTok;
+    usr.outputTokens += outTok;
+    usr.units += units;
+    users.set(userKey, usr);
+  }
+
+  const byCostDesc = (a: { costCents: number }, b: { costCents: number }) => b.costCents - a.costCents;
+  summary.byService = [...services.values()].sort(byCostDesc);
+  summary.byModel = [...models.values()].sort(byCostDesc);
+  summary.byUser = [...users.values()].sort(byCostDesc);
+  return summary;
+}
+
+/** Bucket event cost into the supplied ordered ISO date keys (YYYY-MM-DD, UTC). */
+export function bucketCostByDay(
+  events: UsageRollupEvent[],
+  dayKeys: string[],
+): Array<{ date: string; costCents: number }> {
+  const totals = new Map<string, number>(dayKeys.map((d) => [d, 0]));
+  for (const e of events) {
+    const day = e.occurredAt.slice(0, 10);
+    if (totals.has(day)) totals.set(day, (totals.get(day) ?? 0) + e.costCents);
+  }
+  return dayKeys.map((date) => ({ date, costCents: totals.get(date) ?? 0 }));
+}

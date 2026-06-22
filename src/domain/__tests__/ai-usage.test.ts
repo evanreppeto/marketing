@@ -6,6 +6,64 @@ import {
   estimateMediaCostCents,
   isPricedModel,
 } from "../ai-usage";
+import type { UsageRollupEvent } from "../ai-usage";
+import { summarizeUsage, bucketCostByDay } from "../ai-usage";
+
+const EVENTS: UsageRollupEvent[] = [
+  { service: "arc_claude", model: "claude-opus-4-8", actorUser: "evan", inputTokens: 1000, outputTokens: 500, units: null, costCents: 30, occurredAt: "2026-06-20T10:00:00Z" },
+  { service: "arc_claude", model: "claude-haiku-4-5", actorUser: null, inputTokens: 2000, outputTokens: 1000, units: null, costCents: 5, occurredAt: "2026-06-21T10:00:00Z" },
+  { service: "gemini_image", model: "gemini-2.5-flash-image", actorUser: "evan", inputTokens: null, outputTokens: null, units: 2, costCents: 8, occurredAt: "2026-06-21T11:00:00Z" },
+];
+
+describe("summarizeUsage", () => {
+  it("totals cost, tokens, units, and event count", () => {
+    const s = summarizeUsage(EVENTS);
+    expect(s.totalCostCents).toBe(43);
+    expect(s.totalInputTokens).toBe(3000);
+    expect(s.totalOutputTokens).toBe(1500);
+    expect(s.totalUnits).toBe(2);
+    expect(s.eventCount).toBe(3);
+  });
+
+  it("groups by service sorted by cost desc", () => {
+    const s = summarizeUsage(EVENTS);
+    expect(s.byService.map((r) => r.service)).toEqual(["arc_claude", "gemini_image"]);
+    expect(s.byService[0].costCents).toBe(35);
+    expect(s.byService[0].count).toBe(2);
+  });
+
+  it("groups by model sorted by cost desc", () => {
+    const s = summarizeUsage(EVENTS);
+    expect(s.byModel[0]).toMatchObject({ model: "claude-opus-4-8", costCents: 30 });
+  });
+
+  it("groups by user with null folded into the autonomous bucket", () => {
+    const s = summarizeUsage(EVENTS);
+    const auto = s.byUser.find((r) => r.actorUser === null);
+    const evan = s.byUser.find((r) => r.actorUser === "evan");
+    expect(auto?.costCents).toBe(5);
+    expect(evan?.costCents).toBe(38);
+    expect(evan?.count).toBe(2);
+  });
+
+  it("returns zeros for an empty event list", () => {
+    const s = summarizeUsage([]);
+    expect(s).toMatchObject({ totalCostCents: 0, eventCount: 0 });
+    expect(s.byService).toEqual([]);
+    expect(s.byUser).toEqual([]);
+  });
+});
+
+describe("bucketCostByDay", () => {
+  it("sums cost into the supplied ordered day keys, zero-filling gaps", () => {
+    const days = ["2026-06-19", "2026-06-20", "2026-06-21"];
+    expect(bucketCostByDay(EVENTS, days)).toEqual([
+      { date: "2026-06-19", costCents: 0 },
+      { date: "2026-06-20", costCents: 30 },
+      { date: "2026-06-21", costCents: 13 },
+    ]);
+  });
+});
 
 describe("estimateClaudeCostCents", () => {
   it("prices opus from input+output tokens (cents per million)", () => {
