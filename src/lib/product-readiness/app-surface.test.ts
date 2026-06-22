@@ -51,7 +51,9 @@ describe("product app surface smoke checks", () => {
     expect(pkg.scripts["test:smoke"]).toContain("product-readiness");
     expect(pkg.scripts["smoke:http"]).toBe("node scripts/smoke-http.mjs");
     expect(pkg.scripts["health:supabase"]).toBe("node scripts/check-supabase-health.mjs");
+    expect(pkg.scripts["health:constraints"]).toBe("node scripts/check-agent-task-constraints.mjs");
     expect(pkg.scripts.verify).toBe("node scripts/verify-product.mjs");
-    expect(pkg.scripts["verify:live"]).toBe("node scripts/verify-product.mjs && node scripts/check-supabase-health.mjs");
+    expect(pkg.scripts["verify:live"]).toContain("node scripts/check-supabase-health.mjs");
+    expect(pkg.scripts["verify:live"]).toContain("node scripts/check-agent-task-constraints.mjs");
   });
 });
