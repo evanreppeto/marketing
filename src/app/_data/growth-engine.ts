@@ -5,6 +5,7 @@ export const navItems = [
   { label: "Campaigns", href: "/campaigns", icon: "approval" },
   { label: "Gallery", href: "/gallery", icon: "gallery" },
   { label: "Opportunities", href: "/opportunities", icon: "opportunities" },
+  { label: "Usage", href: "/usage", icon: "usage" },
 ];
 
 // Static metadata for the six CRM objects (labels, routes, field names). All

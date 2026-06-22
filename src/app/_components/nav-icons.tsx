@@ -6,6 +6,7 @@ import {
   Columns3,
   Contact,
   GalleryHorizontalEnd,
+  Gauge,
   Home,
   Images,
   Megaphone,
@@ -32,7 +33,8 @@ export type NavIconName =
   | "brain"
   | "activity"
   | "opportunities"
-  | "personas";
+  | "personas"
+  | "usage";
 
 const icons: Record<Exclude<NavIconName, "arc">, LucideIcon> = {
   activity: Activity,
@@ -49,6 +51,7 @@ const icons: Record<Exclude<NavIconName, "arc">, LucideIcon> = {
   outbox: Send,
   personas: Contact,
   settings: Settings2,
+  usage: Gauge,
 };
 
 export function NavIcon({ name, className = "h-5 w-5" }: { name: NavIconName; className?: string }) {

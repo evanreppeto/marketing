@@ -9,6 +9,7 @@ import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedMedia } from "@/lib/media/storage";
 import { getAppSettings } from "@/lib/settings/store";
+import { recordUsageEvent } from "@/lib/ai-usage/persistence";
 
 /**
  * Generate a video (Veo) — async. Two modes in one route:
@@ -43,6 +44,15 @@ export async function POST(request: Request) {
       if (result.status === "running") return NextResponse.json({ ok: true, status: "running" }, { status: 200 });
       const objectPath = `arc-generated/${allowed.scope.orgId}/${allowed.scope.workspaceId}/${randomUUID()}.mp4`;
       const url = await storeGeneratedMedia(objectPath, result.bytes, result.contentType);
+      // Best-effort usage metering — count one generation when the video lands.
+      await recordUsageEvent({
+        orgId: allowed.scope.orgId,
+        workspaceId: allowed.scope.workspaceId,
+        service: "gemini_video",
+        model: typeof body.model === "string" ? body.model : "veo",
+        units: 1,
+        metadata: { route: "generate-video", job_id: typeof body.job_id === "string" ? body.job_id : null },
+      });
       const media = {
         kind: "video" as const,
         url,

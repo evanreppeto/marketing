@@ -9,6 +9,7 @@ import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedImage } from "@/lib/media/storage";
 import { getAppSettings } from "@/lib/settings/store";
+import { recordUsageEvent } from "@/lib/ai-usage/persistence";
 
 /**
  * Generate an image (AI) and store it in the public campaign-media Supabase
@@ -56,6 +57,15 @@ export async function POST(request: Request) {
     const objectPath = `arc-generated/${allowed.scope.orgId}/${allowed.scope.workspaceId}/${randomUUID()}.${ext}`;
     // Permanent public URL from the campaign-media bucket — no expiry to re-sign.
     const url = await storeGeneratedImage(objectPath, gen.bytes, gen.contentType);
+    // Best-effort usage metering — never blocks or fails the generation.
+    await recordUsageEvent({
+      orgId: allowed.scope.orgId,
+      workspaceId: allowed.scope.workspaceId,
+      service: "gemini_image",
+      model: gen.model,
+      units: 1,
+      metadata: { route: "generate-image", aspect_ratio: aspectRatio, job_id: gen.jobId },
+    });
     const media = {
       kind: "image" as const,
       url,
