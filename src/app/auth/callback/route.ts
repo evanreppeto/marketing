@@ -34,6 +34,12 @@ export async function GET(request: Request) {
         { status: 303 },
       );
     }
+    if (provisioned.status === "invited_member") {
+      return NextResponse.redirect(
+        new URL(`/welcome?from=${encodeURIComponent(next)}`, url.origin),
+        { status: 303 },
+      );
+    }
     if (provisioned.status === "profile_only") {
       return NextResponse.redirect(
         new URL(`/onboarding?from=${encodeURIComponent(next)}`, url.origin),

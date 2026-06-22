@@ -57,4 +57,40 @@ describe("GET /auth/callback", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("http://localhost/onboarding?from=%2Fcampaigns");
   });
+
+  it("routes invited members to /welcome after accepting invite", async () => {
+    exchangeCodeForSessionMock.mockResolvedValue({
+      data: { user: { id: "user-1", email: "invited@example.com" } },
+      error: null,
+    });
+    provisionAuthenticatedUserMock.mockResolvedValue({
+      ok: true,
+      status: "invited_member",
+      orgId: "org-1",
+      workspaceId: "ws-1",
+    });
+
+    const response = await GET(new Request("http://localhost/auth/callback?code=abc&next=/"));
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("http://localhost/welcome?from=%2F");
+  });
+
+  it("routes existing members to next path after OAuth", async () => {
+    exchangeCodeForSessionMock.mockResolvedValue({
+      data: { user: { id: "user-1", email: "member@example.com" } },
+      error: null,
+    });
+    provisionAuthenticatedUserMock.mockResolvedValue({
+      ok: true,
+      status: "existing_member",
+      orgId: "org-1",
+      workspaceId: "ws-1",
+    });
+
+    const response = await GET(new Request("http://localhost/auth/callback?code=abc&next=/campaigns"));
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("http://localhost/campaigns");
+  });
 });
