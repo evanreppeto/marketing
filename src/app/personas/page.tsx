@@ -8,6 +8,9 @@ import { listPersonas, type Persona } from "@/lib/personas/console";
 import { PERSONA_SEGMENTS, parsePersonaSegment, type PersonaSegmentKey } from "./_data/demo-personas";
 import { PersonaRoster } from "./_components/persona-roster";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Personas" };
+
 type PageProps = {
   searchParams?: Promise<{ segment?: string | string[] }>;
 };

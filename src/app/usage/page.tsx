@@ -3,6 +3,9 @@ import { loadWorkspaceUsage, type UsageRange, USAGE_RANGES } from "@/lib/ai-usag
 
 import { UsageDashboard } from "./_components/usage-dashboard";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Usage" };
+
 export const dynamic = "force-dynamic";
 
 function parseRange(value: string | string[] | undefined): UsageRange {

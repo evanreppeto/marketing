@@ -1,6 +1,18 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { CrmRecordPage } from "../../_components/crm-record-page";
+import { getCrmRecordData } from "@/lib/crm/read-model";
+
+export async function generateMetadata({ params }: { params: Promise<{ recordId: string }> }): Promise<Metadata> {
+  try {
+    const { recordId } = await params;
+    const data = await getCrmRecordData("companies", recordId);
+    return { title: (data.status === "live" ? data.name?.trim() : null) || "Company" };
+  } catch {
+    return { title: "Company" };
+  }
+}
 
 type PageProps = {
   params: Promise<{ recordId: string }>;

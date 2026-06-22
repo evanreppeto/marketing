@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { buildAppTitle } from "@/lib/branding/page-title";
+
 import "./globals.css";
 import { ConsoleFrame } from "./_components/console-frame";
 import { getAuthMode } from "@/lib/auth/auth-mode";
@@ -115,12 +117,11 @@ async function getOperatorShellProfile(): Promise<OperatorShellProfile> {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { workspaceName, productLabel, brandFaviconUrl } = await getAppSettings();
+  const { assistantName, brandFaviconUrl } = await getAppSettings();
   const identity = await resolveBrandIdentity();
-  const resolvedName = identity.displayName ?? workspaceName;
   const resolvedFavicon = identity.faviconUrl ?? brandFaviconUrl;
   return {
-    title: `${resolvedName} | ${productLabel}`,
+    title: buildAppTitle({ brand: assistantName, workspaceDisplayName: identity.displayName }),
     description: "Campaign planning, approvals, CRM, and performance workspace for service businesses.",
     icons: {
       icon: resolvedFavicon,

@@ -12,6 +12,9 @@ import { LibraryTabs } from "./_components/library-tabs";
 import { NewFolderButton } from "./_components/new-folder-button";
 import { UploadButton } from "./_components/upload-button";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Library" };
+
 export default async function LibraryPage({
   searchParams,
 }: {

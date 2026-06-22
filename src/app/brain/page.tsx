@@ -6,6 +6,9 @@ import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/rea
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Brain" };
+
 export const dynamic = "force-dynamic";
 
 export default async function BrainPage() {

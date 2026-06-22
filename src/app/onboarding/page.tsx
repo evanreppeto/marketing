@@ -9,6 +9,9 @@ import { getSafeOperatorReturnPath } from "@/lib/auth/operator-shared";
 import { provisionAuthenticatedUser } from "@/lib/auth/user-provisioning";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Set up" };
+
 type OnboardingSearchParams = {
   from?: string;
   error?: string;

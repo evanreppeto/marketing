@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 
 import { EmptyState, PageHeader } from "../../_components/page-header";
@@ -11,6 +12,16 @@ import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { CampaignSimpleDetail } from "../_components/campaign-simple-detail";
+
+export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }): Promise<Metadata> {
+  try {
+    const { campaignId } = await params;
+    const detail = await getCampaignWorkspaceDetail(campaignId, undefined, "Arc", undefined);
+    return { title: (detail.status === "live" ? detail.campaign.name?.trim() : null) || "Campaign" };
+  } catch {
+    return { title: "Campaign" };
+  }
+}
 
 type CampaignDetailPageProps = {
   params: Promise<{ campaignId: string }>;

@@ -9,6 +9,9 @@ import { getAgentName } from "@/lib/settings/agent-name";
 import { CrmObjectTabs } from "./_components/crm-object-tabs";
 import { CrmPipelineBoard } from "./_components/crm-pipeline-board";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "CRM" };
+
 type CrmViewKey = "needs-action" | "new" | "qualified" | "scheduled" | "closed";
 
 type CrmSearchParams = {

@@ -6,6 +6,9 @@ import { getAgentName } from "@/lib/settings/agent-name";
 
 import { OutboxConsole } from "./_components/outbox-console";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Outbox" };
+
 export default async function OutboxPage() {
   await connection();
 
