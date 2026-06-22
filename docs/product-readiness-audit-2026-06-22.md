@@ -52,7 +52,19 @@ Real per-user auth exists (Supabase mode + `workspace_memberships`, see `require
 
 ---
 
-### P1-3. `vault_notes` not org-scoped — BLOCKED on a schema-drift question
+### P1-3. `vault_notes` not org-scoped — FIXED (migration must be applied to prod by hand)
+
+> **Resolved.** Prod probe (2026-06-22) confirmed `vault_notes` has no `org_id`.
+> Added migration `20260622170000_vault_notes_org_scope.sql` (adds `org_id` +
+> backfill to the default org, swaps `unique(slug)` → `unique(org_id, slug)`, adds
+> the org-member RLS policy) and org-scoped all 5 persistence fns + the read-model,
+> vault actions, the @-mention catalog, and the needs-review badge. 5 new tests;
+> suite green. **Action required: apply the migration to prod manually** (prod
+> migrations aren't auto-applied — see deploy notes). Still open: `agent_outputs`
+> is queried unscoped in `live-signals.ts` and also lacks `org_id` in prod — its
+> own small follow-up.
+
+<details><summary>Original finding (for context)</summary>
 
 `listVaultNotes` (`src/lib/vault/persistence.ts`) reads all `vault_notes` with no org
 filter, and **no migration ever adds an `org_id` column** to `vault_notes`. It surfaces
@@ -94,6 +106,19 @@ in the same @-mention catalog **is** already fixed.
 > Note: the committed P0-1 fixes are unaffected — `agent_tasks`, `campaigns`, and
 > `approval_items` have `org_id` via self-consistent migrations (with backfills), so
 > scoping them is sound regardless of the drift question above.
+
+</details>
+
+### P1-4. Repo migrations are not a buildable source of truth (drift)
+
+The probe above (0 rows) confirms prod lacks `org_id` on `vault_notes`,
+`arc_conversations`, `arc_messages`, and `agent_outputs`, yet
+`20260618185612_org_member_read_policies.sql` (on `main`) creates
+`is_org_member(org_id)` RLS policies on all of them. So a clean `supabase db push`
+from `main` **errors partway** — a new teammate cannot stand up a working DB from
+the repo. This is a bigger onboarding blocker than any single leak. Fix is a
+reconciliation pass so `main`'s migrations build a prod-shaped schema (the
+structural-drift reconciliation currently stranded in an unmerged branch).
 
 ## 🟡 P1 — Fix soon (rough edges a teammate will hit)
 

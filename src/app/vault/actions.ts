@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { archiveVaultNote, setVaultNoteStatus, upsertVaultNote } from "@/lib/vault/persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import type { NoteStatus, VaultNote } from "@/domain";
@@ -44,7 +45,7 @@ export async function saveNoteAction(formData: FormData): Promise<void> {
   }
 
   const note: VaultNote = { slug, title, folder, tags, author, status, updated: "", body };
-  await upsertVaultNote(getSupabaseAdminClient(), note);
+  await upsertVaultNote(getSupabaseAdminClient(), note, await getCurrentOrgId());
 
   revalidatePath("/vault");
   revalidatePath(`/vault/${slug}`);
@@ -60,7 +61,7 @@ export async function publishNoteAction(formData: FormData): Promise<void> {
     redirect("/vault?action=not-configured");
   }
 
-  await setVaultNoteStatus(getSupabaseAdminClient(), slug, "Published");
+  await setVaultNoteStatus(getSupabaseAdminClient(), slug, "Published", await getCurrentOrgId());
   revalidatePath("/vault");
   revalidatePath(`/vault/${slug}`);
   redirect(`/vault/${slug}?action=published`);
@@ -75,7 +76,7 @@ export async function archiveNoteAction(formData: FormData): Promise<void> {
     redirect("/vault?action=not-configured");
   }
 
-  await archiveVaultNote(getSupabaseAdminClient(), slug);
+  await archiveVaultNote(getSupabaseAdminClient(), slug, await getCurrentOrgId());
   revalidatePath("/vault");
   redirect("/vault?action=archived");
 }
