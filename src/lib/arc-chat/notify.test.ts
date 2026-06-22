@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { notifyArcWebhook, notifyOpportunityScan } from "./notify";
+import { notifyArcCampaignTask, notifyArcWebhook, notifyOpportunityScan } from "./notify";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -177,5 +177,37 @@ describe("notifyOpportunityScan", () => {
 
     expect(delivered).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("notifyArcCampaignTask", () => {
+  it("POSTs a campaign task wake with campaign and conversation context", async () => {
+    process.env.ARC_RUNNER_URL = "https://arc.example/webhooks/runner";
+    delete process.env.ARC_WEBHOOK_URL;
+    const fetchMock = mockFetch();
+
+    const delivered = await notifyArcCampaignTask({
+      agentTaskId: "task-campaign",
+      campaignId: "campaign-1",
+      conversationId: "conversation-1",
+      message: "Draft the full campaign package.",
+      operator: "Operator",
+      taskType: "campaign_brief_draft",
+    });
+
+    expect(delivered).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://arc.example/webhooks/runner");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({
+      type: "arc_campaign_task",
+      agentTaskId: "task-campaign",
+      campaignId: "campaign-1",
+      conversationId: "conversation-1",
+      message: "Draft the full campaign package.",
+      operator: "Operator",
+      taskType: "campaign_brief_draft",
+    });
   });
 });

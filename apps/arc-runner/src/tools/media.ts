@@ -20,7 +20,7 @@ export function mediaTools(
   client: ArcClient,
   step: StepFn,
   collectCard: (card: ArcActionCard) => void,
-  ctx: { level?: "fast" | "standard"; conversationId?: string } = {},
+  ctx: { level?: "fast" | "standard"; conversationId?: string | null; campaignId?: string | null } = {},
 ) {
   const generateImage = tool(
     "generate_image",
@@ -52,7 +52,7 @@ export function mediaTools(
         const draft = await client.apiPost<{ campaignId: string; assetId: string }>(
           "/api/v1/arc/campaigns/draft-asset",
           {
-            campaign_id: args.campaign_id,
+            ...(args.campaign_id ? { campaign_id: args.campaign_id } : ctx.campaignId ? { campaign_id: ctx.campaignId } : {}),
             name: args.name,
             persona: args.persona,
             restoration_focus: args.restoration_focus,

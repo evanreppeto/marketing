@@ -47,13 +47,11 @@ class QueryBuilder {
   insert(...args: unknown[]) {
     this.calls.push(["insert", ...args]);
     const response = this.shiftResponse("insert", { data: null, error: null });
-    const thenableBuilder = this;
-    Object.assign(thenableBuilder, {
+    return Object.assign(this, {
       then(resolve: (value: unknown) => unknown) {
         return Promise.resolve(resolve(response));
       },
     });
-    return thenableBuilder;
   }
 
   update(...args: unknown[]) {

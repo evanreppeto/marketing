@@ -56,11 +56,22 @@ export type ArcOpportunityScanPayload = {
   operator: string;
 };
 
+export type ArcCampaignTaskPayload = {
+  type: "arc_campaign_task";
+  agentTaskId: string;
+  campaignId: string;
+  conversationId: string | null;
+  message: string;
+  operator: string;
+  taskType: "campaign_brief_draft" | "campaign_directive" | "campaign_asset_revision";
+};
+
 export type WakePayload =
   | MarkChatMessagePayload
   | MarkPingPayload
   | ArcOpportunityDraftPayload
   | ArcOpportunityScanPayload
+  | ArcCampaignTaskPayload
   | { type?: string };
 
 /** Structured cards Arc attaches to a reply (rendered by the app from metadata.actions). */
