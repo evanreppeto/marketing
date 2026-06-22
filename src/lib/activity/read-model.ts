@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { isDemoDataEnabled } from "../demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 import { buildDemoActivity } from "./demo";
 
@@ -74,9 +75,9 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
   const sourceLimit = sourceLimitForQuery(query);
 
   if (!client && !isSupabaseAdminConfigured()) {
-    // No DB connected (local preview): render a realistic, read-only BSR audit
-    // trail instead of an empty state. Display-only — no outbound side effects.
-    return buildDemoActivity(query);
+    return isDemoDataEnabled()
+      ? buildDemoActivity(query)
+      : { status: "unavailable", message: "Activity is unavailable." };
   }
 
   try {
@@ -131,10 +132,10 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
     const filtered = applyActivityFilters(entries, query);
     const merged = mergeActivityEntries(filtered, limit);
 
-    // Connected but no audit trail recorded yet (fresh DB, pre-seed): keep the
-    // log populated with the read-only preview so the page never reads empty.
+    // Connected but no audit trail recorded yet: only show the demo preview
+    // when the demo flag is enabled; otherwise fall through to real empty feed.
     if (merged.length === 0 && !hasActiveQuery(query)) {
-      return buildDemoActivity(query);
+      if (isDemoDataEnabled()) return buildDemoActivity(query);
     }
 
     return {

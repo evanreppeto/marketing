@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
@@ -39,5 +39,51 @@ describe("getBrainGraph", () => {
     });
     const result = await getBrainGraph({}, supabase as never, "org-1");
     expect(result.status).toBe("unavailable");
+  });
+});
+
+describe("getBrainGraph — demo gate", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("returns unavailable (not demo) when flag is OFF and Supabase is unconfigured", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    // No client, no orgId → falls into unconfigured branch
+    const result = await getBrainGraph({});
+    expect(result.status).toBe("unavailable");
+    if (result.status !== "unavailable") return;
+    expect(result.message).toMatch(/unavailable/i);
+  });
+
+  it("returns demo data when flag is ON and Supabase is unconfigured", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const result = await getBrainGraph({});
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.nodes.length).toBeGreaterThan(0);
+  });
+
+  it("returns real empty live graph (not demo) when flag is OFF and DB is empty", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: { data: [], error: null },
+      knowledge_edges: { data: [], error: null },
+    });
+    const result = await getBrainGraph({}, supabase as never, "org-1");
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.nodes).toHaveLength(0);
+    expect(result.edges).toHaveLength(0);
+  });
+
+  it("returns demo data when flag is ON and DB is empty", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: { data: [], error: null },
+      knowledge_edges: { data: [], error: null },
+    });
+    const result = await getBrainGraph({}, supabase as never, "org-1");
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.nodes.length).toBeGreaterThan(0);
   });
 });

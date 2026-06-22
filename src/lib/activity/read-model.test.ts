@@ -401,6 +401,57 @@ describe("mapCampaignEvent", () => {
   });
 });
 
+describe("getRecentActivity — demo gate", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("returns unavailable (not demo) when flag is OFF and Supabase is unconfigured", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    // No client passed → falls into unconfigured branch
+    const result = await getRecentActivity({}, undefined);
+    expect(result.status).toBe("unavailable");
+    if (result.status !== "unavailable") return;
+    expect(result.message).toMatch(/unavailable/i);
+  });
+
+  it("returns demo data when flag is ON and Supabase is unconfigured", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const result = await getRecentActivity({}, undefined);
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.entries.length).toBeGreaterThan(0);
+  });
+
+  it("returns real empty live shape (not demo) when flag is OFF and DB is empty", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    const client = fakeClient({
+      approval_decisions: { data: [] },
+      agent_run_logs: { data: [] },
+      agent_outputs: { data: [] },
+      campaign_events: { data: [] },
+      events: { data: [] },
+    });
+    const result = await getRecentActivity({}, client);
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.entries).toHaveLength(0);
+  });
+
+  it("returns demo data when flag is ON and DB is empty", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const client = fakeClient({
+      approval_decisions: { data: [] },
+      agent_run_logs: { data: [] },
+      agent_outputs: { data: [] },
+      campaign_events: { data: [] },
+      events: { data: [] },
+    });
+    const result = await getRecentActivity({}, client);
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.entries.length).toBeGreaterThan(0);
+  });
+});
+
 describe("mapEvent", () => {
   it("maps CRM events to readable activity rows with CRM hrefs", () => {
     const mapped = mapEvent({

@@ -1,8 +1,57 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { getAgentOperationsDashboard, getAgentTaskDetail } from "./read-model";
+
+const EMPTY_SUPABASE = {
+  agents: { data: [], error: null },
+  agent_tasks: { data: [], error: null },
+  approval_items: { data: [], error: null },
+  agent_outputs: { data: [], error: null },
+  campaigns: { data: [], error: null },
+};
+
+describe("getAgentOperationsDashboard — demo gate", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("returns unavailable (not demo) when flag is OFF and Supabase is unconfigured", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    // No client, no env vars → unconfigured branch
+    const result = await getAgentOperationsDashboard(undefined);
+    expect(result.status).toBe("unavailable");
+    if (result.status !== "unavailable") return;
+    expect(result.message).toMatch(/unavailable/i);
+  });
+
+  it("returns demo data when flag is ON and Supabase is unconfigured", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const result = await getAgentOperationsDashboard(undefined);
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.tasks.length).toBeGreaterThan(0);
+  });
+
+  it("returns real empty live shape (not demo) when flag is OFF and DB is empty", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    const supabase = createSupabaseQueryMock(EMPTY_SUPABASE);
+    const result = await getAgentOperationsDashboard(supabase, "Agent", { org_id: "org-1", workspace_id: "ws-1" });
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    // Real empty: no tasks, no agents with demo- ids
+    expect(result.tasks).toHaveLength(0);
+    expect(result.agents).toHaveLength(0);
+  });
+
+  it("returns demo data when flag is ON and DB is empty", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const supabase = createSupabaseQueryMock(EMPTY_SUPABASE);
+    const result = await getAgentOperationsDashboard(supabase, "Agent", { org_id: "org-1", workspace_id: "ws-1" });
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.tasks.length).toBeGreaterThan(0);
+  });
+});
 
 describe("getAgentOperationsDashboard", () => {
   it("maps Supabase agent operations into UI-ready dashboard data", async () => {

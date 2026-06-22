@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCurrentAgentTaskTenantFields, type AgentTaskTenantFields } from "../agent-tasks/scope";
+import { isDemoDataEnabled } from "../demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 import { buildDemoAgentOperationsDashboard } from "./demo";
 
@@ -380,9 +381,9 @@ export async function getAgentOperationsDashboard(
   tenantScope?: AgentTaskTenantFields,
 ): Promise<AgentOperationsDashboard> {
   if (!client && !isSupabaseAdminConfigured()) {
-    // No DB connected (local preview): show a realistic, read-only BSR board
-    // instead of an "unavailable" card. Nothing here implies an outbound send.
-    return buildDemoAgentOperationsDashboard();
+    return isDemoDataEnabled()
+      ? buildDemoAgentOperationsDashboard()
+      : { status: "unavailable", message: "Agent operations are unavailable." };
   }
 
   try {
@@ -442,10 +443,10 @@ export async function getAgentOperationsDashboard(
     const activeApprovals = approvals.filter((item) => ACTIVE_APPROVAL_STATUSES.has(item.status));
     const openTasks = tasks.filter((task) => OPEN_TASK_STATUSES.has(task.status));
 
-    // Connected but no Arc work recorded yet: keep the board populated with the
-    // same read-only preview so operators see the intended shape pre-seed.
+    // Connected but no Arc work recorded yet: only show the demo preview when
+    // the demo flag is enabled; otherwise fall through to the real empty board.
     if (tasks.length === 0 && agents.length === 0) {
-      return buildDemoAgentOperationsDashboard();
+      if (isDemoDataEnabled()) return buildDemoAgentOperationsDashboard();
     }
 
     return {
