@@ -1,5 +1,6 @@
 import { type TrustTier } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { demoBrainEdges, demoBrainNodes } from "./demo";
@@ -62,9 +63,11 @@ export async function getBrainGraph(
   orgId?: string,
 ): Promise<GraphResult> {
   if (!(client && orgId)) {
-    // Local preview without Supabase: serve the demo knowledge graph so the
-    // brain renders a populated node-web instead of an empty canvas.
-    if (!isSupabaseAdminConfigured()) return demoGraph(filters);
+    if (!isSupabaseAdminConfigured()) {
+      return isDemoDataEnabled()
+        ? demoGraph(filters)
+        : { status: "unavailable", message: "Brain is unavailable." };
+    }
   }
   try {
     const supabase = client ?? getSupabaseAdminClient();
@@ -101,10 +104,12 @@ export async function getBrainGraph(
       .map(mapEdge)
       .filter((e) => nodeIds.has(e.fromNodeId) && nodeIds.has(e.toNodeId));
 
-    // Empty brain + no filters applied: show the demo graph instead of a blank
-    // canvas (matches the read-model's empty-DB fallback).
+    // Empty brain + no filters applied: only show the demo graph when the demo
+    // flag is enabled; otherwise fall through to the real empty live result.
     const noFilters = !(filters.kinds && filters.kinds.length) && !(filters.trustTiers && filters.trustTiers.length);
-    if (nodes.length === 0 && noFilters) return demoGraph(filters);
+    if (nodes.length === 0 && noFilters) {
+      if (isDemoDataEnabled()) return demoGraph(filters);
+    }
 
     return { status: "live", nodes, edges, truncated: truncatedNodes || truncatedEdges };
   } catch (error) {

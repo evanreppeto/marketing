@@ -9,6 +9,7 @@ import {
   type ScoreSignalKey,
 } from "@/app/personas/_data/demo-personas";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /** The persona shape the console renders. Reuses the demo data contract. */
@@ -92,17 +93,20 @@ function mapRow(row: PersonaRow): Persona {
  * isn't configured or the org has none yet, so the console is never empty.
  */
 export async function listPersonas(): Promise<Persona[]> {
-  if (!isSupabaseAdminConfigured()) return DEMO_PERSONAS;
+  if (!isSupabaseAdminConfigured()) return isDemoDataEnabled() ? DEMO_PERSONAS : [];
   try {
     const orgId = await getCurrentOrgId();
     // `personas` isn't in the generated types yet — use an untyped client.
     const supabase = getSupabaseAdminClient() as unknown as SupabaseClient;
     const { data, error } = await supabase.from("personas").select(COLUMNS).eq("org_id", orgId).order("score", { ascending: false });
     if (error) throw error;
-    if (!data || data.length === 0) return DEMO_PERSONAS;
+    if (!data || data.length === 0) {
+      if (isDemoDataEnabled()) return DEMO_PERSONAS;
+      return [];
+    }
     return (data as PersonaRow[]).map(mapRow);
   } catch {
-    return DEMO_PERSONAS;
+    return isDemoDataEnabled() ? DEMO_PERSONAS : [];
   }
 }
 
