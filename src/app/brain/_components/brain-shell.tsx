@@ -42,9 +42,21 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
   const [source, setSource] = useState<SourceFilter>("all");
   const [tab, setTab] = useState<Tab>("web");
   const [selectedId, setSelectedId] = useState<string | null>(() => {
-    const flagship = graphNodes.find((n) => /emergency water/i.test(n.label));
     const hub = graphNodes.find((n) => n.kind === "arc" || n.kind === "hub");
-    return flagship?.id ?? hub?.id ?? graphNodes[0]?.id ?? null;
+    if (hub) return hub.id;
+    // No hub: open on the most-connected fact as a natural, brand-agnostic entry point.
+    const deg = new Map<string, number>();
+    for (const e of graphEdges) {
+      deg.set(e.fromNodeId, (deg.get(e.fromNodeId) ?? 0) + 1);
+      deg.set(e.toNodeId, (deg.get(e.toNodeId) ?? 0) + 1);
+    }
+    let best = graphNodes[0]?.id ?? null;
+    let bestDeg = -1;
+    for (const n of graphNodes) {
+      const d = deg.get(n.id) ?? 0;
+      if (d > bestDeg) { bestDeg = d; best = n.id; }
+    }
+    return best;
   });
 
   const filteredGraphNodes = useMemo(() => graphNodes.filter((n) => matchesSource(n, source)), [graphNodes, source]);

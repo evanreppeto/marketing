@@ -11,13 +11,9 @@ import { kindLabel } from "./brain-fact-parts";
 
 const TIER_TONE: Record<string, ThemeTone> = { trusted: "green", observed: "blue", proposed: "amber" };
 
-const EXAMPLES = [
-  "Flooded basement, need a crew right now",
-  "Freeze-thaw this week — burst pipe risk",
-  "Homeowner says insurance should cover it",
-  "Mold in a rental unit",
-  "Plumber referred a water-damage job",
-];
+// Starter prompts are derived from THIS brand's brain (not hardcoded), so the
+// tester reads naturally for any tenant — restoration, SaaS, retail, anything.
+const EXAMPLE_KINDS = ["persona", "brand_fact", "proof_point", "service", "signal", "messaging_angle", "campaign_ref"];
 
 type Props = { nodes: BrainNode[]; edges: BrainEdge[]; agentName: string; onSelect: (id: string) => void };
 
@@ -28,6 +24,16 @@ export function BrainRecallTester({ nodes, edges, agentName, onSelect }: Props) 
     () => (submitted == null ? null : previewRecall(nodes, edges, submitted)),
     [submitted, nodes, edges],
   );
+
+  const examples = useMemo(() => {
+    const out: string[] = [];
+    for (const kind of EXAMPLE_KINDS) {
+      const hit = nodes.find((n) => n.kind === kind && n.label && !out.includes(n.label));
+      if (hit) out.push(hit.label);
+      if (out.length >= 5) break;
+    }
+    return out;
+  }, [nodes]);
 
   const run = (q: string) => {
     const t = q.trim();
@@ -50,7 +56,7 @@ export function BrainRecallTester({ nodes, edges, agentName, onSelect }: Props) 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") run(query); }}
-            placeholder="e.g. flooded basement in Lincoln Park, winter, landlord"
+            placeholder="Describe a customer scenario, persona, or topic…"
             aria-label="Scenario to test recall"
             className="min-w-0 flex-1 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent-border-strong)]"
           />
@@ -62,18 +68,21 @@ export function BrainRecallTester({ nodes, edges, agentName, onSelect }: Props) 
             See recall
           </button>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex}
-              type="button"
-              onClick={() => run(ex)}
-              className="rounded-full border border-[var(--border-hairline)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-            >
-              {ex}
-            </button>
-          ))}
-        </div>
+        {examples.length > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] text-[var(--text-muted)]">Try:</span>
+            {examples.map((ex) => (
+              <button
+                key={ex}
+                type="button"
+                onClick={() => run(ex)}
+                className="rounded-full border border-[var(--border-hairline)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </Panel>
 
       {results && (
