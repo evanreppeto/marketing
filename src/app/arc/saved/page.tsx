@@ -33,7 +33,7 @@ export default async function ArcSavedPage() {
     );
   }
 
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
   let items: Awaited<ReturnType<typeof listSavedItems>> = [];
   let campaigns: { id: string; name: string }[] = [];
   try {

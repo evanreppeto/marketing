@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { buildReasoning, getCampaignWorkspaceDetail, getCampaignWorkspaceList } from "./read-model";
+import { buildReasoning, getCampaignWorkspaceDetail, getCampaignWorkspaceList, listCampaignNames } from "./read-model";
 
 // buildReasoning only reads a handful of fields; cast minimal fixtures to the
 // row shapes to keep the test focused on the distillation logic.
@@ -371,5 +371,28 @@ describe("getCampaignWorkspaceList rollup", () => {
         media: [expect.objectContaining({ url: "https://cdn.example/storm.png", type: "image" })],
       }),
     ]);
+  });
+});
+
+describe("listCampaignNames", () => {
+  it("scopes the @-mention name list to the given org", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: [{ id: "c-1", name: "Spring Promo" }], error: null },
+    });
+
+    const names = await listCampaignNames("org-1", supabase);
+
+    expect(names).toEqual([{ id: "c-1", name: "Spring Promo", href: "/campaigns/c-1" }]);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
+
+  it("does not filter by org when no org id is given", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: [], error: null },
+    });
+
+    await listCampaignNames(undefined, supabase);
+
+    expect(supabase.calls.some((call) => call[0] === "eq" && call[1] === "org_id")).toBe(false);
   });
 });

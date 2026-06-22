@@ -17,34 +17,25 @@ import {
   setNotePinned,
   updateTaskStatus,
 } from "@/lib/interactions/persistence";
-
-// CRM object key (plural, used in URLs) <-> entity type (singular, stored).
-const OBJECT_KEY_FOR_ENTITY: Record<CrmEntityType, string> = {
-  company: "companies",
-  contact: "contacts",
-  property: "properties",
-  lead: "leads",
-  job: "jobs",
-  outcome: "outcomes",
-  campaign: "campaigns",
-};
+import {
+  CRM_OBJECT_KEY_FOR_ENTITY,
+  isCrmEntityType,
+  recordPath,
+  safeRecordPath,
+} from "./_data/record-path";
 
 function field(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
 }
 
-function recordPath(entityType: CrmEntityType, entityId: string): string {
-  return `/crm/${OBJECT_KEY_FOR_ENTITY[entityType]}/${entityId}`;
-}
-
 function revalidateRecord(entityType: CrmEntityType, entityId: string): void {
   revalidatePath(recordPath(entityType, entityId));
-  revalidatePath(`/crm/${OBJECT_KEY_FOR_ENTITY[entityType]}`);
+  revalidatePath(`/crm/${CRM_OBJECT_KEY_FOR_ENTITY[entityType]}`);
 }
 
-// getOperatorActor() returns the configured operator email or a neutral label
-// (synchronous; single shared-secret gate today). Swap when real per-user auth lands.
+// getOperatorActor() resolves the signed-in user (Supabase auth mode) or the
+// configured operator label, so notes/tasks/activity carry a real per-actor trail.
 
 export async function addNoteAction(formData: FormData) {
   await requireOperator();
@@ -57,10 +48,10 @@ export async function addNoteAction(formData: FormData) {
     body: field(formData, "body"),
     isInternal: formData.get("isInternal") === "on",
     authorKind: "human",
-    authorName: getOperatorActor(),
+    authorName: await getOperatorActor(),
   });
   if (!parsed.ok) {
-    redirect(`${recordPath(entityType as CrmEntityType, entityId)}?action=note-error&message=${encodeURIComponent(parsed.error)}`);
+    redirect(`${safeRecordPath(entityType, entityId)}?action=note-error&message=${encodeURIComponent(parsed.error)}`);
   }
 
   const result = await insertNote(parsed.value);
@@ -86,37 +77,37 @@ export async function createTaskAction(formData: FormData) {
     dueAt: dueDate ? new Date(dueDate).toISOString() : null,
     priority: field(formData, "priority") || "normal",
     authorKind: "human",
-    authorName: getOperatorActor(),
+    authorName: await getOperatorActor(),
   });
   if (!parsed.ok) {
-    redirect(`${recordPath(entityType as CrmEntityType, entityId)}?action=task-error&message=${encodeURIComponent(parsed.error)}`);
+    redirect(`${safeRecordPath(entityType, entityId)}?action=task-error&message=${encodeURIComponent(parsed.error)}`);
   }
 
   const result = await insertTask(parsed.value);
   if (!result.ok) {
-    redirect(`${recordPath(entityType as CrmEntityType, entityId)}?action=task-error&message=${encodeURIComponent(result.error)}`);
+    redirect(`${safeRecordPath(entityType, entityId)}?action=task-error&message=${encodeURIComponent(result.error)}`);
   }
 
-  revalidateRecord(entityType as CrmEntityType, entityId);
-  redirect(`${recordPath(entityType as CrmEntityType, entityId)}?action=task-created`);
+  if (isCrmEntityType(entityType)) revalidateRecord(entityType, entityId);
+  redirect(`${safeRecordPath(entityType, entityId)}?action=task-created`);
 }
 
 export async function completeTaskAction(formData: FormData) {
   await requireOperator();
   const taskId = field(formData, "taskId");
-  const entityType = field(formData, "entityType") as CrmEntityType;
+  const entityType = field(formData, "entityType");
   const entityId = field(formData, "entityId");
 
   const result = await updateTaskStatus(taskId, "completed", {
     kind: "human",
-    name: getOperatorActor(),
+    name: await getOperatorActor(),
   });
   if (!result.ok) {
-    redirect(`${recordPath(entityType, entityId)}?action=task-error&message=${encodeURIComponent(result.error)}`);
+    redirect(`${safeRecordPath(entityType, entityId)}?action=task-error&message=${encodeURIComponent(result.error)}`);
   }
 
-  revalidateRecord(entityType, entityId);
-  redirect(`${recordPath(entityType, entityId)}?action=task-completed`);
+  if (isCrmEntityType(entityType)) revalidateRecord(entityType, entityId);
+  redirect(`${safeRecordPath(entityType, entityId)}?action=task-completed`);
 }
 
 export async function logActivityAction(formData: FormData) {
@@ -131,10 +122,10 @@ export async function logActivityAction(formData: FormData) {
     summary: field(formData, "summary"),
     detail: field(formData, "detail"),
     actorKind: "human",
-    actorName: getOperatorActor(),
+    actorName: await getOperatorActor(),
   });
   if (!parsed.ok) {
-    redirect(`${recordPath(entityType as CrmEntityType, entityId)}?action=activity-error&message=${encodeURIComponent(parsed.error)}`);
+    redirect(`${safeRecordPath(entityType, entityId)}?action=activity-error&message=${encodeURIComponent(parsed.error)}`);
   }
 
   const result = await insertActivity(parsed.value);
@@ -149,15 +140,15 @@ export async function logActivityAction(formData: FormData) {
 export async function pinNoteAction(formData: FormData) {
   await requireOperator();
   const noteId = field(formData, "noteId");
-  const entityType = field(formData, "entityType") as CrmEntityType;
+  const entityType = field(formData, "entityType");
   const entityId = field(formData, "entityId");
   const pinned = formData.get("isPinned") === "true";
 
   const result = await setNotePinned(noteId, pinned);
   if (!result.ok) {
-    redirect(`${recordPath(entityType, entityId)}?action=note-error&message=${encodeURIComponent(result.error)}`);
+    redirect(`${safeRecordPath(entityType, entityId)}?action=note-error&message=${encodeURIComponent(result.error)}`);
   }
 
-  revalidateRecord(entityType, entityId);
-  redirect(`${recordPath(entityType, entityId)}?action=note-updated`);
+  if (isCrmEntityType(entityType)) revalidateRecord(entityType, entityId);
+  redirect(`${safeRecordPath(entityType, entityId)}?action=note-updated`);
 }

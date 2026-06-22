@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { countActiveApprovals } from "@/lib/approvals/read-model";
 import { countPendingOpportunities } from "@/lib/opportunities/read-model";
 import { getOperatorActor } from "@/lib/auth/operator";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { getMentionables } from "@/lib/arc-chat/mention-search";
 import {
   listConversations,
@@ -60,7 +61,10 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
 async function loadLiveArcChatProps(
   params: Awaited<ArcPageProps["searchParams"]>,
 ): Promise<{ chatProps: ArcChatProps; pendingOpportunities: number }> {
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
+  // Scope workspace-wide reads (approval count, campaign @-mentions) to the
+  // active org; the admin client bypasses RLS so this is the tenant boundary.
+  const orgId = await getCurrentOrgId().catch(() => undefined);
   const showArchived = valueOf(params?.archived) === "1";
   const requestedId = valueOf(params?.c);
   const requestedProject = valueOf(params?.project);
@@ -83,10 +87,10 @@ async function loadLiveArcChatProps(
   ] = await Promise.all([
     getMentionables(),
     getAppSettings(),
-    countActiveApprovals().catch(() => 0),
+    countActiveApprovals(orgId).catch(() => 0),
     listConversations(operator),
     listProjects(operator),
-    listCampaignNames()
+    listCampaignNames(orgId)
       .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
       .catch(() => [] as { id: string; name: string }[]),
     showArchived ? listArchivedConversations(operator) : Promise.resolve([] as ArcConversation[]),

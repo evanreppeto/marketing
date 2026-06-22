@@ -116,7 +116,7 @@ export async function listGoogleDriveSources(input: {
 export async function listGoogleDriveSourcesForCurrentOperator(): Promise<GoogleDriveSourceView[]> {
   if (!isSupabaseAdminConfigured()) return [];
   const orgId = await getCurrentOrgId();
-  return listGoogleDriveSources({ orgId, connectedBy: getOperatorActor() });
+  return listGoogleDriveSources({ orgId, connectedBy: await getOperatorActor() });
 }
 
 export async function getGoogleDriveSource(input: {

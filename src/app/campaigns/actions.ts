@@ -57,7 +57,7 @@ export async function requestRevisionAction(
   }
 
   try {
-    await requestAssetRevision({ campaignId, assetId, instruction, operator: getOperatorActor() }, getSupabaseAdminClient());
+    await requestAssetRevision({ campaignId, assetId, instruction, operator: await getOperatorActor() }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : `${agentName} couldn't record the revision.` };
   }
@@ -103,7 +103,7 @@ export async function decideApprovalAction(
   try {
     const tenant = await getCurrentAgentTaskTenantFields();
     await decideApprovalItem(
-      { approvalItemId, decision: decision as ApprovalDecision, operator: getOperatorActor(), notes, tenant },
+      { approvalItemId, decision: decision as ApprovalDecision, operator: await getOperatorActor(), notes, tenant },
       getSupabaseAdminClient(),
     );
   } catch (error) {
@@ -153,7 +153,7 @@ export async function decideAssetAction(
 
   try {
     const tenant = await getCurrentAgentTaskTenantFields();
-    await decideAsset({ assetId, campaignId, decision: decision as ApprovalDecision, operator: getOperatorActor(), notes, tenant }, getSupabaseAdminClient());
+    await decideAsset({ assetId, campaignId, decision: decision as ApprovalDecision, operator: await getOperatorActor(), notes, tenant }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't record the decision." };
   }
@@ -194,7 +194,7 @@ export async function reopenAssetAction(
 
   try {
     const tenant = await getCurrentAgentTaskTenantFields();
-    await reopenAsset({ assetId, campaignId, operator: getOperatorActor(), tenant }, getSupabaseAdminClient());
+    await reopenAsset({ assetId, campaignId, operator: await getOperatorActor(), tenant }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't re-open the piece." };
   }
@@ -241,7 +241,7 @@ export async function sendArcMessageAction(
   }
 
   try {
-    await sendArcDirective({ campaignId, message, operator: getOperatorActor(), agentName }, getSupabaseAdminClient());
+    await sendArcDirective({ campaignId, message, operator: await getOperatorActor(), agentName }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : `Couldn't send the message to ${agentName}.` };
   }
@@ -287,7 +287,7 @@ export async function deployAssetAction(
 
   try {
     const tenant = await getCurrentAgentTaskTenantFields();
-    await deployAsset({ campaignId, assetId, operator: getOperatorActor(), agentName, scheduledFor, tenant }, getSupabaseAdminClient());
+    await deployAsset({ campaignId, assetId, operator: await getOperatorActor(), agentName, scheduledFor, tenant }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't deploy the piece." };
   }
@@ -341,7 +341,7 @@ export async function launchCampaignAction(
   let launchedAssets = 0;
   try {
     const tenant = await getCurrentAgentTaskTenantFields();
-    ({ launchedAssets } = await launchCampaign({ campaignId, operator: getOperatorActor(), agentName, scheduledFor, tenant }, getSupabaseAdminClient()));
+    ({ launchedAssets } = await launchCampaign({ campaignId, operator: await getOperatorActor(), agentName, scheduledFor, tenant }, getSupabaseAdminClient()));
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't launch the campaign." };
   }
@@ -405,7 +405,7 @@ export async function createCampaignAction(
     const tenant = await getCurrentAgentTaskTenantFields();
     const result = await createOperatorCampaign({
       draft,
-      operator: getOperatorActor(),
+      operator: await getOperatorActor(),
       photos,
       client: getSupabaseAdminClient(),
       tenant,
@@ -472,7 +472,7 @@ export async function askArcToBuildCampaignAction(formData: FormData): Promise<v
     redirect("/campaigns?action=build-error");
   }
 
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
   const client = getSupabaseAdminClient();
   const name = deriveCampaignName(prompt);
   const tenant = await getCurrentAgentTaskTenantFields();
@@ -534,7 +534,7 @@ export async function handToArcAction(formData: FormData): Promise<void> {
     {
       agentName,
       campaignId,
-      operator: getOperatorActor(),
+      operator: await getOperatorActor(),
       prompt: "Continue building this campaign - draft the remaining assets.",
       tenant,
     },

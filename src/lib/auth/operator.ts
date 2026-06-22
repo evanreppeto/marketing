@@ -8,7 +8,7 @@ import {
   isOperatorGateEnabled,
   isValidOperatorValue,
 } from "./operator-shared";
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { createSupabaseAuthServerClient, getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
 /**
  * Operator access gate. A single shared-secret cookie protects the human-facing
@@ -62,11 +62,18 @@ export async function requireOperator() {
 }
 
 /**
- * Identity recorded against operator actions in audit logs / decisions. Uses the
- * configured operator email when set, else a neutral label for open local dev.
- * Single shared-secret gate today, so this is the one operator account — when a
- * real multi-user auth lands, swap this for the session's user.
+ * Identity recorded against operator actions in audit logs / decisions. In
+ * Supabase auth mode this resolves to the *signed-in* user (their display name,
+ * else email) so multi-user workspaces get a real per-actor audit trail. Falls
+ * back to the configured operator email, then a neutral label for open local dev.
  */
-export function getOperatorActor(): string {
+export async function getOperatorActor(): Promise<string> {
+  if (getAuthMode() === "supabase") {
+    const user = await getSupabaseAuthenticatedUser();
+    const fullName =
+      typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
+    if (fullName) return fullName;
+    if (user?.email) return user.email;
+  }
   return getConfiguredOperatorCredentials()?.email ?? "Operator";
 }

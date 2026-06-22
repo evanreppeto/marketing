@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       redirectUri: config.redirectUri,
     });
     const orgId = await getCurrentOrgId();
-    await saveGoogleDriveConnection({ orgId, connectedBy: getOperatorActor(), tokenSet, client });
+    await saveGoogleDriveConnection({ orgId, connectedBy: await getOperatorActor(), tokenSet, client });
     await recordConnectionTest(client, "google_drive", { ok: true });
     return redirectToLibrary(origin, "connected");
   } catch (error) {

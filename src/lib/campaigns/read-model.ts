@@ -426,13 +426,11 @@ export type CampaignNameRef = { id: string; name: string; href: string };
  * approval / output aggregation — so callers that only need names (Arc composer,
  * mention search) don't pay for the full workspace build on every render.
  */
-export async function listCampaignNames(client?: SupabaseClient): Promise<CampaignNameRef[]> {
+export async function listCampaignNames(orgId?: string, client?: SupabaseClient): Promise<CampaignNameRef[]> {
   if (!client && !isSupabaseAdminConfigured()) return [];
   try {
     const supabase = client ?? getSupabaseAdminClient();
-    const { data, error } = await supabase
-      .from("campaigns")
-      .select("id,name")
+    const { data, error } = await applyOrgScope(supabase.from("campaigns").select("id,name"), orgId)
       .order("updated_at", { ascending: false })
       .limit(100);
     assertSupabaseResult("campaigns", error);

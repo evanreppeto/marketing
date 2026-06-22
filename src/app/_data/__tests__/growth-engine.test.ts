@@ -19,8 +19,8 @@ describe("navItems", () => {
     expect(opportunities?.label).toBe("Opportunities");
   });
 
-  it("exposes Arc first, then Campaigns, then Gallery, then Opportunities", () => {
+  it("exposes Arc first, then Campaigns, Gallery, Opportunities, and Usage", () => {
     const labels = navItems.map((item) => item.label);
-    expect(labels).toEqual(["Arc", "Campaigns", "Gallery", "Opportunities"]);
+    expect(labels).toEqual(["Arc", "Campaigns", "Gallery", "Opportunities", "Usage"]);
   });
 });
