@@ -3,6 +3,7 @@ import { OFFICIAL_PERSONA_MAPPINGS, type OfficialPersonaMapping } from "@/domain
 
 import { seedVaultNotes } from "./seed-notes";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import { getCurrentOrgId } from "@/lib/auth/org";
 
 export type StatusTone = "amber" | "green" | "red" | "gray" | "blue" | "dark";
 
@@ -105,6 +106,7 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
   }
   try {
     const supabase = getSupabaseAdminClient();
+    const orgId = await getCurrentOrgId();
     const [agentResult, tasksResult, outputsResult, reviewResult] = await Promise.all([
       supabase.from("agents").select("name,status,metadata").eq("key", "arc").maybeSingle(),
       supabase
@@ -118,7 +120,7 @@ export async function getVaultLiveSignals(): Promise<VaultLiveSignals> {
         .select("title,approval_status,created_at")
         .order("created_at", { ascending: false })
         .limit(4),
-      supabase.from("vault_notes").select("slug", { count: "exact", head: true }).eq("status", "needs_review"),
+      supabase.from("vault_notes").select("slug", { count: "exact", head: true }).eq("org_id", orgId).eq("status", "needs_review"),
     ]);
 
     const reviewCount = reviewResult.count ?? 0;

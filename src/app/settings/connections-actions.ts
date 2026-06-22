@@ -176,7 +176,7 @@ export async function sendDispatchAction(
   }
 
   const { getOperatorActor } = await import("@/lib/auth/operator");
-  const result = await executeResendDispatch({ dispatchId, operator: getOperatorActor() }, getSupabaseAdminClient());
+  const result = await executeResendDispatch({ dispatchId, operator: await getOperatorActor() }, getSupabaseAdminClient());
 
   revalidatePath("/settings");
   return { ok: result.ok, message: result.message };

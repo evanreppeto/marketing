@@ -52,20 +52,25 @@ export function vaultNoteToRow(note: VaultNote) {
 
 const SELECT = "slug,title,folder,tags,author,status,body,updated_at";
 
-export async function listVaultNotes(supabase: SupabaseClient): Promise<VaultNote[]> {
+// All reads/writes are org-scoped: vault_notes carries an org_id (migration
+// 20260622170000) and the app uses the service-role client, so this app-layer
+// filter is the tenant boundary. Slug is unique per org, so writes also key on org.
+export async function listVaultNotes(supabase: SupabaseClient, orgId: string): Promise<VaultNote[]> {
   const { data, error } = await supabase
     .from("vault_notes")
     .select(SELECT)
+    .eq("org_id", orgId)
     .neq("status", "archived")
     .order("updated_at", { ascending: false });
   if (error) throw new Error(`vault_notes list failed: ${error.message}`);
   return ((data ?? []) as VaultNoteRow[]).map(rowToVaultNote);
 }
 
-export async function getVaultNoteBySlug(supabase: SupabaseClient, slug: string): Promise<VaultNote | null> {
+export async function getVaultNoteBySlug(supabase: SupabaseClient, slug: string, orgId: string): Promise<VaultNote | null> {
   const { data, error } = await supabase
     .from("vault_notes")
     .select(SELECT)
+    .eq("org_id", orgId)
     .eq("slug", slug)
     .neq("status", "archived")
     .maybeSingle<VaultNoteRow>();
@@ -73,18 +78,28 @@ export async function getVaultNoteBySlug(supabase: SupabaseClient, slug: string)
   return data ? rowToVaultNote(data) : null;
 }
 
-export async function upsertVaultNote(supabase: SupabaseClient, note: VaultNote): Promise<void> {
-  const { error } = await supabase.from("vault_notes").upsert(vaultNoteToRow(note), { onConflict: "slug" });
+export async function upsertVaultNote(supabase: SupabaseClient, note: VaultNote, orgId: string): Promise<void> {
+  const { error } = await supabase
+    .from("vault_notes")
+    .upsert({ ...vaultNoteToRow(note), org_id: orgId }, { onConflict: "org_id,slug" });
   if (error) throw new Error(`vault_notes upsert failed: ${error.message}`);
 }
 
-export async function setVaultNoteStatus(supabase: SupabaseClient, slug: string, status: NoteStatus): Promise<void> {
-  const { error } = await supabase.from("vault_notes").update({ status: STATUS_TO_DB[status] }).eq("slug", slug);
+export async function setVaultNoteStatus(supabase: SupabaseClient, slug: string, status: NoteStatus, orgId: string): Promise<void> {
+  const { error } = await supabase
+    .from("vault_notes")
+    .update({ status: STATUS_TO_DB[status] })
+    .eq("org_id", orgId)
+    .eq("slug", slug);
   if (error) throw new Error(`vault_notes status update failed: ${error.message}`);
 }
 
 // Soft-delete: archived notes are excluded from all reads.
-export async function archiveVaultNote(supabase: SupabaseClient, slug: string): Promise<void> {
-  const { error } = await supabase.from("vault_notes").update({ status: "archived" }).eq("slug", slug);
+export async function archiveVaultNote(supabase: SupabaseClient, slug: string, orgId: string): Promise<void> {
+  const { error } = await supabase
+    .from("vault_notes")
+    .update({ status: "archived" })
+    .eq("org_id", orgId)
+    .eq("slug", slug);
   if (error) throw new Error(`vault_notes archive failed: ${error.message}`);
 }

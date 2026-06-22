@@ -376,7 +376,7 @@ async function insertTaskEvent(
   const { error } = await supabase.from("agent_task_events").insert({
     task_id: taskId,
     actor_kind: "human",
-    actor_label: getOperatorActor(),
+    actor_label: await getOperatorActor(),
     event_type: event.event_type,
     title: event.title,
     body: event.body,

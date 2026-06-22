@@ -282,14 +282,18 @@ export type ActiveArcRun = {
  * never completed (it would otherwise spin forever).
  */
 export async function listActiveArcRunConversationIds(
+  scope?: ArcChatTaskScope,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ActiveArcRun[]> {
-  const { data, error } = await client
-    .from("agent_tasks")
-    .select("source_id, started_at, created_at")
-    .eq("task_type", "arc_chat_message")
-    .eq("source_type", "arc_conversation")
-    .in("status", ["queued", "running"]);
+  const { data, error } = await applyTaskScope(
+    client
+      .from("agent_tasks")
+      .select("source_id, started_at, created_at")
+      .eq("task_type", "arc_chat_message")
+      .eq("source_type", "arc_conversation")
+      .in("status", ["queued", "running"]),
+    scope,
+  );
   assertOk("agent_tasks active arc runs", error);
   // One conversation can have several queued turns; keep the freshest start so a
   // recently-sent message keeps spinning even behind an older stuck task.
@@ -344,13 +348,17 @@ type ArcRunRow = {
  */
 export async function listRecentArcRuns(
   limit = 30,
+  scope?: ArcChatTaskScope,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ArcRun[]> {
-  const { data, error } = await client
-    .from("agent_tasks")
-    .select("id, status, objective, source_id, created_at, started_at, completed_at")
-    .eq("task_type", "arc_chat_message")
-    .eq("source_type", "arc_conversation")
+  const { data, error } = await applyTaskScope(
+    client
+      .from("agent_tasks")
+      .select("id, status, objective, source_id, created_at, started_at, completed_at")
+      .eq("task_type", "arc_chat_message")
+      .eq("source_type", "arc_conversation"),
+    scope,
+  )
     .order("updated_at", { ascending: false })
     .limit(limit);
   assertOk("agent_tasks recent arc runs", error);

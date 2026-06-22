@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { rowToVaultNote, vaultNoteToRow, type VaultNoteRow } from "./persistence";
+import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
+
+import {
+  archiveVaultNote,
+  getVaultNoteBySlug,
+  listVaultNotes,
+  rowToVaultNote,
+  setVaultNoteStatus,
+  upsertVaultNote,
+  vaultNoteToRow,
+  type VaultNoteRow,
+} from "./persistence";
 import type { VaultNote } from "@/domain";
 
 const ROW: VaultNoteRow = {
@@ -45,5 +56,65 @@ describe("vaultNoteToRow", () => {
       slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Arc",
       status: "published", body: "# X",
     });
+  });
+});
+
+const NOTE: VaultNote = {
+  slug: "x", title: "X", folder: "Playbooks", tags: ["a"], author: "Arc",
+  status: "Draft", updated: "", body: "# X",
+};
+
+describe("listVaultNotes", () => {
+  it("scopes the note list to the given org", async () => {
+    const supabase = createSupabaseQueryMock({ vault_notes: { data: [ROW], error: null } });
+
+    await listVaultNotes(supabase, "org-1");
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
+});
+
+describe("getVaultNoteBySlug", () => {
+  it("scopes the lookup to org and slug", async () => {
+    const supabase = createSupabaseQueryMock({ vault_notes: { data: ROW, error: null } });
+
+    await getVaultNoteBySlug(supabase, "x", "org-1");
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "slug", "x"]);
+  });
+});
+
+describe("upsertVaultNote", () => {
+  it("stamps org_id on the row and conflicts on (org_id, slug)", async () => {
+    const supabase = createSupabaseQueryMock({ vault_notes: { data: null, error: null } });
+
+    await upsertVaultNote(supabase, NOTE, "org-1");
+
+    const upsertCall = supabase.calls.find((call) => call[0] === "upsert");
+    expect(upsertCall?.[1]).toMatchObject({ slug: "x", org_id: "org-1" });
+    expect(upsertCall?.[2]).toEqual({ onConflict: "org_id,slug" });
+  });
+});
+
+describe("setVaultNoteStatus", () => {
+  it("scopes the status update to org and slug", async () => {
+    const supabase = createSupabaseQueryMock({ vault_notes: { data: null, error: null } });
+
+    await setVaultNoteStatus(supabase, "x", "Published", "org-1");
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "slug", "x"]);
+  });
+});
+
+describe("archiveVaultNote", () => {
+  it("scopes the archive to org and slug", async () => {
+    const supabase = createSupabaseQueryMock({ vault_notes: { data: null, error: null } });
+
+    await archiveVaultNote(supabase, "x", "org-1");
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual(["eq", "slug", "x"]);
   });
 });

@@ -197,12 +197,13 @@ type AgentOutputRow = {
 
 /** Lightweight head-only count of items awaiting a decision — for glanceable badges. */
 export async function countActiveApprovals(
+  orgId?: string,
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<number> {
-  const { count, error } = await client
-    .from("approval_items")
-    .select("id", { count: "exact", head: true })
-    .in("status", [...ACTIVE_APPROVAL_STATUSES]);
+  const { count, error } = await applyOrgScope(
+    client.from("approval_items").select("id", { count: "exact", head: true }),
+    orgId,
+  ).in("status", [...ACTIVE_APPROVAL_STATUSES]);
 
   if (error) {
     throw new Error(`countActiveApprovals failed: ${error.message}`);

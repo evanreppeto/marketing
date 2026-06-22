@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   try {
     const origin = new URL(request.url).origin;
     const orgId = await getCurrentOrgId();
-    const operator = getOperatorActor();
+    const operator = await getOperatorActor();
     const accessToken = await resolveGoogleDriveAccessToken({ orgId, connectedBy: operator, origin });
     return NextResponse.json({
       ok: true,

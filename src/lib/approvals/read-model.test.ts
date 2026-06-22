@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { listApprovalCards } from "./read-model";
+import { countActiveApprovals, listApprovalCards } from "./read-model";
 
 const approvalItemRow = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -356,7 +356,7 @@ describe("listApprovalCards", () => {
     );
   });
 
-  it("throws when approval item lookup fails", async () => {
+  it("throws when approval item lookup fails (cards)", async () => {
     const supabase = createSupabaseQueryMock({
       approval_items: { data: null, error: { message: "db down" } },
     });
@@ -371,5 +371,42 @@ describe("listApprovalCards", () => {
     });
 
     await expect(listApprovalCards({}, supabase)).rejects.toThrow(/campaigns lookup failed/);
+  });
+});
+
+describe("countActiveApprovals", () => {
+  it("scopes the active-approval count to the given org", async () => {
+    const supabase = createSupabaseQueryMock({
+      approval_items: { data: null, count: 4, error: null },
+    });
+
+    const count = await countActiveApprovals("org-1", supabase);
+
+    expect(count).toBe(4);
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(supabase.calls).toContainEqual([
+      "in",
+      "status",
+      ["needs_compliance", "pending_approval", "pending_owner_approval", "revision_requested"],
+    ]);
+  });
+
+  it("does not filter by org when no org id is given", async () => {
+    const supabase = createSupabaseQueryMock({
+      approval_items: { data: null, count: 9, error: null },
+    });
+
+    const count = await countActiveApprovals(undefined, supabase);
+
+    expect(count).toBe(9);
+    expect(supabase.calls.some((call) => call[0] === "eq" && call[1] === "org_id")).toBe(false);
+  });
+
+  it("throws when the count query fails", async () => {
+    const supabase = createSupabaseQueryMock({
+      approval_items: { data: null, count: null, error: { message: "db down" } },
+    });
+
+    await expect(countActiveApprovals("org-1", supabase)).rejects.toThrow(/countActiveApprovals failed: db down/);
   });
 });

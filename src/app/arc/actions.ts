@@ -52,6 +52,8 @@ import { editDraftAsset, getDraftAsset, type DraftAssetView } from "@/lib/campai
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { saveItem, removeSavedItem, getSavedItem, markPromoted, type SavedKind } from "@/lib/arc-chat/saved";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
+import { type ArcChatTaskScope } from "@/lib/arc-chat/inbox";
 import { validatePromoteTarget, type PromoteTarget } from "./promote-target";
 
 export type SendMessageState = { ok: boolean; message: string; conversationId?: string } | null;
@@ -91,7 +93,7 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
     throw error;
   }
 
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
   const client = getSupabaseAdminClient();
   const existingId = String(formData.get("conversationId") ?? "").trim();
   // Optional project chosen in the composer footer — assigned on a new thread.
@@ -352,7 +354,7 @@ export async function createProjectForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  await createProject({ operator: getOperatorActor(), name });
+  await createProject({ operator: await getOperatorActor(), name });
   revalidatePath("/arc");
 }
 
@@ -474,20 +476,36 @@ export async function setArcMessageFeedbackAction(
   revalidatePath("/arc");
 }
 
+/** Resolve the current workspace scope for Arc-run reads, or undefined when no
+ *  active workspace is available (so the caller degrades to an empty list rather
+ *  than throwing). */
+async function currentArcRunScope(): Promise<ArcChatTaskScope | undefined> {
+  try {
+    const { org_id, workspace_id } = await getCurrentAgentTaskTenantFields();
+    return { orgId: org_id, workspaceId: workspace_id };
+  } catch {
+    return undefined;
+  }
+}
+
 /** Conversation ids with an Arc run in flight — polled by the sidebar to show
  *  cross-thread "working…" indicators. Empty when Supabase isn't configured. */
 export async function getActiveArcRunsAction(): Promise<ActiveArcRun[]> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return [];
-  return listActiveArcRunConversationIds().catch(() => []);
+  const scope = await currentArcRunScope();
+  if (!scope) return [];
+  return listActiveArcRunConversationIds(scope).catch(() => []);
 }
 
-/** Recent Arc runs across all threads — feeds the global Runs view drawer.
- *  Empty when Supabase isn't configured. */
+/** Recent Arc runs across the active workspace — feeds the global Runs view
+ *  drawer. Empty when Supabase isn't configured. */
 export async function getArcRunsAction(): Promise<ArcRun[]> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return [];
-  return listRecentArcRuns(30).catch(() => []);
+  const scope = await currentArcRunScope();
+  if (!scope) return [];
+  return listRecentArcRuns(30, scope).catch(() => []);
 }
 
 /** Re-run the operator turn that produced `markMessageId`: enqueue a fresh task
@@ -519,7 +537,7 @@ export async function regenerateArcReplyAction(
   const mode = parseArcMode(lastOperator.mode ?? opts?.mode);
   const route = parseArcRoute(lastOperator.route ?? opts?.route);
 
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
   const settings = await getAppSettings();
   const agentName = await getAgentName();
   try {
@@ -599,7 +617,7 @@ export async function editAndResendArcMessageAction(
 
   const mode = parseArcMode(target.mode ?? opts?.mode);
   const route = parseArcRoute(target.route ?? opts?.route);
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
   const settings = await getAppSettings();
   const agentName = await getAgentName();
   try {
@@ -686,7 +704,7 @@ export async function editDraftAssetAction(input: {
         body: input.body,
         fields: input.fields ?? {},
       },
-      getOperatorActor(),
+      await getOperatorActor(),
     );
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't save the edit." };
@@ -710,7 +728,7 @@ export async function decideCampaignDraftAction(formData: FormData): Promise<voi
   const decision = String(formData.get("decision") ?? "").trim();
   if (!assetId || !CHAT_DECISIONS.includes(decision as ApprovalDecision)) return;
   await decideAsset(
-    { assetId, campaignId, decision: decision as ApprovalDecision, operator: getOperatorActor() },
+    { assetId, campaignId, decision: decision as ApprovalDecision, operator: await getOperatorActor() },
   ).catch(() => undefined);
   revalidatePath("/arc");
   if (campaignId) revalidatePath(`/campaigns/${campaignId}`);
@@ -734,7 +752,7 @@ export type SaveItemActionInput = {
 export async function saveArcItemAction(input: SaveItemActionInput): Promise<{ ok: boolean; id?: string; message?: string }> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, message: "Connect Supabase to save items." };
-  const saved = await saveItem({ operator: getOperatorActor(), ...input });
+  const saved = await saveItem({ operator: await getOperatorActor(), ...input });
   revalidatePath("/arc/saved");
   return { ok: true, id: saved.id };
 }
@@ -742,7 +760,7 @@ export async function saveArcItemAction(input: SaveItemActionInput): Promise<{ o
 export async function unsaveArcItemAction(id: string): Promise<void> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return;
-  await removeSavedItem(id, getOperatorActor());
+  await removeSavedItem(id, await getOperatorActor());
   revalidatePath("/arc/saved");
 }
 
@@ -765,7 +783,7 @@ export async function promoteSavedItemAction(
   const valid = validatePromoteTarget(target);
   if (!valid.ok) return { ok: false, message: valid.message };
 
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
   const agentName = await getAgentName();
   const item = await getSavedItem(savedItemId, operator);
   if (!item) return { ok: false, message: "Saved item not found." };

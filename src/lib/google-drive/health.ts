@@ -234,7 +234,7 @@ export async function loadGoogleDriveHealth(): Promise<GoogleDriveHealth> {
   }
 
   const orgId = await getCurrentOrgId();
-  const connectedBy = getOperatorActor();
+  const connectedBy = await getOperatorActor();
   let connection: GoogleDriveConnectionRow | null = null;
   let connectionError: string | null = null;
   let sources: GoogleDriveSourceView[] = [];

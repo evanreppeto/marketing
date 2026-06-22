@@ -30,7 +30,7 @@ async function runTransition(formData: FormData, to: DispatchStatus): Promise<Di
   const scheduledFor = String(formData.get("scheduledFor") ?? "").trim() || undefined;
 
   try {
-    await transitionDispatch({ dispatchId, to, operator: getOperatorActor(), note, scheduledFor }, getSupabaseAdminClient());
+    await transitionDispatch({ dispatchId, to, operator: await getOperatorActor(), note, scheduledFor }, getSupabaseAdminClient());
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't update the dispatch." };
   }

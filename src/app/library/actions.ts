@@ -190,7 +190,7 @@ export async function uploadAssetsAction(formData: FormData): Promise<void> {
       contentType: file.type,
       kind,
       byteSize: file.size,
-      uploadedBy: getOperatorActor(),
+      uploadedBy: await getOperatorActor(),
     });
     await learnBrandKnowledgeFromAsset({
       id: assetId,
@@ -224,7 +224,7 @@ export async function importFromGoogleDriveAction(
   }
 
   try {
-    const operator = getOperatorActor();
+    const operator = await getOperatorActor();
     const accessToken = await resolveGoogleDriveAccessToken({ orgId, connectedBy: operator });
     let importFileIds = fileIds;
     let folderSummary = "";
@@ -290,7 +290,7 @@ export async function importFromGoogleDriveAction(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google Drive import failed.";
-    await recordGoogleDriveImportResult({ orgId, connectedBy: getOperatorActor(), ok: false, error: message }).catch(() => undefined);
+    await recordGoogleDriveImportResult({ orgId, connectedBy: await getOperatorActor(), ok: false, error: message }).catch(() => undefined);
     return { ok: false, message };
   }
 }
@@ -300,7 +300,7 @@ export async function syncGoogleDriveSourceAction(formData: FormData): Promise<v
   const sourceId = String(formData.get("sourceId") ?? "");
   if (!sourceId) return;
 
-  const connectedBy = getOperatorActor();
+  const connectedBy = await getOperatorActor();
   const source = await getGoogleDriveSource({ id: sourceId, orgId, connectedBy });
   if (!source) return;
   try {
@@ -334,7 +334,7 @@ export async function deleteGoogleDriveSourceAction(formData: FormData): Promise
   const orgId = await guard();
   const id = String(formData.get("sourceId") ?? "");
   if (!id) return;
-  await deleteGoogleDriveSource({ id, orgId, connectedBy: getOperatorActor() });
+  await deleteGoogleDriveSource({ id, orgId, connectedBy: await getOperatorActor() });
   revalidatePath("/library");
   revalidatePath("/library/brand");
   revalidatePath("/brain");
@@ -400,7 +400,7 @@ export async function sendAssetsToArcAction(formData: FormData): Promise<void> {
   const attachments = await loadArcAttachments(orgId, ids);
   if (attachments.length === 0) return;
 
-  const operator = getOperatorActor();
+  const operator = await getOperatorActor();
   const message = "Use these reference images.";
 
   const conversation = await createConversation({ operator, title: deriveThreadTitle(message) });

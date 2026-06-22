@@ -113,7 +113,7 @@ export async function uploadAndAnalyzeBrandSourcesAction(
         byteSize: file.size,
         source: "uploaded",
         provenance: { brandSource: true },
-        uploadedBy: getOperatorActor(),
+        uploadedBy: await getOperatorActor(),
       });
       const result = await learnBrandKnowledgeFromAsset({
         id: assetId,
@@ -214,7 +214,7 @@ export async function importAndAnalyzeBrandUrlAction(
   try {
     const result = await importUrlSourceDocument({
       orgId,
-      uploadedBy: getOperatorActor(),
+      uploadedBy: await getOperatorActor(),
       source: await fetchUrlSource({ url: rawUrl }),
     });
     totals.created += result.created;
@@ -246,7 +246,7 @@ export async function importAndAnalyzeBrandWebsiteAction(
   }
 
   const orgId = await getCurrentOrgId();
-  const uploadedBy = getOperatorActor();
+  const uploadedBy = await getOperatorActor();
   const totals = { sources: 0, created: 0, skipped: 0, updatedProfiles: 0, errors: [] as string[] };
 
   try {

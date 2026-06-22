@@ -19,7 +19,7 @@ function revalidateBrainSurfaces() {
 export async function approveNodeAction(nodeId: string): Promise<ActionResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const result = await decideNode(nodeId, "approve", { actor: getOperatorActor() });
+  const result = await decideNode(nodeId, "approve", { actor: await getOperatorActor() });
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
@@ -28,7 +28,7 @@ export async function approveNodeAction(nodeId: string): Promise<ActionResult> {
 export async function rejectNodeAction(nodeId: string): Promise<ActionResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const result = await decideNode(nodeId, "reject", { actor: getOperatorActor() });
+  const result = await decideNode(nodeId, "reject", { actor: await getOperatorActor() });
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
@@ -53,7 +53,7 @@ export async function createNodeAction(input: {
       persona: input.persona ?? null,
       tags: input.tags ?? [],
     },
-    { createdBy: "operator", actor: getOperatorActor() },
+    { createdBy: "operator", actor: await getOperatorActor() },
   );
   if (!result.ok) return result;
   revalidateBrainSurfaces();
@@ -66,7 +66,7 @@ export async function updateNodeAction(
 ): Promise<ActionResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const result = await updateNode(nodeId, fields, { actor: getOperatorActor() });
+  const result = await updateNode(nodeId, fields, { actor: await getOperatorActor() });
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
@@ -79,7 +79,7 @@ export async function createEdgeAction(input: {
 }): Promise<ActionResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const result = await createEdge(input, { createdBy: "operator", actor: getOperatorActor() });
+  const result = await createEdge(input, { createdBy: "operator", actor: await getOperatorActor() });
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
@@ -88,7 +88,7 @@ export async function createEdgeAction(input: {
 export async function setNodeKindAction(nodeId: string, kind: string): Promise<ActionResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const result = await setNodeKind(nodeId, kind, { actor: getOperatorActor() });
+  const result = await setNodeKind(nodeId, kind, { actor: await getOperatorActor() });
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
@@ -97,7 +97,7 @@ export async function setNodeKindAction(nodeId: string, kind: string): Promise<A
 export async function setNodeTagsAction(nodeId: string, tags: string[]): Promise<ActionResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const result = await setNodeTags(nodeId, tags, { actor: getOperatorActor() });
+  const result = await setNodeTags(nodeId, tags, { actor: await getOperatorActor() });
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
@@ -106,7 +106,7 @@ export async function setNodeTagsAction(nodeId: string, tags: string[]): Promise
 export async function archiveNodeAction(nodeId: string): Promise<ActionResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
-  const result = await archiveNode(nodeId, { actor: getOperatorActor() });
+  const result = await archiveNode(nodeId, { actor: await getOperatorActor() });
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };

@@ -53,7 +53,7 @@ async function uploadBrandProfileAsset(args: {
     byteSize: args.file.size,
     source: "uploaded",
     provenance: { brandRole: args.role },
-    uploadedBy: getOperatorActor(),
+    uploadedBy: await getOperatorActor(),
   });
   return { ok: true, url: result.url };
 }
