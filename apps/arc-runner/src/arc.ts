@@ -23,6 +23,7 @@ export type ArcTurnResult = {
   suggestions: string[];
   sources: ArcMention[];
   questions: ArcQuestion[];
+  usage: { model: string; inputTokens: number | null; outputTokens: number | null };
 };
 
 /**
@@ -87,6 +88,8 @@ async function runArcQuery(opts: {
   // partial events are unavailable the reply is unchanged — streaming is additive.
   let streamBuf = "";
   let lastEmit = 0;
+  let inputTokens: number | null = null;
+  let outputTokens: number | null = null;
 
   for await (const message of query({
     prompt: opts.prompt,
@@ -119,6 +122,11 @@ async function runArcQuery(opts: {
       }
     } else if (message.type === "result" && message.subtype === "success") {
       resultText = message.result;
+      const usage = (message as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
+      if (usage) {
+        inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : inputTokens;
+        outputTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : outputTokens;
+      }
     }
   }
 
@@ -128,6 +136,7 @@ async function runArcQuery(opts: {
     suggestions: suggestions.slice(0, 4),
     sources,
     questions: questions.slice(0, 4),
+    usage: { model: opts.model, inputTokens, outputTokens },
   };
 }
 

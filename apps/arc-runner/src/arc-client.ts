@@ -114,7 +114,35 @@ export function createArcClient(config: Config) {
     }
   }
 
-  return { apiGet, apiPost, apiPut, postChatReply, postStep, postChatChunk };
+  /**
+   * Report token usage for a completed turn to the app's usage ledger.
+   * Best-effort — metering must never break or delay the chat reply.
+   */
+  async function postUsage(input: {
+    model: string;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    actorUser?: string | null;
+    taskId?: string | null;
+  }): Promise<void> {
+    try {
+      await fetch(`${config.appApiBaseUrl}/api/v1/arc/usage`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: input.model,
+          input_tokens: input.inputTokens ?? undefined,
+          output_tokens: input.outputTokens ?? undefined,
+          actor_user: input.actorUser ?? undefined,
+          task_id: input.taskId ?? undefined,
+        }),
+      });
+    } catch {
+      /* metering is non-essential; never surface to the run */
+    }
+  }
+
+  return { apiGet, apiPost, apiPut, postChatReply, postStep, postChatChunk, postUsage };
 }
 
 export type ArcClient = ReturnType<typeof createArcClient>;

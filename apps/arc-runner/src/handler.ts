@@ -29,6 +29,13 @@ export async function handleChatMessage(
       metadata,
       ...(result.sources.length > 0 ? { mentions: result.sources } : {}),
     });
+    await client.postUsage({
+      model: result.usage.model,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      actorUser: payload.operator ?? null,
+      taskId: payload.agentTaskId,
+    });
     console.log(`[arc-runner] replied to task ${payload.agentTaskId} in ${Date.now() - started}ms`);
   } catch (error) {
     console.error("[arc-runner] Arc run failed:", error);
@@ -65,6 +72,13 @@ export async function handleOpportunityDraft(
     console.log(
       `[arc-runner] opportunity ${payload.opportunityId} drafted in ${Date.now() - started}ms (${result.actions.length} card(s))`,
     );
+    await client.postUsage({
+      model: result.usage.model,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      actorUser: payload.operator ?? null,
+      taskId: payload.agentTaskId,
+    });
   } catch (error) {
     console.error(`[arc-runner] opportunity-draft run failed for ${payload.opportunityId}:`, error);
   }
@@ -86,6 +100,13 @@ export async function handleOpportunityScan(
   try {
     const result = await runArcOpportunityScan(payload, client);
     console.log(`[arc-runner] opportunity scan finished in ${Date.now() - started}ms (${result.actions.length} card(s))`);
+    await client.postUsage({
+      model: result.usage.model,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      actorUser: payload.operator ?? null,
+      taskId: payload.agentTaskId,
+    });
   } catch (error) {
     console.error(`[arc-runner] opportunity-scan run failed (task ${payload.agentTaskId}):`, error);
   }
