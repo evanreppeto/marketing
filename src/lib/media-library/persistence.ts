@@ -56,9 +56,32 @@ export function defaultUploader(client: SupabaseClient): ImageUploader {
   };
 }
 
-export type CreateFolderInput = { orgId: string; name: string; parentId?: string | null; client?: SupabaseClient };
-export async function createFolder({ orgId, name, parentId = null, client = getSupabaseAdminClient() }: CreateFolderInput): Promise<string> {
-  return insertGetId(client, "media_folders", { org_id: orgId, name, parent_id: parentId });
+function isMissingFolderColorColumn(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /media_folders.*color|color.*media_folders|schema cache/i.test(message);
+}
+
+export type CreateFolderInput = {
+  orgId: string;
+  name: string;
+  parentId?: string | null;
+  color?: string | null;
+  client?: SupabaseClient;
+};
+export async function createFolder({
+  orgId,
+  name,
+  parentId = null,
+  color = null,
+  client = getSupabaseAdminClient(),
+}: CreateFolderInput): Promise<string> {
+  const values = { org_id: orgId, name, parent_id: parentId, ...(color ? { color } : {}) };
+  try {
+    return await insertGetId(client, "media_folders", values);
+  } catch (error) {
+    if (!color || !isMissingFolderColorColumn(error)) throw error;
+    return insertGetId(client, "media_folders", { org_id: orgId, name, parent_id: parentId });
+  }
 }
 
 export async function renameFolder(id: string, name: string, client: SupabaseClient = getSupabaseAdminClient()) {

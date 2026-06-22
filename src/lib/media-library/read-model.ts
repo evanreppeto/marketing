@@ -71,6 +71,17 @@ export function countUsage(
   return counts;
 }
 
+function isMissingFolderColorColumn(message: string): boolean {
+  return /media_folders.*color|color.*media_folders|schema cache/i.test(message);
+}
+
+type MediaFolderQueryRow = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  color?: string | null;
+};
+
 export function buildFolderViews(folderRows: MediaFolderRow[], assets: Pick<MediaAssetRow, "folder_id">[]): MediaFolderView[] {
   const knownIds = new Set(folderRows.map((folder) => folder.id));
   const rows = folderRows.map((folder) => ({
@@ -97,7 +108,7 @@ export function buildFolderViews(folderRows: MediaFolderRow[], assets: Pick<Medi
   };
 
   const views: MediaFolderView[] = [
-    { id: "all", name: "All media", parentId: null, depth: 0, count: assets.length, directCount: assets.length },
+    { id: "all", name: "All media", parentId: null, depth: 0, count: assets.length, directCount: assets.length, color: null },
   ];
   const visited = new Set<string>();
 
@@ -111,6 +122,7 @@ export function buildFolderViews(folderRows: MediaFolderRow[], assets: Pick<Medi
       depth,
       count: countSubtree(folder.id),
       directCount: directCounts.get(folder.id) ?? 0,
+      color: folder.color ?? null,
     });
     for (const child of children.get(folder.id) ?? []) append(child, depth + 1);
   };
@@ -149,8 +161,16 @@ export async function getMediaLibraryData(client?: SupabaseClient): Promise<Medi
     throw error;
   }
 
-  const { data: folderRows, error: fErr } = await db
-    .from("media_folders").select("id, name, parent_id").eq("org_id", orgId).order("sort_order");
+  const folderQuery = await db
+    .from("media_folders" as string).select("id, name, parent_id, color").eq("org_id", orgId).order("sort_order");
+  let folderRows = (folderQuery.data ?? null) as MediaFolderQueryRow[] | null;
+  let fErr = folderQuery.error;
+  if (fErr && isMissingFolderColorColumn(fErr.message)) {
+    const fallback = await db.from("media_folders" as string).select("id, name, parent_id").eq("org_id", orgId).order("sort_order");
+    const fallbackRows = (fallback.data ?? []) as MediaFolderQueryRow[];
+    folderRows = fallbackRows.map((folder) => ({ ...folder, color: null }));
+    fErr = fallback.error;
+  }
   if (fErr) return { status: "unavailable", message: fErr.message };
 
   const { data: assetRows, error: aErr } = await db

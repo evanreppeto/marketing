@@ -39,6 +39,26 @@ describe("createFolder", () => {
       }),
     ]);
   });
+
+  it("persists the selected folder color", async () => {
+    const supabase = createSupabaseQueryMock({
+      media_folders: { data: { id: "folder-blue" }, error: null },
+    });
+
+    await createFolder({
+      orgId: "org-1",
+      name: "Field photos",
+      color: "#38BDF8",
+      client: supabase,
+    });
+
+    expect(supabase.calls).toContainEqual([
+      "insert",
+      expect.objectContaining({
+        color: "#38BDF8",
+      }),
+    ]);
+  });
 });
 
 describe("insertAsset", () => {

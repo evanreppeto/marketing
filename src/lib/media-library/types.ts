@@ -25,6 +25,7 @@ export type MediaFolderRow = {
   id: string;
   name: string;
   parent_id: string | null;
+  color: string | null;
 };
 
 export type MediaFolderView = {
@@ -34,6 +35,7 @@ export type MediaFolderView = {
   depth: number;
   count: number;
   directCount: number;
+  color: string | null;
 };
 
 export type MediaAssetView = {
