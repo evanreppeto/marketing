@@ -354,25 +354,13 @@ export async function createWorkspaceForUser(
       };
     }
 
-    const orgSlug = slugify(organizationName);
-    const existingOrg = await findOrganizationBySlug(client, orgSlug);
-    const claimedExistingOrg = Boolean(existingOrg);
-
-    if (existingOrg && (await organizationHasMemberships(client, existingOrg.id))) {
-      return {
-        ok: false,
-        status: "already_claimed",
-        message: "That organization already has members. Ask an owner or admin to invite you.",
-      };
-    }
-
-    const org = existingOrg ?? (await createOrganization(client, organizationName, orgSlug));
+    const org = await createOrganizationUnique(client, organizationName, organizationName);
     const workspace = await upsertDefaultWorkspace(client, org, workspaceName, workspaceType, user.id);
 
     await createOwnerMemberships(client, org.id, workspace.id, user.id, email);
     await createWorkspaceDefaults(client, org, workspace, user.id);
 
-    return { ok: true, orgId: org.id, workspaceId: workspace.id, claimedExistingOrg };
+    return { ok: true, orgId: org.id, workspaceId: workspace.id, claimedExistingOrg: false };
   } catch (error) {
     return {
       ok: false,
