@@ -1,5 +1,6 @@
 import { PageHeader, StatStrip, type StatItem } from "@/app/_components/page-header";
 import { BrainShell } from "@/app/brain/_components/brain-shell";
+import { buildBrainSourceReviewData } from "@/lib/brand-knowledge/source-review";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
