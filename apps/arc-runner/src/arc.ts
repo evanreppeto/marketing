@@ -8,6 +8,7 @@ import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode, type ArcMode, type ToolContext } from "./tools";
 import type {
   ArcActionCard,
+  ArcCampaignTaskPayload,
   ArcMention,
   ArcOpportunityDraftPayload,
   ArcOpportunityScanPayload,
@@ -251,5 +252,50 @@ export async function runArcOpportunityScan(
     client,
     prompt: payload.message,
     model: modelForRoute("standard"),
+  });
+}
+
+/**
+ * Run an Arc turn for a campaign task wake. This is the production path for
+ * "Ask Arc to build" and "Hand to Arc": DRAFT mode, fixed campaign scope, and
+ * a prompt that keeps all work approval-gated.
+ */
+export async function runArcCampaignTask(
+  payload: ArcCampaignTaskPayload,
+  client: ArcClient,
+): Promise<ArcTurnResult> {
+  const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
+
+  const business = await resolveBusinessContext(client);
+  const memory = await resolveRecallMemory(client, payload.message);
+  const ctx: ArcTurnContext = {
+    business,
+    mode: "draft",
+    scope: {
+      conversationId: payload.conversationId ?? payload.agentTaskId,
+      projectId: null,
+      campaignId: payload.campaignId,
+      operator: payload.operator,
+    },
+    mentions: [],
+    memory,
+  };
+
+  const prompt = [
+    `Campaign task: ${payload.taskType}.`,
+    `Work only on campaign_id "${payload.campaignId}". When creating campaign drafts, attach them to that campaign_id.`,
+    "Create approval-gated draft assets only. Do not send, publish, launch, approve, unlock dispatch, or spend.",
+    "",
+    payload.message,
+  ].join("\n");
+
+  return runArcQuery({
+    step,
+    mode: "draft",
+    ctx,
+    client,
+    prompt,
+    model: modelForRoute("standard"),
+    toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
   });
 }

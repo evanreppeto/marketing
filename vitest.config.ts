@@ -4,8 +4,8 @@ import { configDefaults, defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    // mark-runner/ is a standalone service with its own node:test suite.
-    exclude: [...configDefaults.exclude, "mark-runner/**", ".worktrees/**", ".claude/worktrees/**"],
+    // Arc runner is a standalone service with its own dependency stack.
+    exclude: [...configDefaults.exclude, "apps/arc-runner/**", "arc-runner/**", "mark-runner/**", ".worktrees/**", ".claude/worktrees/**"],
   },
   resolve: {
     alias: {

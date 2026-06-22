@@ -16,8 +16,13 @@ import type { StepFn, TurnSink } from "./helpers";
 
 export type ArcMode = "ask" | "act" | "draft" | "scan";
 
-/** Extra per-turn context threaded into work-product tools (e.g. the opportunity a draft links back to, the Arc level driving media models). */
-export type ToolContext = { opportunityId?: string; level?: "fast" | "standard"; conversationId?: string };
+/** Extra per-turn context threaded into work-product tools (e.g. the active campaign/opportunity a draft links back to, the Arc level driving media models). */
+export type ToolContext = {
+  opportunityId?: string;
+  level?: "fast" | "standard";
+  conversationId?: string | null;
+  campaignId?: string | null;
+};
 
 /** Read app state + reply-shaping tools (cards, suggestions, sources). Available in every mode. */
 function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
