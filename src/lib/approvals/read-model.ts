@@ -923,6 +923,7 @@ export type ApprovalHistoryEntry = {
 export type ApprovalHistoryFilter = {
   campaignId?: string;
   limit?: number;
+  orgId?: string;
 };
 
 /**
@@ -950,9 +951,12 @@ export async function listApprovalHistory(
     if (itemIdFilter.length === 0) return [];
   }
 
-  let decisionsQuery = client
-    .from("approval_decisions")
-    .select("id,approval_item_id,decision,decided_by,decided_at,decision_notes,previous_status,next_status")
+  let decisionsQuery = applyOrgScope(
+    client
+      .from("approval_decisions")
+      .select("id,approval_item_id,decision,decided_by,decided_at,decision_notes,previous_status,next_status"),
+    filter.orgId,
+  )
     .order("decided_at", { ascending: false })
     .limit(limit);
   if (itemIdFilter) {
