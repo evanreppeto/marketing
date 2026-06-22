@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getSafeOperatorReturnPath } from "@/lib/auth/operator-shared";
+import { authedRedirectLocation } from "@/lib/auth/post-auth-redirect";
 import { provisionAuthenticatedUser } from "@/lib/auth/user-provisioning";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 
@@ -28,24 +29,7 @@ export async function GET(request: Request) {
 
   if (data.user) {
     const provisioned = await provisionAuthenticatedUser(data.user);
-    if (!provisioned.ok) {
-      return NextResponse.redirect(
-        new URL(`/login?error=provision&from=${encodeURIComponent(next)}`, url.origin),
-        { status: 303 },
-      );
-    }
-    if (provisioned.status === "invited_member") {
-      return NextResponse.redirect(
-        new URL(`/welcome?from=${encodeURIComponent(next)}`, url.origin),
-        { status: 303 },
-      );
-    }
-    if (provisioned.status === "profile_only") {
-      return NextResponse.redirect(
-        new URL(`/onboarding?from=${encodeURIComponent(next)}`, url.origin),
-        { status: 303 },
-      );
-    }
+    return NextResponse.redirect(authedRedirectLocation(provisioned, next, url.origin), { status: 303 });
   }
 
   return NextResponse.redirect(new URL(next, url.origin), { status: 303 });

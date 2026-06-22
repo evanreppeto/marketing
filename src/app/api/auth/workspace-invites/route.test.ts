@@ -25,7 +25,7 @@ describe("POST /api/auth/workspace-invites email send", () => {
     const res = await POST(req({ workspaceId: "w1", role: "member", invitedEmail: "teammate@co.com" }));
     expect(inviteUserByEmail).toHaveBeenCalledWith("teammate@co.com", {
       data: { pending_invite_code: "ABC123" },
-      redirectTo: "https://app.example.com/auth/callback",
+      redirectTo: "https://app.example.com/auth/confirm",
     });
     expect(await res.json()).toMatchObject({ ok: true, code: "ABC123", emailed: true });
   });

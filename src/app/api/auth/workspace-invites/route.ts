@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     try {
       const { error } = await getSupabaseAdminClient().auth.admin.inviteUserByEmail(invitedEmail, {
         data: { pending_invite_code: result.code },
-        redirectTo: `${origin}/auth/callback`,
+        redirectTo: `${origin}/auth/confirm`,
       });
       return NextResponse.json({ ...result, emailed: !error, emailError: error?.message ?? null });
     } catch (error) {
