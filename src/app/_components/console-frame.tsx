@@ -8,6 +8,8 @@ import { Cog, LogOut, MoreHorizontal, PlusIcon } from "lucide-react";
 import { switchWorkspaceAction } from "../settings/workspace-actions";
 
 import { AgentNameProvider } from "./agent-name-context";
+import { CommandMenuProvider } from "./command-menu";
+import { WorkspaceNameProvider } from "./workspace-name-context";
 import { BackgroundGradientAnimation } from "./background-gradient-animation";
 import { NavIcon } from "./nav-icons";
 import { ShellContent } from "./shell-content";
@@ -153,7 +155,9 @@ export function ConsoleFrame({
 
   return (
     <AgentNameProvider value={agentName}>
-      <main className={theme.shell.canvas}>
+      <WorkspaceNameProvider value={brand.workspaceName}>
+        <CommandMenuProvider>
+          <main className={theme.shell.canvas}>
         <div
           className={cx(
             "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-200 lg:ease-out",
@@ -300,6 +304,8 @@ export function ConsoleFrame({
           )}
         </div>
       </main>
+        </CommandMenuProvider>
+      </WorkspaceNameProvider>
     </AgentNameProvider>
   );
 }
