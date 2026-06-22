@@ -10,6 +10,7 @@ import { ApprovalQueue } from "./approval-queue";
 import { BrainBrowser } from "./brain-browser";
 import { BrainHealth } from "./brain-health";
 import { BrainQuickSwitcher } from "./brain-quick-switcher";
+import { BrainRecallTester } from "./brain-recall-tester";
 import { BrainSourceFilter } from "./brain-source-filter";
 import { BrainWorkspace } from "./brain-workspace";
 import { RecentlyLearned } from "./recently-learned";
@@ -25,7 +26,7 @@ type Props = {
 /** "all" plus the six source systems. */
 export type SourceFilter = "all" | BrainSourceSystem;
 
-type Tab = "web" | "health" | "recent" | "review" | "facts";
+type Tab = "web" | "health" | "recall" | "recent" | "review" | "facts";
 
 function matchesSource(node: BrainNode, filter: SourceFilter): boolean {
   if (filter === "all") return true;
@@ -62,6 +63,7 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
   const tabs: Array<{ key: Tab; label: string; count?: number }> = [
     { key: "web", label: "Knowledge Web", count: filteredGraphNodes.length },
     { key: "health", label: "Health", count: healthIssues },
+    { key: "recall", label: "Ask Arc" },
     { key: "recent", label: "Recently Learned" },
     { key: "review", label: "Needs Review", count: filteredProposed.length },
     { key: "facts", label: "All Facts", count: filteredAll.length },
@@ -113,6 +115,7 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, proposedNodes, ag
         />
       )}
       {tab === "health" && <BrainHealth health={health} onSelect={jumpTo} />}
+      {tab === "recall" && <BrainRecallTester nodes={graphNodes} edges={graphEdges} agentName={agentName} onSelect={jumpTo} />}
       {tab === "recent" && <RecentlyLearned nodes={filteredAll} />}
       {tab === "review" && <ApprovalQueue nodes={filteredProposed} />}
       {tab === "facts" && <BrainBrowser nodes={filteredAll} agentName={agentName} />}

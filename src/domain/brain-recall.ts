@@ -193,3 +193,64 @@ export function enrichRecall(
     return related.length ? { ...base, related } : base;
   });
 }
+
+// ─── Task 4: previewRecall — operator-facing "what would Arc recall?" ─────────
+
+export type RecallPreviewNode = {
+  id: string;
+  kind: string;
+  label: string;
+  summary: string | null;
+  tags: string[];
+  trustTier: string;
+};
+
+export type RecallPreviewItem = {
+  id: string;
+  kind: string;
+  label: string;
+  summary: string | null;
+  trustTier: string;
+  /** Always-pulled core memory (top trusted/observed) vs. a keyword match. */
+  core: boolean;
+  related: string[];
+};
+
+const RECALL_TIER_PRIORITY: Record<string, number> = { trusted: 0, observed: 1 };
+
+/**
+ * Mirror exactly what Arc pulls into memory for a message — the pure core of
+ * getRecallMemory: trusted+observed candidates (trusted-first), selected as
+ * core + keyword matches, enriched with relationship lines. Lets an operator see
+ * (and stress-test) Arc's recall on a scenario. Pure — no I/O.
+ */
+export function previewRecall(
+  nodes: RecallPreviewNode[],
+  edges: GraphEdgeInput[],
+  message: string,
+): RecallPreviewItem[] {
+  const candidates: RecallCandidate[] = nodes
+    .filter((n) => n.trustTier === "trusted" || n.trustTier === "observed")
+    .slice()
+    .sort((a, b) => (RECALL_TIER_PRIORITY[a.trustTier] ?? 9) - (RECALL_TIER_PRIORITY[b.trustTier] ?? 9))
+    .map((n) => ({ id: n.id, kind: n.kind, label: n.label, summary: n.summary, tags: n.tags, trustTier: n.trustTier }));
+
+  const coreIds = new Set(candidates.slice(0, 10).map((c) => c.id));
+
+  const selected = selectRecall(candidates, message);
+  const graph: RecallGraph = {
+    nodes: nodes.map((n) => ({ id: n.id, label: n.label, kind: n.kind })),
+    edges,
+  };
+  const enriched = enrichRecall(selected, graph, { enrichLimit: selected.length, relationsPerNode: 3 });
+
+  return selected.map((c, i) => ({
+    id: c.id,
+    kind: c.kind,
+    label: c.label,
+    summary: c.summary,
+    trustTier: c.trustTier,
+    core: coreIds.has(c.id),
+    related: enriched[i]?.related ?? [],
+  }));
+}
