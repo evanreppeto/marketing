@@ -44,7 +44,7 @@ export function NewFolderButton({ parentFolderId }: { parentFolderId: string | n
 
   return (
     <form
-      className="flex items-center gap-2"
+      className="flex flex-wrap items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         submit();

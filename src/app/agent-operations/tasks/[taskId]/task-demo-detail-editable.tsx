@@ -72,7 +72,7 @@ export function TaskDemoDetailEditable({ detail, agentName }: { detail: DemoTask
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1180px]">
+    <div className="w-full">
       <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted)]" aria-label="Breadcrumb">
         <Link className="transition hover:text-[var(--text-primary)]" href="/board">
           Task board
@@ -84,7 +84,7 @@ export function TaskDemoDetailEditable({ detail, agentName }: { detail: DemoTask
         </span>
       </nav>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <main className="min-w-0 space-y-4">
           {/* Work-ticket header — editable title + status/priority selectors */}
           <section

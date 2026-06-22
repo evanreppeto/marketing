@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { theme } from "@/app/_components/theme";
 import type { ChartPoint } from "../campaign-analytics-model";
 import { BarBreakdown } from "./bar-breakdown";
 import { DonutPoints } from "./donut-points";
@@ -30,17 +31,17 @@ export function ToggleChart({
   return (
     <div>
       <div className="flex justify-end px-4 pt-3">
-        <div className="inline-flex gap-1 border-b border-[var(--border-hairline)]">
+        <div className="inline-flex gap-1 border-b border-[var(--border-hairline)] pb-3">
           {(["bars", "donut"] as const).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => setMode(value)}
               aria-pressed={mode === value}
-              className={`relative rounded px-3 py-2 text-xs font-semibold capitalize transition duration-150 active:translate-y-px ${mode === value ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              className={`relative rounded-[8px] px-3 py-2 text-xs font-semibold capitalize transition duration-150 active:translate-y-px ${mode === value ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {value}
-              {mode === value ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+              {mode === value ? <span aria-hidden className={theme.control.tabMarker} /> : null}
             </button>
           ))}
         </div>

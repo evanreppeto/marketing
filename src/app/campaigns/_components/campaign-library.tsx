@@ -117,14 +117,16 @@ export function CampaignLibrary({
       </div>
 
       {filteredCampaigns.length > 0 ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_23rem]">
+        <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_23rem]">
           <CampaignIndex campaigns={filteredCampaigns} agentName={agentName} />
-          <CampaignFeaturedRail campaign={pickFeatured(filteredCampaigns)} agentName={agentName} />
+          <div className="hidden 2xl:block">
+            <CampaignFeaturedRail campaign={pickFeatured(filteredCampaigns)} agentName={agentName} />
+          </div>
         </div>
       ) : (
-        <div className="border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] px-4 py-10 text-center">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">No campaigns in this view</h2>
-          <p className="mx-auto mt-2 max-w-[52ch] text-sm leading-6 text-[var(--text-secondary)]">
+        <div className={cx(theme.surface.dashedEmpty, "px-5 py-10 text-center")}>
+          <h2 className="relative text-sm font-semibold text-[var(--text-primary)]">No campaigns in this view</h2>
+          <p className="relative mx-auto mt-2 max-w-[52ch] text-sm leading-6 text-[var(--text-secondary)]">
             Try another filter or clear the search.
           </p>
         </div>
@@ -194,12 +196,12 @@ function CampaignIndex({ campaigns, agentName }: { campaigns: CampaignWorkspaceL
       </div>
       {groups.map((group) => (
         <Collapsible.Root key={group.key} defaultOpen className="border-b border-[var(--border-hairline)] last:border-b-0">
-          <Collapsible.Trigger className="group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 text-left transition hover:bg-[color-mix(in_srgb,var(--surface-inset)_54%,transparent)] [&[data-state=open]>svg]:rotate-180">
-            <span aria-hidden className={cx("h-4 w-px", groupToneClass(group.tone))} />
-            <span className="flex min-w-0 items-baseline gap-2">
-              <span className="truncate text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-primary)]">{group.label}</span>
-              <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">{group.items.length}</span>
-              <span className="hidden truncate text-[11px] text-[var(--text-muted)] sm:inline">{group.summary}</span>
+          <Collapsible.Trigger className={cx("group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-y border-[var(--border-hairline)] px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition hover:bg-[color-mix(in_srgb,var(--surface-raised)_44%,transparent)] [&[data-state=open]>svg]:rotate-180", groupHeaderSurface(group.tone))}>
+            <span aria-hidden className={cx("h-7 w-1 rounded-full shadow-[0_0_18px_currentColor]", groupToneClass(group.tone))} />
+            <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--text-primary)]">{group.label}</span>
+              <span className="rounded-[5px] border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-sidebar)_72%,transparent)] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-[var(--text-primary)]">{group.items.length}</span>
+              <span className="hidden truncate text-[11px] text-[var(--text-secondary)] sm:inline">{group.summary}</span>
             </span>
             <ChevronDown aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-150" />
           </Collapsible.Trigger>
@@ -302,6 +304,13 @@ function groupToneClass(tone: string) {
   if (tone === "red") return "bg-[var(--priority)]";
   if (tone === "blue" || tone === "dark") return "bg-[#6fa8d8]";
   return "bg-[var(--border-strong)]";
+}
+
+function groupHeaderSurface(tone: string) {
+  if (tone === "green") return "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--ok)_9%,transparent),color-mix(in_srgb,var(--surface-inset)_34%,transparent))]";
+  if (tone === "amber") return "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--warn)_10%,transparent),color-mix(in_srgb,var(--surface-inset)_34%,transparent))]";
+  if (tone === "blue" || tone === "dark") return "bg-[linear-gradient(90deg,rgba(111,168,216,0.10),color-mix(in_srgb,var(--surface-inset)_34%,transparent))]";
+  return "bg-[color-mix(in_srgb,var(--surface-inset)_42%,transparent)]";
 }
 
 function campaignRowPreview(

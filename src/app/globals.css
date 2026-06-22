@@ -9,36 +9,36 @@
 
 :root {
   /* Surface tiers — warm near-black, stepping up for separation */
-  --canvas: #16161a;            /* page background, deepest */
-  --canvas-deep: #101013;       /* gutter / behind-rail void */
-  --surface-panel: #1c1c21;     /* cards & modules */
-  --surface-inset: #202027;     /* headers, fields, sub-blocks inside a panel */
-  --surface-soft: #1a1a1e;      /* quiet strips, list backgrounds */
-  --surface-raised: #23232a;    /* hover, popovers, selected */
-  --surface-sidebar: #101013;
+  --canvas: #080b0d;            /* page background, deepest */
+  --canvas-deep: #050708;       /* gutter / behind-rail void */
+  --surface-panel: #0e1316;     /* cards & modules */
+  --surface-inset: #12181c;     /* headers, fields, sub-blocks inside a panel */
+  --surface-soft: #0b1013;      /* quiet strips, list backgrounds */
+  --surface-raised: #171e22;    /* hover, popovers, selected */
+  --surface-sidebar: #070a0c;
   --surface-operator: linear-gradient(145deg, #1c1c21, #101013);
-  --media-void: #0e0e10;
+  --media-void: #060809;
   --overlay: rgba(8, 8, 10, 0.78);
 
   /* Text tiers — warm ivory */
-  --text-primary: #f1ede2;
-  --text-secondary: #b9b9c0;
-  --text-muted: #86868e;
+  --text-primary: #f2eee4;
+  --text-secondary: #b8b4aa;
+  --text-muted: #777c80;
 
   /* Borders */
-  --border-hairline: #2c2c33;
-  --border-panel: #33333b;
-  --border-strong: #3a3a42;
+  --border-hairline: rgba(232, 224, 205, 0.08);
+  --border-panel: rgba(232, 224, 205, 0.12);
+  --border-strong: rgba(232, 224, 205, 0.20);
 
   /* Accent — antique gold */
-  --accent: #c8a24a;
-  --accent-strong: #d8b65e;
-  --accent-hover: #e3c56f;
-  --accent-active: #b8913b;
-  --accent-soft: rgba(200, 162, 74, 0.14);
-  --accent-contrast: #e6d29a;
-  --accent-border: rgba(200, 162, 74, 0.30);
-  --accent-border-strong: rgba(200, 162, 74, 0.48);
+  --accent: #d3aa4b;
+  --accent-strong: #e2c06a;
+  --accent-hover: #e9c96f;
+  --accent-active: #b98b30;
+  --accent-soft: rgba(211, 170, 75, 0.12);
+  --accent-contrast: #f1d58b;
+  --accent-border: rgba(211, 170, 75, 0.28);
+  --accent-border-strong: rgba(211, 170, 75, 0.46);
   --on-accent: #16161a;         /* ink on a solid gold fill */
 
   /* Priority — restrained red, for destructive/decline only */
@@ -320,6 +320,30 @@ h4, .font-display {
 .chicago-dark > * {
   position: relative;
   z-index: 1;
+}
+
+.arc-graphite {
+  background:
+    radial-gradient(120% 80% at 18% -12%, rgba(211, 170, 75, 0.08), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
+    var(--canvas);
+}
+
+.arc-graphite::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(80% 60% at 50% 0%, #000 0%, transparent 76%);
+}
+
+.arc-hairline {
+  border-color: var(--border-hairline);
 }
 
 /* ============================================================================

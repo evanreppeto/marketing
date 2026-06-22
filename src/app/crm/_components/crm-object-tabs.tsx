@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { crmObjects } from "../../_data/growth-engine";
+import { cx, theme } from "../../_components/theme";
 
 type CrmObjectKey = (typeof crmObjects)[number]["key"];
 
@@ -58,11 +59,11 @@ export function CrmObjectTabs({
           return (
             <Link
               aria-current={isActive ? "page" : undefined}
-              className={`relative flex min-h-10 shrink-0 items-center gap-2 rounded px-3 text-sm font-semibold transition duration-150 ease-out active:translate-y-px ${
+              className={cx(`relative flex min-h-10 shrink-0 items-center gap-2 rounded-[8px] px-3 text-sm font-semibold transition duration-150 ease-out active:translate-y-px ${
                 isActive
                   ? "text-[var(--text-primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
+              }`)}
               href={tab.href}
               key={tab.key}
             >
@@ -76,10 +77,7 @@ export function CrmObjectTabs({
                 </span>
               ) : null}
               {isActive ? (
-                <span
-                  aria-hidden
-                  className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] shadow-[0_0_14px_rgba(199,166,92,0.32)]"
-                />
+                <span aria-hidden className={theme.control.tabMarker} />
               ) : null}
             </Link>
           );

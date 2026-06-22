@@ -610,7 +610,7 @@ function Message({
     if (editing) {
       return (
         <div className="flex flex-col items-end">
-          <div className="w-full max-w-[82%] rounded-2xl rounded-br-md bg-[var(--surface-panel)] p-2 shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
+          <div className="w-full max-w-[48rem] rounded-2xl rounded-br-md bg-[var(--surface-panel)] p-2 shadow-[inset_0_0_0_1px_var(--accent-border-strong)]">
             <textarea
               ref={editRef}
               value={editText}
@@ -656,11 +656,11 @@ function Message({
     }
     return (
       <div className="group flex flex-col items-end">
-        <div className="max-w-[82%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
+        <div className="max-w-[48rem] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
           {message.body}
         </div>
         {message.attachments.length > 0 ? (
-          <div className="mt-1.5 flex max-w-[82%] flex-wrap justify-end gap-1.5">
+          <div className="mt-1.5 flex max-w-[48rem] flex-wrap justify-end gap-1.5">
             {message.attachments.map((a) => (
               <a key={a.objectPath} href={a.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
                 {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
@@ -906,7 +906,7 @@ export function MessageList({
         className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-[var(--canvas)] to-transparent"
       />
       <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-6 sm:px-6">
+        <div className="mx-auto flex w-full max-w-[92rem] flex-col px-4 py-6 sm:px-6 xl:px-8">
           {rows.map(({ m, day, showSeparator, compact }, i) => (
             <div key={m.id} className={cx("msg-rise", i === 0 ? "" : compact ? "mt-2.5" : "mt-6")}>
               {showSeparator ? (

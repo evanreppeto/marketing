@@ -26,15 +26,15 @@ export default function ArcLoading() {
         </header>
 
         {/* Messages */}
-        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-end gap-4 px-4 py-6">
-          <div className="ml-auto h-12 w-2/3 rounded-2xl bg-[var(--surface-inset)]" />
-          <div className="mr-auto h-24 w-5/6 rounded-2xl bg-[var(--surface-inset)]" />
-          <div className="ml-auto h-10 w-1/2 rounded-2xl bg-[var(--surface-inset)]" />
-          <div className="mr-auto h-16 w-3/4 rounded-2xl bg-[var(--surface-inset)]" />
+        <div className="mx-auto flex w-full max-w-[92rem] flex-1 flex-col justify-end gap-4 px-4 py-6 sm:px-6 xl:px-8">
+          <div className="ml-auto h-12 w-full max-w-[48rem] rounded-2xl bg-[var(--surface-inset)]" />
+          <div className="mr-auto h-24 w-full max-w-[52rem] rounded-2xl bg-[var(--surface-inset)]" />
+          <div className="ml-auto h-10 w-full max-w-[34rem] rounded-2xl bg-[var(--surface-inset)]" />
+          <div className="mr-auto h-16 w-full max-w-[44rem] rounded-2xl bg-[var(--surface-inset)]" />
         </div>
 
         {/* Composer */}
-        <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-2">
+        <div className="mx-auto w-full max-w-[92rem] px-4 pb-4 pt-2 sm:px-6 xl:px-8">
           <div className="h-20 rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)]" />
         </div>
       </section>

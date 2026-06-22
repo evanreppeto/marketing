@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { useAgentName } from "../_components/agent-name-context";
+import { theme } from "../_components/theme";
 import { EmptyState, StatusPill, buttonClasses } from "../_components/page-header";
 import { PaginationControls } from "../_components/pagination-controls";
 import { type PartnerCard } from "@/lib/partners/read-model";
@@ -145,7 +146,7 @@ export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-1 border-b border-[var(--border-hairline)]">
+        <div className="mt-4 flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
           {FILTERS.map((item) => {
             const selected = filter === item.key;
             const count = partners.filter((partner) => matchesPartnerFilter(partner, item.key)).length;
@@ -153,7 +154,7 @@ export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
             return (
               <button
                 aria-pressed={selected}
-                className={`relative inline-flex min-h-9 cursor-pointer items-center rounded px-3 text-sm font-semibold transition active:translate-y-px ${
+                className={`relative inline-flex min-h-9 cursor-pointer items-center rounded-[8px] px-3 text-sm font-semibold transition active:translate-y-px ${
                   selected
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -167,7 +168,7 @@ export function PartnerBoard({ partners }: { partners: PartnerCard[] }) {
               >
                 {item.label}
                 <span className={`ml-2 font-mono text-xs tabular-nums ${selected ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>{count}</span>
-                {selected ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+                {selected ? <span aria-hidden className={theme.control.tabMarker} /> : null}
               </button>
             );
           })}

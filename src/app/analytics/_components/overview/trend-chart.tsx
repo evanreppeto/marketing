@@ -1,11 +1,15 @@
 "use client";
 
-import Switch from "@mui/material/Switch";
-import { LineChart } from "@mui/x-charts/LineChart";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 import { EmptyState } from "@/app/_components/page-header";
 import type { TrendPoint } from "@/lib/performance/overview-shape";
+
+const ClientLineChart = dynamic(() => import("@mui/x-charts/LineChart").then((module) => module.LineChart), {
+  loading: ChartPlaceholder,
+  ssr: false,
+});
 
 export function TrendChart({ data }: { data: TrendPoint[] }) {
   const [showArea, setShowArea] = useState(true);
@@ -41,29 +45,22 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
             Booked jobs
           </span>
         </div>
-        <label className="flex items-center gap-2 self-start rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-1 pl-3 pr-2 text-xs font-semibold text-[var(--text-secondary)] sm:self-auto">
+        <label className="flex items-center gap-2 self-start rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-1 pl-3 pr-2 text-xs font-semibold text-[var(--text-secondary)] sm:self-auto">
           Area
-          <Switch
+          <input
+            type="checkbox"
             checked={showArea}
             onChange={(event) => setShowArea(event.target.checked)}
-            size="small"
-            sx={{
-              "& .MuiSwitch-switchBase.Mui-checked": {
-                color: "var(--accent)",
-              },
-              "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                backgroundColor: "var(--accent)",
-                opacity: 0.35,
-              },
-              "& .MuiSwitch-track": {
-                backgroundColor: "var(--border-strong)",
-              },
-            }}
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden
+            className="relative h-4 w-8 rounded-full border border-[var(--border-hairline)] bg-[var(--border-strong)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.34)] transition peer-checked:border-[var(--accent-border-strong)] peer-checked:bg-[color-mix(in_srgb,var(--accent)_64%,var(--surface-inset))] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--accent)] before:absolute before:left-0.5 before:top-1/2 before:h-3 before:w-3 before:-translate-y-1/2 before:rounded-full before:bg-[var(--text-primary)] before:shadow-[0_2px_6px_rgba(0,0,0,0.34)] before:transition before:content-[''] peer-checked:before:translate-x-4 peer-checked:before:bg-[var(--accent)]"
           />
         </label>
       </div>
 
-      <LineChart
+      <ClientLineChart
         axisHighlight={{ x: "line" }}
         grid={{ horizontal: true }}
         height={300}
@@ -98,9 +95,11 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
             stroke: "var(--border-hairline)",
           },
           "& .MuiChartsAxis-tickLabel": {
-            fill: "var(--text-muted)",
+            fill: "var(--text-primary)",
             fontFamily: "inherit",
             fontSize: 11,
+            fontWeight: 600,
+            opacity: 0.92,
           },
           "& .MuiChartsGrid-line": {
             stroke: "var(--border-hairline)",
@@ -128,4 +127,8 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
       />
     </div>
   );
+}
+
+function ChartPlaceholder() {
+  return <div className="h-[300px] rounded-[8px] border border-[var(--border-hairline)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-inset)_72%,transparent),transparent)]" />;
 }

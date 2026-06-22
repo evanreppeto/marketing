@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 import { ChannelLogo } from "@/app/_components/brand-logos";
 import { StatusPill } from "@/app/_components/page-header";
-import { cx } from "@/app/_components/theme";
+import { cx, theme } from "@/app/_components/theme";
 import type {
   ActivityActorType,
   ActivityEntry,
@@ -91,7 +91,7 @@ export function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
 
       {/* Filter + search header */}
       <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)]" role="tablist" aria-label="Filter activity">
+        <div className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3" role="tablist" aria-label="Filter activity">
           {QUICK_FILTERS.map((filter) => {
             const isActive = filter.key === active;
             const count = counts[filter.key] ?? 0;
@@ -103,7 +103,7 @@ export function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                 aria-selected={isActive}
                 onClick={() => setActive(filter.key)}
                 className={cx(
-                  "relative inline-flex items-center gap-1.5 rounded px-3 py-2 text-[12px] font-semibold transition duration-150 active:translate-y-px",
+                  "relative inline-flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-[12px] font-semibold transition duration-150 active:translate-y-px",
                   isActive
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
@@ -118,7 +118,7 @@ export function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
                 >
                   {count}
                 </span>
-                {isActive ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+                {isActive ? <span aria-hidden className={theme.control.tabMarker} /> : null}
               </button>
             );
           })}

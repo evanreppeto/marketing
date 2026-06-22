@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AppShell } from "../../_components/app-shell";
 import { ActionFeedback, EmptyState, PageHeader, StatusPill, buttonClasses } from "../../_components/page-header";
+import { theme } from "../../_components/theme";
 import { crmObjects } from "../../_data/growth-engine";
 import { CrmObjectTabs } from "./crm-object-tabs";
 import { CrmObjectTable } from "./crm-object-table";
@@ -140,13 +141,13 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
 
 function ObjectViewMenu({ activeView, objectHref }: { activeView: CrmListViewKey; objectHref: string }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
       {crmListViews.map((view) => {
         const isActive = activeView === view.key;
         return (
           <Link
             aria-current={isActive ? "page" : undefined}
-            className={`relative inline-flex min-h-8 items-center rounded px-3 text-xs font-semibold transition ${
+            className={`relative inline-flex min-h-8 items-center rounded-[8px] px-3 text-xs font-semibold transition ${
               isActive
                 ? "text-[var(--text-primary)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -155,7 +156,7 @@ function ObjectViewMenu({ activeView, objectHref }: { activeView: CrmListViewKey
             key={view.key}
           >
             {view.label}
-            {isActive ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px bg-[var(--accent)]" /> : null}
+            {isActive ? <span aria-hidden className={theme.control.tabMarker} /> : null}
           </Link>
         );
       })}

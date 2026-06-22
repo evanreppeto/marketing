@@ -201,7 +201,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
                     ))}
                   </SortableContext>
                   {cards.length === 0 ? (
-                    <div className="kanban-empty rounded-lg border border-dashed border-[var(--lane-border)] bg-[var(--lane-soft)] px-2 py-5 text-center text-[10.5px] font-medium text-[var(--text-muted)] transition-[background-color,border-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]">
+                    <div className="kanban-empty rounded-lg border border-[var(--lane-border)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--lane-soft)_86%,transparent),color-mix(in_srgb,var(--surface-inset)_58%,transparent))] px-2 py-5 text-center text-[10.5px] font-medium text-[var(--text-muted)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition-[background-color,border-color,color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]">
                       {activeId ? "Release to drop here" : "No cards"}
                     </div>
                   ) : null}

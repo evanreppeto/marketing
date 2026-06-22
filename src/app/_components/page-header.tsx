@@ -1,5 +1,6 @@
 import type { HTMLMotionProps } from "motion/react";
 import Link from "next/link";
+import { Children, isValidElement } from "react";
 
 import { MotionCard, MotionReveal, MotionSurface } from "./motion-primitives";
 import { cx, theme, type ButtonSize, type ButtonVariant, type ThemeTone } from "./theme";
@@ -56,6 +57,8 @@ type PageHeaderProps = {
 };
 
 export function PageHeader({ eyebrow, title, description, aside, backHref, backLabel }: PageHeaderProps) {
+  const visibleAside = aside && !isPassiveStatusAside(aside) ? aside : null;
+
   return (
     <header className={theme.surface.pageHeader}>
       <div aria-hidden="true" className="absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-[var(--accent-border-strong)] via-[var(--border-hairline)] to-transparent sm:inset-x-5" />
@@ -70,14 +73,19 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
             <p className={cx("mt-2 max-w-[72ch] text-[0.95rem] leading-7", theme.text.body)}>{description}</p>
           ) : null}
         </div>
-        {aside ? (
+        {visibleAside ? (
           <div className="grid w-full shrink-0 grid-cols-[repeat(auto-fit,minmax(min(10rem,100%),1fr))] items-center gap-2 border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1.5 [&>*]:w-full lg:flex lg:w-auto lg:flex-wrap lg:justify-end">
-            {aside}
+            {visibleAside}
           </div>
         ) : null}
       </MotionReveal>
     </header>
   );
+}
+
+function isPassiveStatusAside(node: React.ReactNode) {
+  const items = Children.toArray(node).filter(Boolean);
+  return items.length > 0 && items.every((item) => isValidElement(item) && item.type === StatusPill);
 }
 
 type StatTone = "neutral" | "accent" | "ok" | "amber" | "red";
@@ -269,10 +277,21 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <MotionReveal className={cx(theme.surface.dashedEmpty, "p-6 text-center sm:text-left")}>
-      <div className="font-display text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{title}</div>
-      <p className={cx("mx-auto mt-2 max-w-[58ch] sm:mx-0", theme.text.body)}>{detail}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
+    <MotionReveal className={cx(theme.surface.dashedEmpty, "p-5 sm:p-6")}>
+      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] border border-[var(--accent-border)] bg-[color-mix(in_srgb,var(--accent-soft)_74%,transparent)] text-[var(--accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <svg aria-hidden className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 20 20">
+            <path d="M4 6.5h12" />
+            <path d="M4 10h8" />
+            <path d="M4 13.5h5" />
+          </svg>
+        </span>
+        <div className="min-w-0 text-center sm:text-left">
+          <div className="font-display text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{title}</div>
+          <p className={cx("mx-auto mt-2 max-w-[62ch] sm:mx-0", theme.text.body)}>{detail}</p>
+          {action ? <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">{action}</div> : null}
+        </div>
+      </div>
     </MotionReveal>
   );
 }

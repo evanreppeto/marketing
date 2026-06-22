@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 
 import { ChannelLogo } from "@/app/_components/brand-logos";
+import { cx, theme } from "@/app/_components/theme";
 import { Button, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import type { ConnectionView } from "@/lib/connections/read-model";
@@ -59,7 +60,7 @@ export function CampaignPackageWorkspace({
           <PackageSnapshot summary={summary} />
         </div>
 
-        <nav aria-label="Campaign package views" className="mt-4 flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)]">
+        <nav aria-label="Campaign package views" className="mt-4 flex gap-1 overflow-x-auto border-b border-[var(--border-hairline)] pb-3">
           {tabs.map((tab) => {
             const active = activeView === tab.key;
             return (
@@ -68,7 +69,7 @@ export function CampaignPackageWorkspace({
                 type="button"
                 onClick={() => activateView(tab.key)}
                 disabled={tab.count === 0}
-                className={`relative min-h-11 shrink-0 rounded px-3 text-left text-xs font-bold transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 ${
+                className={`relative min-h-11 shrink-0 rounded-[8px] px-3 text-left text-xs font-bold transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 ${
                   active
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -76,7 +77,7 @@ export function CampaignPackageWorkspace({
               >
                 <span className="block">{tab.label}</span>
                 <span className={`mt-1 block font-mono text-[11px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>{tab.count}</span>
-                {active ? <span aria-hidden className="absolute inset-x-2 bottom-0 h-px rounded-full bg-[var(--accent)]" /> : null}
+                {active ? <span aria-hidden className={cx(theme.control.tabMarker, "bottom-[-0.75rem]")} /> : null}
               </button>
             );
           })}
@@ -90,8 +91,9 @@ export function CampaignPackageWorkspace({
         </div>
       ) : (
         <div className="p-5">
-          <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)] p-6 text-sm leading-6 text-[var(--text-muted)]">
-            No pieces in this view yet.
+          <div className={cx(theme.surface.dashedEmpty, "p-6 text-sm leading-6 text-[var(--text-secondary)]")}>
+            <div className="relative font-semibold text-[var(--text-primary)]">No pieces in this view yet</div>
+            <p className="relative mt-1 text-sm leading-6 text-[var(--text-secondary)]">Choose another package tab or let {agentName} keep building this campaign packet.</p>
           </div>
         </div>
       )}

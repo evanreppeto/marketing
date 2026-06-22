@@ -2,7 +2,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { AppShell } from "../_components/app-shell";
-import { PageHeader, StatStrip, StatusPill, buttonClasses, type StatItem } from "../_components/page-header";
+import { StatusPill, buttonClasses } from "../_components/page-header";
+import { DossierPanel, MetricBand, MetricCell, WorkbenchFrame } from "../_components/workbench";
 import { getCrmNavCounts, getCrmOverviewData, type CrmPipelineRow } from "@/lib/crm/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
@@ -44,10 +45,18 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
 
   return (
     <AppShell active="/crm">
-      <PageHeader
-        title="CRM Command Center"
-        description="A unified view of every relationship, opportunity, and outcome — companies, contacts, properties, leads, projects, and revenue — scored and ready for the next best action."
-      />
+      <WorkbenchFrame
+        actions={
+          <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="/crm/leads?action=new">
+            New lead
+          </Link>
+        }
+        aside={<SelectedRecordPanel selectedRecord={selectedRecord} />}
+        description="Command center for relationships, opportunities, and revenue, scored and ready for the next best action."
+        eyebrow="CRM"
+        tabs={<CrmObjectTabs counts={counts} />}
+        title="CRM"
+      >
 
       {!isLive ? (
         <div className="module-rise mb-4 rounded-lg border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-4 py-3 text-sm leading-6 text-[var(--warn-text)]">
@@ -56,14 +65,21 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
         </div>
       ) : null}
 
-      <CrmObjectTabs counts={counts} />
-
-      <StatStrip className="mt-4" columns={4} items={kpiStats} />
+        <MetricBand>
+          {kpiStats.map((item) => (
+            <MetricCell
+              delta={item.delta ?? item.hint}
+              key={item.label}
+              label={item.label}
+              tone={item.tone}
+              value={item.value}
+            />
+          ))}
+        </MetricBand>
 
       <CrmFocusStrip stats={focusStats} />
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <main className="min-w-0 space-y-4">
+        <div className="mt-4">
           <section className="signal-panel module-rise overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
@@ -79,18 +95,13 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <ViewMenu activeView={activeView} />
-                <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="/crm/leads?action=new">
-                  New Lead
-                </Link>
               </div>
             </div>
 
             <CrmPipelineBoard activeView={activeView} rows={visibleRows} selectedRecordId={selectedRecord?.id ?? null} />
           </section>
-        </main>
-
-        <SelectedRecordPanel selectedRecord={selectedRecord} />
-      </div>
+        </div>
+      </WorkbenchFrame>
     </AppShell>
   );
 }
@@ -143,10 +154,9 @@ function ViewMenu({ activeView }: { activeView: CrmViewKey }) {
 function SelectedRecordPanel({ selectedRecord }: { selectedRecord: CrmPipelineRow | null }) {
   if (!selectedRecord) {
     return (
-      <aside className="signal-panel module-rise p-5 xl:sticky xl:top-5 xl:self-start">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">Selected lead</div>
+      <DossierPanel title="Selected lead">
         <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">No CRM records are available yet. Connect Supabase or create a record to populate this workbench.</p>
-      </aside>
+      </DossierPanel>
     );
   }
 
@@ -164,9 +174,9 @@ function SelectedRecordPanel({ selectedRecord }: { selectedRecord: CrmPipelineRo
   ];
 
   return (
-    <aside className="signal-panel module-rise overflow-hidden p-0 xl:sticky xl:top-5 xl:self-start [animation-delay:70ms]">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-4 py-3">
-        <div className="text-sm font-semibold text-[var(--text-secondary)]">Selected record</div>
+    <DossierPanel title="Selected record">
+      <div className="flex items-center justify-between gap-3">
+        <div className="signal-eyebrow">Lead dossier</div>
         <div className="flex items-center gap-2">
           <StatusPill tone="amber">Draft locked</StatusPill>
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={selectedRecord.href}>
@@ -178,7 +188,7 @@ function SelectedRecordPanel({ selectedRecord }: { selectedRecord: CrmPipelineRo
         </div>
       </div>
 
-      <div className="space-y-4 p-4">
+      <div className="mt-4 space-y-4">
         <div>
           <h2 className="break-words font-display text-xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
             {selectedRecord.record}
@@ -246,7 +256,7 @@ function SelectedRecordPanel({ selectedRecord }: { selectedRecord: CrmPipelineRo
           </div>
         </section>
       </div>
-    </aside>
+    </DossierPanel>
   );
 }
 
@@ -289,7 +299,13 @@ function getVisibleRows(activeView: CrmViewKey, rows: CrmPipelineRow[]) {
   });
 }
 
-function buildKpiStats(rows: CrmPipelineRow[]): StatItem[] {
+function buildKpiStats(rows: CrmPipelineRow[]): Array<{
+  delta?: string;
+  hint?: string;
+  label: string;
+  tone?: "neutral" | "accent" | "ok" | "risk";
+  value: string;
+}> {
   const leadRows = rows.filter((row) => row.objectType === "lead");
   const scored = leadRows.filter((row) => row.score > 0);
   const avgScore = scored.length
@@ -317,22 +333,19 @@ function buildKpiStats(rows: CrmPipelineRow[]): StatItem[] {
   const atRisk = rows.filter((row) => row.tone === "red" || row.score < 50 || row.missingTags.length >= 3).length;
   const atRiskPct = rows.length ? Math.round((atRisk / rows.length) * 100) : 0;
 
-  const scoreSpark = scored.slice(0, 10).map((row) => row.score).reverse();
-
   return [
     {
       label: "Avg lead score",
       value: `${avgScore}`,
       hint: `${scored.length} scored leads`,
-      tone: avgScore >= 75 ? "ok" : avgScore >= 55 ? "amber" : "neutral",
-      spark: scoreSpark.length >= 2 ? scoreSpark : undefined,
+      tone: avgScore >= 75 ? "ok" : "neutral",
     },
     {
       label: "Open pipeline",
       value: formatCompactMoney(pipelineCents),
       hint: `${leadRows.length} leads · ${rows.length} records`,
       delta: "+12%",
-      deltaTone: "ok",
+      tone: "accent",
     },
     {
       label: "Win rate",
@@ -340,15 +353,13 @@ function buildKpiStats(rows: CrmPipelineRow[]): StatItem[] {
       hint: `${won} won · ${lost} lost · trailing 90d`,
       tone: winRate >= 60 ? "ok" : "neutral",
       delta: "+4%",
-      deltaTone: "ok",
     },
     {
       label: "At-risk records",
       value: `${atRiskPct}%`,
       hint: `${atRisk} missing data or blocked`,
-      tone: atRiskPct >= 40 ? "red" : atRiskPct >= 20 ? "amber" : "ok",
+      tone: atRiskPct >= 40 ? "risk" : atRiskPct >= 20 ? "accent" : "ok",
       delta: `${atRisk}`,
-      deltaTone: atRiskPct >= 40 ? "red" : "amber",
     },
   ];
 }
