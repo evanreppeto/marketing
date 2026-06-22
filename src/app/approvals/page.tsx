@@ -4,6 +4,7 @@ import { PageHeader, StatusPill } from "@/app/_components/page-header";
 import { TabNav } from "@/app/_components/tab-nav";
 import { listApprovalCards, listApprovalHistory } from "@/lib/approvals/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { ApprovalHistoryTable } from "./approval-history-table";
@@ -23,7 +24,10 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
   const query = searchParams ? await searchParams : {};
   const activeTab = normalizeTab(query.tab);
   const agentName = await getAgentName();
-  const [queueItems, decisions] = isSupabaseAdminConfigured() ? await Promise.all([loadQueue(agentName), loadHistory()]) : [[], []];
+  // Scope the queue + ledger to the active org. The admin client bypasses RLS,
+  // so this app-layer filter is the tenant boundary.
+  const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
+  const [queueItems, decisions] = isSupabaseAdminConfigured() ? await Promise.all([loadQueue(agentName, orgId), loadHistory(orgId)]) : [[], []];
   const selectedItemId = normalizeSearchValue(query.item);
   const selectedItem = selectedItemId ? queueItems.find((item) => item.id === selectedItemId) ?? null : null;
 
@@ -63,17 +67,17 @@ export default async function ActivityPage({ searchParams }: { searchParams?: Pr
   );
 }
 
-async function loadQueue(agentName: string) {
+async function loadQueue(agentName: string, orgId: string | undefined) {
   try {
-    return await listApprovalCards({ limit: 200, agentName });
+    return await listApprovalCards({ limit: 200, agentName, orgId });
   } catch {
     return [];
   }
 }
 
-async function loadHistory() {
+async function loadHistory(orgId: string | undefined) {
   try {
-    return await listApprovalHistory({ limit: 200 });
+    return await listApprovalHistory({ limit: 200, orgId });
   } catch {
     return [];
   }

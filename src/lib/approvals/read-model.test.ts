@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { countActiveApprovals, listApprovalCards } from "./read-model";
+import { countActiveApprovals, listApprovalCards, listApprovalHistory } from "./read-model";
 
 const approvalItemRow = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -408,5 +408,27 @@ describe("countActiveApprovals", () => {
     });
 
     await expect(countActiveApprovals("org-1", supabase)).rejects.toThrow(/countActiveApprovals failed: db down/);
+  });
+});
+
+describe("listApprovalHistory", () => {
+  it("scopes the decision ledger to the given org", async () => {
+    const supabase = createSupabaseQueryMock({
+      approval_decisions: { data: [], error: null },
+    });
+
+    await listApprovalHistory({ orgId: "org-1" }, supabase);
+
+    expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
+  });
+
+  it("does not filter by org when no org id is given", async () => {
+    const supabase = createSupabaseQueryMock({
+      approval_decisions: { data: [], error: null },
+    });
+
+    await listApprovalHistory({}, supabase);
+
+    expect(supabase.calls.some((call) => call[0] === "eq" && call[1] === "org_id")).toBe(false);
   });
 });
