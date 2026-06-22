@@ -656,7 +656,7 @@ function Message({
     }
     return (
       <div className="group flex flex-col items-end">
-        <div className="max-w-[48rem] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
+        <div className="max-w-[48rem] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
           {message.body}
         </div>
         {message.attachments.length > 0 ? (
