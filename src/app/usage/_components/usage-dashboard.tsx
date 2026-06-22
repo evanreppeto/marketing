@@ -82,8 +82,8 @@ export function UsageDashboard({ usage }: { usage: WorkspaceUsage }) {
             <div className="flex flex-col gap-4 p-5">
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Estimated AI cost</p>
-                  <p className="font-[var(--font-display,Fraunces)] text-5xl leading-none text-[var(--text-primary)]">
+                  <p className="text-xs text-[var(--text-muted)]">Estimated AI cost</p>
+                  <p className="font-serif text-5xl leading-none tracking-[-0.02em] tabular-nums text-[var(--text-primary)]">
                     {dollars(summary.totalCostCents)}
                   </p>
                   <p
