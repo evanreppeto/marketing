@@ -6,7 +6,10 @@ import ReactArcdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { cx } from "@/app/_components/theme";
+import { stepGlyphKind } from "@/domain";
 import type { ArcMessage, ArcStep, ArcToolCall } from "@/lib/arc-chat/persistence";
+
+import { WorkGlyph } from "./work-glyph";
 
 import { setArcMessageFeedbackAction } from "../actions";
 import { ActionCard } from "./action-card";
@@ -202,12 +205,27 @@ function ChainOfThoughtTrace({
   );
 }
 
+/** Split a step label into [firstWord, rest] so the verb can carry the serif. */
+function firstWordSplit(label: string): [string, string] {
+  const trimmed = label.trim();
+  const i = trimmed.indexOf(" ");
+  if (i === -1) return [trimmed, ""];
+  return [trimmed.slice(0, i), trimmed.slice(i)];
+}
+
+/** Compact a completed-step label for the breadcrumb (keeps it to one line). */
+function shortLabel(label: string): string {
+  const head = label.split(" — ")[0].split(", ")[0].trim();
+  return head.length > 28 ? `${head.slice(0, 27)}…` : head;
+}
+
 /**
  * Live "thinking" step spine shown while Arc works (calm register, à la
  * Claude/ChatGPT). The animated Persona avatar carries the personality, so the
  * body stays quiet: completed steps check off on a hairline spine that fills
- * gold as it goes, and the current step's label shimmers. Used only in-flight;
- * the finished message keeps the collapsible ChainOfThought trace (`StepTrace`).
+ * gold as it goes, and the current step's label shimmers. Now lives behind the
+ * `Show steps` toggle on the in-flight `ThinkingLine`; the finished message
+ * keeps the collapsible ChainOfThought trace (`StepTrace`).
  */
 function ThinkingTrace({ steps, assistantName }: { steps: ArcStep[]; assistantName: string }) {
   if (steps.length === 0) return null;
@@ -220,13 +238,13 @@ function ThinkingTrace({ steps, assistantName }: { steps: ArcStep[]; assistantNa
           <div key={`${i}-${s.label}`} className="msg-rise flex gap-2.5">
             <div className="flex flex-col items-center">
               {done ? (
-                <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)]">
-                  <svg viewBox="0 0 12 12" aria-hidden className="h-2.5 w-2.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m2.5 6 2.5 2.5 4.5-5" />
-                  </svg>
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[var(--accent-soft)]">
+                  <WorkGlyph kind={stepGlyphKind(s)} className="h-3 w-3 text-[var(--accent)]" />
                 </span>
               ) : (
-                <span className="arc-tstep-dot mt-0.5"><span className="core" /></span>
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--accent)]">
+                  <WorkGlyph kind={stepGlyphKind(s)} className="h-3 w-3 text-[var(--accent)]" />
+                </span>
               )}
               {!isLast ? (
                 <span className={cx("my-1 w-px flex-1", done ? "bg-[var(--accent-border)]" : "bg-[var(--border-hairline)]")} />
@@ -264,6 +282,56 @@ function ArcReasoning({ text, streaming = false }: { text: string; streaming?: b
   );
 }
 
+/**
+ * Calm in-flight status: one line carrying a work glyph + serif verb for the
+ * current step, a quiet breadcrumb of completed phases, and a Show/Hide steps
+ * toggle. The full spine + reasoning + tools live behind the toggle.
+ */
+function ThinkingLine({
+  steps,
+  expanded,
+  onToggle,
+}: {
+  steps: ArcStep[];
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const current = steps[steps.length - 1];
+  const done = steps.filter((s) => s.status === "done");
+  const [verb, rest] = firstWordSplit(current.label);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--accent-soft)]">
+          <WorkGlyph kind={stepGlyphKind(current)} className="h-3.5 w-3.5 text-[var(--accent)]" />
+        </span>
+        <span className="min-w-0 flex-1 text-sm leading-5">
+          <span style={{ fontFamily: "var(--font-serif)" }} className="italic text-[var(--text-secondary)]">
+            {verb}
+          </span>
+          {rest ? <span className="arc-shimmer font-medium">{rest}</span> : null}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-[2.125rem] text-[11px] text-[var(--text-muted)]">
+        {done.map((s, i) => (
+          <span key={`${i}-${s.label}`} className="flex items-center gap-1.5">
+            {i > 0 ? <span aria-hidden className="opacity-40">→</span> : null}
+            <span>{shortLabel(s.label)}</span>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="ml-1 rounded-md border border-[var(--border-hairline)] px-1.5 py-0.5 font-medium transition hover:text-[var(--text-primary)]"
+        >
+          {expanded ? "Hide steps" : "Show steps"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PendingBlock({
   assistantName,
   steps,
@@ -292,11 +360,27 @@ function PendingBlock({
   // real progress resets the timer.
   const progressSignature = `${body.length}|${steps.length}|${steps[steps.length - 1]?.status ?? ""}|${(reasoning ?? "").length}|${toolCalls.length}`;
   const stalled = useStalled(progressSignature, 90_000);
+  const [expanded, setExpanded] = useState(false);
   return (
-    <div className="flex flex-col gap-2">
-      {hasSteps ? <ThinkingTrace steps={steps} assistantName={assistantName} /> : null}
-      {reasoning ? <ArcReasoning text={reasoning} streaming /> : null}
-      {toolCalls.length > 0 ? <ToolTraces tools={toolCalls} /> : null}
+    <div className="flex flex-col gap-2.5">
+      {hasSteps ? (
+        <>
+          <ThinkingLine steps={steps} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+          {expanded ? (
+            <div className="border-l border-[var(--border-hairline)] pl-3.5">
+              <ThinkingTrace steps={steps} assistantName={assistantName} />
+              {reasoning ? <ArcReasoning text={reasoning} streaming /> : null}
+              {toolCalls.length > 0 ? <ToolTraces tools={toolCalls} /> : null}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {reasoning ? <ArcReasoning text={reasoning} streaming /> : null}
+          {toolCalls.length > 0 ? <ToolTraces tools={toolCalls} /> : null}
+        </>
+      )}
+
       {hasBody ? (
         // Staged reply: the worker streams partial body text into the message
         // row; the typewriter reveal + bottom-fade mask + writing caret make
@@ -306,14 +390,12 @@ function PendingBlock({
           <span aria-hidden className="arc-caret" />
         </div>
       ) : !hasSteps ? (
-        <div className="flex flex-col gap-2" role="status" aria-live="polite" aria-label={`${assistantName} is thinking`}>
-          <div className="flex items-center gap-2.5">
-            <span className="arc-tstep-dot"><span className="core" /></span>
-            <span className="arc-shimmer text-sm font-medium">{assistantName} is thinking…</span>
-          </div>
-          {/* A quiet sweeping line under the label so the wait reads as active
-              work, not a stall (the avatar + shimmer carry the rest). */}
-          <div className="arc-progress w-40 max-w-full" aria-hidden><span /></div>
+        <div className="flex items-center gap-2.5" role="status" aria-live="polite" aria-label={`${assistantName} is thinking`}>
+          <span className="arc-tstep-dot"><span className="core" /></span>
+          <span className="text-sm leading-5">
+            <span style={{ fontFamily: "var(--font-serif)" }} className="italic text-[var(--text-secondary)]">Thinking</span>
+            <span className="arc-shimmer font-medium">…</span>
+          </span>
         </div>
       ) : null}
       <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
