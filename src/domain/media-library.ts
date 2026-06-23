@@ -6,7 +6,14 @@ export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "image/x-icon"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
-const DOC_TYPES = ["application/pdf"];
+const DOC_TYPES = [
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/x-markdown",
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 
 export function classifyKind(contentType: string, fileName: string): MediaKind {
   if (contentType === "image/svg+xml" || fileName.toLowerCase().endsWith(".svg")) return "logo";

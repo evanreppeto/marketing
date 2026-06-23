@@ -28,11 +28,17 @@ describe("getBusinessContext", () => {
           label: "Response promise",
           body: "Answer quickly.",
           summary: "Fast support.",
+          persona: null,
           trustTier: "trusted",
+          confidence: null,
+          refTable: null,
+          refId: null,
+          source: null,
+          tags: [],
+          createdBy: null,
+          createdAt: "2026-06-23T00:00:00.000Z",
         },
       ],
-      edges: [],
-      generatedAt: "2026-06-23T00:00:00.000Z",
     });
   });
 

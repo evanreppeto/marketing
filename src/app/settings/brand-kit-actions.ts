@@ -94,7 +94,9 @@ export async function saveBrandKitAction(
 
   revalidatePath("/", "layout");
   revalidatePath("/library/brand");
+  revalidatePath("/library");
   revalidatePath("/settings");
   revalidatePath("/arc");
+  revalidatePath("/analytics");
   return { ok: true, message: "Brand profile saved." };
 }

@@ -1,5 +1,6 @@
 import { PageHeader, StatStrip, type StatItem } from "@/app/_components/page-header";
 import { BrainShell } from "@/app/brain/_components/brain-shell";
+import { ResyncCrmButton } from "@/app/brain/_components/resync-crm-button";
 import { buildBrainSourceReviewData } from "@/lib/brand-knowledge/source-review";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
 import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
@@ -60,6 +61,7 @@ export default async function BrainPage() {
       <PageHeader
         title="Marketing Brain"
         description={`${agentName}'s durable marketing memory — brand facts, personas, proof, and what it has learned. ${summaryLine}`}
+        aside={<ResyncCrmButton />}
       />
       {summary.status === "live" ? <StatStrip items={stats} columns={4} /> : null}
       <BrainShell

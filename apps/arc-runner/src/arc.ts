@@ -67,12 +67,31 @@ function makeSink() {
  *  smooths between chunks. */
 const STREAM_THROTTLE_MS = 180;
 
+/** The model input for a turn: a plain string, or content blocks for multimodal. */
+type TurnContent = Awaited<ReturnType<typeof buildTurnContentAsync>>;
+
+/** Adapt our turn content into the SDK's prompt input. A plain string stays a
+ *  string (unchanged path); content blocks are wrapped in a single streamed
+ *  user message so images/documents/text reach the model. */
+function promptInput(content: TurnContent, sessionId: string) {
+  if (typeof content === "string") return content;
+  async function* once() {
+    yield {
+      type: "user" as const,
+      session_id: sessionId,
+      parent_tool_use_id: null,
+      message: { role: "user" as const, content },
+    };
+  }
+  return once();
+}
+
 async function runArcQuery(opts: {
   step: StepFn;
   mode: ArcMode;
   ctx: ArcTurnContext;
   client: ArcClient;
-  prompt: string;
+  content: TurnContent;
   model: string;
   toolContext?: ToolContext;
   skill?: ArcSkill | null;
@@ -97,7 +116,7 @@ async function runArcQuery(opts: {
   let outputTokens: number | null = null;
 
   for await (const message of query({
-    prompt: opts.prompt,
+    prompt: promptInput(opts.content, opts.ctx.scope.conversationId ?? "arc-turn"),
     options: {
       systemPrompt: system,
       model: opts.model,
@@ -169,14 +188,15 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   };
 
   const preamble = formatHistory(payload.history);
-  const prompt = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
+  const text = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
+  const content = await buildTurnContentAsync(text, payload.attachments);
 
   return runArcQuery({
     step,
     mode: payload.mode,
     ctx,
     client,
-    prompt,
+    content,
     model: modelForRoute(payload.route),
     // Thread the turn's level so media tools tell the generate endpoints which
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
@@ -222,7 +242,7 @@ export async function runArcOpportunityDraft(
     mode: "draft",
     ctx,
     client,
-    prompt: payload.message,
+    content: payload.message,
     model: modelForRoute("standard"),
     toolContext: { opportunityId: payload.opportunityId },
     skill,
@@ -262,7 +282,7 @@ export async function runArcOpportunityScan(
     mode: "scan",
     ctx,
     client,
-    prompt: payload.message,
+    content: payload.message,
     model: modelForRoute("standard"),
     skill,
   });
@@ -309,7 +329,7 @@ export async function runArcCampaignTask(
     mode: "draft",
     ctx,
     client,
-    prompt,
+    content: prompt,
     model: modelForRoute("standard"),
     toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
     skill,

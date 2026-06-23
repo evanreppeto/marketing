@@ -1,5 +1,6 @@
 import { type TrustTier } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { demoBrainNodes } from "./demo";
@@ -142,9 +143,11 @@ export async function listNodes(
   options: ListNodesOptions = {},
 ): Promise<Live<{ nodes: BrainNode[] }> | Unavailable> {
   const resolved = await resolveRead(client, orgId);
-  // No Supabase configured (local preview): serve the demo brain so the page
-  // renders a populated knowledge memory instead of an empty shell.
-  const demoFallback = options.demoFallback !== false;
+  // Demo fallbacks are OFF by default so real (possibly empty) workspaces show
+  // real data; ARC_DEMO_DATA=1 opts a sales/preview deployment into the seeded
+  // demo brain. Callers can also force it off with { demoFallback: false }.
+  // Mirrors getBrainGraph() in graph.ts so the node list and the graph agree.
+  const demoFallback = options.demoFallback !== false && isDemoDataEnabled();
   if (!resolved) return { status: "live", nodes: demoFallback ? filterDemoNodes(filters) : [] };
   try {
     let query = resolved.client
@@ -166,9 +169,9 @@ export async function listNodes(
     const { data, error } = await query;
     if (error) return { status: "unavailable", message: error.message };
     const nodes = ((data ?? []) as NodeRow[]).map(mapNode);
-    // An empty brain (no nodes seeded yet) shows the demo memory rather than a
-    // blank page — but only for an unfiltered read, so a genuine no-match on a
-    // specific filter still returns empty.
+    // An empty brain (no nodes seeded yet) shows the demo memory only when demo
+    // mode is on (handled via demoFallback above) and only for an unfiltered
+    // read, so a genuine no-match on a specific filter still returns empty.
     const unfiltered =
       !filters.kind && !filters.trustTier && !filters.persona && !filters.refTable && !filters.refId && !filters.search;
     if (nodes.length === 0 && unfiltered && demoFallback) return { status: "live", nodes: filterDemoNodes({}) };

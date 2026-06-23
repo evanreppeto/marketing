@@ -74,14 +74,14 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
             </span>
             <span className="mt-5 block text-lg font-bold tracking-[-0.01em] text-[var(--text-primary)]">Upload brand files</span>
             <span className="mt-2 block max-w-[42ch] text-sm leading-6 text-[var(--text-secondary)]">
-              Brand guides, voice docs, offerings, proof, rules, logos, photos, moodboards, or reference media.
+              Brand guides, voice docs, Word/PDF/text knowledge docs, offerings, proof, rules, logos, photos, or reference media.
             </span>
             <span className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3.5 py-2 text-xs font-bold text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
               <FileText aria-hidden className="h-4 w-4 text-[var(--accent)]" />
               <span className="truncate">{selectedLabel || "Attach files"}</span>
             </span>
             <input
-              accept="application/pdf,image/*,image/svg+xml,.svg,.ico"
+              accept="application/pdf,image/*,image/svg+xml,.svg,.ico,text/plain,.txt,text/markdown,text/x-markdown,.md,text/csv,.csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
               className="sr-only"
               multiple
               name="files"
