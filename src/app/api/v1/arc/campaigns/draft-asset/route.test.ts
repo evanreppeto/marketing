@@ -80,6 +80,31 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     expect(promoteMock).not.toHaveBeenCalled();
   });
 
+  it("400s on an out-of-enum asset_type (clean reject, not a late DB 502)", async () => {
+    configure();
+    const res = await POST(req("Bearer secret", { asset_type: "video_ad", title: "Clip" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toContain("video_ad");
+    expect(shellMock).not.toHaveBeenCalled();
+    expect(promoteMock).not.toHaveBeenCalled();
+  });
+
+  it("400s on an out-of-enum restoration_focus when creating a new campaign", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", {
+        asset_type: "social_ad",
+        title: "Fall ad",
+        name: "Fall Push",
+        persona: "persona_homeowner_emergency",
+        restoration_focus: "water",
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toContain("water");
+    expect(shellMock).not.toHaveBeenCalled();
+  });
+
   it("400s when creating a new campaign without name/persona/restoration_focus", async () => {
     configure();
     const res = await POST(req("Bearer secret", { asset_type: "social_ad", title: "Fall ad" }));
@@ -96,7 +121,7 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
         body: "Before winter…",
         name: "Fall Water Push",
         persona: "persona_homeowner_emergency",
-        restoration_focus: "water",
+        restoration_focus: "water_backup",
       }),
     );
     expect(res.status).toBe(201);

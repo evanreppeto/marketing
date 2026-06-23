@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import {
+  CAMPAIGN_ASSET_TYPE_VALUES,
+  RESTORATION_FOCUS_VALUES,
+  isCampaignAssetType,
+  isRestorationFocus,
+} from "@/lib/campaigns/enums";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
 /**
@@ -55,6 +61,13 @@ export async function POST(request: Request) {
   };
 
   if (!assetType) return fail("rejected", "asset_type is required.", 400);
+  if (!isCampaignAssetType(assetType)) {
+    return fail(
+      "rejected",
+      `asset_type "${assetType}" is not valid. Use one of: ${CAMPAIGN_ASSET_TYPE_VALUES.join(", ")}.`,
+      400,
+    );
+  }
   if (!title) return fail("rejected", "title is required.", 400);
 
   const operator = "Arc";
@@ -69,6 +82,13 @@ export async function POST(request: Request) {
         return fail(
           "rejected",
           "To create a new campaign, name, persona, and restoration_focus are required (or pass campaign_id to attach to an existing campaign).",
+          400,
+        );
+      }
+      if (!isRestorationFocus(restorationFocus)) {
+        return fail(
+          "rejected",
+          `restoration_focus "${restorationFocus}" is not valid. Use one of: ${RESTORATION_FOCUS_VALUES.join(", ")}.`,
           400,
         );
       }

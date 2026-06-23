@@ -20,7 +20,7 @@ export function draftWorkProductTools(
 ) {
   const createCampaignDraft = tool(
     "create_campaign_draft",
-    "Create an approval-gated campaign DRAFT asset (e.g. social_ad, email, sms, image_prompt, landing_page, one_pager). Attach to an existing campaign with campaign_id, or create a new draft campaign by giving name + persona (use a persona key) + restoration_focus (water|flood|sewage|mold|fire|storm). The asset is created pending approval and surfaced with an inline Approve/Decline card — nothing is sent. Returns campaignId + assetId.",
+    "Create an approval-gated campaign DRAFT asset (e.g. social_ad, email, sms, image_prompt, landing_page, one_pager). Attach to an existing campaign with campaign_id, or create a new draft campaign by giving name + persona (use a persona key) + restoration_focus (flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire). The asset is created pending approval and surfaced with an inline Approve/Decline card — nothing is sent. Returns campaignId + assetId.",
     {
       campaign_id: z.string().optional().describe("Existing campaign to attach to; omit to create a new draft campaign"),
       name: z.string().optional().describe("New campaign name (required when campaign_id is omitted)"),
@@ -28,7 +28,9 @@ export function draftWorkProductTools(
       restoration_focus: z
         .string()
         .optional()
-        .describe("Loss focus: water|flood|sewage|mold|fire|storm (required when creating a new campaign)"),
+        .describe(
+          "Loss focus: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire (required when creating a new campaign)",
+        ),
       asset_type: z.string().describe("Asset type, e.g. social_ad | email | sms | image_prompt | landing_page | one_pager"),
       title: z.string().describe("Short title for the asset"),
       body: z.string().optional().describe("The draft copy/content"),
