@@ -9,6 +9,7 @@ import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campai
 import type { ConnectionView } from "@/lib/connections/read-model";
 
 import { AssetPreview, MediaProvenanceBadge } from "./asset-preview";
+import { AttachMediaButton } from "./attach-media-control";
 import { SafeImage } from "./safe-image";
 import { assembleCopyText, isChannelDeployable } from "./campaign-deploy-model";
 import { contentStatusForLaunch, contentWhere, type CampaignPackageSummary, type PlainTone } from "./campaign-detail-model";
@@ -190,6 +191,16 @@ function CampaignPiece({
       <div className="space-y-3 p-4">
         <PieceQuickFacts asset={asset} statusLabel={status.label} />
         {hasMedia ? <MediaReview asset={asset} /> : <MessageReviewPane asset={asset} />}
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
+          <span className="text-xs text-[var(--text-muted)]">
+            {hasMedia ? "Need a different image?" : "No approved media attached yet."}
+          </span>
+          <AttachMediaButton
+            assetId={asset.id}
+            campaignId={campaignId}
+            label={hasMedia ? "Attach more from Library" : "Attach approved media"}
+          />
+        </div>
         {showDecisionControls ? (
           <div className="sticky bottom-3 z-20 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 shadow-[0_-14px_30px_rgba(0,0,0,0.22)]">
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
