@@ -38,6 +38,9 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
     .select("connector_key,enabled,credential_ref,last_tested_at,last_test_ok,last_test_error")
     .eq("workspace_id", workspaceId);
 
+  if (error) {
+    console.warn(`workspace_connectors lookup failed, using registry fallback: ${error.message}`);
+  }
   const rows = error ? [] : ((data ?? []) as ConnectorRow[]);
   const byKey = new Map(rows.map((row) => [row.connector_key, row]));
 
