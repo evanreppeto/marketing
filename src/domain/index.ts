@@ -42,3 +42,4 @@ export * from "./media-library";
 export * from "./ai-usage";
 export * from "./brain-provenance";
 export * from "./brain-health";
+export * from "./activation";
