@@ -283,6 +283,8 @@ export function Composer({
   initialSkill?: string | null;
 }) {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const plusWrapRef = useRef<HTMLDivElement>(null);
   // For a new chat the picked project rides along as a hidden input (assigned on
   // create); for an existing chat changing it moves the thread immediately.
   const [newChatProjectId, setNewChatProjectId] = useState<string | null>(initialNewChatProjectId);
@@ -313,6 +315,15 @@ export function Composer({
       document.removeEventListener("keydown", onKey);
     };
   }, [projectMenuOpen]);
+
+  useEffect(() => {
+    if (!plusMenuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (plusWrapRef.current && !plusWrapRef.current.contains(e.target as Node)) setPlusMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [plusMenuOpen]);
 
   async function chooseProject(id: string | null) {
     setProjectMenuOpen(false);
@@ -831,87 +842,148 @@ export function Composer({
 
           <div className="flex items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-2">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              aria-label="Attach image"
-              title="Attach a reference image"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] disabled:opacity-50"
-            >
-              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 5v10M5 10h10" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSlash((s) => (s && s.length ? null : SLASH_COMMANDS));
-                setActiveIndex(0);
-                textareaRef.current?.focus();
-              }}
-              aria-label="Tools and commands"
-              title="Tools - run a command"
-              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 7h-9" />
-                <path d="M14 17H5" />
-                <circle cx="17" cy="17" r="3" />
-                <circle cx="7" cy="7" r="3" />
-              </svg>
-              Tools
-            </button>
-            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
-            <button
-              type="button"
-              onClick={toggleVoiceInput}
-              disabled={voiceState === "checking" || voiceState === "unsupported" || isPending}
-              aria-label={voiceState === "listening" ? "Stop voice input" : "Start voice input"}
-              aria-pressed={voiceState === "listening"}
-              title={voiceState === "unsupported" ? "Voice input is not available in this browser" : voiceState === "listening" ? "Stop voice input" : "Speak a message"}
-              className={cx(
-                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-95 after:hidden",
-                voiceState === "listening"
-                  ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
-                voiceState === "checking" || voiceState === "unsupported" || isPending ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--text-muted)]" : "",
-              )}
-            >
-              <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M10 3.5a2.5 2.5 0 0 0-2.5 2.5v3.5a2.5 2.5 0 0 0 5 0V6A2.5 2.5 0 0 0 10 3.5Z" />
-                <path d="M5.5 9.5a4.5 4.5 0 0 0 9 0" />
-                <path d="M10 14v2.5" />
-                <path d="M7.5 16.5h5" />
-              </svg>
-            </button>
+              <div ref={plusWrapRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPlusMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={plusMenuOpen}
+                  aria-label="Add attachment or run a tool"
+                  title="Attach or run a tool"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                >
+                  <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 5v10M5 10h10" />
+                  </svg>
+                </button>
+                {plusMenuOpen ? (
+                  <div role="menu" className="absolute bottom-full left-0 z-30 mb-1.5 w-44 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setPlusMenuOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={uploading}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] disabled:opacity-50"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 13l5-5 4 4 3-3M4 16h12" /></svg>
+                      Attach image
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setPlusMenuOpen(false);
+                        setSlash((s) => (s && s.length ? null : SLASH_COMMANDS));
+                        setActiveIndex(0);
+                        textareaRef.current?.focus();
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9" /><path d="M14 17H5" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></svg>
+                      Tools &amp; commands
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
+
+              <span aria-hidden className="mx-0.5 h-5 w-px bg-[var(--border-hairline)]" />
+
+              <ModelSelect value={route} onChange={onRouteChange} />
+              <PillSelect ariaLabel="Mode" value={mode} options={MODE_OPTIONS} onChange={onModeChange} />
+
+              <div ref={projectWrapRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProjectMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={projectMenuOpen}
+                  className={cx(
+                    "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
+                    projectMenuOpen
+                      ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
+                      : selectedProjectName
+                        ? "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                        : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+                  )}
+                >
+                  <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
+                  </svg>
+                  {selectedProjectName ?? "No project"}
+                  <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m6 8 4 4 4-4" />
+                  </svg>
+                </button>
+                {projectMenuOpen ? (
+                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 max-h-56 w-52 overflow-y-auto rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
+                    <button type="button" role="menuitem" onClick={() => chooseProject(null)} className={projectItemCls(selectedProjectId === null)}>
+                      No project
+                    </button>
+                    {projects.map((p) => (
+                      <button key={p.id} type="button" role="menuitem" onClick={() => chooseProject(p.id)} className={projectItemCls(selectedProjectId === p.id)}>
+                        {p.name}
+                      </button>
+                    ))}
+                    {projects.length === 0 ? (
+                      <p className="px-2.5 py-2 text-xs text-[var(--text-muted)]">No projects yet. Create one in the sidebar.</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-            {replyPending ? (
               <button
                 type="button"
-                onClick={() => onStopReply?.()}
-                aria-label={`Stop ${assistantName}`}
-                title="Stop"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--priority-bright)] active:scale-95"
-              >
-                <span aria-hidden className="h-3 w-3 rounded-[2px] bg-current" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={disabled}
-                aria-label="Send message"
+                onClick={toggleVoiceInput}
+                disabled={voiceState === "checking" || voiceState === "unsupported" || isPending}
+                aria-label={voiceState === "listening" ? "Stop voice input" : "Start voice input"}
+                aria-pressed={voiceState === "listening"}
+                title={voiceState === "unsupported" ? "Voice input is not available in this browser" : voiceState === "listening" ? "Stop voice input" : "Speak a message"}
                 className={cx(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
-                  disabled
-                    ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
-                    : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)] active:scale-95",
+                  "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-95 after:hidden",
+                  voiceState === "listening"
+                    ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+                  voiceState === "checking" || voiceState === "unsupported" || isPending ? "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--text-muted)]" : "",
                 )}
               >
-                {isPending ? <Spinner /> : <SendIcon />}
+                <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M10 3.5a2.5 2.5 0 0 0-2.5 2.5v3.5a2.5 2.5 0 0 0 5 0V6A2.5 2.5 0 0 0 10 3.5Z" />
+                  <path d="M5.5 9.5a4.5 4.5 0 0 0 9 0" />
+                  <path d="M10 14v2.5" />
+                  <path d="M7.5 16.5h5" />
+                </svg>
               </button>
-            )}
+              {replyPending ? (
+                <button
+                  type="button"
+                  onClick={() => onStopReply?.()}
+                  aria-label={`Stop ${assistantName}`}
+                  title="Stop"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--priority-bright)] active:scale-95"
+                >
+                  <span aria-hidden className="h-3 w-3 rounded-[2px] bg-current" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={disabled}
+                  aria-label="Send message"
+                  className={cx(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition duration-200 ease-out",
+                    disabled
+                      ? "cursor-not-allowed bg-[var(--surface-raised)] text-[var(--text-muted)]"
+                      : "bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)] active:scale-95",
+                  )}
+                >
+                  {isPending ? <Spinner /> : <SendIcon />}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -922,58 +994,6 @@ export function Composer({
         {voiceError ? (
           <p className="mt-2 text-xs font-medium text-[var(--text-muted)]">{voiceError}</p>
         ) : null}
-
-        {/* Visible context selectors below the box: Arc model, mode, project — like the reference composer. */}
-        <div className="mt-2 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[var(--text-muted)]">
-          <ModelSelect value={route} onChange={onRouteChange} />
-
-          <PillSelect
-            ariaLabel="Mode"
-            value={mode}
-            options={MODE_OPTIONS}
-            onChange={onModeChange}
-          />
-
-          <div ref={projectWrapRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setProjectMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={projectMenuOpen}
-              className={cx(
-                "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
-                projectMenuOpen
-                  ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
-                  : selectedProjectName
-                    ? "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
-                    : "text-[var(--text-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
-              )}
-            >
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3l2 2.5h5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
-              </svg>
-              {selectedProjectName ?? "No project"}
-              <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m6 8 4 4 4-4" />
-              </svg>
-            </button>
-            {projectMenuOpen ? (
-              <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 max-h-56 w-52 overflow-y-auto rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--elev-raised)]">
-                <button type="button" role="menuitem" onClick={() => chooseProject(null)} className={projectItemCls(selectedProjectId === null)}>
-                  No project
-                </button>
-                {projects.map((p) => (
-                  <button key={p.id} type="button" role="menuitem" onClick={() => chooseProject(p.id)} className={projectItemCls(selectedProjectId === p.id)}>
-                    {p.name}
-                  </button>
-                ))}
-                {projects.length === 0 ? (
-                  <p className="px-2.5 py-2 text-xs text-[var(--text-muted)]">No projects yet. Create one in the sidebar.</p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </div>
       </form>
     </div>
   );

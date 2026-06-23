@@ -22,10 +22,10 @@ type ModelOption = {
   name: string;
   /** Compact label shown on the trigger chip, e.g. "Studio". */
   short: string;
-  tagline: string;
-  /** 1–3 segment meters; purely descriptive of the tier's posture. */
-  speed: number;
-  depth: number;
+  /** Plain-language "pick this when…" guidance. */
+  when: string;
+  /** One honest trade, wait-time included. */
+  signal: string;
 };
 
 export const MODEL_OPTIONS: ModelOption[] = [
@@ -33,17 +33,15 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: "standard",
     name: "Arc Studio",
     short: "Studio",
-    tagline: "Deeper reasoning + top-tier image & video (Nano Banana Pro · Veo 3.1)",
-    speed: 2,
-    depth: 3,
+    when: "For work that ships — campaign packages, hero media, anything needing Arc's best reasoning.",
+    signal: "Deeper · top-tier media · takes a beat",
   },
   {
     id: "fast",
     name: "Arc Swift",
     short: "Swift",
-    tagline: "Quick replies + fast image & video (Nano Banana 2 · Veo 3.1 Lite)",
-    speed: 3,
-    depth: 1,
+    when: "For quick passes — brainstorming, edits, fast iterations where you want an answer now.",
+    signal: "Near-instant · fast media",
   },
 ];
 
@@ -57,24 +55,16 @@ function SparkGlyph({ className }: { className?: string }) {
   );
 }
 
-/** Three-segment capability meter (speed / depth). */
-function Meter({ label, value }: { label: string; value: number }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className="w-9 text-[9px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
-      <span className="flex items-center gap-0.5">
-        {[1, 2, 3].map((seg) => (
-          <span
-            key={seg}
-            className={cx(
-              "h-1 w-3.5 rounded-full transition-colors",
-              seg <= value ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]",
-            )}
-          />
-        ))}
-      </span>
-    </span>
-  );
+/** Studio = spark (its own mark); Swift = a bolt. */
+function TierGlyph({ id, className }: { id: ArcRoute; className?: string }) {
+  if (id === "fast") {
+    return (
+      <svg viewBox="0 0 20 20" aria-hidden className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11 2 4 11h5l-1 7 7-9h-5z" />
+      </svg>
+    );
+  }
+  return <SparkGlyph className={className} />;
 }
 
 export function ModelSelect({
@@ -113,7 +103,7 @@ export function ModelSelect({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Arc model: ${current.name}`}
-        title={current.tagline}
+        title={`${current.name} — ${current.signal}`}
         className={cx(
           "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
           open
@@ -123,7 +113,8 @@ export function ModelSelect({
       >
         <SparkGlyph className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
         <span className="font-semibold text-[var(--text-primary)]">Arc</span>
-        <span className="text-[var(--text-muted)]">· {current.short}</span>
+        <span className="text-[var(--text-muted)]">·</span>
+        <span style={{ fontFamily: "var(--font-serif)" }} className="italic text-[var(--text-primary)]">{current.short}</span>
         <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 8 4 4 4-4" />
         </svg>
@@ -156,26 +147,36 @@ export function ModelSelect({
                     setOpen(false);
                   }}
                   className={cx(
-                    "flex w-full flex-col gap-2 rounded-lg px-2.5 py-2 text-left transition",
+                    "flex w-full items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition",
                     active
                       ? "bg-[var(--accent-soft)] shadow-[inset_0_0_0_1px_var(--accent-border-strong)]"
                       : "hover:bg-[var(--surface-inset)]",
                   )}
                 >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className={cx("text-xs font-semibold", active ? "text-[var(--accent-contrast)]" : "text-[var(--text-primary)]")}>
-                      {o.name}
-                    </span>
-                    {active ? (
-                      <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 10.5l3.5 3.5L16 5.5" />
-                      </svg>
-                    ) : null}
+                  <span
+                    className={cx(
+                      "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                      active ? "bg-[rgba(216,162,74,0.22)]" : "border border-[var(--border-hairline)] bg-[var(--surface-inset)]",
+                    )}
+                  >
+                    <TierGlyph id={o.id} className={cx("h-4 w-4", active ? "text-[var(--accent)]" : "text-[var(--text-secondary)]")} />
                   </span>
-                  <span className="text-[11px] leading-tight text-[var(--text-muted)]">{o.tagline}</span>
-                  <span className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5">
-                    <Meter label="Speed" value={o.speed} />
-                    <Meter label="Depth" value={o.depth} />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={cx("text-sm font-semibold", active ? "text-[var(--accent-contrast)]" : "text-[var(--text-primary)]")}>
+                        Arc <span style={{ fontFamily: "var(--font-serif)" }} className="font-medium italic">{o.short}</span>
+                      </span>
+                      {active ? (
+                        <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 10.5l3.5 3.5L16 5.5" />
+                        </svg>
+                      ) : null}
+                    </span>
+                    <span className="text-[11px] leading-snug text-[var(--text-muted)]">{o.when}</span>
+                    <span className="mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-[var(--surface-inset)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">
+                      <span aria-hidden className="h-1 w-1 rounded-full bg-[var(--accent)]" />
+                      {o.signal}
+                    </span>
                   </span>
                 </button>
               );
