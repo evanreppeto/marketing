@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, FolderOpen, HardDrive, Link2, RefreshCw, Trash2, Upload } from "lucide-react";
+import { FileText, FolderOpen, HardDrive, Link2, RefreshCw, StickyNote, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -30,6 +30,7 @@ function formatDate(value: string | null) {
 function providerIcon(provider: SourceControlAsset["provider"]) {
   if (provider === "Drive") return <HardDrive aria-hidden className="h-4 w-4" />;
   if (provider === "URL") return <Link2 aria-hidden className="h-4 w-4" />;
+  if (provider === "Note") return <StickyNote aria-hidden className="h-4 w-4" />;
   if (provider === "Upload") return <Upload aria-hidden className="h-4 w-4" />;
   return <FileText aria-hidden className="h-4 w-4" />;
 }

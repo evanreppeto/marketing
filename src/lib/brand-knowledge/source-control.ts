@@ -24,7 +24,7 @@ export type SourceControlBrainStats = {
 export type SourceControlAsset = {
   id: string;
   label: string;
-  provider: "Drive" | "URL" | "Upload" | "Library";
+  provider: "Drive" | "URL" | "Upload" | "Library" | "Note";
   source: string;
   kind: string;
   size: string | null;
@@ -79,6 +79,7 @@ export function isBrandKnowledgeSource(asset: MediaAssetView, classification = c
 function providerFor(asset: MediaAssetView): SourceControlAsset["provider"] {
   if (asset.source === "google_drive") return "Drive";
   if (asset.source === "url") return "URL";
+  if (asset.source === "note") return "Note";
   if (asset.source === "uploaded") return "Upload";
   return "Library";
 }

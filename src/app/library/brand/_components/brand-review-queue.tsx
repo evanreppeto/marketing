@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Database, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
@@ -24,14 +25,25 @@ export function BrandReviewQueue({
   agentName: string;
   items: SourceControlReviewItem[];
 }) {
-  const [reviewItems, setReviewItems] = useState(items);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  // Derive the visible queue from the server list (always fresh after a chat
+  // capture / upload calls router.refresh()) minus the items we've optimistically
+  // dismissed this turn — no copy of server state in React state.
+  const reviewItems = items.filter((item) => !dismissed.has(item.id));
 
   function decide(item: SourceControlReviewItem, decision: "approve" | "reject") {
     startTransition(async () => {
       const action = decision === "approve" ? approveNodeAction : rejectNodeAction;
       const result = await action(item.id);
-      if (result.ok) setReviewItems((current) => current.filter((next) => next.id !== item.id));
+      if (result.ok) {
+        setDismissed((current) => new Set(current).add(item.id));
+        // Refresh so the rest of the page reflects the decision — an approved
+        // fact moves into "What Arc knows", counts update, etc.
+        router.refresh();
+      }
     });
   }
 
