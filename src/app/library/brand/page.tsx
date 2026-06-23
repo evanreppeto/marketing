@@ -17,6 +17,7 @@ import {
 } from "@/lib/brand-knowledge/source-classifier";
 
 import { BrandPersonas } from "./_components/brand-personas";
+import { BrandArcChat } from "./_components/brand-arc-chat";
 import { BrandIdentity } from "./_components/brand-identity";
 import { BrandMedia } from "./_components/brand-media";
 import { BrandDetails, type ApprovedFact } from "./_components/brand-details";
@@ -81,6 +82,9 @@ export default async function BrandPage() {
       <BrandIdentity agentName={agentName} profile={profile} />
 
       <BrandMedia assets={mediaAssets} />
+
+      {/* Chat with Arc — conversational brand intake, wired to the real Arc pipeline. */}
+      <BrandArcChat agentName={agentName} />
 
       {/* Zone 1 — Add to brand (the one accent moment; Arc-led intake). */}
       <section aria-labelledby="brand-intake-heading">
