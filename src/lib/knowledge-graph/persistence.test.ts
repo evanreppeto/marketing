@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { createNode, createEdge, decideNode, upsertReferenceNode } from "./persistence";
+import { createNode, createEdge, decideNode, upsertReferenceEdge, upsertReferenceNode } from "./persistence";
 
 const ORG = "org-1";
 
@@ -139,6 +139,52 @@ describe("upsertReferenceNode", () => {
       { client: supabase as never, orgId: ORG },
     );
     expect(result).toEqual({ ok: true, id: "n-existing" });
+  });
+});
+
+describe("upsertReferenceEdge", () => {
+  it("returns the existing edge id without inserting a duplicate", async () => {
+    const supabase = createSupabaseQueryMock({
+      knowledge_edges: { data: { id: "e-existing" }, error: null }, // lookup → existing
+    });
+    const result = await upsertReferenceEdge("a", "b", "belongs_to", { client: supabase as never, orgId: ORG });
+    expect(result).toEqual({ ok: true, id: "e-existing" });
+    expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
+  });
+
+  it("inserts a new observed edge when none exists", async () => {
+    const supabase = createSupabaseQueryMock({
+      knowledge_edges: [
+        { data: null, error: null }, // lookup → none
+        { data: { id: "e-new" }, error: null }, // insert
+      ],
+    });
+    const result = await upsertReferenceEdge("a", "b", "targets", { client: supabase as never, orgId: ORG });
+    expect(result).toEqual({ ok: true, id: "e-new" });
+    const payload = insertPayload(supabase)!;
+    expect(payload.relation).toBe("targets");
+    expect(payload.trust_tier).toBe("observed");
+    expect(payload.from_node_id).toBe("a");
+    expect(payload.to_node_id).toBe("b");
+  });
+
+  it("treats a concurrent unique-violation as benign and returns the existing edge", async () => {
+    const supabase = createSupabaseQueryMock({
+      knowledge_edges: [
+        { data: null, error: null }, // lookup → none
+        { data: null, error: { message: "duplicate key", code: "23505" } as never }, // insert → race
+        { data: { id: "e-raced" }, error: null }, // re-read
+      ],
+    });
+    const result = await upsertReferenceEdge("a", "b", "belongs_to", { client: supabase as never, orgId: ORG });
+    expect(result).toEqual({ ok: true, id: "e-raced" });
+  });
+
+  it("refuses a self-loop before touching Supabase", async () => {
+    const supabase = createSupabaseQueryMock({ knowledge_edges: { data: null, error: null } });
+    const result = await upsertReferenceEdge("a", "a", "belongs_to", { client: supabase as never, orgId: ORG });
+    expect(result.ok).toBe(false);
+    expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
   });
 });
 

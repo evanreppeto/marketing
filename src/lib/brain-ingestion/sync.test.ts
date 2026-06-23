@@ -1,12 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-vi.mock("@/lib/knowledge-graph/persistence", () => ({ upsertReferenceNode: vi.fn() }));
-import { upsertReferenceNode } from "@/lib/knowledge-graph/persistence";
-import { syncRecordToBrain, syncCrmRowToBrain, resyncCrmIntoBrain } from "./sync";
+vi.mock("@/lib/knowledge-graph/persistence", () => ({
+  upsertReferenceNode: vi.fn(),
+  upsertReferenceEdge: vi.fn(),
+}));
+import { upsertReferenceEdge, upsertReferenceNode } from "@/lib/knowledge-graph/persistence";
+import { syncRecordToBrain, syncCrmRowToBrain, syncCrmRowEdges, resyncCrmIntoBrain } from "./sync";
 
 const upsertMock = vi.mocked(upsertReferenceNode);
+const edgeMock = vi.mocked(upsertReferenceEdge);
 const ORG = "org-s-1";
+
+beforeEach(() => {
+  edgeMock.mockReset();
+  edgeMock.mockResolvedValue({ ok: true, id: "e-1" });
+});
 
 describe("syncCrmRowToBrain", () => {
   it("builds a node input from the row and upserts it as arc", async () => {
@@ -45,7 +54,7 @@ describe("resyncCrmIntoBrain", () => {
       // contacts/properties/jobs/outcomes default to []
     });
     const res = await resyncCrmIntoBrain({ client: supabase as never, orgId: ORG });
-    expect(res).toEqual({ ok: true, synced: 3, errors: 0, truncated: false });
+    expect(res).toEqual({ ok: true, synced: 3, linked: 0, errors: 0, truncated: false });
   });
 
   it("sets ok:false when a table read errors, without aborting the loop", async () => {
@@ -67,5 +76,46 @@ describe("resyncCrmIntoBrain", () => {
     const res = await resyncCrmIntoBrain({ client: supabase as never, orgId: ORG });
     expect(res.synced).toBe(1);
     expect(res.errors).toBe(1);
+  });
+});
+
+describe("syncCrmRowEdges", () => {
+  it("resolves both ends and upserts an edge per FK + persona", async () => {
+    // knowledge_nodes lookup returns ids for every (kind,key) referenced by the lead.
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: {
+        data: [
+          { id: "n-lead", key: "crm:leads:l1" },
+          { id: "n-co", key: "crm:companies:co1" },
+          { id: "n-persona", key: "persona_landlord" },
+        ],
+        error: null,
+      },
+    });
+    const res = await syncCrmRowEdges(
+      "leads",
+      { id: "l1", company_id: "co1", persona: "persona_landlord" },
+      { client: supabase as never, orgId: ORG },
+    );
+    expect(res).toEqual({ linked: 2, skipped: 0 });
+    expect(edgeMock).toHaveBeenCalledWith("n-lead", "n-co", "belongs_to", { client: expect.anything(), orgId: ORG });
+    expect(edgeMock).toHaveBeenCalledWith("n-lead", "n-persona", "targets", { client: expect.anything(), orgId: ORG });
+  });
+
+  it("skips an edge whose target node doesn't exist yet (no edge written)", async () => {
+    // Only the lead's own node resolves; the company node is missing.
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: { data: [{ id: "n-lead", key: "crm:leads:l1" }], error: null },
+    });
+    const res = await syncCrmRowEdges("leads", { id: "l1", company_id: "co1" }, { client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ linked: 0, skipped: 1 });
+    expect(edgeMock).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for a row with no FKs or persona", async () => {
+    const supabase = createSupabaseQueryMock({});
+    const res = await syncCrmRowEdges("companies", { id: "c1", name: "Acme" }, { client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ linked: 0, skipped: 0 });
+    expect(edgeMock).not.toHaveBeenCalled();
   });
 });

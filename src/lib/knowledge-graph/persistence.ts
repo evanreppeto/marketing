@@ -345,6 +345,71 @@ export async function upsertReferenceNode(input: KnowledgeNodeInput, deps: Write
   return { ok: true, id: data.id };
 }
 
+/**
+ * Insert-or-return an edge keyed on (org_id, from_node_id, relation, to_node_id).
+ * Used by CRM → Brain auto-linking so re-syncing a record doesn't duplicate edges.
+ * Always authored "arc" → trust tier "observed" (included in recall, never gated).
+ * A 23505 from a concurrent insert is treated as benign.
+ */
+export async function upsertReferenceEdge(
+  fromNodeId: string,
+  toNodeId: string,
+  relation: string,
+  deps: WriteDeps = {},
+): Promise<WriteResult> {
+  const parsed = validateEdgeInput({ fromNodeId, toNodeId, relation });
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+  const { fromNodeId: from, toNodeId: to, relation: rel } = parsed.value;
+
+  const existing = await client
+    .from("knowledge_edges")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("from_node_id", from)
+    .eq("relation", rel)
+    .eq("to_node_id", to)
+    .maybeSingle<{ id: string }>();
+  if (existing.error) return { ok: false, error: existing.error.message };
+  if (existing.data?.id) return { ok: true, id: existing.data.id };
+
+  const { data, error } = await client
+    .from("knowledge_edges")
+    .insert({
+      org_id: orgId,
+      from_node_id: from,
+      to_node_id: to,
+      relation: rel,
+      weight: parsed.value.weight,
+      trust_tier: "observed",
+      source: parsed.value.source ?? "crm-sync",
+      created_by: "arc",
+      approved_by: null,
+      approved_at: null,
+      props: (parsed.value.props ?? {}) as never,
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      const retry = await client
+        .from("knowledge_edges")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("from_node_id", from)
+        .eq("relation", rel)
+        .eq("to_node_id", to)
+        .maybeSingle<{ id: string }>();
+      if (retry.data?.id) return { ok: true, id: retry.data.id };
+    }
+    return { ok: false, error: error.message };
+  }
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
+  return { ok: true, id: data.id };
+}
+
 /** Embed pre-joined text; never throws (recall degrades to keyword/graph). */
 async function embedReferenceBestEffort(client: TypedSupabaseClient, orgId: string, id: string, text: string): Promise<void> {
   try {

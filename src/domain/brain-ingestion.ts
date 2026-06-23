@@ -5,7 +5,7 @@
  * wiring live in later layers.
  */
 
-import { type KnowledgeNodeInput } from "./knowledge-graph";
+import { type EdgeRelation, type KnowledgeNodeInput } from "./knowledge-graph";
 
 /** The six CRM objects that ingest into the Brain. */
 export type CrmIngestTable =
@@ -133,4 +133,72 @@ export function buildNodeInputForCrmRow(
       ["Closed", row.closed_at],
     ]),
   };
+}
+
+/**
+ * A directed link from a CRM row's own Brain node to a related node, addressed by
+ * (kind, key) so the persistence layer can resolve both ends to ids at write time.
+ * `from` is always the row's own reference node.
+ */
+export type CrmEdgeSpec = {
+  fromKind: string;
+  fromKey: string;
+  toKind: string;
+  toKey: string;
+  relation: EdgeRelation;
+};
+
+/** Real FK parents per table — each becomes a `belongs_to` edge to the parent's node. */
+const CRM_BELONGS_TO: Record<CrmIngestTable, Array<{ column: string; table: CrmIngestTable }>> = {
+  companies: [],
+  contacts: [{ column: "company_id", table: "companies" }],
+  properties: [
+    { column: "company_id", table: "companies" },
+    { column: "contact_id", table: "contacts" },
+  ],
+  leads: [
+    { column: "company_id", table: "companies" },
+    { column: "contact_id", table: "contacts" },
+    { column: "property_id", table: "properties" },
+  ],
+  jobs: [
+    { column: "lead_id", table: "leads" },
+    { column: "company_id", table: "companies" },
+  ],
+  outcomes: [
+    { column: "lead_id", table: "leads" },
+    { column: "job_id", table: "jobs" },
+  ],
+};
+
+function crmRef(table: CrmIngestTable, id: unknown): { kind: string; key: string } | null {
+  if (typeof id !== "string" || id.trim().length === 0) return null;
+  return { kind: CRM_NODE_KINDS[table], key: crmNodeKey(table, id) };
+}
+
+/**
+ * Build the graph edges implied by a CRM row (pure). Real foreign keys become
+ * `belongs_to` edges to the parent record's node; a non-empty persona becomes a
+ * `targets` edge to that persona node. Null FKs are skipped, and a ref equal to
+ * the row's own node is dropped (the edge table forbids self-loops anyway).
+ */
+export function buildEdgesForCrmRow(table: CrmIngestTable, row: Record<string, unknown>): CrmEdgeSpec[] {
+  const fromId = typeof row.id === "string" ? row.id : null;
+  if (!fromId) return [];
+  const from = { kind: CRM_NODE_KINDS[table], key: crmNodeKey(table, fromId) };
+  const edges: CrmEdgeSpec[] = [];
+
+  for (const fk of CRM_BELONGS_TO[table]) {
+    const ref = crmRef(fk.table, row[fk.column]);
+    if (ref && ref.key !== from.key) {
+      edges.push({ fromKind: from.kind, fromKey: from.key, toKind: ref.kind, toKey: ref.key, relation: "belongs_to" });
+    }
+  }
+
+  const p = persona(row);
+  if (p) {
+    edges.push({ fromKind: from.kind, fromKey: from.key, toKind: "persona", toKey: p, relation: "targets" });
+  }
+
+  return edges;
 }
