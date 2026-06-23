@@ -120,26 +120,34 @@ the CSS — it does **not** strip `<style>`/`<svg>`.
 
 ```ts
 export type BrandDesignProposal = {
-  logoUrl: string | null;       // OUR hosted asset URL (see below), or null
-  logoAssetId: string | null;
-  faviconUrl: string | null;
+  logoUrl: string | null;       // best external logo candidate (absolute), or null
+  faviconUrl: string | null;    // absolute
   palette: { primary?: string; secondary?: string; accent?: string; dark?: string; light?: string };
   headingFont: string | null;
   bodyFont: string | null;
   sourceUrl: string;
 };
 
-export async function analyzeBrandDesignFromUrl(rawUrl: string, opts: { orgId: string; uploadedBy: string }):
+export async function analyzeBrandDesignFromUrl(rawUrl: string):
   Promise<{ ok: true; proposal: BrandDesignProposal } | { ok: false; status: "rejected" | "failed"; message: string }>;
+
+// SSRF-guarded image download used by the apply action (manual redirects,
+// per-hop revalidation, size cap, content-type must be image/*). Returns bytes.
+export async function fetchPublicImage(rawUrl: string):
+  Promise<{ ok: true; bytes: Uint8Array; contentType: string; finalUrl: string } | { ok: false; status: "rejected" | "failed"; message: string }>;
 ```
 
-- Logo handling: download the best logo candidate's bytes (SSRF-guarded,
-  size-capped, content-type must be an image), and store it as a Library asset
-  via the existing `insertAssetWithUrl` (`source: "url"`,
+- Logo handling: **analyze returns the external candidate URL only** (no
+  storage). The apply action is the trust boundary: it re-guards the
+  client-supplied candidate via `fetchPublicImage` (SSRF-guarded, size-capped,
+  content-type must be an image) and stores the bytes as a Library asset via the
+  existing `insertAssetWithUrl` (`source: "url"`,
   `provenance: { brandRole: "logo", sourceUrl }`) — the same path manual logo
-  upload uses. The proposal returns OUR hosted URL, never a hotlink to the
-  customer's site. If every candidate fails to download, `logoUrl` is null and
-  the preview shows "no logo found".
+  upload uses. Storing on apply (not analyze) re-validates the URL at the moment
+  it's used and avoids orphan assets when a preview is dismissed. The preview
+  `<img>` hotlinks the candidate URL purely for display in the operator's own
+  browser. If no candidate is found, `logoUrl` is null and the preview shows
+  "no logo found".
 
 ### 3. Server actions — `src/app/library/brand/actions.ts`
 
@@ -148,15 +156,15 @@ Supabase is unconfigured, matching the existing brand actions.
 
 - `analyzeBrandDesignFromWebsiteAction(prev, formData)` — reads `websiteUrl`,
   calls `analyzeBrandDesignFromUrl`, returns the proposal as action state.
-  Persists nothing to the profile (the logo asset is stored so the preview can
-  show a stable image).
+  Persists nothing.
 - `applyBrandDesignAction(prev, formData)` — receives the chosen values
-  (hidden fields carrying the proposal) plus an `overwrite` flag. Loads the
-  current profile, applies logo/favicon/palette/fonts (fill-blanks-only unless
+  (hidden fields carrying the proposal) plus an `overwrite` flag. For any
+  `logoUrl`/`faviconUrl` present, re-guards + downloads via `fetchPublicImage`
+  and stores via `insertAssetWithUrl`, using the hosted URL. Loads the current
+  profile, applies logo/favicon/palette/fonts (fill-blanks-only unless
   `overwrite`), validates via `validateBusinessProfile`, `upsertBusinessProfile`,
   then `revalidatePath("/library/brand")` (and `/`, `/settings`, `/arc` like
-  `saveBrandKitAction`). Re-validates that `logoUrl` is one of our hosted asset
-  URLs (not an arbitrary client-supplied external URL).
+  `saveBrandKitAction`).
 
 ### 4. UI — `src/app/library/brand/_components/brand-design-import.tsx`
 
@@ -188,11 +196,11 @@ logo replaces the monogram immediately after `revalidatePath`. Manual upload in
 operator pastes homepage URL
   → analyzeBrandDesignFromWebsiteAction (requireOperator)
       → analyzeBrandDesignFromUrl (SSRF-guarded fetch, keeps CSS)
-          → extractBrandDesign(html, baseUrl)         [pure]
-          → download + insertAssetWithUrl(best logo)  [Library asset]
-      → BrandDesignProposal (hosted logo URL + swatches + fonts)
+          → extractBrandDesign(html, baseUrl)              [pure]
+      → BrandDesignProposal (candidate logo URL + swatches + fonts)
   → preview card (operator reviews, toggles overwrite)
   → applyBrandDesignAction (requireOperator)
+      → fetchPublicImage(logo) + insertAssetWithUrl        [re-guard + store]
       → upsertBusinessProfile (fill-blanks or overwrite)
       → revalidatePath("/library/brand")
   → masthead renders real logo + palette
@@ -220,10 +228,10 @@ operator pastes homepage URL
   - font parsing from Google Fonts link and `font-family` declarations
   - no-logo / no-color fallbacks
   - `brandDesignToPaletteUpdate` slot mapping
-- `src/lib/brand-kit/design-fetch.test.ts`: injected `fetch` for the page and
-  the logo image; asserts SSRF rejection, image download + store, proposal
-  shape, and the no-logo path. (Mock `next/cache` per-file per the known
-  vitest `revalidatePath` gotcha if the action is exercised here.)
+- `src/lib/brand-kit/design-fetch.test.ts`: mocked `node:dns` + `global.fetch`;
+  asserts `analyzeBrandDesignFromUrl` SSRF rejection, proposal shape, no-logo
+  path, and `fetchPublicImage` (rejects private host, rejects non-image
+  content-type, returns bytes on success).
 - The SSRF guard itself is already covered by `website-fetch.test.ts` /
   `website.test.ts`; the extracted `fetchPublicHtml` helper keeps that coverage.
 
