@@ -1,15 +1,12 @@
 import {
   FileText,
-  FolderOpen,
   MessageSquareQuote,
   Pencil,
   ShieldCheck,
-  UploadCloud,
 } from "lucide-react";
 import Link from "next/link";
 
 import { PageHeader, Panel, StatusPill, buttonClasses } from "@/app/_components/page-header";
-import { cx } from "@/app/_components/theme";
 import { INDUSTRY_TEMPLATES, NEUTRAL_DEFAULTS, type BusinessProfile } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
@@ -18,7 +15,6 @@ import { listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { type MediaAssetView } from "@/lib/media-library/types";
 import { getAgentName } from "@/lib/settings/agent-name";
-import { getPersonaIntelligenceData } from "@/lib/persona-intelligence/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import {
   brandSourceSortScore,
@@ -27,7 +23,6 @@ import {
 } from "@/lib/brand-knowledge/source-classifier";
 
 import { BrandProfileEditor } from "./_components/brand-profile-editor";
-import { BrandPersonas } from "./_components/brand-personas";
 import { BrandKnowledgeSyncButton } from "./_components/brand-knowledge-sync-button";
 import { BrandSourceUpload } from "./_components/brand-source-upload";
 import { LibraryTabs } from "../_components/library-tabs";
@@ -39,30 +34,6 @@ export const dynamic = "force-dynamic";
 
 const BRAND_KINDS = new Set(["brand_fact", "proof_point", "messaging_angle", "cta", "service", "persona"]);
 
-const SECTION_TONE = {
-  company: {
-    bar: "bg-[var(--accent)]",
-    border: "border-l-[var(--accent-border-strong)]",
-    surface: "bg-[color-mix(in_srgb,var(--accent-soft)_20%,var(--surface-panel))]",
-  },
-  rules: {
-    bar: "bg-[var(--warn)]",
-    border: "border-l-[var(--warn-border)]",
-    surface: "bg-[color-mix(in_srgb,var(--warn-soft)_18%,var(--surface-panel))]",
-  },
-  facts: {
-    bar: "bg-[var(--ok)]",
-    border: "border-l-[var(--ok-border)]",
-    surface: "bg-[color-mix(in_srgb,var(--ok-soft)_18%,var(--surface-panel))]",
-  },
-  files: {
-    bar: "bg-[var(--accent-contrast)]",
-    border: "border-l-[var(--accent-border)]",
-    surface: "bg-[color-mix(in_srgb,var(--accent-soft)_14%,var(--surface-panel))]",
-  },
-} as const;
-
-type SectionTone = keyof typeof SECTION_TONE;
 type BrandFileSource = { asset: MediaAssetView; classification: BrandSourceClassification };
 type BrainSourceStats = { total: number; proposed: number; trusted: number };
 
@@ -152,40 +123,34 @@ function formatIndustryLabel(value: string | null | undefined) {
 }
 
 export default async function BrandPage() {
-  const [profile, brain, library, agentName, personaData] = await Promise.all([
+  const [profile, brain, library, agentName] = await Promise.all([
     loadBrandProfile(),
     listNodes({}, undefined, undefined, { demoFallback: false }),
     getMediaLibraryData(),
     getAgentName(),
-    getPersonaIntelligenceData(),
   ]);
 
   const facts = brain.status === "live" ? brandFacts(brain.nodes) : [];
   const brainNodes = brain.status === "live" ? brain.nodes : [];
   const allFiles = library.status === "live" ? brandFiles(library.assets) : [];
-  const files = allFiles.slice(0, 6);
+  const files = allFiles.slice(0, 4);
   const sourceReadiness = summarizeBrandSourceReadiness(allFiles, brainNodes);
-  const approvedFacts = facts.filter((fact) => fact.trustTier === "trusted").length;
-  const needsReview = facts.filter((fact) => fact.trustTier === "proposed").length;
+  const reviewFacts = facts.filter((fact) => fact.trustTier === "proposed");
+  const visibleFacts = reviewFacts.length > 0 ? reviewFacts : facts.filter((fact) => fact.trustTier === "trusted").slice(0, 3);
+  const hasKnowledgeActivity = visibleFacts.length > 0 || files.length > 0;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <LibraryTabs active="brand" />
       <PageHeader
         eyebrow="Brand"
         title={profile.displayName || "Company brand"}
-        description={`${agentName} uses this page to understand the company: what it offers, how it should sound, what proof it can use, and which files it can learn from.`}
+        description={`Add or update the brand information ${agentName} should use. Keep it simple: notes, files, websites, and exact details when needed.`}
         aside={
-          <>
-            <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/library">
-              <FolderOpen aria-hidden className="h-4 w-4" />
-              Add files
-            </Link>
-            <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="#edit-brand">
-              <Pencil aria-hidden className="h-4 w-4" />
-              Edit brand
-            </Link>
-          </>
+          <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="#edit-brand">
+            <Pencil aria-hidden className="h-4 w-4" />
+            Edit details
+          </Link>
         }
       />
 
@@ -194,190 +159,113 @@ export default async function BrandPage() {
       </Panel>
 
       <Panel className="overflow-hidden p-0">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-4">
           <div>
-            <div className="signal-eyebrow">Brand basics</div>
-            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What {agentName} uses first</h2>
-            <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
-              Keep this simple and durable. Add source material above when the brand changes, then edit locked details here when something needs to be exact.
-            </p>
+            <div className="signal-eyebrow">Current brand</div>
+            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">The basics {agentName} sees</h2>
           </div>
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
-            Edit details
+            Change
           </Link>
         </div>
-        <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
-          <SnapshotCard
-            icon={<FolderOpen aria-hidden />}
+        <div className="divide-y divide-[var(--border-hairline)]">
+          <SummaryRow
             label="Company"
             title={profile.displayName || "Company not set"}
             value={formatIndustryLabel(profile.industry) || profile.websiteUrl || "Add company basics"}
-            tone="company"
           />
-          <SnapshotCard
+          <SummaryRow
             icon={<MessageSquareQuote aria-hidden />}
             label="Voice"
             title={profile.tone ? formatTokenLabel(profile.tone) : "Tone not set"}
             value={profile.voiceGuidance || "Add voice guidance"}
-            tone="files"
           />
-          <SnapshotCard
+          <SummaryRow
             icon={<FileText aria-hidden />}
             label="Offerings"
             title={profile.services.length ? `${profile.services.length} saved` : "No offerings yet"}
             value={profile.services.slice(0, 3).join(", ") || "Add products, services, or offers"}
-            tone="facts"
           />
-          <SnapshotCard
+          <SummaryRow
             icon={<ShieldCheck aria-hidden />}
             label="Rules"
             title={profile.guardrails.disallowedClaims.length ? `${profile.guardrails.disallowedClaims.length} blocked claims` : "No blocked claims"}
             value={profile.guardrails.disallowedClaims.slice(0, 3).join(", ") || profile.guardrails.complianceNotes || "Add claims and compliance notes"}
-            tone="rules"
           />
         </div>
-        {(() => {
-          const slots = [
-            profile.brandPalette.primary,
-            profile.brandPalette.secondary,
-            profile.brandPalette.accent,
-            profile.brandPalette.dark,
-            profile.brandPalette.light,
-          ].filter((c) => /^#[0-9a-fA-F]{6}$/.test(c.hex));
-          if (slots.length === 0) return null;
-          return (
-            <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border-hairline)] px-5 py-4">
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Palette</span>
-              {slots.map((c) => (
-                <span key={c.hex + c.label} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <span aria-hidden className="h-5 w-5 rounded border border-[var(--border-hairline)]" style={{ backgroundColor: c.hex }} />
-                  {c.label || c.hex}
-                </span>
-              ))}
-            </div>
-          );
-        })()}
       </Panel>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="grid gap-5">
-          <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.facts.border)}>
-            <div aria-hidden className={cx("h-1", SECTION_TONE.facts.bar)} />
-            <SimpleHeader
-              action={
-                <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/brain">
-                  Open Brain
-                </Link>
-              }
-              eyebrow={needsReview ? `${needsReview} to review` : `${approvedFacts} approved`}
-              tone="facts"
-              title={needsReview ? "Needs review" : "Approved brand notes"}
-            />
-            <div className="divide-y divide-[var(--border-hairline)]">
-              {facts.length > 0 ? (
-                facts.map((fact) => <FactRow key={fact.id} node={fact} />)
-              ) : (
-                <EmptyBrandState
-                  actionHref="/brain"
-                  actionLabel="Add facts"
-                  detail="Add facts, proof, offerings, messages, and CTAs that Arc is allowed to use."
-                  title="No brand facts yet"
-                />
-              )}
+      {hasKnowledgeActivity ? (
+        <Panel className="overflow-hidden p-0">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-4">
+            <div>
+              <div className="signal-eyebrow">Review</div>
+              <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">
+                {reviewFacts.length > 0 ? "Check what Arc learned" : "Recent brand knowledge"}
+              </h2>
             </div>
-          </Panel>
-        </div>
+            <div className="flex flex-wrap gap-2">
+              <BrandKnowledgeSyncButton readyToLearn={sourceReadiness.readyToLearn} />
+              <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/brain">
+                Brain
+              </Link>
+            </div>
+          </div>
+          <div className="grid gap-0 xl:grid-cols-2">
+            {visibleFacts.length > 0 ? (
+              <div className="min-w-0 divide-y divide-[var(--border-hairline)] border-b border-[var(--border-hairline)] xl:border-b-0 xl:border-r">
+                {visibleFacts.map((fact) => <FactRow key={fact.id} node={fact} />)}
+              </div>
+            ) : null}
+            {files.length > 0 ? (
+              <div className="min-w-0 divide-y divide-[var(--border-hairline)]">
+                {files.map((file) => <FileRow file={file} key={file.asset.id} stats={sourceStats(brainNodes, file.asset.id)} />)}
+              </div>
+            ) : null}
+          </div>
+        </Panel>
+      ) : null}
 
-        <div className="grid gap-5">
-          <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.files.border)}>
-            <div aria-hidden className={cx("h-1", SECTION_TONE.files.bar)} />
-            <SimpleHeader
-              action={
-                <div className="flex flex-wrap items-start gap-2">
-                  <BrandKnowledgeSyncButton readyToLearn={sourceReadiness.readyToLearn} />
-                  <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/library">
-                    Library
-                  </Link>
-                </div>
-              }
-              eyebrow={`${sourceReadiness.learned} learned${sourceReadiness.readyToLearn ? `, ${sourceReadiness.readyToLearn} new` : ""}`}
-              tone="files"
-              title="Sources Arc can learn from"
-            />
-            <div className="divide-y divide-[var(--border-hairline)]">
-              {files.length > 0 ? (
-                files.map((file) => <FileRow file={file} key={file.asset.id} stats={sourceStats(brainNodes, file.asset.id)} />)
-              ) : (
-                <EmptyBrandState
-                  actionHref="/library"
-                  actionLabel="Import files"
-                  detail={library.status === "live" ? "Add Google Drive links, PDFs, brand guidelines, voice docs, offerings, proof files, rules, or source docs." : library.message}
-                  title="No knowledge sources yet"
-                />
-              )}
-            </div>
-          </Panel>
-        </div>
+      <section id="edit-brand">
+        <details className="group overflow-hidden rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-bold text-[var(--text-primary)] marker:hidden">
+            <span>Edit exact brand details</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] group-open:hidden">Open</span>
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] group-open:inline">Close</span>
+          </summary>
+          <div className="border-t border-[var(--border-hairline)]">
+            <BrandProfileEditor profile={profile} />
+          </div>
+        </details>
       </section>
-
-      <BrandPersonas data={personaData} />
-
-      <BrandProfileEditor profile={profile} />
     </div>
   );
 }
 
-function SnapshotCard({
+function SummaryRow({
   icon,
   label,
   title,
-  tone,
   value,
 }: {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   label: string;
   title: string;
-  tone: SectionTone;
   value: string;
 }) {
-  const toneStyle = SECTION_TONE[tone];
   return (
-    <article className={cx("min-w-0 border-l-4 border border-[var(--border-hairline)] bg-[var(--surface-soft)]", toneStyle.border)}>
-      <div aria-hidden className={cx("h-1", toneStyle.bar)} />
-      <div className="flex gap-3 p-4">
+    <article className="flex min-w-0 gap-3 px-5 py-4">
+      {icon ? (
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-[var(--accent)] [&>svg]:h-4 [&>svg]:w-4">
           {icon}
         </div>
-        <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-          <h3 className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{title}</h3>
-          <p className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
-        </div>
+      ) : null}
+      <div className="min-w-0">
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+        <h3 className="mt-1 text-sm font-bold text-[var(--text-primary)]">{title}</h3>
+        <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
       </div>
     </article>
-  );
-}
-
-function SimpleHeader({
-  action,
-  eyebrow,
-  tone,
-  title,
-}: {
-  action?: React.ReactNode;
-  eyebrow: string;
-  tone: SectionTone;
-  title: string;
-}) {
-  const toneStyle = SECTION_TONE[tone];
-  return (
-    <div className={cx("flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-4", toneStyle.surface)}>
-      <div>
-        <div className="signal-eyebrow">{eyebrow}</div>
-        <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
   );
 }
 
@@ -449,31 +337,3 @@ function FileRow({ file, stats }: { file: BrandFileSource; stats: BrainSourceSta
   );
 }
 
-function EmptyBrandState({
-  actionHref,
-  actionLabel,
-  detail,
-  title,
-}: {
-  actionHref: string;
-  actionLabel: string;
-  detail: string;
-  title: string;
-}) {
-  return (
-    <div className="px-5 py-6">
-      <div className={cx("rounded-md border border-dashed border-[var(--border-hairline)] bg-[var(--surface-inset)] p-5")}>
-        <div className="flex items-start gap-3">
-          <UploadCloud aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" />
-          <div className="min-w-0">
-            <div className="text-sm font-bold text-[var(--text-primary)]">{title}</div>
-            <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
-            <Link className={buttonClasses({ variant: "ghost", size: "sm", className: "mt-3" })} href={actionHref}>
-              {actionLabel}
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

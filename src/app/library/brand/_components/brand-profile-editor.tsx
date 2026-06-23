@@ -223,7 +223,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
   }
 
   return (
-    <Panel className="overflow-hidden p-0" id="edit-brand">
+    <Panel className="overflow-hidden p-0">
       <form action={action}>
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div className="min-w-0">
