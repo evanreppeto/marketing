@@ -7,7 +7,8 @@ import { useState, useTransition } from "react";
 import { StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
 import { approveNodeAction, rejectNodeAction } from "@/app/brain/actions";
-import { groupReviewItemsBySource, type SourceControlReviewItem } from "@/lib/brand-knowledge/source-control";
+import { groupReviewItemsBySource } from "@/lib/brand-knowledge/review-grouping";
+import { type SourceControlReviewItem } from "@/lib/brand-knowledge/source-control";
 
 function compactKind(kind: string) {
   return kind.replace(/[_-]+/g, " ");
