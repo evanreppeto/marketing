@@ -1159,7 +1159,15 @@ function buildRecordDataFromBundle(key: CrmObjectKey, recordId: string, data: Cr
     const lifecycleStatus = titleize(recordStatus(key, record));
     const owner = getString(metadata.owner) ?? defaultOwnerForObject(key, agentName);
     const updated = record.updated_at ?? record.created_at ?? "Now";
-    const scoreSet = getScores(key, record, metadata);
+    // Leads: name + lead score are persona-aware (see leadDisplayName/Score), so a
+    // relationship/prospect lead doesn't show the raw "Web Research" title or the
+    // misleading flat damage score on its detail page either.
+    const leadRecord = key === "leads" ? (record as LeadRow) : null;
+    const leadCompany = leadRecord?.company_id ? data.companies.find((row) => row.id === leadRecord.company_id) : undefined;
+    const leadContact = leadRecord?.contact_id ? data.contacts.find((row) => row.id === leadRecord.contact_id) : undefined;
+    const scoreSet = leadRecord
+      ? { ...getScores(key, record, metadata), leadScore: leadDisplayScore(leadRecord, leadCompany) }
+      : getScores(key, record, metadata);
     const evidence = buildRecordEvidence(metadata);
 
     return {
@@ -1168,7 +1176,7 @@ function buildRecordDataFromBundle(key: CrmObjectKey, recordId: string, data: Cr
       label: objectMeta.label,
       href: `/crm/${key}/${recordId}`,
       id: recordId,
-      name: recordName(key, record),
+      name: leadRecord ? leadDisplayName(leadRecord, leadCompany, leadContact) : recordName(key, record),
       detail: recordDetail(key, record, data),
       lifecycleStatus,
       owner,
@@ -1313,12 +1321,12 @@ function buildPipelineRows(data: Awaited<ReturnType<typeof getCrmTableBundle>>):
     const company = lead.company_id ? companyById.get(lead.company_id) : undefined;
     const contact = lead.contact_id ? contactById.get(lead.contact_id) : undefined;
     const metadata = asRecord(lead.metadata);
-    const score = lead.lead_score ?? 0;
+    const score = leadDisplayScore(lead, company);
     const evidence = buildRecordEvidence(metadata);
 
     return {
       id: lead.id,
-      record: lead.loss_summary || titleize(lead.source ?? "Lead"),
+      record: leadDisplayName(lead, company, contact),
       account: company?.name ?? contactName(contact) ?? "Unassigned account",
       type: titleize(lead.persona ?? "Lead"),
       objectType: "lead",
@@ -1456,11 +1464,18 @@ function decorateObjectRow(
   const metadata = asRecord(record.metadata);
   const evidence = buildRecordEvidence(metadata);
   const scores = getScores(key, record, metadata);
-  const score = scores.leadScore ?? scores.partnerScore;
+
+  // Leads: name + score are persona-aware so relationship/prospect leads (no
+  // loss event) don't all read "Web Research" with a misleading damage score.
+  const leadRecord = key === "leads" ? (record as LeadRow) : null;
+  const leadCompany = leadRecord?.company_id ? data.companies.find((row) => row.id === leadRecord.company_id) : undefined;
+  const leadContact = leadRecord?.contact_id ? data.contacts.find((row) => row.id === leadRecord.contact_id) : undefined;
+  const displayScores = leadRecord ? { ...scores, leadScore: leadDisplayScore(leadRecord, leadCompany) } : scores;
+  const score = displayScores.leadScore ?? displayScores.partnerScore;
 
   return {
     id: record.id,
-    name: recordName(key, record),
+    name: leadRecord ? leadDisplayName(leadRecord, leadCompany, leadContact) : recordName(key, record),
     detail: recordDetail(key, record, data),
     status: titleize(recordStatus(key, record)),
     owner: getString(metadata.owner) ?? fallbackOwner,
@@ -1470,7 +1485,7 @@ function decorateObjectRow(
     personaTag: normalizeTag(record.persona ?? getString(metadata.persona) ?? "unassigned_persona"),
     sourceLabel: sourceLabelForObjectRow(key, record, metadata),
     score,
-    valueLabel: valueLabelForObjectRow(key, record, scores),
+    valueLabel: valueLabelForObjectRow(key, record, displayScores),
     nextStep: nextBestActionForRecord(key, record, metadata),
     relationships: relationshipsForRecord(key, record, data).slice(0, 5),
     missingFields: missingFieldsForRecord(key, record, evidence),
@@ -1517,6 +1532,36 @@ function recordName(key: CrmObjectKey, record: AnyCrmRecord) {
   if (key === "leads") return (record as LeadRow).loss_summary ?? titleize((record as LeadRow).source ?? "Lead");
   if (key === "jobs") return (record as JobRow).job_number ?? `Project ${shortId(record.id)}`;
   return outcomeName(record as OutcomeRow);
+}
+
+/**
+ * Display label for a lead row. A demand lead is named by its loss summary; a
+ * relationship/prospect lead (no loss event — e.g. a referral partner Arc
+ * discovered) has no summary, so it falls back to the company/contact it
+ * represents, then the source. Prevents every web-discovered prospect from
+ * reading "Web Research" (the titleized source).
+ */
+function leadDisplayName(lead: LeadRow, company?: CompanyRow, contact?: ContactRow): string {
+  const summary = lead.loss_summary?.trim();
+  if (summary) return summary;
+  return company?.name ?? contactName(contact) ?? titleize(lead.source ?? "Lead");
+}
+
+/**
+ * Display score for a lead row. A lead with damage signals is a demand lead, so
+ * its damage `lead_score` is meaningful. A lead with no loss event is a
+ * relationship/prospect lead, where the damage base score (a flat 10) is
+ * misleading — score it by partner fit instead, the same basis partner company
+ * rows use, which falls back to the untiered-relationship baseline.
+ */
+function leadDisplayScore(lead: LeadRow, company?: CompanyRow): number {
+  const hasDamageSignal = (lead.loss_signals?.length ?? 0) > 0;
+  if (hasDamageSignal) return lead.lead_score ?? 0;
+  if (company) {
+    const meta = asRecord(company.metadata);
+    return getNumber(meta.partner_score) ?? partnerScore(company.partner_tier);
+  }
+  return lead.lead_score ?? 0;
 }
 
 /**
