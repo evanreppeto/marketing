@@ -98,6 +98,88 @@ describe("getConnections", () => {
     });
   });
 
+  it("uses the user-scoped Google Drive row as the connected source of truth", async () => {
+    vi.stubEnv("GOOGLE_DRIVE_CLIENT_ID", "client");
+    vi.stubEnv("GOOGLE_DRIVE_CLIENT_SECRET", "secret");
+    const supabase = createSupabaseQueryMock({
+      connections: {
+        data: [
+          row({
+            provider: "google_drive",
+            kind: "storage",
+            label: "Google Drive",
+            env_var: "GOOGLE_DRIVE_CLIENT_ID",
+            enabled: true,
+            last_test_ok: false,
+            last_test_error: "old token error",
+          }),
+        ],
+        error: null,
+      },
+      google_drive_connections: {
+        data: {
+          connected_by: "user@example.com",
+          connected_email: "user@gmail.com",
+          connected_at: "2026-06-19T17:59:57.226Z",
+          last_import_at: "2026-06-19T18:09:38.120Z",
+          last_error: null,
+        },
+        error: null,
+      },
+    });
+
+    const [drive] = await getConnections(supabase, { orgId: "org-1", connectedBy: "user@example.com" });
+
+    expect(drive).toMatchObject({
+      provider: "google_drive",
+      status: "connected",
+      lastTestOk: true,
+      lastTestError: null,
+      fromEmail: "user@gmail.com",
+      lastUsedAt: "2026-06-19T18:09:38.120Z",
+    });
+  });
+
+  it("falls back to legacy Drive connection keys for existing production rows", async () => {
+    vi.stubEnv("GOOGLE_DRIVE_CLIENT_ID", "client");
+    vi.stubEnv("GOOGLE_DRIVE_CLIENT_SECRET", "secret");
+    const supabase = createSupabaseQueryMock({
+      connections: {
+        data: [
+          row({
+            provider: "google_drive",
+            kind: "storage",
+            label: "Google Drive",
+            env_var: "GOOGLE_DRIVE_CLIENT_ID",
+            enabled: true,
+          }),
+        ],
+        error: null,
+      },
+      google_drive_connections: [
+        { data: null, error: null },
+        {
+          data: {
+            connected_by: "Operator",
+            connected_email: null,
+            connected_at: "2026-06-19T17:59:57.226Z",
+            last_import_at: null,
+            last_error: null,
+          },
+          error: null,
+        },
+      ],
+    });
+
+    const [drive] = await getConnections(supabase, { orgId: "org-1", connectedBy: "user@example.com" });
+
+    expect(drive).toMatchObject({
+      provider: "google_drive",
+      status: "connected",
+      fromEmail: "Operator",
+    });
+  });
+
   it("treats social providers (no env var) as not_configured", async () => {
     const supabase = createSupabaseQueryMock({
       connections: { data: [row({ provider: "instagram", kind: "social", label: "Instagram", env_var: null, enabled: false })], error: null },

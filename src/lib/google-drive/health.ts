@@ -1,8 +1,8 @@
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { getOperatorActor } from "@/lib/auth/operator";
+import { getOperatorIntegrationKey } from "@/lib/auth/operator";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-import { getGoogleDriveConnection, type GoogleDriveConnectionRow } from "./connection";
+import { getGoogleDriveConnectionWithFallback, type GoogleDriveConnectionRow } from "./connection";
 import { resolveGoogleDriveConfig, resolveGoogleDrivePickerConfig, type GoogleDriveConfig, type GoogleDrivePickerConfig } from "./oauth";
 import { listGoogleDriveSources, type GoogleDriveSourceView } from "./sources";
 
@@ -234,14 +234,14 @@ export async function loadGoogleDriveHealth(): Promise<GoogleDriveHealth> {
   }
 
   const orgId = await getCurrentOrgId();
-  const connectedBy = await getOperatorActor();
+  const connectedBy = await getOperatorIntegrationKey();
   let connection: GoogleDriveConnectionRow | null = null;
   let connectionError: string | null = null;
   let sources: GoogleDriveSourceView[] = [];
   let sourceError: string | null = null;
 
   try {
-    connection = await getGoogleDriveConnection(orgId, connectedBy);
+    connection = await getGoogleDriveConnectionWithFallback(orgId, connectedBy);
   } catch (error) {
     connectionError = error instanceof Error ? error.message : "Drive connection lookup failed.";
   }

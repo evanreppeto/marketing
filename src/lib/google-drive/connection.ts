@@ -1,5 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { getOperatorActor } from "@/lib/auth/operator";
+import { getConfiguredOperatorCredentials } from "@/lib/auth/operator-shared";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { refreshGoogleDriveAccessToken, resolveGoogleDriveConfig, type GoogleDriveTokenSet } from "./oauth";
@@ -51,6 +53,18 @@ type UntypedSupabaseClient = {
     update(values: Record<string, unknown>): UntypedUpdateChain;
   };
 };
+
+async function legacyConnectedByCandidates(primary: string): Promise<string[]> {
+  const candidates = new Set<string>();
+  candidates.add(primary);
+  candidates.add(await getOperatorActor());
+
+  const configuredEmail = getConfiguredOperatorCredentials()?.email;
+  if (configuredEmail) candidates.add(configuredEmail);
+
+  candidates.add("Operator");
+  return [...candidates];
+}
 
 function secretRefFromData(data: SecretCreateData | null): string | null {
   if (!data) return null;
@@ -167,6 +181,19 @@ export async function getGoogleDriveConnection(
   return (data as GoogleDriveConnectionRow | null) ?? null;
 }
 
+export async function getGoogleDriveConnectionWithFallback(
+  orgId: string,
+  connectedBy: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<GoogleDriveConnectionRow | null> {
+  for (const candidate of await legacyConnectedByCandidates(connectedBy)) {
+    const connection = await getGoogleDriveConnection(orgId, candidate, client);
+    if (connection) return connection;
+  }
+
+  return null;
+}
+
 export async function resolveGoogleDriveAccessToken(input: {
   orgId: string;
   connectedBy: string;
@@ -184,7 +211,7 @@ export async function resolveGoogleDriveAccessToken(input: {
   }
 
   const client = input.client ?? getSupabaseAdminClient();
-  const connection = await getGoogleDriveConnection(input.orgId, input.connectedBy, client);
+  const connection = await getGoogleDriveConnectionWithFallback(input.orgId, input.connectedBy, client);
   if (!connection) {
     throw new Error("Your Google Drive is not connected yet.");
   }

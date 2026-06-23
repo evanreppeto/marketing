@@ -1,7 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { getOperatorActor } from "@/lib/auth/operator";
+import { getOperatorIntegrationKey } from "@/lib/auth/operator";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type GoogleDriveSourceStatus = "active" | "paused" | "error";
@@ -116,7 +116,7 @@ export async function listGoogleDriveSources(input: {
 export async function listGoogleDriveSourcesForCurrentOperator(): Promise<GoogleDriveSourceView[]> {
   if (!isSupabaseAdminConfigured()) return [];
   const orgId = await getCurrentOrgId();
-  return listGoogleDriveSources({ orgId, connectedBy: await getOperatorActor() });
+  return listGoogleDriveSources({ orgId, connectedBy: await getOperatorIntegrationKey() });
 }
 
 export async function getGoogleDriveSource(input: {

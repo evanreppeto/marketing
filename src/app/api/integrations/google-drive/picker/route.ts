@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { getOperatorIntegrationKey, requireOperator } from "@/lib/auth/operator";
 import { resolveGoogleDriveAccessToken } from "@/lib/google-drive/connection";
 import { resolveGoogleDrivePickerConfig } from "@/lib/google-drive/oauth";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   try {
     const origin = new URL(request.url).origin;
     const orgId = await getCurrentOrgId();
-    const operator = await getOperatorActor();
+    const operator = await getOperatorIntegrationKey();
     const accessToken = await resolveGoogleDriveAccessToken({ orgId, connectedBy: operator, origin });
     return NextResponse.json({
       ok: true,
