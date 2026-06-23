@@ -632,7 +632,7 @@ export function Composer({
   // notice in place of the composer rather than a dead, disabled input box.
   if (!canCompose) {
     return (
-      <div className="mx-auto w-full max-w-[92rem] px-4 pb-4 pt-2 sm:px-6 xl:px-8">
+      <div className="mx-auto w-full max-w-[48rem] px-4 pb-4 pt-2 sm:px-6">
         <div className="flex items-center justify-center gap-2 rounded-[1.75rem] border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3 text-xs text-[var(--text-muted)]">
           <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2.5 10S5 4.5 10 4.5 17.5 10 17.5 10 15 15.5 10 15.5 2.5 10 2.5 10Z" />
@@ -645,7 +645,7 @@ export function Composer({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[92rem] px-4 pb-4 pt-2 sm:px-6 xl:px-8">
+    <div className="mx-auto w-full max-w-[48rem] px-4 pb-4 pt-2 sm:px-6">
       <form
         ref={formRef}
         action={demo ? undefined : formAction}

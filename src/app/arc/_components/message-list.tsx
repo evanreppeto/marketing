@@ -6,7 +6,7 @@ import ReactArcdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { cx } from "@/app/_components/theme";
-import { stepGlyphKind } from "@/domain";
+import { stepGlyphKind, summarizeSteps, normalizeArcBody } from "@/domain";
 import type { ArcMessage, ArcStep, ArcToolCall } from "@/lib/arc-chat/persistence";
 
 import { WorkGlyph } from "./work-glyph";
@@ -27,11 +27,17 @@ import { Sources, SourcesContent, SourcesTrigger } from "@/components/ai-element
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { ToolTraces } from "./tool-trace";
 
+/** Shared affordance for the icon-only reply action row (copy, regenerate). */
+const ICON_ACTION =
+  "flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]";
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
+      aria-label={copied ? "Copied" : "Copy reply"}
+      title={copied ? "Copied" : "Copy"}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(text);
@@ -41,9 +47,13 @@ function CopyButton({ text }: { text: string }) {
           /* clipboard unavailable — ignore */
         }
       }}
-      className="rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+      className={ICON_ACTION}
     >
-      {copied ? "Copied" : "Copy"}
+      {copied ? (
+        <svg viewBox="0 0 20 20" className="h-4 w-4 text-[var(--ok)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m5 10 3.5 3.5L15 6.5" /></svg>
+      ) : (
+        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="9" height="9" rx="2" /><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /></svg>
+      )}
     </button>
   );
 }
@@ -296,27 +306,35 @@ function ThinkingLine({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const current = steps[steps.length - 1];
-  const done = steps.filter((s) => s.status === "done");
-  const [verb, rest] = firstWordSplit(current.label);
+  // Collapse repeated work into counted groups so 46 "Creating lead for X" steps
+  // read as one calm "Creating lead · 26" line, not a stress-wall of chips.
+  const { groups } = summarizeSteps(steps);
+  const current = groups[groups.length - 1];
+  const done = groups.slice(0, -1);
+  const [verb, rest] = firstWordSplit(current.title);
+  const countLabel = current.count > 1 ? ` · ${current.count}` : "";
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2.5">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--accent-soft)]">
-          <WorkGlyph kind={stepGlyphKind(current)} className="h-3.5 w-3.5 text-[var(--accent)]" />
+          <WorkGlyph kind={current.kind} className="h-3.5 w-3.5 text-[var(--accent)]" />
         </span>
         <span className="min-w-0 flex-1 text-sm leading-5">
           <span style={{ fontFamily: "var(--font-serif)" }} className="italic text-[var(--text-secondary)]">
             {verb}
           </span>
           {rest ? <span className="arc-shimmer font-medium">{rest}</span> : null}
+          {countLabel ? <span className="font-medium tabular-nums text-[var(--text-secondary)]">{countLabel}</span> : null}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-[2.125rem] text-[11px] text-[var(--text-muted)]">
-        {done.map((s, i) => (
-          <span key={`${i}-${s.label}`} className="flex items-center gap-1.5">
+        {done.map((g, i) => (
+          <span key={`${i}-${g.title}`} className="flex items-center gap-1.5">
             {i > 0 ? <span aria-hidden className="opacity-40">→</span> : null}
-            <span>{shortLabel(s.label)}</span>
+            <span>
+              {shortLabel(g.title)}
+              {g.count > 1 ? <span className="tabular-nums opacity-70"> ·{g.count}</span> : null}
+            </span>
           </span>
         ))}
         <button
@@ -429,12 +447,17 @@ function PendingBlock({
 
 function StepTrace({ steps }: { steps: ArcStep[] }) {
   if (steps.length === 0) return null;
+  // Prefer a calm count-led headline ("Creating lead · 26") when one repeated
+  // action dominated; otherwise fall back to a plain step count.
+  const { groups, totalSteps } = summarizeSteps(steps);
+  const counted = groups.filter((g) => g.count > 1);
+  const title =
+    counted.length === 1
+      ? `${counted[0].title} · ${counted[0].count}`
+      : `Chain of thought · ${totalSteps} step${totalSteps === 1 ? "" : "s"}`;
   return (
     <div className="mt-3">
-      <ChainOfThoughtTrace
-        steps={steps.map((s) => ({ ...s, status: "done" as const }))}
-        title={`Chain of thought · ${steps.length} step${steps.length === 1 ? "" : "s"}`}
-      />
+      <ChainOfThoughtTrace steps={steps.map((s) => ({ ...s, status: "done" as const }))} title={title} />
     </div>
   );
 }
@@ -519,11 +542,11 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
 
 /** Arc replies render as markdown, mapped onto Signal tokens. */
 const mdComponents: Components = {
-  p: ({ children }) => <p className="text-sm leading-7 text-[var(--text-primary)]">{children}</p>,
+  p: ({ children }) => <p className="text-[15px] leading-[1.72] text-[var(--text-primary)]">{children}</p>,
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em>{children}</em>,
-  ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 pl-5 text-sm leading-6 marker:text-[var(--text-muted)]">{children}</ul>,
-  ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm leading-6 marker:text-[var(--text-muted)]">{children}</ol>,
+  ul: ({ children }) => <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-[1.6] marker:text-[var(--text-muted)]">{children}</ul>,
+  ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-[15px] leading-[1.6] marker:text-[var(--text-muted)]">{children}</ol>,
   li: ({ children }) => <li className="pl-0.5">{children}</li>,
   h1: ({ children }) => <h3 className="font-display text-base font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{children}</h3>,
   h2: ({ children }) => <h3 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{children}</h3>,
@@ -566,10 +589,13 @@ const mdComponents: Components = {
 // changes, so the 1s elapsed-timer tick (and other parent re-renders) during a
 // streaming reply don't re-parse the whole document needlessly.
 const ArcBody = memo(function ArcBody({ body }: { body: string }) {
+  // Repair run-on seams ("…parallel.Excellent!") the runner sometimes streams,
+  // so chunked text renders as clean paragraphs.
+  const clean = normalizeArcBody(body);
   return (
-    <div className="flex min-w-0 flex-col gap-2.5">
+    <div className="flex min-w-0 flex-col gap-3">
       <ReactArcdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-        {body}
+        {clean}
       </ReactArcdown>
     </div>
   );
@@ -637,7 +663,6 @@ function markAvatarStateForMessageStatus(status: ArcMessage["status"]) {
 
 function Message({
   message,
-  compact,
   assistantName,
   onRetry,
   onStop,
@@ -648,7 +673,6 @@ function Message({
   onDecision,
 }: {
   message: ArcMessage;
-  compact: boolean;
   assistantName: string;
   onRetry: () => void;
   onStop: () => void;
@@ -738,7 +762,7 @@ function Message({
     }
     return (
       <div className="group flex flex-col items-end">
-        <div className="max-w-[48rem] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-sm leading-6 text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
+        <div className="max-w-[44rem] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl rounded-br-md bg-[var(--surface-panel)] px-4 py-2.5 text-[15px] leading-[1.6] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--border-strong)]">
           {message.body}
         </div>
         {message.attachments.length > 0 ? (
@@ -786,11 +810,11 @@ function Message({
   const galleryMedia = cardImage ? message.media.filter((m) => m !== cardImage) : message.media;
   return (
     <div className="group flex gap-3">
-      {compact && !pending ? <span aria-hidden className="w-10 shrink-0" /> : <ArcAvatar size={42} state={avatarState} />}
-      <div className="min-w-0 flex-1 pt-1.5">
-        {/* No "Arc · time" author label above replies — the avatar carries the
-            identity (ChatGPT/Claude style). The name surfaces only in the
-            in-flight "is thinking…" state. */}
+      {/* ChatGPT/Claude register: completed replies are plain text with no
+          avatar or author label. The Arc orb appears only in the in-flight
+          thinking state (and the empty/hero state) — the "subtle Arc tint". */}
+      {pending ? <ArcAvatar size={34} state={avatarState} /> : null}
+      <div className="min-w-0 flex-1 pt-0.5">
         {pending ? (
           <PendingBlock
             assistantName={assistantName}
@@ -840,7 +864,7 @@ function Message({
         {galleryMedia.length > 0 ? <MessageMedia media={galleryMedia} conversationId={message.conversationId} messageId={message.id} /> : null}
         {!pending && !failed ? <SuggestionChips suggestions={message.suggestions} onPick={onSuggestion} /> : null}
         {!pending ? (
-          <div className="mt-1.5 flex items-center gap-1 text-[var(--text-muted)] opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
+          <div className="mt-1 flex items-center gap-0.5 text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
             {failed ? (
               <button
                 type="button"
@@ -854,10 +878,12 @@ function Message({
                 <CopyButton text={message.body} />
                 <button
                   type="button"
+                  aria-label="Regenerate reply"
+                  title="Regenerate"
                   onClick={() => onRegenerate(message.id)}
-                  className="rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                  className={ICON_ACTION}
                 >
-                  Regenerate
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 9a5.5 5.5 0 1 0-1.2 4.3" /><path d="M15.5 4v5h-5" /></svg>
                 </button>
                 <FeedbackButtons messageId={message.id} current={message.feedback} />
                 <SaveStar
@@ -988,7 +1014,7 @@ export function MessageList({
         className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-[var(--canvas)] to-transparent"
       />
       <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[92rem] flex-col px-4 py-6 sm:px-6 xl:px-8">
+        <div className="mx-auto flex w-full max-w-[48rem] flex-col px-4 py-6 sm:px-6">
           {rows.map(({ m, day, showSeparator, compact }, i) => (
             <div key={m.id} className={cx("msg-rise", i === 0 ? "" : compact ? "mt-2.5" : "mt-6")}>
               {showSeparator ? (
@@ -998,7 +1024,6 @@ export function MessageList({
               ) : null}
               <Message
                 message={m}
-                compact={compact}
                 assistantName={assistantName}
                 onRetry={onRetry}
                 onStop={onStop}
