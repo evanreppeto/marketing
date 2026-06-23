@@ -176,6 +176,8 @@ export type CrmRecordData = {
   dataQuality: CrmRecordQualityItem[];
   /** Nodes for the small relationship graph (self is always first). Additive. */
   graph: CrmRecordGraphNode[];
+  /** Who created this record: 'agent' = Arc, 'operator' = human. */
+  origin: "operator" | "agent";
 };
 
 export type CrmRecordReadResult =
@@ -903,6 +905,7 @@ type CompanyRow = {
   metadata: unknown;
   created_at: string | null;
   updated_at: string | null;
+  origin?: string | null;
 };
 
 type ContactRow = {
@@ -919,6 +922,7 @@ type ContactRow = {
   metadata: unknown;
   created_at: string | null;
   updated_at: string | null;
+  origin?: string | null;
 };
 
 type PropertyRow = {
@@ -935,6 +939,7 @@ type PropertyRow = {
   metadata: unknown;
   created_at: string | null;
   updated_at: string | null;
+  origin?: string | null;
 };
 
 type LeadRow = {
@@ -953,6 +958,7 @@ type LeadRow = {
   metadata: unknown;
   created_at: string | null;
   updated_at: string | null;
+  origin?: string | null;
 };
 
 type JobRow = {
@@ -1190,6 +1196,7 @@ function buildRecordDataFromBundle(key: CrmObjectKey, recordId: string, data: Cr
       engagement: engagementForRecord(key, record, data, metadata),
       dataQuality: dataQualityForRecord(key, record, evidence),
       graph: graphForRecord(key, record, data),
+      origin: ((record as { origin?: string | null }).origin as "operator" | "agent" | undefined) ?? "operator",
     };
   }
 }
@@ -1218,28 +1225,28 @@ async function getCrmTableBundle(client?: SupabaseClient, orgId?: string | null)
 
   let companiesQ = supabase
     .from("companies")
-    .select("id,name,persona,status,website_url,phone,email,partner_tier,metadata,created_at,updated_at")
+    .select("id,name,persona,status,website_url,phone,email,partner_tier,metadata,created_at,updated_at,origin")
     .order("updated_at", { ascending: false })
     .limit(CRM_TABLE_BUNDLE_LIMIT);
   if (orgId) companiesQ = companiesQ.eq("org_id", orgId);
 
   let contactsQ = supabase
     .from("contacts")
-    .select("id,company_id,persona,status,first_name,last_name,full_name,email,phone,title,metadata,created_at,updated_at")
+    .select("id,company_id,persona,status,first_name,last_name,full_name,email,phone,title,metadata,created_at,updated_at,origin")
     .order("updated_at", { ascending: false })
     .limit(CRM_TABLE_BUNDLE_LIMIT);
   if (orgId) contactsQ = contactsQ.eq("org_id", orgId);
 
   let propertiesQ = supabase
     .from("properties")
-    .select("id,company_id,contact_id,persona,street_line_1,street_line_2,city,state,postal_code,property_type,metadata,created_at,updated_at")
+    .select("id,company_id,contact_id,persona,street_line_1,street_line_2,city,state,postal_code,property_type,metadata,created_at,updated_at,origin")
     .order("updated_at", { ascending: false })
     .limit(CRM_TABLE_BUNDLE_LIMIT);
   if (orgId) propertiesQ = propertiesQ.eq("org_id", orgId);
 
   let leadsQ = supabase
     .from("leads")
-    .select("id,company_id,contact_id,property_id,persona,status,routing_recommendation,source,loss_summary,loss_signals,lead_score,received_at,metadata,created_at,updated_at")
+    .select("id,company_id,contact_id,property_id,persona,status,routing_recommendation,source,loss_summary,loss_signals,lead_score,received_at,metadata,created_at,updated_at,origin")
     .order("updated_at", { ascending: false })
     .limit(CRM_TABLE_BUNDLE_LIMIT);
   if (orgId) leadsQ = leadsQ.eq("org_id", orgId);
