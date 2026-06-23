@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { ActivationChecklist } from "./_components/activation-checklist";
 import { buttonClasses, PageHeader, Panel, StatStrip, StatusPill, type StatItem } from "./_components/page-header";
 import { theme } from "./_components/theme";
+import { getActivationState } from "@/lib/activation/read-model";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getRecentActivity } from "@/lib/activity/read-model";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getCurrentOrgId } from "@/lib/auth/org";
@@ -18,6 +21,14 @@ export default async function HomePage() {
   const settings = await getAppSettings();
   const agentName = getAgentDisplayName(settings.assistantName);
   const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
+  const activation = orgId
+    ? await getCurrentWorkspaceContext()
+        .then(async (ctx) => ({
+          orgName: ctx.orgName,
+          checklist: (await getActivationState(ctx.orgId, ctx.workspaceId)).checklist,
+        }))
+        .catch(() => null)
+    : null;
   const [counts, campaignList, activity, connections] = await Promise.all([
     getDashboardCounts(),
     getCampaignWorkspaceList(undefined, agentName, orgId),
@@ -51,6 +62,10 @@ export default async function HomePage() {
           </>
         }
       />
+
+      {activation?.checklist.showChecklist ? (
+        <ActivationChecklist checklist={activation.checklist} orgName={activation.orgName} />
+      ) : null}
 
       <StatStrip
         columns={4}

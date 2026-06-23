@@ -17,7 +17,9 @@ export async function createWorkspaceAction(formData: FormData) {
   });
 
   if (result.ok) {
-    redirect(from === "/onboarding" ? "/" : from);
+    // New owners go straight into first-run setup; /start self-guards and bounces
+    // to `from` once brand capture is done.
+    redirect("/start");
   }
 
   redirect(`/onboarding?error=${encodeURIComponent(result.status)}&from=${encodeURIComponent(from)}`);
