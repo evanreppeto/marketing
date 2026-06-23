@@ -10,6 +10,14 @@ describe("classifyKind", () => {
     expect(classifyKind("image/svg+xml", "logo.svg")).toBe("logo");
     expect(classifyKind("application/pdf", "one-pager.pdf")).toBe("document");
   });
+
+  it("classifies text and docx as document", () => {
+    expect(classifyKind("text/plain", "notes.txt")).toBe("document");
+    expect(classifyKind("text/markdown", "kb.md")).toBe("document");
+    expect(
+      classifyKind("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "guide.docx"),
+    ).toBe("document");
+  });
 });
 
 describe("validateUpload", () => {
@@ -26,6 +34,22 @@ describe("validateUpload", () => {
   it("rejects oversize files", () => {
     const r = validateUpload({ contentType: "image/png", byteSize: MAX_UPLOAD_BYTES + 1 });
     expect(r.ok).toBe(false);
+  });
+
+  it("accepts plain text, markdown, csv, and docx", () => {
+    expect(validateUpload({ contentType: "text/plain", byteSize: 10 })).toEqual({ ok: true });
+    expect(validateUpload({ contentType: "text/markdown", byteSize: 10 })).toEqual({ ok: true });
+    expect(validateUpload({ contentType: "text/csv", byteSize: 10 })).toEqual({ ok: true });
+    expect(
+      validateUpload({
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        byteSize: 10,
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("still rejects unsupported types", () => {
+    expect(validateUpload({ contentType: "application/zip", byteSize: 10 }).ok).toBe(false);
   });
 });
 
