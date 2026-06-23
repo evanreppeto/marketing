@@ -551,12 +551,16 @@ h4, .font-display {
   }
 }
 
-/* Main sidebar nav stays flat at every width: the active item has no filled box
-   or border (overriding the global active-state treatment above). The current
-   page is marked by the accent left-bar (inline box-shadow) + accent icon. */
+/* Main sidebar nav stays flat at every width: the active item has no filled box,
+   border, or top-edge highlight (overriding the global active-state treatment
+   above). The active item's inset top-highlight shadow was meant to glint off a
+   filled background — with the fill flattened away it just floated as a stray
+   light line above the selection, so it's cleared here too. The current page is
+   marked solely by the accent left-bar (separate span) + accent icon/label. */
 .chicago-dark nav[aria-label="Main navigation"] :where(a, button)[aria-current="page"] {
   background-color: transparent !important;
   border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .chicago-dark nav[aria-label="Main navigation"] a[aria-current="page"],

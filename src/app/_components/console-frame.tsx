@@ -266,7 +266,9 @@ export function ConsoleFrame({
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
-                <div className={cx("flex flex-col", sidebarCollapsed ? "gap-1" : "gap-3")}>
+                {/* gap is identical in both states so the nav groups never reflow
+                    vertically when the rail expands. */}
+                <div className="flex flex-col gap-3">
                   <SidebarSection collapsed={sidebarCollapsed} label="Workspace">
                     <SideNav active={pathname} items={homeNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
@@ -481,7 +483,7 @@ function ArcCommandLink({
       className={cx(
         "group relative flex min-h-[50px] shrink-0 items-center gap-3 rounded-[12px] px-3 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
         active
-          ? "border border-[var(--accent-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.012)),color-mix(in_srgb,var(--accent)_9%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+          ? "border border-[var(--accent-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.012)),linear-gradient(0deg,color-mix(in_srgb,var(--accent)_9%,transparent),color-mix(in_srgb,var(--accent)_9%,transparent))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
           : "border border-[var(--border-hairline)] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.014))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[var(--accent-border)]",
       )}
       href="/arc"
@@ -600,24 +602,22 @@ function SidebarSection({
   divider?: boolean;
   label?: string;
 }) {
-  // Collapsed rail has no labels, so groups blend together — a short centered
-  // hairline keeps the icon clusters visually distinct.
-  if (collapsed) {
-    return (
-      <section className="min-w-0" aria-label={label}>
-        {divider ? <div aria-hidden className="mx-auto my-1.5 h-px w-7 bg-[var(--border-hairline)]" /> : null}
-        {children}
-      </section>
-    );
-  }
-
+  // The vertical box is identical in both states — same top padding, same
+  // fixed-height header band, same gap before the items — so the tabs never
+  // shift position when the rail expands. Only the band's *contents* differ:
+  // expanded shows the group label; collapsed shows a centered hairline (and
+  // nothing for the first, undivided group).
   return (
     <section className="min-w-0 space-y-1.5 pt-3.5" aria-label={label}>
-      {label ? (
-        <div className="px-2.5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">{label}</span>
-        </div>
-      ) : null}
+      <div className="flex h-4 items-center px-2.5">
+        {collapsed
+          ? divider
+            ? <div aria-hidden className="mx-auto h-px w-7 bg-[var(--border-hairline)]" />
+            : null
+          : label
+            ? <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">{label}</span>
+            : null}
+      </div>
       {children}
     </section>
   );

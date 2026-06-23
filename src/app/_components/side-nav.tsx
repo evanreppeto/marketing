@@ -64,10 +64,13 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false }
                 ? "min-h-11 min-w-[74px] flex-col justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold leading-none"
                 : compactRail
                   ? "h-10 w-10 justify-center px-0"
-                  : "min-h-9 w-full gap-[11px] px-2.5 text-[13px]"
+                  : "min-h-10 w-full gap-[11px] px-2.5 text-[13px]"
             } ${
               isActive
-                ? "font-semibold text-[var(--text-primary)] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.012)),color-mix(in_srgb,var(--accent)_8%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                ? // Active main-nav items are intentionally flat — marked by the accent
+                  // icon/label + left bar. (globals.css enforces transparent bg/border/
+                  // shadow here, so the prior gradient fill was invalid dead CSS.)
+                  "font-semibold text-[var(--accent)]"
                 : "font-medium text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.035)] hover:text-[var(--text-primary)]"
             }`}
             href={item.href}
