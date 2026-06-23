@@ -1,5 +1,6 @@
 import type { ArcClient } from "../arc-client";
 import { crmReadTools } from "./crm";
+import { webTools } from "./web";
 import { brainReadTools, brainWriteTools } from "./brain";
 import { campaignReadTools } from "./campaigns";
 import { performanceReadTools } from "./performance";
@@ -29,6 +30,7 @@ export type ToolContext = {
 function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   return [
     ...crmReadTools(client, step),
+    ...webTools(client, step),
     ...brainReadTools(client, step),
     ...campaignReadTools(client, step),
     ...performanceReadTools(client, step),
