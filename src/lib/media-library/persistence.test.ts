@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { buildStoragePath, createFolder, insertAsset, insertAssetWithUrl, sanitizeFileName } from "./persistence";
+import { buildStoragePath, createFolder, insertAsset, insertAssetWithUrl, sanitizeFileName, DEFAULT_MEDIA_FOLDERS, seedDefaultMediaFolders } from "./persistence";
 
 describe("sanitizeFileName", () => {
   it("strips path separators and unsafe chars", () => {
@@ -118,5 +118,46 @@ describe("insertAsset", () => {
       id: "asset-logo",
       url: "https://cdn.example/library/org-1/asset-logo-logo.png",
     });
+  });
+});
+
+describe("DEFAULT_MEDIA_FOLDERS", () => {
+  it("is a non-empty list with names and descriptions", () => {
+    expect(DEFAULT_MEDIA_FOLDERS.length).toBeGreaterThan(0);
+    for (const f of DEFAULT_MEDIA_FOLDERS) {
+      expect(f.name.trim().length).toBeGreaterThan(0);
+      expect(f.description.trim().length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("seedDefaultMediaFolders", () => {
+  function clientWithFolderCount(count: number) {
+    const insert = vi.fn(async () => ({ error: null }));
+    const client = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(async () => ({ count, error: null })),
+        })),
+        insert,
+      })),
+    } as unknown as import("@supabase/supabase-js").SupabaseClient;
+    return { client, insert };
+  }
+
+  it("inserts the default set when the org has no folders", async () => {
+    const { client, insert } = clientWithFolderCount(0);
+    const created = await seedDefaultMediaFolders({ orgId: "org-1", client });
+    expect(created).toBe(DEFAULT_MEDIA_FOLDERS.length);
+    expect(insert).toHaveBeenCalledTimes(1);
+    const rows = insert.mock.calls[0][0] as Array<Record<string, unknown>>;
+    expect(rows[0]).toMatchObject({ org_id: "org-1", name: DEFAULT_MEDIA_FOLDERS[0].name, sort_order: 0 });
+  });
+
+  it("skips seeding when the org already has folders", async () => {
+    const { client, insert } = clientWithFolderCount(3);
+    const created = await seedDefaultMediaFolders({ orgId: "org-1", client });
+    expect(created).toBe(0);
+    expect(insert).not.toHaveBeenCalled();
   });
 });

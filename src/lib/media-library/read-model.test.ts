@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import { buildFolderViews, countUsage, folderAndDescendantIds, toAssetView } from "./read-model";
 import { type MediaAssetRow, type MediaFolderRow } from "./types";
 
+describe("buildFolderViews descriptions", () => {
+  it("carries each folder's description into the view", () => {
+    const views = buildFolderViews(
+      [{ id: "f1", name: "Logos", parent_id: null, description: "Brand marks" }],
+      [{ folder_id: "f1" }],
+    );
+    const f1 = views.find((v) => v.id === "f1");
+    expect(f1?.description).toBe("Brand marks");
+    const all = views.find((v) => v.id === "all");
+    expect(all?.description).toBeNull();
+  });
+});
+
 const row = (over: Partial<MediaAssetRow> = {}): MediaAssetRow => ({
   id: "a1", folder_id: null, file_name: "before.jpg", storage_path: "library/o/a1-before.jpg",
   public_url: "https://x/before.jpg", content_type: "image/jpeg", kind: "image",
@@ -57,10 +70,10 @@ describe("countUsage", () => {
 
 describe("folder tree helpers", () => {
   const folders: MediaFolderRow[] = [
-    { id: "root", name: "Jobs", parent_id: null },
-    { id: "water", name: "Water", parent_id: "root" },
-    { id: "mold", name: "Mold", parent_id: "root" },
-    { id: "loose", name: "Loose", parent_id: null },
+    { id: "root", name: "Jobs", parent_id: null, description: null },
+    { id: "water", name: "Water", parent_id: "root", description: null },
+    { id: "mold", name: "Mold", parent_id: "root", description: null },
+    { id: "loose", name: "Loose", parent_id: null, description: null },
   ];
   const assets = [
     row({ id: "a-root", folder_id: "root" }),
@@ -71,11 +84,11 @@ describe("folder tree helpers", () => {
 
   it("builds depth-ordered folders with subtree counts", () => {
     expect(buildFolderViews(folders, assets)).toEqual([
-      { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4 },
-      { id: "root", name: "Jobs", parentId: null, depth: 0, count: 2, directCount: 1 },
-      { id: "water", name: "Water", parentId: "root", depth: 1, count: 1, directCount: 1 },
-      { id: "mold", name: "Mold", parentId: "root", depth: 1, count: 0, directCount: 0 },
-      { id: "loose", name: "Loose", parentId: null, depth: 0, count: 1, directCount: 1 },
+      { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4, description: null },
+      { id: "root", name: "Jobs", parentId: null, depth: 0, count: 2, directCount: 1, description: null },
+      { id: "water", name: "Water", parentId: "root", depth: 1, count: 1, directCount: 1, description: null },
+      { id: "mold", name: "Mold", parentId: "root", depth: 1, count: 0, directCount: 0, description: null },
+      { id: "loose", name: "Loose", parentId: null, depth: 0, count: 1, directCount: 1, description: null },
     ]);
   });
 

@@ -9,10 +9,12 @@ import { crmWriteTools } from "./crm-write";
 import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
 import { mediaTools } from "./media";
-import { libraryReadTools, libraryDraftTools } from "./library";
+import { libraryReadTools, libraryDraftTools, libraryWriteTools } from "./library";
 import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
 import { brandTools } from "./brand";
 import { proposeOpportunityTool } from "./opportunities";
+import { appMapTools } from "./app-map";
+import { settingsReadTools } from "./settings";
 import type { StepFn, TurnSink } from "./helpers";
 import type { ArcSkill } from "../skills";
 
@@ -30,6 +32,8 @@ export type ToolContext = {
 /** Read app state + reply-shaping tools (cards, suggestions, sources). Available in every mode. */
 function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   return [
+    ...appMapTools(client, step),
+    ...settingsReadTools(client, step),
     ...crmReadTools(client, step),
     ...brainReadTools(client, step),
     ...campaignReadTools(client, step),
@@ -43,12 +47,13 @@ function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   ];
 }
 
-/** Direct CRM writes + interactions + brain observations. act/draft only. */
+/** Direct CRM writes + interactions + brain observations + library organization. act/draft only. */
 function writeTools(client: ArcClient, step: StepFn) {
   return [
     ...crmWriteTools(client, step),
     ...brainWriteTools(client, step),
     ...interactionWriteTools(client, step),
+    ...libraryWriteTools(client, step),
   ];
 }
 

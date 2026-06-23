@@ -52,6 +52,17 @@ describe("arcCreateFolder", () => {
     if (result.ok) throw new Error("expected rejection");
     expect(result.error).toMatch(/not found/i);
   });
+
+  it("passes a trimmed description through to createFolder", async () => {
+    const supabase = createSupabaseQueryMock({ media_folders: { data: { id: "f-1" }, error: null } });
+    const result = await arcCreateFolder(
+      { name: "Proof", description: "  Before/after proof  " },
+      { client: supabase as never, orgId: ORG },
+    );
+    expect(result).toEqual({ ok: true, id: "f-1" });
+    const insert = supabase.calls.find(([m]) => m === "insert") as [string, Record<string, unknown>];
+    expect(insert[1]).toMatchObject({ org_id: ORG, name: "Proof", description: "Before/after proof" });
+  });
 });
 
 describe("arcFileAsset", () => {

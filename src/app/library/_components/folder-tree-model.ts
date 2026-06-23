@@ -61,6 +61,7 @@ export function buildFilesystemTree({ folders, assets, activeFolderId }: BuildFi
       count: folder.count,
       directCount: folder.directCount,
       meta: folder.directCount !== folder.count ? `${folder.directCount} here · ${folder.count - folder.directCount} nested` : undefined,
+      description: folder.description ?? undefined,
       accent: tone.accent,
       soft: tone.soft,
       border: tone.border,
