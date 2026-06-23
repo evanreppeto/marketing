@@ -9,17 +9,6 @@ export type DensityOption = "comfortable" | "compact";
 export type MotionOption = "standard" | "reduced";
 export type ProfileStatus = "draft" | "active";
 
-export type BrandColor = { label: string; hex: string };
-export type BrandPalette = {
-  primary: BrandColor;
-  secondary: BrandColor;
-  accent: BrandColor;
-  dark: BrandColor;
-  light: BrandColor;
-  headingFont: string;
-  bodyFont: string;
-};
-
 export type ProofPoint = {
   kind: "testimonial" | "certification" | "stat";
   label: string;
@@ -31,6 +20,12 @@ export type BrandKitGuardrails = {
   disallowedClaims: string[];
   /** Free-form compliance guidance shown to Arc and reviewers. */
   complianceNotes: string;
+};
+
+export type BrandColor = {
+  hex: string;
+  label: string;
+  source?: string;
 };
 
 export type PersonaDefinition = {
@@ -60,6 +55,7 @@ export type BusinessProfile = {
   serviceAreas: string[];
   timeZone: string | null;
   accent: string;
+  brandColors: BrandColor[];
   density: DensityOption;
   motion: MotionOption;
   tone: string;
@@ -69,14 +65,7 @@ export type BusinessProfile = {
   services: string[];
   proofPoints: ProofPoint[];
   guardrails: BrandKitGuardrails;
-  brandPalette: BrandPalette;
   status: ProfileStatus;
-};
-
-const EMPTY_COLOR: BrandColor = { label: "", hex: "" };
-export const EMPTY_BRAND_PALETTE: BrandPalette = {
-  primary: { ...EMPTY_COLOR }, secondary: { ...EMPTY_COLOR }, accent: { ...EMPTY_COLOR },
-  dark: { ...EMPTY_COLOR }, light: { ...EMPTY_COLOR }, headingFont: "", bodyFont: "",
 };
 
 export const NEUTRAL_PERSONAS: PersonaDefinition[] = [
@@ -119,6 +108,7 @@ export const NEUTRAL_DEFAULTS: BusinessProfile = {
   serviceAreas: [],
   timeZone: null,
   accent: "#C8A24B",
+  brandColors: [],
   density: "comfortable",
   motion: "standard",
   tone: "balanced",
@@ -136,27 +126,11 @@ export const NEUTRAL_DEFAULTS: BusinessProfile = {
     complianceNotes:
       "Keep claims truthful and substantiated. Avoid promises the business cannot guarantee.",
   },
-  brandPalette: EMPTY_BRAND_PALETTE,
   status: "draft",
 };
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
-
-function asColor(value: unknown): BrandColor {
-  const v = (value ?? {}) as Record<string, unknown>;
-  return { label: asString(v.label, ""), hex: asString(v.hex, "") };
-}
-
-/** Map a raw brand_palette jsonb blob into a BrandPalette, tolerating missing keys. */
-export function parseBrandPalette(value: unknown): BrandPalette {
-  const raw = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
-  return {
-    primary: asColor(raw.primary), secondary: asColor(raw.secondary), accent: asColor(raw.accent),
-    dark: asColor(raw.dark), light: asColor(raw.light),
-    headingFont: asString(raw.headingFont, ""), bodyFont: asString(raw.bodyFont, ""),
-  };
 }
 
 function asProofPoints(value: unknown): ProofPoint[] {
@@ -168,6 +142,27 @@ function asProofPoints(value: unknown): ProofPoint[] {
       typeof (v as ProofPoint).kind === "string" &&
       typeof (v as ProofPoint).label === "string",
   );
+}
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+function asBrandColors(value: unknown): BrandColor[] {
+  if (!Array.isArray(value)) return [];
+  const colors: BrandColor[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "object" || item === null) continue;
+    const raw = item as Record<string, unknown>;
+    const hex = typeof raw.hex === "string" ? raw.hex.trim().toUpperCase() : "";
+    if (!HEX_COLOR.test(hex) || seen.has(hex)) continue;
+    seen.add(hex);
+    colors.push({
+      hex,
+      label: typeof raw.label === "string" && raw.label.trim() ? raw.label.trim() : `Color ${colors.length + 1}`,
+      ...(typeof raw.source === "string" && raw.source.trim() ? { source: raw.source.trim() } : {}),
+    });
+  }
+  return colors;
 }
 
 function asString(value: unknown, fallback: string): string {
@@ -198,6 +193,7 @@ export function parseBusinessProfile(row: Record<string, unknown>): BusinessProf
     serviceAreas: asStringArray(row.service_areas),
     timeZone: asNullableString(row.time_zone),
     accent: asString(row.accent, NEUTRAL_DEFAULTS.accent),
+    brandColors: asBrandColors(row.brand_colors),
     density,
     motion,
     tone: asString(row.tone, NEUTRAL_DEFAULTS.tone),
@@ -214,7 +210,6 @@ export function parseBusinessProfile(row: Record<string, unknown>): BusinessProf
         NEUTRAL_DEFAULTS.guardrails.complianceNotes,
       ),
     },
-    brandPalette: parseBrandPalette(row.brand_palette),
     status,
   };
 }
@@ -223,17 +218,12 @@ export type ProfileValidationResult =
   | { ok: true }
   | { ok: false; errors: string[] };
 
-const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
-
 /** Validate a BusinessProfile prior to persistence. */
 export function validateBusinessProfile(profile: BusinessProfile): ProfileValidationResult {
   const errors: string[] = [];
   if (profile.displayName.trim().length === 0) errors.push("display_name_required");
   if (!HEX_COLOR.test(profile.accent)) errors.push("accent_invalid");
-  for (const slot of ["primary", "secondary", "accent", "dark", "light"] as const) {
-    const hex = profile.brandPalette[slot].hex;
-    if (hex.length > 0 && !HEX_COLOR.test(hex)) errors.push(`palette_${slot}_invalid`);
-  }
+  if (profile.brandColors.some((color) => !HEX_COLOR.test(color.hex))) errors.push("brand_colors_invalid");
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }
 
@@ -366,12 +356,6 @@ export type ArcBusinessContext = {
   personas: PersonaDefinition[];
   guardrails: BrandKitGuardrails;
   brainFacts: string[];
-  palette: BrandPalette;
-  logoUrl: string | null;
-  tagline: string | null;
-  description: string | null;
-  websiteUrl: string | null;
-  serviceAreas: string[];
 };
 
 /**
@@ -397,11 +381,5 @@ export function assembleArcContext(
     personas: personas.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
     guardrails: profile.guardrails,
     brainFacts,
-    palette: profile.brandPalette,
-    logoUrl: profile.logoUrl,
-    tagline: profile.tagline,
-    description: profile.description,
-    websiteUrl: profile.websiteUrl,
-    serviceAreas: profile.serviceAreas,
   };
 }

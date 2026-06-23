@@ -1,7 +1,6 @@
-import { Command } from "lucide-react";
+import { Bell, Command, Plus, Search, SlidersHorizontal } from "lucide-react";
 
 import { cx } from "./theme";
-import { WorkbenchTopBar } from "./workbench-top-bar";
 
 export function WorkbenchFrame({
   actions,
@@ -22,7 +21,36 @@ export function WorkbenchFrame({
 }) {
   return (
     <div className="min-h-full min-w-0">
-      <WorkbenchTopBar actions={actions} />
+      <div className="mb-5 hidden min-h-12 items-center gap-3 rounded-[12px] border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-sidebar)_76%,transparent)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.055),0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-xl lg:flex">
+        <div className="flex min-w-[15rem] items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+          <SlidersHorizontal aria-hidden className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.6} />
+          <span>Growth ops workspace</span>
+        </div>
+        <div className="flex h-8 min-w-[18rem] flex-1 items-center gap-2 rounded-[8px] border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_72%,transparent)] px-3 text-[var(--text-muted)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+          <Search aria-hidden className="h-4 w-4" strokeWidth={1.6} />
+          <span className="min-w-0 flex-1 truncate text-sm">Arc command</span>
+          <span className="rounded border border-[var(--border-hairline)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">Ctrl K</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {actions ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div> : null}
+          {!actions ? (
+            <button
+              aria-label="New"
+              className="flex h-8 w-8 items-center justify-center rounded-[7px] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-contrast)] transition duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[var(--accent)] hover:text-[var(--on-accent)] active:scale-[0.98]"
+              type="button"
+            >
+              <Plus aria-hidden className="h-4 w-4" strokeWidth={1.7} />
+            </button>
+          ) : null}
+          <button
+            aria-label="Notifications"
+            className="flex h-8 w-8 items-center justify-center rounded-[7px] border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--text-secondary)] transition duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-[var(--text-primary)] active:scale-[0.98]"
+            type="button"
+          >
+            <Bell aria-hidden className="h-4 w-4" strokeWidth={1.6} />
+          </button>
+        </div>
+      </div>
 
       <header className="mb-4 border-b border-[var(--border-hairline)] pb-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">

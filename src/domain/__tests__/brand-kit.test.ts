@@ -7,7 +7,6 @@ import {
   INDUSTRY_TEMPLATES,
   getIndustryTemplate,
   assembleArcContext,
-  parseBrandPalette,
   type BusinessProfile,
   type PersonaDefinition,
   type ArcBusinessContext,
@@ -43,6 +42,7 @@ describe("parseBusinessProfile", () => {
       display_name: "Acme Co",
       services: ["consulting"],
       accent: null,
+      brand_colors: [{ hex: "#143c5a", label: "Primary", source: "website" }],
       density: null,
       guardrails: { disallowedClaims: ["x"], complianceNotes: "y" },
       status: "active",
@@ -50,6 +50,7 @@ describe("parseBusinessProfile", () => {
     expect(profile.displayName).toBe("Acme Co");
     expect(profile.services).toEqual(["consulting"]);
     expect(profile.accent).toBe(NEUTRAL_DEFAULTS.accent);
+    expect(profile.brandColors).toEqual([{ hex: "#143C5A", label: "Primary", source: "website" }]);
     expect(profile.density).toBe("comfortable");
     expect(profile.guardrails.complianceNotes).toBe("y");
     expect(profile.status).toBe("active");
@@ -146,69 +147,5 @@ describe("assembleArcContext", () => {
       "Messaging: Use a calm expert voice.",
       "Proof: IICRC certified.",
     ]);
-  });
-});
-
-describe("assembleArcContext brand identity", () => {
-  it("includes palette + visual identity fields", () => {
-    const profile = {
-      ...NEUTRAL_DEFAULTS, displayName: "BSR", logoUrl: "https://x/logo.png",
-      tagline: "Chicago's restoration crew", description: "We restore.", websiteUrl: "https://bsr.com",
-      serviceAreas: ["Chicago", "Suburbs"],
-      brandPalette: { ...NEUTRAL_DEFAULTS.brandPalette, accent: { label: "Gold", hex: "#C8A24B" }, headingFont: "Oswald" },
-    };
-    const ctx = assembleArcContext(profile, NEUTRAL_PERSONAS, []);
-    expect(ctx.logoUrl).toBe("https://x/logo.png");
-    expect(ctx.tagline).toBe("Chicago's restoration crew");
-    expect(ctx.websiteUrl).toBe("https://bsr.com");
-    expect(ctx.serviceAreas).toEqual(["Chicago", "Suburbs"]);
-    expect(ctx.palette.accent).toEqual({ label: "Gold", hex: "#C8A24B" });
-    expect(ctx.palette.headingFont).toBe("Oswald");
-  });
-});
-
-describe("parseBrandPalette", () => {
-  it("maps a full jsonb palette", () => {
-    const p = parseBrandPalette({
-      primary: { label: "Navy", hex: "#1B2A4A" }, secondary: { label: "", hex: "#C8A24B" },
-      accent: { label: "Gold", hex: "#C8A24B" }, dark: { hex: "#101317" }, light: { hex: "#FFFFFF" },
-      headingFont: "Oswald", bodyFont: "Inter",
-    });
-    expect(p.primary).toEqual({ label: "Navy", hex: "#1B2A4A" });
-    expect(p.dark).toEqual({ label: "", hex: "#101317" });
-    expect(p.headingFont).toBe("Oswald");
-  });
-  it("defaults missing keys to empty color/font", () => {
-    const p = parseBrandPalette({ primary: { hex: "#1B2A4A" } });
-    expect(p.primary).toEqual({ label: "", hex: "#1B2A4A" });
-    expect(p.secondary).toEqual({ label: "", hex: "" });
-    expect(p.bodyFont).toBe("");
-  });
-  it("returns an all-empty palette for null/garbage", () => {
-    expect(parseBrandPalette(null).accent).toEqual({ label: "", hex: "" });
-    expect(parseBrandPalette("nope").headingFont).toBe("");
-  });
-});
-
-describe("parseBusinessProfile brandPalette", () => {
-  it("reads brand_palette jsonb", () => {
-    const profile = parseBusinessProfile({ display_name: "BSR", brand_palette: { accent: { label: "Gold", hex: "#C8A24B" } } });
-    expect(profile.brandPalette.accent).toEqual({ label: "Gold", hex: "#C8A24B" });
-  });
-  it("defaults to an empty palette when the column is absent", () => {
-    expect(parseBusinessProfile({ display_name: "BSR" }).brandPalette).toEqual(NEUTRAL_DEFAULTS.brandPalette);
-  });
-});
-
-describe("validateBusinessProfile palette hex", () => {
-  const base = { ...NEUTRAL_DEFAULTS, displayName: "BSR" };
-  it("allows empty palette values", () => {
-    expect(validateBusinessProfile(base).ok).toBe(true);
-  });
-  it("rejects a malformed palette hex", () => {
-    const bad = { ...base, brandPalette: { ...base.brandPalette, primary: { label: "", hex: "1B2A4A" } } };
-    const r = validateBusinessProfile(bad);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors).toContain("palette_primary_invalid");
   });
 });
