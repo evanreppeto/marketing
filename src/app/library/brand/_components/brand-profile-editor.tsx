@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -202,6 +202,14 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
   const [state, action, pending] = useActionState(saveBrandKitAction, null);
   const [activeTab, setActiveTab] = useState<EditorTab>("company");
   const [values, setValues] = useState<FormValues>(() => toValues(profile));
+
+  const profileSignature = useMemo(() => JSON.stringify(toValues(profile)), [profile]);
+  useEffect(() => {
+    // Re-seed form state when the server profile changes (e.g. Arc updates it).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setValues(toValues(profile));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileSignature]);
 
   const serviceList = useMemo(() => splitList(values.services), [values.services]);
   const proofList = useMemo(() => splitList(values.proofPoints), [values.proofPoints]);
