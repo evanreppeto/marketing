@@ -521,12 +521,11 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
       };
     });
 
-    // An empty real table: when the demo flag is on, show the demo library instead of
-    // a blank page. When off, fall through to return the real (empty) result.
-    if (!client && items.length === 0) {
-      if (isDemoDataEnabled()) return buildDemoCampaignWorkspaceList(agentName);
-    }
-
+    // A configured workspace shows its REAL state, even when empty — never fake
+    // campaigns. The demo library is only served when Supabase is unconfigured
+    // (the local-preview branch at the top); masking a live, empty org with demo
+    // data hid real Arc-created campaigns and surfaced "fake data that shouldn't
+    // be there".
     return {
       status: "live",
       campaigns: items,
