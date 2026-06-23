@@ -8,8 +8,8 @@ import { cx } from "@/app/_components/theme";
 import { resyncCrmIntoBrainAction } from "@/app/brain/actions";
 
 /**
- * Operator control to backfill every CRM record into the Brain. Idempotent —
- * safe to run repeatedly. Surfaces the action's result message inline.
+ * Operator control to backfill every CRM record and campaign into the Brain.
+ * Idempotent — safe to run repeatedly. Surfaces the action's result message inline.
  */
 export function ResyncCrmButton() {
   const [pending, startTransition] = useTransition();
@@ -32,7 +32,7 @@ export function ResyncCrmButton() {
         type="button"
       >
         <RefreshCw aria-hidden className={cx("h-3.5 w-3.5", pending && "animate-spin")} />
-        {pending ? "Syncing…" : "Sync CRM into Brain"}
+        {pending ? "Syncing…" : "Sync into Brain"}
       </button>
       {feedback ? (
         <p
