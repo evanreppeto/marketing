@@ -49,7 +49,14 @@ describe("listQueuedChatTasks", () => {
   it("only lists queued arc_chat_message tasks", async () => {
     const supabase = createSupabaseQueryMock({
       agent_tasks: {
-        data: [{ id: "t1", objective: "hi", metadata: { conversation_id: "c1", message_id: "m1" }, created_at: "t" }],
+        data: [
+          {
+            id: "t1",
+            objective: "hi",
+            metadata: { conversation_id: "c1", message_id: "m1", skill_id: "opportunity-discovery" },
+            created_at: "t",
+          },
+        ],
         error: null,
       },
     });
@@ -57,7 +64,7 @@ describe("listQueuedChatTasks", () => {
     const items = await listQueuedChatTasks(20, supabase);
 
     expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ agentTaskId: "t1", conversationId: "c1" });
+    expect(items[0]).toMatchObject({ agentTaskId: "t1", conversationId: "c1", skillId: "opportunity-discovery" });
     expect(eqCalls(supabase)).toContainEqual(["eq", "task_type", "arc_chat_message"]);
     expect(eqCalls(supabase)).toContainEqual(["eq", "status", "queued"]);
   });
@@ -78,7 +85,15 @@ describe("reclaimStaleChatTasks", () => {
   it("re-surfaces a running task past the cutoff and bumps its retry count", async () => {
     const supabase = createSupabaseQueryMock({
       agent_tasks: {
-        data: [{ id: "t1", objective: "hi", metadata: { conversation_id: "c1" }, created_at: "t", retry_count: 1 }],
+        data: [
+          {
+            id: "t1",
+            objective: "hi",
+            metadata: { conversation_id: "c1", skill_id: "company-research" },
+            created_at: "t",
+            retry_count: 1,
+          },
+        ],
         error: null,
       },
     });
@@ -86,7 +101,7 @@ describe("reclaimStaleChatTasks", () => {
     const items = await reclaimStaleChatTasks({ staleMs: 1000, maxRetries: 3, limit: 20 }, supabase);
 
     expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ agentTaskId: "t1", conversationId: "c1" });
+    expect(items[0]).toMatchObject({ agentTaskId: "t1", conversationId: "c1", skillId: "company-research" });
     // Only stale (status='running', started_at < cutoff) tasks are considered.
     expect(eqCalls(supabase)).toContainEqual(["eq", "status", "running"]);
     expect(supabase.calls.some(([m, col]) => m === "lt" && col === "started_at")).toBe(true);

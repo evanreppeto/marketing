@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type ArcActionCard, type ArcMedia, type ArcMention, type ArcMode, type ArcQuestion, type ArcRoute, type ArcStepKind, parseActions, parseMedia, parseMentions, parseQuestions } from "@/domain";
+import { type ArcSkillId } from "@/lib/arc-skills/catalog";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 import { type ArcChatTaskScope } from "./inbox";
@@ -72,6 +73,8 @@ export type ArcMessage = {
    *  reuse the original settings instead of a default. Absent on older rows. */
   mode?: ArcMode;
   route?: ArcRoute;
+  command?: string | null;
+  skillId?: ArcSkillId | null;
   createdAt: string;
 };
 
@@ -227,6 +230,8 @@ function toMessage(row: MessageRow): ArcMessage {
     attachments: parseAttachments((row.metadata as { attachments?: unknown } | null)?.attachments),
     mode: parseOptionalMode((row.metadata as { mode?: unknown } | null)?.mode),
     route: parseOptionalRoute((row.metadata as { route?: unknown } | null)?.route),
+    command: parseOptionalString((row.metadata as { command?: unknown } | null)?.command) ?? null,
+    skillId: parseOptionalSkillId((row.metadata as { skill_id?: unknown } | null)?.skill_id) ?? null,
     createdAt: row.created_at,
   };
 }
@@ -238,6 +243,14 @@ function parseOptionalMode(value: unknown): ArcMode | undefined {
 }
 function parseOptionalRoute(value: unknown): ArcRoute | undefined {
   return value === "fast" || value === "standard" ? value : undefined;
+}
+function parseOptionalString(value: unknown): string | undefined {
+  const str = typeof value === "string" ? value.trim() : "";
+  return str || undefined;
+}
+function parseOptionalSkillId(value: unknown): ArcSkillId | undefined {
+  const id = parseOptionalString(value);
+  return id === "company-research" || id === "opportunity-discovery" || id === "approval-gated-drafting" ? id : undefined;
 }
 
 function assertOk(label: string, error: { message: string } | null) {
@@ -623,6 +636,8 @@ export async function insertOperatorMessage(
     attachments?: ArcAttachment[];
     mode?: ArcMode;
     route?: ArcRoute;
+    command?: string | null;
+    skillId?: ArcSkillId | null;
     author_user_id?: string | null;
   },
   client: SupabaseClient = getSupabaseAdminClient(),
@@ -631,6 +646,8 @@ export async function insertOperatorMessage(
   if (input.attachments && input.attachments.length > 0) metadata.attachments = input.attachments;
   if (input.mode) metadata.mode = input.mode;
   if (input.route) metadata.route = input.route;
+  if (input.command) metadata.command = input.command;
+  if (input.skillId) metadata.skill_id = input.skillId;
   const { data, error } = await client
     .from("arc_messages")
     .insert({

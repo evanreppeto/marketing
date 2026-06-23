@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type ArcMention, parseMentions } from "@/domain";
+import { type ArcSkillId } from "@/lib/arc-skills/catalog";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 import { failArcMessage, findPendingMessageByTask } from "./persistence";
@@ -22,6 +23,7 @@ export type ChatInboxItem = {
   message: string;
   mentions: ArcMention[];
   operator: string;
+  skillId: ArcSkillId | null;
   createdAt: string;
 };
 
@@ -55,8 +57,15 @@ function toInboxItem(row: TaskRow): ChatInboxItem {
     message: row.objective ?? (typeof meta.human_instruction === "string" ? meta.human_instruction : ""),
     mentions: parseMentions(meta.mentions),
     operator: typeof meta.requested_by === "string" ? meta.requested_by : "Operator",
+    skillId: parseSkillId(meta.skill_id),
     createdAt: row.created_at,
   };
+}
+
+function parseSkillId(value: unknown): ArcSkillId | null {
+  return value === "company-research" || value === "opportunity-discovery" || value === "approval-gated-drafting"
+    ? value
+    : null;
 }
 
 /**

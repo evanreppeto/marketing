@@ -6,6 +6,7 @@ import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTon
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
+import { ARC_SKILL_IDS, type ArcSkillId } from "@/lib/arc-skills/catalog";
 import { type ArcAttachment } from "./persistence";
 import { type WakeHistoryTurn } from "./history";
 
@@ -36,6 +37,8 @@ export type ArcNotifyPayload = {
   approvalStrictness?: ApprovalStrictness;
   /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
   command?: string | null;
+  /** Optional generic runner skill that narrows tools and adds playbook instructions. */
+  skillId?: ArcSkillId | null;
   /** Operator-uploaded reference images (GCS signed read URLs) for Arc to use. */
   attachments?: ArcAttachment[];
   /** Bounded prior turns (oldest → newest), excluding the current message. */
@@ -79,22 +82,24 @@ export type ArcOpportunityDraftWake = {
   message: string;
   leadId: string;
   operator: string;
+  skillId?: ArcSkillId | null;
 };
 
 /** Best-effort wake for an opportunity draft — same transport/signing as the chat wake. */
 export async function notifyArcOpportunityDraft(payload: ArcOpportunityDraftWake): Promise<boolean> {
-  return postArcWake({ type: "arc_opportunity_draft", ...payload });
+  return postArcWake({ type: "arc_opportunity_draft", skillId: ARC_SKILL_IDS.approvalGatedDrafting, ...payload });
 }
 
 export type ArcOpportunityScanWake = {
   agentTaskId: string;
   message: string;
   operator: string;
+  skillId?: ArcSkillId | null;
 };
 
 /** Best-effort wake for an operator-triggered opportunity scan — same transport/signing as the chat wake. */
 export async function notifyOpportunityScan(payload: ArcOpportunityScanWake): Promise<boolean> {
-  return postArcWake({ type: "arc_opportunity_scan", ...payload });
+  return postArcWake({ type: "arc_opportunity_scan", skillId: ARC_SKILL_IDS.opportunityDiscovery, ...payload });
 }
 
 export type ArcCampaignTaskWake = {
@@ -104,11 +109,12 @@ export type ArcCampaignTaskWake = {
   message: string;
   operator: string;
   taskType: "campaign_brief_draft" | "campaign_directive" | "campaign_asset_revision";
+  skillId?: ArcSkillId | null;
 };
 
 /** Best-effort wake for campaign generation/revision work — same transport/signing as chat. */
 export async function notifyArcCampaignTask(payload: ArcCampaignTaskWake): Promise<boolean> {
-  return postArcWake({ type: "arc_campaign_task", ...payload });
+  return postArcWake({ type: "arc_campaign_task", skillId: ARC_SKILL_IDS.approvalGatedDrafting, ...payload });
 }
 
 /**

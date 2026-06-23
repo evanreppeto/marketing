@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { notifyArcCampaignTask, notifyArcWebhook, notifyOpportunityScan } from "./notify";
+import { notifyArcCampaignTask, notifyArcOpportunityDraft, notifyArcWebhook, notifyOpportunityScan } from "./notify";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -159,6 +159,7 @@ describe("notifyOpportunityScan", () => {
       agentTaskId: "task-123",
       message: "Scan the CRM.",
       operator: "Operator",
+      skillId: "opportunity-discovery",
     });
     // Must NOT carry opportunityId
     expect(body).not.toHaveProperty("opportunityId");
@@ -177,6 +178,32 @@ describe("notifyOpportunityScan", () => {
 
     expect(delivered).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("notifyArcOpportunityDraft", () => {
+  it("POSTs an opportunity draft wake with the approval-gated drafting skill", async () => {
+    process.env.ARC_RUNNER_URL = "https://arc.example/webhooks/runner";
+    delete process.env.ARC_WEBHOOK_URL;
+    const fetchMock = mockFetch();
+
+    const delivered = await notifyArcOpportunityDraft({
+      opportunityId: "opp-1",
+      agentTaskId: "task-draft",
+      message: "Draft from this opportunity.",
+      leadId: "lead-1",
+      operator: "Operator",
+    });
+
+    expect(delivered).toBe(true);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({
+      type: "arc_opportunity_draft",
+      opportunityId: "opp-1",
+      agentTaskId: "task-draft",
+      skillId: "approval-gated-drafting",
+    });
   });
 });
 
@@ -208,6 +235,7 @@ describe("notifyArcCampaignTask", () => {
       message: "Draft the full campaign package.",
       operator: "Operator",
       taskType: "campaign_brief_draft",
+      skillId: "approval-gated-drafting",
     });
   });
 });

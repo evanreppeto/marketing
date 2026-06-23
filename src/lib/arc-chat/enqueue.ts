@@ -2,6 +2,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type ArcMention } from "@/domain";
 import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTone } from "@/lib/settings/store";
+import { type ArcSkillId } from "@/lib/arc-skills/catalog";
 
 import { getCurrentAgentTaskTenantFields } from "../agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
@@ -20,6 +21,8 @@ export type EnqueueChatTaskInput = {
   mode?: "ask" | "act" | "draft";
   /** Structured slash command id (e.g. "find-leads"), or null for plain chat. */
   command?: string | null;
+  /** Optional generic runner skill that narrows tools and adds playbook instructions. */
+  skillId?: ArcSkillId | null;
   /** Operator-selected behavior hints from Settings -> Agent behavior. */
   assistantTone?: AssistantTone;
   assistantResponseStyle?: AssistantResponseStyle;
@@ -76,6 +79,7 @@ export async function enqueueArcChatTask(
         message_id: input.messageId,
         mentions: input.mentions,
         command: input.command ?? null,
+        skill_id: input.skillId ?? null,
         attachments: input.attachments ?? [],
         source: "arc_chat",
         model_route: input.route ?? "fast",
@@ -102,6 +106,7 @@ export async function enqueueArcChatTask(
       requested_by: input.operator,
       mentions: input.mentions,
       command: input.command ?? null,
+      skill_id: input.skillId ?? null,
       attachments: input.attachments ?? [],
     },
   });

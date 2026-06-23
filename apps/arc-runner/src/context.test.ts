@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { NEUTRAL_CONTEXT } from "./business-context";
 import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
+import { resolveArcSkill } from "./skills";
 
 const baseCtx: ArcTurnContext = {
   business: NEUTRAL_CONTEXT,
@@ -81,5 +82,14 @@ describe("buildSystemPrompt", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, assistantTone: "warm", assistantResponseStyle: "concise" });
     expect(out).toContain("warm");
     expect(out).toContain("concise");
+  });
+  it("includes the active skill instructions and output contract", () => {
+    const out = buildSystemPrompt("BASE", { ...baseCtx, skill: resolveArcSkill("company-research") });
+
+    expect(out).toContain("ACTIVE SKILL: Company research");
+    expect(out).toContain("business-agnostic");
+    expect(out).toContain("Return source-backed findings");
+    expect(out).toContain("Allowed tools for this skill");
+    expect(out).toContain("research_web");
   });
 });

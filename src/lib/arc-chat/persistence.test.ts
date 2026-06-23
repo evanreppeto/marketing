@@ -9,6 +9,7 @@ import {
   completeArcMessage,
   deleteConversation,
   findPendingMessageByTask,
+  insertOperatorMessage,
   linkConversationToCampaign,
   listConversations,
   setConversationPinned,
@@ -57,6 +58,43 @@ describe("listConversations", () => {
     const rows = await listConversations("Operator", supabase);
 
     expect(rows[0].pinnedAt).toBe("2026-06-09T00:00:00Z");
+  });
+});
+
+describe("insertOperatorMessage", () => {
+  it("stores command and skill metadata for skill-driven reruns", async () => {
+    const supabase = createSupabaseQueryMock({
+      arc_messages: {
+        data: {
+          id: "m1",
+          conversation_id: "c1",
+          role: "operator",
+          body: "Find new leads",
+          status: "sent",
+          agent_task_id: null,
+          mentions: [],
+          metadata: { command: "find-leads", skill_id: "opportunity-discovery" },
+          created_at: "2026-06-23T00:00:00.000Z",
+        },
+        error: null,
+      },
+    });
+
+    const message = await insertOperatorMessage(
+      {
+        conversationId: "c1",
+        body: "Find new leads",
+        mentions: [],
+        command: "find-leads",
+        skillId: "opportunity-discovery",
+      },
+      supabase,
+    );
+
+    const insert = calls(supabase, "insert")[0];
+    expect(insert.metadata).toMatchObject({ command: "find-leads", skill_id: "opportunity-discovery" });
+    expect(message.command).toBe("find-leads");
+    expect(message.skillId).toBe("opportunity-discovery");
   });
 });
 

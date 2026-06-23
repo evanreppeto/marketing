@@ -43,6 +43,7 @@ describe("enqueueArcChatTask", () => {
         route: "standard",
         mode: "draft",
         command: "campaign",
+        skillId: "approval-gated-drafting",
         assistantTone: "friendly",
         assistantResponseStyle: "detailed",
         approvalStrictness: "strict",
@@ -64,6 +65,7 @@ describe("enqueueArcChatTask", () => {
         response_style: "detailed",
         approval_strictness: "strict",
         command: "campaign",
+        skill_id: "approval-gated-drafting",
         outbound_locked: true,
       },
     });

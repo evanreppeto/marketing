@@ -2,6 +2,7 @@ import type { ArcBusinessContext } from "./business-context";
 import { ARC_PERSONAS } from "./personas";
 import type { ArcHistoryTurn, MarkMention } from "./types";
 import type { RecallItem } from "./recall";
+import type { ArcSkill } from "./skills";
 
 /** Route → model. Fast chat rides Haiku; heavier "standard" work rides Opus. */
 export function modelForRoute(route: "fast" | "standard"): string {
@@ -32,6 +33,7 @@ export type ArcTurnContext = {
   assistantTone?: string;
   assistantResponseStyle?: string;
   approvalStrictness?: string;
+  skill?: ArcSkill | null;
 };
 
 function businessBlock(b: ArcBusinessContext): string {
@@ -68,6 +70,20 @@ function modeBlock(mode: "ask" | "act" | "draft" | "scan"): string {
   return [
     "MODE: draft — everything in act, plus you may create approval-gated draft campaigns and assets.",
     "Every draft awaits human approval before it can be used. Nothing you do goes outbound.",
+  ].join("\n");
+}
+
+function skillBlock(skill: ArcSkill | null | undefined): string | null {
+  if (!skill) return null;
+  return [
+    `ACTIVE SKILL: ${skill.name} (${skill.id})`,
+    `This is a business-agnostic skill. Apply it through the current workspace context instead of assuming a specific industry.`,
+    `Approval policy: ${skill.approvalPolicy}.`,
+    `Allowed tools for this skill: ${skill.allowedTools.join(", ")}.`,
+    "Skill instructions:",
+    ...skill.instructions.map((line) => `- ${line}`),
+    "Output contract:",
+    ...skill.outputContract.map((line) => `- ${line}`),
   ].join("\n");
 }
 
@@ -117,6 +133,7 @@ export function buildSystemPrompt(base: string, ctx: ArcTurnContext): string {
     memoryBlock(ctx.memory),
     personasBlock(),
     modeBlock(ctx.mode),
+    skillBlock(ctx.skill),
     styleBlock(ctx),
     scopeBlock(ctx.scope),
     mentionsBlock(ctx.mentions),

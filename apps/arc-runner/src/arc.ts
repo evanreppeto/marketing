@@ -6,6 +6,7 @@ import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } 
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode, type ArcMode, type ToolContext } from "./tools";
+import { resolveArcSkill, type ArcSkill } from "./skills";
 import type {
   ArcActionCard,
   ArcCampaignTaskPayload,
@@ -73,12 +74,13 @@ async function runArcQuery(opts: {
   prompt: string;
   model: string;
   toolContext?: ToolContext;
+  skill?: ArcSkill | null;
   /** Live partial reply text, posted as the model streams (chat-turn only). */
   onPartial?: (text: string) => void | Promise<void>;
 }): Promise<ArcTurnResult> {
   const { actions, suggestions, sources, questions, sink } = makeSink();
 
-  const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, opts.toolContext ?? {});
+  const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, { ...(opts.toolContext ?? {}), skill: opts.skill });
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
   const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, opts.ctx);
 
@@ -98,7 +100,7 @@ async function runArcQuery(opts: {
       systemPrompt: system,
       model: opts.model,
       mcpServers: { arc: arcServer },
-      allowedTools: allowedToolNames(opts.mode),
+      allowedTools: allowedToolNames(opts.mode, opts.skill),
       permissionMode: "bypassPermissions",
       // Emit SDKPartialAssistantMessage ('stream_event') token deltas so we can
       // type the reply out live; the final assistant/result messages still land.
@@ -146,6 +148,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
 
   const business = await resolveBusinessContext(client);
   const memory = await resolveRecallMemory(client, payload.message);
+  const skill = resolveArcSkill(payload.skillId);
   const ctx: ArcTurnContext = {
     business,
     mode: payload.mode,
@@ -160,6 +163,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     assistantTone: payload.assistantTone,
     assistantResponseStyle: payload.assistantResponseStyle,
     approvalStrictness: payload.approvalStrictness,
+    skill,
   };
 
   const preamble = formatHistory(payload.history);
@@ -176,6 +180,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
     // Also thread conversationId so draft tools can link the chat to the campaign.
     toolContext: { level: payload.route, conversationId: payload.conversationId },
+    skill,
     // Type the reply out live into the pending bubble as the model streams.
     onPartial: (text) => client.postChatChunk(payload.agentTaskId, text),
   });
@@ -195,6 +200,7 @@ export async function runArcOpportunityDraft(
 
   const business = await resolveBusinessContext(client);
   const memory = await resolveRecallMemory(client, payload.message);
+  const skill = resolveArcSkill(payload.skillId);
   const ctx: ArcTurnContext = {
     business,
     mode: "draft",
@@ -206,6 +212,7 @@ export async function runArcOpportunityDraft(
     },
     mentions: [],
     memory,
+    skill,
   };
 
   return runArcQuery({
@@ -216,6 +223,7 @@ export async function runArcOpportunityDraft(
     prompt: payload.message,
     model: modelForRoute("standard"),
     toolContext: { opportunityId: payload.opportunityId },
+    skill,
   });
 }
 
@@ -232,6 +240,7 @@ export async function runArcOpportunityScan(
 
   const business = await resolveBusinessContext(client);
   const memory = await resolveRecallMemory(client, payload.message);
+  const skill = resolveArcSkill(payload.skillId);
   const ctx: ArcTurnContext = {
     business,
     mode: "scan",
@@ -243,6 +252,7 @@ export async function runArcOpportunityScan(
     },
     mentions: [],
     memory,
+    skill,
   };
 
   return runArcQuery({
@@ -252,6 +262,7 @@ export async function runArcOpportunityScan(
     client,
     prompt: payload.message,
     model: modelForRoute("standard"),
+    skill,
   });
 }
 
@@ -268,6 +279,7 @@ export async function runArcCampaignTask(
 
   const business = await resolveBusinessContext(client);
   const memory = await resolveRecallMemory(client, payload.message);
+  const skill = resolveArcSkill(payload.skillId);
   const ctx: ArcTurnContext = {
     business,
     mode: "draft",
@@ -279,6 +291,7 @@ export async function runArcCampaignTask(
     },
     mentions: [],
     memory,
+    skill,
   };
 
   const prompt = [
@@ -297,5 +310,6 @@ export async function runArcCampaignTask(
     prompt,
     model: modelForRoute("standard"),
     toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
+    skill,
   });
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ArcClient } from "../arc-client";
+import { resolveArcSkill } from "../skills";
 import { allowedToolNames, toolsForMode } from "./index";
 
 // A stub client — the assembler only wires tools, it never calls these in the test.
@@ -87,6 +88,17 @@ describe("toolsForMode", () => {
     expect(names).not.toContain("record_brain_note");
     expect(names).not.toContain("log_interaction");
   });
+
+  it("narrows mode tools to the active skill allowlist", () => {
+    const skill = resolveArcSkill("company-research");
+    const names = toolsForMode("draft", stubClient, step, sink, { skill }).map((t) => t.name);
+
+    expect(names).toContain("research_web");
+    expect(names).toContain("cite_sources");
+    expect(names).not.toContain("create_campaign_draft");
+    expect(names).not.toContain("generate_image");
+    expect(names).not.toContain("update_record");
+  });
 });
 
 describe("allowedToolNames", () => {
@@ -104,5 +116,13 @@ describe("allowedToolNames", () => {
     expect(allowed).toContain("mcp__arc__propose_opportunity");
     expect(allowed).not.toContain("mcp__arc__create_campaign_draft");
     expect(allowed).not.toContain("mcp__arc__generate_image");
+  });
+
+  it("prefixes skill-narrowed allowed tools for the SDK", () => {
+    const allowed = allowedToolNames("draft", resolveArcSkill("company-research"));
+
+    expect(allowed).toContain("mcp__arc__research_web");
+    expect(allowed).toContain("mcp__arc__cite_sources");
+    expect(allowed).not.toContain("mcp__arc__create_campaign_draft");
   });
 });
