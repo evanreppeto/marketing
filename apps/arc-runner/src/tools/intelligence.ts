@@ -60,5 +60,30 @@ export function intelligenceTools(client: ArcClient, step: StepFn) {
     async (args) => runTool(step, "Reading brand document", () => client.apiGet("/api/v1/arc/brand/sources", { id: args.id })),
   );
 
-  return [listOpportunities, readPersonaIntelligence, listVaultNotes, getVaultNote, readRecentActivity, listBrandDocuments, readBrandDocument];
+  const researchWeb = tool(
+    "research_web",
+    "Run a read-only Gemini web search with citations. Use when Arc needs current outside-app research for lead discovery, local market context, competitor signals, source-backed opportunities, or campaign research. Do not treat results as verified CRM records until the operator reviews them.",
+    {
+      query: z.string().describe("The web research question to answer."),
+      context: z.string().optional().describe("Optional business or campaign context to focus the search."),
+    },
+    async (args) =>
+      runTool(step, "Researching web", () =>
+        client.apiPost("/api/v1/arc/research/web-search", {
+          query: args.query,
+          context: args.context,
+        }),
+      ),
+  );
+
+  return [
+    listOpportunities,
+    readPersonaIntelligence,
+    listVaultNotes,
+    getVaultNote,
+    readRecentActivity,
+    listBrandDocuments,
+    readBrandDocument,
+    researchWeb,
+  ];
 }
