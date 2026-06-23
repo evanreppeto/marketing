@@ -22,6 +22,16 @@ vi.mock("@/lib/research/gemini-web-search", () => ({
   searchWebWithGemini,
 }));
 
+const resolveConnectorCredentialRef = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/connectors/read-model", () => ({
+  resolveConnectorCredentialRef,
+}));
+
+const readConnectorCredential = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/connectors/credentials", () => ({
+  readConnectorCredential,
+}));
+
 import { checkAgentBearer } from "@/lib/auth/api-token";
 import { POST } from "./route";
 
@@ -66,6 +76,11 @@ beforeEach(() => {
     citations: [{ title: "Example", url: "https://example.com" }],
     searchQueries: ["property managers Chicago"],
   });
+  // Default: no workspace connector key (so env-var fallback applies)
+  resolveConnectorCredentialRef.mockReset();
+  resolveConnectorCredentialRef.mockResolvedValue(null);
+  readConnectorCredential.mockReset();
+  readConnectorCredential.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -126,5 +141,19 @@ describe("POST /api/v1/arc/research/web-search", () => {
       apiKey: "gemini-key",
       model: undefined,
     });
+  });
+
+  it("uses workspace connector key when present, even with no env var", async () => {
+    configure();
+    delete process.env.GEMINI_API_KEY;
+    resolveConnectorCredentialRef.mockResolvedValue("ref-1");
+    readConnectorCredential.mockResolvedValue("workspace-gemini-key");
+
+    const res = await POST(req("Bearer secret", { query: "find leads" }));
+
+    expect(res.status).toBe(200);
+    expect(searchWebWithGemini).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "workspace-gemini-key" }),
+    );
   });
 });
