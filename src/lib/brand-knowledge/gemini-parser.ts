@@ -1,11 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 
-import { NEUTRAL_DEFAULTS, type BrandColor, type BusinessProfile, type KnowledgeNodeInput, type ProofPoint } from "@/domain";
+import { NEUTRAL_DEFAULTS, type BusinessProfile, type KnowledgeNodeInput, type ProofPoint } from "@/domain";
 
 import { type BrandKnowledgeAsset } from "./brain-sync";
 
 type ParsedBrandKnowledgeNode = {
-  kind: "brand_fact" | "messaging_angle" | "proof_point" | "cta" | "persona";
+  kind: "brand_fact" | "messaging_angle" | "proof_point" | "cta";
   label: string;
   body: string | null;
   summary: string | null;
@@ -33,7 +33,6 @@ export type BrandProfileUpdate = {
   bannedPhrases?: string[];
   services?: string[];
   proofPoints?: string[];
-  brandColors?: BrandColor[];
   disallowedClaims?: string[];
   complianceNotes?: string | null;
 };
@@ -48,7 +47,6 @@ const ALLOWED_KINDS = new Set<ParsedBrandKnowledgeNode["kind"]>([
   "messaging_angle",
   "proof_point",
   "cta",
-  "persona",
 ]);
 
 const DEFAULT_TEXT_MODEL = "gemini-2.5-flash-lite";
@@ -77,26 +75,6 @@ function cleanArray(value: unknown, maxLength = 120) {
   return out;
 }
 
-function cleanBrandColors(value: unknown): BrandColor[] {
-  if (!Array.isArray(value)) return [];
-  const out: BrandColor[] = [];
-  const seen = new Set<string>();
-  for (const raw of value) {
-    if (!raw || typeof raw !== "object") continue;
-    const item = raw as Record<string, unknown>;
-    const hex = cleanText(item.hex, 12).toUpperCase();
-    if (!/^#[0-9A-F]{6}$/.test(hex) || seen.has(hex)) continue;
-    seen.add(hex);
-    out.push({
-      hex,
-      label: cleanText(item.label, 48) || `Color ${out.length + 1}`,
-      source: cleanText(item.source, 120) || "Brand source",
-    });
-    if (out.length >= 8) break;
-  }
-  return out;
-}
-
 function mergeList(current: string[], incoming: string[] | undefined) {
   const out = [...current];
   const seen = new Set(out.map((item) => item.toLowerCase()));
@@ -107,19 +85,6 @@ function mergeList(current: string[], incoming: string[] | undefined) {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(item);
-  }
-  return out;
-}
-
-function mergeBrandColors(current: BrandColor[], incoming: BrandColor[] | undefined) {
-  const out = [...current];
-  const seen = new Set(out.map((color) => color.hex.toUpperCase()));
-  for (const color of incoming ?? []) {
-    const hex = color.hex.toUpperCase();
-    if (seen.has(hex)) continue;
-    seen.add(hex);
-    out.push({ ...color, hex });
-    if (out.length >= 8) break;
   }
   return out;
 }
@@ -170,7 +135,6 @@ export function mergeBrandProfileUpdate(current: BusinessProfile, update: BrandP
     bannedPhrases: mergeList(current.bannedPhrases, update.bannedPhrases),
     services: mergeList(current.services, update.services),
     proofPoints: mergeProofPoints(current.proofPoints, update.proofPoints),
-    brandColors: mergeBrandColors(current.brandColors, update.brandColors),
     guardrails: {
       disallowedClaims: mergeList(current.guardrails.disallowedClaims, update.disallowedClaims),
       complianceNotes: mergeText(current.guardrails.complianceNotes, update.complianceNotes) ?? "",
@@ -228,7 +192,6 @@ function parseProfile(value: unknown): BrandProfileUpdate | null {
     bannedPhrases: cleanArray(item.bannedPhrases),
     services: cleanArray(item.services),
     proofPoints: cleanArray(item.proofPoints),
-    brandColors: cleanBrandColors(item.brandColors),
     disallowedClaims: cleanArray(item.disallowedClaims),
     complianceNotes: cleanText(item.complianceNotes, 900) || null,
   };
@@ -327,10 +290,9 @@ function buildPrompt(asset: BrandKnowledgeAsset) {
   return [
     "Read this brand source and extract only facts Mark can use after human approval.",
     "Return JSON only with this shape:",
-    '{"profile":{"displayName":null,"legalName":null,"tagline":null,"description":null,"industry":null,"websiteUrl":null,"serviceAreas":[],"tone":null,"voiceGuidance":null,"preferredPhrases":[],"bannedPhrases":[],"services":[],"proofPoints":[],"brandColors":[{"hex":"#C8A24B","label":"Primary","source":"file"}],"disallowedClaims":[],"complianceNotes":null},"nodes":[{"kind":"brand_fact|messaging_angle|proof_point|cta|persona","label":"short fact","body":"supporting detail","summary":"optional short summary","confidence":80,"tags":["brand"]}]}',
+    '{"profile":{"displayName":null,"legalName":null,"tagline":null,"description":null,"industry":null,"websiteUrl":null,"serviceAreas":[],"tone":null,"voiceGuidance":null,"preferredPhrases":[],"bannedPhrases":[],"services":[],"proofPoints":[],"disallowedClaims":[],"complianceNotes":null},"nodes":[{"kind":"brand_fact|messaging_angle|proof_point|cta","label":"short fact","body":"supporting detail","summary":"optional short summary","confidence":80,"tags":["brand"]}]}',
     "Keep it conservative. Do not invent claims. If the source is weak, return an empty nodes array.",
     "Use profile for editable Brand details: company, voice, offerings, proof, and rules.",
-    "Use persona nodes for audience/persona definitions, motivations, objections, decision triggers, and preferred messages found in the source.",
     "For logos, photos, moodboards, and reference media, extract visual themes, colors, typography cues, logo usage, style rules, and brand-safe visual guidance.",
     `File name: ${asset.fileName}`,
     text ? `Document text:\n${text.slice(0, 16000)}` : "Use the attached file content.",

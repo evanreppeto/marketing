@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  extractBrandKnowledgeBundleWithGemini,
-  parseBrandKnowledgeExtractionJson,
-  parseBrandKnowledgeJson,
-  toBrandKnowledgeNodeInputs,
-} from "./gemini-parser";
+import { extractBrandKnowledgeBundleWithGemini, parseBrandKnowledgeJson, toBrandKnowledgeNodeInputs } from "./gemini-parser";
 
 describe("parseBrandKnowledgeJson", () => {
   it("keeps only simple approved Brain node kinds from Gemini JSON", () => {
@@ -17,13 +12,6 @@ describe("parseBrandKnowledgeJson", () => {
           body: "Marketing copy should sound calm, local, and specific.",
           confidence: 91,
           tags: ["voice", "brand"],
-        },
-        {
-          kind: "persona",
-          label: "Emergency homeowner",
-          body: "Homeowners in a water-loss emergency need calm reassurance and a direct phone CTA.",
-          confidence: 86,
-          tags: ["persona"],
         },
         {
           kind: "unknown_kind",
@@ -40,14 +28,6 @@ describe("parseBrandKnowledgeJson", () => {
         summary: null,
         confidence: 91,
         tags: ["voice", "brand"],
-      },
-      {
-        kind: "persona",
-        label: "Emergency homeowner",
-        body: "Homeowners in a water-loss emergency need calm reassurance and a direct phone CTA.",
-        summary: null,
-        confidence: 86,
-        tags: ["persona"],
       },
     ]);
   });
@@ -86,24 +66,6 @@ describe("toBrandKnowledgeNodeInputs", () => {
         sourceReference: "media_assets:asset-1",
         tags: expect.arrayContaining(["brand-source", "ai-extracted", "certification"]),
       }),
-    ]);
-  });
-});
-
-describe("parseBrandKnowledgeExtractionJson", () => {
-  it("keeps valid brand palette colors from profile updates", () => {
-    const parsed = parseBrandKnowledgeExtractionJson(JSON.stringify({
-      profile: {
-        brandColors: [
-          { hex: "#143c5a", label: "Deep blue", source: "Brand guide" },
-          { hex: "gold", label: "Bad" },
-        ],
-      },
-      nodes: [],
-    }));
-
-    expect(parsed.profile?.brandColors).toEqual([
-      { hex: "#143C5A", label: "Deep blue", source: "Brand guide" },
     ]);
   });
 });
