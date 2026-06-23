@@ -60,14 +60,6 @@ export function BrandDetails({
 }) {
   const [editing, setEditing] = useState(false);
 
-  const paletteSlots = [
-    profile.brandPalette.primary,
-    profile.brandPalette.secondary,
-    profile.brandPalette.accent,
-    profile.brandPalette.dark,
-    profile.brandPalette.light,
-  ].filter((color) => /^#[0-9a-fA-F]{6}$/.test(color.hex));
-
   return (
     <section aria-labelledby="brand-details-heading" id="edit-brand">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -119,18 +111,6 @@ export function BrandDetails({
           }
         />
       </div>
-
-      {paletteSlots.length > 0 ? (
-        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-4 py-3">
-          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Palette</span>
-          {paletteSlots.map((color) => (
-            <span className="flex items-center gap-2 text-xs text-[var(--text-secondary)]" key={color.hex + color.label}>
-              <span aria-hidden className="h-5 w-5 rounded border border-[var(--border-hairline)]" style={{ backgroundColor: color.hex }} />
-              {color.label || color.hex}
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       {approvedFacts.length > 0 ? (
         <div className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-5 py-4">

@@ -1,7 +1,5 @@
-import { FolderOpen, Pencil, Sparkles } from "lucide-react";
-import Link from "next/link";
+import { Sparkles } from "lucide-react";
 
-import { PageHeader, buttonClasses } from "@/app/_components/page-header";
 import { NEUTRAL_DEFAULTS, type BusinessProfile } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
@@ -19,6 +17,7 @@ import {
 } from "@/lib/brand-knowledge/source-classifier";
 
 import { BrandPersonas } from "./_components/brand-personas";
+import { BrandIdentity } from "./_components/brand-identity";
 import { BrandDetails, type ApprovedFact } from "./_components/brand-details";
 import { BrandReviewQueue } from "./_components/brand-review-queue";
 import { BrandSourceList } from "./_components/brand-source-list";
@@ -77,22 +76,7 @@ export default async function BrandPage() {
   return (
     <div className="flex flex-col gap-6">
       <LibraryTabs active="brand" />
-      <PageHeader
-        title={profile.displayName || "Company brand"}
-        description={`Add the files, media, and details ${agentName} should learn from — then review what it finds and edit anything. Your changes update what ${agentName} sees.`}
-        aside={
-          <>
-            <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/library">
-              <FolderOpen aria-hidden className="h-4 w-4" />
-              Add files
-            </Link>
-            <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
-              <Pencil aria-hidden className="h-4 w-4" />
-              Edit brand
-            </Link>
-          </>
-        }
-      />
+      <BrandIdentity agentName={agentName} profile={profile} />
 
       {/* Zone 1 — Add to brand (the one accent moment; Arc-led intake). */}
       <section aria-labelledby="brand-intake-heading">
