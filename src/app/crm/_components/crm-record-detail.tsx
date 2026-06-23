@@ -67,6 +67,7 @@ export function RecordHeaderBand({ record }: { record: CrmRecordData }) {
             <StatusPill tone="blue">{record.persona}</StatusPill>
             <StatusPill tone={statusTone(record.lifecycleStatus)}>{record.lifecycleStatus}</StatusPill>
             {record.urgency ? <StatusPill tone={urgencyTone(record.urgency)}>{record.urgency}</StatusPill> : null}
+            {record.origin === "agent" ? <StatusPill tone="gray">Added by Arc</StatusPill> : null}
           </div>
           <h1 className="mt-3 font-serif text-[clamp(1.5rem,2.4vw,2.15rem)] font-semibold leading-[1.08] tracking-[-0.02em] text-[var(--text-primary)]">
             {record.name}

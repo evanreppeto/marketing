@@ -4,11 +4,21 @@ import { type LeadIngestionResult, type ParsedLeadIngestionInput } from "../../d
 
 type AcceptedLeadIngestionResult = Extract<LeadIngestionResult, { ok: true }>;
 
+export type LeadProvenance = {
+  origin: "operator" | "agent";
+  reviewStatus: "active" | "proposed" | "dismissed";
+  agentConfidence?: number | null;
+};
+
 type PersistLeadInput = {
   input: ParsedLeadIngestionInput;
   result: AcceptedLeadIngestionResult;
   supabase: SupabaseClient;
   orgId: string;
+  /** When set, stamps companies/contacts/properties/leads with origin + review_status. */
+  provenance?: LeadProvenance;
+  /** Pre-resolved (deduped) ids to reuse instead of inserting. */
+  existing?: { companyId?: string | null; contactId?: string | null };
 };
 
 type InsertResult = {
@@ -27,32 +37,44 @@ export async function persistLeadIngestion({
   result,
   supabase,
   orgId,
+  provenance,
+  existing,
 }: PersistLeadInput): Promise<PersistedLeadIngestion> {
-  const companyId = input.company
-    ? await insertAndReturnId(supabase, "companies", orgId, {
-        name: input.company.name,
-        persona: result.persona,
-        partner_tier: input.company.partnerTier ?? null,
-        metadata: {
-          network_connection: input.company.networkConnection ?? null,
-          ingestion_source: input.source,
-        },
-      })
-    : null;
+  const stamp = provenance
+    ? { origin: provenance.origin, review_status: provenance.reviewStatus }
+    : {};
 
-  const contactId = input.contact
-    ? await insertAndReturnId(supabase, "contacts", orgId, {
-        company_id: companyId,
-        persona: result.persona,
-        first_name: input.contact.firstName ?? null,
-        last_name: input.contact.lastName ?? null,
-        email: input.contact.email ?? null,
-        phone: input.contact.phone ?? null,
-        metadata: {
-          ingestion_source: input.source,
-        },
-      })
-    : null;
+  const companyId = existing?.companyId
+    ? existing.companyId
+    : input.company
+      ? await insertAndReturnId(supabase, "companies", orgId, {
+          name: input.company.name,
+          persona: result.persona,
+          partner_tier: input.company.partnerTier ?? null,
+          ...stamp,
+          metadata: {
+            network_connection: input.company.networkConnection ?? null,
+            ingestion_source: input.source,
+          },
+        })
+      : null;
+
+  const contactId = existing?.contactId
+    ? existing.contactId
+    : input.contact
+      ? await insertAndReturnId(supabase, "contacts", orgId, {
+          company_id: companyId,
+          persona: result.persona,
+          first_name: input.contact.firstName ?? null,
+          last_name: input.contact.lastName ?? null,
+          email: input.contact.email ?? null,
+          phone: input.contact.phone ?? null,
+          ...stamp,
+          metadata: {
+            ingestion_source: input.source,
+          },
+        })
+      : null;
 
   const propertyId = input.property
     ? await insertAndReturnId(supabase, "properties", orgId, {
@@ -64,6 +86,7 @@ export async function persistLeadIngestion({
         city: input.property.city,
         state: input.property.state.toUpperCase(),
         postal_code: input.property.postalCode,
+        ...stamp,
         metadata: {
           ingestion_source: input.source,
         },
@@ -89,6 +112,8 @@ export async function persistLeadIngestion({
     attribution_channel: result.attribution.channel,
     attribution_method: result.attribution.method,
     attribution_utm: result.attribution.utm,
+    ...stamp,
+    agent_confidence: provenance?.agentConfidence ?? null,
     metadata: {
       ...input.metadata,
       classification: result.classification.classification,
@@ -97,12 +122,7 @@ export async function persistLeadIngestion({
     },
   });
 
-  return {
-    companyId,
-    contactId,
-    propertyId,
-    leadId,
-  };
+  return { companyId, contactId, propertyId, leadId };
 }
 
 function toDatabaseRoutingRecommendation(routing: AcceptedLeadIngestionResult["routing"]) {
