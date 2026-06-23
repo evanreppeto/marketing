@@ -21,10 +21,10 @@ const STATUS_TONE: Record<string, ThemeTone> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  connected: "Connected",
-  error: "Error",
-  disabled: "Disabled",
-  not_configured: "Not configured",
+  connected: "Ready",
+  disabled: "Paused",
+  error: "Needs attention",
+  not_configured: "Needs setup",
 };
 
 function fmt(value: string | null) {
