@@ -133,7 +133,7 @@ describe("DEFAULT_MEDIA_FOLDERS", () => {
 
 describe("seedDefaultMediaFolders", () => {
   function clientWithFolderCount(count: number) {
-    const insert = vi.fn(async () => ({ error: null }));
+    const insert = vi.fn(async (_rows: unknown) => ({ error: null }));
     const client = {
       from: vi.fn(() => ({
         select: vi.fn(() => ({

@@ -4,11 +4,11 @@ import { buildFilesystemTree } from "./folder-tree-model";
 import { type MediaAssetView, type MediaFolderView } from "@/lib/media-library/types";
 
 const folders: MediaFolderView[] = [
-  { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4 },
-  { id: "jobs", name: "[Demo] Job Photos", parentId: null, depth: 0, count: 3, directCount: 0 },
-  { id: "water", name: "[Demo] Water Damage", parentId: "jobs", depth: 1, count: 2, directCount: 0 },
-  { id: "before", name: "[Demo] Before", parentId: "water", depth: 2, count: 1, directCount: 1 },
-  { id: "brand", name: "[Demo] Brand Assets", parentId: null, depth: 0, count: 1, directCount: 1 },
+  { id: "all", name: "All media", parentId: null, depth: 0, count: 4, directCount: 4, description: null },
+  { id: "jobs", name: "[Demo] Job Photos", parentId: null, depth: 0, count: 3, directCount: 0, description: null },
+  { id: "water", name: "[Demo] Water Damage", parentId: "jobs", depth: 1, count: 2, directCount: 0, description: null },
+  { id: "before", name: "[Demo] Before", parentId: "water", depth: 2, count: 1, directCount: 1, description: null },
+  { id: "brand", name: "[Demo] Brand Assets", parentId: null, depth: 0, count: 1, directCount: 1, description: null },
 ];
 
 const asset = (overrides: Partial<MediaAssetView>): MediaAssetView => ({
