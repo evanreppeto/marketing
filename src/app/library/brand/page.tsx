@@ -39,7 +39,7 @@ export const metadata: Metadata = { title: "Brand" };
 
 export const dynamic = "force-dynamic";
 
-const BRAND_KINDS = new Set(["brand_fact", "proof_point", "messaging_angle", "cta", "service"]);
+const BRAND_KINDS = new Set(["brand_fact", "proof_point", "messaging_angle", "cta", "service", "persona"]);
 
 const SECTION_TONE = {
   company: {
@@ -109,6 +109,8 @@ function factType(kind: string) {
       return "Fact";
     case "proof_point":
       return "Proof";
+    case "persona":
+      return "Persona";
     case "messaging_angle":
       return "Message";
     case "cta":
