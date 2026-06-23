@@ -201,6 +201,8 @@ export type Database = {
           phone: string | null;
           email: string | null;
           partner_tier: string | null;
+          origin: string;
+          review_status: string;
           metadata: Json;
           created_at: string;
           updated_at: string;
@@ -215,6 +217,8 @@ export type Database = {
           phone?: string | null;
           email?: string | null;
           partner_tier?: string | null;
+          origin?: string;
+          review_status?: string;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -229,6 +233,8 @@ export type Database = {
           phone?: string | null;
           email?: string | null;
           partner_tier?: string | null;
+          origin?: string;
+          review_status?: string;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -248,6 +254,8 @@ export type Database = {
           email: string | null;
           phone: string | null;
           title: string | null;
+          origin: string;
+          review_status: string;
           metadata: Json;
           created_at: string;
           updated_at: string;
@@ -264,6 +272,8 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           title?: string | null;
+          origin?: string;
+          review_status?: string;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -280,6 +290,8 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           title?: string | null;
+          origin?: string;
+          review_status?: string;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -299,6 +311,8 @@ export type Database = {
           state: string;
           postal_code: string;
           property_type: string | null;
+          origin: string;
+          review_status: string;
           metadata: Json;
           created_at: string;
           updated_at: string;
@@ -315,6 +329,8 @@ export type Database = {
           state: string;
           postal_code: string;
           property_type?: string | null;
+          origin?: string;
+          review_status?: string;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -331,6 +347,8 @@ export type Database = {
           state?: string;
           postal_code?: string;
           property_type?: string | null;
+          origin?: string;
+          review_status?: string;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -363,6 +381,9 @@ export type Database = {
           attribution_channel: string | null;
           attribution_method: string | null;
           attribution_utm: Json;
+          origin: string;
+          review_status: string;
+          agent_confidence: number | null;
         };
         Insert: {
           id?: string;
@@ -389,6 +410,9 @@ export type Database = {
           attribution_channel?: string | null;
           attribution_method?: string | null;
           attribution_utm?: Json;
+          origin?: string;
+          review_status?: string;
+          agent_confidence?: number | null;
         };
         Update: {
           id?: string;
@@ -415,6 +439,9 @@ export type Database = {
           attribution_channel?: string | null;
           attribution_method?: string | null;
           attribution_utm?: Json;
+          origin?: string;
+          review_status?: string;
+          agent_confidence?: number | null;
         };
         Relationships: [];
       };
