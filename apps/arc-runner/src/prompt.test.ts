@@ -4,7 +4,7 @@ import { ARC_SYSTEM_PROMPT } from "./prompt";
 
 describe("ARC_SYSTEM_PROMPT", () => {
   it("keeps the non-negotiable outbound lock", () => {
-    expect(ARC_SYSTEM_PROMPT).toContain("never send, publish, launch, spend");
+    expect(ARC_SYSTEM_PROMPT).toContain("you never send, publish, launch, spend, or contact anyone");
     expect(ARC_SYSTEM_PROMPT.toLowerCase()).toContain("human in the loop");
   });
 
@@ -22,6 +22,7 @@ describe("ARC_SYSTEM_PROMPT", () => {
 
   it("sets a proactive operator posture", () => {
     expect(ARC_SYSTEM_PROMPT).toContain("PROACTIVE");
+    expect(ARC_SYSTEM_PROMPT).toContain("surface the next best action");
   });
 
   it("preserves the load-bearing tool + output mechanics", () => {
@@ -43,6 +44,7 @@ describe("ARC_SYSTEM_PROMPT", () => {
 
   it("preserves mechanical tool parameters and anti-fabrication guards", () => {
     for (const token of [
+      "read_performance",
       "16:9",
       "9:16",
       "multi:true",
