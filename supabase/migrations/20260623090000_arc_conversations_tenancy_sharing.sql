@@ -108,10 +108,12 @@ from public.arc_conversations c
 where c.id = msg.conversation_id
   and msg.workspace_id is null;
 
+-- Saved items have no project_id; scope them to their org's default workspace.
 update public.arc_saved_items s
-set workspace_id = p.workspace_id
-from public.arc_projects p
-where p.id = s.project_id
+set workspace_id = w.id
+from public.workspaces w
+where w.org_id = s.org_id
+  and w.key = 'default'
   and s.workspace_id is null;
 
 -- 8. RLS (defense-in-depth; the app reads via service role which bypasses this).
