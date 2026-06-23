@@ -17,6 +17,7 @@ export * from "./competitor-intel";
 export * from "./attribution";
 export * from "./campaign-drafts";
 export * from "./connections";
+export * from "./connectors";
 export * from "./companies";
 export * from "./contacts";
 export * from "./properties";
