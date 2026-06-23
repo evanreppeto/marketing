@@ -1,5 +1,8 @@
+"use client";
+
 import type { CampaignPerformanceRow } from "@/lib/performance/read-model";
-import { DataTable, type Column } from "@/app/_components/data-table";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/app/_components/page-header";
 
 const USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -11,40 +14,38 @@ const TREND: Record<CampaignPerformanceRow["trend"], { glyph: string; className:
   flat: { glyph: "—", className: "text-[var(--text-muted)]" },
 };
 
-const COLUMNS: Column<CampaignPerformanceRow>[] = [
+const COLUMNS: ColumnDef<CampaignPerformanceRow>[] = [
   {
-    key: "campaign",
+    id: "campaign",
     header: "Campaign",
-    cell: (row) => (
+    cell: ({ row }) => (
       <div className="min-w-0">
-        <div className="truncate font-semibold text-[var(--text-primary)]">{row.name}</div>
-        <div className="mt-0.5 text-xs text-[var(--text-secondary)]">{row.persona}</div>
+        <div className="truncate font-semibold text-[var(--text-primary)]">{row.original.name}</div>
+        <div className="mt-0.5 text-xs text-[var(--text-secondary)]">{row.original.persona}</div>
       </div>
     ),
   },
-  { key: "impressions", header: "Impressions", align: "right", width: "w-[120px]", cell: (row) => <Num value={row.impressions} /> },
-  { key: "clicks", header: "Clicks", align: "right", width: "w-[90px]", cell: (row) => <Num value={row.clicks} /> },
-  { key: "leads", header: "Leads", align: "right", width: "w-[80px]", cell: (row) => <Num value={row.leads} /> },
-  { key: "booked", header: "Booked", align: "right", width: "w-[80px]", cell: (row) => <Num value={row.booked} accent /> },
+  { id: "impressions", header: "Impressions", meta: { align: "right", width: "w-[120px]" }, cell: ({ row }) => <Num value={row.original.impressions} /> },
+  { id: "clicks", header: "Clicks", meta: { align: "right", width: "w-[90px]" }, cell: ({ row }) => <Num value={row.original.clicks} /> },
+  { id: "leads", header: "Leads", meta: { align: "right", width: "w-[80px]" }, cell: ({ row }) => <Num value={row.original.leads} /> },
+  { id: "booked", header: "Booked", meta: { align: "right", width: "w-[80px]" }, cell: ({ row }) => <Num value={row.original.booked} accent /> },
   {
-    key: "revenue",
+    id: "revenue",
     header: "Revenue",
-    align: "right",
-    width: "w-[120px]",
-    cell: (row) => (
-      <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{USD.format(row.revenueCents / 100)}</span>
+    meta: { align: "right", width: "w-[120px]" },
+    cell: ({ row }) => (
+      <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{USD.format(row.original.revenueCents / 100)}</span>
     ),
   },
   {
-    key: "conversion",
+    id: "conversion",
     header: "Conv.",
-    align: "right",
-    width: "w-[96px]",
-    cell: (row) => {
-      const t = TREND[row.trend];
+    meta: { align: "right", width: "w-[96px]" },
+    cell: ({ row }) => {
+      const t = TREND[row.original.trend];
       return (
         <span className="inline-flex items-center justify-end gap-1.5">
-          <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{row.conversion}%</span>
+          <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{row.original.conversion}%</span>
           <span className={`text-[11px] ${t.className}`} aria-hidden="true">{t.glyph}</span>
         </span>
       );
@@ -64,8 +65,8 @@ export function CampaignPerformanceTable({ rows }: { rows: CampaignPerformanceRo
   return (
     <DataTable
       columns={COLUMNS}
-      rows={rows}
-      rowKey={(row) => row.id}
+      data={rows}
+      getRowId={(row) => row.id}
       rowHref={(row) => `/analytics/${row.id}`}
       minWidth="min-w-[820px]"
       emptyState={<EmptyState title="No campaign performance yet" detail="Once campaigns report results, each one's impressions, leads, and revenue appear here." />}

@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
 
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState, StatusPill } from "@/app/_components/page-header";
-import { PaginationControls } from "@/app/_components/pagination-controls";
 import { theme } from "@/app/_components/theme";
 import { type ApprovalHistoryEntry } from "@/lib/approvals/read-model";
 
@@ -20,10 +20,57 @@ const DECISION_FILTERS: Array<{ key: DecisionFilter; label: string }> = [
   { key: "archived", label: "Archived" },
 ];
 
+const COLUMNS: ColumnDef<ApprovalHistoryEntry>[] = [
+  {
+    id: "when",
+    header: "When",
+    meta: { cellClassName: "whitespace-nowrap font-mono text-xs text-[var(--text-secondary)]" },
+    cell: ({ row }) => formatWhen(row.original.decidedAt),
+  },
+  {
+    id: "decision",
+    header: "Decision",
+    cell: ({ row }) => <StatusPill tone={decisionTone(row.original.decision)}>{row.original.decision}</StatusPill>,
+  },
+  {
+    id: "item",
+    header: "Item",
+    meta: { cellClassName: "font-semibold text-[var(--text-primary)]" },
+    cell: ({ row }) => row.original.itemType,
+  },
+  {
+    id: "campaign",
+    header: "Campaign",
+    cell: ({ row }) =>
+      row.original.campaignId ? (
+        <span className="font-semibold text-[var(--accent)] transition group-hover:text-[var(--accent-strong)]">
+          {row.original.campaignName ?? row.original.campaignId}
+        </span>
+      ) : (
+        <span className="text-[var(--text-muted)]">No campaign linked</span>
+      ),
+  },
+  {
+    id: "who",
+    header: "Who",
+    meta: { cellClassName: "text-[var(--text-secondary)]" },
+    cell: ({ row }) => row.original.decidedBy,
+  },
+  {
+    id: "notes",
+    header: "Notes",
+    meta: { cellClassName: "max-w-[42ch] text-[var(--text-secondary)]" },
+    cell: ({ row }) => <span className="line-clamp-2">{row.original.decisionNotes ?? "No notes captured."}</span>,
+  },
+];
+
+function rowHref(row: ApprovalHistoryEntry) {
+  return row.campaignId ? `/campaigns/${row.campaignId}` : `/approvals?item=${row.approvalItemId}`;
+}
+
 export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistoryEntry[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<DecisionFilter>("all");
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -49,16 +96,6 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
     });
   }, [decisions, filter, normalizedQuery]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, pageCount);
-  const startIndex = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filtered.length);
-  const visibleRows = filtered.slice(startIndex, endIndex);
-
-  function resetPage() {
-    setPage(1);
-  }
-
   if (decisions.length === 0) {
     return (
       <EmptyState
@@ -78,8 +115,8 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
               <StatusPill tone="amber">Outbound locked</StatusPill>
             </div>
             <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              Showing {startIndex + (filtered.length > 0 ? 1 : 0)}-{endIndex} of {filtered.length}
-              {filtered.length === decisions.length ? "" : ` matched from ${decisions.length}`} decisions.
+              Showing {filtered.length} of {decisions.length}
+              {filtered.length === decisions.length ? "" : " matched"} decisions.
             </p>
           </div>
 
@@ -101,7 +138,6 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
                 className="h-11 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] py-2 pl-9 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 onChange={(event) => {
                   setQuery(event.target.value);
-                  resetPage();
                 }}
                 placeholder="Search decision history..."
                 type="search"
@@ -113,10 +149,7 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
               <span className="sr-only">Rows per page</span>
               <select
                 className="h-11 w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-sm font-bold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value));
-                  resetPage();
-                }}
+                onChange={(event) => setPageSize(Number(event.target.value))}
                 value={pageSize}
               >
                 {PAGE_SIZES.map((size) => (
@@ -145,7 +178,6 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
                 key={item.key}
                 onClick={() => {
                   setFilter(item.key);
-                  resetPage();
                 }}
                 type="button"
               >
@@ -158,69 +190,15 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] text-left text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-              <th className="px-5 py-3">When</th>
-              <th className="px-5 py-3">Decision</th>
-              <th className="px-5 py-3">Item</th>
-              <th className="px-5 py-3">Campaign</th>
-              <th className="px-5 py-3">Who</th>
-              <th className="px-5 py-3">Notes</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border-hairline)]">
-            {visibleRows.map((row) => {
-              const href = row.campaignId ? `/campaigns/${row.campaignId}` : `/approvals?item=${row.approvalItemId}`;
-
-              return (
-                <tr key={row.id} className="group cursor-pointer align-top transition hover:bg-[var(--surface-raised)] focus-within:bg-[var(--surface-raised)]">
-                  <HistoryCell href={href} className="whitespace-nowrap font-mono text-xs text-[var(--text-secondary)]">
-                    {formatWhen(row.decidedAt)}
-                  </HistoryCell>
-                  <HistoryCell href={href}>
-                    <StatusPill tone={decisionTone(row.decision)}>{row.decision}</StatusPill>
-                  </HistoryCell>
-                  <HistoryCell href={href} className="font-semibold text-[var(--text-primary)]">
-                    {row.itemType}
-                  </HistoryCell>
-                  <HistoryCell href={href}>
-                    {row.campaignId ? (
-                      <span className="font-semibold text-[var(--accent)] transition group-hover:text-[var(--accent-strong)]">
-                        {row.campaignName ?? row.campaignId}
-                      </span>
-                    ) : (
-                      <span className="text-[var(--text-muted)]">No campaign linked</span>
-                    )}
-                  </HistoryCell>
-                  <HistoryCell href={href} className="text-[var(--text-secondary)]">
-                    {row.decidedBy}
-                  </HistoryCell>
-                  <HistoryCell href={href} className="max-w-[42ch] text-[var(--text-secondary)]">
-                    <span className="line-clamp-2">{row.decisionNotes ?? "No notes captured."}</span>
-                  </HistoryCell>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {visibleRows.length === 0 ? (
-        <div className="border-t border-[var(--border-hairline)] px-5 py-8">
-          <EmptyState title="No matching decisions" detail="Clear the search or choose a different decision filter." />
-        </div>
-      ) : null}
-
-      <PaginationControls
-        currentPage={currentPage}
-        endIndex={endIndex}
-        itemLabel="decisions"
-        onPageChange={setPage}
-        pageCount={pageCount}
-        startIndex={startIndex}
-        total={filtered.length}
+      <DataTable
+        columns={COLUMNS}
+        data={filtered}
+        getRowId={(row) => row.id}
+        rowHref={rowHref}
+        minWidth="min-w-[1100px]"
+        pageSize={pageSize}
+        paginationLabel="decisions"
+        emptyState={<EmptyState title="No matching decisions" detail="Clear the search or choose a different decision filter." />}
       />
     </section>
   );
@@ -244,22 +222,4 @@ function decisionTone(decision: string): "green" | "red" | "amber" | "gray" | "b
 
 function formatWhen(iso: string) {
   return iso.replace("T", " ").replace(/\.\d+Z$/, "Z");
-}
-
-function HistoryCell({
-  children,
-  className = "",
-  href,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  href: string;
-}) {
-  return (
-    <td className="p-0">
-      <Link className={`block h-full px-5 py-3 outline-none transition focus-visible:bg-[var(--accent-soft)] ${className}`} href={href}>
-        {children}
-      </Link>
-    </td>
-  );
 }
