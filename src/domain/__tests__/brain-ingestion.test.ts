@@ -58,3 +58,15 @@ describe("buildNodeInputForCrmRow — contacts/properties/leads", () => {
     expect(input.summary).toContain("flood damage");
   });
 });
+
+describe("buildNodeInputForCrmRow — jobs/outcomes", () => {
+  it("formats estimated revenue as dollars and labels a job by id when no job_number", () => {
+    const input = buildNodeInputForCrmRow("jobs", { id: "0123456789ab", status: "scheduled", estimated_revenue_cents: 250000 });
+    expect(input.kind).toBe("crm_job");
+    expect(input.label).toBe("Job 01234567");
+    expect(input.summary).toContain("$2,500");
+  });
+  it("labels a job by job_number when present", () => {
+    expect(buildNodeInputForCrmRow("jobs", { id: "x", job_number: "JOB-9" }).label).toBe("Job JOB-9");
+  });
+});

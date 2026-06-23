@@ -61,7 +61,7 @@ export function buildNodeInputForCrmRow(
   const base = {
     kind: CRM_NODE_KINDS[table],
     key: crmNodeKey(table, row.id as string),
-    refTable: table as never,
+    refTable: table,
     refId: row.id as string,
     persona: persona(row),
     source: "crm-sync",
@@ -71,7 +71,7 @@ export function buildNodeInputForCrmRow(
   if (table === "companies") {
     return {
       ...base,
-      label: (row.name as string) ?? "Company",
+      label: (row.name as string) || "Company",
       summary: lines([
         ["Company", row.name], ["Partner tier", row.partner_tier], ["Persona", persona(row)],
         ["Status", row.status], ["Website", row.website_url], ["Phone", row.phone], ["Email", row.email],
