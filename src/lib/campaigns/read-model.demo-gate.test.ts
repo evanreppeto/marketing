@@ -1,20 +1,14 @@
 /**
  * Demo-gate tests for campaigns read-model.
- * Verifies the isDemoDataEnabled() flag controls demo fallbacks:
  *
- * The empty-but-live guard uses `!client && items.length === 0` — it only fires
- * when no explicit client is passed (the admin-client code path). Tests that
- * exercise that branch must pass an explicit client (bypassing isSupabaseAdminConfigured)
- * but set `!client` to falsy by calling without a client argument, which is not
- * testable in unit tests without mocking the admin client import. Instead we verify
- * the unconfigured branch (which does gate on the flag) using the real no-client path,
- * and verify the empty-client behavior using an explicit client (which returns live empty).
+ * Contract: the demo library is served ONLY when Supabase is unconfigured (the
+ * local-preview branch). A configured workspace ALWAYS shows its real state —
+ * even when empty — regardless of the ARC_DEMO_DATA flag. A configured but empty
+ * org must never be masked with fake campaigns (that hid real Arc-created drafts).
  *
- *   - flag OFF + empty live (explicit client) → real empty list (no demo- campaigns)
- *   - flag ON  + empty live (explicit client) → real empty list (empty-but-live guard
- *     doesn't fire for explicit client — that's by design in the original code)
- *   - flag OFF + unconfigured (no client) → live empty list
- *   - flag ON  + unconfigured (no client) → demo bundle (regression)
+ *   - flag OFF + empty live (configured client) → real empty list (no demo- campaigns)
+ *   - flag ON  + empty live (configured client) → real empty list (flag does NOT
+ *     inject demo data once Supabase is configured)
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -45,16 +39,16 @@ describe("getCampaignWorkspaceList demo gate (explicit client)", () => {
     expect(result.campaigns.every((c) => !c.id.startsWith("demo-"))).toBe(true);
   });
 
-  it("flag ON + empty live read (explicit client) → real empty list (empty-but-live guard is no-client only)", async () => {
+  it("flag ON + empty live read (configured client) → real empty list (no demo masking)", async () => {
     vi.stubEnv("ARC_DEMO_DATA", "1");
     const result = await getCampaignWorkspaceList(emptyClient(), "Arc", "org-1");
 
-    // Empty-but-live guard: `if (!client && items.length === 0)` — with an explicit
-    // client this guard does NOT fire (original behavior preserved). The function
-    // returns a real empty live list regardless of the flag.
+    // Once Supabase is configured, the flag must NOT inject demo campaigns over a
+    // real (empty) read — the workspace shows its true state.
     expect(result.status).toBe("live");
     if (result.status !== "live") return;
     expect(result.campaigns).toHaveLength(0);
+    expect(result.campaigns.every((c) => !c.id.startsWith("demo-"))).toBe(true);
   });
 });
 

@@ -7,6 +7,36 @@ import type { ToolContext } from "./index";
 import { textResult, type StepFn } from "./helpers";
 
 /**
+ * Map an asset type to the card's channel/format so the chat thumbnail can render
+ * a typed preview (email layout, SMS bubble, document) instead of a blank tile.
+ * The app's AssetThumb keys off lowercased `${channel} ${format}` — keep these
+ * strings matching its checks (email / sms / pdf / 1:1 …).
+ */
+function cardChannelFormat(assetType: string): { channel?: string; format?: string } {
+  switch (assetType.toLowerCase()) {
+    case "email":
+      return { channel: "Email" };
+    case "sms":
+    case "text":
+      return { channel: "SMS" };
+    case "one_pager":
+    case "pdf":
+      return { channel: "One-pager", format: "pdf" };
+    case "landing_page":
+      return { channel: "Landing page" };
+    case "social_ad":
+      return { channel: "Paid social", format: "1:1" };
+    case "video_ad":
+      return { channel: "Video", format: "9:16" };
+    case "image":
+    case "image_prompt":
+      return { channel: "Image", format: "1:1" };
+    default:
+      return {};
+  }
+}
+
+/**
  * Draft work products (act/draft mode). `create_campaign_draft` creates a real,
  * approval-gated campaign asset (pending_approval, dispatch_locked) and auto-emits
  * a draft card carrying the inline Approve/Decline block. Nothing goes outbound;
@@ -53,7 +83,10 @@ export function draftWorkProductTools(
           title: args.title,
           rows: [],
           flags: [],
+          status: "draft",
+          ...cardChannelFormat(args.asset_type),
           ...(args.body ? { preview: args.body.slice(0, 280) } : {}),
+          ...(args.media_url ? { media: { kind: "image", url: args.media_url } } : {}),
           approval: { kind: "campaign", campaignId: r.campaignId, assetId: r.assetId },
         });
         return textResult(
