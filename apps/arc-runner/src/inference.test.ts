@@ -6,13 +6,14 @@ describe("inferenceForRoute", () => {
   it("routes fast chat to Sonnet with a light thinking budget", () => {
     const s = inferenceForRoute("fast");
     expect(s.model).toBe("claude-sonnet-4-6");
-    expect(s.maxThinkingTokens).toBeGreaterThan(0);
+    expect(s.maxThinkingTokens).toBe(2_000);
   });
 
   it("routes standard work to Opus with a deeper thinking budget than chat", () => {
     const s = inferenceForRoute("standard");
     expect(s.model).toBe("claude-opus-4-8");
     expect(s.maxThinkingTokens).toBeGreaterThan(inferenceForRoute("fast").maxThinkingTokens);
+    expect(s.maxThinkingTokens).toBe(10_000);
   });
 
   it("sets a fallback model and cost/turn rails on every route", () => {
