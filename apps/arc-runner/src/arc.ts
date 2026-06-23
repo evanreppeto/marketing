@@ -1,9 +1,9 @@
 import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { resolveBusinessContext } from "./business-context";
-import { resolveWorkspaceSummary } from "./workspace-summary";
-import { resolveRecallMemory } from "./recall";
-import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
+import { buildRecallQuery, resolveRecallMemory } from "./recall";
+import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
+import { buildQueryOptions, inferenceForRoute, type InferenceSettings } from "./inference";
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode, type ArcMode, type ToolContext } from "./tools";
@@ -91,8 +91,8 @@ async function runArcQuery(opts: {
   mode: ArcMode;
   ctx: ArcTurnContext;
   client: ArcClient;
-  content: TurnContent;
-  model: string;
+  prompt: string;
+  inference: InferenceSettings;
   toolContext?: ToolContext;
   skill?: ArcSkill | null;
   /** Live partial reply text, posted as the model streams (chat-turn only). */
@@ -116,17 +116,13 @@ async function runArcQuery(opts: {
   let outputTokens: number | null = null;
 
   for await (const message of query({
-    prompt: promptInput(opts.content, opts.ctx.scope.conversationId ?? "arc-turn"),
-    options: {
+    prompt: opts.prompt,
+    options: buildQueryOptions({
+      inference: opts.inference,
       systemPrompt: system,
-      model: opts.model,
       mcpServers: { arc: arcServer },
       allowedTools: allowedToolNames(opts.mode, opts.skill),
-      permissionMode: "bypassPermissions",
-      // Emit SDKPartialAssistantMessage ('stream_event') token deltas so we can
-      // type the reply out live; the final assistant/result messages still land.
-      includePartialMessages: true,
-    },
+    }),
   })) {
     if (message.type === "stream_event") {
       const event = message.event;
@@ -160,7 +156,7 @@ async function runArcQuery(opts: {
     suggestions: suggestions.slice(0, 4),
     sources,
     questions: questions.slice(0, 4),
-    usage: { model: opts.model, inputTokens, outputTokens },
+    usage: { model: opts.inference.model, inputTokens, outputTokens },
   };
 }
 
@@ -168,7 +164,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const business = await resolveBusinessContext(client);
-  const memory = await resolveRecallMemory(client, payload.message);
+  const memory = await resolveRecallMemory(client, buildRecallQuery(payload.history, payload.message));
   const skill = resolveArcSkill(payload.skillId);
   const ctx: ArcTurnContext = {
     business,
@@ -196,8 +192,8 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     mode: payload.mode,
     ctx,
     client,
-    content,
-    model: modelForRoute(payload.route),
+    prompt,
+    inference: inferenceForRoute(payload.route),
     // Thread the turn's level so media tools tell the generate endpoints which
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
     // Also thread conversationId so draft tools can link the chat to the campaign.
@@ -242,8 +238,8 @@ export async function runArcOpportunityDraft(
     mode: "draft",
     ctx,
     client,
-    content: payload.message,
-    model: modelForRoute("standard"),
+    prompt: payload.message,
+    inference: inferenceForRoute("standard"),
     toolContext: { opportunityId: payload.opportunityId },
     skill,
   });
@@ -282,8 +278,8 @@ export async function runArcOpportunityScan(
     mode: "scan",
     ctx,
     client,
-    content: payload.message,
-    model: modelForRoute("standard"),
+    prompt: payload.message,
+    inference: inferenceForRoute("standard"),
     skill,
   });
 }
@@ -329,8 +325,8 @@ export async function runArcCampaignTask(
     mode: "draft",
     ctx,
     client,
-    content: prompt,
-    model: modelForRoute("standard"),
+    prompt,
+    inference: inferenceForRoute("standard"),
     toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
     skill,
   });
