@@ -76,6 +76,25 @@ describe("GET /auth/callback", () => {
     expect(response.headers.get("location")).toBe("http://localhost/welcome?from=%2F");
   });
 
+  it("reports a cancelled consent screen distinctly from a failure", async () => {
+    const response = await GET(
+      new Request("http://localhost/auth/callback?error=access_denied&next=/arc"),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("http://localhost/login?error=oauth_cancelled&from=%2Farc");
+    expect(exchangeCodeForSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("treats other provider errors as a generic OAuth failure", async () => {
+    const response = await GET(
+      new Request("http://localhost/auth/callback?error=server_error&next=/"),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("http://localhost/login?error=oauth&from=%2F");
+  });
+
   it("routes existing members to next path after OAuth", async () => {
     exchangeCodeForSessionMock.mockResolvedValue({
       data: { user: { id: "user-1", email: "member@example.com" } },

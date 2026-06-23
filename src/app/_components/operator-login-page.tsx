@@ -83,21 +83,27 @@ export async function getOperatorForgotPasswordProps() {
   };
 }
 
+const SIGN_IN_ERROR_MESSAGES: Record<string, string> = {
+  passkey: "Passkey sign-in is not set up for this console yet. Use email or Google.",
+  oauth_config: "Google sign-in needs to be enabled in your Supabase project first.",
+  oauth: "Google sign-in could not be completed. Try again or use email.",
+  oauth_cancelled: "Google sign-in was cancelled. Try again or use email.",
+  config: "Operator credentials are not configured yet.",
+  provision:
+    "Your account signed in, but workspace access could not be prepared. Ask an administrator to check memberships.",
+  unconfirmed: "Confirm your email first — check your inbox for the verification link, then sign in.",
+  rate_limited: "Too many sign-in attempts. Wait a minute, then try again.",
+  invalid: "That email or password was not accepted. Try again.",
+};
+
+/** Resolve a login error code to a message; unknown/legacy codes fall back to the generic credentials message. */
+function signInErrorMessage(error?: string): string | null {
+  if (!error) return null;
+  return SIGN_IN_ERROR_MESSAGES[error] ?? SIGN_IN_ERROR_MESSAGES.invalid;
+}
+
 export function OperatorLoginPage({ from, error, authMode }: { from: string; error?: string; authMode: AuthMode }) {
-  const errorMessage =
-    error === "passkey"
-      ? "Passkey sign-in is not configured for this console yet."
-      : error === "oauth_config"
-        ? "Google sign-in needs Supabase Auth to be configured first."
-        : error === "oauth"
-          ? "Google sign-in could not be completed. Try again or use email."
-          : error === "config"
-            ? "Operator credentials are not configured yet."
-            : error === "provision"
-              ? "Your account signed in, but workspace access could not be prepared. Ask an administrator to check memberships."
-              : error
-                ? "That email or password was not accepted. Try again."
-                : null;
+  const errorMessage = signInErrorMessage(error);
 
   return (
     <SignInPage

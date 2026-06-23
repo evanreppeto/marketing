@@ -5,6 +5,18 @@ import { getSupabaseAnonKey, getSupabaseAuthUrl } from "@/lib/auth/auth-mode";
 
 import { type Database } from "./database.types";
 
+/**
+ * Records the operator's "remember me" choice so Supabase token refreshes on later
+ * requests keep the same persistence. Value "0" means "this session only"; absence
+ * (or any other value) means "remember me". Written by the sign-in route.
+ */
+export const SUPABASE_REMEMBER_COOKIE = "arc-remember";
+
+/** Supabase SSR stores the session in `sb-<ref>-auth-token` (chunked: `.0`, `.1`, …). */
+function isSupabaseAuthCookie(name: string) {
+  return name.startsWith("sb-") && name.includes("-auth-token");
+}
+
 function getSupabaseAuthConfig() {
   const supabaseUrl = getSupabaseAuthUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
@@ -16,7 +28,7 @@ function getSupabaseAuthConfig() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
-export async function createSupabaseAuthServerClient() {
+export async function createSupabaseAuthServerClient(options?: { rememberMe?: boolean }) {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseAuthConfig();
   const cookieStore = await cookies();
 
@@ -26,8 +38,19 @@ export async function createSupabaseAuthServerClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
+        // Honor "remember me": when the operator opted out, the Supabase auth
+        // cookies are written WITHOUT an expiry so they're cleared when the browser
+        // closes. An explicit option (passed at sign-in) wins; otherwise we read the
+        // persisted preference so background token refreshes keep the same scope.
+        const remember =
+          options?.rememberMe ?? cookieStore.get(SUPABASE_REMEMBER_COOKIE)?.value !== "0";
+
+        cookiesToSet.forEach(({ name, value, options: cookieOptions }) => {
+          const finalOptions =
+            !remember && isSupabaseAuthCookie(name)
+              ? { ...cookieOptions, maxAge: undefined, expires: undefined }
+              : cookieOptions;
+          cookieStore.set(name, value, finalOptions);
         });
       },
     },
