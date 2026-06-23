@@ -66,6 +66,14 @@ describe("resolveResourceAccess", () => {
       permission: null,
     });
   });
+
+  it("denies access when the resource has no owner and the viewer is unauthenticated", () => {
+    const resource: ShareableResource = { ...ownerOnly, ownerId: null };
+    expect(resolveResourceAccess(resource, { ...noGrants, userId: null })).toEqual({
+      canView: false,
+      permission: null,
+    });
+  });
 });
 
 describe("strongerPermission", () => {

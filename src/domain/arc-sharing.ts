@@ -55,6 +55,7 @@ export function strongerPermission(
   a: SharePermission | null,
   b: SharePermission | null,
 ): SharePermission | null {
+  // Tie-break: equal rank returns `a`, so in resolveResourceAccess the push order of grants decides ties.
   return rankPermission(a) >= rankPermission(b) ? a : b;
 }
 
@@ -84,5 +85,6 @@ export function hasRequiredPermission(
   decision: AccessDecision,
   required: SharePermission,
 ): boolean {
+  // `decision.canView &&` is defensive: by construction canView is true iff permission is non-null, documenting the invariant.
   return decision.canView && rankPermission(decision.permission) >= rankPermission(required);
 }
