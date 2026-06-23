@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCEPTED_ATTACHMENT_MIME, isAcceptedAttachment, attachmentKind } from "../attachment-types";
+import { ACCEPTED_ATTACHMENT_MIME, isAcceptedAttachment, attachmentKind } from "./attachment-types";
 
 describe("attachment-types", () => {
   it("accepts images, pdf, and the text types", () => {
@@ -18,7 +18,7 @@ describe("attachment-types", () => {
     expect(attachmentKind("text/csv")).toBe("text");
     expect(attachmentKind("video/mp4")).toBe("other");
   });
-  it("exposes a comma-joined accept string including image and pdf", () => {
+  it("exposes the accept list including image and pdf", () => {
     expect(ACCEPTED_ATTACHMENT_MIME).toContain("image/png");
     expect(ACCEPTED_ATTACHMENT_MIME).toContain("application/pdf");
   });
