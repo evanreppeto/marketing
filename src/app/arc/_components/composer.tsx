@@ -220,6 +220,7 @@ export function PopoverHint() {
 
 export function Composer({
   conversationId,
+  canCompose = true,
   mentionGroups,
   draft,
   onDraftChange,
@@ -246,6 +247,8 @@ export function Composer({
   initialSkill = null,
 }: {
   conversationId: string;
+  /** False when the viewer only has view access to a shared chat — locks input. */
+  canCompose?: boolean;
   mentionGroups: MentionGroup[];
   projects: ArcProject[];
   activeProjectId: string | null;
@@ -623,7 +626,23 @@ export function Composer({
     }
   }
 
-  const disabled = isPending || uploading || (!draft.trim() && attachments.length === 0);
+  const disabled = !canCompose || isPending || uploading || (!draft.trim() && attachments.length === 0);
+
+  // View-only: the viewer can read a shared chat but not contribute. Show a quiet
+  // notice in place of the composer rather than a dead, disabled input box.
+  if (!canCompose) {
+    return (
+      <div className="mx-auto w-full max-w-[92rem] px-4 pb-4 pt-2 sm:px-6 xl:px-8">
+        <div className="flex items-center justify-center gap-2 rounded-[1.75rem] border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3 text-xs text-[var(--text-muted)]">
+          <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2.5 10S5 4.5 10 4.5 17.5 10 17.5 10 15 15.5 10 15.5 2.5 10 2.5 10Z" />
+            <circle cx="10" cy="10" r="2.2" />
+          </svg>
+          View-only — shared by the owner
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-[92rem] px-4 pb-4 pt-2 sm:px-6 xl:px-8">

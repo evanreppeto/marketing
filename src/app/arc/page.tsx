@@ -16,10 +16,12 @@ import {
   type ArcConversation,
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
-import { getShareViewer, resolveConversationAccess } from "@/lib/arc-chat/sharing";
+import { getShareViewer, resolveConversationAccess, listConversationShares } from "@/lib/arc-chat/sharing";
 import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { listWorkspaceTeamAccess } from "@/lib/auth/workspace-invites";
 
 import { ArcChat } from "./_components/arc-chat";
 import { SLASH_COMMANDS } from "./_components/slash-commands";
@@ -137,12 +139,50 @@ async function loadLiveArcChatProps(
       : Promise.resolve([] as ArcMessage[]),
   ]);
 
+  // Sharing UI inputs. In open/dev mode the viewer doesn't enforce sharing, so
+  // everything is fully accessible/owned and these stay permissive defaults.
+  const activeAccess = activeConversation ? await resolveConversationAccess(activeConversation.id, viewer) : null;
+  const canCompose = !viewer.enforce || activeAccess?.permission === "collaborate";
+
+  // Workspace member roster for the share-with picker — guarded so a missing
+  // workspace or unconfigured Supabase degrades to an empty list, not a throw.
+  const shareMembers = await (async (): Promise<{ userId: string; label: string }[]> => {
+    try {
+      const workspaceId = await getCurrentWorkspaceContext()
+        .then((ctx) => ctx.workspaceId)
+        .catch(() => null);
+      if (!workspaceId) return [];
+      const roster = await listWorkspaceTeamAccess(workspaceId);
+      if (!roster.ok) return [];
+      return roster.members
+        .filter((m) => m.status === "active" && m.userId != null)
+        .map((m) => ({ userId: m.userId as string, label: m.email ?? m.role }));
+    } catch {
+      return [];
+    }
+  })();
+
+  // Current shares on the active conversation (drives the dialog's access list).
+  const conversationShares = activeConversation
+    ? await listConversationShares(activeConversation.id).catch(() => [])
+    : [];
+
   return {
     chatProps: {
       conversations,
       projects,
       archived,
       showArchived,
+      canCompose,
+      shareMembers,
+      conversationShares,
+      // ArcConversation doesn't carry visibility/workspace_permission, and we
+      // intentionally don't add a query/column here (YAGNI) — default to private/
+      // view in the UI. The visibility toggle still works: the server action reads
+      // the real row, and a revalidate re-renders with the up-to-date dialog.
+      activeVisibility: "private" as const,
+      activeWorkspacePermission: "view" as const,
+      viewerUserId: viewer.userId,
       activeId: activeConversation?.id ?? "",
       activeTitle: activeConversation?.title ?? "",
       activeProjectId: activeConversation?.projectId ?? null,
