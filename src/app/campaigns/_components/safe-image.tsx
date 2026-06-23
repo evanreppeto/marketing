@@ -21,6 +21,16 @@ export function SafeImage({
 }) {
   const [failed, setFailed] = useState(false);
 
+  // React reuses one SafeImage instance across re-renders (e.g. switching the
+  // active asset in MediaReview), so a stale failure must clear when src changes
+  // — otherwise a good image inherits the previous image's "unavailable" tile.
+  // Reset during render (React's recommended pattern) rather than in an effect.
+  const [renderedSrc, setRenderedSrc] = useState(src);
+  if (src !== renderedSrc) {
+    setRenderedSrc(src);
+    setFailed(false);
+  }
+
   if (failed) {
     return (
       <div
