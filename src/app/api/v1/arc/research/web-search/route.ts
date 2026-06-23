@@ -1,10 +1,24 @@
 import { INVALID_JSON, arcGuard, fail, ok, readJson } from "@/app/api/v1/arc/_lib/http";
+import { readConnectorCredential } from "@/lib/connectors/credentials";
+import { resolveConnectorCredentialRef } from "@/lib/connectors/read-model";
 import { searchWebWithGemini } from "@/lib/research/gemini-web-search";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 function cleanText(value: unknown, maxLength: number): string {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, maxLength).trim() : "";
+}
+
+/** Workspace's own Gemini key (Vault) if connected + enabled; else the global env var. */
+async function resolveGeminiKey(workspaceId: string): Promise<string | null> {
+  const client = getSupabaseAdminClient();
+  const ref = await resolveConnectorCredentialRef(client, workspaceId, "gemini-research").catch(() => null);
+  if (ref) {
+    const key = await readConnectorCredential(client, ref).catch(() => null);
+    if (key) return key;
+  }
+  return process.env.GEMINI_API_KEY?.trim() || null;
 }
 
 /**
@@ -15,9 +29,13 @@ export async function POST(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
 
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = await resolveGeminiKey(allowed.scope.workspaceId);
   if (!apiKey) {
-    return fail("not_configured", "Gemini web search isn't enabled (needs GEMINI_API_KEY).", 503);
+    return fail(
+      "not_configured",
+      "Gemini web search isn't enabled. Connect a Gemini key in Settings → Connectors, or set GEMINI_API_KEY.",
+      503,
+    );
   }
 
   const payload = await readJson(request);
