@@ -7,7 +7,7 @@ import { getOperatorActor } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getMentionables } from "@/lib/arc-chat/mention-search";
 import {
-  listConversations,
+  listConversationsForViewer,
   listMessages,
   getConversation,
   listProjects,
@@ -16,6 +16,7 @@ import {
   type ArcConversation,
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
+import { getShareViewer, resolveConversationAccess } from "@/lib/arc-chat/sharing";
 import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -70,6 +71,9 @@ async function loadLiveArcChatProps(
   const requestedProject = valueOf(params?.project);
   const requestedSkill = valueOf(params?.skill);
 
+  // Resolve the viewer once (open/dev mode returns enforce:false → no-op).
+  const viewer = await getShareViewer();
+
   // These reads are independent, so run them concurrently. Previously they were
   // ~8 sequential Supabase round-trips that summed past the page-data timeout and
   // silently degraded the whole chat to demo mode; one parallel batch stays well
@@ -88,13 +92,19 @@ async function loadLiveArcChatProps(
     getMentionables(),
     getAppSettings(),
     countActiveApprovals(orgId).catch(() => 0),
-    listConversations(operator),
+    listConversationsForViewer(viewer, operator),
     listProjects(operator),
     listCampaignNames(orgId)
       .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
       .catch(() => [] as { id: string; name: string }[]),
     showArchived ? listArchivedConversations(operator) : Promise.resolve([] as ArcConversation[]),
-    requestedId ? getConversation(requestedId) : Promise.resolve(null),
+    requestedId
+      ? getConversation(requestedId).then(async (conv) => {
+          if (!conv) return null;
+          const decision = await resolveConversationAccess(conv.id, viewer);
+          return decision.canView ? conv : null;
+        })
+      : Promise.resolve(null),
     countPendingOpportunities().catch(() => 0),
   ]);
 

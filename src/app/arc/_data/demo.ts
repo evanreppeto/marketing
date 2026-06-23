@@ -39,6 +39,7 @@ function conv(id: string, title: string, agoMs: number, extra?: Partial<ArcConve
     pinnedAt: null,
     projectId: null,
     campaignId: null,
+    ownerId: null,
     createdAt: ago(agoMs + HOUR),
     updatedAt: ago(agoMs),
     lastMessageAt: ago(agoMs),

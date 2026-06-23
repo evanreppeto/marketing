@@ -4,6 +4,7 @@ import { type ArcActionCard, type ArcMedia, type ArcMention, type ArcMode, type 
 
 import { getSupabaseAdminClient } from "../supabase/server";
 import { type ArcChatTaskScope } from "./inbox";
+import { type ShareViewer } from "./sharing";
 
 export type ArcConversation = {
   id: string;
@@ -13,6 +14,7 @@ export type ArcConversation = {
   pinnedAt: string | null;
   projectId: string | null;
   campaignId: string | null;
+  ownerId: string | null;
   createdAt: string;
   updatedAt: string;
   lastMessageAt: string;
@@ -79,6 +81,7 @@ type ConversationRow = {
   pinned_at: string | null;
   project_id: string | null;
   campaign_id: string | null;
+  owner_id: string | null;
   created_at: string;
   updated_at: string;
   last_message_at: string;
@@ -97,7 +100,7 @@ type MessageRow = {
 };
 
 const CONVERSATION_COLUMNS =
-  "id, operator, title, status, project_id, campaign_id, pinned_at, created_at, updated_at, last_message_at";
+  "id, operator, title, status, project_id, campaign_id, owner_id, pinned_at, created_at, updated_at, last_message_at";
 const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): ArcConversation {
@@ -109,6 +112,7 @@ function toConversation(row: ConversationRow): ArcConversation {
     pinnedAt: row.pinned_at ?? null,
     projectId: row.project_id ?? null,
     campaignId: row.campaign_id ?? null,
+    ownerId: row.owner_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastMessageAt: row.last_message_at,
@@ -269,6 +273,94 @@ export async function listConversations(
     .order("last_message_at", { ascending: false });
   assertOk("arc_conversations list", error);
   return ((data ?? []) as ConversationRow[]).map(toConversation);
+}
+
+/**
+ * Conversations the viewer may see: owned, shared directly, in a shared/accessible
+ * project, or workspace-visible in a workspace they belong to. Falls back to the
+ * operator-keyed list when sharing isn't enforced (open/dev mode).
+ */
+export async function listConversationsForViewer(
+  viewer: ShareViewer,
+  operator: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ArcConversation[]> {
+  if (!viewer.enforce || !viewer.userId) {
+    return listConversations(operator, client);
+  }
+
+  const byId = new Map<string, ConversationRow>();
+  const collect = (rows: ConversationRow[] | null) => {
+    for (const row of rows ?? []) byId.set(row.id, row);
+  };
+
+  // Owned, plus workspace-visible in a workspace the viewer belongs to.
+  const orParts = [`owner_id.eq.${viewer.userId}`];
+  if (viewer.workspaceIds.length > 0) {
+    orParts.push(`and(visibility.eq.workspace,workspace_id.in.(${viewer.workspaceIds.join(",")}))`);
+  }
+  const ownedOrWorkspace = await client
+    .from("arc_conversations")
+    .select(CONVERSATION_COLUMNS)
+    .eq("status", "active")
+    .or(orParts.join(","));
+  assertOk("arc_conversations owned/workspace", ownedOrWorkspace.error);
+  collect(ownedOrWorkspace.data as ConversationRow[] | null);
+
+  // Directly shared with the viewer.
+  const sharedRows = await client
+    .from("arc_conversation_shares")
+    .select("conversation_id")
+    .eq("user_id", viewer.userId);
+  assertOk("arc_conversation_shares ids", sharedRows.error);
+  const sharedIds = ((sharedRows.data ?? []) as { conversation_id: string }[]).map((r) => r.conversation_id);
+
+  // Accessible projects (owned, workspace-visible, or shared) → their chats (cascade).
+  const projectIdSet = new Set<string>();
+  const sharedProjects = await client
+    .from("arc_project_shares")
+    .select("project_id")
+    .eq("user_id", viewer.userId);
+  assertOk("arc_project_shares ids", sharedProjects.error);
+  for (const r of (sharedProjects.data ?? []) as { project_id: string }[]) projectIdSet.add(r.project_id);
+
+  const projOrParts = [`owner_id.eq.${viewer.userId}`];
+  if (viewer.workspaceIds.length > 0) {
+    projOrParts.push(`and(visibility.eq.workspace,workspace_id.in.(${viewer.workspaceIds.join(",")}))`);
+  }
+  const ownedOrWsProjects = await client
+    .from("arc_projects")
+    .select("id")
+    .or(projOrParts.join(","));
+  assertOk("arc_projects accessible ids", ownedOrWsProjects.error);
+  for (const r of (ownedOrWsProjects.data ?? []) as { id: string }[]) projectIdSet.add(r.id);
+
+  // Fetch chats reached only via direct share or project cascade.
+  const extraConversationFilter: string[] = [];
+  if (sharedIds.length > 0) extraConversationFilter.push(`id.in.(${sharedIds.join(",")})`);
+  if (projectIdSet.size > 0) {
+    extraConversationFilter.push(`project_id.in.(${Array.from(projectIdSet).join(",")})`);
+  }
+  if (extraConversationFilter.length > 0) {
+    const extra = await client
+      .from("arc_conversations")
+      .select(CONVERSATION_COLUMNS)
+      .eq("status", "active")
+      .or(extraConversationFilter.join(","));
+    assertOk("arc_conversations shared/cascade", extra.error);
+    collect(extra.data as ConversationRow[] | null);
+  }
+
+  return Array.from(byId.values())
+    .map(toConversation)
+    .sort((a, b) => {
+      // Pinned first, then last_message_at desc — mirror listConversations ordering.
+      if (!!a.pinnedAt !== !!b.pinnedAt) return a.pinnedAt ? -1 : 1;
+      if (a.pinnedAt && b.pinnedAt && a.pinnedAt !== b.pinnedAt) {
+        return a.pinnedAt < b.pinnedAt ? 1 : -1;
+      }
+      return a.lastMessageAt < b.lastMessageAt ? 1 : -1;
+    });
 }
 
 /** A conversation with an in-flight Arc run, plus when that run last advanced. */
