@@ -113,6 +113,51 @@ describe("lead ingestion persistence", () => {
     });
   });
 
+  it("stores a partial address as location metadata on the company and lead instead of dropping it", async () => {
+    // Mirrors apps/arc-runner/src/tools/crm-write.ts create_lead with a partial
+    // address: no full `property` (so no properties row), but the location is
+    // preserved on both the company and lead metadata.
+    const result = parseLeadIngestionPayload({
+      persona: "persona_plumbing_partner",
+      source: "arc_discovery",
+      company: { name: "Halsted Plumbing Co" },
+      location: {
+        streetLine1: undefined,
+        streetLine2: undefined,
+        city: "Chicago",
+        state: "il",
+        postalCode: undefined,
+      },
+    });
+
+    if (!result.ok) {
+      throw new Error("Expected payload to parse successfully.");
+    }
+
+    const { calls, client } = createSupabaseMock();
+    await persistLeadIngestion({
+      input: result.normalizedInput,
+      result,
+      supabase: client as never,
+      orgId: "org-test",
+    });
+
+    // No properties row is written for a partial address.
+    expect(calls.map((call) => call.table)).toEqual(["companies", "leads"]);
+
+    const companyCall = calls.find((call) => call.table === "companies");
+    expect((companyCall?.values.metadata as Record<string, unknown>).location).toEqual({
+      city: "Chicago",
+      state: "IL",
+    });
+
+    const leadCall = calls.find((call) => call.table === "leads");
+    expect((leadCall?.values.metadata as Record<string, unknown>).location).toEqual({
+      city: "Chicago",
+      state: "IL",
+    });
+  });
+
   it("stores needs-review API routing as target so the current database enum accepts it", async () => {
     const result = parseLeadIngestionPayload(
       {

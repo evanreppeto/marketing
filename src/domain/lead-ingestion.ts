@@ -52,6 +52,29 @@ export const leadIngestionSchema = z.object({
       postalCode: stringField,
     })
     .optional(),
+  // Best-effort capture of a PARTIAL address (e.g. Arc found a prospect's city +
+  // state but no street/ZIP). A `property` row requires all four address fields
+  // (NOT NULL in the DB), so a partial address can't become one — it would be
+  // dropped. Instead it rides along here and persists as location metadata on the
+  // company/lead. Every field is optional; a malformed/empty block coerces to
+  // undefined (.catch) so it can never reject an otherwise valid lead.
+  location: z
+    .object({
+      streetLine1: z.string().trim().min(1).optional(),
+      streetLine2: z.string().trim().min(1).optional(),
+      city: z.string().trim().min(1).optional(),
+      state: z.string().trim().min(1).optional(),
+      postalCode: z.string().trim().min(1).optional(),
+    })
+    .refine(
+      (loc) =>
+        Boolean(
+          loc.streetLine1 || loc.streetLine2 || loc.city || loc.state || loc.postalCode,
+        ),
+      { message: "Location must include at least one address field." },
+    )
+    .optional()
+    .catch(undefined),
   lossSummary: z.string().trim().optional(),
   // Optional, defaulting to the empty array the DB column itself defaults to.
   // Inbound damage leads carry loss signals; Arc's prospecting/partner leads

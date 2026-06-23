@@ -147,6 +147,66 @@ describe("lead ingestion parsing", () => {
     });
   });
 
+  it("captures a partial address (city + state only) as location, mirroring Arc create_lead", () => {
+    // Mirrors the object apps/arc-runner/src/tools/crm-write.ts builds when Arc
+    // only found a city + state for a prospect: a full `property` can't be formed
+    // (no street/zip), so the partial address rides along as `location` instead of
+    // being silently dropped.
+    const result = parseLeadIngestionPayload({
+      persona: "persona_plumbing_partner",
+      source: "arc_discovery",
+      company: { name: "Halsted Plumbing Co", partnerTier: "B" },
+      location: {
+        streetLine1: undefined,
+        streetLine2: undefined,
+        city: "Chicago",
+        state: "IL",
+        postalCode: undefined,
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true, status: "accepted" });
+    // Undefined optional fields are dropped; the partial address survives.
+    expect(result.ok && result.normalizedInput.location).toEqual({
+      city: "Chicago",
+      state: "IL",
+    });
+  });
+
+  it("captures a street + city + state location with no postal code (Arc create_lead shape)", () => {
+    const result = parseLeadIngestionPayload({
+      persona: "persona_plumbing_partner",
+      source: "arc_discovery",
+      company: { name: "Wicker Park Drain Pros" },
+      location: {
+        streetLine1: "1842 N Damen Ave",
+        streetLine2: undefined,
+        city: "Chicago",
+        state: "IL",
+        postalCode: undefined,
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true, status: "accepted" });
+    expect(result.ok && result.normalizedInput.location).toEqual({
+      streetLine1: "1842 N Damen Ave",
+      city: "Chicago",
+      state: "IL",
+    });
+  });
+
+  it("degrades an empty location to undefined without rejecting an otherwise valid lead", () => {
+    const result = parseLeadIngestionPayload({
+      persona: "persona_plumbing_partner",
+      source: "arc_discovery",
+      company: { name: "Acme Plumbing" },
+      location: {},
+    });
+
+    expect(result).toMatchObject({ ok: true, status: "accepted" });
+    expect(result.ok && result.normalizedInput.location).toBeUndefined();
+  });
+
   it("rejects leads without a company, contact, or property relationship", () => {
     expect(
       parseLeadIngestionPayload({
