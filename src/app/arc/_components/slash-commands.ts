@@ -1,4 +1,5 @@
 import type { ArcMode } from "@/domain";
+import { type ArcSkillId, skillIdForArcCommand } from "@/lib/arc-skills/catalog";
 
 export type SlashCommand = {
   cmd: string;            // e.g. "/find-leads"
@@ -6,9 +7,10 @@ export type SlashCommand = {
   hint: string;           // menu subtitle
   prompt: string;         // inserted into the draft on select
   mode?: ArcMode;        // optional stance to preset
+  skillId?: ArcSkillId;  // optional runner skill that scopes tool access
 };
 
-export const SLASH_COMMANDS: SlashCommand[] = [
+const COMMANDS: Omit<SlashCommand, "skillId">[] = [
   // Discover
   { cmd: "/find-leads", label: "Find leads", hint: "Search & propose new leads", prompt: "Find new leads for @" },
   { cmd: "/opportunities", label: "Opportunity inbox", hint: "Source-backed opportunities to act on", prompt: "Show me the latest source-backed opportunities — evidence, confidence, and the recommended action for each." },
@@ -28,6 +30,11 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { cmd: "/whats-pending", label: "What's pending", hint: "Everything awaiting approval", prompt: "What's awaiting my approval right now, and the risk on each?" },
   { cmd: "/summarize", label: "Summarize", hint: "Summarize a campaign or thread", prompt: "Summarize my latest campaign — status, pending approvals, and what's next." },
 ];
+
+export const SLASH_COMMANDS: SlashCommand[] = COMMANDS.map((command) => ({
+  ...command,
+  ...(skillIdForArcCommand(command.cmd) ? { skillId: skillIdForArcCommand(command.cmd)! } : {}),
+}));
 
 /** When `text` is a leading `/query` (no spaces yet), return matching commands;
  *  otherwise null (popover closed). Matches against cmd and label. */

@@ -9,7 +9,12 @@ export type MarkMention = { type: string; id: string; label: string; href: strin
 /** One prior turn of the conversation, injected so Arc has memory. */
 export type ArcHistoryTurn = { role: "operator" | "arc"; body: string };
 
-export type MarkChatMessagePayload = {
+type ArcSkillSelection = {
+  /** Optional code-defined skill that narrows tools and adds playbook instructions. */
+  skillId?: string | null;
+};
+
+export type MarkChatMessagePayload = ArcSkillSelection & {
   type: "arc_chat_message";
   messageId: string;
   conversationId: string;
@@ -40,7 +45,7 @@ export type MarkPingPayload = { type: "ping"; workspaceId?: string; nonce?: stri
  * opportunity. `message` is a full briefing used verbatim as the prompt; the
  * draft is linked back via `opportunityId` (threaded into create_campaign_draft).
  */
-export type ArcOpportunityDraftPayload = {
+export type ArcOpportunityDraftPayload = ArcSkillSelection & {
   type: "arc_opportunity_draft";
   opportunityId: string;
   agentTaskId: string;
@@ -49,14 +54,14 @@ export type ArcOpportunityDraftPayload = {
   operator: string;
 };
 
-export type ArcOpportunityScanPayload = {
+export type ArcOpportunityScanPayload = ArcSkillSelection & {
   type: "arc_opportunity_scan";
   agentTaskId: string;
   message: string;
   operator: string;
 };
 
-export type ArcCampaignTaskPayload = {
+export type ArcCampaignTaskPayload = ArcSkillSelection & {
   type: "arc_campaign_task";
   agentTaskId: string;
   campaignId: string;

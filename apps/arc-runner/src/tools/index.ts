@@ -14,6 +14,7 @@ import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-
 import { brandTools } from "./brand";
 import { proposeOpportunityTool } from "./opportunities";
 import type { StepFn, TurnSink } from "./helpers";
+import type { ArcSkill } from "../skills";
 
 export type ArcMode = "ask" | "act" | "draft" | "scan";
 
@@ -23,6 +24,7 @@ export type ToolContext = {
   level?: "fast" | "standard";
   conversationId?: string | null;
   campaignId?: string | null;
+  skill?: ArcSkill | null;
 };
 
 /** Read app state + reply-shaping tools (cards, suggestions, sources). Available in every mode. */
@@ -60,6 +62,12 @@ function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolCo
   ];
 }
 
+function filterToolsForSkill<T extends { name: string }>(tools: T[], skill: ArcSkill | null | undefined): T[] {
+  if (!skill) return tools;
+  const allowed = new Set(skill.allowedTools);
+  return tools.filter((tool) => allowed.has(tool.name));
+}
+
 /**
  * The tool set for a turn, gated by operator mode:
  *   ask         → read + reply-shaping (emit_card, suggest_followups, cite_sources) only
@@ -80,17 +88,17 @@ export function toolsForMode(
   // tool definitions — the SDK tool types are invariant in their Zod schema, so
   // pushing differently-typed tools into a narrowed array won't compile.
   const read = readTools(client, step, sink);
-  if (mode === "ask") return [...read];
-  if (mode === "scan") return [...read, proposeOpportunityTool(client, step)];
+  if (mode === "ask") return filterToolsForSkill([...read], ctx.skill);
+  if (mode === "scan") return filterToolsForSkill([...read, proposeOpportunityTool(client, step)], ctx.skill);
   const write = writeTools(client, step);
-  return [...read, ...write, ...draftTools(client, step, sink, ctx)];
+  return filterToolsForSkill([...read, ...write, ...draftTools(client, step, sink, ctx)], ctx.skill);
 }
 
 /** The `allowedTools` list the SDK expects — each tool namespaced under the `arc` MCP server. */
-export function allowedToolNames(mode: ArcMode): string[] {
+export function allowedToolNames(mode: ArcMode, skill?: ArcSkill | null): string[] {
   // Build from the same source of truth; dummies are fine — we only read names.
   const noop = (async () => {}) as StepFn;
   const placeholder = {} as ArcClient;
   const sink: TurnSink = { card: () => {}, suggestion: () => {}, source: () => {}, question: () => {} };
-  return toolsForMode(mode, placeholder, noop, sink).map((t) => `mcp__arc__${t.name}`);
+  return toolsForMode(mode, placeholder, noop, sink, { skill }).map((t) => `mcp__arc__${t.name}`);
 }

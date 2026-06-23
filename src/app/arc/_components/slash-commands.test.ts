@@ -20,6 +20,11 @@ describe("matchSlash", () => {
     const draft = SLASH_COMMANDS.find((c) => c.cmd === "/draft-campaign");
     expect(draft?.mode).toBe("draft");
   });
+  it("attaches runner skill ids to commands that need scoped tool access", () => {
+    expect(SLASH_COMMANDS.find((c) => c.cmd === "/find-leads")?.skillId).toBe("opportunity-discovery");
+    expect(SLASH_COMMANDS.find((c) => c.cmd === "/draft-campaign")?.skillId).toBe("approval-gated-drafting");
+    expect(SLASH_COMMANDS.find((c) => c.cmd === "/signals")?.skillId).toBe("company-research");
+  });
 });
 
 describe("filterCommands", () => {

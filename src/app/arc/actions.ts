@@ -10,6 +10,7 @@ import { deriveThreadTitle, parseArcMode, parseArcRoute, parseMentions, validate
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
+import { skillIdForArcCommand } from "@/lib/arc-skills/catalog";
 import { hasActiveAgentTokens } from "@/lib/agent/tokens";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
@@ -81,6 +82,7 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
   // Structured slash command (e.g. "find-leads"); travels to the agent as real
   // intent alongside the message + mentions, not just text.
   const command = String(formData.get("command") ?? "").trim() || null;
+  const skillId = skillIdForArcCommand(command);
   // Operator-uploaded reference images (already in GCS); travel to Arc as context.
   const attachments = parseArcAttachmentsJson(String(formData.get("attachments") ?? "[]"));
   let body: string;
@@ -128,7 +130,10 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
       );
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route, author_user_id: viewer.userId }, client);
+    const operatorMessage = await insertOperatorMessage(
+      { conversationId, body, mentions: cleanMentions, attachments, mode, route, command, skillId, author_user_id: viewer.userId },
+      client,
+    );
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
@@ -152,6 +157,7 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
         route,
         mode,
         command,
+        skillId,
         assistantTone: settings.assistantTone,
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
@@ -182,6 +188,7 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,
       command,
+      skillId,
       attachments,
       history: wakeContext.history,
     });
@@ -584,6 +591,7 @@ export async function regenerateArcReplyAction(
   const operator = await getOperatorActor();
   const settings = await getAppSettings();
   const agentName = await getAgentName();
+  const skillId = skillIdForArcCommand(lastOperator.command);
   try {
     const agentTaskId = await enqueueArcChatTask(
       {
@@ -597,6 +605,7 @@ export async function regenerateArcReplyAction(
         assistantTone: settings.assistantTone,
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
+        skillId,
         agentName,
       },
       client,
@@ -617,6 +626,7 @@ export async function regenerateArcReplyAction(
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,
+      skillId,
       history: regenWakeContext.history,
     });
     if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
@@ -670,6 +680,7 @@ export async function editAndResendArcMessageAction(
   const operator = await getOperatorActor();
   const settings = await getAppSettings();
   const agentName = await getAgentName();
+  const skillId = skillIdForArcCommand(target.command);
   try {
     const agentTaskId = await enqueueArcChatTask(
       {
@@ -683,6 +694,7 @@ export async function editAndResendArcMessageAction(
         assistantTone: settings.assistantTone,
         assistantResponseStyle: settings.assistantResponseStyle,
         approvalStrictness: settings.approvalStrictness,
+        skillId,
         agentName,
       },
       client,
@@ -703,6 +715,7 @@ export async function editAndResendArcMessageAction(
       assistantTone: settings.assistantTone,
       assistantResponseStyle: settings.assistantResponseStyle,
       approvalStrictness: settings.approvalStrictness,
+      skillId,
       history: wakeContext.history,
     });
     if (delivered) await claimChatTask(agentTaskId, client).catch(() => false);
