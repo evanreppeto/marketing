@@ -14,6 +14,7 @@ import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-
 import { brandTools } from "./brand";
 import { proposeOpportunityTool } from "./opportunities";
 import { appMapTools } from "./app-map";
+import { settingsReadTools } from "./settings";
 import type { StepFn, TurnSink } from "./helpers";
 import type { ArcSkill } from "../skills";
 
@@ -32,6 +33,7 @@ export type ToolContext = {
 function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   return [
     ...appMapTools(client, step),
+    ...settingsReadTools(client, step),
     ...crmReadTools(client, step),
     ...brainReadTools(client, step),
     ...campaignReadTools(client, step),

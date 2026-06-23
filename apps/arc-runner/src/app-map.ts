@@ -106,8 +106,7 @@ export const ARC_APP_MAP: readonly ArcSurface[] = [
     purpose:
       "Workspace configuration — connectors, Brand Kit status, compliance rules, team, and agent behavior. Read-only to Arc; changes are human-only.",
     route: "/settings",
-    // get_workspace_settings is added to this surface in Task 4 (it doesn't exist yet).
-    reads: [],
+    reads: ["get_workspace_settings"],
     writes: [],
     approval: "read_only",
   },
