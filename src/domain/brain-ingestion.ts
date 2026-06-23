@@ -5,7 +5,11 @@
  * wiring live in later layers.
  */
 
-import { type KnowledgeNodeInput } from "./knowledge-graph";
+import {
+  type KnowledgeNodeInput,
+  type EdgeRelation,
+  type ReferenceableTable,
+} from "./knowledge-graph";
 
 /** The six CRM objects that ingest into the Brain. */
 export type CrmIngestTable =
@@ -133,4 +137,43 @@ export function buildNodeInputForCrmRow(
       ["Closed", row.closed_at],
     ]),
   };
+}
+
+export type EdgeIntent = { toTable: ReferenceableTable; toId: string; relation: EdgeRelation };
+
+/** FK → (target table, relation) wiring per CRM table. Only direct FKs. */
+const EDGE_FK_MAP: Partial<Record<CrmIngestTable, Array<{ column: string; toTable: ReferenceableTable; relation: EdgeRelation }>>> = {
+  contacts: [{ column: "company_id", toTable: "companies", relation: "belongs_to" }],
+  properties: [
+    { column: "company_id", toTable: "companies", relation: "belongs_to" },
+    { column: "contact_id", toTable: "contacts", relation: "relates_to" },
+  ],
+  leads: [
+    { column: "company_id", toTable: "companies", relation: "belongs_to" },
+    { column: "contact_id", toTable: "contacts", relation: "belongs_to" },
+    { column: "property_id", toTable: "properties", relation: "relates_to" },
+    { column: "attributed_campaign_id", toTable: "campaigns", relation: "responds_to" },
+  ],
+  jobs: [
+    { column: "lead_id", toTable: "leads", relation: "relates_to" },
+    { column: "company_id", toTable: "companies", relation: "belongs_to" },
+    { column: "property_id", toTable: "properties", relation: "relates_to" },
+  ],
+  outcomes: [
+    { column: "job_id", toTable: "jobs", relation: "relates_to" },
+    { column: "lead_id", toTable: "leads", relation: "relates_to" },
+  ],
+};
+
+/** Build child->parent edge intents from a CRM row's FK columns. Blank/missing FKs omitted. */
+export function buildEdgeIntentsForCrmRow(table: CrmIngestTable, row: Record<string, unknown>): EdgeIntent[] {
+  const rules = EDGE_FK_MAP[table] ?? [];
+  const out: EdgeIntent[] = [];
+  for (const rule of rules) {
+    const toId = row[rule.column];
+    if (typeof toId === "string" && toId.length > 0) {
+      out.push({ toTable: rule.toTable, toId, relation: rule.relation });
+    }
+  }
+  return out;
 }

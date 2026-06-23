@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNodeInputForCrmRow, crmNodeKey, embedHash, CRM_NODE_KINDS } from "../brain-ingestion";
+import { buildNodeInputForCrmRow, crmNodeKey, embedHash, CRM_NODE_KINDS, buildEdgeIntentsForCrmRow } from "../brain-ingestion";
 
 describe("crmNodeKey / CRM_NODE_KINDS", () => {
   it("builds a stable per-record key and prefixed kind", () => {
@@ -68,5 +68,36 @@ describe("buildNodeInputForCrmRow — jobs/outcomes", () => {
   });
   it("labels a job by job_number when present", () => {
     expect(buildNodeInputForCrmRow("jobs", { id: "x", job_number: "JOB-9" }).label).toBe("Job JOB-9");
+  });
+});
+
+describe("buildEdgeIntentsForCrmRow", () => {
+  it("links a contact to its company (belongs_to)", () => {
+    expect(buildEdgeIntentsForCrmRow("contacts", { id: "k1", company_id: "co1" })).toEqual([
+      { toTable: "companies", toId: "co1", relation: "belongs_to" },
+    ]);
+  });
+  it("emits no edges for a company (root) or when FKs are absent", () => {
+    expect(buildEdgeIntentsForCrmRow("companies", { id: "co1", name: "Acme" })).toEqual([]);
+    expect(buildEdgeIntentsForCrmRow("contacts", { id: "k1", company_id: null })).toEqual([]);
+  });
+  it("links a lead to company/contact/property/campaign with the right relations", () => {
+    const intents = buildEdgeIntentsForCrmRow("leads", {
+      id: "l1", company_id: "co1", contact_id: "k1", property_id: "p1", attributed_campaign_id: "cam1",
+    });
+    expect(intents).toEqual([
+      { toTable: "companies", toId: "co1", relation: "belongs_to" },
+      { toTable: "contacts", toId: "k1", relation: "belongs_to" },
+      { toTable: "properties", toId: "p1", relation: "relates_to" },
+      { toTable: "campaigns", toId: "cam1", relation: "responds_to" },
+    ]);
+  });
+  it("links job and outcome lineage with relates_to", () => {
+    expect(buildEdgeIntentsForCrmRow("jobs", { id: "j1", lead_id: "l1" })).toContainEqual(
+      { toTable: "leads", toId: "l1", relation: "relates_to" },
+    );
+    expect(buildEdgeIntentsForCrmRow("outcomes", { id: "o1", job_id: "j1" })).toContainEqual(
+      { toTable: "jobs", toId: "j1", relation: "relates_to" },
+    );
   });
 });
