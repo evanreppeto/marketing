@@ -30,6 +30,7 @@ describe("setConnectorEnabled", () => {
     expect(calls.payload).toMatchObject({ enabled: true });
     expect(calls.filters.workspace_id).toBe("ws-1");
     expect(calls.filters.connector_key).toBe("gemini-research");
+    expect(Object.keys(calls.filters).length).toBe(2);
   });
 });
 
@@ -56,5 +57,28 @@ describe("recordConnectorTest", () => {
     const { client, calls } = captureClient();
     await recordConnectorTest(client, { workspaceId: "ws-1", connectorKey: "gemini-research", result: { ok: true } });
     expect(calls.payload).toMatchObject({ last_test_ok: true, last_test_error: null });
+    expect(Object.keys(calls.filters).length).toBe(2);
+  });
+
+  it("records error when test fails with explicit error", async () => {
+    const { client, calls } = captureClient();
+    await recordConnectorTest(client, {
+      workspaceId: "ws-1",
+      connectorKey: "gemini-research",
+      result: { ok: false, error: "Connection timeout" },
+    });
+    expect(calls.payload).toMatchObject({ last_test_ok: false, last_test_error: "Connection timeout" });
+    expect(Object.keys(calls.filters).length).toBe(2);
+  });
+
+  it("uses default error message when test fails without explicit error", async () => {
+    const { client, calls } = captureClient();
+    await recordConnectorTest(client, {
+      workspaceId: "ws-1",
+      connectorKey: "gemini-research",
+      result: { ok: false },
+    });
+    expect(calls.payload).toMatchObject({ last_test_ok: false, last_test_error: "Connection test failed." });
+    expect(Object.keys(calls.filters).length).toBe(2);
   });
 });
