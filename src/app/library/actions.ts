@@ -154,7 +154,8 @@ export async function createFolderAction(formData: FormData): Promise<void> {
   const orgId = await guard();
   const name = String(formData.get("name") ?? "").trim();
   const parentId = (String(formData.get("parentId") ?? "") || null) as string | null;
-  if (name) await createFolder({ orgId, name, parentId });
+  const description = String(formData.get("description") ?? "").trim() || null;
+  if (name) await createFolder({ orgId, name, parentId, description });
   revalidatePath("/library");
 }
 

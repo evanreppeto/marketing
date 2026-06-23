@@ -42,7 +42,9 @@ export async function arcCreateFolder(payload: Record<string, unknown>, deps: Me
     if (owner !== deps.orgId) return { ok: false, error: "Parent folder belongs to another workspace." };
   }
 
-  const id = await createFolder({ orgId: deps.orgId, name, parentId, client });
+  const description = typeof payload.description === "string" ? payload.description.trim() : "";
+
+  const id = await createFolder({ orgId: deps.orgId, name, parentId, description: description || null, client });
   return { ok: true, id };
 }
 

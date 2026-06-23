@@ -34,6 +34,7 @@ const READ = [
   "get_vault_note",
   "read_recent_activity",
   "list_media",
+  "list_folders",
   "list_brand_documents",
   "read_brand_document",
   "research_web",
@@ -42,7 +43,7 @@ const READ = [
   "cite_sources",
   "ask_operator",
 ];
-const WRITE = ["record_brain_note", "link_brain_nodes", "propose_audience", "log_interaction", "create_lead", "update_record"];
+const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction", "create_lead", "update_record", "create_folder", "file_asset"];
 const DRAFT = ["create_campaign_draft", "generate_image", "generate_video", "analyze_website", "propose_brand_profile", "attach_media"];
 
 describe("toolsForMode", () => {
