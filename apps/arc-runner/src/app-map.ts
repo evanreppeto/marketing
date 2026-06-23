@@ -41,8 +41,8 @@ export const ARC_APP_MAP: readonly ArcSurface[] = [
     label: "Campaigns",
     purpose: "Approval-gated campaign packages and their draft assets across channels.",
     route: "/campaigns",
-    reads: ["list_campaigns", "get_campaign", "list_approvals"],
-    writes: ["create_campaign_draft", "generate_image", "generate_video"],
+    reads: ["list_campaigns", "get_campaign", "list_approvals", "get_approval"],
+    writes: ["create_campaign_draft", "generate_image", "generate_video", "recommend_on_approval"],
     approval: "proposes_to_approval",
   },
   {

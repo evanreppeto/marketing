@@ -27,6 +27,7 @@ const READ = [
   "list_campaigns",
   "get_campaign",
   "list_approvals",
+  "get_approval",
   "read_performance",
   "list_opportunities",
   "read_persona_intelligence",
@@ -45,7 +46,7 @@ const READ = [
   "get_app_map",
   "get_workspace_settings",
 ];
-const WRITE = ["record_brain_note", "link_brain_nodes", "propose_audience", "log_interaction", "create_lead", "update_record", "create_folder", "file_asset"];
+const WRITE = ["record_brain_note", "link_brain_nodes", "propose_audience", "log_interaction", "create_lead", "update_record", "create_folder", "file_asset", "recommend_on_approval"];
 const DRAFT = ["create_campaign_draft", "generate_image", "generate_video", "analyze_website", "propose_brand_profile", "attach_media"];
 
 describe("toolsForMode", () => {

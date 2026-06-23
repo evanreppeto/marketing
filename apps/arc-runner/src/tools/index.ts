@@ -2,6 +2,7 @@ import type { ArcClient } from "../arc-client";
 import { crmReadTools } from "./crm";
 import { brainReadTools, brainWriteTools } from "./brain";
 import { campaignReadTools } from "./campaigns";
+import { approvalReadTools, approvalWriteTools } from "./approvals";
 import { performanceReadTools } from "./performance";
 import { intelligenceTools } from "./intelligence";
 import { interactionWriteTools } from "./interactions";
@@ -37,6 +38,7 @@ function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
     ...crmReadTools(client, step),
     ...brainReadTools(client, step),
     ...campaignReadTools(client, step),
+    ...approvalReadTools(client, step),
     ...performanceReadTools(client, step),
     ...intelligenceTools(client, step),
     ...libraryReadTools(client, step),
@@ -54,6 +56,7 @@ function writeTools(client: ArcClient, step: StepFn) {
     ...brainWriteTools(client, step),
     ...interactionWriteTools(client, step),
     ...libraryWriteTools(client, step),
+    ...approvalWriteTools(client, step),
   ];
 }
 
