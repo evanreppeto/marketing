@@ -2,13 +2,15 @@
 
 import { ArrowUp, ExternalLink, FileText, Loader2, Paperclip, Sparkles, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { buttonClasses } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
-import { getThreadMessagesAction, sendArcMessageAction } from "@/app/arc/actions";
 
-import { uploadAndAnalyzeBrandSourcesAction } from "../actions";
+import { ingestBrandChatNoteAction, uploadAndAnalyzeBrandSourcesAction } from "../actions";
+
+const NOT_CONFIGURED_MESSAGE = "Supabase is not configured.";
 
 type ChatRole = "operator" | "arc" | "system";
 type ChatMessage = {
@@ -19,8 +21,6 @@ type ChatMessage = {
   pending?: boolean;
 };
 
-const POLL_MS = 3500;
-const POLL_TRIES = 14;
 const ACCEPT = "application/pdf,image/*,image/svg+xml,.svg,.ico,.txt,.md,.doc,.docx";
 
 let messageSeq = 0;
@@ -45,36 +45,33 @@ function useAutoResize(minHeight: number, maxHeight: number) {
   return { ref, resize };
 }
 
-function summaryLine(created: number, message: string) {
-  if (created > 0) return `Added your files and proposed ${created} brand ${created === 1 ? "fact" : "facts"}.`;
-  return message || "Added your files.";
-}
-
 /**
  * Brand-scoped chat with Arc. Visual shell adapted from the 21st.dev
- * "Animated AI Chat" component, restyled to the app design system and wired to
- * the real Arc pipeline: text goes through sendArcMessageAction, attached
- * documents run through the brand intake (uploadAndAnalyzeBrandSourcesAction)
- * so Arc proposes brand facts into "Needs your review" — nothing is used until
- * the operator approves. Falls back to a labelled preview when the workspace
- * isn't connected.
+ * "Animated AI Chat" component, restyled to the app design system. Its job is
+ * to populate the brand page and the Brain: typed notes and attached documents
+ * both run through the brand intake (ingestBrandChatNoteAction /
+ * uploadAndAnalyzeBrandSourcesAction), which writes a source to the Library and
+ * proposes brand facts into the Brain that surface in "Needs your review" —
+ * nothing is used until the operator approves. After capture it refreshes the
+ * page so the new proposals appear. Falls back to a labelled preview when the
+ * workspace isn't connected.
  */
 export function BrandArcChat({ agentName }: { agentName: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "intro",
       role: "arc",
-      body: `Hi — I'm ${agentName}. Tell me about the brand or drop in docs (guidelines, voice, proof, offerings) and I'll pull out brand facts for you to review.`,
+      body: `Hi — I'm ${agentName}. Tell me about the brand or drop in docs (guidelines, voice, proof, offerings) and I'll add brand facts to your brand and Brain for you to review.`,
     },
   ]);
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [pending, setPending] = useState(false);
   const [demo, setDemo] = useState(false);
-  const conversationId = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { ref: textareaRef, resize } = useAutoResize(48, 140);
+  const router = useRouter();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -83,33 +80,6 @@ export function BrandArcChat({ agentName }: { agentName: string }) {
   const replacePending = useCallback((id: string, body: string) => {
     setMessages((current) => current.map((m) => (m.id === id ? { ...m, body, pending: false } : m)));
   }, []);
-
-  const pollForReply = useCallback(
-    (cid: string, pendingId: string) => {
-      let tries = 0;
-      const timer = setInterval(async () => {
-        tries += 1;
-        try {
-          const thread = await getThreadMessagesAction(cid);
-          const reply = [...thread].reverse().find((m) => m.role === "arc" && m.status === "complete" && m.body.trim());
-          if (reply) {
-            clearInterval(timer);
-            replacePending(pendingId, reply.body);
-            setPending(false);
-            return;
-          }
-        } catch {
-          /* keep polling */
-        }
-        if (tries >= POLL_TRIES) {
-          clearInterval(timer);
-          replacePending(pendingId, `${agentName} is still working on this — check the full chat in a moment.`);
-          setPending(false);
-        }
-      }, POLL_MS);
-    },
-    [agentName, replacePending],
-  );
 
   async function handleSend() {
     const text = input.trim();
@@ -125,61 +95,42 @@ export function BrandArcChat({ agentName }: { agentName: string }) {
     resize(true);
     setPending(true);
 
-    // 1) Attached documents → brand intake (creates proposed facts to review).
-    if (attached.length > 0) {
-      const fd = new FormData();
-      attached.forEach((file) => fd.append("files", file));
-      try {
-        const res = await uploadAndAnalyzeBrandSourcesAction(null, fd);
-        const created = res?.items?.length && res.ok ? res.items.length : 0;
-        setMessages((m) => [
-          ...m,
-          {
-            id: nextId("sys"),
-            role: "system",
-            body: res?.ok
-              ? `${summaryLine(created, res.message)} Review them under "Needs your review".`
-              : res?.message ?? "I couldn't analyze those files.",
-          },
-        ]);
-      } catch {
-        setMessages((m) => [...m, { id: nextId("sys"), role: "system", body: "Something went wrong analyzing those files." }]);
-      }
-    }
+    const pendingId = nextId("arc");
+    setMessages((m) => [...m, { id: pendingId, role: "arc", body: "", pending: true }]);
 
-    // 2) Message text → Arc.
-    const fd = new FormData();
-    fd.set("body", text || `I just shared ${attached.length} brand file${attached.length === 1 ? "" : "s"}. Please learn from them.`);
-    fd.set("conversationId", conversationId.current ?? "");
-    fd.set("mentions", "[]");
-    fd.set("mode", "ask");
-    fd.set("route", "fast");
-
+    // Everything the operator sends is captured as brand knowledge: attached
+    // documents and typed notes both run through the brand intake, which writes
+    // a source to the Library and proposes brand facts into the Brain for review.
+    const summaries: Array<{ ok: boolean; message: string; items: string[] }> = [];
     try {
-      const res = await sendArcMessageAction(null, fd);
-      if (res?.ok && res.conversationId) {
-        conversationId.current = res.conversationId;
-        const pendingId = nextId("arc");
-        setMessages((m) => [...m, { id: pendingId, role: "arc", body: "", pending: true }]);
-        pollForReply(res.conversationId, pendingId);
-      } else {
-        setDemo(true);
-        window.setTimeout(() => {
-          setMessages((m) => [
-            ...m,
-            {
-              id: nextId("arc"),
-              role: "arc",
-              body: `I'm in preview mode here, so I can't reply live yet. Once the workspace is connected I'll read what you send and propose brand facts for your review.`,
-            },
-          ]);
-          setPending(false);
-        }, 650);
+      if (attached.length > 0) {
+        const fd = new FormData();
+        attached.forEach((file) => fd.append("files", file));
+        const res = await uploadAndAnalyzeBrandSourcesAction(null, fd);
+        if (res) summaries.push(res);
+      }
+      if (text) {
+        summaries.push(await ingestBrandChatNoteAction(text));
       }
     } catch {
-      setMessages((m) => [...m, { id: nextId("sys"), role: "system", body: "Couldn't reach Arc just now." }]);
-      setPending(false);
+      summaries.push({ ok: false, message: "error", items: ["Something went wrong saving that."] });
     }
+
+    const notConfigured = summaries.some((s) => s.message === NOT_CONFIGURED_MESSAGE);
+    let reply: string;
+    if (notConfigured) {
+      setDemo(true);
+      reply =
+        "I'm in preview mode here, so I can't save to your brand yet. Once the workspace is connected, anything you type or attach lands in your brand and Brain for review.";
+    } else {
+      const lines = summaries.flatMap((s) => s.items ?? []);
+      const body = lines.length > 0 ? lines.map((line) => `• ${line}`).join("\n") : "• Saved as a brand source";
+      reply = `Got it — added to your brand:\n${body}\n\nReview anything new under "Needs your review".`;
+    }
+
+    replacePending(pendingId, reply);
+    setPending(false);
+    if (!notConfigured) router.refresh();
   }
 
   function onPickFiles(list: FileList | null) {
