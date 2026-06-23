@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canComposeInThread,
   hasRequiredPermission,
   resolveResourceAccess,
   strongerPermission,
@@ -81,6 +82,41 @@ describe("strongerPermission", () => {
     expect(strongerPermission("view", "collaborate")).toBe("collaborate");
     expect(strongerPermission("view", null)).toBe("view");
     expect(strongerPermission(null, null)).toBe(null);
+  });
+});
+
+describe("canComposeInThread", () => {
+  it("allows composing a fresh chat (no active conversation) even when sharing is enforced", () => {
+    // Regression: the /arc landing page showed "View-only — shared by the owner"
+    // because enforce=true + no active conversation collapsed to non-collaborate.
+    // A fresh chat is owned by the viewer who is about to create it.
+    expect(
+      canComposeInThread({ enforce: true, hasActiveConversation: false, activePermission: null }),
+    ).toBe(true);
+  });
+
+  it("always allows composing in open/dev mode (enforce=false)", () => {
+    expect(
+      canComposeInThread({ enforce: false, hasActiveConversation: true, activePermission: "view" }),
+    ).toBe(true);
+  });
+
+  it("locks composing on an existing chat the viewer can only view", () => {
+    expect(
+      canComposeInThread({ enforce: true, hasActiveConversation: true, activePermission: "view" }),
+    ).toBe(false);
+  });
+
+  it("allows composing on an existing chat the viewer can collaborate on", () => {
+    expect(
+      canComposeInThread({ enforce: true, hasActiveConversation: true, activePermission: "collaborate" }),
+    ).toBe(true);
+  });
+
+  it("locks composing on a chat with no resolved permission", () => {
+    expect(
+      canComposeInThread({ enforce: true, hasActiveConversation: true, activePermission: null }),
+    ).toBe(false);
   });
 });
 

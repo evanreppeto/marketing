@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { listNodes, listProposed, brainSummary } from "./read-model";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 const NODES = [
   { id: "n-1", kind: "brand_fact", label: "We answer 24/7", trust_tier: "trusted", persona: null },
@@ -32,6 +36,24 @@ describe("listNodes", () => {
     expect(result.status).toBe("live");
     if (result.status !== "live") throw new Error("expected live");
     expect(result.nodes).toEqual([]);
+  });
+
+  it("serves an empty brain for an empty workspace when demo data is disabled (the default)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "");
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: [], error: null } });
+    const result = await listNodes({}, supabase as never, "org-1");
+    expect(result.status).toBe("live");
+    if (result.status !== "live") throw new Error("expected live");
+    expect(result.nodes).toEqual([]);
+  });
+
+  it("still serves the demo brain for an empty workspace when ARC_DEMO_DATA=1", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: [], error: null } });
+    const result = await listNodes({}, supabase as never, "org-1");
+    expect(result.status).toBe("live");
+    if (result.status !== "live") throw new Error("expected live");
+    expect(result.nodes.length).toBeGreaterThan(0);
   });
 
   it("hides archived nodes from a default read", async () => {

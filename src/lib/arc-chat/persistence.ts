@@ -16,6 +16,7 @@ export type ArcConversation = {
   projectId: string | null;
   campaignId: string | null;
   ownerId: string | null;
+  workspaceId: string | null;
   visibility: "private" | "workspace";
   workspacePermission: "view" | "collaborate";
   createdAt: string;
@@ -87,6 +88,7 @@ type ConversationRow = {
   project_id: string | null;
   campaign_id: string | null;
   owner_id: string | null;
+  workspace_id: string | null;
   visibility: "private" | "workspace" | null;
   workspace_permission: "view" | "collaborate" | null;
   created_at: string;
@@ -107,7 +109,7 @@ type MessageRow = {
 };
 
 const CONVERSATION_COLUMNS =
-  "id, operator, title, status, project_id, campaign_id, owner_id, pinned_at, visibility, workspace_permission, created_at, updated_at, last_message_at";
+  "id, operator, title, status, project_id, campaign_id, owner_id, workspace_id, pinned_at, visibility, workspace_permission, created_at, updated_at, last_message_at";
 const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): ArcConversation {
@@ -120,6 +122,7 @@ function toConversation(row: ConversationRow): ArcConversation {
     projectId: row.project_id ?? null,
     campaignId: row.campaign_id ?? null,
     ownerId: row.owner_id ?? null,
+    workspaceId: row.workspace_id ?? null,
     visibility: row.visibility ?? "private",
     workspacePermission: row.workspace_permission ?? "view",
     createdAt: row.created_at,

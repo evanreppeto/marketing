@@ -129,6 +129,12 @@ export async function persistLeadIngestion({
     },
   });
 
+  // Best-effort Brain mirror of the new lead (recall degrades gracefully without it).
+  try {
+    const { syncRecordToBrain } = await import("@/lib/brain-ingestion/sync");
+    await syncRecordToBrain("leads", leadId, { client: supabase, orgId });
+  } catch { /* ignore */ }
+
   return { companyId, contactId, propertyId, leadId };
 }
 
