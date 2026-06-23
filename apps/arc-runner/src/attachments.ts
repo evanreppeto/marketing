@@ -51,3 +51,40 @@ export function buildTurnContent(
   }
   return blocks;
 }
+
+const TEXT_CAP = 50_000;
+
+/** Fetch text/* attachments and return them as text content blocks (capped). */
+export async function inlineTextAttachments(
+  attachments: ArcAttachment[],
+  fetchImpl: typeof fetch = fetch,
+): Promise<ContentBlocks> {
+  const out: ContentBlocks = [];
+  for (const a of attachments) {
+    if (!a.contentType.startsWith("text/")) continue;
+    try {
+      const res = await fetchImpl(a.url);
+      if (!res.ok) continue;
+      const body = (await res.text()).slice(0, TEXT_CAP);
+      out.push({ type: "text", text: `Attached file ${a.name}:\n\n${body}` });
+    } catch {
+      // ignore unreadable attachment; UI already confirmed the upload
+    }
+  }
+  return out;
+}
+
+/** Async variant of buildTurnContent that also inlines text files. */
+export async function buildTurnContentAsync(
+  text: string,
+  attachments: ArcAttachment[] | undefined,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string | ContentBlocks> {
+  const list = attachments ?? [];
+  const base = buildTurnContent(text, list);
+  const textBlocks = await inlineTextAttachments(list, fetchImpl);
+  if (typeof base === "string") {
+    return textBlocks.length > 0 ? [{ type: "text", text }, ...textBlocks] : text;
+  }
+  return [...base, ...textBlocks];
+}

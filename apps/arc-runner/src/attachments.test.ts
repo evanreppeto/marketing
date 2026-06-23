@@ -38,3 +38,24 @@ describe("buildTurnContent", () => {
     expect(blocks).toHaveLength(2); // text block + the one image
   });
 });
+
+describe("inlineTextAttachments", () => {
+  it("returns text blocks for text/* attachments, capped", async () => {
+    const txt: ArcAttachment = { url: "https://gcs/n.md", objectPath: "d", contentType: "text/markdown", name: "n.md" };
+    const fakeFetch = async () => ({ ok: true, text: async () => "# Notes\nbody" }) as Response;
+    const { inlineTextAttachments } = await import("./attachments");
+    const blocks = await inlineTextAttachments([txt], fakeFetch as typeof fetch);
+    expect(blocks[0].type).toBe("text");
+    expect((blocks[0] as { text: string }).text).toContain("n.md");
+    expect((blocks[0] as { text: string }).text).toContain("# Notes");
+  });
+
+  it("skips non-text and failed fetches", async () => {
+    const img: ArcAttachment = { url: "https://gcs/x.png", objectPath: "a", contentType: "image/png", name: "x.png" };
+    const bad: ArcAttachment = { url: "https://gcs/b.txt", objectPath: "e", contentType: "text/plain", name: "b.txt" };
+    const fakeFetch = async () => ({ ok: false, text: async () => "" }) as Response;
+    const { inlineTextAttachments } = await import("./attachments");
+    expect(await inlineTextAttachments([img], fetch)).toHaveLength(0);
+    expect(await inlineTextAttachments([bad], fakeFetch as typeof fetch)).toHaveLength(0);
+  });
+});
