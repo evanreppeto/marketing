@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { NEUTRAL_CONTEXT } from "./business-context";
-import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
+import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
 import { resolveArcSkill } from "./skills";
 
 const baseCtx: ArcTurnContext = {
@@ -10,15 +10,6 @@ const baseCtx: ArcTurnContext = {
   scope: { conversationId: "c1", projectId: null, campaignId: null, operator: "Evan" },
   mentions: [],
 };
-
-describe("modelForRoute", () => {
-  it("maps standard to Opus", () => {
-    expect(modelForRoute("standard")).toBe("claude-opus-4-8");
-  });
-  it("maps fast to Haiku", () => {
-    expect(modelForRoute("fast")).toBe("claude-haiku-4-5");
-  });
-});
 
 describe("formatHistory", () => {
   it("returns empty string for no turns", () => {

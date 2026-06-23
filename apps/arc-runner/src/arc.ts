@@ -3,7 +3,8 @@ import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 import { resolveBusinessContext } from "./business-context";
 import { buildTurnContentAsync } from "./attachments";
 import { resolveRecallMemory } from "./recall";
-import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
+import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
+import { buildQueryOptions, inferenceForRoute, type InferenceSettings } from "./inference";
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode, type ArcMode, type ToolContext } from "./tools";
@@ -92,7 +93,7 @@ async function runArcQuery(opts: {
   ctx: ArcTurnContext;
   client: ArcClient;
   content: TurnContent;
-  model: string;
+  inference: InferenceSettings;
   toolContext?: ToolContext;
   skill?: ArcSkill | null;
   /** Live partial reply text, posted as the model streams (chat-turn only). */
@@ -116,16 +117,12 @@ async function runArcQuery(opts: {
 
   for await (const message of query({
     prompt: promptInput(opts.content, opts.ctx.scope.conversationId ?? "arc-turn"),
-    options: {
+    options: buildQueryOptions({
+      inference: opts.inference,
       systemPrompt: system,
-      model: opts.model,
       mcpServers: { arc: arcServer },
       allowedTools: allowedToolNames(opts.mode, opts.skill),
-      permissionMode: "bypassPermissions",
-      // Emit SDKPartialAssistantMessage ('stream_event') token deltas so we can
-      // type the reply out live; the final assistant/result messages still land.
-      includePartialMessages: true,
-    },
+    }),
   })) {
     if (message.type === "stream_event") {
       const event = message.event;
@@ -159,7 +156,7 @@ async function runArcQuery(opts: {
     suggestions: suggestions.slice(0, 4),
     sources,
     questions: questions.slice(0, 4),
-    usage: { model: opts.model, inputTokens, outputTokens },
+    usage: { model: opts.inference.model, inputTokens, outputTokens },
   };
 }
 
@@ -196,7 +193,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     ctx,
     client,
     content,
-    model: modelForRoute(payload.route),
+    inference: inferenceForRoute(payload.route),
     // Thread the turn's level so media tools tell the generate endpoints which
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
     // Also thread conversationId so draft tools can link the chat to the campaign.
@@ -242,7 +239,7 @@ export async function runArcOpportunityDraft(
     ctx,
     client,
     content: payload.message,
-    model: modelForRoute("standard"),
+    inference: inferenceForRoute("standard"),
     toolContext: { opportunityId: payload.opportunityId },
     skill,
   });
@@ -282,7 +279,7 @@ export async function runArcOpportunityScan(
     ctx,
     client,
     content: payload.message,
-    model: modelForRoute("standard"),
+    inference: inferenceForRoute("standard"),
     skill,
   });
 }
@@ -329,7 +326,7 @@ export async function runArcCampaignTask(
     ctx,
     client,
     content: prompt,
-    model: modelForRoute("standard"),
+    inference: inferenceForRoute("standard"),
     toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
     skill,
   });
