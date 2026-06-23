@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { ChannelLogo } from "@/app/_components/brand-logos";
 import { theme } from "@/app/_components/theme";
 import { WorkspacePanel } from "@/app/_components/workspace";
-import { DataTable, type Column } from "@/app/_components/data-table";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/app/_components/page-header";
 import type { ChannelPerformance, CampaignPerformanceRow } from "@/lib/performance/read-model";
 import { FunnelFlow, type FunnelStage } from "../charts/funnel-flow";
@@ -160,8 +161,8 @@ export function AnalyticsExplorer({ funnelStages, channels, campaignRows }: Expl
       >
         <DataTable
           columns={CAMPAIGN_COLUMNS}
-          rows={filteredRows}
-          rowKey={(row) => row.id}
+          data={filteredRows}
+          getRowId={(row) => row.id}
           rowHref={(row) => `/analytics/${row.id}`}
           minWidth="min-w-[820px]"
           emptyState={<EmptyState title="No campaigns match" detail="No campaigns match the current filters. Clear a filter to see more." />}
@@ -296,40 +297,38 @@ function Num({ value, accent = false }: { value: number; accent?: boolean }) {
   );
 }
 
-const CAMPAIGN_COLUMNS: Column<CampaignPerformanceRow>[] = [
+const CAMPAIGN_COLUMNS: ColumnDef<CampaignPerformanceRow>[] = [
   {
-    key: "campaign",
+    id: "campaign",
     header: "Campaign",
-    cell: (row) => (
+    cell: ({ row }) => (
       <div className="min-w-0">
-        <div className="truncate font-semibold text-[var(--text-primary)]">{row.name}</div>
-        <div className="mt-0.5 text-xs text-[var(--text-secondary)]">{row.persona}</div>
+        <div className="truncate font-semibold text-[var(--text-primary)]">{row.original.name}</div>
+        <div className="mt-0.5 text-xs text-[var(--text-secondary)]">{row.original.persona}</div>
       </div>
     ),
   },
-  { key: "impressions", header: "Impressions", align: "right", width: "w-[120px]", cell: (row) => <Num value={row.impressions} /> },
-  { key: "clicks", header: "Clicks", align: "right", width: "w-[90px]", cell: (row) => <Num value={row.clicks} /> },
-  { key: "leads", header: "Leads", align: "right", width: "w-[80px]", cell: (row) => <Num value={row.leads} /> },
-  { key: "booked", header: "Booked", align: "right", width: "w-[80px]", cell: (row) => <Num value={row.booked} accent /> },
+  { id: "impressions", header: "Impressions", meta: { align: "right", width: "w-[120px]" }, cell: ({ row }) => <Num value={row.original.impressions} /> },
+  { id: "clicks", header: "Clicks", meta: { align: "right", width: "w-[90px]" }, cell: ({ row }) => <Num value={row.original.clicks} /> },
+  { id: "leads", header: "Leads", meta: { align: "right", width: "w-[80px]" }, cell: ({ row }) => <Num value={row.original.leads} /> },
+  { id: "booked", header: "Booked", meta: { align: "right", width: "w-[80px]" }, cell: ({ row }) => <Num value={row.original.booked} accent /> },
   {
-    key: "revenue",
+    id: "revenue",
     header: "Revenue",
-    align: "right",
-    width: "w-[120px]",
-    cell: (row) => (
-      <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{USD.format(row.revenueCents / 100)}</span>
+    meta: { align: "right", width: "w-[120px]" },
+    cell: ({ row }) => (
+      <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{USD.format(row.original.revenueCents / 100)}</span>
     ),
   },
   {
-    key: "conversion",
+    id: "conversion",
     header: "Conv.",
-    align: "right",
-    width: "w-[96px]",
-    cell: (row) => {
-      const t = TREND[row.trend];
+    meta: { align: "right", width: "w-[96px]" },
+    cell: ({ row }) => {
+      const t = TREND[row.original.trend];
       return (
         <span className="inline-flex items-center justify-end gap-1.5">
-          <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{row.conversion}%</span>
+          <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">{row.original.conversion}%</span>
           <span className={`text-[11px] ${t.className}`} aria-hidden="true">{t.glyph}</span>
         </span>
       );
