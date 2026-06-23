@@ -294,6 +294,12 @@ export async function listConversationsForViewer(
     for (const row of rows ?? []) byId.set(row.id, row);
   };
 
+  // Tenancy note: in enforced mode we scope by workspace/ownership, not the legacy
+  // `operator` key. This is safe because `viewer.workspaceIds` contains ONLY the
+  // viewer's own active workspace memberships, and each workspace belongs to exactly
+  // one org (workspaces.org_id FK) — so the workspace-visible bucket can never surface
+  // another org's conversations.
+
   // Owned, plus workspace-visible in a workspace the viewer belongs to.
   const orParts = [`owner_id.eq.${viewer.userId}`];
   if (viewer.workspaceIds.length > 0) {
