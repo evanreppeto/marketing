@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type ArcActionCard, type ArcMedia, type ArcMention, type ArcMode, type ArcQuestion, type ArcRoute, parseActions, parseMedia, parseMentions, parseQuestions } from "@/domain";
+import { type ArcActionCard, type ArcMedia, type ArcMention, type ArcMode, type ArcQuestion, type ArcRoute, type ArcStepKind, parseActions, parseMedia, parseMentions, parseQuestions } from "@/domain";
 
 import { getSupabaseAdminClient } from "../supabase/server";
 import { type ArcChatTaskScope } from "./inbox";
@@ -21,7 +21,7 @@ export type ArcConversation = {
 export type ArcMessageRole = "operator" | "arc" | "system";
 export type ArcMessageStatus = "sent" | "pending" | "complete" | "failed";
 
-export type ArcStep = { label: string; status: "running" | "done"; at: string; detail?: string[] };
+export type ArcStep = { label: string; status: "running" | "done"; at: string; detail?: string[]; kind?: ArcStepKind };
 
 /**
  * A structured tool invocation Arc ran while producing a reply (e.g. find_leads,
@@ -128,7 +128,12 @@ function parseSteps(value: unknown): ArcStep[] {
     const detail = Array.isArray(rawDetail)
       ? rawDetail.filter((d): d is string => typeof d === "string" && d.trim().length > 0)
       : undefined;
-    out.push({ label, status, at, detail: detail && detail.length > 0 ? detail : undefined });
+    const VALID_KINDS = ["search", "match", "draft", "media", "think", "tool"];
+    const rawKind = (item as { kind?: unknown }).kind;
+    const kind = typeof rawKind === "string" && VALID_KINDS.includes(rawKind)
+      ? (rawKind as ArcStep["kind"])
+      : undefined;
+    out.push({ label, status, at, detail: detail && detail.length > 0 ? detail : undefined, ...(kind ? { kind } : {}) });
   }
   return out;
 }
