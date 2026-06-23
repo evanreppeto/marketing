@@ -1,8 +1,11 @@
 import {
   buildEdgesForCampaign,
+  buildEdgesForCampaignResult,
   buildEdgesForCrmRow,
   buildNodeInputForCampaign,
+  buildNodeInputForCampaignResult,
   buildNodeInputForCrmRow,
+  buildNodeInputForMedia,
   type CrmEdgeSpec,
   type CrmIngestTable,
 } from "@/domain";
@@ -27,6 +30,35 @@ async function resolve(deps: SyncDeps): Promise<{ client: TypedSupabaseClient; o
  */
 function eqOrg<T>(query: T, orgId: string): T {
   return (query as unknown as { eq(column: string, value: string): T }).eq("org_id", orgId);
+}
+
+type LooseRow = Record<string, unknown>;
+type LooseResult = { data: unknown; error: { message: string } | null };
+
+/** Read every row of a table for an org. media_assets / campaign_results carry
+ *  org_id at runtime but not in the generated types, so go through a structural
+ *  cast (same spirit as media-library/persistence's string-table bypass). */
+async function selectOrgRows(client: TypedSupabaseClient, table: string, orgId: string, limit: number): Promise<LooseRow[] | null> {
+  const builder = (
+    client as unknown as {
+      from(t: string): { select(s: string): { eq(c: string, v: string): { limit(n: number): PromiseLike<LooseResult> } } };
+    }
+  ).from(table).select("*").eq("org_id", orgId).limit(limit);
+  const { data, error } = await builder;
+  return error || !Array.isArray(data) ? null : (data as LooseRow[]);
+}
+
+/** Read one org-scoped row by id, bypassing the stale generated types. */
+async function selectOrgRowById(client: TypedSupabaseClient, table: string, id: string, orgId: string): Promise<LooseRow | null> {
+  const builder = (
+    client as unknown as {
+      from(t: string): {
+        select(s: string): { eq(c: string, v: string): { eq(c: string, v: string): { maybeSingle(): PromiseLike<LooseResult> } } };
+      };
+    }
+  ).from(table).select("*").eq("id", id).eq("org_id", orgId).maybeSingle();
+  const { data, error } = await builder;
+  return error || !data ? null : (data as LooseRow);
 }
 
 /**
@@ -225,5 +257,89 @@ export async function resyncCampaignsIntoBrain(
     linked += res.linked;
   }
 
+  return { ok: true, synced, linked, errors, truncated };
+}
+
+// --- Media → Brain (slice 4) ----------------------------------------------
+
+type BackfillResult = { ok: boolean; synced: number; linked: number; errors: number; truncated: boolean };
+
+/** Upsert a Brain node from an already-read media_assets row. */
+export async function syncMediaAssetToBrain(row: Record<string, unknown>, deps: SyncDeps = {}): Promise<WriteResult> {
+  return upsertReferenceNode(buildNodeInputForMedia(row), deps);
+}
+
+/** Read a media asset (org-scoped) and mirror it into the Brain. Best-effort caller. */
+export async function syncMediaRecordToBrain(mediaId: string, deps: SyncDeps = {}): Promise<WriteResult> {
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch (e) { return { ok: false, error: e instanceof Error ? e.message : "org unavailable" }; }
+  if (!resolved) return { ok: false, error: "Supabase is not configured." };
+  const { client, orgId } = resolved;
+  const row = await selectOrgRowById(client, "media_assets", mediaId, orgId);
+  if (!row) return { ok: false, error: `media ${mediaId} not found.` };
+  if (row.available_to_arc === false) return { ok: false, error: "media not available to Arc." };
+  return syncMediaAssetToBrain(row, { client, orgId });
+}
+
+/** Backfill: mirror every Arc-available media asset in the org into the Brain. */
+export async function resyncMediaIntoBrain(deps: SyncDeps = {}): Promise<BackfillResult> {
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch { return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false }; }
+  if (!resolved) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const { client, orgId } = resolved;
+
+  const rows = await selectOrgRows(client, "media_assets", orgId, RESYNC_TABLE_LIMIT);
+  if (!rows) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const truncated = rows.length >= RESYNC_TABLE_LIMIT;
+
+  let synced = 0;
+  let errors = 0;
+  for (const row of rows) {
+    if (typeof row.id !== "string") { errors++; continue; }
+    if (row.available_to_arc === false) continue; // only media Arc may use belongs in its memory
+    const res = await syncMediaAssetToBrain(row, { client, orgId });
+    if (res.ok) synced++; else errors++;
+  }
+  return { ok: true, synced, linked: 0, errors, truncated };
+}
+
+// --- Performance (campaign_results) → Brain (slice 4) ----------------------
+
+/** Upsert a Brain node from an already-read campaign_results row. */
+export async function syncCampaignResultToBrain(row: Record<string, unknown>, deps: SyncDeps = {}): Promise<WriteResult> {
+  return upsertReferenceNode(buildNodeInputForCampaignResult(row), deps);
+}
+
+/**
+ * Backfill: mirror every campaign_results row in the org into the Brain (node
+ * pass, then a `learned_from` edge to its campaign). Campaign nodes must exist
+ * for the edge to land — run after the campaign backfill (the operator action does).
+ */
+export async function resyncPerformanceIntoBrain(deps: SyncDeps = {}): Promise<BackfillResult> {
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch { return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false }; }
+  if (!resolved) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const { client, orgId } = resolved;
+
+  const rows = await selectOrgRows(client, "campaign_results", orgId, RESYNC_TABLE_LIMIT);
+  if (!rows) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const truncated = rows.length >= RESYNC_TABLE_LIMIT;
+
+  let synced = 0;
+  let linked = 0;
+  let errors = 0;
+  for (const row of rows) {
+    if (typeof row.id !== "string") { errors++; continue; }
+    const res = await syncCampaignResultToBrain(row, { client, orgId });
+    if (res.ok) synced++; else errors++;
+  }
+  for (const row of rows) {
+    if (typeof row.id !== "string") continue;
+    const res = await linkEdgeSpecs(buildEdgesForCampaignResult(row), { client, orgId }).catch(() => ({ linked: 0, skipped: 0 }));
+    linked += res.linked;
+  }
   return { ok: true, synced, linked, errors, truncated };
 }

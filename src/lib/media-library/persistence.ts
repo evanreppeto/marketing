@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
+import { getSupabaseAdminClient, type TypedSupabaseClient } from "@/lib/supabase/server";
 
 const BUCKET = "campaign-media";
 
@@ -146,6 +147,8 @@ export async function insertAssetWithUrl(input: InsertAssetInput): Promise<Inser
   const path = buildStoragePath(input.orgId, id, input.fileName);
   const url = await upload(path, input.bytes, input.contentType);
   await updateRow(client, "media_assets", { storage_path: path, public_url: url }, id);
+  // Best-effort: mirror the asset into the Brain so Arc can recall/prefer it.
+  await syncMediaRecordToBrain(id, { client: client as unknown as TypedSupabaseClient, orgId: input.orgId }).catch(() => undefined);
   return { id, url };
 }
 
