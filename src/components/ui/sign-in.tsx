@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowRight, Building2, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck, User, UserPlus } from "lucide-react";
+import { ArrowRight, Building2, Eye, EyeOff, KeyRound, LockKeyhole, Mail, User, UserPlus } from "lucide-react";
 import React, { useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { EtheralShadow } from "./etheral-shadow";
+import { AuthShell } from "./auth-shell";
+import { AUTH_ERROR_BOX, AUTH_FIELD_INPUT, AUTH_FIELD_SHELL, AUTH_FORM_HEADING, AUTH_LABEL } from "./auth-field";
 
 function GoogleIcon() {
   return (
@@ -17,112 +18,23 @@ function GoogleIcon() {
   );
 }
 
-function BottomGradient() {
-  return (
-    <>
-      <span className="absolute inset-x-0 -bottom-px block h-px w-full bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 transition duration-500 group-hover/btn:opacity-100" />
-      <span className="absolute inset-x-10 -bottom-px mx-auto block h-px w-1/2 bg-gradient-to-r from-transparent via-[var(--accent-contrast)] to-transparent opacity-0 blur-sm transition duration-500 group-hover/btn:opacity-100" />
-    </>
-  );
-}
+const fieldShell = AUTH_FIELD_SHELL;
+const fieldInput = AUTH_FIELD_INPUT;
+const labelText = AUTH_LABEL;
+const formHeading = AUTH_FORM_HEADING;
+const errorBox = AUTH_ERROR_BOX;
 
 type SignInPageProps = {
   from: string;
   errorMessage?: string | null;
-  authLabel: string;
-  title?: React.ReactNode;
-  description?: React.ReactNode;
   forgotPasswordHref?: string;
   showSignUpLink?: boolean;
   showSocialAuth?: boolean;
 };
 
-type AuthPageFrameProps = {
-  children: React.ReactNode;
-  contentClassName?: string;
-  rightTitle?: string;
-  rightSteps?: string[];
-};
-
-function AuthPageFrame({
-  children,
-  contentClassName = "max-w-[430px]",
-  rightSteps,
-  rightTitle = "Approval-safe campaign operations, protected at the front door.",
-}: AuthPageFrameProps) {
-  return (
-    <main className="chicago-dark grid min-h-[100dvh] overflow-hidden bg-[var(--canvas)] text-[var(--text-primary)] md:grid-cols-[minmax(0,0.92fr)_minmax(420px,1.08fr)]">
-      <section className="relative z-10 flex min-h-[100dvh] items-center justify-center px-5 py-8 sm:px-8">
-        <div className={`w-full ${contentClassName}`}>{children}</div>
-      </section>
-
-      <section className="relative hidden min-h-[100dvh] p-4 md:block">
-        <div className="auth-panel-reveal absolute inset-4 overflow-hidden rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] shadow-[0_32px_90px_-60px_var(--accent)]">
-          <EtheralShadow
-            accentColor="rgba(241, 237, 226, 0.12)"
-            color="rgba(200, 162, 74, 0.7)"
-            noise={{ opacity: 0.68, scale: 1.12 }}
-          />
-          <div className="absolute inset-0 z-10 bg-[linear-gradient(180deg,rgba(16,16,19,0.08),rgba(16,16,19,0.58))]" />
-          <div className="absolute left-8 right-8 top-8 z-20 rounded-xl border border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--surface-panel)_72%,transparent)] p-5 shadow-[0_24px_80px_-62px_var(--accent)]">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]">
-                <ShieldCheck aria-hidden="true" className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Workspace boundary</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">Access, memory, and brand context stay tied to the organization.</p>
-              </div>
-            </div>
-            <div className="mt-5 grid grid-cols-3 gap-2 text-xs">
-              <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-                <p className="font-semibold text-[var(--text-primary)]">Owner</p>
-                <p className="mt-1 text-[var(--text-muted)]">Creates</p>
-              </div>
-              <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-                <p className="font-semibold text-[var(--text-primary)]">Invite</p>
-                <p className="mt-1 text-[var(--text-muted)]">Joins</p>
-              </div>
-              <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-                <p className="font-semibold text-[var(--text-primary)]">Arc</p>
-                <p className="mt-1 text-[var(--text-muted)]">Learns</p>
-              </div>
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 z-20 p-8">
-            <div className="max-w-md">
-              <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent-contrast)]">
-                Arc Marketing Console
-              </p>
-              <p className="mt-3 text-2xl font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
-                {rightTitle}
-              </p>
-              {rightSteps?.length ? (
-                <ol className="mt-5 grid gap-3">
-                  {rightSteps.map((step, index) => (
-                    <li className="flex items-center gap-3 text-sm text-[var(--text-secondary)]" key={step}>
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-[var(--accent-border)] bg-[var(--surface-inset)] text-[11px] font-semibold text-[var(--accent)]">
-                        {index + 1}
-                      </span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
 export function SignInPage({
   from,
   errorMessage,
-  authLabel,
-  title = "Welcome back",
-  description = "Sign in to continue managing Arc, campaigns, CRM, and operator approvals.",
   forgotPasswordHref = "/forgot-password",
   showSignUpLink = false,
   showSocialAuth = false,
@@ -130,131 +42,99 @@ export function SignInPage({
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <AuthPageFrame>
-          <div className="animate-auth-element">
-            {/* eslint-disable-next-line @next/next/no-img-element -- transparent brand mark served from /public. */}
-            <img alt="Arc" className="h-auto w-28 object-contain sm:w-32" src="/brand/arc-mark.png" />
-          </div>
+    <AuthShell
+      headline={
+        <>
+          Marketing that moves only when you say <span className="italic text-[var(--accent)]">yes</span>.
+        </>
+      }
+      supporting="Arc finds the work, drafts the campaigns, and prepares the assets. Nothing reaches the outside world without your approval."
+      meta={["Approval-gated", "Persona-aware", "Source-backed"]}
+    >
+      <h2 className={formHeading}>Sign in</h2>
+      <p className="mt-1.5 text-sm text-[var(--text-secondary)]">Continue into campaigns, CRM, and approvals.</p>
 
-          <div className="mt-8 space-y-3 sm:mt-10">
-            <p className="animate-auth-element animate-auth-delay-100 font-display text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
-              {authLabel}
-            </p>
-            <h1 className="animate-auth-element animate-auth-delay-150 font-serif text-[2.45rem] font-medium leading-[0.98] tracking-[-0.03em] text-[var(--text-primary)] sm:text-[3.45rem]">
-              {title}
-            </h1>
-            <p className="animate-auth-element animate-auth-delay-200 max-w-[34rem] text-sm leading-6 text-[var(--text-secondary)]">
-              {description}
-            </p>
-          </div>
+      <form action="/api/auth/sign-in" method="post" className="mt-7 space-y-4">
+        <input type="hidden" name="from" value={from} />
 
-          <form action="/api/auth/sign-in" method="post" className="mt-7 space-y-5 sm:mt-8">
-            <input type="hidden" name="from" value={from} />
+        <label className="block">
+          <span className={labelText}>Email</span>
+          <span className={fieldShell}>
+            <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+            <input autoComplete="username" autoFocus required name="email" type="email" placeholder="you@company.com" className={fieldInput} />
+          </span>
+        </label>
 
-            <label className="animate-auth-element animate-auth-delay-300 block">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Email address</span>
-              <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                <input
-                  autoComplete="username"
-                  autoFocus
-                  required
-                  name="email"
-                  type="email"
-                  placeholder="operator@example.com"
-                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-                />
-              </span>
-            </label>
-
-            <label className="animate-auth-element animate-auth-delay-400 block">
-              <span className="flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-[var(--text-primary)]">Password</span>
-                <a className="text-xs font-semibold text-[var(--accent)] transition hover:text-[var(--accent-strong)]" href={forgotPasswordHref}>
-                  Forgot password?
-                </a>
-              </span>
-              <span className="auth-input-shell mt-2 flex h-13 items-center gap-3 rounded-lg border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_86%,transparent)] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                <input
-                  autoComplete="current-password"
-                  required
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-                />
-                <button
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-                  onClick={() => setShowPassword((value) => !value)}
-                  type="button"
-                >
-                  {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
-                </button>
-              </span>
-            </label>
-
-            <div className="animate-auth-element animate-auth-delay-450 flex items-center justify-between gap-4 text-sm">
-              <label className="flex cursor-pointer items-center gap-3 text-[var(--text-secondary)]">
-                <input
-                  className="auth-checkbox h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-[var(--border-strong)] bg-[var(--surface-inset)] transition checked:border-[var(--accent)] checked:bg-[var(--accent)]"
-                  name="rememberMe"
-                  type="checkbox"
-                  value="1"
-                />
-                <span>Remember me</span>
-              </label>
-            </div>
-
-            {errorMessage ? (
-              <p
-                aria-live="polite"
-                className="animate-auth-element animate-auth-delay-500 rounded-lg border border-[var(--priority-border-soft)] bg-[var(--priority-soft)] px-3 py-2 text-sm leading-5 text-[var(--priority-text)]"
-              >
-                {errorMessage}
-              </p>
-            ) : null}
-
-            <PrimarySubmitButton
-              className="animate-auth-element animate-auth-delay-600"
-              idleIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}
-              idleLabel="Sign in"
-              pendingLabel="Signing in"
+        <label className="block">
+          <span className="flex items-center justify-between gap-3">
+            <span className={labelText}>Password</span>
+            <a className="text-xs font-medium text-[var(--accent)] transition hover:text-[var(--accent-strong)]" href={forgotPasswordHref}>
+              Forgot?
+            </a>
+          </span>
+          <span className={fieldShell}>
+            <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+            <input
+              autoComplete="current-password"
+              required
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter password"
+              className={fieldInput}
             />
+            <button
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+              onClick={() => setShowPassword((value) => !value)}
+              type="button"
+            >
+              {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
+            </button>
+          </span>
+        </label>
+
+        <label className="flex cursor-pointer items-center gap-2.5 pt-0.5 text-sm text-[var(--text-secondary)]">
+          <input
+            className="auth-checkbox h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-[var(--border-strong)] bg-[var(--surface-inset)] transition checked:border-[var(--accent)] checked:bg-[var(--accent)]"
+            name="rememberMe"
+            type="checkbox"
+            value="1"
+          />
+          <span>Remember me</span>
+        </label>
+
+        {errorMessage ? (
+          <p aria-live="polite" className={errorBox}>
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <PrimarySubmitButton idleIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />} idleLabel="Sign in" pendingLabel="Signing in" />
+      </form>
+
+      {showSocialAuth ? (
+        <>
+          <Divider />
+          <form action="/api/auth/sign-in/google" className="mt-4" method="post">
+            <input type="hidden" name="from" value={from} />
+            <GhostButton>
+              <GoogleIcon />
+              Continue with Google
+            </GhostButton>
           </form>
+        </>
+      ) : null}
 
-          {showSocialAuth ? (
-            <>
-              <div className="animate-auth-element animate-auth-delay-700 mt-5 flex items-center gap-3">
-                <span className="h-px flex-1 bg-[var(--border-hairline)]" />
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">or</span>
-                <span className="h-px flex-1 bg-[var(--border-hairline)]" />
-              </div>
-
-              <form action="/api/auth/sign-in/google" className="animate-auth-element animate-auth-delay-800 mt-4" method="post">
-                <input type="hidden" name="from" value={from} />
-                <button
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] active:translate-y-px"
-                  type="submit"
-                >
-                  <GoogleIcon />
-                  Continue with Google
-                </button>
-              </form>
-            </>
-          ) : null}
-
-          {showSignUpLink ? (
-            <p className="animate-auth-element animate-auth-delay-900 mt-6 text-sm leading-6 text-[var(--text-muted)]">
-              New here?{" "}
-              <a className="font-semibold text-[var(--accent)] transition hover:text-[var(--accent-strong)]" href={`/sign-up?from=${encodeURIComponent(from)}`}>
-                Create an account
-              </a>
-              .
-            </p>
-          ) : null}
-    </AuthPageFrame>
+      {showSignUpLink ? (
+        <p className="mt-6 text-sm text-[var(--text-muted)]">
+          New here?{" "}
+          <a className="font-medium text-[var(--accent)] transition hover:text-[var(--accent-strong)]" href={`/sign-up?from=${encodeURIComponent(from)}`}>
+            Create an account
+          </a>
+          .
+        </p>
+      ) : null}
+    </AuthShell>
   );
 }
 
@@ -278,195 +158,151 @@ export function SignUpPage({
   const creatingWorkspace = workspaceIntent === "create";
 
   return (
-    <AuthPageFrame
-      contentClassName="max-w-[500px]"
-      rightSteps={["Create your profile", "Choose owner or invite access", "Confirm email and finish workspace setup"]}
-      rightTitle="Give every team a clean boundary for Arc memory, brand rules, and access."
+    <AuthShell
+      formMaxWidth="max-w-[500px]"
+      headline={
+        <>
+          Give every team a clean place for Arc to <span className="italic text-[var(--accent)]">work</span>.
+        </>
+      }
+      supporting="Each workspace keeps its own brand context, memory, members, and approvals — a tidy boundary Arc learns inside."
+      meta={["Owner creates", "Team approves", "Arc learns"]}
     >
-      <div className="animate-auth-element rounded-2xl border border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--surface-panel)_76%,transparent)] p-5 shadow-[0_28px_90px_-64px_var(--accent)] backdrop-blur md:p-8">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">Workspace setup</p>
-            <h1 className="mt-3 font-serif text-[2rem] font-medium leading-[1] tracking-[-0.03em] text-[var(--text-primary)] sm:text-[2.65rem]">
-              Create your Arc account
-            </h1>
-            <p className="mt-3 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
-              Start a company workspace or join one with the code your owner shared.
-            </p>
+      <h2 className={formHeading}>Create your account</h2>
+      <p className="mt-1.5 text-sm text-[var(--text-secondary)]">Start a company workspace or join one with an invite code.</p>
+
+      <form action="/api/auth/sign-up" method="post" className="mt-6">
+        <input type="hidden" name="from" value={from} />
+
+        <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelText}>First name</span>
+              <span className={fieldShell}>
+                <User aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                <input autoComplete="given-name" autoFocus maxLength={48} name="firstName" placeholder="Evan" required type="text" className={fieldInput} />
+              </span>
+            </label>
+
+            <label className="block">
+              <span className={labelText}>Last name</span>
+              <span className={fieldShell}>
+                <User aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                <input autoComplete="family-name" maxLength={48} name="lastName" placeholder="Ryan" required type="text" className={fieldInput} />
+              </span>
+            </label>
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element -- transparent brand mark served from /public. */}
-          <img alt="Arc" className="h-auto w-16 shrink-0 object-contain sm:w-20" src="/brand/arc-mark.png" />
+
+          <label className="block">
+            <span className={labelText}>Work email</span>
+            <span className={fieldShell}>
+              <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <input autoComplete="username" name="email" placeholder="you@company.com" required type="email" className={fieldInput} />
+            </span>
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label
+              className={`group cursor-pointer rounded-lg border p-3 transition ${creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"}`}
+            >
+              <input checked={creatingWorkspace} className="sr-only" name="workspaceIntent" onChange={() => setWorkspaceIntent("create")} type="radio" value="create" />
+              <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+                <Building2 aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
+                Create workspace
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">Owner setup for a company.</span>
+            </label>
+
+            <label
+              className={`group cursor-pointer rounded-lg border p-3 transition ${!creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"}`}
+            >
+              <input checked={!creatingWorkspace} className="sr-only" name="workspaceIntent" onChange={() => setWorkspaceIntent("join")} type="radio" value="join" />
+              <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+                <KeyRound aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
+                Join with code
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">Use an invite from your team.</span>
+            </label>
+          </div>
+
+          {creatingWorkspace ? (
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
+              <label className="block">
+                <span className={labelText}>Organization</span>
+                <span className={fieldShell}>
+                  <Building2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                  <input autoComplete="organization" maxLength={96} name="organizationName" placeholder="Acme Co" required type="text" className={fieldInput} />
+                </span>
+              </label>
+
+              <label className="block">
+                <span className={labelText}>Type</span>
+                <select
+                  className="mt-2 h-12 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-medium text-[var(--text-primary)] outline-none transition focus:border-[var(--accent-border-strong)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+                  defaultValue="company"
+                  name="workspaceType"
+                >
+                  <option value="company">Company</option>
+                  <option value="agency">Agency</option>
+                  <option value="individual">Personal</option>
+                </select>
+              </label>
+            </div>
+          ) : (
+            <label className="block">
+              <span className={labelText}>Invite code</span>
+              <span className={fieldShell}>
+                <KeyRound aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                <input
+                  autoCapitalize="characters"
+                  autoComplete="one-time-code"
+                  maxLength={32}
+                  name="inviteCode"
+                  placeholder="ACME-7K2M"
+                  type="text"
+                  className={`${fieldInput} font-mono uppercase tracking-[0.08em] placeholder:font-sans placeholder:tracking-normal`}
+                />
+              </span>
+            </label>
+          )}
+
+          <label className="block">
+            <span className={labelText}>Password</span>
+            <span className={fieldShell}>
+              <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                name="password"
+                placeholder="At least 8 characters"
+                required
+                type={showPassword ? "text" : "password"}
+                className={fieldInput}
+              />
+              <button
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
+                onClick={() => setShowPassword((value) => !value)}
+                type="button"
+              >
+                {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
+              </button>
+            </span>
+          </label>
         </div>
 
-        <form action="/api/auth/sign-up" method="post" className="mt-7">
-          <input type="hidden" name="from" value={from} />
-
-          <div className="grid gap-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-semibold text-[var(--text-primary)]">First name</span>
-                <span className="auth-input-shell mt-2 flex h-12 items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_88%,transparent)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                  <User aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                  <input
-                    autoComplete="given-name"
-                    autoFocus
-                    maxLength={48}
-                    name="firstName"
-                    placeholder="Evan"
-                    required
-                    type="text"
-                    className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-                  />
-                </span>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-semibold text-[var(--text-primary)]">Last name</span>
-                <span className="auth-input-shell mt-2 flex h-12 items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_88%,transparent)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                  <User aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                  <input
-                    autoComplete="family-name"
-                    maxLength={48}
-                    name="lastName"
-                    placeholder="Ryan"
-                    required
-                    type="text"
-                    className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-                  />
-                </span>
-              </label>
-            </div>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Work email</span>
-              <span className="auth-input-shell mt-2 flex h-12 items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_88%,transparent)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                <input
-                  autoComplete="username"
-                  name="email"
-                  placeholder="operator@example.com"
-                  required
-                  type="email"
-                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-                />
-              </span>
-            </label>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className={`group cursor-pointer rounded-md border p-3 transition ${creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"}`}>
-                <input checked={creatingWorkspace} className="sr-only" name="workspaceIntent" onChange={() => setWorkspaceIntent("create")} type="radio" value="create" />
-                <span className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-                  <Building2 aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
-                  Create workspace
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">Owner setup for a company account.</span>
-              </label>
-
-              <label className={`group cursor-pointer rounded-md border p-3 transition ${!creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"}`}>
-                <input checked={!creatingWorkspace} className="sr-only" name="workspaceIntent" onChange={() => setWorkspaceIntent("join")} type="radio" value="join" />
-                <span className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-                  <KeyRound aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
-                  Join with code
-                </span>
-                <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">Use an invite from your team.</span>
-              </label>
-            </div>
-
-            {creatingWorkspace ? (
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
-                <label className="block">
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">Organization</span>
-                  <span className="auth-input-shell mt-2 flex h-12 items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_88%,transparent)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                    <Building2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                    <input
-                      autoComplete="organization"
-                      maxLength={96}
-                      name="organizationName"
-                      placeholder="Big Shoulders Restoration"
-                      required
-                      type="text"
-                      className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-                    />
-                  </span>
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">Type</span>
-                  <select
-                    className="mt-2 h-12 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-semibold text-[var(--text-primary)] outline-none transition focus:border-[var(--accent-border-strong)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-                    defaultValue="company"
-                    name="workspaceType"
-                  >
-                    <option value="company">Company</option>
-                    <option value="agency">Agency</option>
-                    <option value="individual">Personal</option>
-                  </select>
-                </label>
-              </div>
-            ) : (
-              <label className="block">
-                <span className="text-sm font-semibold text-[var(--text-primary)]">Invite code</span>
-                <span className="auth-input-shell mt-2 flex h-12 items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_88%,transparent)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                  <KeyRound aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                  <input
-                    autoCapitalize="characters"
-                    autoComplete="one-time-code"
-                    maxLength={32}
-                    name="inviteCode"
-                    placeholder="BSR-7K2M"
-                    type="text"
-                    className="h-full min-w-0 flex-1 bg-transparent font-mono text-sm uppercase tracking-[0.08em] text-[var(--text-primary)] outline-none placeholder:font-sans placeholder:tracking-normal placeholder:text-[var(--text-muted)]"
-                  />
-                </span>
-              </label>
-            )}
-
-            <label className="block">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Password</span>
-              <span className="auth-input-shell mt-2 flex h-12 items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-inset)_88%,transparent)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-[var(--accent-border-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
-                <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                <input
-                  autoComplete="new-password"
-                  minLength={8}
-                  name="password"
-                  placeholder="At least 8 characters"
-                  required
-                  type={showPassword ? "text" : "password"}
-                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-                />
-                <button
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-                  onClick={() => setShowPassword((value) => !value)}
-                  type="button"
-                >
-                  {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
-                </button>
-              </span>
-            </label>
-          </div>
-
         {!canCreateAccount ? (
-          <p
-            aria-live="polite"
-            className="mt-4 rounded-lg border border-[var(--priority-border-soft)] bg-[var(--priority-soft)] px-3 py-2 text-sm leading-5 text-[var(--priority-text)]"
-          >
+          <p aria-live="polite" className={errorBox}>
             Account creation needs Supabase Auth to be configured first.
           </p>
         ) : errorMessage ? (
-          <p
-            aria-live="polite"
-            className="mt-4 rounded-lg border border-[var(--priority-border-soft)] bg-[var(--priority-soft)] px-3 py-2 text-sm leading-5 text-[var(--priority-text)]"
-          >
+          <p aria-live="polite" className={errorBox}>
             {errorMessage}
           </p>
         ) : null}
 
         {successMessage ? (
-          <p
-            aria-live="polite"
-            className="mt-4 rounded-lg border border-[var(--ok-border-soft)] bg-[var(--ok-soft)] px-3 py-2 text-sm leading-5 text-[var(--ok-text)]"
-          >
+          <p aria-live="polite" className="mt-4 rounded-lg border border-[var(--ok-border-soft)] bg-[var(--ok-soft)] px-3 py-2 text-sm leading-5 text-[var(--ok-text)]">
             {successMessage}
           </p>
         ) : null}
@@ -475,38 +311,53 @@ export function SignUpPage({
           className="mt-5"
           disabled={!canCreateAccount}
           idleIcon={<UserPlus aria-hidden="true" className="h-4 w-4" />}
-          idleLabel="Sign up"
+          idleLabel="Create account"
           pendingLabel="Creating account"
         />
       </form>
 
-        <div className="my-6 h-px w-full bg-gradient-to-r from-transparent via-[var(--border-strong)] to-transparent" />
+      <Divider />
 
-      <div className={`grid gap-3 ${showSocialAuth ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+      <div className={`grid gap-3 ${showSocialAuth ? "sm:grid-cols-2" : "grid-cols-1"}`}>
         {showSocialAuth ? (
-        <form action="/api/auth/sign-in/google" method="post">
-          <input type="hidden" name="from" value={from} />
-          <button
-            className="group/btn relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] active:translate-y-px"
-            type="submit"
-          >
-            <GoogleIcon />
-            Google
-            <BottomGradient />
-          </button>
-        </form>
+          <form action="/api/auth/sign-in/google" method="post">
+            <input type="hidden" name="from" value={from} />
+            <GhostButton>
+              <GoogleIcon />
+              Google
+            </GhostButton>
+          </form>
         ) : null}
         <a
-          className="group/btn relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] active:translate-y-px"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] px-3 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
           href={`/login?from=${encodeURIComponent(from)}`}
         >
           Sign in
           <ArrowRight aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
-          <BottomGradient />
         </a>
       </div>
-      </div>
-    </AuthPageFrame>
+    </AuthShell>
+  );
+}
+
+function Divider() {
+  return (
+    <div className="my-5 flex items-center gap-3">
+      <span className="h-px flex-1 bg-[var(--border-hairline)]" />
+      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">or</span>
+      <span className="h-px flex-1 bg-[var(--border-hairline)]" />
+    </div>
+  );
+}
+
+function GhostButton({ children }: { children: React.ReactNode }) {
+  return (
+    <button
+      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] px-3 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] active:translate-y-px"
+      type="submit"
+    >
+      {children}
+    </button>
   );
 }
 
@@ -527,13 +378,12 @@ function PrimarySubmitButton({
 
   return (
     <button
-      className={`${className ?? ""} group/btn relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-md border border-[var(--accent-border-strong)] bg-[linear-gradient(135deg,var(--accent),var(--accent-hover))] px-4 text-sm font-semibold text-[var(--on-accent)] shadow-[var(--elev-control)] transition duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--accent-hover)] hover:shadow-[var(--elev-control-hover)] active:translate-y-px active:bg-[var(--accent-active)] disabled:cursor-wait disabled:opacity-75 disabled:hover:translate-y-0`}
+      className={`${className ?? ""} flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--on-accent)] shadow-[var(--elev-control)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--accent-hover)] active:translate-y-0 active:bg-[var(--accent-active)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0`}
       disabled={disabled || pending}
       type="submit"
     >
       {pending ? pendingLabel : idleLabel}
       {pending ? <span aria-hidden="true" className="auth-submit-pulse h-2 w-2 rounded-full bg-current" /> : idleIcon}
-      <BottomGradient />
     </button>
   );
 }

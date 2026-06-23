@@ -297,6 +297,12 @@ h4, .font-display {
   font-weight: 600;
 }
 
+/* Editorial serif (Fraunces) — the auth-screen headline signature only. */
+.font-editorial {
+  font-family: var(--ff-editorial), "Fraunces", Georgia, "Times New Roman", serif;
+  font-optical-sizing: auto;
+}
+
 ::selection {
   background: var(--accent-soft);
   color: var(--text-primary);

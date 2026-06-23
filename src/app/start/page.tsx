@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import type { Metadata } from "next";
@@ -8,6 +7,7 @@ import { getActivationState } from "@/lib/activation/read-model";
 import { getAuthMode } from "@/lib/auth/auth-mode";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { AuthShell } from "@/components/ui/auth-shell";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Set up Arc" };
@@ -30,22 +30,17 @@ export default async function StartPage() {
   }
 
   return (
-    <main className="chicago-dark relative flex min-h-[100dvh] overflow-hidden bg-[var(--canvas)] text-[var(--text-primary)]">
-      <Image
-        alt=""
-        aria-hidden="true"
-        className="object-cover opacity-70"
-        fill
-        priority
-        sizes="100vw"
-        src="/brand/login-background-v2.png"
-      />
-      <div className="absolute inset-0 bg-[oklch(0.07_0.022_250/0.72)]" />
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(0deg,var(--canvas)_0%,transparent_100%)]" />
-
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-2xl items-center px-5 py-10">
-        <StartSetupForm orgName={ctx.orgName} />
-      </div>
-    </main>
+    <AuthShell
+      formMaxWidth="max-w-[480px]"
+      headline={
+        <>
+          Let Arc learn your <span className="italic text-[var(--accent)]">brand</span>.
+        </>
+      }
+      supporting="Give Arc your website and it reads your business — name, voice, and logo — then drafts on-brand work. You approve everything before it ships."
+      meta={["Source-backed", "Approval-gated"]}
+    >
+      <StartSetupForm orgName={ctx.orgName} />
+    </AuthShell>
   );
 }
