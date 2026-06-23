@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNodeInputForCrmRow, crmNodeKey, embedHash, CRM_NODE_KINDS } from "../brain-ingestion";
+import { buildEdgesForCrmRow, buildNodeInputForCrmRow, crmNodeKey, embedHash, CRM_NODE_KINDS } from "../brain-ingestion";
 
 describe("crmNodeKey / CRM_NODE_KINDS", () => {
   it("builds a stable per-record key and prefixed kind", () => {
@@ -68,5 +68,59 @@ describe("buildNodeInputForCrmRow — jobs/outcomes", () => {
   });
   it("labels a job by job_number when present", () => {
     expect(buildNodeInputForCrmRow("jobs", { id: "x", job_number: "JOB-9" }).label).toBe("Job JOB-9");
+  });
+});
+
+describe("buildEdgesForCrmRow", () => {
+  it("links a lead to its company/contact/property via belongs_to and to its persona via targets", () => {
+    const edges = buildEdgesForCrmRow("leads", {
+      id: "l1", company_id: "co1", contact_id: "k1", property_id: "p1", persona: "persona_landlord",
+    });
+    // 3 belongs_to + 1 targets
+    expect(edges).toHaveLength(4);
+    expect(edges).toContainEqual({
+      fromKind: "crm_lead", fromKey: "crm:leads:l1",
+      toKind: "crm_company", toKey: "crm:companies:co1", relation: "belongs_to",
+    });
+    expect(edges).toContainEqual({
+      fromKind: "crm_lead", fromKey: "crm:leads:l1",
+      toKind: "crm_contact", toKey: "crm:contacts:k1", relation: "belongs_to",
+    });
+    expect(edges).toContainEqual({
+      fromKind: "crm_lead", fromKey: "crm:leads:l1",
+      toKind: "crm_property", toKey: "crm:properties:p1", relation: "belongs_to",
+    });
+    expect(edges).toContainEqual({
+      fromKind: "crm_lead", fromKey: "crm:leads:l1",
+      toKind: "persona", toKey: "persona_landlord", relation: "targets",
+    });
+  });
+
+  it("skips null/missing foreign keys", () => {
+    const edges = buildEdgesForCrmRow("leads", { id: "l2", company_id: "co1", contact_id: null });
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ toKey: "crm:companies:co1", relation: "belongs_to" });
+  });
+
+  it("emits no targets edge for unassigned/absent persona", () => {
+    expect(buildEdgesForCrmRow("companies", { id: "co1", persona: "unassigned_persona" })).toHaveLength(0);
+    expect(buildEdgesForCrmRow("companies", { id: "co2" })).toHaveLength(0);
+  });
+
+  it("links a contact to its company", () => {
+    const edges = buildEdgesForCrmRow("contacts", { id: "k1", company_id: "co1" });
+    expect(edges).toEqual([
+      { fromKind: "crm_contact", fromKey: "crm:contacts:k1", toKind: "crm_company", toKey: "crm:companies:co1", relation: "belongs_to" },
+    ]);
+  });
+
+  it("links an outcome to its lead and job", () => {
+    const edges = buildEdgesForCrmRow("outcomes", { id: "o1", lead_id: "l1", job_id: "j1" });
+    expect(edges.map((e) => e.toKey)).toEqual(["crm:leads:l1", "crm:jobs:j1"]);
+    expect(edges.every((e) => e.relation === "belongs_to")).toBe(true);
+  });
+
+  it("returns nothing for a row without an id", () => {
+    expect(buildEdgesForCrmRow("leads", { company_id: "co1" })).toEqual([]);
   });
 });

@@ -122,6 +122,7 @@ export async function resyncCrmIntoBrainAction(): Promise<{ ok: boolean; message
     return { ok: false, message: "Nothing to sync — Supabase isn't configured or there are no CRM records yet." };
   }
   const parts = [`Synced ${result.synced} CRM record${result.synced === 1 ? "" : "s"} into the Brain`];
+  if (result.linked) parts.push(`linked ${result.linked} relationship${result.linked === 1 ? "" : "s"}`);
   if (result.errors) parts.push(`${result.errors} skipped`);
   if (result.truncated) parts.push("some tables hit the row limit — run again to finish");
   return { ok: result.ok, message: `${parts.join("; ")}.` };
