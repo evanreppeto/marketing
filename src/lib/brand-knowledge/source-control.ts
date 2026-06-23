@@ -197,6 +197,34 @@ export function buildSourceControlData(input: {
   };
 }
 
+export type ReviewSourceGroup = {
+  sourceLabel: string;
+  sourceProvider: SourceControlAsset["provider"];
+  items: SourceControlReviewItem[];
+  count: number;
+};
+
+/** Group proposed review items by the document they were extracted from,
+ * preserving first-seen order so the newest upload's facts stay together. */
+export function groupReviewItemsBySource(items: SourceControlReviewItem[]): ReviewSourceGroup[] {
+  const groups = new Map<string, ReviewSourceGroup>();
+  for (const item of items) {
+    const existing = groups.get(item.sourceLabel);
+    if (existing) {
+      existing.items.push(item);
+      existing.count += 1;
+    } else {
+      groups.set(item.sourceLabel, {
+        sourceLabel: item.sourceLabel,
+        sourceProvider: item.sourceProvider,
+        items: [item],
+        count: 1,
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
 export async function loadSourceControlData(): Promise<SourceControlData> {
   const [library, nodesResult, driveSources] = await Promise.all([
     getMediaLibraryData(),
