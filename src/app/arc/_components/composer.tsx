@@ -10,6 +10,7 @@ import { AutocompleteMenu, MentionIcon, MENTION_TYPE_LABEL, SlashIcon, type Menu
 import { ModelSelect } from "./model-select";
 import type { ArcAttachment, ArcMessage, ArcProject } from "@/lib/arc-chat/persistence";
 import type { MentionGroup } from "@/lib/arc-chat/mention-search";
+import { ACCEPTED_ATTACHMENT_MIME, isAcceptedAttachment, attachmentKind } from "@/lib/arc-chat/attachment-types";
 
 import { createArcUploadUrlAction, moveConversationForm, sendArcMessageAction, type SendMessageState } from "../actions";
 
@@ -353,6 +354,7 @@ export function Composer({
   const [command, setCommand] = useState<string | null>(null); // structured command attached to the next send
   const [attachments, setAttachments] = useState<ArcAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceInputState>("checking");
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -396,14 +398,29 @@ export function Composer({
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
+    setUploadError(null);
+    const incoming = Array.from(files);
+    const rejected = incoming.filter((f) => !isAcceptedAttachment(f.type)).map((f) => f.name);
+    const accepted = incoming.filter((f) => isAcceptedAttachment(f.type));
+    if (rejected.length > 0) {
+      setUploadError(
+        `Can't attach ${rejected.join(", ")} — supported: images, PDF, and text files.`,
+      );
+    }
+    if (accepted.length === 0) return;
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) continue;
+      for (const file of accepted) {
         const ticket = await createArcUploadUrlAction(file.name, file.type);
-        if (!ticket.ok) continue;
+        if (!ticket.ok) {
+          setUploadError(ticket.message);
+          continue;
+        }
         const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
-        if (!put.ok) continue;
+        if (!put.ok) {
+          setUploadError(`Upload failed for ${file.name}.`);
+          continue;
+        }
         setAttachments((prev) => [
           ...prev,
           { url: ticket.readUrl, objectPath: ticket.objectPath, contentType: file.type, name: file.name },
@@ -739,31 +756,46 @@ export function Composer({
         >
           {dragActive ? (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[1.75rem] bg-[var(--surface-panel)]/85 text-xs font-semibold text-[var(--accent-contrast)] backdrop-blur-sm">
-              Drop image to attach
+              Drop files to attach
             </div>
           ) : null}
           {attachments.length > 0 || uploading ? (
             <div className="flex flex-wrap items-center gap-2">
-              {attachments.map((a) => (
-                <span key={a.objectPath} className="group relative h-14 w-14 overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
-                  <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    aria-label={`Remove ${a.name}`}
-                    onClick={() => setAttachments((prev) => prev.filter((p) => p.objectPath !== a.objectPath))}
-                    className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised)] text-xs text-[var(--text-secondary)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--priority-bright)]"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+              {attachments.map((a) => {
+                const kind = attachmentKind(a.contentType);
+                return (
+                  <span key={a.objectPath} className="group relative flex h-14 items-center gap-2 overflow-hidden rounded-lg pr-6 shadow-[inset_0_0_0_1px_var(--border-strong)]">
+                    {kind === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config
+                      <img src={a.url} alt={a.name} className="h-14 w-14 object-cover" />
+                    ) : (
+                      <span className="flex h-14 w-14 items-center justify-center bg-[var(--surface-inset)] text-[10px] font-semibold uppercase text-[var(--text-secondary)]">
+                        {kind === "pdf" ? "PDF" : "TXT"}
+                      </span>
+                    )}
+                    {kind !== "image" ? (
+                      <span className="max-w-[8rem] truncate pr-1 text-xs text-[var(--text-secondary)]">{a.name}</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${a.name}`}
+                      onClick={() => setAttachments((prev) => prev.filter((p) => p.objectPath !== a.objectPath))}
+                      className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--surface-raised)] text-xs text-[var(--text-secondary)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--priority-bright)]"
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
               {uploading ? (
                 <span className="flex h-14 w-14 items-center justify-center rounded-lg text-[var(--text-muted)] shadow-[inset_0_0_0_1px_var(--border-hairline)]">
                   <Spinner />
                 </span>
               ) : null}
             </div>
+          ) : null}
+          {uploadError ? (
+            <div className="px-1 text-xs text-[var(--priority-bright)]" role="alert">{uploadError}</div>
           ) : null}
           {command || picked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -805,10 +837,11 @@ export function Composer({
             value={draft}
             onChange={(e) => onTextChange(e.target.value)}
             onPaste={(e) => {
-              // Pasted screenshots/images upload like the file picker; text paste
-              // falls through to the default textarea behaviour.
+              // Pasted files (screenshots/images/PDFs/text) upload like the file
+              // picker; handleFiles does the accept/reject filtering. Plain text
+              // paste has no files and falls through to default textarea behaviour.
               const files = e.clipboardData?.files;
-              if (files && files.length > 0 && Array.from(files).some((f) => f.type.startsWith("image/"))) {
+              if (files && files.length > 0) {
                 e.preventDefault();
                 void handleFiles(files);
               }
@@ -908,7 +941,7 @@ export function Composer({
                 ) : null}
               </div>
 
-              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
+              <input ref={fileInputRef} type="file" accept={ACCEPTED_ATTACHMENT_MIME.join(",")} multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
 
               <span aria-hidden className="mx-0.5 h-5 w-px bg-[var(--border-hairline)]" />
 
