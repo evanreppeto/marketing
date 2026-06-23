@@ -1,11 +1,13 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { parseLeadIngestionPayload } from "@/domain";
+import { syncArcLeadToBrain } from "@/lib/arc/lead-brain-sync";
 import {
   persistLeadIngestion,
   type LeadProvenance,
   type PersistedLeadIngestion,
 } from "@/lib/lead-ingestion/persistence";
+import { type TypedSupabaseClient } from "@/lib/supabase/server";
 
 export type ArcWritableTable = "leads" | "companies" | "contacts";
 
@@ -114,6 +116,21 @@ export async function createArcLead(params: {
     },
     existing: { companyId: companyMatchId, contactId: contactMatchId },
   });
+
+  // Mirror the new lead bundle into the brain so Arc can recall what it created.
+  // Best-effort: the lead is already persisted, so a knowledge-graph failure must
+  // never fail the CRM write.
+  try {
+    await syncArcLeadToBrain({
+      input,
+      result,
+      persisted,
+      client: params.supabase as unknown as TypedSupabaseClient,
+      orgId: params.orgId,
+    });
+  } catch {
+    // swallow — brain sync is an enhancement, not part of the write contract.
+  }
 
   return {
     ok: true,
