@@ -2,6 +2,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 import {
   type AccessDecision,
+  type ShareableResource,
   type SharePermission,
   type ShareVisibility,
   hasRequiredPermission,
@@ -135,6 +136,44 @@ export async function resolveProjectAccess(
   );
 }
 
+/**
+ * Resolve access from an ALREADY-FETCHED conversation, skipping the
+ * conversation-row read. Callers that loaded the row to render it (the Arc page)
+ * use this to avoid fetching the same row twice on every thread open. The direct
+ * share + project-cascade lookups still run — the row alone can't answer those.
+ */
+export async function resolveConversationAccessFor(
+  conversation: ShareableResource & { id: string; projectId: string | null },
+  viewer: ShareViewer,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<AccessDecision> {
+  if (!viewer.enforce) return FULL_ACCESS;
+
+  const directShare = viewer.userId
+    ? await getConversationShare(conversation.id, viewer.userId, client)
+    : null;
+  // Project cascade: a chat inside an accessible project inherits its grant.
+  const inheritedShare = conversation.projectId
+    ? (await resolveProjectAccess(conversation.projectId, viewer, client)).permission
+    : null;
+
+  return resolveResourceAccess(
+    {
+      ownerId: conversation.ownerId,
+      workspaceId: conversation.workspaceId,
+      visibility: conversation.visibility,
+      workspacePermission: conversation.workspacePermission,
+    },
+    {
+      userId: viewer.userId,
+      isWorkspaceMember:
+        !!conversation.workspaceId && viewer.workspaceIds.includes(conversation.workspaceId),
+      directShare,
+      inheritedShare,
+    },
+  );
+}
+
 export async function resolveConversationAccess(
   conversationId: string,
   viewer: ShareViewer,
@@ -143,32 +182,22 @@ export async function resolveConversationAccess(
   if (!viewer.enforce) return FULL_ACCESS;
   const { data } = await client
     .from("arc_conversations")
-    .select("owner_id,workspace_id,visibility,workspace_permission,project_id")
+    .select("id,owner_id,workspace_id,visibility,workspace_permission,project_id")
     .eq("id", conversationId)
-    .maybeSingle<ResourceRow & { project_id: string | null }>();
+    .maybeSingle<ResourceRow & { id: string; project_id: string | null }>();
   if (!data) return { canView: false, permission: null };
 
-  const directShare = viewer.userId
-    ? await getConversationShare(conversationId, viewer.userId, client)
-    : null;
-  // Project cascade: a chat inside an accessible project inherits its grant.
-  const inheritedShare = data.project_id
-    ? (await resolveProjectAccess(data.project_id, viewer, client)).permission
-    : null;
-
-  return resolveResourceAccess(
+  return resolveConversationAccessFor(
     {
+      id: data.id,
       ownerId: data.owner_id,
       workspaceId: data.workspace_id,
       visibility: data.visibility,
       workspacePermission: data.workspace_permission,
+      projectId: data.project_id,
     },
-    {
-      userId: viewer.userId,
-      isWorkspaceMember: !!data.workspace_id && viewer.workspaceIds.includes(data.workspace_id),
-      directShare,
-      inheritedShare,
-    },
+    viewer,
+    client,
   );
 }
 
