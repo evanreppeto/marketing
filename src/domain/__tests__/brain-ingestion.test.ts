@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildEdgesForCrmRow, buildNodeInputForCrmRow, crmNodeKey, embedHash, CRM_NODE_KINDS } from "../brain-ingestion";
+import {
+  buildEdgesForCampaign,
+  buildEdgesForCrmRow,
+  buildNodeInputForCampaign,
+  buildNodeInputForCrmRow,
+  campaignNodeKey,
+  crmNodeKey,
+  embedHash,
+  CRM_NODE_KINDS,
+} from "../brain-ingestion";
 
 describe("crmNodeKey / CRM_NODE_KINDS", () => {
   it("builds a stable per-record key and prefixed kind", () => {
@@ -122,5 +131,59 @@ describe("buildEdgesForCrmRow", () => {
 
   it("returns nothing for a row without an id", () => {
     expect(buildEdgesForCrmRow("leads", { company_id: "co1" })).toEqual([]);
+  });
+});
+
+describe("buildNodeInputForCampaign", () => {
+  it("maps a campaign row to a campaign_ref node with persona + summary", () => {
+    const input = buildNodeInputForCampaign({
+      id: "cmp1", name: "Fall Water Push", persona: "persona_landlord", restoration_focus: "water",
+      status: "draft", objective: "book inspections", audience_summary: "flood-prone landlords",
+    });
+    expect(input.kind).toBe("campaign_ref");
+    expect(input.key).toBe("campaign:cmp1");
+    expect(input.label).toBe("Fall Water Push");
+    expect(input.refTable).toBe("campaigns");
+    expect(input.refId).toBe("cmp1");
+    expect(input.persona).toBe("persona_landlord");
+    expect(input.summary).toContain("Fall Water Push");
+    expect(input.summary).toContain("flood-prone landlords");
+    expect(input.tags).toContain("campaign");
+  });
+});
+
+describe("buildEdgesForCampaign", () => {
+  it("targets the persona and relates_to each CRM record it's aimed at", () => {
+    const edges = buildEdgesForCampaign({
+      id: "cmp1", persona: "persona_landlord", company_id: "co1", lead_id: "l1", contact_id: null, property_id: null,
+    });
+    expect(edges).toContainEqual({
+      fromKind: "campaign_ref", fromKey: "campaign:cmp1", toKind: "persona", toKey: "persona_landlord", relation: "targets",
+    });
+    expect(edges).toContainEqual({
+      fromKind: "campaign_ref", fromKey: "campaign:cmp1", toKind: "crm_company", toKey: "crm:companies:co1", relation: "relates_to",
+    });
+    expect(edges).toContainEqual({
+      fromKind: "campaign_ref", fromKey: "campaign:cmp1", toKind: "crm_lead", toKey: "crm:leads:l1", relation: "relates_to",
+    });
+    // null FKs (contact/property) produce no edges
+    expect(edges).toHaveLength(3);
+  });
+
+  it("emits just the persona edge when no CRM refs are set", () => {
+    const edges = buildEdgesForCampaign({ id: "cmp2", persona: "persona_hoa_board" });
+    expect(edges).toEqual([
+      { fromKind: "campaign_ref", fromKey: "campaign:cmp2", toKind: "persona", toKey: "persona_hoa_board", relation: "targets" },
+    ]);
+  });
+
+  it("returns nothing for a row without an id", () => {
+    expect(buildEdgesForCampaign({ persona: "persona_landlord" })).toEqual([]);
+  });
+});
+
+describe("campaignNodeKey", () => {
+  it("builds a stable per-campaign key", () => {
+    expect(campaignNodeKey("abc")).toBe("campaign:abc");
   });
 });

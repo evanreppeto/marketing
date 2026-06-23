@@ -202,3 +202,69 @@ export function buildEdgesForCrmRow(table: CrmIngestTable, row: Record<string, u
 
   return edges;
 }
+
+// --- Campaigns → Brain (slice 4) ------------------------------------------
+// Campaigns are a 7th source. They mirror in as `campaign_ref` nodes that
+// `targets` their persona and `relates_to` the CRM records they're aimed at, so
+// recall can surface "we ran this campaign for this persona / these accounts".
+
+const CAMPAIGN_NODE_KIND = "campaign_ref";
+
+/** Idempotency handle for a campaign's Brain node. */
+export function campaignNodeKey(id: string): string {
+  return `campaign:${id}`;
+}
+
+/** Build a Brain node input from a raw `campaigns` row (pure). */
+export function buildNodeInputForCampaign(row: Record<string, unknown>): KnowledgeNodeInput {
+  const id = row.id as string;
+  return {
+    kind: CAMPAIGN_NODE_KIND,
+    key: campaignNodeKey(id),
+    label: (row.name as string) || "Campaign",
+    summary: lines([
+      ["Campaign", row.name], ["Persona", persona(row)], ["Focus", row.restoration_focus],
+      ["Status", row.status], ["Objective", row.objective],
+      ["Audience", row.audience_summary], ["Offer", row.offer_summary],
+    ]),
+    persona: persona(row),
+    refTable: "campaigns",
+    refId: id,
+    source: "campaign-sync",
+    tags: ["campaign"],
+  };
+}
+
+/** Foreign keys on a campaign row → `relates_to` edges to those CRM records. */
+const CAMPAIGN_CRM_REFS: Array<{ column: string; table: CrmIngestTable }> = [
+  { column: "company_id", table: "companies" },
+  { column: "contact_id", table: "contacts" },
+  { column: "property_id", table: "properties" },
+  { column: "lead_id", table: "leads" },
+];
+
+/**
+ * Edges implied by a campaign row (pure): `targets` its persona node and
+ * `relates_to` each CRM record it's aimed at (company / contact / property /
+ * lead). Null FKs are skipped.
+ */
+export function buildEdgesForCampaign(row: Record<string, unknown>): CrmEdgeSpec[] {
+  const id = typeof row.id === "string" ? row.id : null;
+  if (!id) return [];
+  const from = { kind: CAMPAIGN_NODE_KIND, key: campaignNodeKey(id) };
+  const edges: CrmEdgeSpec[] = [];
+
+  const p = persona(row);
+  if (p) {
+    edges.push({ fromKind: from.kind, fromKey: from.key, toKind: "persona", toKey: p, relation: "targets" });
+  }
+
+  for (const ref of CAMPAIGN_CRM_REFS) {
+    const target = crmRef(ref.table, row[ref.column]);
+    if (target && target.key !== from.key) {
+      edges.push({ fromKind: from.kind, fromKey: from.key, toKind: target.kind, toKey: target.key, relation: "relates_to" });
+    }
+  }
+
+  return edges;
+}

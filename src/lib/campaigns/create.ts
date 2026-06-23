@@ -2,8 +2,23 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type ParsedCampaignDraft } from "@/domain";
 
-import { getSupabaseAdminClient } from "../supabase/server";
+import { getSupabaseAdminClient, type TypedSupabaseClient } from "../supabase/server";
 import { type AgentTaskTenantFields } from "../agent-tasks/scope";
+import { syncCampaignRecordToBrain } from "../brain-ingestion/sync";
+
+/** Mirror a freshly created/updated campaign into the Brain. Best-effort and
+ *  awaited (serverless can kill post-response work) — a sync hiccup must never
+ *  fail campaign creation. */
+async function mirrorCampaignToBrain(
+  client: SupabaseClient,
+  campaignId: string,
+  tenant?: AgentTaskTenantFields,
+): Promise<void> {
+  await syncCampaignRecordToBrain(campaignId, {
+    client: client as unknown as TypedSupabaseClient,
+    orgId: tenant?.org_id,
+  }).catch(() => undefined);
+}
 
 const SOURCE_SYSTEM = "operator";
 const CAMPAIGN_MEDIA_BUCKET = "campaign-media";
@@ -143,6 +158,7 @@ export async function createOperatorCampaign({
     payload: { source: "operator_create", photo_count: photos.length },
   });
 
+  await mirrorCampaignToBrain(client, campaignId, tenant);
   return { campaignId, assetIds };
 }
 
@@ -191,6 +207,7 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
     actor: input.operator,
     detail: `created from ${agentName} saved item`,
   });
+  await mirrorCampaignToBrain(client, campaignId, input.tenant);
   return { campaignId };
 }
 

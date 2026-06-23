@@ -6,7 +6,15 @@ vi.mock("@/lib/knowledge-graph/persistence", () => ({
   upsertReferenceEdge: vi.fn(),
 }));
 import { upsertReferenceEdge, upsertReferenceNode } from "@/lib/knowledge-graph/persistence";
-import { syncRecordToBrain, syncCrmRowToBrain, syncCrmRowEdges, resyncCrmIntoBrain } from "./sync";
+import {
+  syncRecordToBrain,
+  syncCrmRowToBrain,
+  syncCrmRowEdges,
+  resyncCrmIntoBrain,
+  syncCampaignToBrain,
+  syncCampaignRecordToBrain,
+  resyncCampaignsIntoBrain,
+} from "./sync";
 
 const upsertMock = vi.mocked(upsertReferenceNode);
 const edgeMock = vi.mocked(upsertReferenceEdge);
@@ -117,5 +125,74 @@ describe("syncCrmRowEdges", () => {
     const res = await syncCrmRowEdges("companies", { id: "c1", name: "Acme" }, { client: supabase as never, orgId: ORG });
     expect(res).toEqual({ linked: 0, skipped: 0 });
     expect(edgeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncCampaignToBrain", () => {
+  it("builds a campaign_ref node from the row and upserts it", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "cn-1" });
+    const res = await syncCampaignToBrain(
+      { id: "cmp1", name: "Fall Push", persona: "persona_landlord", restoration_focus: "water" },
+      { client: {} as never, orgId: ORG },
+    );
+    expect(res).toEqual({ ok: true, id: "cn-1" });
+    const [input, deps] = upsertMock.mock.calls.at(-1)!;
+    expect(input.kind).toBe("campaign_ref");
+    expect(input.key).toBe("campaign:cmp1");
+    expect(deps).toMatchObject({ orgId: ORG });
+  });
+});
+
+describe("syncCampaignRecordToBrain", () => {
+  it("reads the campaign org-scoped, upserts the node, then links persona + CRM edges", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "cn-2" });
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: { id: "cmp2", name: "Beta", persona: "persona_landlord", company_id: "co1" }, error: null },
+      knowledge_nodes: {
+        data: [
+          { id: "cn-2", key: "campaign:cmp2" },
+          { id: "pn", key: "persona_landlord" },
+          { id: "con", key: "crm:companies:co1" },
+        ],
+        error: null,
+      },
+    });
+    const res = await syncCampaignRecordToBrain("cmp2", { client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ ok: true, id: "cn-2" });
+    expect(upsertMock.mock.calls.at(-1)![0].refId).toBe("cmp2");
+    expect(edgeMock).toHaveBeenCalledWith("cn-2", "pn", "targets", { client: expect.anything(), orgId: ORG });
+    expect(edgeMock).toHaveBeenCalledWith("cn-2", "con", "relates_to", { client: expect.anything(), orgId: ORG });
+  });
+
+  it("returns a soft error when the campaign is missing", async () => {
+    const supabase = createSupabaseQueryMock({ campaigns: { data: null, error: null } });
+    const res = await syncCampaignRecordToBrain("missing", { client: supabase as never, orgId: ORG });
+    expect(res.ok).toBe(false);
+  });
+});
+
+describe("resyncCampaignsIntoBrain", () => {
+  it("syncs a node per campaign and links each campaign's persona edge", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "cn" });
+    const supabase = createSupabaseQueryMock({
+      campaigns: {
+        data: [
+          { id: "cmp1", persona: "persona_landlord" },
+          { id: "cmp2", persona: "persona_hoa_board" },
+        ],
+        error: null,
+      },
+      knowledge_nodes: {
+        data: [
+          { id: "cn1", key: "campaign:cmp1" },
+          { id: "p1", key: "persona_landlord" },
+          { id: "cn2", key: "campaign:cmp2" },
+          { id: "p2", key: "persona_hoa_board" },
+        ],
+        error: null,
+      },
+    });
+    const res = await resyncCampaignsIntoBrain({ client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ ok: true, synced: 2, linked: 2, errors: 0, truncated: false });
   });
 });
