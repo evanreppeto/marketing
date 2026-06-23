@@ -3,6 +3,7 @@ import {
   type KnowledgeEdgeInput,
   type KnowledgeNodeInput,
   type NodeAuthor,
+  embedHash,
   normalizeKind,
   normalizeTags,
   resolveDecisionTier,
@@ -245,6 +246,100 @@ export async function setNodeTags(
   if (error) return { ok: false, error: error.message };
   if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
   return { ok: true, id: data.id };
+}
+
+/**
+ * Insert-or-update a reference node keyed on (org_id, kind, key). Used by CRM →
+ * Brain ingestion: an edit updates the same row instead of duplicating. Always
+ * authored "arc" (non-gated kinds resolve to "observed"). Re-embeds only when the
+ * embed text hash changed. Trust tier is left untouched on update.
+ */
+export async function upsertReferenceNode(input: KnowledgeNodeInput, deps: WriteDeps = {}): Promise<WriteResult> {
+  const parsed = validateNodeInput(input);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const value = parsed.value;
+  const key = value.key;
+  if (!key) return { ok: false, error: "upsertReferenceNode requires a key." };
+
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+
+  const embedTextValue = [value.label, value.summary, value.body].filter(Boolean).join("\n").trim();
+  const hash = embedHash(embedTextValue);
+
+  const existing = await client
+    .from("knowledge_nodes")
+    .select("id, props")
+    .eq("org_id", orgId)
+    .eq("kind", value.kind)
+    .eq("key", key)
+    .maybeSingle<{ id: string; props: Record<string, unknown> | null }>();
+  if (existing.error) return { ok: false, error: existing.error.message };
+
+  if (existing.data) {
+    const id = existing.data.id;
+    const prevHash = (existing.data.props as { embed_hash?: string } | null)?.embed_hash;
+    const { error } = await client
+      .from("knowledge_nodes")
+      .update({
+        label: value.label,
+        summary: value.summary,
+        body: value.body,
+        persona: value.persona as never,
+        ref_table: value.refTable,
+        ref_id: value.refId,
+        source: value.source ?? "crm-sync",
+        tags: value.tags ?? [],
+        props: { ...(existing.data.props ?? {}), embed_hash: hash } as never,
+      })
+      .eq("id", id)
+      .eq("org_id", orgId);
+    if (error) return { ok: false, error: error.message };
+    if (prevHash !== hash) await embedReferenceBestEffort(client, orgId, id, embedTextValue);
+    return { ok: true, id };
+  }
+
+  const trustTier = resolveInitialTrustTier({ kind: value.kind, createdBy: "arc" });
+  const { data, error } = await client
+    .from("knowledge_nodes")
+    .insert({
+      org_id: orgId,
+      kind: value.kind,
+      key,
+      label: value.label,
+      body: value.body,
+      summary: value.summary,
+      persona: value.persona as never,
+      trust_tier: trustTier,
+      confidence: value.confidence,
+      ref_table: value.refTable,
+      ref_id: value.refId,
+      source: value.source ?? "crm-sync",
+      source_reference: value.sourceReference,
+      created_by: "arc",
+      approved_by: null,
+      approved_at: null,
+      tags: value.tags ?? [],
+      props: { ...(value.props ?? {}), embed_hash: hash } as never,
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
+  await embedReferenceBestEffort(client, orgId, data.id, embedTextValue);
+  return { ok: true, id: data.id };
+}
+
+/** Embed pre-joined text; never throws (recall degrades to keyword/graph). */
+async function embedReferenceBestEffort(client: TypedSupabaseClient, orgId: string, id: string, text: string): Promise<void> {
+  try {
+    const embedding = await embedText(text);
+    if (!embedding) return;
+    await client.from("knowledge_nodes").update({ embedding: JSON.stringify(embedding) } as never).eq("id", id).eq("org_id", orgId);
+  } catch {
+    // best-effort
+  }
 }
 
 /** Soft-archive a node. */
