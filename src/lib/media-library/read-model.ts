@@ -97,7 +97,7 @@ export function buildFolderViews(folderRows: MediaFolderRow[], assets: Pick<Medi
   };
 
   const views: MediaFolderView[] = [
-    { id: "all", name: "All media", parentId: null, depth: 0, count: assets.length, directCount: assets.length },
+    { id: "all", name: "All media", parentId: null, depth: 0, count: assets.length, directCount: assets.length, description: null },
   ];
   const visited = new Set<string>();
 
@@ -111,6 +111,7 @@ export function buildFolderViews(folderRows: MediaFolderRow[], assets: Pick<Medi
       depth,
       count: countSubtree(folder.id),
       directCount: directCounts.get(folder.id) ?? 0,
+      description: folder.description ?? null,
     });
     for (const child of children.get(folder.id) ?? []) append(child, depth + 1);
   };
@@ -150,7 +151,7 @@ export async function getMediaLibraryData(client?: SupabaseClient): Promise<Medi
   }
 
   const { data: folderRows, error: fErr } = await db
-    .from("media_folders").select("id, name, parent_id").eq("org_id", orgId).order("sort_order");
+    .from("media_folders").select("id, name, parent_id, description").eq("org_id", orgId).order("sort_order");
   if (fErr) return { status: "unavailable", message: fErr.message };
 
   const { data: assetRows, error: aErr } = await db

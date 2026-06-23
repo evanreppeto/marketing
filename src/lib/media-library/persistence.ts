@@ -56,9 +56,9 @@ export function defaultUploader(client: SupabaseClient): ImageUploader {
   };
 }
 
-export type CreateFolderInput = { orgId: string; name: string; parentId?: string | null; client?: SupabaseClient };
-export async function createFolder({ orgId, name, parentId = null, client = getSupabaseAdminClient() }: CreateFolderInput): Promise<string> {
-  return insertGetId(client, "media_folders", { org_id: orgId, name, parent_id: parentId });
+export type CreateFolderInput = { orgId: string; name: string; parentId?: string | null; description?: string | null; client?: SupabaseClient };
+export async function createFolder({ orgId, name, parentId = null, description = null, client = getSupabaseAdminClient() }: CreateFolderInput): Promise<string> {
+  return insertGetId(client, "media_folders", { org_id: orgId, name, parent_id: parentId, description });
 }
 
 export async function renameFolder(id: string, name: string, client: SupabaseClient = getSupabaseAdminClient()) {
