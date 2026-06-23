@@ -59,7 +59,7 @@ export default async function BrandPage() {
       <TeachArc agentName={agentName} />
       <BrandReviewQueue agentName={agentName} items={sourceControl.reviewItems} />
       <BrandDetails approvedFacts={approvedFacts} profile={profile} />
-      <BrandPersonasSummary count={personaCount} />
+      <BrandPersonasSummary agentName={agentName} count={personaCount} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
 
-export function BrandPersonasSummary({ count }: { count: number }) {
+export function BrandPersonasSummary({ count, agentName }: { count: number; agentName: string }) {
   return (
     <section aria-labelledby="brand-personas-heading">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -17,7 +17,7 @@ export function BrandPersonasSummary({ count }: { count: number }) {
           <Users aria-hidden className="h-4 w-4" />
         </span>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">
-          {count > 0 ? `${count} persona${count === 1 ? "" : "s"} guide how ${"Arc"} targets and writes.` : "No personas yet — set them up so Arc can target the right audience."}
+          {count > 0 ? `${count} persona${count === 1 ? "" : "s"} guide how ${agentName} targets and writes.` : "No personas yet — set them up so Arc can target the right audience."}
         </p>
       </div>
     </section>
