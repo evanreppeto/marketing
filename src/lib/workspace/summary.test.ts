@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/supabase/server", () => ({ getSupabaseAdminClient: vi.fn(() => ({})) }));
+vi.mock("@/lib/supabase/server", () => ({
+  getSupabaseAdminClient: vi.fn(() => ({})),
+  isSupabaseAdminConfigured: vi.fn(() => true),
+}));
 vi.mock("@/lib/brand-kit/persistence", () => ({
   getBusinessProfile: vi.fn(),
   listPersonaDefinitions: vi.fn(),
@@ -14,6 +17,7 @@ import { getBusinessProfile, listPersonaDefinitions } from "@/lib/brand-kit/pers
 import { listWorkspaceConnectors } from "@/lib/connectors/read-model";
 import { countActiveApprovals } from "@/lib/approvals/read-model";
 import { listAvailableArcMedia } from "@/lib/media-library/arc-handoff";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getWorkspaceSummary } from "./summary";
 
 const profileMock = vi.mocked(getBusinessProfile);
@@ -60,5 +64,18 @@ describe("getWorkspaceSummary", () => {
     expect(s.connectors).toEqual({ connected: 0, total: 0 });
     expect(s.pendingApprovals).toBe(0);
     expect(s.brandKit).toBe("draft"); // unaffected source still resolves
+  });
+
+  it("returns a neutral snapshot without reading when Supabase is unconfigured", async () => {
+    vi.mocked(isSupabaseAdminConfigured).mockReturnValueOnce(false);
+    const s = await getWorkspaceSummary("org_1", "ws_1");
+    expect(s).toEqual({
+      brandKit: "none",
+      connectors: { connected: 0, total: 0 },
+      mediaAvailable: 0,
+      pendingApprovals: 0,
+      personas: 0,
+    });
+    expect(getBusinessProfile).not.toHaveBeenCalled();
   });
 });
