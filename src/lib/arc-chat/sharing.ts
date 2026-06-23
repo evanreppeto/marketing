@@ -9,6 +9,7 @@ import {
 } from "@/domain";
 
 import { getAuthMode } from "../auth/auth-mode";
+import { getCurrentWorkspaceContext } from "../auth/workspace";
 import { getSupabaseAuthenticatedUser } from "../supabase/auth-server";
 import { getSupabaseAdminClient } from "../supabase/server";
 
@@ -52,6 +53,22 @@ export async function getShareViewer(
     .eq("status", "active");
   const workspaceIds = ((data ?? []) as { workspace_id: string }[]).map((row) => row.workspace_id);
   return { userId: user.id, workspaceIds, enforce: true };
+}
+
+/** Owner + tenancy to stamp on newly created Arc rows. Null in open/dev mode. */
+export async function getCreationTenancy(): Promise<{
+  ownerId: string | null;
+  workspaceId: string | null;
+  orgId: string | null;
+}> {
+  const viewer = await getShareViewer();
+  if (!viewer.enforce || !viewer.userId) return { ownerId: null, workspaceId: null, orgId: null };
+  try {
+    const ctx = await getCurrentWorkspaceContext();
+    return { ownerId: viewer.userId, workspaceId: ctx.workspaceId, orgId: ctx.orgId };
+  } catch {
+    return { ownerId: viewer.userId, workspaceId: null, orgId: null };
+  }
 }
 
 async function getConversationShare(
@@ -163,6 +180,20 @@ export async function assertConversationAccess(
 ): Promise<AccessDecision> {
   const resolvedViewer = viewer ?? (await getShareViewer(client));
   const decision = await resolveConversationAccess(conversationId, resolvedViewer, client);
+  if (!hasRequiredPermission(decision, required)) {
+    throw new ArcAccessError();
+  }
+  return decision;
+}
+
+export async function assertProjectAccess(
+  projectId: string,
+  required: SharePermission,
+  viewer?: ShareViewer,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<AccessDecision> {
+  const resolvedViewer = viewer ?? (await getShareViewer(client));
+  const decision = await resolveProjectAccess(projectId, resolvedViewer, client);
   if (!hasRequiredPermission(decision, required)) {
     throw new ArcAccessError();
   }

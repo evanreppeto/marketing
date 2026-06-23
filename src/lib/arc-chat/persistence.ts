@@ -510,12 +510,26 @@ export async function getConversation(
 }
 
 export async function createConversation(
-  input: { operator: string; title: string; projectId?: string | null },
+  input: {
+    operator: string;
+    title: string;
+    projectId?: string | null;
+    ownerId?: string | null;
+    workspaceId?: string | null;
+    orgId?: string | null;
+  },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ArcConversation> {
   const { data, error } = await client
     .from("arc_conversations")
-    .insert({ operator: input.operator, title: input.title, project_id: input.projectId ?? null })
+    .insert({
+      operator: input.operator,
+      title: input.title,
+      project_id: input.projectId ?? null,
+      ...(input.ownerId != null ? { owner_id: input.ownerId } : {}),
+      ...(input.workspaceId != null ? { workspace_id: input.workspaceId } : {}),
+      ...(input.orgId != null ? { org_id: input.orgId } : {}),
+    })
     .select(CONVERSATION_COLUMNS)
     .single<ConversationRow>();
   assertOk("arc_conversations insert", error);
@@ -750,12 +764,24 @@ function toProject(row: ProjectRow): ArcProject {
 }
 
 export async function createProject(
-  input: { operator: string; name: string },
+  input: {
+    operator: string;
+    name: string;
+    ownerId?: string | null;
+    workspaceId?: string | null;
+    orgId?: string | null;
+  },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ArcProject> {
   const { data, error } = await client
     .from("arc_projects")
-    .insert({ operator: input.operator, name: input.name })
+    .insert({
+      operator: input.operator,
+      name: input.name,
+      ...(input.ownerId != null ? { owner_id: input.ownerId } : {}),
+      ...(input.workspaceId != null ? { workspace_id: input.workspaceId } : {}),
+      ...(input.orgId != null ? { org_id: input.orgId } : {}),
+    })
     .select(PROJECT_COLUMNS)
     .single<ProjectRow>();
   assertOk("arc_projects insert", error);
@@ -950,6 +976,21 @@ export async function appendArcStep(
     .eq("id", data.id);
   assertOk("arc_messages step update", upErr);
   return true;
+}
+
+/** Resolve the conversation a message belongs to (for access gating). Null when
+ *  no such message exists. */
+export async function getMessageConversationId(
+  messageId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<string | null> {
+  const { data, error } = await client
+    .from("arc_messages")
+    .select("conversation_id")
+    .eq("id", messageId)
+    .maybeSingle<{ conversation_id: string }>();
+  assertOk("arc_messages conversation lookup", error);
+  return data?.conversation_id ?? null;
 }
 
 export async function setArcMessageFeedback(

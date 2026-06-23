@@ -7,6 +7,7 @@ import { requireOperator } from "@/lib/auth/operator";
 import {
   ArcAccessError,
   assertConversationAccess,
+  assertProjectAccess,
   getShareViewer,
   setConversationVisibility,
   setProjectVisibility,
@@ -120,9 +121,13 @@ export async function setProjectVisibilityAction(
   if (!isShareVisibility(visibility)) return { ok: false, message: "Invalid visibility." };
   if (!isSharePermission(permission)) return { ok: false, message: "Invalid permission." };
 
+  const client = getSupabaseAdminClient();
   try {
-    await setProjectVisibility(projectId, visibility, permission);
+    const viewer = await getShareViewer(client);
+    await assertProjectAccess(projectId, "collaborate", viewer, client);
+    await setProjectVisibility(projectId, visibility, permission, client);
   } catch (error) {
+    if (error instanceof ArcAccessError) return { ok: false, message: error.message };
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't update project." };
   }
 
@@ -147,8 +152,10 @@ export async function shareProjectAction(
   const client = getSupabaseAdminClient();
   try {
     const viewer = await getShareViewer(client);
+    await assertProjectAccess(projectId, "collaborate", viewer, client);
     await shareProject(projectId, userId, permission, viewer.userId, client);
   } catch (error) {
+    if (error instanceof ArcAccessError) return { ok: false, message: error.message };
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't share project." };
   }
 
@@ -167,9 +174,13 @@ export async function unshareProjectAction(
   const userId = String(formData.get("userId") ?? "").trim();
   if (!projectId || !userId) return { ok: false, message: "Missing share." };
 
+  const client = getSupabaseAdminClient();
   try {
-    await unshareProject(projectId, userId);
+    const viewer = await getShareViewer(client);
+    await assertProjectAccess(projectId, "collaborate", viewer, client);
+    await unshareProject(projectId, userId, client);
   } catch (error) {
+    if (error instanceof ArcAccessError) return { ok: false, message: error.message };
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't remove access." };
   }
 
