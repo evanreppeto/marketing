@@ -1,8 +1,10 @@
 import {
   FileText,
+  FolderOpen,
   MessageSquareQuote,
   Pencil,
   ShieldCheck,
+  UploadCloud,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -137,7 +139,6 @@ export default async function BrandPage() {
   const sourceReadiness = summarizeBrandSourceReadiness(allFiles, brainNodes);
   const reviewFacts = facts.filter((fact) => fact.trustTier === "proposed");
   const visibleFacts = reviewFacts.length > 0 ? reviewFacts : facts.filter((fact) => fact.trustTier === "trusted").slice(0, 3);
-  const hasKnowledgeActivity = visibleFacts.length > 0 || files.length > 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -147,10 +148,16 @@ export default async function BrandPage() {
         title={profile.displayName || "Company brand"}
         description={`Add or update the brand information ${agentName} should use. Keep it simple: notes, files, websites, and exact details when needed.`}
         aside={
-          <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="#edit-brand">
-            <Pencil aria-hidden className="h-4 w-4" />
-            Edit details
-          </Link>
+          <>
+            <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="#add-brand-knowledge">
+              <UploadCloud aria-hidden className="h-4 w-4" />
+              Add material
+            </Link>
+            <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
+              <Pencil aria-hidden className="h-4 w-4" />
+              Edit details
+            </Link>
+          </>
         }
       />
 
@@ -168,25 +175,26 @@ export default async function BrandPage() {
             Change
           </Link>
         </div>
-        <div className="divide-y divide-[var(--border-hairline)]">
-          <SummaryRow
+        <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
+          <SnapshotCard
+            icon={<FolderOpen aria-hidden />}
             label="Company"
             title={profile.displayName || "Company not set"}
             value={formatIndustryLabel(profile.industry) || profile.websiteUrl || "Add company basics"}
           />
-          <SummaryRow
+          <SnapshotCard
             icon={<MessageSquareQuote aria-hidden />}
             label="Voice"
             title={profile.tone ? formatTokenLabel(profile.tone) : "Tone not set"}
             value={profile.voiceGuidance || "Add voice guidance"}
           />
-          <SummaryRow
+          <SnapshotCard
             icon={<FileText aria-hidden />}
             label="Offerings"
             title={profile.services.length ? `${profile.services.length} saved` : "No offerings yet"}
             value={profile.services.slice(0, 3).join(", ") || "Add products, services, or offers"}
           />
-          <SummaryRow
+          <SnapshotCard
             icon={<ShieldCheck aria-hidden />}
             label="Rules"
             title={profile.guardrails.disallowedClaims.length ? `${profile.guardrails.disallowedClaims.length} blocked claims` : "No blocked claims"}
@@ -195,36 +203,55 @@ export default async function BrandPage() {
         </div>
       </Panel>
 
-      {hasKnowledgeActivity ? (
-        <Panel className="overflow-hidden p-0">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-4">
-            <div>
-              <div className="signal-eyebrow">Review</div>
-              <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">
-                {reviewFacts.length > 0 ? "Check what Arc learned" : "Recent brand knowledge"}
-              </h2>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <BrandKnowledgeSyncButton readyToLearn={sourceReadiness.readyToLearn} />
-              <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/brain">
-                Brain
-              </Link>
+      <Panel className="overflow-hidden p-0">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] px-5 py-4">
+          <div>
+            <div className="signal-eyebrow">Review and sources</div>
+            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What Arc learned from brand material</h2>
+            <p className="mt-1 max-w-[64ch] text-sm leading-6 text-[var(--text-secondary)]">
+              Review extracted facts and see the files or pages Arc can use.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <BrandKnowledgeSyncButton readyToLearn={sourceReadiness.readyToLearn} />
+            <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/brain">
+              Brain
+            </Link>
+          </div>
+        </div>
+        <div className="grid gap-0 xl:grid-cols-2">
+          <div className="min-w-0 border-b border-[var(--border-hairline)] xl:border-b-0 xl:border-r">
+            <SectionLabel title={reviewFacts.length > 0 ? "Needs review" : "Brand notes"} value={reviewFacts.length || visibleFacts.length} />
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {visibleFacts.length > 0 ? (
+                visibleFacts.map((fact) => <FactRow key={fact.id} node={fact} />)
+              ) : (
+                <EmptyBrandState
+                  actionHref="#add-brand-knowledge"
+                  actionLabel="Add material"
+                  detail="Upload a file or paste notes above. Arc will extract brand facts, proof, voice, services, and rules here."
+                  title="Nothing learned yet"
+                />
+              )}
             </div>
           </div>
-          <div className="grid gap-0 xl:grid-cols-2">
-            {visibleFacts.length > 0 ? (
-              <div className="min-w-0 divide-y divide-[var(--border-hairline)] border-b border-[var(--border-hairline)] xl:border-b-0 xl:border-r">
-                {visibleFacts.map((fact) => <FactRow key={fact.id} node={fact} />)}
-              </div>
-            ) : null}
-            {files.length > 0 ? (
-              <div className="min-w-0 divide-y divide-[var(--border-hairline)]">
-                {files.map((file) => <FileRow file={file} key={file.asset.id} stats={sourceStats(brainNodes, file.asset.id)} />)}
-              </div>
-            ) : null}
+          <div className="min-w-0">
+            <SectionLabel title="Sources" value={files.length} />
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {files.length > 0 ? (
+                files.map((file) => <FileRow file={file} key={file.asset.id} stats={sourceStats(brainNodes, file.asset.id)} />)
+              ) : (
+                <EmptyBrandState
+                  actionHref="#add-brand-knowledge"
+                  actionLabel="Upload files"
+                  detail="Add brand guides, logos, PDFs, website pages, proof docs, voice notes, service lists, or persona docs."
+                  title="No brand sources yet"
+                />
+              )}
+            </div>
           </div>
-        </Panel>
-      ) : null}
+        </div>
+      </Panel>
 
       <section id="edit-brand">
         <details className="group overflow-hidden rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
@@ -242,30 +269,39 @@ export default async function BrandPage() {
   );
 }
 
-function SummaryRow({
+function SnapshotCard({
   icon,
   label,
   title,
   value,
 }: {
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
   label: string;
   title: string;
   value: string;
 }) {
   return (
-    <article className="flex min-w-0 gap-3 px-5 py-4">
-      {icon ? (
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-[var(--accent)] [&>svg]:h-4 [&>svg]:w-4">
+    <article className="min-w-0 rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
+      <div className="flex gap-3">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-[var(--accent)] [&>svg]:h-4 [&>svg]:w-4">
           {icon}
         </div>
-      ) : null}
-      <div className="min-w-0">
-        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
-        <h3 className="mt-1 text-sm font-bold text-[var(--text-primary)]">{title}</h3>
-        <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+          <h3 className="mt-1 text-sm font-bold text-[var(--text-primary)]">{title}</h3>
+          <p className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
+        </div>
       </div>
     </article>
+  );
+}
+
+function SectionLabel({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-3">
+      <h3 className="text-sm font-bold text-[var(--text-primary)]">{title}</h3>
+      <StatusPill tone={value > 0 ? "blue" : "gray"}>{value}</StatusPill>
+    </div>
   );
 }
 
@@ -334,6 +370,35 @@ function FileRow({ file, stats }: { file: BrandFileSource; stats: BrainSourceSta
         </div>
       </div>
     </article>
+  );
+}
+
+function EmptyBrandState({
+  actionHref,
+  actionLabel,
+  detail,
+  title,
+}: {
+  actionHref: string;
+  actionLabel: string;
+  detail: string;
+  title: string;
+}) {
+  return (
+    <div className="px-5 py-6">
+      <div className="rounded-[8px] border border-dashed border-[var(--border-hairline)] bg-[var(--surface-inset)] p-5">
+        <div className="flex items-start gap-3">
+          <UploadCloud aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" />
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-[var(--text-primary)]">{title}</div>
+            <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
+            <Link className={buttonClasses({ variant: "ghost", size: "sm", className: "mt-3" })} href={actionHref}>
+              {actionLabel}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
