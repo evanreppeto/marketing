@@ -72,7 +72,7 @@ describe("resyncCrmIntoBrain", () => {
     const res = await resyncCrmIntoBrain({ client: supabase as never, orgId: ORG });
     expect(res.ok).toBe(true);
     expect(res.syncedNodes).toBe(2);
-    expect(typeof res.syncedEdges).toBe("number");
+    expect(res.syncedEdges).toBe(1);
     expect(res.truncated).toBe(false);
   });
   it("sets ok:false when a table read errors, without aborting", async () => {

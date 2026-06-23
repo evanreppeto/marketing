@@ -24,17 +24,31 @@ async function resolveNodeIdByRef(
   return data?.id ?? null;
 }
 
-/** Create child->parent edges from a row's FK intents. Skips intents whose target node is missing. */
+/** Resolve a to-node id for an edge intent. Defaults to a DB ref lookup. */
+type ToNodeResolver = (toTable: string, toId: string) => Promise<string | null>;
+
+/**
+ * Create child->parent edges from a row's FK intents. Skips intents whose target
+ * node is missing (e.g. a not-yet-ingested record, or a `campaigns` endpoint —
+ * campaigns aren't in CRM_INGEST_TABLES, so those intents skip until a
+ * campaign->Brain pipeline exists). Pass `resolveTo` to resolve endpoints from an
+ * in-memory map (backfill) instead of querying per intent.
+ */
 export async function syncEdgesForCrmRow(
-  table: CrmIngestTable, fromNodeId: string, row: Record<string, unknown>, deps: SyncDeps = {},
+  table: CrmIngestTable,
+  fromNodeId: string,
+  row: Record<string, unknown>,
+  deps: SyncDeps = {},
+  resolveTo?: ToNodeResolver,
 ): Promise<{ created: number; skipped: number }> {
   let resolved;
   try { resolved = await resolve(deps); } catch { resolved = null; }
   if (!resolved) return { created: 0, skipped: 0 };
   const { client, orgId } = resolved;
+  const resolveToNode: ToNodeResolver = resolveTo ?? ((t, id) => resolveNodeIdByRef(client, orgId, t, id));
   let created = 0, skipped = 0;
   for (const intent of buildEdgeIntentsForCrmRow(table, row)) {
-    const toNodeId = await resolveNodeIdByRef(client, orgId, intent.toTable, intent.toId);
+    const toNodeId = await resolveToNode(intent.toTable, intent.toId);
     if (!toNodeId) { skipped++; continue; }
     const res = await createEdgeIfAbsent({ fromNodeId, toNodeId, relation: intent.relation }, { client, orgId });
     if (res.ok) created++; else skipped++;
@@ -42,7 +56,12 @@ export async function syncEdgesForCrmRow(
   return { created, skipped };
 }
 
-/** Upsert a Brain node from an already-read CRM row. Used by backfill + lead ingest. */
+/**
+ * Upsert the record's node, then best-effort create its FK edges. Edges to
+ * not-yet-ingested records are silently skipped; `resyncCrmIntoBrain` backfills
+ * them. Returns the NODE result (edges are a side-effect) so callers' contract is
+ * unchanged.
+ */
 export async function syncCrmRowToBrain(
   table: CrmIngestTable,
   row: Record<string, unknown>,
@@ -92,8 +111,9 @@ export async function resyncCrmIntoBrain(
 
   let syncedNodes = 0, syncedEdges = 0, errors = 0, truncated = false, tableReadFailed = false;
   const rowsByTable: Partial<Record<CrmIngestTable, Array<Record<string, unknown>>>> = {};
+  const nodeIdByRef = new Map<string, string>(); // `${table}:${rowId}` -> node id
 
-  // Pass 1: nodes (so every edge endpoint exists).
+  // Pass 1: nodes (so every edge endpoint exists), caching each node's id.
   for (const table of CRM_INGEST_TABLES) {
     const { data, error } = await client.from(table).select("*").eq("org_id", orgId).limit(RESYNC_TABLE_LIMIT);
     if (error || !Array.isArray(data)) { tableReadFailed = true; continue; }
@@ -103,17 +123,18 @@ export async function resyncCrmIntoBrain(
     for (const row of rows) {
       if (typeof row.id !== "string") { errors++; continue; }
       const res = await upsertReferenceNode(buildNodeInputForCrmRow(table, row), { client, orgId });
-      if (res.ok) syncedNodes++; else errors++;
+      if (res.ok) { syncedNodes++; nodeIdByRef.set(`${table}:${row.id}`, res.id); } else { errors++; }
     }
   }
 
-  // Pass 2: edges (endpoints now exist).
+  // Pass 2: edges, resolving every endpoint from the in-memory map (no DB lookups).
+  const mapResolver: ToNodeResolver = async (t, id) => nodeIdByRef.get(`${t}:${id}`) ?? null;
   for (const table of CRM_INGEST_TABLES) {
     for (const row of rowsByTable[table] ?? []) {
       if (typeof row.id !== "string") continue;
-      const fromNodeId = await resolveNodeIdByRef(client, orgId, table, row.id);
+      const fromNodeId = nodeIdByRef.get(`${table}:${row.id}`);
       if (!fromNodeId) continue;
-      const r = await syncEdgesForCrmRow(table, fromNodeId, row, { client, orgId });
+      const r = await syncEdgesForCrmRow(table, fromNodeId, row, { client, orgId }, mapResolver);
       syncedEdges += r.created;
     }
   }
