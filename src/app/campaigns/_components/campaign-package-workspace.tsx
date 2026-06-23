@@ -8,7 +8,8 @@ import { Button, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import type { ConnectionView } from "@/lib/connections/read-model";
 
-import { AssetPreview } from "./asset-preview";
+import { AssetPreview, MediaProvenanceBadge } from "./asset-preview";
+import { SafeImage } from "./safe-image";
 import { assembleCopyText, isChannelDeployable } from "./campaign-deploy-model";
 import { contentStatusForLaunch, contentWhere, type CampaignPackageSummary, type PlainTone } from "./campaign-detail-model";
 import { CopyTextButton } from "./copy-text-button";
@@ -212,9 +213,15 @@ function MediaReview({ asset }: { asset: CampaignWorkspaceAsset }) {
     <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
       <div className="overflow-hidden rounded-xl border border-[var(--accent-border-strong)] bg-[var(--media-void)]">
         {primary?.type === "image" ? (
-          <a href={primary.url} target="_blank" rel="noreferrer" className="group block">
-            {/* eslint-disable-next-line @next/next/no-img-element -- preview media can be arbitrary remote creative URLs */}
-            <img src={primary.thumbnailUrl ?? primary.url} alt={primary.title} className="h-[22rem] w-full object-cover transition group-hover:scale-[1.015]" />
+          <a href={primary.url} target="_blank" rel="noreferrer" className="group relative block">
+            <SafeImage
+              src={primary.thumbnailUrl ?? primary.url}
+              alt={primary.title}
+              className="h-[22rem] w-full object-cover transition group-hover:scale-[1.015]"
+            />
+            <span className="absolute left-3 top-3">
+              <MediaProvenanceBadge media={primary} />
+            </span>
           </a>
         ) : (
           <AssetPreview asset={{ ...asset, body: "" }} />
