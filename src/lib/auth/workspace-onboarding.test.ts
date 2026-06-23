@@ -249,6 +249,56 @@ describe("createWorkspaceForUser", () => {
     expect(client.builders.some((b) => b.table === "organizations" && b.calls.some((c) => c[0] === "insert"))).toBe(false);
   });
 
+  it("creates a NEW workspace even when the user already has a membership (explicit create flow)", async () => {
+    const responses = new Map<string, unknown[]>();
+
+    // reuseExistingMembership:false → getActiveMembershipForUser is NOT consulted, so an
+    // already-onboarded user gets a brand-new org+workspace instead of being bounced back
+    // into their existing one (the silent no-op bug). The user DOES already have a
+    // membership here: under the old short-circuit this returns "existing-org" with no
+    // insert; the discriminating assertion below is that a new org is created instead.
+    // First workspace_memberships:maybeSingle = the existing membership (consumed by
+    // createOwnerMemberships under the new path; consumed by the short-circuit under the old).
+    queue(responses, "workspace_memberships", "maybeSingle", {
+      data: { org_id: "existing-org", workspace_id: "existing-workspace" },
+      error: null,
+    });
+
+    // uniqueOrgSlug: "acme" → free
+    queue(responses, "organizations", "maybeSingle", { data: null, error: null });
+    // createOrganization insert → new org
+    queue(responses, "organizations", "single", {
+      data: { id: "new-org", name: "Acme", slug: "acme" },
+      error: null,
+    });
+    // upsertDefaultWorkspace: none existing → insert
+    queue(responses, "workspaces", "maybeSingle", { data: null, error: null });
+    queue(responses, "workspaces", "single", {
+      data: { id: "new-workspace", org_id: "new-org", key: "default", slug: "acme", name: "Acme" },
+      error: null,
+    });
+    // createOwnerMemberships
+    queue(responses, "organization_memberships", "maybeSingle", { data: null, error: null });
+    queue(responses, "workspace_memberships", "maybeSingle", { data: null, error: null });
+
+    const client = createClient(responses);
+    getSupabaseAdminClientMock.mockReturnValue(client as never);
+
+    const result = await createWorkspaceForUser(
+      client as never,
+      user(),
+      { organizationName: "Acme" },
+      { reuseExistingMembership: false },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.orgId).toBe("new-org");
+    expect(result.workspaceId).toBe("new-workspace");
+    // It must actually insert a new org rather than short-circuiting to an existing one.
+    expect(client.builders.some((b) => b.table === "organizations" && b.calls.some((c) => c[0] === "insert"))).toBe(true);
+  });
+
   it("retries on a 23505 unique violation race (returns second org)", async () => {
     const responses = new Map<string, unknown[]>();
 

@@ -322,13 +322,18 @@ export async function createWorkspaceForAuthenticatedUser(input: CreateWorkspace
     return { ok: false, status: "not_authenticated", message: "Sign in before creating a workspace." };
   }
 
-  return createWorkspaceForUser(getSupabaseAdminClient(), user, input);
+  // The explicit "create workspace" UI must create a genuinely NEW workspace, even
+  // for users who already belong to one — otherwise it's a silent no-op that drops
+  // them back into their existing org. Provisioning (which auto-creates on first
+  // sign-in) calls createWorkspaceForUser directly and keeps the reuse default.
+  return createWorkspaceForUser(getSupabaseAdminClient(), user, input, { reuseExistingMembership: false });
 }
 
 export async function createWorkspaceForUser(
   client: TypedSupabaseClient,
   user: User,
   input: CreateWorkspaceInput,
+  options: { reuseExistingMembership?: boolean } = {},
 ): Promise<CreateWorkspaceResult> {
   if (!isSupabaseAdminConfigured()) {
     return { ok: false, status: "not_configured", message: "Supabase admin env vars are required to create a workspace." };
@@ -344,14 +349,18 @@ export async function createWorkspaceForUser(
   }
 
   try {
-    const existingMembership = await getActiveMembershipForUser(client, user.id);
-    if (existingMembership) {
-      return {
-        ok: true,
-        orgId: existingMembership.org_id,
-        workspaceId: existingMembership.workspace_id,
-        claimedExistingOrg: false,
-      };
+    // Idempotency guard for the provisioning path (default). The explicit create
+    // flow opts out so it always provisions a new org+workspace.
+    if (options.reuseExistingMembership ?? true) {
+      const existingMembership = await getActiveMembershipForUser(client, user.id);
+      if (existingMembership) {
+        return {
+          ok: true,
+          orgId: existingMembership.org_id,
+          workspaceId: existingMembership.workspace_id,
+          claimedExistingOrg: false,
+        };
+      }
     }
 
     const org = await createOrganizationUnique(client, organizationName, organizationName);
