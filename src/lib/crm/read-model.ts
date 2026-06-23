@@ -178,6 +178,8 @@ export type CrmRecordData = {
   graph: CrmRecordGraphNode[];
   /** Who created this record: 'agent' = Arc, 'operator' = human. */
   origin: "operator" | "agent";
+  /** Human review status for Arc-proposed leads. */
+  reviewStatus: "active" | "proposed" | "dismissed";
 };
 
 export type CrmRecordReadResult =
@@ -959,6 +961,7 @@ type LeadRow = {
   created_at: string | null;
   updated_at: string | null;
   origin?: string | null;
+  review_status?: string | null;
 };
 
 type JobRow = {
@@ -1197,6 +1200,9 @@ function buildRecordDataFromBundle(key: CrmObjectKey, recordId: string, data: Cr
       dataQuality: dataQualityForRecord(key, record, evidence),
       graph: graphForRecord(key, record, data),
       origin: ((record as { origin?: string | null }).origin as "operator" | "agent" | undefined) ?? "operator",
+      reviewStatus:
+        ((record as { review_status?: string | null }).review_status as "active" | "proposed" | "dismissed" | undefined) ??
+        "active",
     };
   }
 }
@@ -1246,7 +1252,7 @@ async function getCrmTableBundle(client?: SupabaseClient, orgId?: string | null)
 
   let leadsQ = supabase
     .from("leads")
-    .select("id,company_id,contact_id,property_id,persona,status,routing_recommendation,source,loss_summary,loss_signals,lead_score,received_at,metadata,created_at,updated_at,origin")
+    .select("id,company_id,contact_id,property_id,persona,status,routing_recommendation,source,loss_summary,loss_signals,lead_score,received_at,metadata,created_at,updated_at,origin,review_status")
     .order("updated_at", { ascending: false })
     .limit(CRM_TABLE_BUNDLE_LIMIT);
   if (orgId) leadsQ = leadsQ.eq("org_id", orgId);

@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { AppShell } from "../../_components/app-shell";
-import { ActionFeedback, EmptyState, PageHeader } from "../../_components/page-header";
+import { ActionFeedback, EmptyState, PageHeader, Panel, buttonClasses } from "../../_components/page-header";
+import { setLeadReviewStatusAction } from "../actions";
 import { CrmRecordForm } from "./crm-record-form";
 import { isCrmEntityKey } from "../entity-keys";
 import { getCrmRecordData, type CrmObjectKey } from "@/lib/crm/read-model";
@@ -42,6 +43,8 @@ const RECORD_FEEDBACK = [
   "task-error",
   "activity-logged",
   "activity-error",
+  "lead-confirmed",
+  "lead-dismissed",
 ];
 
 type CrmRecordPageProps = {
@@ -130,11 +133,39 @@ export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPa
           "task-error": "That task could not be saved.",
           "activity-logged": "Activity logged.",
           "activity-error": "That activity could not be logged.",
+          "lead-confirmed": "Lead confirmed — now active.",
+          "lead-dismissed": "Lead dismissed.",
         }}
       />
 
       <div className="space-y-5">
         <RecordHeaderBand record={record} />
+
+        {record.key === "leads" && record.reviewStatus === "proposed" ? (
+          <Panel>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Arc proposed this lead from outside the app. Review and confirm to make it active, or dismiss it.
+              </p>
+              <div className="flex gap-2">
+                <form action={setLeadReviewStatusAction}>
+                  <input type="hidden" name="recordId" value={record.id} />
+                  <input type="hidden" name="decision" value="confirm" />
+                  <button type="submit" className={buttonClasses({ variant: "primary", size: "sm" })}>
+                    Confirm
+                  </button>
+                </form>
+                <form action={setLeadReviewStatusAction}>
+                  <input type="hidden" name="recordId" value={record.id} />
+                  <input type="hidden" name="decision" value="dismiss" />
+                  <button type="submit" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+                    Dismiss
+                  </button>
+                </form>
+              </div>
+            </div>
+          </Panel>
+        ) : null}
 
         {showEditForm && isCrmEntityKey(objectKey) ? (
           <CrmRecordForm objectKey={objectKey} mode="edit" recordId={recordId} values={editValues} />
