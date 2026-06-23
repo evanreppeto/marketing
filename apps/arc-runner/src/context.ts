@@ -4,11 +4,6 @@ import type { ArcHistoryTurn, MarkMention } from "./types";
 import type { RecallItem } from "./recall";
 import type { ArcSkill } from "./skills";
 
-/** Route → model. Fast chat rides Haiku; heavier "standard" work rides Opus. */
-export function modelForRoute(route: "fast" | "standard"): string {
-  return route === "standard" ? "claude-opus-4-8" : "claude-haiku-4-5";
-}
-
 /** Render bounded thread history as a prompt preamble. Empty string when none. */
 export function formatHistory(turns: ArcHistoryTurn[] | undefined): string {
   if (!turns || turns.length === 0) return "";
