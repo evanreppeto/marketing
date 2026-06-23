@@ -77,3 +77,22 @@ export async function getOperatorActor(): Promise<string> {
   }
   return getConfiguredOperatorCredentials()?.email ?? "Operator";
 }
+
+/**
+ * Stable identity key for per-user external integrations.
+ *
+ * `getOperatorActor()` is a human-facing audit label and may use a display name.
+ * OAuth rows need a durable key so reconnects, health checks, picker tokens, and
+ * imports all read the same saved connection.
+ */
+export async function getOperatorIntegrationKey(): Promise<string> {
+  if (getAuthMode() === "supabase") {
+    const user = await getSupabaseAuthenticatedUser();
+    const email = user?.email?.trim().toLowerCase();
+
+    if (email) return email;
+    if (user?.id) return user.id;
+  }
+
+  return getConfiguredOperatorCredentials()?.email ?? "Operator";
+}

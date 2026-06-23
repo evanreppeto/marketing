@@ -9,6 +9,9 @@ import {
   type ConnectionStatus,
 } from "@/domain";
 
+import { getCurrentOrgId } from "../auth/org";
+import { getOperatorActor, getOperatorIntegrationKey } from "../auth/operator";
+import { getConfiguredOperatorCredentials } from "../auth/operator-shared";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export type ConnectionView = {
@@ -37,6 +40,30 @@ type ConnectionRow = {
   last_test_ok: boolean | null;
   last_test_error: string | null;
   last_used_at: string | null;
+};
+
+type GoogleDriveConnectionStatusRow = {
+  connected_by: string;
+  connected_email: string | null;
+  connected_at: string;
+  last_import_at: string | null;
+  last_error: string | null;
+};
+
+type UntypedSelectChain = {
+  eq(column: string, value: string): UntypedSelectChain;
+  maybeSingle(): Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
+type UntypedSupabaseClient = SupabaseClient & {
+  from(table: string): {
+    select(columns: string): UntypedSelectChain;
+  };
+};
+
+type GetConnectionsOptions = {
+  orgId?: string;
+  connectedBy?: string;
 };
 
 /** True when every env var the provider requires is present and non-blank. */
@@ -89,6 +116,73 @@ function fallbackViews(): ConnectionView[] {
   }));
 }
 
+async function connectedByCandidates(primary: string): Promise<string[]> {
+  const candidates = new Set<string>();
+  candidates.add(primary);
+  candidates.add(await getOperatorActor());
+
+  const configuredEmail = getConfiguredOperatorCredentials()?.email;
+  if (configuredEmail) candidates.add(configuredEmail);
+
+  candidates.add("Operator");
+  return [...candidates];
+}
+
+async function getGoogleDriveStatusConnection(
+  client: SupabaseClient,
+  options: GetConnectionsOptions,
+  resolveRequestScope: boolean,
+): Promise<GoogleDriveConnectionStatusRow | null> {
+  const orgId = options.orgId ?? (resolveRequestScope ? await getCurrentOrgId().catch(() => null) : null);
+  if (!orgId) return null;
+
+  const connectedBy = options.connectedBy ?? (await getOperatorIntegrationKey());
+  for (const candidate of await connectedByCandidates(connectedBy)) {
+    const { data, error } = await (client as UntypedSupabaseClient)
+      .from("google_drive_connections")
+      .select("connected_by,connected_email,connected_at,last_import_at,last_error")
+      .eq("org_id", orgId)
+      .eq("connected_by", candidate)
+      .maybeSingle();
+
+    if (error) {
+      console.warn(`google_drive_connections status lookup failed: ${error.message}`);
+      return null;
+    }
+
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      return data as GoogleDriveConnectionStatusRow;
+    }
+  }
+
+  return null;
+}
+
+function applyGoogleDriveConnectionStatus(
+  views: ConnectionView[],
+  driveConnection: GoogleDriveConnectionStatusRow | null,
+): ConnectionView[] {
+  if (!driveConnection) return views;
+
+  return views.map((view) => {
+    if (view.provider !== "google_drive") return view;
+
+    return {
+      ...view,
+      status: computeConnectionStatus({
+        envPresent: isConfigured("google_drive"),
+        enabled: view.enabled,
+        lastTestOk: true,
+      }),
+      fromEmail: driveConnection.connected_email ?? driveConnection.connected_by,
+      lastTestedAt: driveConnection.connected_at,
+      lastTestOk: true,
+      lastTestError: driveConnection.last_error,
+      lastUsedAt: driveConnection.last_import_at ?? view.lastUsedAt,
+    };
+  });
+}
+
 function fallbackViewFor(entry: (typeof CONNECTION_REGISTRY)[number]): ConnectionView {
   return {
     provider: entry.provider,
@@ -111,7 +205,7 @@ function fallbackViewFor(entry: (typeof CONNECTION_REGISTRY)[number]): Connectio
  * operator switch × last test) — never stored. Degrades gracefully to a registry
  * view when Supabase isn't configured.
  */
-export async function getConnections(client?: SupabaseClient): Promise<ConnectionView[]> {
+export async function getConnections(client?: SupabaseClient, options: GetConnectionsOptions = {}): Promise<ConnectionView[]> {
   const supabase = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
   if (!supabase) return fallbackViews();
 
@@ -134,5 +228,6 @@ export async function getConnections(client?: SupabaseClient): Promise<Connectio
     if (!seen.has(entry.provider)) views.push(fallbackViewFor(entry));
   }
 
-  return views;
+  const driveConnection = await getGoogleDriveStatusConnection(supabase, options, !client);
+  return applyGoogleDriveConnectionStatus(views, driveConnection);
 }

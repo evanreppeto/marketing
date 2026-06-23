@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { classifyKind, deriveThreadTitle, validateUpload } from "@/domain";
-import { requireOperator, getOperatorActor } from "@/lib/auth/operator";
+import { getOperatorActor, getOperatorIntegrationKey, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
 import {
@@ -224,7 +224,7 @@ export async function importFromGoogleDriveAction(
   }
 
   try {
-    const operator = await getOperatorActor();
+    const operator = await getOperatorIntegrationKey();
     const accessToken = await resolveGoogleDriveAccessToken({ orgId, connectedBy: operator });
     let importFileIds = fileIds;
     let folderSummary = "";
@@ -290,7 +290,7 @@ export async function importFromGoogleDriveAction(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google Drive import failed.";
-    await recordGoogleDriveImportResult({ orgId, connectedBy: await getOperatorActor(), ok: false, error: message }).catch(() => undefined);
+    await recordGoogleDriveImportResult({ orgId, connectedBy: await getOperatorIntegrationKey(), ok: false, error: message }).catch(() => undefined);
     return { ok: false, message };
   }
 }
@@ -300,7 +300,7 @@ export async function syncGoogleDriveSourceAction(formData: FormData): Promise<v
   const sourceId = String(formData.get("sourceId") ?? "");
   if (!sourceId) return;
 
-  const connectedBy = await getOperatorActor();
+  const connectedBy = await getOperatorIntegrationKey();
   const source = await getGoogleDriveSource({ id: sourceId, orgId, connectedBy });
   if (!source) return;
   try {
@@ -334,7 +334,7 @@ export async function deleteGoogleDriveSourceAction(formData: FormData): Promise
   const orgId = await guard();
   const id = String(formData.get("sourceId") ?? "");
   if (!id) return;
-  await deleteGoogleDriveSource({ id, orgId, connectedBy: await getOperatorActor() });
+  await deleteGoogleDriveSource({ id, orgId, connectedBy: await getOperatorIntegrationKey() });
   revalidatePath("/library");
   revalidatePath("/library/brand");
   revalidatePath("/brain");

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { getOperatorIntegrationKey, requireOperator } from "@/lib/auth/operator";
 import { recordConnectionTest } from "@/lib/connections/persistence";
 import { saveGoogleDriveConnection } from "@/lib/google-drive/connection";
 import { exchangeGoogleDriveCode, resolveGoogleDriveConfig } from "@/lib/google-drive/oauth";
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       redirectUri: config.redirectUri,
     });
     const orgId = await getCurrentOrgId();
-    await saveGoogleDriveConnection({ orgId, connectedBy: await getOperatorActor(), tokenSet, client });
+    await saveGoogleDriveConnection({ orgId, connectedBy: await getOperatorIntegrationKey(), tokenSet, client });
     await recordConnectionTest(client, "google_drive", { ok: true });
     return redirectToLibrary(origin, "connected");
   } catch (error) {

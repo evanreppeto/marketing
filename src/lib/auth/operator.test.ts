@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createServerClient: vi.fn(),
+  getSupabaseAuthenticatedUser: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`redirect:${path}`);
   }),
@@ -23,7 +24,15 @@ vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
 }));
 
-import { requireOperator } from "./operator";
+vi.mock("@/lib/supabase/auth-server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase/auth-server")>();
+  return {
+    ...actual,
+    getSupabaseAuthenticatedUser: mocks.getSupabaseAuthenticatedUser,
+  };
+});
+
+import { getOperatorActor, getOperatorIntegrationKey, requireOperator } from "./operator";
 
 function setSupabaseMode() {
   process.env.ARC_AUTH_MODE = "supabase";
@@ -128,5 +137,30 @@ describe("requireOperator", () => {
     await expect(requireOperator()).rejects.toThrow("redirect:/login");
 
     expect(mocks.redirect).toHaveBeenCalledWith("/login");
+  });
+});
+
+describe("getOperatorIntegrationKey", () => {
+  it("uses the signed-in Supabase user's email instead of the display-name audit label", async () => {
+    setSupabaseMode();
+    mocks.getSupabaseAuthenticatedUser.mockResolvedValue({
+      id: "user-1",
+      email: "USER@Example.COM ",
+      user_metadata: { full_name: "Evan Operator" },
+    });
+
+    await expect(getOperatorActor()).resolves.toBe("Evan Operator");
+    await expect(getOperatorIntegrationKey()).resolves.toBe("user@example.com");
+  });
+
+  it("falls back to the Supabase user id when email is unavailable", async () => {
+    setSupabaseMode();
+    mocks.getSupabaseAuthenticatedUser.mockResolvedValue({
+      id: "user-1",
+      email: null,
+      user_metadata: {},
+    });
+
+    await expect(getOperatorIntegrationKey()).resolves.toBe("user-1");
   });
 });
