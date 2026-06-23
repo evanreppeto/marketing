@@ -13,6 +13,7 @@ import { libraryReadTools, libraryDraftTools } from "./library";
 import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
 import { brandTools } from "./brand";
 import { proposeOpportunityTool } from "./opportunities";
+import { appMapTools } from "./app-map";
 import type { StepFn, TurnSink } from "./helpers";
 import type { ArcSkill } from "../skills";
 
@@ -30,6 +31,7 @@ export type ToolContext = {
 /** Read app state + reply-shaping tools (cards, suggestions, sources). Available in every mode. */
 function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   return [
+    ...appMapTools(client, step),
     ...crmReadTools(client, step),
     ...brainReadTools(client, step),
     ...campaignReadTools(client, step),
