@@ -26,7 +26,7 @@ export type ShareViewer = {
   enforce: boolean;
 };
 
-const FULL_ACCESS: AccessDecision = { canView: true, permission: "collaborate" };
+const FULL_ACCESS: AccessDecision = Object.freeze({ canView: true, permission: "collaborate" });
 
 /**
  * Resolve the current viewer. In `open`/dev mode (or when unauthenticated) we do
@@ -40,6 +40,7 @@ export async function getShareViewer(
   if (getAuthMode() !== "supabase") {
     return { userId: null, workspaceIds: [], enforce: false };
   }
+  // Note: the auth user lookup uses its own session-scoped client (required for auth.getUser); only the membership query below uses the injected `client`.
   const user = await getSupabaseAuthenticatedUser();
   if (!user) {
     return { userId: null, workspaceIds: [], enforce: false };
