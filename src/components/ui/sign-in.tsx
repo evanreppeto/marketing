@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowRight, Building2, Eye, EyeOff, KeyRound, LockKeyhole, Mail, User, UserPlus } from "lucide-react";
+import { ArrowRight, Building2, KeyRound, Mail, User, UserPlus } from "lucide-react";
 import React, { useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { AuthShell } from "./auth-shell";
 import { AUTH_ERROR_BOX, AUTH_FIELD_INPUT, AUTH_FIELD_SHELL, AUTH_FORM_HEADING, AUTH_LABEL } from "./auth-field";
+import { PasswordField } from "./password-field";
 
 function GoogleIcon() {
   return (
@@ -39,8 +40,6 @@ export function SignInPage({
   showSignUpLink = false,
   showSocialAuth = false,
 }: SignInPageProps) {
-  const [showPassword, setShowPassword] = useState(false);
-
   return (
     <AuthShell
       headline={
@@ -68,29 +67,14 @@ export function SignInPage({
         <label className="block">
           <span className="flex items-center justify-between gap-3">
             <span className={labelText}>Password</span>
-            <a className="text-xs font-medium text-[var(--accent)] transition hover:text-[var(--accent-strong)]" href={forgotPasswordHref}>
+            <a
+              className="rounded text-xs font-medium text-[var(--accent)] outline-none transition hover:text-[var(--accent-strong)] focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]"
+              href={forgotPasswordHref}
+            >
               Forgot?
             </a>
           </span>
-          <span className={fieldShell}>
-            <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-            <input
-              autoComplete="current-password"
-              required
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter password"
-              className={fieldInput}
-            />
-            <button
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-              onClick={() => setShowPassword((value) => !value)}
-              type="button"
-            >
-              {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
-            </button>
-          </span>
+          <PasswordField autoComplete="current-password" name="password" />
         </label>
 
         <label className="flex cursor-pointer items-center gap-2.5 pt-0.5 text-sm text-[var(--text-secondary)]">
@@ -153,18 +137,13 @@ export function SignUpPage({
   showSocialAuth = false,
   successMessage,
 }: SignUpPageProps) {
-  const [showPassword, setShowPassword] = useState(false);
   const [workspaceIntent, setWorkspaceIntent] = useState<"create" | "join">("create");
   const creatingWorkspace = workspaceIntent === "create";
 
   return (
     <AuthShell
       formMaxWidth="max-w-[500px]"
-      headline={
-        <>
-          Give every team a clean place for Arc to <span className="italic text-[var(--accent)]">work</span>.
-        </>
-      }
+      headline={<>Give every team a clean home for Arc to work in.</>}
       supporting="Each workspace keeps its own brand context, memory, members, and approvals — a tidy boundary Arc learns inside."
       meta={["Owner creates", "Team approves", "Arc learns"]}
     >
@@ -201,29 +180,11 @@ export function SignUpPage({
             </span>
           </label>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label
-              className={`group cursor-pointer rounded-lg border p-3 transition ${creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"}`}
-            >
-              <input checked={creatingWorkspace} className="sr-only" name="workspaceIntent" onChange={() => setWorkspaceIntent("create")} type="radio" value="create" />
-              <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
-                <Building2 aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
-                Create workspace
-              </span>
-              <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">Owner setup for a company.</span>
-            </label>
-
-            <label
-              className={`group cursor-pointer rounded-lg border p-3 transition ${!creatingWorkspace ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)]" : "border-[var(--border-hairline)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"}`}
-            >
-              <input checked={!creatingWorkspace} className="sr-only" name="workspaceIntent" onChange={() => setWorkspaceIntent("join")} type="radio" value="join" />
-              <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
-                <KeyRound aria-hidden="true" className="h-4 w-4 text-[var(--accent)]" />
-                Join with code
-              </span>
-              <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">Use an invite from your team.</span>
-            </label>
+          <div role="tablist" aria-label="Workspace setup" className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1">
+            <SegmentButton active={creatingWorkspace} icon={<Building2 aria-hidden="true" className="h-4 w-4" />} label="Create workspace" onClick={() => setWorkspaceIntent("create")} />
+            <SegmentButton active={!creatingWorkspace} icon={<KeyRound aria-hidden="true" className="h-4 w-4" />} label="Join with code" onClick={() => setWorkspaceIntent("join")} />
           </div>
+          <input name="workspaceIntent" type="hidden" value={workspaceIntent} />
 
           {creatingWorkspace ? (
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
@@ -268,26 +229,7 @@ export function SignUpPage({
 
           <label className="block">
             <span className={labelText}>Password</span>
-            <span className={fieldShell}>
-              <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-              <input
-                autoComplete="new-password"
-                minLength={8}
-                name="password"
-                placeholder="At least 8 characters"
-                required
-                type={showPassword ? "text" : "password"}
-                className={fieldInput}
-              />
-              <button
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]"
-                onClick={() => setShowPassword((value) => !value)}
-                type="button"
-              >
-                {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
-              </button>
-            </span>
+            <PasswordField autoComplete="new-password" minLength={8} name="password" placeholder="At least 8 characters" />
           </label>
         </div>
 
@@ -329,7 +271,7 @@ export function SignUpPage({
           </form>
         ) : null}
         <a
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] px-3 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] px-3 text-sm font-medium text-[var(--text-primary)] outline-none transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]"
           href={`/login?from=${encodeURIComponent(from)}`}
         >
           Sign in
@@ -344,16 +286,41 @@ function Divider() {
   return (
     <div className="my-5 flex items-center gap-3">
       <span className="h-px flex-1 bg-[var(--border-hairline)]" />
-      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">or</span>
+      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--text-secondary)]">or</span>
       <span className="h-px flex-1 bg-[var(--border-hairline)]" />
     </div>
+  );
+}
+
+function SegmentButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-selected={active}
+      className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)] ${active ? "bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--elev-control)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+      onClick={onClick}
+      role="tab"
+      type="button"
+    >
+      <span className={active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}>{icon}</span>
+      {label}
+    </button>
   );
 }
 
 function GhostButton({ children }: { children: React.ReactNode }) {
   return (
     <button
-      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] px-3 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] active:translate-y-px"
+      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] px-3 text-sm font-medium text-[var(--text-primary)] outline-none transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)] active:translate-y-px"
       type="submit"
     >
       {children}
@@ -378,7 +345,7 @@ function PrimarySubmitButton({
 
   return (
     <button
-      className={`${className ?? ""} flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--on-accent)] shadow-[var(--elev-control)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--accent-hover)] active:translate-y-0 active:bg-[var(--accent-active)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0`}
+      className={`${className ?? ""} flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--on-accent)] shadow-[var(--elev-control)] outline-none transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent-strong)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--canvas)] active:translate-y-0 active:bg-[var(--accent-active)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0`}
       disabled={disabled || pending}
       type="submit"
     >

@@ -32,11 +32,7 @@ export default async function StartPage() {
   return (
     <AuthShell
       formMaxWidth="max-w-[480px]"
-      headline={
-        <>
-          Let Arc learn your <span className="italic text-[var(--accent)]">brand</span>.
-        </>
-      }
+      headline={<>Let Arc learn your brand.</>}
       supporting="Give Arc your website and it reads your business — name, voice, and logo — then drafts on-brand work. You approve everything before it ships."
       meta={["Source-backed", "Approval-gated"]}
     >
