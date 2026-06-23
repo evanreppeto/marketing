@@ -3,6 +3,7 @@ import { ARC_PERSONAS } from "./personas";
 import type { ArcHistoryTurn, MarkMention } from "./types";
 import type { RecallItem } from "./recall";
 import type { ArcSkill } from "./skills";
+import type { WorkspaceSummary } from "./workspace-summary";
 
 /** Render bounded thread history as a prompt preamble. Empty string when none. */
 export function formatHistory(turns: ArcHistoryTurn[] | undefined): string {

@@ -1,6 +1,7 @@
 import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { resolveBusinessContext } from "./business-context";
+import { resolveWorkspaceSummary } from "./workspace-summary";
 import { buildTurnContentAsync } from "./attachments";
 import { buildRecallQuery, resolveRecallMemory } from "./recall";
 import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
