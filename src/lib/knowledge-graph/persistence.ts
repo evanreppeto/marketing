@@ -127,6 +127,29 @@ export async function createEdge(input: KnowledgeEdgeInput, deps: WriteDeps = {}
   return { ok: true, id: data.id };
 }
 
+/**
+ * Idempotent edge write for CRM ingestion: insert only if no edge with the same
+ * (org_id, from_node_id, to_node_id, relation) exists. No unique index needed.
+ */
+export async function createEdgeIfAbsent(input: KnowledgeEdgeInput, deps: WriteDeps = {}): Promise<WriteResult> {
+  const resolved = await resolveDeps(deps);
+  if (!resolved) return { ok: false, error: NOT_CONFIGURED };
+  const { client, orgId } = resolved;
+
+  const existing = await client
+    .from("knowledge_edges")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("from_node_id", input.fromNodeId)
+    .eq("to_node_id", input.toNodeId)
+    .eq("relation", input.relation)
+    .maybeSingle<{ id: string }>();
+  if (existing.error) return { ok: false, error: existing.error.message };
+  if (existing.data?.id) return { ok: true, id: existing.data.id };
+
+  return createEdge(input, { client, orgId });
+}
+
 /** Approve or reject a proposed node (operator only). */
 export async function decideNode(
   nodeId: string,

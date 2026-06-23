@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { createNode, createEdge, decideNode, upsertReferenceNode } from "./persistence";
+import { createNode, createEdge, createEdgeIfAbsent, decideNode, upsertReferenceNode } from "./persistence";
 
 const ORG = "org-1";
 
@@ -156,5 +156,31 @@ describe("decideNode", () => {
     const updateCall = supabase.calls.find(([m]) => m === "update") as [string, Record<string, unknown>];
     expect(updateCall[1].trust_tier).toBe("trusted");
     expect(updateCall[1].approved_by).toBe("Operator");
+  });
+});
+
+describe("createEdgeIfAbsent", () => {
+  const EDGE = { fromNodeId: "n-from", toNodeId: "n-to", relation: "belongs_to" as const };
+
+  it("inserts when no matching edge exists", async () => {
+    // 1st from(knowledge_edges): lookup → none; 2nd: createEdge insert → id
+    const supabase = createSupabaseQueryMock({
+      knowledge_edges: [
+        { data: null, error: null },
+        { data: { id: "e-1" }, error: null },
+      ],
+    });
+    const result = await createEdgeIfAbsent(EDGE, { client: supabase as never, orgId: ORG });
+    expect(result).toEqual({ ok: true, id: "e-1" });
+    expect(supabase.calls.some(([m]) => m === "insert")).toBe(true);
+  });
+
+  it("returns the existing edge without inserting a duplicate", async () => {
+    const supabase = createSupabaseQueryMock({
+      knowledge_edges: [{ data: { id: "e-existing" }, error: null }], // lookup → found
+    });
+    const result = await createEdgeIfAbsent(EDGE, { client: supabase as never, orgId: ORG });
+    expect(result).toEqual({ ok: true, id: "e-existing" });
+    expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
   });
 });
