@@ -51,6 +51,7 @@ import { type ApprovalDecision, decideAsset } from "@/lib/campaigns/decisions";
 import { editDraftAsset, getDraftAsset, type DraftAssetView } from "@/lib/campaigns/draft-editing";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { saveItem, removeSavedItem, getSavedItem, markPromoted, type SavedKind } from "@/lib/arc-chat/saved";
+import { assertConversationAccess, getShareViewer, ArcAccessError } from "@/lib/arc-chat/sharing";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { type ArcChatTaskScope } from "@/lib/arc-chat/inbox";
@@ -99,6 +100,22 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
   // Optional project chosen in the composer footer — assigned on a new thread.
   const projectId = String(formData.get("projectId") ?? "").trim() || null;
 
+  // Resolve the viewer once; used for authorship stamping and access gating.
+  const viewer = await getShareViewer(client);
+
+  // For an existing conversation, assert collaborate access before inserting.
+  if (existingId) {
+    try {
+      await assertConversationAccess(existingId, "collaborate", viewer, client);
+    } catch (error) {
+      if (error instanceof ArcAccessError) {
+        const agentName = await getAgentName();
+        return { ok: false, message: `This chat is view-only — ${agentName} can't accept a message here.` };
+      }
+      throw error;
+    }
+  }
+
   let conversationId = existingId;
   let messageId: string;
   try {
@@ -106,7 +123,7 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
       const conversation = await createConversation({ operator, title: deriveThreadTitle(body), projectId }, client);
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route, author_user_id: viewer.userId }, client);
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {

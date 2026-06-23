@@ -603,6 +603,7 @@ export async function insertOperatorMessage(
     attachments?: ArcAttachment[];
     mode?: ArcMode;
     route?: ArcRoute;
+    author_user_id?: string | null;
   },
   client: SupabaseClient = getSupabaseAdminClient(),
 ): Promise<ArcMessage> {
@@ -619,6 +620,7 @@ export async function insertOperatorMessage(
       status: "sent",
       mentions: input.mentions,
       metadata,
+      ...(input.author_user_id != null ? { author_user_id: input.author_user_id } : {}),
     })
     .select(MESSAGE_COLUMNS)
     .single<MessageRow>();
