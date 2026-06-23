@@ -88,7 +88,7 @@ async function loadLiveArcChatProps(
     projects,
     campaigns,
     archived,
-    activeConversation,
+    requestedConversation,
     pendingOpportunities,
   ] = await Promise.all([
     getMentionables(),
@@ -100,15 +100,20 @@ async function loadLiveArcChatProps(
       .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
       .catch(() => [] as { id: string; name: string }[]),
     showArchived ? listArchivedConversations(operator) : Promise.resolve([] as ArcConversation[]),
-    requestedId
-      ? getConversation(requestedId).then(async (conv) => {
-          if (!conv) return null;
-          const decision = await resolveConversationAccess(conv.id, viewer);
-          return decision.canView ? conv : null;
-        })
-      : Promise.resolve(null),
+    requestedId ? getConversation(requestedId) : Promise.resolve(null),
     countPendingOpportunities().catch(() => 0),
   ]);
+
+  // Resolve the requested thread's access ONCE: this both gates visibility and
+  // derives the composer permission, so there's no duplicate access query. The
+  // gate runs before the dependent message reads below, so messages are never
+  // loaded for a thread the viewer can't access. In open/dev mode enforce is
+  // false → full access.
+  const activeAccess = requestedConversation
+    ? await resolveConversationAccess(requestedConversation.id, viewer)
+    : null;
+  const activeConversation = activeAccess?.canView ? requestedConversation : null;
+  const canCompose = !viewer.enforce || activeAccess?.permission === "collaborate";
 
   // "New chat in this project" deep link (?project=<id>) — only meaningful for a
   // fresh chat; ignored once a thread is active and validated against real projects.
@@ -139,10 +144,7 @@ async function loadLiveArcChatProps(
       : Promise.resolve([] as ArcMessage[]),
   ]);
 
-  // Sharing UI inputs. In open/dev mode the viewer doesn't enforce sharing, so
-  // everything is fully accessible/owned and these stay permissive defaults.
-  const activeAccess = activeConversation ? await resolveConversationAccess(activeConversation.id, viewer) : null;
-  const canCompose = !viewer.enforce || activeAccess?.permission === "collaborate";
+  // (activeAccess + canCompose were computed above, together with the access gate.)
 
   // Workspace member roster for the share-with picker — guarded so a missing
   // workspace or unconfigured Supabase degrades to an empty list, not a throw.
