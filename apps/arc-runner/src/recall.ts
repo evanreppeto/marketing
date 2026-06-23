@@ -27,6 +27,6 @@ const RECALL_HISTORY_TURNS = 4;
  * returns the message unchanged (preserving the original single-shot behavior).
  */
 export function buildRecallQuery(history: ArcHistoryTurn[] | undefined, message: string): string {
-  const recent = (history ?? []).slice(-RECALL_HISTORY_TURNS).map((t) => t.body);
+  const recent = (history ?? []).slice(-RECALL_HISTORY_TURNS).map((t) => t.body ?? "");
   return [...recent, message].filter((s) => s.trim().length > 0).join("\n");
 }

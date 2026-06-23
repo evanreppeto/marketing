@@ -46,6 +46,8 @@ describe("buildRecallQuery", () => {
     const many = Array.from({ length: 10 }, (_, i) => ({ role: "operator" as const, body: `turn-${i}` }));
     const out = buildRecallQuery(many, "now");
     expect(out).not.toContain("turn-0");
+    expect(out).not.toContain("turn-5"); // first turn outside the 4-turn window
+    expect(out).toContain("turn-6"); // first turn inside the window
     expect(out).toContain("turn-9");
     expect(out).toContain("now");
   });
