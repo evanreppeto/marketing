@@ -84,5 +84,29 @@ export function brainWriteTools(client: ArcClient, step: StepFn) {
       }),
   );
 
-  return [recordBrainNote, linkBrainNodes];
+  const proposeAudience = tool(
+    "propose_audience",
+    "Synthesize an AUDIENCE SEGMENT from CRM evidence and propose it for human approval. Use after query_brain / reading the CRM when you notice a cluster of records that share a pattern worth targeting (e.g. a persona + loss type + geography + behavior). Creates a `segment` node that lands in the approval queue (proposed) and links it to the persona it targets and the brain nodes that justify it. Pass evidence_node_ids you got from query_brain so the audience is grounded in real records. Nothing is trusted or actionable until a human approves — never treat a proposed audience as final.",
+    {
+      label: z.string().describe("Short name for the audience, e.g. 'Flood-prone Chicago landlords'"),
+      summary: z.string().optional().describe("One line: who they are and why they're grouped"),
+      criteria: z.string().optional().describe("The rule that defines membership"),
+      persona: z.string().optional().describe("Persona key this audience targets, e.g. persona_landlord"),
+      evidence_node_ids: z
+        .array(z.string())
+        .optional()
+        .describe("Brain node ids (from query_brain results) that justify the audience"),
+      tags: z.array(z.string()).optional(),
+    },
+    async (args) =>
+      runTool(step, "Proposing an audience", async () => {
+        const r = await client.apiPost<{ id: string; personaLinked: boolean; evidenceLinked: number }>(
+          "/api/v1/arc/brain/audiences",
+          args,
+        );
+        return r;
+      }),
+  );
+
+  return [recordBrainNote, linkBrainNodes, proposeAudience];
 }

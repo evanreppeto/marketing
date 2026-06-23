@@ -63,6 +63,7 @@ describe("isGatedKind", () => {
     expect(GATED_NODE_KINDS).toContain("brand_fact");
     expect(isGatedKind("brand_fact")).toBe(true);
     expect(isGatedKind("cta")).toBe(true);
+    expect(isGatedKind("segment")).toBe(true); // Arc-synthesized audiences are approval-gated
     expect(isGatedKind("learning")).toBe(false);
     expect(isGatedKind("persona")).toBe(false);
   });
@@ -76,6 +77,7 @@ describe("resolveInitialTrustTier", () => {
   it("proposes gated kinds Arc creates", () => {
     expect(resolveInitialTrustTier({ kind: "brand_fact", createdBy: "arc" })).toBe("proposed");
     expect(resolveInitialTrustTier({ kind: "cta", createdBy: "arc" })).toBe("proposed");
+    expect(resolveInitialTrustTier({ kind: "segment", createdBy: "arc" })).toBe("proposed");
   });
   it("lets Arc observe non-gated kinds freely", () => {
     expect(resolveInitialTrustTier({ kind: "learning", createdBy: "arc" })).toBe("observed");
