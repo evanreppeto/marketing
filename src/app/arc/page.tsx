@@ -7,7 +7,7 @@ import { getOperatorActor } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getMentionables } from "@/lib/arc-chat/mention-search";
 import {
-  listConversations,
+  listConversationsForViewer,
   listMessages,
   getConversation,
   listProjects,
@@ -16,9 +16,12 @@ import {
   type ArcConversation,
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
+import { getShareViewer, resolveConversationAccess, listConversationShares } from "@/lib/arc-chat/sharing";
 import { listCampaignNames } from "@/lib/campaigns/read-model";
 import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { listWorkspaceTeamAccess } from "@/lib/auth/workspace-invites";
 
 import { ArcChat } from "./_components/arc-chat";
 import { SLASH_COMMANDS } from "./_components/slash-commands";
@@ -70,6 +73,9 @@ async function loadLiveArcChatProps(
   const requestedProject = valueOf(params?.project);
   const requestedSkill = valueOf(params?.skill);
 
+  // Resolve the viewer once (open/dev mode returns enforce:false → no-op).
+  const viewer = await getShareViewer();
+
   // These reads are independent, so run them concurrently. Previously they were
   // ~8 sequential Supabase round-trips that summed past the page-data timeout and
   // silently degraded the whole chat to demo mode; one parallel batch stays well
@@ -82,13 +88,13 @@ async function loadLiveArcChatProps(
     projects,
     campaigns,
     archived,
-    activeConversation,
+    requestedConversation,
     pendingOpportunities,
   ] = await Promise.all([
     getMentionables(),
     getAppSettings(),
     countActiveApprovals(orgId).catch(() => 0),
-    listConversations(operator),
+    listConversationsForViewer(viewer, operator),
     listProjects(operator),
     listCampaignNames(orgId)
       .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
@@ -97,6 +103,17 @@ async function loadLiveArcChatProps(
     requestedId ? getConversation(requestedId) : Promise.resolve(null),
     countPendingOpportunities().catch(() => 0),
   ]);
+
+  // Resolve the requested thread's access ONCE: this both gates visibility and
+  // derives the composer permission, so there's no duplicate access query. The
+  // gate runs before the dependent message reads below, so messages are never
+  // loaded for a thread the viewer can't access. In open/dev mode enforce is
+  // false → full access.
+  const activeAccess = requestedConversation
+    ? await resolveConversationAccess(requestedConversation.id, viewer)
+    : null;
+  const activeConversation = activeAccess?.canView ? requestedConversation : null;
+  const canCompose = !viewer.enforce || activeAccess?.permission === "collaborate";
 
   // "New chat in this project" deep link (?project=<id>) — only meaningful for a
   // fresh chat; ignored once a thread is active and validated against real projects.
@@ -127,12 +144,43 @@ async function loadLiveArcChatProps(
       : Promise.resolve([] as ArcMessage[]),
   ]);
 
+  // (activeAccess + canCompose were computed above, together with the access gate.)
+
+  // Workspace member roster for the share-with picker — guarded so a missing
+  // workspace or unconfigured Supabase degrades to an empty list, not a throw.
+  const shareMembers = await (async (): Promise<{ userId: string; label: string }[]> => {
+    try {
+      const workspaceId = await getCurrentWorkspaceContext()
+        .then((ctx) => ctx.workspaceId)
+        .catch(() => null);
+      if (!workspaceId) return [];
+      const roster = await listWorkspaceTeamAccess(workspaceId);
+      if (!roster.ok) return [];
+      return roster.members
+        .filter((m) => m.status === "active" && m.userId != null)
+        .map((m) => ({ userId: m.userId as string, label: m.email ?? m.role }));
+    } catch {
+      return [];
+    }
+  })();
+
+  // Current shares on the active conversation (drives the dialog's access list).
+  const conversationShares = activeConversation
+    ? await listConversationShares(activeConversation.id).catch(() => [])
+    : [];
+
   return {
     chatProps: {
       conversations,
       projects,
       archived,
       showArchived,
+      canCompose,
+      shareMembers,
+      conversationShares,
+      activeVisibility: activeConversation?.visibility ?? "private",
+      activeWorkspacePermission: activeConversation?.workspacePermission ?? "view",
+      viewerUserId: viewer.userId,
       activeId: activeConversation?.id ?? "",
       activeTitle: activeConversation?.title ?? "",
       activeProjectId: activeConversation?.projectId ?? null,

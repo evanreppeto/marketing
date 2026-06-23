@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { cx } from "@/app/_components/theme";
+import { StatusPill } from "@/app/_components/page-header";
 import type { ArcConversation, ArcProject } from "@/lib/arc-chat/persistence";
 
 import { createProjectForm, deleteProjectForm, renameProjectForm, unarchiveThreadForm } from "../actions";
@@ -250,12 +251,15 @@ function ChatRow({
   activeId,
   nowMs,
   state = "idle",
+  shared = false,
 }: {
   c: ArcConversation;
   projects: ArcProject[];
   activeId: string;
   nowMs: number;
   state?: RunState;
+  /** Marks a conversation the viewer doesn't own — shows a small "Shared" pill. */
+  shared?: boolean;
 }) {
   const active = c.id === activeId;
   const titleText =
@@ -289,6 +293,11 @@ function ChatRow({
       >
         {c.pinnedAt ? <PinGlyph /> : null}
         <span className={cx("min-w-0 flex-1 truncate", state === "done" ? "font-semibold text-[var(--text-primary)]" : "")}>{c.title}</span>
+        {shared ? (
+          <StatusPill tone="gray" className="shrink-0 px-1.5 py-0 text-[9px] uppercase tracking-[0.08em]">
+            Shared
+          </StatusPill>
+        ) : null}
         {/* Trailing status slot — fades on hover so the dots menu has clear room. */}
         <span className="flex shrink-0 items-center transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0">
           {state === "working" ? (
@@ -324,6 +333,7 @@ function ProjectGroup({
   nowMs,
   runningIds = NO_RUNNING_IDS,
   doneIds = NO_RUNNING_IDS,
+  viewerUserId = null,
 }: {
   project: ArcProject;
   rows: ArcConversation[];
@@ -332,6 +342,7 @@ function ProjectGroup({
   nowMs: number;
   runningIds?: Set<string>;
   doneIds?: Set<string>;
+  viewerUserId?: string | null;
 }) {
   // Collapse state persists across reloads (localStorage), so a project you
   // collapse stays collapsed. Defaults to open; hydrated after mount to avoid an
@@ -426,7 +437,7 @@ function ProjectGroup({
             <p className="px-2 py-1 text-xs text-[var(--text-muted)]">No chats yet.</p>
           ) : (
             rows.map((c) => (
-              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
+              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} shared={viewerUserId != null && c.ownerId != null && c.ownerId !== viewerUserId} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
             ))
           )}
         </div>
@@ -470,6 +481,7 @@ export function ThreadSidebar({
   activeId,
   variant = "rail",
   assistantName = "Arc",
+  viewerUserId = null,
   runningIds = NO_RUNNING_IDS,
   doneIds = NO_RUNNING_IDS,
   collapsed = false,
@@ -482,6 +494,9 @@ export function ThreadSidebar({
   activeId: string;
   variant?: "rail" | "overlay";
   assistantName?: string;
+  /** The viewer's user id — when set, conversations owned by someone else are
+   *  grouped under "Shared with me". Null in open/dev mode (all treated as owned). */
+  viewerUserId?: string | null;
   /** Conversation ids with an Arc run in flight — drives the working spinner. */
   runningIds?: Set<string>;
   /** Conversation ids with a finished-but-unopened reply — drives the pulse. */
@@ -612,9 +627,16 @@ export function ThreadSidebar({
   const q = query.trim().toLowerCase();
   const filtered = q ? conversations.filter((c) => c.title.toLowerCase().includes(q)) : conversations;
 
+  // A conversation is "shared with me" when the viewer is known and isn't the
+  // owner. In open/dev mode viewerUserId is null, so nothing is treated as shared.
+  const isShared = (c: ArcConversation) =>
+    viewerUserId != null && c.ownerId != null && c.ownerId !== viewerUserId;
+
   const pinned = filtered.filter((c) => c.pinnedAt);
   const unpinned = filtered.filter((c) => !c.pinnedAt);
-  const unprojected = unpinned.filter((c) => !c.projectId);
+  // Shared chats get their own section; keep them out of the projects/Chats groups.
+  const sharedWithMe = unpinned.filter((c) => isShared(c) && !c.projectId);
+  const unprojected = unpinned.filter((c) => !c.projectId && !isShared(c));
   const byProject = new Map<string, ArcConversation[]>();
   for (const c of unpinned) {
     if (!c.projectId) continue;
@@ -704,7 +726,7 @@ export function ThreadSidebar({
           <div className="flex flex-col gap-0.5">
             <SectionLabel icon={<PinGlyph className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />}>Pinned</SectionLabel>
             {pinned.map((c) => (
-              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
+              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} shared={isShared(c)} state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
             ))}
           </div>
         ) : null}
@@ -741,8 +763,18 @@ export function ThreadSidebar({
             nowMs={nowMs}
             runningIds={runningIds}
             doneIds={doneIds}
+            viewerUserId={viewerUserId}
           />
         ))}
+
+        {sharedWithMe.length > 0 ? (
+          <div className="flex flex-col gap-0.5">
+            <SectionLabel>Shared with me</SectionLabel>
+            {sharedWithMe.map((c) => (
+              <ChatRow key={c.id} c={c} projects={projects} activeId={activeId} nowMs={nowMs} shared state={runningIds.has(c.id) ? "working" : doneIds.has(c.id) ? "done" : "idle"} />
+            ))}
+          </div>
+        ) : null}
 
         <SectionLabel>Chats</SectionLabel>
         <nav aria-label="Conversations" className="flex min-h-0 flex-col">

@@ -32,6 +32,7 @@ import {
   insertFailedArcMessage,
   insertOperatorMessage,
   insertPendingArcMessage,
+  getMessageConversationId,
   listActiveArcRunConversationIds,
   listMessages,
   listRecentArcRuns,
@@ -51,6 +52,7 @@ import { type ApprovalDecision, decideAsset } from "@/lib/campaigns/decisions";
 import { editDraftAsset, getDraftAsset, type DraftAssetView } from "@/lib/campaigns/draft-editing";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { saveItem, removeSavedItem, getSavedItem, markPromoted, type SavedKind } from "@/lib/arc-chat/saved";
+import { assertConversationAccess, assertProjectAccess, getCreationTenancy, getShareViewer, resolveConversationAccess, ArcAccessError } from "@/lib/arc-chat/sharing";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { type ArcChatTaskScope } from "@/lib/arc-chat/inbox";
@@ -99,14 +101,34 @@ export async function sendArcMessageAction(_previous: SendMessageState, formData
   // Optional project chosen in the composer footer — assigned on a new thread.
   const projectId = String(formData.get("projectId") ?? "").trim() || null;
 
+  // Resolve the viewer once; used for authorship stamping and access gating.
+  const viewer = await getShareViewer(client);
+
+  // For an existing conversation, assert collaborate access before inserting.
+  if (existingId) {
+    try {
+      await assertConversationAccess(existingId, "collaborate", viewer, client);
+    } catch (error) {
+      if (error instanceof ArcAccessError) {
+        const agentName = await getAgentName();
+        return { ok: false, message: `This chat is view-only — ${agentName} can't accept a message here.` };
+      }
+      throw error;
+    }
+  }
+
   let conversationId = existingId;
   let messageId: string;
   try {
     if (!conversationId) {
-      const conversation = await createConversation({ operator, title: deriveThreadTitle(body), projectId }, client);
+      const tenancy = await getCreationTenancy();
+      const conversation = await createConversation(
+        { operator, title: deriveThreadTitle(body), projectId, ...tenancy },
+        client,
+      );
       conversationId = conversation.id;
     }
-    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route }, client);
+    const operatorMessage = await insertOperatorMessage({ conversationId, body, mentions: cleanMentions, attachments, mode, route, author_user_id: viewer.userId }, client);
     messageId = operatorMessage.id;
     await touchConversation(conversationId, client);
   } catch (error) {
@@ -323,8 +345,10 @@ export async function renameThreadAction(_previous: SimpleActionState, formData:
   if (!id) return { ok: false, message: "Missing conversation." };
 
   try {
+    await assertConversationAccess(id, "collaborate");
     await renameConversation(id, title);
   } catch (error) {
+    if (error instanceof ArcAccessError) return { ok: false, message: error.message };
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't rename the thread." };
   }
   revalidatePath("/arc");
@@ -339,8 +363,10 @@ export async function archiveThreadAction(_previous: SimpleActionState, formData
   if (!id) return { ok: false, message: "Missing conversation." };
 
   try {
+    await assertConversationAccess(id, "collaborate");
     await archiveConversation(id);
   } catch (error) {
+    if (error instanceof ArcAccessError) return { ok: false, message: error.message };
     return { ok: false, message: error instanceof Error ? error.message : "Couldn't archive the thread." };
   }
   revalidatePath("/arc");
@@ -354,7 +380,8 @@ export async function createProjectForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  await createProject({ operator: await getOperatorActor(), name });
+  const tenancy = await getCreationTenancy();
+  await createProject({ operator: await getOperatorActor(), name, ...tenancy });
   revalidatePath("/arc");
 }
 
@@ -364,6 +391,7 @@ export async function moveConversationForm(formData: FormData): Promise<void> {
   const conversationId = String(formData.get("conversationId") ?? "").trim();
   const rawProject = String(formData.get("projectId") ?? "").trim();
   if (!conversationId) return;
+  await assertConversationAccess(conversationId, "collaborate");
   await assignConversationToProject(conversationId, rawProject || null);
   revalidatePath("/arc");
 }
@@ -373,6 +401,7 @@ export async function archiveThreadForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const id = String(formData.get("conversationId") ?? "").trim();
   if (!id) return;
+  await assertConversationAccess(id, "collaborate");
   await archiveConversation(id);
   revalidatePath("/arc");
 }
@@ -382,6 +411,7 @@ export async function unarchiveThreadForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const id = String(formData.get("conversationId") ?? "").trim();
   if (!id) return;
+  await assertConversationAccess(id, "collaborate");
   await unarchiveConversation(id);
   revalidatePath("/arc");
 }
@@ -390,6 +420,9 @@ export async function unarchiveThreadForm(formData: FormData): Promise<void> {
 export async function getThreadMessagesAction(conversationId: string): Promise<ArcMessage[]> {
   await requireOperator();
   if (!isSupabaseAdminConfigured() || !conversationId) return [];
+  const viewer = await getShareViewer();
+  const decision = await resolveConversationAccess(conversationId, viewer);
+  if (!decision.canView) return [];
   try {
     return await listMessages(conversationId);
   } catch {
@@ -403,6 +436,7 @@ export async function renameThreadForm(formData: FormData): Promise<void> {
   const id = String(formData.get("conversationId") ?? "").trim();
   const title = deriveThreadTitle(String(formData.get("title") ?? ""));
   if (!id) return;
+  await assertConversationAccess(id, "collaborate");
   await renameConversation(id, title);
   revalidatePath("/arc");
 }
@@ -412,6 +446,7 @@ export async function pinThreadForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const id = String(formData.get("conversationId") ?? "").trim();
   if (!id) return;
+  await assertConversationAccess(id, "collaborate");
   await setConversationPinned(id, true);
   revalidatePath("/arc");
 }
@@ -421,6 +456,7 @@ export async function unpinThreadForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const id = String(formData.get("conversationId") ?? "").trim();
   if (!id) return;
+  await assertConversationAccess(id, "collaborate");
   await setConversationPinned(id, false);
   revalidatePath("/arc");
 }
@@ -430,6 +466,7 @@ export async function deleteThreadForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const id = String(formData.get("conversationId") ?? "").trim();
   if (!id) return;
+  await assertConversationAccess(id, "collaborate");
   await deleteConversation(id);
   revalidatePath("/arc");
 }
@@ -440,6 +477,7 @@ export async function renameProjectForm(formData: FormData): Promise<void> {
   const id = String(formData.get("projectId") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   if (!id || !name) return;
+  await assertProjectAccess(id, "collaborate");
   await renameProject(id, name);
   revalidatePath("/arc");
 }
@@ -449,6 +487,7 @@ export async function deleteProjectForm(formData: FormData): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const id = String(formData.get("projectId") ?? "").trim();
   if (!id) return;
+  await assertProjectAccess(id, "collaborate");
   await deleteProject(id);
   revalidatePath("/arc");
 }
@@ -460,6 +499,7 @@ export async function cancelReplyAction(conversationId: string): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   const id = conversationId.trim();
   if (!id) return;
+  await assertConversationAccess(id, "collaborate");
   await cancelPendingArcMessage(id).catch(() => undefined);
   revalidatePath("/arc");
 }
@@ -472,6 +512,9 @@ export async function setArcMessageFeedbackAction(
   if (!isSupabaseAdminConfigured()) return;
   const id = messageId.trim();
   if (!id) return;
+  const conversationId = await getMessageConversationId(id);
+  if (!conversationId) return;
+  await assertConversationAccess(conversationId, "collaborate");
   await setArcMessageFeedback(id, value).catch(() => undefined);
   revalidatePath("/arc");
 }
@@ -521,6 +564,7 @@ export async function regenerateArcReplyAction(
   if (!convId) return;
 
   const client = getSupabaseAdminClient();
+  await assertConversationAccess(convId, "collaborate", undefined, client);
   let messages;
   try {
     messages = await listMessages(convId, client);
@@ -600,6 +644,12 @@ export async function editAndResendArcMessageAction(
   if (!body) return { ok: false, message: "Message can't be empty." };
 
   const client = getSupabaseAdminClient();
+  try {
+    await assertConversationAccess(convId, "collaborate", undefined, client);
+  } catch (error) {
+    if (error instanceof ArcAccessError) return { ok: false, message: error.message };
+    throw error;
+  }
   let messages;
   try {
     messages = await listMessages(convId, client);
@@ -770,6 +820,7 @@ export async function attachCampaignForm(formData: FormData): Promise<void> {
   const conversationId = String(formData.get("conversationId") ?? "").trim();
   const campaignId = String(formData.get("campaignId") ?? "").trim() || null;
   if (!conversationId) return;
+  await assertConversationAccess(conversationId, "collaborate");
   await assignConversationToCampaign(conversationId, campaignId);
   revalidatePath("/arc");
 }

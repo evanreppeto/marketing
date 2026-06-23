@@ -27,6 +27,7 @@ import { QuestionPanel } from "./question-panel";
 import { WorkCanvas } from "./work-canvas";
 import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
+import { ShareDialog } from "./share-dialog";
 import { useThreadPoll } from "./use-thread-poll";
 import { demoReply } from "../_data/demo";
 
@@ -128,6 +129,83 @@ function pendingArcMessage(id: string, conversationId: string): ArcMessage {
   };
 }
 
+/** Header Share control — a button that opens the ShareDialog in a popover.
+ *  Mirrors the project/pill popovers: own open state, outside-click + Escape. */
+function ShareControl({
+  conversationId,
+  visibility,
+  workspacePermission,
+  members,
+  shares,
+}: {
+  conversationId: string;
+  visibility: "private" | "workspace";
+  workspacePermission: "view" | "collaborate";
+  members: { userId: string; label: string }[];
+  shares: { userId: string; permission: "view" | "collaborate" }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title="Share this chat"
+        aria-label="Share this chat"
+        className={cx(
+          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium shadow-[inset_0_0_0_1px_var(--border-hairline)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+          open
+            ? "bg-[var(--surface-inset)] text-[var(--text-primary)]"
+            : "text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]",
+        )}
+      >
+        <svg viewBox="0 0 20 20" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="6" cy="10" r="2" />
+          <circle cx="14" cy="5" r="2" />
+          <circle cx="14" cy="15" r="2" />
+          <path d="M7.7 9l4.6-2.7M7.7 11l4.6 2.7" />
+        </svg>
+        <span className="hidden sm:inline">Share</span>
+      </button>
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Share this chat"
+          className="msg-rise absolute right-0 top-full z-30 mt-1.5 w-80 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-raised)] p-3.5 shadow-[var(--elev-raised)]"
+        >
+          <ShareDialog
+            conversationId={conversationId}
+            visibility={visibility}
+            workspacePermission={workspacePermission}
+            members={members}
+            shares={shares}
+            onClose={() => setOpen(false)}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ArcChat({
   conversations,
   projects,
@@ -150,6 +228,12 @@ export function ArcChat({
   defaultRoute = "fast",
   assistantName = "Agent",
   pendingOpportunities = 0,
+  canCompose = true,
+  shareMembers = [],
+  conversationShares = [],
+  activeVisibility = "private",
+  activeWorkspacePermission = "view",
+  viewerUserId = null,
   demo = false,
 }: {
   conversations: ArcConversation[];
@@ -177,6 +261,18 @@ export function ArcChat({
   assistantName?: string;
   /** Count of pending opportunities to review — a small header chip links to /opportunities. */
   pendingOpportunities?: number;
+  /** False when the viewer only has view access to a shared chat — locks the composer. */
+  canCompose?: boolean;
+  /** Workspace member roster for the share picker. */
+  shareMembers?: { userId: string; label: string }[];
+  /** Current shares on the active conversation. */
+  conversationShares?: { userId: string; permission: "view" | "collaborate" }[];
+  /** Active conversation's visibility (defaulted in the UI — see page.tsx). */
+  activeVisibility?: "private" | "workspace";
+  /** Active conversation's workspace permission (defaulted in the UI). */
+  activeWorkspacePermission?: "view" | "collaborate";
+  /** The viewer's user id, or null in open/dev mode (no sharing enforcement). */
+  viewerUserId?: string | null;
   /** Preview mode: render the full UI with sample data, no backend writes. */
   demo?: boolean;
 }) {
@@ -622,6 +718,7 @@ export function ArcChat({
           showArchived={showArchived}
           activeId={activeId}
           assistantName={assistantName}
+          viewerUserId={viewerUserId}
           runningIds={runningConversationIds}
           doneIds={doneConversationIds}
           collapsed={sidebarCollapsed}
@@ -711,6 +808,15 @@ export function ArcChat({
                 </svg>
               </button>
               <ArcConnection />
+              {activeId && canCompose && !demo ? (
+                <ShareControl
+                  conversationId={activeId}
+                  visibility={activeVisibility}
+                  workspacePermission={activeWorkspacePermission}
+                  members={shareMembers}
+                  shares={conversationShares}
+                />
+              ) : null}
               {activeId ? (
                 <>
                   <button
@@ -782,6 +888,7 @@ export function ArcChat({
               <QuestionPanel questions={activeQuestions} onAnswer={answerQuestion} />
               <Composer
                 conversationId={activeId}
+                canCompose={canCompose}
                 mentionGroups={mentionGroups}
                 draft={draft}
                 onDraftChange={handleDraftChange}
@@ -908,6 +1015,7 @@ export function ArcChat({
               activeId={activeId}
               variant="overlay"
               assistantName={assistantName}
+              viewerUserId={viewerUserId}
               runningIds={runningConversationIds}
               doneIds={doneConversationIds}
             />
