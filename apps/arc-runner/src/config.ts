@@ -14,7 +14,6 @@ export type Config = {
   appApiBaseUrl: string;
   hermesAgentApiToken: string;
   webhookSecret: string | null;
-  model: string;
   port: number;
   webhookPath: string;
 };
@@ -49,7 +48,6 @@ export function loadConfig(): Config {
     appApiBaseUrl,
     hermesAgentApiToken,
     webhookSecret: process.env.ARC_WEBHOOK_SECRET?.trim() || null,
-    model: process.env.ARC_MODEL?.trim() || "claude-haiku-4-5",
     port: Number(process.env.PORT) || 8788,
     webhookPath: process.env.WEBHOOK_PATH?.trim() || "/webhooks/growth-chat",
   };
