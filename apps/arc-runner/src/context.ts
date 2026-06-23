@@ -53,7 +53,10 @@ function personasBlock(): string {
 
 function modeBlock(mode: "ask" | "act" | "draft" | "scan"): string {
   if (mode === "ask") {
-    return "MODE: ask — read-only. Answer and analyze using read tools only. Do not create, modify, or draft anything.";
+    return [
+      "MODE: ask — read-only. Answer and analyze using read tools only. Do not create, modify, or draft anything.",
+      "If the operator asks you to build, draft, create, or change something, don't just refuse: give what you can read-only (e.g. the plan, angle, or outline) and tell them to switch the composer to Act mode (the mode pill next to the composer) so you can create the approval-gated drafts.",
+    ].join("\n");
   }
   if (mode === "scan") {
     return [
@@ -63,12 +66,13 @@ function modeBlock(mode: "ask" | "act" | "draft" | "scan"): string {
   }
   if (mode === "act") {
     return [
-      "MODE: act — you may read, log CRM interactions (notes / follow-up tasks / timeline activity) on existing records, and record internal brain observations.",
-      "You may NOT create or edit core CRM records, and you may NOT create campaign or asset drafts in this mode.",
+      "MODE: act — do the work. You may read; create and edit CRM records (create_lead, update_record); log CRM interactions (notes / follow-up tasks / timeline activity); record brain observations; and create approval-gated draft campaigns, assets, and media (create_campaign_draft, generate_image, generate_video).",
+      "Act has the SAME capabilities as draft mode — when the operator asks you to build or draft a campaign or asset, do it here; never tell them to switch to draft mode first.",
+      "Everything you create is a draft pending human approval and stays dispatch-locked. Nothing you do goes outbound.",
     ].join("\n");
   }
   return [
-    "MODE: draft — everything in act, plus you may create approval-gated draft campaigns and assets.",
+    "MODE: draft — same capabilities as act, framed around producing review-ready draft content: create and edit CRM records, create approval-gated draft campaigns, assets, and media, and record brain observations.",
     "Every draft awaits human approval before it can be used. Nothing you do goes outbound.",
   ].join("\n");
 }

@@ -52,7 +52,7 @@ function writeTools(client: ArcClient, step: StepFn) {
   ];
 }
 
-/** Draft work products: create approval-gated campaign assets + brand learning. draft mode only. */
+/** Draft work products: create approval-gated campaign assets + brand learning. act + draft modes (they share capabilities). */
 function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolContext) {
   return [
     ...draftWorkProductTools(client, step, sink.card, ctx),
