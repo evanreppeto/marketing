@@ -163,3 +163,33 @@ function str(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
+
+export async function setLeadReviewStatusAction(formData: FormData) {
+  await requireOperator();
+
+  const recordId = str(formData, "recordId");
+  const decision = str(formData, "decision"); // "confirm" | "dismiss"
+  if (!recordId || (decision !== "confirm" && decision !== "dismiss")) {
+    redirect("/crm/leads?action=crm-error");
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    redirect(`/crm/leads/${recordId}?action=not-configured`);
+  }
+
+  const reviewStatus = decision === "confirm" ? "active" : "dismissed";
+  const supabase = getSupabaseAdminClient();
+  const orgId = await getCurrentOrgId();
+  const { error } = await supabase
+    .from("leads")
+    .update({ review_status: reviewStatus } as TablesUpdate<"leads">)
+    .eq("id", recordId)
+    .eq("org_id", orgId);
+  if (error) {
+    redirect(`/crm/leads/${recordId}?action=crm-error&message=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/crm/leads/${recordId}`);
+  revalidatePath("/crm/leads");
+  redirect(`/crm/leads/${recordId}?action=${decision === "confirm" ? "lead-confirmed" : "lead-dismissed"}`);
+}
