@@ -1,7 +1,7 @@
 import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { resolveBusinessContext } from "./business-context";
-import { buildTurnContentAsync } from "./attachments";
+import { resolveWorkspaceSummary } from "./workspace-summary";
 import { resolveRecallMemory } from "./recall";
 import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
 import type { ArcClient } from "./arc-client";
@@ -102,7 +102,8 @@ async function runArcQuery(opts: {
 
   const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, { ...(opts.toolContext ?? {}), skill: opts.skill });
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
-  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, opts.ctx);
+  const workspaceState = await resolveWorkspaceSummary(opts.client);
+  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, { ...opts.ctx, workspaceState });
 
   let assistantText = "";
   let resultText = "";
