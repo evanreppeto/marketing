@@ -576,7 +576,7 @@ function ColorRow({
   onHex: (v: string) => void;
   onLabel: (v: string) => void;
 }) {
-  const swatch = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#000000";
+  const swatch = HEX_RE.test(hex) ? hex : "#000000";
   return (
     <div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.4fr)]">
       <label className="grid gap-1.5">
