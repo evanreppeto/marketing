@@ -750,6 +750,14 @@ h4, .font-display {
     radial-gradient(36% 34% at 34% 26%, rgba(255, 255, 255, 0.08), transparent 72%);
 }
 
+/* Freeze the drift for users who ask for less motion (OS-level). The app's
+   data-motion=reduced setting is already handled by the global guard above. */
+@media (prefers-reduced-motion: reduce) {
+  .auth-shadow-field {
+    animation: none;
+  }
+}
+
 .auth-input-shell input:focus-visible {
   outline: none !important;
   border-color: transparent !important;

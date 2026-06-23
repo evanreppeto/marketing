@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
+import { EtheralShadow } from "./etheral-shadow";
+
 function Wordmark({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
@@ -32,39 +34,47 @@ export function AuthShell({
 }) {
   return (
     <main className="chicago-dark grid min-h-[100dvh] bg-[var(--canvas)] text-[var(--text-primary)] md:grid-cols-[1.05fr_0.95fr]">
-      <section
-        className="relative hidden flex-col justify-between overflow-hidden border-r border-[var(--border-hairline)] px-10 py-12 md:flex lg:px-14"
-        style={{
-          backgroundImage:
-            "radial-gradient(120% 90% at 12% 8%, color-mix(in srgb, var(--accent) 4%, transparent), transparent 60%)",
-        }}
-      >
-        <Wordmark className="auth-rise" />
-
-        <div className="auth-rise max-w-[24rem]" style={{ "--auth-rise-delay": "80ms" } as CSSProperties}>
-          <h1 className="font-editorial text-[clamp(2.4rem,3.4vw,3.4rem)] font-normal leading-[1.04] tracking-[-0.018em] text-[var(--text-primary)]">
-            {headline}
-          </h1>
-          {supporting ? (
-            <p className="mt-5 max-w-[21rem] text-sm leading-7 text-[var(--text-secondary)]">{supporting}</p>
-          ) : null}
+      <section className="relative hidden overflow-hidden border-r border-[var(--border-hairline)] md:block">
+        {/* Dynamic warm drift behind the editorial statement — restrained so the
+            headline stays the subject. Frozen under reduced motion. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 opacity-[0.72]">
+          <EtheralShadow
+            accentColor="rgba(241, 237, 226, 0.08)"
+            animation={{ scale: 88, speed: 16 }}
+            color="rgba(211, 170, 75, 0.46)"
+            noise={{ opacity: 0.3, scale: 1.1 }}
+          />
         </div>
+        <div className="absolute inset-0 z-[1] bg-[linear-gradient(120deg,transparent_40%,var(--canvas)_100%)]" />
 
-        {meta && meta.length ? (
-          <div
-            className="auth-rise flex flex-wrap items-center gap-x-3.5 gap-y-2 text-xs text-[var(--text-secondary)]"
-            style={{ "--auth-rise-delay": "160ms" } as CSSProperties}
-          >
-            {meta.map((item, index) => (
-              <span className="flex items-center gap-3.5" key={item}>
-                {index > 0 ? <span className="h-[3px] w-[3px] rounded-full bg-[var(--border-strong)]" /> : null}
-                {item}
-              </span>
-            ))}
+        <div className="relative z-10 flex h-full min-h-[100dvh] flex-col justify-between px-10 py-12 lg:px-14">
+          <Wordmark className="auth-rise" />
+
+          <div className="auth-rise max-w-[24rem]" style={{ "--auth-rise-delay": "80ms" } as CSSProperties}>
+            <h1 className="font-editorial text-[clamp(2.4rem,3.4vw,3.4rem)] font-normal leading-[1.04] tracking-[-0.018em] text-[var(--text-primary)]">
+              {headline}
+            </h1>
+            {supporting ? (
+              <p className="mt-5 max-w-[21rem] text-sm leading-7 text-[var(--text-secondary)]">{supporting}</p>
+            ) : null}
           </div>
-        ) : (
-          <span />
-        )}
+
+          {meta && meta.length ? (
+            <div
+              className="auth-rise flex flex-wrap items-center gap-x-3.5 gap-y-2 text-xs text-[var(--text-secondary)]"
+              style={{ "--auth-rise-delay": "160ms" } as CSSProperties}
+            >
+              {meta.map((item, index) => (
+                <span className="flex items-center gap-3.5" key={item}>
+                  {index > 0 ? <span className="h-[3px] w-[3px] rounded-full bg-[var(--border-strong)]" /> : null}
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span />
+          )}
+        </div>
       </section>
 
       <section className="flex min-h-[100dvh] flex-col justify-center px-5 py-10 sm:px-8">
