@@ -4,11 +4,13 @@ import Link from "next/link";
 import FormControl from "@mui/material/FormControl";
 import MenuItem from "@mui/material/MenuItem";
 import Select, { type SelectChangeEvent } from "@mui/material/Select";
-import { ArrowRight, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
+import { ArrowRight, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { EmptyState, StatusPill, buttonClasses } from "../../_components/page-header";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState, StatusPill } from "../../_components/page-header";
 import { theme } from "../../_components/theme";
 import { CRM_FIELD_PRESETS, type CrmObjectKey, type CrmTableColumnKey } from "./crm-field-presets";
 import { type CrmObjectRow } from "@/lib/crm/read-model";
@@ -56,7 +58,6 @@ export function CrmObjectTable({
   const [query, setQuery] = useState("");
   const [dataFilter, setDataFilter] = useState<DataFilter>("all");
   const [personaFilter, setPersonaFilter] = useState("all");
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const normalizedQuery = query.trim().toLowerCase();
   const personaOptions = useMemo(() => uniqueSorted(rows.map((row) => humanizeTag(row.personaTag))), [rows]);
@@ -68,6 +69,40 @@ export function CrmObjectTable({
     }),
     [objectKey, primaryField, secondaryField],
   );
+
+  const columnDefs = useMemo<ColumnDef<CrmObjectRow>[]>(() => {
+    const defs: ColumnDef<CrmObjectRow>[] = tableColumns.map((column) => ({
+      id: column.key,
+      header: column.header,
+      cell: ({ row }) => renderColumnContent(column.key, row.original, selectedRecordId === row.original.id),
+    }));
+
+    defs.push({
+      id: "open",
+      header: "",
+      meta: { width: "w-9", align: "right" },
+      cell: ({ row }) => (
+        <button
+          aria-label={`Open ${row.original.name}`}
+          className="flex h-full w-full cursor-pointer items-center justify-center px-2 text-[var(--text-muted)] transition-colors duration-300 group-hover:text-[var(--accent)]"
+          onClick={(event) => {
+            event.stopPropagation();
+            openRecord(row.original);
+          }}
+          type="button"
+        >
+          <ArrowRight
+            aria-hidden
+            className="h-4 w-4 shrink-0 -translate-x-0.5 opacity-0 transition-all duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100"
+            strokeWidth={1.9}
+          />
+        </button>
+      ),
+    });
+
+    return defs;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableColumns, selectedRecordId]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -96,12 +131,6 @@ export function CrmObjectTable({
     });
   }, [dataFilter, normalizedQuery, personaFilter, rows]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const currentPage = Math.min(page, pageCount);
-  const startIndex = filteredRows.length === 0 ? 0 : (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filteredRows.length);
-  const visibleRows = filteredRows.slice(startIndex, endIndex);
-
   useEffect(() => {
     return () => {
       if (clickTimeoutRef.current) {
@@ -109,10 +138,6 @@ export function CrmObjectTable({
       }
     };
   }, []);
-
-  function resetPage() {
-    setPage(1);
-  }
 
   function selectedHref(row: CrmObjectRow) {
     const params = new URLSearchParams();
@@ -151,22 +176,10 @@ export function CrmObjectTable({
     openRecord(row);
   }
 
-  function handleRowKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, row: CrmObjectRow) {
-    if (event.key === "Enter") {
-      openRecord(row);
-      return;
-    }
-
-    if (event.key === " ") {
-      event.preventDefault();
-      selectRecord(row);
-    }
-  }
-
   return (
     <>
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-        <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2 xl:grid-cols-[minmax(260px,1fr)_180px_160px_150px]">
+        <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2 xl:grid-cols-[minmax(240px,1fr)_170px_150px_140px_130px]">
           <label className="relative block">
             <span className="sr-only">Search {objectLabel}</span>
             <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" strokeWidth={1.9} />
@@ -175,7 +188,6 @@ export function CrmObjectTable({
               className="h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] py-2 pl-9 pr-3 text-sm font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
               onChange={(event) => {
                 setQuery(event.target.value);
-                resetPage();
               }}
               placeholder={`Search ${objectLabel.toLowerCase()}...`}
               type="search"
@@ -201,7 +213,6 @@ export function CrmObjectTable({
             label="Data quality"
             onChange={(value) => {
               setDataFilter(value as DataFilter);
-              resetPage();
             }}
             value={dataFilter}
           >
@@ -214,17 +225,28 @@ export function CrmObjectTable({
             label="Persona"
             onChange={(value) => {
               setPersonaFilter(value);
-              resetPage();
             }}
             options={personaOptions}
             value={personaFilter}
           />
+
+          <SignalSelect
+            label="Rows per page"
+            compact
+            onChange={(value) => setPageSize(Number(value))}
+            value={String(pageSize)}
+          >
+            {PAGE_SIZES.map((size) => (
+              <MenuItem key={size} value={String(size)}>
+                {size} / page
+              </MenuItem>
+            ))}
+          </SignalSelect>
         </div>
 
         <div className="mt-3 flex flex-col gap-2 text-sm text-[var(--text-secondary)] lg:flex-row lg:items-center lg:justify-between">
           <p>
-            {activeViewDescription} Showing {filteredRows.length === 0 ? "0" : `${startIndex + 1}-${endIndex}`} of{" "}
-            {filteredRows.length.toLocaleString("en-US")}
+            {activeViewDescription} Showing {filteredRows.length.toLocaleString("en-US")}
             {filteredRows.length === rows.length ? "" : ` matched from ${rows.length.toLocaleString("en-US")}`}.
           </p>
           <div className="flex flex-wrap gap-1.5 border-b border-[var(--border-hairline)] pb-3">
@@ -249,145 +271,24 @@ export function CrmObjectTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
-          <thead>
-            <tr className="bg-[var(--surface-inset)] text-[11px] font-semibold text-[var(--text-muted)]">
-              {tableColumns.map((column) => (
-                <th className="border-b border-[var(--border-hairline)] px-3 py-3" key={column.key} scope="col">
-                  <span className="inline-flex items-center gap-1">
-                    {column.header}
-                    <ChevronsUpDown aria-hidden className="h-3.5 w-3.5 text-[var(--text-muted)]" strokeWidth={1.8} />
-                  </span>
-                </th>
-              ))}
-              <th className="w-9 border-b border-[var(--border-hairline)] px-2 py-3" aria-hidden />
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.map((row) => {
-              const selected = selectedRecordId === row.id;
-              const cellButtonClass =
-                "block h-full w-full cursor-pointer bg-transparent px-3 py-3 text-left outline-none transition-[background-color,color] duration-200 ease-out focus-visible:bg-[var(--surface-raised)]";
-              return (
-                <tr
-                  aria-current={selected ? "page" : undefined}
-                  className={`group relative cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)] ${
-                    selected ? "bg-[rgba(255,255,255,0.05)]" : ""
-                  }`}
-                  key={row.id}
-                >
-                  {tableColumns.map((column, index) => (
-                    <td className={`border-b border-[var(--border-hairline)] p-0 align-middle ${index === 0 ? "relative" : ""}`} key={column.key}>
-                      {index === 0 && selected ? <span aria-hidden className="absolute left-0 top-0 h-full w-px bg-[var(--accent)]" /> : null}
-                      <button
-                        aria-label={`Select ${row.name}`}
-                        className={cellButtonClass}
-                        onClick={() => scheduleSelectRecord(row)}
-                        onDoubleClick={() => openRecordFromDoubleClick(row)}
-                        onKeyDown={(event) => handleRowKeyDown(event, row)}
-                        type="button"
-                      >
-                        {renderColumnContent(column.key, row, selected)}
-                      </button>
-                    </td>
-                  ))}
-                  <td className="border-b border-[var(--border-hairline)] p-0 align-middle">
-                    <button
-                      aria-label={`Open ${row.name}`}
-                      className="flex h-full w-full cursor-pointer items-center justify-center px-2 text-[var(--text-muted)] transition-colors duration-300 group-hover:text-[var(--accent)]"
-                      onClick={() => openRecord(row)}
-                      type="button"
-                    >
-                      <ArrowRight
-                        aria-hidden
-                        className="h-4 w-4 shrink-0 -translate-x-0.5 opacity-0 transition-all duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100"
-                        strokeWidth={1.9}
-                      />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {visibleRows.length === 0 ? (
-          <div className="border-t border-[var(--border-hairline)] px-5 py-8">
-            <EmptyState
-              title={activeView === "all-records" ? `No ${objectLabel.toLowerCase()} found` : `No ${activeViewLabel.toLowerCase()} records found`}
-              detail={normalizedQuery ? `No records match "${query.trim()}". Clear the search or try another term.` : "No records match this CRM view yet."}
-            />
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-3 border-t border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3 text-sm text-[var(--text-secondary)] lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          {filteredRows.length === 0 ? "0" : `${startIndex + 1}-${endIndex}`} of {filteredRows.length.toLocaleString("en-US")} records
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            className={buttonClasses({ variant: "ghost", size: "sm", className: "h-8 min-h-8 w-8 px-0" })}
-            disabled={currentPage <= 1}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            type="button"
-          >
-            <span className="sr-only">Previous page</span>
-            <ChevronLeft aria-hidden className="h-4 w-4" strokeWidth={1.9} />
-          </button>
-          {pageNumbers(pageCount).map((item) =>
-            typeof item === "number" ? (
-              <button
-                aria-current={currentPage === item ? "page" : undefined}
-                className={`h-8 min-w-8 rounded border px-2 font-mono text-xs transition ${
-                  currentPage === item
-                    ? "border-transparent bg-[rgba(255,255,255,0.06)] text-[var(--accent)]"
-                    : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[var(--surface-panel)]"
-                }`}
-                key={item}
-                onClick={() => setPage(item)}
-                type="button"
-              >
-                {item}
-              </button>
-            ) : (
-              <span className="px-1 text-[var(--text-muted)]" key={item}>
-                ...
-              </span>
-            ),
-          )}
-          <button
-            className={buttonClasses({ variant: "ghost", size: "sm", className: "h-8 min-h-8 w-8 px-0" })}
-            disabled={currentPage >= pageCount}
-            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-            type="button"
-          >
-            <span className="sr-only">Next page</span>
-            <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={1.9} />
-          </button>
-          <div className="ml-1 flex items-center gap-2">
-            <span>Rows:</span>
-            <div className="w-20">
-              <SignalSelect
-                label="Rows per page"
-                onChange={(value) => {
-                  setPageSize(Number(value));
-                  resetPage();
-                }}
-                compact
-                value={String(pageSize)}
-              >
-                {PAGE_SIZES.map((size) => (
-                  <MenuItem key={size} value={String(size)}>
-                    {size}
-                  </MenuItem>
-                ))}
-              </SignalSelect>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DataTable
+        columns={columnDefs}
+        data={filteredRows}
+        getRowId={(row) => row.id}
+        onRowClick={scheduleSelectRecord}
+        onRowDoubleClick={openRecordFromDoubleClick}
+        isSelected={(row) => selectedRecordId === row.id}
+        pinnedAccentRail
+        pageSize={pageSize}
+        paginationLabel="records"
+        minWidth="min-w-[900px]"
+        emptyState={
+          <EmptyState
+            title={activeView === "all-records" ? `No ${objectLabel.toLowerCase()} found` : `No ${activeViewLabel.toLowerCase()} records found`}
+            detail={normalizedQuery ? `No records match "${query.trim()}". Clear the search or try another term.` : "No records match this CRM view yet."}
+          />
+        }
+      />
     </>
   );
 }
@@ -686,9 +587,4 @@ function formatCrmDate(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
-}
-
-function pageNumbers(pageCount: number): Array<number | string> {
-  if (pageCount <= 5) return Array.from({ length: pageCount }, (_, index) => index + 1);
-  return [1, 2, 3, "gap", pageCount];
 }
