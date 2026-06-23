@@ -9,7 +9,18 @@ import {
 
 export type ArcWritableTable = "leads" | "companies" | "contacts";
 
-/** Per-table whitelist of columns Arc may set on an update. Pure data. */
+/**
+ * Per-table whitelist of columns Arc may set on an update. Pure data.
+ *
+ * Deliberately EXCLUDES:
+ * - `review_status`: the human-confirm gate. Arc sets it once at creation
+ *   (active for operator-initiated, proposed for its own discovery), but only a
+ *   human may clear `proposed` → `active`, so it is not updatable here.
+ * - the lead FK link columns (`company_id`/`contact_id`/`property_id`):
+ *   re-linking a record to a different entity isn't a phase-1 need, and omitting
+ *   them closes a cross-org FK gap (a foreign id can't be validated for org
+ *   membership here).
+ */
 const ALLOWED_UPDATE_FIELDS: Record<ArcWritableTable, readonly string[]> = {
   leads: [
     "persona",
@@ -17,10 +28,6 @@ const ALLOWED_UPDATE_FIELDS: Record<ArcWritableTable, readonly string[]> = {
     "routing_recommendation",
     "loss_summary",
     "lead_score",
-    "review_status",
-    "company_id",
-    "contact_id",
-    "property_id",
   ],
   companies: [
     "name",
@@ -30,7 +37,6 @@ const ALLOWED_UPDATE_FIELDS: Record<ArcWritableTable, readonly string[]> = {
     "website_url",
     "phone",
     "email",
-    "review_status",
   ],
   contacts: [
     "persona",
@@ -40,7 +46,6 @@ const ALLOWED_UPDATE_FIELDS: Record<ArcWritableTable, readonly string[]> = {
     "email",
     "phone",
     "title",
-    "review_status",
   ],
 };
 

@@ -18,9 +18,15 @@ describe("pickAllowedFields", () => {
     expect(pickAllowedFields("contacts", { id: "x", bogus: 1 })).toEqual({});
   });
 
-  it("allows review_status on every table (the gate field)", () => {
-    expect(pickAllowedFields("companies", { review_status: "active" })).toEqual({
-      review_status: "active",
+  it("strips review_status — the review gate is human-only to change", () => {
+    expect(pickAllowedFields("companies", { review_status: "active", name: "Acme" })).toEqual({
+      name: "Acme",
     });
+  });
+
+  it("strips lead FK link columns — re-linking is not an allowed update", () => {
+    expect(
+      pickAllowedFields("leads", { company_id: "x", contact_id: "y", lead_score: 50 }),
+    ).toEqual({ lead_score: 50 });
   });
 });
