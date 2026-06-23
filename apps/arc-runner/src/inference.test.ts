@@ -43,4 +43,15 @@ describe("buildQueryOptions", () => {
     expect(opts.permissionMode).toBe("bypassPermissions");
     expect(opts.includePartialMessages).toBe(true);
   });
+
+  it("carries the fast-route Sonnet model + Haiku fallback through", () => {
+    const opts = buildQueryOptions({
+      inference: inferenceForRoute("fast"),
+      systemPrompt: "SYS",
+      mcpServers: {},
+      allowedTools: [],
+    });
+    expect(opts.model).toBe("claude-sonnet-4-6");
+    expect(opts.fallbackModel).toBe("claude-haiku-4-5");
+  });
 });

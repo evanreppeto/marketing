@@ -23,6 +23,9 @@ export type InferenceSettings = {
 };
 
 const FAST: InferenceSettings = {
+  // Deliberate upgrade from the current Haiku chat floor: extended thinking
+  // wants a Sonnet-class model. Replaces context.ts modelForRoute in the
+  // next task; the divergence is intentional, not a bug.
   model: "claude-sonnet-4-6",
   fallbackModel: "claude-haiku-4-5",
   maxThinkingTokens: 2_000,
