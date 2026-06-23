@@ -124,6 +124,22 @@ describe("upsertReferenceNode", () => {
     expect(update[1]).not.toHaveProperty("trust_tier"); // tier untouched on update
     expect(update[1].label).toBe("Acme Renamed");
   });
+
+  it("treats a concurrent unique-violation as benign and returns the existing node", async () => {
+    // lookup → none; insert → 23505; re-read → existing id
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: [
+        { data: null, error: null },
+        { data: null, error: { message: "duplicate key value violates unique constraint", code: "23505" } as never },
+        { data: { id: "n-existing" }, error: null },
+      ],
+    });
+    const result = await upsertReferenceNode(
+      { kind: "crm_company", key: "crm:companies:c1", label: "Acme", summary: "Company: Acme", refTable: "companies", refId: "c1" },
+      { client: supabase as never, orgId: ORG },
+    );
+    expect(result).toEqual({ ok: true, id: "n-existing" });
+  });
 });
 
 describe("decideNode", () => {

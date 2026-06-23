@@ -315,7 +315,7 @@ export async function upsertReferenceNode(input: KnowledgeNodeInput, deps: Write
       confidence: value.confidence,
       ref_table: value.refTable,
       ref_id: value.refId,
-      source: value.source ?? "crm-sync",
+      source: value.source ?? "crm-sync", // CRM-origin default (unlike createNode's createdBy default)
       source_reference: value.sourceReference,
       created_by: "arc",
       approved_by: null,
@@ -325,7 +325,21 @@ export async function upsertReferenceNode(input: KnowledgeNodeInput, deps: Write
     })
     .select("id")
     .single<{ id: string }>();
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // Concurrent sync already inserted this (org_id, kind, key). Treat the unique
+    // violation as benign: re-read and return the existing node.
+    if ((error as { code?: string }).code === "23505") {
+      const retry = await client
+        .from("knowledge_nodes")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("kind", value.kind)
+        .eq("key", key)
+        .maybeSingle<{ id: string }>();
+      if (retry.data?.id) return { ok: true, id: retry.data.id };
+    }
+    return { ok: false, error: error.message };
+  }
   if (!data?.id) return { ok: false, error: MISSING_WRITE_ID };
   await embedReferenceBestEffort(client, orgId, data.id, embedTextValue);
   return { ok: true, id: data.id };
