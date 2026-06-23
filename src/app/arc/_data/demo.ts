@@ -40,6 +40,8 @@ function conv(id: string, title: string, agoMs: number, extra?: Partial<ArcConve
     projectId: null,
     campaignId: null,
     ownerId: null,
+    visibility: "private",
+    workspacePermission: "view",
     createdAt: ago(agoMs + HOUR),
     updatedAt: ago(agoMs),
     lastMessageAt: ago(agoMs),

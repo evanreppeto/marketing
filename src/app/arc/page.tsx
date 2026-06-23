@@ -176,12 +176,8 @@ async function loadLiveArcChatProps(
       canCompose,
       shareMembers,
       conversationShares,
-      // ArcConversation doesn't carry visibility/workspace_permission, and we
-      // intentionally don't add a query/column here (YAGNI) — default to private/
-      // view in the UI. The visibility toggle still works: the server action reads
-      // the real row, and a revalidate re-renders with the up-to-date dialog.
-      activeVisibility: "private" as const,
-      activeWorkspacePermission: "view" as const,
+      activeVisibility: activeConversation?.visibility ?? "private",
+      activeWorkspacePermission: activeConversation?.workspacePermission ?? "view",
       viewerUserId: viewer.userId,
       activeId: activeConversation?.id ?? "",
       activeTitle: activeConversation?.title ?? "",
