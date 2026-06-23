@@ -16,6 +16,7 @@ import { Button, Panel, StatusPill } from "@/app/_components/page-header";
 import { cx, theme } from "@/app/_components/theme";
 import { applyIndustryTemplate, INDUSTRY_TEMPLATES, type BusinessProfile } from "@/domain";
 import { saveBrandKitAction, type BrandKitActionState } from "@/app/settings/brand-kit-actions";
+import { fieldErrorMap } from "@/lib/brand-kit/field-errors";
 
 type EditorTab = "company" | "voice" | "palette" | "proof" | "rules";
 
@@ -126,6 +127,8 @@ const tabs: Array<{
   },
 ];
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 const inputClass =
   "min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]";
 
@@ -204,6 +207,16 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
   const proofList = useMemo(() => splitList(values.proofPoints), [values.proofPoints]);
   const blockedList = useMemo(() => splitList(values.disallowedClaims), [values.disallowedClaims]);
 
+  const fieldErrors = useMemo(() => {
+    const codes: string[] = [];
+    if (!values.displayName.trim()) codes.push("display_name_required");
+    for (const slot of ["primary", "secondary", "accent", "dark", "light"] as const) {
+      const hex = values[`${slot}Hex`];
+      if (hex && !HEX_RE.test(hex)) codes.push(`palette_${slot}_invalid`);
+    }
+    return fieldErrorMap(codes);
+  }, [values]);
+
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
   }
@@ -234,7 +247,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {state ? <StatusPill tone={actionTone(state)}>{state.message}</StatusPill> : null}
-            <Button disabled={pending} size="sm" type="submit" variant="primary">
+            <Button disabled={pending || Object.keys(fieldErrors).length > 0} size="sm" type="submit" variant="primary">
               <Save aria-hidden className="h-4 w-4" />
               {pending ? "Saving..." : "Save brand"}
             </Button>
@@ -294,7 +307,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
               tone="company"
             >
               <div className="grid gap-4 md:grid-cols-2">
-                <TextField label="Display name" name="displayName" onChange={(value) => update("displayName", value)} value={values.displayName} />
+                <TextField error={fieldErrors.displayName} label="Display name" name="displayName" onChange={(value) => update("displayName", value)} value={values.displayName} />
                 <TextField label="Legal name" name="legalName" onChange={(value) => update("legalName", value)} value={values.legalName} />
                 <TextField label="Tagline" name="tagline" onChange={(value) => update("tagline", value)} value={values.tagline} />
                 <IndustrySelectField onChange={(value) => update("industry", value)} value={values.industry} />
@@ -400,6 +413,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
                 ] as const).map(([slot, label, hex, name]) => (
                   <ColorRow
                     key={slot}
+                    error={fieldErrors[`${slot}Hex`]}
                     slot={slot}
                     label={label}
                     hex={hex}
@@ -538,6 +552,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
 }
 
 function ColorRow({
+  error,
   slot,
   label,
   hex,
@@ -545,6 +560,7 @@ function ColorRow({
   onHex,
   onLabel,
 }: {
+  error?: string;
   slot: string;
   label: string;
   hex: string;
@@ -574,6 +590,7 @@ function ColorRow({
           value={hex}
           onChange={(e) => onHex(e.target.value)}
         />
+        {error ? <span className="text-xs text-[var(--priority-text)]">{error}</span> : null}
       </label>
       <label className="grid gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Label (optional)</span>
@@ -619,12 +636,14 @@ function EditorSection({
 }
 
 function TextField({
+  error,
   label,
   name,
   onChange,
   type = "text",
   value,
 }: {
+  error?: string;
   label: string;
   name: keyof FormValues;
   onChange: (value: string) => void;
@@ -635,6 +654,7 @@ function TextField({
     <label className="grid gap-1.5">
       <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
       <input className={inputClass} name={name} onChange={(event) => onChange(event.target.value)} type={type} value={value} />
+      {error ? <span className="text-xs text-[var(--priority-text)]">{error}</span> : null}
     </label>
   );
 }
