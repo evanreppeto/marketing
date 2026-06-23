@@ -11,6 +11,7 @@ export * from "./campaign-revisions";
 export * from "./campaign-rollup";
 export * from "./campaign-results";
 export * from "./arc-chat";
+export * from "./arc-step-kind";
 export * from "./arc-canvas";
 export * from "./competitor-intel";
 export * from "./attribution";
