@@ -70,9 +70,9 @@ export function BrandReviewQueue({
       </div>
 
       {reviewItems.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] divide-y divide-[var(--border-hairline)]">
+        <div className="flex flex-col gap-3">
           {groups.map((group) => (
-            <div key={group.sourceLabel}>
+            <div key={group.sourceLabel} className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-3">
                 <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
                   <Database aria-hidden className="h-4 w-4" />
@@ -90,8 +90,9 @@ export function BrandReviewQueue({
                   Approve all
                 </button>
               </div>
+              <div className="divide-y divide-[var(--border-hairline)]">
               {group.items.map((item) => (
-                <article className="divide-y divide-[var(--border-hairline)] px-5 py-4" key={item.id}>
+                <article className="px-5 py-4" key={item.id}>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
                     <span className="font-semibold capitalize text-[var(--text-secondary)]">{compactKind(item.kind)}</span>
                     {typeof item.confidence === "number" ? (
@@ -127,6 +128,7 @@ export function BrandReviewQueue({
                   </div>
                 </article>
               ))}
+              </div>
             </div>
           ))}
         </div>
