@@ -14,6 +14,11 @@ import {
   syncCampaignToBrain,
   syncCampaignRecordToBrain,
   resyncCampaignsIntoBrain,
+  syncMediaAssetToBrain,
+  syncMediaRecordToBrain,
+  resyncMediaIntoBrain,
+  syncCampaignResultToBrain,
+  resyncPerformanceIntoBrain,
 } from "./sync";
 
 const upsertMock = vi.mocked(upsertReferenceNode);
@@ -194,5 +199,78 @@ describe("resyncCampaignsIntoBrain", () => {
     });
     const res = await resyncCampaignsIntoBrain({ client: supabase as never, orgId: ORG });
     expect(res).toEqual({ ok: true, synced: 2, linked: 2, errors: 0, truncated: false });
+  });
+});
+
+describe("syncMediaAssetToBrain", () => {
+  it("builds an asset_ref node from the media row and upserts it", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "mn-1" });
+    const res = await syncMediaAssetToBrain(
+      { id: "m1", file_name: "a.jpg", kind: "image", source: "uploaded" },
+      { client: {} as never, orgId: ORG },
+    );
+    expect(res).toEqual({ ok: true, id: "mn-1" });
+    expect(upsertMock.mock.calls.at(-1)![0].kind).toBe("asset_ref");
+    expect(upsertMock.mock.calls.at(-1)![0].key).toBe("media:m1");
+  });
+});
+
+describe("syncMediaRecordToBrain", () => {
+  it("reads the media asset org-scoped and upserts it", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "mn-2" });
+    const supabase = createSupabaseQueryMock({
+      media_assets: { data: { id: "m2", file_name: "b.png", kind: "image", available_to_arc: true }, error: null },
+    });
+    const res = await syncMediaRecordToBrain("m2", { client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ ok: true, id: "mn-2" });
+    expect(upsertMock.mock.calls.at(-1)![0].refId).toBe("m2");
+  });
+
+  it("skips media that isn't available to Arc", async () => {
+    upsertMock.mockClear();
+    const supabase = createSupabaseQueryMock({
+      media_assets: { data: { id: "m3", available_to_arc: false }, error: null },
+    });
+    const res = await syncMediaRecordToBrain("m3", { client: supabase as never, orgId: ORG });
+    expect(res.ok).toBe(false);
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("resyncMediaIntoBrain", () => {
+  it("syncs only Arc-available media (skips available_to_arc=false)", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "mn" });
+    const supabase = createSupabaseQueryMock({
+      media_assets: {
+        data: [{ id: "m1", available_to_arc: true }, { id: "m2", available_to_arc: false }, { id: "m3" }],
+        error: null,
+      },
+    });
+    const res = await resyncMediaIntoBrain({ client: supabase as never, orgId: ORG });
+    // m1 (true) + m3 (unset → included); m2 (false) skipped.
+    expect(res).toEqual({ ok: true, synced: 2, linked: 0, errors: 0, truncated: false });
+  });
+});
+
+describe("syncCampaignResultToBrain", () => {
+  it("builds a signal node from the result row", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "pn-1" });
+    const res = await syncCampaignResultToBrain({ id: "r1", campaign_id: "cmp1", leads: 5 }, { client: {} as never, orgId: ORG });
+    expect(res).toEqual({ ok: true, id: "pn-1" });
+    expect(upsertMock.mock.calls.at(-1)![0].kind).toBe("signal");
+    expect(upsertMock.mock.calls.at(-1)![0].key).toBe("perf:r1");
+  });
+});
+
+describe("resyncPerformanceIntoBrain", () => {
+  it("syncs result nodes and links each learned_from its campaign", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "pn" });
+    const supabase = createSupabaseQueryMock({
+      campaign_results: { data: [{ id: "r1", campaign_id: "cmp1" }], error: null },
+      knowledge_nodes: { data: [{ id: "pn1", key: "perf:r1" }, { id: "cn1", key: "campaign:cmp1" }], error: null },
+    });
+    const res = await resyncPerformanceIntoBrain({ client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ ok: true, synced: 1, linked: 1, errors: 0, truncated: false });
+    expect(edgeMock).toHaveBeenCalledWith("pn1", "cn1", "learned_from", { client: expect.anything(), orgId: ORG });
   });
 });

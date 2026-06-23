@@ -268,3 +268,82 @@ export function buildEdgesForCampaign(row: Record<string, unknown>): CrmEdgeSpec
 
   return edges;
 }
+
+// --- Media → Brain (slice 4) ----------------------------------------------
+// Arc-available media mirrors in as `asset_ref` nodes so Arc can recall and
+// prefer real, approved media. Standalone (no persona/campaign FK on the row).
+
+const MEDIA_NODE_KIND = "asset_ref";
+
+/** Idempotency handle for a media asset's Brain node. */
+export function mediaNodeKey(id: string): string {
+  return `media:${id}`;
+}
+
+/** Build a Brain node input from a raw `media_assets` row (pure). */
+export function buildNodeInputForMedia(row: Record<string, unknown>): KnowledgeNodeInput {
+  const id = row.id as string;
+  const tags = Array.isArray(row.tags) ? (row.tags as unknown[]).filter((t): t is string => typeof t === "string") : [];
+  const mediaKind = typeof row.kind === "string" ? row.kind : null;
+  return {
+    kind: MEDIA_NODE_KIND,
+    key: mediaNodeKey(id),
+    label: (row.file_name as string) || "Media asset",
+    summary: lines([
+      ["Media", row.file_name], ["Kind", mediaKind], ["Source", row.source],
+      ["Type", row.content_type], ["Tags", tags.length ? tags.join(", ") : null],
+    ]),
+    refTable: "media_assets",
+    refId: id,
+    source: "media-sync",
+    tags: ["media", ...(mediaKind ? [mediaKind] : []), ...tags],
+  };
+}
+
+// --- Performance (campaign_results) → Brain (slice 4) ----------------------
+// Each result row mirrors in as a `signal` node that `learned_from` its campaign,
+// so Arc can recall what a campaign actually did (impressions → jobs → revenue).
+
+/** Idempotency handle for a campaign_results row's Brain node. */
+export function campaignResultNodeKey(id: string): string {
+  return `perf:${id}`;
+}
+
+/** Build a Brain node input from a raw `campaign_results` row (pure). */
+export function buildNodeInputForCampaignResult(row: Record<string, unknown>): KnowledgeNodeInput {
+  const id = row.id as string;
+  const period = [row.period_start, row.period_end].filter(Boolean).join(" – ");
+  const campaignId = typeof row.campaign_id === "string" ? row.campaign_id : null;
+  return {
+    kind: "signal",
+    key: campaignResultNodeKey(id),
+    label: `Campaign performance${period ? ` (${period})` : ""}`,
+    summary: lines([
+      ["Period", period || null], ["Channel", row.channel],
+      ["Impressions", row.impressions], ["Clicks", row.clicks], ["Leads", row.leads],
+      ["Jobs", row.jobs], ["Revenue", dollars(row.won_revenue_cents)], ["Spend", dollars(row.spend_cents)],
+    ]),
+    // Reference the campaign it measures (campaign_results isn't a referenceable
+    // table; the edge below carries the precise link).
+    refTable: campaignId ? "campaigns" : null,
+    refId: campaignId,
+    source: "performance-sync",
+    tags: ["performance"],
+  };
+}
+
+/** A performance signal `learned_from` its campaign. */
+export function buildEdgesForCampaignResult(row: Record<string, unknown>): CrmEdgeSpec[] {
+  const id = typeof row.id === "string" ? row.id : null;
+  const campaignId = typeof row.campaign_id === "string" ? row.campaign_id : null;
+  if (!id || !campaignId) return [];
+  return [
+    {
+      fromKind: "signal",
+      fromKey: campaignResultNodeKey(id),
+      toKind: CAMPAIGN_NODE_KIND,
+      toKey: campaignNodeKey(campaignId),
+      relation: "learned_from",
+    },
+  ];
+}

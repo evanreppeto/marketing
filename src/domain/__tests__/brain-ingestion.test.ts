@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEdgesForCampaign,
+  buildEdgesForCampaignResult,
   buildEdgesForCrmRow,
   buildNodeInputForCampaign,
+  buildNodeInputForCampaignResult,
   buildNodeInputForCrmRow,
+  buildNodeInputForMedia,
   campaignNodeKey,
+  campaignResultNodeKey,
   crmNodeKey,
   embedHash,
+  mediaNodeKey,
   CRM_NODE_KINDS,
 } from "../brain-ingestion";
 
@@ -185,5 +190,65 @@ describe("buildEdgesForCampaign", () => {
 describe("campaignNodeKey", () => {
   it("builds a stable per-campaign key", () => {
     expect(campaignNodeKey("abc")).toBe("campaign:abc");
+  });
+});
+
+describe("buildNodeInputForMedia", () => {
+  it("maps a media_assets row to an asset_ref node with kind/source/tags", () => {
+    const input = buildNodeInputForMedia({
+      id: "m1", file_name: "before-after.jpg", kind: "image", source: "uploaded",
+      content_type: "image/jpeg", tags: ["water", "proof"],
+    });
+    expect(input.kind).toBe("asset_ref");
+    expect(input.key).toBe("media:m1");
+    expect(input.label).toBe("before-after.jpg");
+    expect(input.refTable).toBe("media_assets");
+    expect(input.refId).toBe("m1");
+    expect(input.summary).toContain("image");
+    expect(input.summary).toContain("water, proof");
+    expect(input.tags).toEqual(expect.arrayContaining(["media", "image", "water", "proof"]));
+  });
+});
+
+describe("mediaNodeKey", () => {
+  it("builds a stable per-asset key", () => {
+    expect(mediaNodeKey("xyz")).toBe("media:xyz");
+  });
+});
+
+describe("buildNodeInputForCampaignResult", () => {
+  it("maps a campaign_results row to a signal node referencing its campaign", () => {
+    const input = buildNodeInputForCampaignResult({
+      id: "r1", campaign_id: "cmp1", channel: "meta", period_start: "2026-06-01", period_end: "2026-06-30",
+      impressions: 12000, clicks: 340, leads: 18, jobs: 4, won_revenue_cents: 1850000, spend_cents: 60000,
+    });
+    expect(input.kind).toBe("signal");
+    expect(input.key).toBe("perf:r1");
+    expect(input.refTable).toBe("campaigns");
+    expect(input.refId).toBe("cmp1");
+    expect(input.label).toContain("2026-06-01");
+    expect(input.summary).toContain("meta");
+    expect(input.summary).toContain("18"); // leads
+    expect(input.summary).toContain("$18,500"); // won revenue from cents
+    expect(input.tags).toContain("performance");
+  });
+});
+
+describe("buildEdgesForCampaignResult", () => {
+  it("links the performance signal learned_from its campaign", () => {
+    expect(buildEdgesForCampaignResult({ id: "r1", campaign_id: "cmp1" })).toEqual([
+      { fromKind: "signal", fromKey: "perf:r1", toKind: "campaign_ref", toKey: "campaign:cmp1", relation: "learned_from" },
+    ]);
+  });
+
+  it("returns nothing without an id or campaign_id", () => {
+    expect(buildEdgesForCampaignResult({ id: "r1" })).toEqual([]);
+    expect(buildEdgesForCampaignResult({ campaign_id: "cmp1" })).toEqual([]);
+  });
+});
+
+describe("campaignResultNodeKey", () => {
+  it("builds a stable per-result key", () => {
+    expect(campaignResultNodeKey("r9")).toBe("perf:r9");
   });
 });

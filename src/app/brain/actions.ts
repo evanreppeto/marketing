@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { type EdgeRelation } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
-import { resyncCampaignsIntoBrain, resyncCrmIntoBrain } from "@/lib/brain-ingestion/sync";
+import { resyncCampaignsIntoBrain, resyncCrmIntoBrain, resyncMediaIntoBrain, resyncPerformanceIntoBrain } from "@/lib/brain-ingestion/sync";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { archiveNode, createEdge, createNode, decideNode, setNodeKind, setNodeTags, updateNode } from "@/lib/knowledge-graph/persistence";
 
@@ -113,16 +113,22 @@ export async function archiveNodeAction(nodeId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Operator-triggered backfill: mirror all CRM records AND campaigns into the Brain. */
+/** Operator-triggered backfill: mirror CRM, campaigns, media, and performance into the Brain. */
 export async function resyncCrmIntoBrainAction(): Promise<{ ok: boolean; message: string }> {
   await requireOperator();
-  const [crm, campaigns] = [await resyncCrmIntoBrain(), await resyncCampaignsIntoBrain()];
+  // CRM and campaigns first so persona/CRM/campaign nodes exist before performance
+  // links `learned_from` edges to them.
+  const crm = await resyncCrmIntoBrain();
+  const campaigns = await resyncCampaignsIntoBrain();
+  const media = await resyncMediaIntoBrain();
+  const performance = await resyncPerformanceIntoBrain();
   revalidateBrainSurfaces();
 
-  const synced = crm.synced + campaigns.synced;
-  const linked = crm.linked + campaigns.linked;
-  const errors = crm.errors + campaigns.errors;
-  const truncated = crm.truncated || campaigns.truncated;
+  const sources = [crm, campaigns, media, performance];
+  const synced = sources.reduce((n, s) => n + s.synced, 0);
+  const linked = sources.reduce((n, s) => n + s.linked, 0);
+  const errors = sources.reduce((n, s) => n + s.errors, 0);
+  const truncated = sources.some((s) => s.truncated);
 
   if (!synced && !errors) {
     return { ok: false, message: "Nothing to sync — Supabase isn't configured or there are no records yet." };
@@ -131,5 +137,5 @@ export async function resyncCrmIntoBrainAction(): Promise<{ ok: boolean; message
   if (linked) parts.push(`linked ${linked} relationship${linked === 1 ? "" : "s"}`);
   if (errors) parts.push(`${errors} skipped`);
   if (truncated) parts.push("some tables hit the row limit — run again to finish");
-  return { ok: crm.ok && campaigns.ok, message: `${parts.join("; ")}.` };
+  return { ok: sources.every((s) => s.ok), message: `${parts.join("; ")}.` };
 }
