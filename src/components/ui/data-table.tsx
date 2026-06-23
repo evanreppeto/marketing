@@ -75,6 +75,11 @@ export function DataTable<TData>({
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const paginated = typeof pageSize === "number";
 
+  // React Compiler skips memoizing this component because TanStack Table's
+  // useReactTable returns intentionally-mutable functions. That's the expected,
+  // documented interaction — the table object is stable and manages its own
+  // updates — so we silence the advisory rather than restructure the call.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
