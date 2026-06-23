@@ -346,6 +346,7 @@ export async function renameAssetAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim();
   if (id && name) await renameAsset(id, name);
   revalidatePath("/library");
+  revalidatePath("/library/brand");
 }
 
 export async function moveAssetAction(formData: FormData): Promise<void> {

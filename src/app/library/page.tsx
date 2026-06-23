@@ -13,7 +13,7 @@ import { NewFolderButton } from "./_components/new-folder-button";
 import { UploadButton } from "./_components/upload-button";
 
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Library" };
+export const metadata: Metadata = { title: "Files" };
 
 export default async function LibraryPage({
   searchParams,
@@ -27,8 +27,8 @@ export default async function LibraryPage({
     return (
       <>
         <LibraryTabs active="assets" />
-        <PageHeader title="Library" description={data.message} />
-        <EmptyState title="Library unavailable" detail={data.message} />
+        <PageHeader title="Files" description={data.message} />
+        <EmptyState title="Files unavailable" detail={data.message} />
       </>
     );
   }
@@ -47,7 +47,7 @@ export default async function LibraryPage({
     <>
       <LibraryTabs active="assets" />
       <PageHeader
-        title="Library"
+        title="Files"
         description={`${data.assets.length} assets · ${formatByteSize(data.totalBytes)} · ${arcCount} available to Arc.`}
         aside={
           data.assets.length > 0 ? (

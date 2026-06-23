@@ -122,8 +122,9 @@ export function ConsoleFrame({
 
   const assetNavItems: ShellNavItem[] = [
     { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
-    { label: "Library", href: "/library", icon: "library", matches: ["/library"], exact: true },
-    { label: "Brand", href: "/library/brand", icon: "brand", matches: ["/library/brand"] },
+    // Brand + Files are one section: lands on the brand view, stays active on
+    // both /library/brand and the /library Files tab (matches "/library").
+    { label: "Brand", href: "/library/brand", icon: "brand", matches: ["/library"] },
     { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
     { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
   ];

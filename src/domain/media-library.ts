@@ -27,6 +27,33 @@ export function validateUpload({ contentType, byteSize }: UploadCheck): Validati
   return { ok: true };
 }
 
+/**
+ * Split a filename into its editable stem and its extension (including the
+ * leading dot). A leading dot (dotfiles like ".gitignore") and a trailing dot
+ * are not treated as extensions, so the stem stays meaningful to edit.
+ */
+export function splitFileName(name: string): { stem: string; ext: string } {
+  const dot = name.lastIndexOf(".");
+  if (dot > 0 && dot < name.length - 1) {
+    return { stem: name.slice(0, dot), ext: name.slice(dot) };
+  }
+  return { stem: name, ext: "" };
+}
+
+/**
+ * Combine a user-edited stem with the original name's extension so a rename
+ * can't silently drop or change it. Empty stems fall back to the original name,
+ * and a stem that already carries the extension isn't doubled up (so passing a
+ * full filename here is safe too).
+ */
+export function applyFileNameStem(originalName: string, newStem: string): string {
+  const trimmed = newStem.trim();
+  if (!trimmed) return originalName;
+  const { ext } = splitFileName(originalName);
+  if (ext && trimmed.toLowerCase().endsWith(ext.toLowerCase())) return trimmed;
+  return trimmed + ext;
+}
+
 export function formatByteSize(bytes: number): string {
   if (bytes < 1_000) return `${bytes} B`;
   const kb = bytes / 1_000;
