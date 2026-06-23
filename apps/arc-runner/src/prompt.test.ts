@@ -40,4 +40,17 @@ describe("ARC_SYSTEM_PROMPT", () => {
       expect(ARC_SYSTEM_PROMPT).toContain(token);
     }
   });
+
+  it("preserves mechanical tool parameters and anti-fabrication guards", () => {
+    for (const token of [
+      "16:9",
+      "9:16",
+      "multi:true",
+      "allow_text:true",
+      "Attach media to a card only when you have a real url",
+      "so the win compounds",
+    ]) {
+      expect(ARC_SYSTEM_PROMPT).toContain(token);
+    }
+  });
 });
