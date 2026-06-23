@@ -30,6 +30,7 @@ function brandKnowledgeSources(assets: MediaAssetView[]) {
 
 export type BrandKnowledgeSyncActionState = BrandKnowledgeSyncSummary | null;
 export type BrandUploadActionState = BrandKnowledgeSyncSummary | null;
+export type BrandNotesActionState = BrandKnowledgeSyncSummary | null;
 export type BrandUrlImportActionState = BrandKnowledgeSyncSummary | null;
 export type BrandWebsiteImportActionState = BrandKnowledgeSyncSummary | null;
 type ImportedUrlSourceResult = { created: number; skipped: number; updatedProfile: boolean; errors: string[] };
@@ -39,6 +40,10 @@ const NOT_CONFIGURED: BrandKnowledgeSyncSummary = {
   message: "Supabase is not configured.",
   items: ["Brand files cannot be parsed until Supabase is connected"],
 };
+
+function intakeTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
 
 export async function syncBrandKnowledgeSourcesAction(
   _previous: BrandKnowledgeSyncActionState,
@@ -138,6 +143,71 @@ export async function uploadAndAnalyzeBrandSourcesAction(
   revalidatePath("/library");
   revalidatePath("/brain");
   return summarizeBrandKnowledgeSync(totals);
+}
+
+export async function importAndAnalyzeBrandNotesAction(
+  _previous: BrandNotesActionState,
+  formData: FormData,
+): Promise<BrandNotesActionState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const notes = String(formData.get("brandNotes") ?? "").trim();
+  if (!notes) {
+    return {
+      ok: false,
+      message: "No notes entered.",
+      items: ["Tell Arc what the company does, who it serves, how it should sound, or what claims to avoid"],
+    };
+  }
+
+  const orgId = await getCurrentOrgId();
+  const totals = { sources: 1, created: 0, skipped: 0, updatedProfiles: 0, errors: [] as string[] };
+
+  try {
+    const bytes = new TextEncoder().encode(notes);
+    const fileName = `Brand intake notes - ${intakeTimestamp()}.txt`;
+    const assetId = await insertAsset({
+      orgId,
+      folderId: null,
+      fileName,
+      bytes,
+      contentType: "text/plain",
+      kind: "document",
+      byteSize: bytes.byteLength,
+      source: "uploaded",
+      provenance: { brandSource: true, intakeKind: "operator_notes" },
+      uploadedBy: await getOperatorActor(),
+    });
+    const result = await learnBrandKnowledgeFromAsset(
+      {
+        id: assetId,
+        fileName,
+        kind: "document",
+        source: "uploaded",
+        tags: ["brand source", "operator notes"],
+        availableToArc: true,
+        contentType: "text/plain",
+        extractedText: notes,
+        fileBytes: bytes,
+      },
+      { orgId },
+    );
+    totals.created += result.created;
+    totals.skipped += result.skipped;
+    if (result.updatedProfile) totals.updatedProfiles += 1;
+    totals.errors.push(...result.errors);
+  } catch (error) {
+    totals.errors.push(error instanceof Error ? error.message : "Could not save brand notes.");
+  }
+
+  revalidateBrandSourceViews();
+  const summary = summarizeBrandKnowledgeSync(totals);
+  return {
+    ...summary,
+    message: totals.errors.length ? summary.message : "Brand notes saved and analyzed.",
+    items: totals.errors.length ? summary.items : ["Saved notes to Library", ...summary.items],
+  };
 }
 
 async function importUrlSourceDocument(input: {
