@@ -37,6 +37,19 @@ function emptyCountClient() {
   });
 }
 
+// A live DB read that errors (e.g. prod schema drift). getCrmTableBundle/countRows
+// throw on a Supabase error, so this drives the read-model's catch branch.
+function erroringClient() {
+  return createSupabaseQueryMock({
+    companies: { data: null, error: { message: "boom" } },
+    contacts: { data: [], error: null },
+    properties: { data: [], error: null },
+    leads: { data: [], error: null },
+    jobs: { data: [], error: null },
+    outcomes: { data: [], error: null },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // getCrmOverviewData
 // ---------------------------------------------------------------------------
@@ -128,6 +141,68 @@ describe("getCrmRecordData demo gate", () => {
     vi.stubEnv("ARC_DEMO_DATA", "1");
     const result = await getCrmRecordData("companies", "demo-co-northside-plumbing", emptyClient());
 
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.id).toBe("demo-co-northside-plumbing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Error path (live read throws, e.g. schema drift): must NOT leak demo data
+// into a real workspace — only fall back to demo when the flag is on.
+// ---------------------------------------------------------------------------
+describe("CRM read-model error fallback gate", () => {
+  it("getCrmOverviewData: flag OFF + DB error → unavailable (no demo)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    const result = await getCrmOverviewData(erroringClient());
+    expect(result.status).toBe("unavailable");
+  });
+
+  it("getCrmOverviewData: flag ON + DB error → demo (regression)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const result = await getCrmOverviewData(erroringClient());
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.rows.some((row) => row.id.startsWith("demo-"))).toBe(true);
+  });
+
+  it("getCrmObjectData: flag OFF + DB error → unavailable (no demo)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    const result = await getCrmObjectData("companies", erroringClient());
+    expect(result.status).toBe("unavailable");
+  });
+
+  it("getCrmObjectData: flag ON + DB error → demo (regression)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const result = await getCrmObjectData("companies", erroringClient());
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.sampleRows.some((row) => row.id.startsWith("demo-"))).toBe(true);
+  });
+
+  it("getCrmNavCounts: flag OFF + DB error → unavailable (no demo)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    const result = await getCrmNavCounts(erroringClient());
+    expect(result.status).toBe("unavailable");
+  });
+
+  it("getCrmNavCounts: flag ON + DB error → demo (regression)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const result = await getCrmNavCounts(erroringClient());
+    expect(result.status).toBe("live");
+    if (result.status !== "live") return;
+    expect(result.counts.companies).toBeGreaterThan(0);
+  });
+
+  it("getCrmRecordData: flag OFF + DB error → unavailable (no demo)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+    const result = await getCrmRecordData("companies", "demo-co-northside-plumbing", erroringClient());
+    expect(result.status).toBe("unavailable");
+  });
+
+  it("getCrmRecordData: flag ON + DB error → demo record (regression)", async () => {
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+    const result = await getCrmRecordData("companies", "demo-co-northside-plumbing", erroringClient());
     expect(result.status).toBe("live");
     if (result.status !== "live") return;
     expect(result.id).toBe("demo-co-northside-plumbing");

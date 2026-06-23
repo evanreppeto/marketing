@@ -34,20 +34,27 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("BASE_PROMPT");
     expect(out).toContain(NEUTRAL_CONTEXT.businessName);
   });
-  it("states read-only stance for ask mode", () => {
+  it("states read-only stance for ask mode and points to act mode for work", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "ask" });
     expect(out.toLowerCase()).toContain("read-only");
+    // The dead-end fix: ask mode should guide the operator to Act instead of a bare refusal.
+    expect(out.toLowerCase()).toContain("act mode");
   });
   it("includes the persona taxonomy", () => {
     const out = buildSystemPrompt("BASE", baseCtx);
     expect(out).toContain("persona_homeowner_emergency");
     expect(out).toContain("Emergency Homeowner");
   });
-  it("describes act mode: CRM interactions allowed, core CRM and drafts not", () => {
+  it("act mode can create CRM records and approval-gated drafts, matching the tool grants", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "act" });
     expect(out).toContain("MODE: act");
-    expect(out.toLowerCase()).toContain("interactions");
-    expect(out.toLowerCase()).toContain("may not");
+    // Act has the same capabilities as draft (tools/index.ts), so its mode text must
+    // not tell Arc to refuse drafting — that contradiction is what made Arc say
+    // "switch to draft mode" when it already held create_campaign_draft.
+    expect(out.toLowerCase()).toContain("create_lead");
+    expect(out.toLowerCase()).toContain("draft");
+    expect(out.toLowerCase()).toContain("approval");
+    expect(out).not.toMatch(/may not[^.]*\bdraft/i);
   });
   it("permits drafts in draft mode and never outbound", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "draft" });

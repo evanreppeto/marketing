@@ -17,9 +17,23 @@ const DECISION_SELECT = "id,approval_item_id,decision,decided_by,decided_at,deci
 
 export type CampaignWorkspaceAssetCategory = "physical" | "virtual" | "ads" | "media" | "other";
 
+/**
+ * Where a media asset came from — the trust signal that decides whether it may
+ * render as campaign creative.
+ * - `attached`  : an explicit creative reference (a `media`/`creative_assets`
+ *                 collection, or an `image_url`-style key). Intentional, renders.
+ * - `generated` : an attached asset that carries generation provenance
+ *                 (job/model/prompt). Renders, badged as AI-generated.
+ * - `referenced`: a bare URL scraped out of free-text prose (a draft body or a
+ *                 reasoning payload). NEVER rendered as creative — this is the
+ *                 source of fabricated "fake images".
+ */
+export type CampaignMediaOrigin = "attached" | "generated" | "referenced";
+
 export type CampaignMediaAsset = {
   id: string;
   type: "image" | "video" | "embed" | "file" | "link";
+  origin: CampaignMediaOrigin;
   title: string;
   url: string;
   thumbnailUrl: string | null;
@@ -27,6 +41,14 @@ export type CampaignMediaAsset = {
   description: string | null;
   source: string;
 };
+
+/**
+ * Media that is allowed to render as campaign creative. `referenced` media —
+ * URLs scavenged from prose — is excluded so fabricated images never surface.
+ */
+export function renderableMedia(media: CampaignMediaAsset[]): CampaignMediaAsset[] {
+  return media.filter((asset) => asset.origin !== "referenced");
+}
 
 export type CampaignWorkspaceListItem = {
   id: string;
@@ -521,12 +543,11 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
       };
     });
 
-    // An empty real table: when the demo flag is on, show the demo library instead of
-    // a blank page. When off, fall through to return the real (empty) result.
-    if (!client && items.length === 0) {
-      if (isDemoDataEnabled()) return buildDemoCampaignWorkspaceList(agentName);
-    }
-
+    // A configured workspace shows its REAL state, even when empty — never fake
+    // campaigns. The demo library is only served when Supabase is unconfigured
+    // (the local-preview branch at the top); masking a live, empty org with demo
+    // data hid real Arc-created campaigns and surfaced "fake data that shouldn't
+    // be there".
     return {
       status: "live",
       campaigns: items,
@@ -616,6 +637,7 @@ function demoMedia(media: DemoMedia): CampaignMediaAsset {
   return {
     id: media.id,
     type: media.type,
+    origin: "attached",
     title: media.title,
     url,
     thumbnailUrl: `https://picsum.photos/seed/${media.seed}/240/160`,
@@ -1486,12 +1508,14 @@ export async function getCampaignWorkspaceDetail(
     ]);
 
     const assetsView = addPreviewCampaignPieces(campaignId, buildWorkspaceAssets(assets, approvals, outputs, agentName), campaign.updated_at);
-    const media = uniqueMedia([
-      ...collectMediaFromCampaign(campaign),
-      ...assetsView.flatMap((asset) => asset.media),
-      ...approvals.flatMap((approval) => collectMediaFromApproval(approval)),
-      ...outputs.flatMap((output) => collectMediaFromOutput(output, agentName)),
-    ]);
+    const media = renderableMedia(
+      uniqueMedia([
+        ...collectMediaFromCampaign(campaign),
+        ...assetsView.flatMap((asset) => asset.media),
+        ...approvals.flatMap((approval) => collectMediaFromApproval(approval)),
+        ...outputs.flatMap((output) => collectMediaFromOutput(output, agentName)),
+      ]),
+    );
     const sources = buildSources({ campaign, assets, approvals, companies, contacts, leads, outputs }, agentName);
     const reasoning = buildReasoning(campaign, assets, agentName);
     const rollup = deriveCampaignRollup(collectPieceStatuses(assets, approvals));
@@ -1870,7 +1894,7 @@ function listPiecePreview(asset: CampaignWorkspaceAsset) {
 function mapAsset(asset: CampaignAssetRow): CampaignWorkspaceAsset {
   const rawBody = asset.approved_body ?? asset.edited_body ?? asset.draft_body ?? "";
   const readableBody = buildReadablePreview(rawBody, asset.prompt_inputs, asset.reasoning_payload);
-  const media = collectMediaFromAsset(asset);
+  const media = renderableMedia(collectMediaFromAsset(asset));
   // `current` intentionally excludes draft_body — there is no meaningful revision
   // until the operator approves or edits the piece, so draft-vs-draft is no diff.
   const current = asset.approved_body ?? asset.edited_body ?? "";
@@ -1983,6 +2007,7 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
         {
           id: "preview-media-storm-hallway",
           type: "image",
+          origin: "attached",
           title: "Storm response creative preview",
           url: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
           thumbnailUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80",
@@ -2471,12 +2496,14 @@ function buildMediaByCampaign(campaigns: CampaignRow[], assets: CampaignAssetRow
     });
     mediaByCampaign.set(
       campaign.id,
-      uniqueMedia([
-        ...collectMediaFromCampaign(campaign),
-        ...campaignAssets.flatMap(collectMediaFromAsset),
-        ...campaignApprovals.flatMap(collectMediaFromApproval),
-        ...campaignOutputs.flatMap((output) => collectMediaFromOutput(output, agentName)),
-      ]),
+      renderableMedia(
+        uniqueMedia([
+          ...collectMediaFromCampaign(campaign),
+          ...campaignAssets.flatMap(collectMediaFromAsset),
+          ...campaignApprovals.flatMap(collectMediaFromApproval),
+          ...campaignOutputs.flatMap((output) => collectMediaFromOutput(output, agentName)),
+        ]),
+      ),
     );
   }
 
@@ -2542,8 +2569,10 @@ function buildMediaAssets(inputs: Array<[string, JsonObject | string]>): Campaig
 
   for (const [source, value] of inputs) {
     if (typeof value === "string") {
+      // URLs found in free-text prose (draft bodies, reasoning) are only
+      // *referenced* — never trusted as renderable creative.
       for (const url of extractUrls(value)) {
-        if (isMediaLikeUrl(url)) assets.push(createMediaAsset({ url, source }));
+        if (isMediaLikeUrl(url)) assets.push(createMediaAsset({ url, source, origin: "referenced" }));
       }
       continue;
     }
@@ -2556,29 +2585,30 @@ function buildMediaAssets(inputs: Array<[string, JsonObject | string]>): Campaig
 function collectMediaAssetsFromObject(object: JsonObject, assets: CampaignMediaAsset[], source: string) {
   for (const [key, value] of Object.entries(object)) {
     if (Array.isArray(value) && isCreativeCollectionKey(key)) {
+      const collectionOrigin: CampaignMediaOrigin = /generated/i.test(key) ? "generated" : "attached";
       for (const item of value) {
-        const asset = mapMediaAsset(item, source);
+        const asset = mapMediaAsset(item, source, collectionOrigin);
         if (asset) assets.push(asset);
       }
       continue;
     }
 
     if (isObject(value)) {
-      const asset = isCreativeObjectKey(key) ? mapMediaAsset(value, source) : null;
+      const asset = isCreativeObjectKey(key) ? mapMediaAsset(value, source, "attached") : null;
       if (asset) assets.push(asset);
       collectMediaAssetsFromObject(value, assets, source);
       continue;
     }
 
     if (typeof value === "string" && isCreativeUrlKey(key) && isUrl(value)) {
-      assets.push(createMediaAsset({ url: value, source, title: humanize(key) }));
+      assets.push(createMediaAsset({ url: value, source, title: humanize(key), origin: "attached" }));
     }
   }
 }
 
-function mapMediaAsset(value: unknown, source: string): CampaignMediaAsset | null {
+function mapMediaAsset(value: unknown, source: string, origin: CampaignMediaOrigin): CampaignMediaAsset | null {
   if (typeof value === "string" && isUrl(value)) {
-    return createMediaAsset({ url: value, source });
+    return createMediaAsset({ url: value, source, origin });
   }
   if (!isObject(value)) {
     return null;
@@ -2595,9 +2625,16 @@ function mapMediaAsset(value: unknown, source: string): CampaignMediaAsset | nul
 
   if (!url || !isUrl(url)) return null;
 
+  // An attached asset that carries generation provenance is AI-generated.
+  const hasProvenance = Boolean(
+    value.job_id ?? value.generation_id ?? value.model ?? value.prompt ?? value.generated_by,
+  );
+  const resolvedOrigin: CampaignMediaOrigin = origin === "attached" && hasProvenance ? "generated" : origin;
+
   return createMediaAsset({
     url,
     source,
+    origin: resolvedOrigin,
     title: getString(value.title) ?? getString(value.name) ?? getString(value.label) ?? undefined,
     description: getString(value.description) ?? getString(value.notes) ?? getString(value.caption),
     thumbnailUrl: getString(value.thumbnail_url) ?? getString(value.thumbnailUrl) ?? getString(value.poster_url) ?? null,
@@ -2609,6 +2646,7 @@ function mapMediaAsset(value: unknown, source: string): CampaignMediaAsset | nul
 function createMediaAsset(input: {
   url: string;
   source: string;
+  origin: CampaignMediaOrigin;
   title?: string;
   description?: string | null;
   thumbnailUrl?: string | null;
@@ -2619,6 +2657,7 @@ function createMediaAsset(input: {
   return {
     id: `media-${stableId(input.url)}`,
     type,
+    origin: input.origin,
     title: input.title ?? defaultMediaTitle(type),
     url: input.url,
     thumbnailUrl: input.thumbnailUrl ?? null,

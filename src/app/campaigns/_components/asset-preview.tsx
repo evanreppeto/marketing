@@ -2,7 +2,24 @@
 
 import { useId, useState } from "react";
 import { theme } from "@/app/_components/theme";
-import type { CampaignMediaAsset, CampaignWorkspaceAsset } from "@/lib/campaigns/read-model";
+import type { CampaignMediaAsset, CampaignMediaOrigin, CampaignWorkspaceAsset } from "@/lib/campaigns/read-model";
+import { SafeImage } from "./safe-image";
+
+/** Human-readable provenance label for a media asset's origin. */
+export function mediaOriginLabel(origin: CampaignMediaOrigin): string {
+  if (origin === "generated") return "AI-generated";
+  return "Approved media";
+}
+
+/** Small provenance chip shown on rendered creative (source type + source). */
+export function MediaProvenanceBadge({ media }: { media: CampaignMediaAsset }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+      {mediaOriginLabel(media.origin)}
+      {media.source ? <span className="font-medium normal-case tracking-normal text-[var(--text-muted)]">· {media.source}</span> : null}
+    </span>
+  );
+}
 
 export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
   const hasMedia = asset.media.length > 0;
@@ -93,11 +110,17 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
         href={media.url}
         target="_blank"
         rel="noreferrer"
-        className="group block overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]"
+        className="group relative block overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)]"
         title={media.description ?? media.title}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config */}
-        <img src={media.thumbnailUrl ?? media.url} alt={media.title} className="h-36 w-full object-contain transition group-hover:scale-[1.02]" />
+        <SafeImage
+          src={media.thumbnailUrl ?? media.url}
+          alt={media.title}
+          className="h-36 w-full object-contain transition group-hover:scale-[1.02]"
+        />
+        <span className="absolute left-2 top-2">
+          <MediaProvenanceBadge media={media} />
+        </span>
       </a>
     );
   }

@@ -67,6 +67,25 @@ function makeSink() {
  *  smooths between chunks. */
 const STREAM_THROTTLE_MS = 180;
 
+/** The model input for a turn: a plain string, or content blocks for multimodal. */
+type TurnContent = Awaited<ReturnType<typeof buildTurnContentAsync>>;
+
+/** Adapt our turn content into the SDK's prompt input. A plain string stays a
+ *  string (unchanged path); content blocks are wrapped in a single streamed
+ *  user message so images/documents/text reach the model. */
+function promptInput(content: TurnContent, sessionId: string) {
+  if (typeof content === "string") return content;
+  async function* once() {
+    yield {
+      type: "user" as const,
+      session_id: sessionId,
+      parent_tool_use_id: null,
+      message: { role: "user" as const, content },
+    };
+  }
+  return once();
+}
+
 async function runArcQuery(opts: {
   step: StepFn;
   mode: ArcMode;
@@ -83,7 +102,8 @@ async function runArcQuery(opts: {
 
   const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, { ...(opts.toolContext ?? {}), skill: opts.skill });
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
-  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, opts.ctx);
+  const workspaceState = await resolveWorkspaceSummary(opts.client);
+  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, { ...opts.ctx, workspaceState });
 
   let assistantText = "";
   let resultText = "";
@@ -164,7 +184,8 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   };
 
   const preamble = formatHistory(payload.history);
-  const prompt = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
+  const text = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
+  const content = await buildTurnContentAsync(text, payload.attachments);
 
   return runArcQuery({
     step,

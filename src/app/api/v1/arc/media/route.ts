@@ -14,10 +14,11 @@ export async function GET(request: Request) {
   if (!allowed.ok) return allowed.response;
   const url = new URL(request.url);
   const kind = url.searchParams.get("kind")?.trim() || undefined;
+  const folderId = url.searchParams.get("folder_id")?.trim() || undefined;
   const limitRaw = Number(url.searchParams.get("limit"));
   const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
   try {
-    const media = await listAvailableArcMedia(allowed.scope.orgId, { kind, limit });
+    const media = await listAvailableArcMedia(allowed.scope.orgId, { kind, folderId, limit });
     return ok({ media });
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to list media.", 502);

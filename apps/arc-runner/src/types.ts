@@ -6,6 +6,8 @@
 
 export type MarkMention = { type: string; id: string; label: string; href: string };
 
+export type ArcAttachment = { url: string; objectPath: string; contentType: string; name: string };
+
 /** One prior turn of the conversation, injected so Arc has memory. */
 export type ArcHistoryTurn = { role: "operator" | "arc"; body: string };
 
@@ -33,7 +35,7 @@ export type MarkChatMessagePayload = ArcSkillSelection & {
   assistantResponseStyle?: string;
   approvalStrictness?: string;
   command?: string | null;
-  attachments?: unknown[];
+  attachments?: ArcAttachment[];
   /** Bounded prior turns (oldest → newest), excluding the current message. */
   history?: ArcHistoryTurn[];
 };

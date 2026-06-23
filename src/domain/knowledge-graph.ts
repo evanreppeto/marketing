@@ -26,8 +26,13 @@ export const NODE_KINDS = [
 ] as const;
 export type NodeKind = (typeof NODE_KINDS)[number];
 
-/** Kinds whose content can govern outbound copy — gated behind operator approval. */
-export const GATED_NODE_KINDS = ["brand_fact", "messaging_angle", "cta", "proof_point"] as const;
+/**
+ * Kinds gated behind operator approval. `brand_fact`/`messaging_angle`/`cta`/
+ * `proof_point` govern outbound copy; `segment` is an Arc-synthesized audience —
+ * a who-to-target claim derived from CRM evidence, so it must be human-approved
+ * before it's trusted memory that shapes targeting.
+ */
+export const GATED_NODE_KINDS = ["brand_fact", "messaging_angle", "cta", "proof_point", "segment"] as const;
 export type GatedNodeKind = (typeof GATED_NODE_KINDS)[number];
 
 export const EDGE_RELATIONS = [

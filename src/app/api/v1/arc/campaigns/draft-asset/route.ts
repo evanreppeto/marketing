@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
@@ -99,6 +100,11 @@ export async function POST(request: Request) {
     if (conversationId) {
       await linkConversationToCampaign(conversationId, campaignId, str(body.name) || "Campaign workspace").catch(() => undefined);
     }
+
+    // Bust the campaigns list + detail caches so an Arc-created draft shows up
+    // immediately — same as the operator promote flow in campaigns/actions.ts.
+    revalidatePath("/campaigns");
+    revalidatePath(`/campaigns/${campaignId}`);
 
     return NextResponse.json(
       { ok: true, status: "created", campaignId, assetId: asset.assetId },

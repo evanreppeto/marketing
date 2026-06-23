@@ -8,10 +8,67 @@ function cx(...c: Array<string | false | null | undefined>) {
   return c.filter(Boolean).join(" ");
 }
 
-const CHIP_BASE =
-  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition";
+function ChevronRight({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden className={className}>
+      <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
-/** One question: single-select chips (auto-send), multi-select chips + Send, and/or a free-text field. */
+/** Long sentence-style options read better stacked full-width; short ones stay as pills. */
+function isStacked(question: ArcQuestion): boolean {
+  return question.multi || question.options.some((o) => o.length > 24);
+}
+
+/** One full-width option row (Claude-style): left-aligned label, trailing affordance. */
+function OptionRow({
+  label,
+  selected,
+  multi,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  multi: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={multi ? selected : undefined}
+      className={cx(
+        "group/opt flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition",
+        selected
+          ? "bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--accent)]"
+          : "bg-[var(--surface-inset)] text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent)]",
+      )}
+    >
+      {multi ? (
+        <span
+          aria-hidden
+          className={cx(
+            "grid h-4 w-4 shrink-0 place-items-center rounded-[5px] transition",
+            selected
+              ? "bg-[var(--accent)] text-[var(--on-accent)]"
+              : "shadow-[inset_0_0_0_1px_var(--border-strong)] text-transparent",
+          )}
+        >
+          <svg viewBox="0 0 12 12" width="10" height="10" fill="none">
+            <path d="M2.5 6.2 5 8.5l4.5-5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      ) : null}
+      <span className="flex-1 leading-snug">{label}</span>
+      {multi ? null : (
+        <ChevronRight className="shrink-0 text-[var(--text-muted)] transition group-hover/opt:translate-x-0.5 group-hover/opt:text-[var(--accent)]" />
+      )}
+    </button>
+  );
+}
+
+/** One question: single-select (auto-send), multi-select (+ Send), and/or a free-text field. */
 function QuestionCard({ question, onAnswer }: { question: ArcQuestion; onAnswer: (answer: string) => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [text, setText] = useState("");
@@ -28,47 +85,39 @@ function QuestionCard({ question, onAnswer }: { question: ArcQuestion; onAnswer:
   }
 
   const hasOptions = question.options.length > 0;
+  const stacked = hasOptions && isStacked(question);
 
   return (
-    <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5">
-      <div className="text-sm font-medium text-[var(--text-primary)]">{question.prompt}</div>
+    <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3.5 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
+      <div className="text-sm font-medium leading-snug text-[var(--text-primary)]">{question.prompt}</div>
 
       {hasOptions ? (
-        <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Answer options">
-          {question.options.map((opt) =>
-            question.multi ? (
-              <button
+        stacked ? (
+          <div className="mt-2.5 flex flex-col gap-1.5" aria-label="Answer options">
+            {question.options.map((opt) => (
+              <OptionRow
                 key={opt}
-                type="button"
-                onClick={() => toggle(opt)}
-                aria-pressed={selected.includes(opt)}
-                className={cx(
-                  CHIP_BASE,
-                  selected.includes(opt)
-                    ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-[inset_0_0_0_1px_var(--accent)]"
-                    : "text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] hover:text-[var(--text-primary)]",
-                )}
-              >
-                <span aria-hidden className="text-[var(--accent)]">
-                  {selected.includes(opt) ? "✓" : "+"}
-                </span>
-                {opt}
-              </button>
-            ) : (
+                label={opt}
+                multi={Boolean(question.multi)}
+                selected={selected.includes(opt)}
+                onClick={() => (question.multi ? toggle(opt) : onAnswer(opt))}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Answer options">
+            {question.options.map((opt) => (
               <button
                 key={opt}
                 type="button"
                 onClick={() => onAnswer(opt)}
-                className={cx(
-                  CHIP_BASE,
-                  "text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent)]",
-                )}
+                className="inline-flex items-center rounded-full bg-[var(--surface-inset)] px-3.5 py-1.5 text-sm font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent)]"
               >
                 {opt}
               </button>
-            ),
-          )}
-        </div>
+            ))}
+          </div>
+        )
       ) : null}
 
       {question.multi && hasOptions ? (
@@ -76,14 +125,15 @@ function QuestionCard({ question, onAnswer }: { question: ArcQuestion; onAnswer:
           type="button"
           onClick={sendSelected}
           disabled={selected.length === 0}
-          className="mt-2 rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)] disabled:opacity-40"
+          className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--on-accent)] transition hover:bg-[var(--accent-hover)] disabled:opacity-40"
         >
-          Send{selected.length > 0 ? ` (${selected.length})` : ""}
+          Send{selected.length > 0 ? ` ${selected.length} selected` : ""}
+          <ChevronRight />
         </button>
       ) : null}
 
       {question.allowText ? (
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-2.5 flex gap-1.5">
           <input
             type="text"
             value={text}
@@ -95,13 +145,13 @@ function QuestionCard({ question, onAnswer }: { question: ArcQuestion; onAnswer:
               }
             }}
             placeholder="Type your own answer…"
-            className="min-w-0 flex-1 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-1.5 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
+            className="min-w-0 flex-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:bg-[var(--surface-panel)]"
           />
           <button
             type="button"
             onClick={sendText}
             disabled={!text.trim()}
-            className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)] disabled:opacity-40"
+            className="rounded-lg px-3.5 py-2 text-sm font-medium text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-hairline)] transition hover:text-[var(--text-primary)] hover:shadow-[inset_0_0_0_1px_var(--accent)] disabled:opacity-40"
           >
             Send
           </button>

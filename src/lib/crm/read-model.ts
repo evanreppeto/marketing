@@ -1042,8 +1042,12 @@ export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOv
       if (isDemoDataEnabled()) return buildOverviewFromBundle(buildDemoCrmBundle());
     }
     return buildOverviewFromBundle(data);
-  } catch {
-    return buildOverviewFromBundle(buildDemoCrmBundle());
+  } catch (error) {
+    // A live read that errors (e.g. prod schema drift) must not leak demo data
+    // into a real workspace — only fall back to demo when demo mode is on.
+    if (isDemoDataEnabled()) return buildOverviewFromBundle(buildDemoCrmBundle());
+    console.error("[crm] overview read failed:", error);
+    return { status: "unavailable", message: "CRM data is unavailable." };
   }
 }
 
@@ -1080,8 +1084,10 @@ export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClien
       if (isDemoDataEnabled()) return buildObjectDataFromBundle(key, buildDemoCrmBundle());
     }
     return buildObjectDataFromBundle(key, data);
-  } catch {
-    return buildObjectDataFromBundle(key, buildDemoCrmBundle());
+  } catch (error) {
+    if (isDemoDataEnabled()) return buildObjectDataFromBundle(key, buildDemoCrmBundle());
+    console.error("[crm] object read failed:", error);
+    return { status: "unavailable", message: "CRM data is unavailable." };
   }
 }
 
@@ -1140,8 +1146,10 @@ export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCo
       status: "live",
       counts: { companies, contacts, properties, leads, jobs, outcomes },
     };
-  } catch {
-    return { status: "live", counts: demoNavCounts() };
+  } catch (error) {
+    if (isDemoDataEnabled()) return { status: "live", counts: demoNavCounts() };
+    console.error("[crm] nav counts read failed:", error);
+    return { status: "unavailable", message: "CRM data is unavailable." };
   }
 }
 
@@ -1215,8 +1223,10 @@ export async function getCrmRecordData(key: CrmObjectKey, recordId: string, clie
       if (isDemoDataEnabled()) return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
     }
     return buildRecordDataFromBundle(key, recordId, data, agentName);
-  } catch {
-    return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
+  } catch (error) {
+    if (isDemoDataEnabled()) return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
+    console.error("[crm] record read failed:", error);
+    return { status: "unavailable", message: "CRM data is unavailable." };
   }
 }
 

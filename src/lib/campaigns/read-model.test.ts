@@ -197,6 +197,113 @@ describe("getCampaignWorkspaceDetail creative media", () => {
   });
 });
 
+describe("getCampaignWorkspaceDetail media trust", () => {
+  const baseCampaign = {
+    id: "camp-1",
+    name: "Water Loss Outreach",
+    persona: "persona_plumbing_partner",
+    restoration_focus: "water_backup",
+    status: "pending_approval",
+    company_id: null,
+    contact_id: null,
+    lead_id: null,
+    owner: "Arc",
+    objective: "Referral campaign",
+    audience_summary: null,
+    offer_summary: null,
+    compliance_notes: null,
+    launch_locked: true,
+    source_signal: {},
+    reasoning_payload: {},
+    audit_payload: {},
+    created_at: "2026-06-02T12:00:00.000Z",
+    updated_at: "2026-06-02T12:00:00.000Z",
+  };
+
+  it("does not render an image URL scavenged from the email body as creative media", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: baseCampaign, error: null },
+      campaign_assets: {
+        data: [
+          {
+            id: "asset-email",
+            campaign_id: "camp-1",
+            asset_type: "email",
+            channel: "email",
+            title: "Subject: Fast help for a water-loss claim",
+            status: "pending_owner_approval",
+            tool_source: "Arc",
+            prompt_input: null,
+            prompt_inputs: {},
+            // Arc's prose mentions an illustrative image URL — this must NOT
+            // become the email's hero creative.
+            draft_body:
+              "Hi Dana,\n\nHere's our crew on a recent job: https://example.com/crew-photo.jpg\n\nWould a quick call help?\n\nBest,\nBSR",
+            edited_body: null,
+            approved_body: null,
+            dispatch_locked: true,
+            compliance_notes: null,
+            reasoning_payload: {},
+            audit_payload: {},
+            created_at: "2026-06-02T12:00:00.000Z",
+            updated_at: "2026-06-02T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const detail = await getCampaignWorkspaceDetail("camp-1", supabase, "Arc", "org-1");
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+
+    // The scavenged URL is "referenced", not creative — so it never renders as media.
+    expect(detail.assets[0].media).toEqual([]);
+  });
+
+  it("tags structured creative media as attached so it renders as real creative", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: baseCampaign, error: null },
+      campaign_assets: {
+        data: [
+          {
+            id: "asset-img",
+            campaign_id: "camp-1",
+            asset_type: "image_prompt",
+            channel: "image",
+            title: "Hero image",
+            status: "pending_owner_approval",
+            tool_source: "Arc Orchestrator",
+            prompt_input: null,
+            prompt_inputs: {},
+            draft_body: null,
+            edited_body: null,
+            approved_body: null,
+            dispatch_locked: true,
+            compliance_notes: null,
+            reasoning_payload: {},
+            audit_payload: { media_assets: [{ url: "https://cdn.example/hero.png", type: "image", title: "Hero" }] },
+            created_at: "2026-06-02T12:00:00.000Z",
+            updated_at: "2026-06-02T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const detail = await getCampaignWorkspaceDetail("camp-1", supabase, "Arc", "org-1");
+
+    expect(detail.status).toBe("live");
+    if (detail.status !== "live") return;
+
+    expect(detail.assets[0].media[0]).toMatchObject({
+      url: "https://cdn.example/hero.png",
+      origin: "attached",
+    });
+  });
+});
+
 const ROLLUP_CAMPAIGN = {
   id: "camp-1",
   name: "Spring Flood Recovery",

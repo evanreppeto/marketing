@@ -81,6 +81,25 @@ export function resolveResourceAccess(
   return { canView: best !== null, permission: best };
 }
 
+/**
+ * Whether the viewer may compose (send) in the chat surface.
+ *
+ * A fresh chat — no active conversation resolved — is ALWAYS composable: the
+ * viewer owns the chat they're about to create, so the /arc landing page must
+ * never lock the composer. View-only applies only to an existing conversation
+ * the viewer can see but lacks collaborate access to. In open/dev mode
+ * (`enforce === false`) composing is always allowed.
+ */
+export function canComposeInThread(input: {
+  enforce: boolean;
+  hasActiveConversation: boolean;
+  activePermission: SharePermission | null;
+}): boolean {
+  if (!input.enforce) return true;
+  if (!input.hasActiveConversation) return true;
+  return input.activePermission === "collaborate";
+}
+
 export function hasRequiredPermission(
   decision: AccessDecision,
   required: SharePermission,

@@ -2,12 +2,13 @@
 
 import { cx, theme } from "@/app/_components/theme";
 
-export type AssetFilter = "all" | "photos" | "video" | "arc" | "unused";
+export type AssetFilter = "all" | "photos" | "video" | "documents" | "arc" | "unused";
 
 const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: "all", label: "All types" },
   { value: "photos", label: "Photos" },
   { value: "video", label: "Video" },
+  { value: "documents", label: "Documents" },
   { value: "arc", label: "Available to Arc" },
   { value: "unused", label: "Unused" },
 ];
