@@ -17,7 +17,7 @@ export function BrandPersonasSummary({ count, agentName }: { count: number; agen
           <Users aria-hidden className="h-4 w-4" />
         </span>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">
-          {count > 0 ? `${count} persona${count === 1 ? "" : "s"} guide how ${agentName} targets and writes.` : "No personas yet — set them up so Arc can target the right audience."}
+          {count > 0 ? `${count} persona${count === 1 ? "" : "s"} guide how ${agentName} targets and writes.` : `No personas yet — set them up so ${agentName} can target the right audience.`}
         </p>
       </div>
     </section>
