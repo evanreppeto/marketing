@@ -39,6 +39,7 @@ describe("validateUpload", () => {
   it("accepts plain text, markdown, csv, and docx", () => {
     expect(validateUpload({ contentType: "text/plain", byteSize: 10 })).toEqual({ ok: true });
     expect(validateUpload({ contentType: "text/markdown", byteSize: 10 })).toEqual({ ok: true });
+    expect(validateUpload({ contentType: "text/x-markdown", byteSize: 10 })).toEqual({ ok: true });
     expect(validateUpload({ contentType: "text/csv", byteSize: 10 })).toEqual({ ok: true });
     expect(
       validateUpload({

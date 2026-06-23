@@ -81,7 +81,7 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
               <span className="truncate">{selectedLabel || "Attach files"}</span>
             </span>
             <input
-              accept="application/pdf,image/*,image/svg+xml,.svg,.ico,text/plain,.txt,text/markdown,.md,text/csv,.csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+              accept="application/pdf,image/*,image/svg+xml,.svg,.ico,text/plain,.txt,text/markdown,text/x-markdown,.md,text/csv,.csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
               className="sr-only"
               multiple
               name="files"

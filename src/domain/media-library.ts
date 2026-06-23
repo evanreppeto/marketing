@@ -10,6 +10,7 @@ const DOC_TYPES = [
   "application/pdf",
   "text/plain",
   "text/markdown",
+  "text/x-markdown",
   "text/csv",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
