@@ -35,12 +35,13 @@ const READ = [
   "list_media",
   "list_brand_documents",
   "read_brand_document",
+  "research_web",
   "emit_card",
   "suggest_followups",
   "cite_sources",
   "ask_operator",
 ];
-const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
+const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction", "create_lead", "update_record"];
 const DRAFT = ["create_campaign_draft", "generate_image", "generate_video", "analyze_website", "propose_brand_profile", "attach_media"];
 
 describe("toolsForMode", () => {
