@@ -24,7 +24,9 @@ export async function syncCrmRowToBrain(
 
 /** Read a CRM record (org-scoped, raw row) by id, then upsert its Brain node. */
 export async function syncRecordToBrain(table: CrmIngestTable, recordId: string, deps: SyncDeps = {}): Promise<WriteResult> {
-  const resolved = await resolve(deps);
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch (e) { return { ok: false, error: e instanceof Error ? e.message : "org unavailable" }; }
   if (!resolved) return { ok: false, error: "Supabase is not configured." };
   const { client, orgId } = resolved;
   const { data, error } = await client
@@ -38,24 +40,37 @@ export async function syncRecordToBrain(table: CrmIngestTable, recordId: string,
   return syncCrmRowToBrain(table, data, { client, orgId });
 }
 
-/** Backfill: upsert a Brain node for every CRM row in the org. Returns counts. */
-export async function resyncCrmIntoBrain(deps: SyncDeps = {}): Promise<{ ok: boolean; synced: number; errors: number }> {
-  const resolved = await resolve(deps);
-  if (!resolved) return { ok: false, synced: 0, errors: 0 };
+/** Max rows pulled per CRM table in one backfill pass. Hitting it sets `truncated`. */
+const RESYNC_TABLE_LIMIT = 2000;
+
+/**
+ * Backfill: upsert a Brain node for every CRM row in the org. Returns counts.
+ * `truncated` is true if any table had more rows than RESYNC_TABLE_LIMIT (so the
+ * caller can tell the operator to re-run). `ok` is false if any table failed to read.
+ */
+export async function resyncCrmIntoBrain(
+  deps: SyncDeps = {},
+): Promise<{ ok: boolean; synced: number; errors: number; truncated: boolean }> {
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch { return { ok: false, synced: 0, errors: 0, truncated: false }; }
+  if (!resolved) return { ok: false, synced: 0, errors: 0, truncated: false };
   const { client, orgId } = resolved;
+
   let synced = 0;
   let errors = 0;
+  let truncated = false;
+  let tableReadFailed = false;
+
   for (const table of CRM_INGEST_TABLES) {
-    const { data, error } = await client.from(table).select("*").eq("org_id", orgId).limit(2000);
-    if (error || !Array.isArray(data)) {
-      errors++;
-      continue;
-    }
+    const { data, error } = await client.from(table).select("*").eq("org_id", orgId).limit(RESYNC_TABLE_LIMIT);
+    if (error || !Array.isArray(data)) { tableReadFailed = true; continue; }
+    if (data.length >= RESYNC_TABLE_LIMIT) truncated = true;
     for (const row of data as Array<Record<string, unknown>>) {
+      if (typeof row.id !== "string") { errors++; continue; }
       const res = await syncCrmRowToBrain(table, row, { client, orgId });
-      if (res.ok) synced++;
-      else errors++;
+      if (res.ok) synced++; else errors++;
     }
   }
-  return { ok: true, synced, errors };
+  return { ok: !tableReadFailed, synced, errors, truncated };
 }
