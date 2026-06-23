@@ -35,6 +35,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   return NextResponse.json(report);
 }
 
+/** Belt-and-suspenders: never echo the API key, even if a provider error embeds it. */
+function safeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "unknown";
+  const key = process.env.GEMINI_API_KEY?.trim();
+  return key ? message.split(key).join("***") : message;
+}
+
 async function probeImage(provider: ReturnType<typeof getMediaProvider>) {
   if (!provider) return { ok: false, error: "provider unavailable" };
   try {
@@ -43,7 +50,7 @@ async function probeImage(provider: ReturnType<typeof getMediaProvider>) {
     const media = await provider.generateImage({ prompt: "a plain blue square, minimal" });
     return { ok: true, model: media.model, bytes: media.bytes.length };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "unknown" };
+    return { ok: false, error: safeError(error) };
   }
 }
 
@@ -56,6 +63,6 @@ async function probeVideoStart(provider: ReturnType<typeof getMediaProvider>) {
     const start = await provider.startVideo({ prompt: "a calm ocean wave, 2 seconds" });
     return { ok: true, model: start.model, operationStarted: Boolean(start.operationName) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "unknown" };
+    return { ok: false, error: safeError(error) };
   }
 }
