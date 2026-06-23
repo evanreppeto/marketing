@@ -14,7 +14,6 @@ import { INDUSTRY_TEMPLATES, NEUTRAL_DEFAULTS, type BusinessProfile } from "@/do
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
 import { summarizeBrandSourceReadiness } from "@/lib/brand-knowledge/readiness";
-import { loadSourceControlData } from "@/lib/brand-knowledge/source-control";
 import { listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { type MediaAssetView } from "@/lib/media-library/types";
@@ -31,7 +30,6 @@ import { BrandProfileEditor } from "./_components/brand-profile-editor";
 import { BrandPersonas } from "./_components/brand-personas";
 import { BrandKnowledgeSyncButton } from "./_components/brand-knowledge-sync-button";
 import { BrandSourceUpload } from "./_components/brand-source-upload";
-import { SourceControlCenter } from "./_components/source-control-center";
 import { LibraryTabs } from "../_components/library-tabs";
 
 import type { Metadata } from "next";
@@ -154,13 +152,12 @@ function formatIndustryLabel(value: string | null | undefined) {
 }
 
 export default async function BrandPage() {
-  const [profile, brain, library, agentName, personaData, sourceControl] = await Promise.all([
+  const [profile, brain, library, agentName, personaData] = await Promise.all([
     loadBrandProfile(),
     listNodes({}, undefined, undefined, { demoFallback: false }),
     getMediaLibraryData(),
     getAgentName(),
     getPersonaIntelligenceData(),
-    loadSourceControlData(),
   ]);
 
   const facts = brain.status === "live" ? brandFacts(brain.nodes) : [];
@@ -192,33 +189,18 @@ export default async function BrandPage() {
         }
       />
 
-      <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.files.border)}>
-        <div aria-hidden className={cx("h-1", SECTION_TONE.files.bar)} />
-        <div className="grid gap-0 xl:grid-cols-[minmax(320px,0.72fr)_minmax(0,1fr)]">
-          <div className={cx("border-b border-[var(--border-hairline)] px-5 py-5 xl:border-b-0 xl:border-r", SECTION_TONE.files.surface)}>
-            <div className="signal-eyebrow">Command center</div>
-            <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Brand knowledge</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              Upload the files {agentName} should learn from. New uploads are analyzed immediately and existing Library files show up as a queue.
-            </p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
-              <MiniStat label="New" value={sourceReadiness.readyToLearn} />
-              <MiniStat label="Learned" value={sourceReadiness.learned} />
-              <MiniStat label="Review" value={needsReview} />
-              <MiniStat label="Blocked" value={sourceReadiness.blocked} />
-            </div>
-          </div>
-          <BrandSourceUpload placement="hero" />
-        </div>
+      <Panel className="overflow-hidden p-0">
+        <BrandSourceUpload placement="hero" />
       </Panel>
-
-      <SourceControlCenter data={sourceControl} />
 
       <Panel className="overflow-hidden p-0">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div>
-            <div className="signal-eyebrow">Snapshot</div>
-            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What {agentName} knows right now</h2>
+            <div className="signal-eyebrow">Brand basics</div>
+            <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">What {agentName} uses first</h2>
+            <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
+              Keep this simple and durable. Add source material above when the brand changes, then edit locked details here when something needs to be exact.
+            </p>
           </div>
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="#edit-brand">
             Edit details
@@ -277,19 +259,19 @@ export default async function BrandPage() {
         })()}
       </Panel>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <div className="grid gap-5">
           <Panel className={cx("overflow-hidden border-l-4 p-0", SECTION_TONE.facts.border)}>
             <div aria-hidden className={cx("h-1", SECTION_TONE.facts.bar)} />
             <SimpleHeader
               action={
                 <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/brain">
-                  Review facts
+                  Open Brain
                 </Link>
               }
-              eyebrow={`${approvedFacts} approved${needsReview ? `, ${needsReview} to review` : ""}`}
+              eyebrow={needsReview ? `${needsReview} to review` : `${approvedFacts} approved`}
               tone="facts"
-              title="Approved facts"
+              title={needsReview ? "Needs review" : "Approved brand notes"}
             />
             <div className="divide-y divide-[var(--border-hairline)]">
               {facts.length > 0 ? (
@@ -314,13 +296,13 @@ export default async function BrandPage() {
                 <div className="flex flex-wrap items-start gap-2">
                   <BrandKnowledgeSyncButton readyToLearn={sourceReadiness.readyToLearn} />
                   <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href="/library">
-                    Add files
+                    Library
                   </Link>
                 </div>
               }
-              eyebrow={`${sourceReadiness.readyToLearn} new, ${sourceReadiness.learned} learned`}
+              eyebrow={`${sourceReadiness.learned} learned${sourceReadiness.readyToLearn ? `, ${sourceReadiness.readyToLearn} new` : ""}`}
               tone="files"
-              title="Knowledge sources"
+              title="Sources Arc can learn from"
             />
             <div className="divide-y divide-[var(--border-hairline)]">
               {files.length > 0 ? (
@@ -341,15 +323,6 @@ export default async function BrandPage() {
       <BrandPersonas data={personaData} />
 
       <BrandProfileEditor profile={profile} />
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <div className="text-lg font-bold text-[var(--text-primary)]">{value}</div>
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }
