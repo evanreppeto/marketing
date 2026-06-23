@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import { cx } from "@/app/_components/theme";
 
-/** Segmented control switching between the asset grid (/library) and the brand
- *  kit (/library/brand) — the two views of the unified Library section. */
+/** Segmented control switching between the brand kit (/library/brand) and the
+ *  file grid (/library) — the two views of the unified Brand section. Brand
+ *  leads since it's the section's landing view. */
 export function LibraryTabs({ active }: { active: "assets" | "brand" }) {
   const tab = (href: string, key: "assets" | "brand", label: string) => (
     <Link
@@ -22,11 +23,11 @@ export function LibraryTabs({ active }: { active: "assets" | "brand" }) {
   );
   return (
     <nav
-      aria-label="Library views"
+      aria-label="Brand views"
       className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-1"
     >
-      {tab("/library", "assets", "Assets")}
-      {tab("/library/brand", "brand", "Brand")}
+      {tab("/library/brand", "brand", "Brand kit")}
+      {tab("/library", "assets", "Files")}
     </nav>
   );
 }

@@ -1,12 +1,14 @@
 "use client";
 
+import { Pencil } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { buttonClasses, StatusPill } from "@/app/_components/page-header";
+import { applyFileNameStem, splitFileName } from "@/domain";
 import { type MediaAssetView } from "@/lib/media-library/types";
 
 import { CloseIcon, ExpandIcon, SparkIcon } from "./icons";
-import { sendAssetsToArcAction, setTagsAction, toggleAvailableToArcAction } from "../actions";
+import { renameAssetAction, sendAssetsToArcAction, setTagsAction, toggleAvailableToArcAction } from "../actions";
 
 /**
  * Right-side detail panel for a single asset: large preview, provenance rows,
@@ -32,6 +34,28 @@ export function DetailDrawer({
 
   // The parent remounts this component (keyed on asset.id) when a different
   // asset is selected, so local draft state resets without a sync effect.
+
+  // Filename editing: the user edits only the stem; the extension is shown as a
+  // fixed suffix and re-applied on save so a rename can't drop it.
+  const { stem, ext } = splitFileName(asset.fileName);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(stem);
+  const [namePending, startNameTransition] = useTransition();
+
+  function saveName() {
+    setEditingName(false);
+    const nextName = applyFileNameStem(asset.fileName, nameDraft);
+    if (nextName === asset.fileName) {
+      setNameDraft(stem);
+      return;
+    }
+    const formData = new FormData();
+    formData.set("id", asset.id);
+    formData.set("name", nextName);
+    startNameTransition(async () => {
+      await renameAssetAction(formData);
+    });
+  }
 
   function saveTags() {
     if (tags === asset.tags.join(", ")) return;
@@ -97,8 +121,42 @@ export function DetailDrawer({
       </div>
 
       <div className="space-y-4 px-4 py-4">
-        <div className="truncate text-sm font-semibold text-[var(--text-primary)]" title={asset.fileName}>
-          {asset.fileName}
+        <div>
+          {editingName ? (
+            <div className="flex items-center gap-1">
+              <input
+                autoFocus
+                aria-label="File name"
+                value={nameDraft}
+                onChange={(event) => setNameDraft(event.target.value)}
+                onBlur={saveName}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    setNameDraft(stem);
+                    setEditingName(false);
+                  }
+                }}
+                className="min-h-8 w-full min-w-0 flex-1 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 text-sm font-semibold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              />
+              {ext ? <span className="shrink-0 text-sm text-[var(--text-muted)]">{ext}</span> : null}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingName(true)}
+              title="Rename file"
+              className="group flex w-full items-center gap-1.5 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            >
+              <span className="truncate text-sm font-semibold text-[var(--text-primary)]" title={asset.fileName}>
+                {asset.fileName}
+              </span>
+              <Pencil aria-hidden className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100" />
+            </button>
+          )}
+          {namePending ? <p className="mt-1 text-[10px] text-[var(--text-muted)]">Renaming…</p> : null}
         </div>
 
         <dl className="space-y-0 text-xs">
