@@ -77,11 +77,7 @@ export default async function OnboardingPage({
   return (
     <AuthShell
       formMaxWidth="max-w-[460px]"
-      headline={
-        <>
-          Create the place where Arc <span className="italic text-[var(--accent)]">learns</span>.
-        </>
-      }
+      headline={<>Create the place where Arc learns.</>}
       supporting="Each organization owns its workspaces, members, brand context, memory, and agent configuration."
     >
       <div className="grid gap-4">

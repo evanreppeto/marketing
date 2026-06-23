@@ -114,11 +114,7 @@ export function OperatorForgotPasswordPage({ supportEmail }: { supportEmail: str
 
   return (
     <AuthShell
-      headline={
-        <>
-          Let&rsquo;s get you back <span className="italic text-[var(--accent)]">in</span>.
-        </>
-      }
+      headline={<>Let&rsquo;s get you back in.</>}
       supporting="Passwords are managed by your administrator. Send a reset request and they'll confirm when your access is ready."
     >
       <h2 className="font-editorial text-[1.75rem] font-normal leading-[1.05] tracking-[-0.01em] text-[var(--text-primary)]">
