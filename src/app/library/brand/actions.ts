@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { learnBrandKnowledgeFromAsset } from "@/lib/brand-knowledge/brain-sync";
+import { extractAssetText } from "@/lib/brand-knowledge/asset-text";
 import { brandSourceSortScore, classifyBrandSource } from "@/lib/brand-knowledge/source-classifier";
 import { summarizeBrandKnowledgeSync, type BrandKnowledgeSyncSummary } from "@/lib/brand-knowledge/sync-summary";
 import { discoverWebsiteSourceUrls, fetchUrlSource, type UrlSourceDocument } from "@/lib/brand-knowledge/url-source";
@@ -103,6 +104,7 @@ export async function uploadAndAnalyzeBrandSourcesAction(
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const kind = classifyKind(file.type, file.name);
+      const extractedText = await extractAssetText({ bytes, contentType: file.type, fileName: file.name });
       const assetId = await insertAsset({
         orgId,
         folderId: null,
@@ -122,6 +124,7 @@ export async function uploadAndAnalyzeBrandSourcesAction(
         source: "uploaded",
         tags: ["brand source"],
         availableToArc: true,
+        extractedText,
         contentType: file.type,
         fileBytes: bytes,
       }, { orgId });
