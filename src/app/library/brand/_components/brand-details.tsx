@@ -2,7 +2,7 @@
 
 import { Building2, ChevronDown, FileText, MessageSquareQuote, Pencil, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { buttonClasses } from "@/app/_components/page-header";
 import { cx } from "@/app/_components/theme";
@@ -59,6 +59,17 @@ export function BrandDetails({
   profile: BusinessProfile;
 }) {
   const [editing, setEditing] = useState(false);
+
+  // Open the editor when the page is targeted at #edit-brand (e.g. the masthead
+  // "Edit brand" action), on initial load and on later hash changes.
+  useEffect(() => {
+    const openIfTargeted = () => {
+      if (window.location.hash === "#edit-brand") setEditing(true);
+    };
+    openIfTargeted();
+    window.addEventListener("hashchange", openIfTargeted);
+    return () => window.removeEventListener("hashchange", openIfTargeted);
+  }, []);
 
   return (
     <section aria-labelledby="brand-details-heading" id="edit-brand">

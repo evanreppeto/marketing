@@ -18,6 +18,7 @@ import {
 
 import { BrandPersonas } from "./_components/brand-personas";
 import { BrandIdentity } from "./_components/brand-identity";
+import { BrandMedia } from "./_components/brand-media";
 import { BrandDetails, type ApprovedFact } from "./_components/brand-details";
 import { BrandReviewQueue } from "./_components/brand-review-queue";
 import { BrandSourceList } from "./_components/brand-source-list";
@@ -70,6 +71,7 @@ export default async function BrandPage() {
 
   const brainNodes = brain.status === "live" ? brain.nodes : [];
   const approvedFacts = approvedBrandFacts(brainNodes);
+  const mediaAssets = library.status === "live" ? library.assets : [];
   const allFiles = library.status === "live" ? brandFiles(library.assets) : [];
   const sourceReadiness = summarizeBrandSourceReadiness(allFiles, brainNodes);
 
@@ -77,6 +79,8 @@ export default async function BrandPage() {
     <div className="flex flex-col gap-6">
       <LibraryTabs active="brand" />
       <BrandIdentity agentName={agentName} profile={profile} />
+
+      <BrandMedia assets={mediaAssets} />
 
       {/* Zone 1 — Add to brand (the one accent moment; Arc-led intake). */}
       <section aria-labelledby="brand-intake-heading">

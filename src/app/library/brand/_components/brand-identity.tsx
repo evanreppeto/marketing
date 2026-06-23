@@ -110,10 +110,12 @@ export function BrandIdentity({ agentName, profile }: { agentName: string; profi
               <FolderOpen aria-hidden className="h-4 w-4" />
               Add files
             </Link>
-            <Link className={buttonClasses({ variant: "primary", size: "sm" })} href="#edit-brand">
+            {/* Plain anchor (not next/link) so the in-page jump fires a native
+                hashchange, which BrandDetails listens for to open the editor. */}
+            <a className={buttonClasses({ variant: "primary", size: "sm" })} href="#edit-brand">
               <Pencil aria-hidden className="h-4 w-4" />
               Edit brand
-            </Link>
+            </a>
           </div>
         </div>
 
