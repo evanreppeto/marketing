@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { BSR_CONTEXT } from "./business-context";
+import { NEUTRAL_CONTEXT } from "./business-context";
 import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
 
 const baseCtx: ArcTurnContext = {
-  business: BSR_CONTEXT,
+  business: NEUTRAL_CONTEXT,
   mode: "ask",
   scope: { conversationId: "c1", projectId: null, campaignId: null, operator: "Evan" },
   mentions: [],
@@ -40,7 +40,7 @@ describe("buildSystemPrompt", () => {
   it("includes the base prompt and the business name", () => {
     const out = buildSystemPrompt("BASE_PROMPT", baseCtx);
     expect(out).toContain("BASE_PROMPT");
-    expect(out).toContain(BSR_CONTEXT.businessName);
+    expect(out).toContain(NEUTRAL_CONTEXT.businessName);
   });
   it("states read-only stance for ask mode", () => {
     const out = buildSystemPrompt("BASE", { ...baseCtx, mode: "ask" });

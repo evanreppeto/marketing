@@ -1,12 +1,6 @@
 import type { ArcClient } from "./arc-client";
 
-/**
- * The business Arc currently acts on behalf of. Single-tenant today (BSR), but
- * this object IS the multi-tenant seam: every per-business fact Arc needs is
- * here, injected into the system prompt by buildSystemPrompt(). Going
- * multi-tenant later means resolving this per-wake (by org id) instead of using
- * the constant — no change to the engine.
- */
+/** Every per-business fact Arc needs, injected into the system prompt by buildSystemPrompt(). */
 export type ArcBusinessContext = {
   businessName: string;
   industry: string;
@@ -17,14 +11,13 @@ export type ArcBusinessContext = {
   compliance: string;
 };
 
-export const BSR_CONTEXT: ArcBusinessContext = {
-  businessName: "Big Shoulders Restoration (BSR)",
-  industry: "Property damage restoration — water, flood, sewage, mold, fire, storm.",
-  brandVoice: "Calm, expert, urgency-aware. Reassuring without overpromising. No hype, no emojis.",
+export const NEUTRAL_CONTEXT: ArcBusinessContext = {
+  businessName: "the business",
+  industry: "Not specified.",
+  brandVoice: "Use a clear, accurate, professional voice. Ask for brand details when the operator has not activated a Brand Kit.",
   creativePolicy:
-    "Prefer BSR's real, approved media. AI creative may package/resize/test authentic proof, never fabricate scenes. Flag embedded text, unrealistic scenes, privacy/redaction, and unsubstantiated claims.",
-  compliance:
-    "Never promise insurance coverage, claim approval, payouts, or timelines. Stay coverage-neutral. Keep to restoration scope (water/flood/sewage/mold/fire/storm); route hail-only, wind-only, exterior-roof-only, and unrelated remodeling out of scope.",
+    "Prefer the business's real, approved media. AI creative may package/resize/test authentic proof, never fabricate scenes. Flag embedded text, unrealistic scenes, privacy/redaction, and unsubstantiated claims.",
+  compliance: "No specific compliance constraints recorded; stay accurate and avoid unverifiable claims.",
 };
 
 /** The rich context shape returned by GET /api/v1/arc/brand/context (app's assembleArcContext output). */
@@ -37,7 +30,8 @@ export type AppBusinessContext = {
   preferredPhrases: string[];
   bannedPhrases: string[];
   proofPoints: Array<{ kind: string; label: string; detail?: string }>;
-  // Structural subset — fromAppContext doesn't read personas yet. The wire payload
+  brainFacts: string[];
+  // Structural subset: fromAppContext doesn't read personas yet. The wire payload
   // includes more (audienceType, sortOrder, isActive, metadata); a later task maps them.
   personas: Array<{ key: string; label: string; [k: string]: unknown }>;
   guardrails: { disallowedClaims: string[]; complianceNotes: string };
@@ -57,7 +51,7 @@ export type AppBusinessContext = {
   serviceAreas: string[];
 };
 
-/** Tenant-agnostic creative posture — the same for every business; brand specifics ride the other fields. */
+/** Tenant-agnostic creative posture: the same for every business; brand specifics ride the other fields. */
 const DEFAULT_CREATIVE_POLICY =
   "Prefer the business's real, approved media. AI creative may package/resize/test authentic proof, never fabricate scenes. Flag embedded text, unrealistic scenes, privacy/redaction, and unsubstantiated claims.";
 
@@ -75,6 +69,7 @@ export function fromAppContext(raw: AppBusinessContext): ArcBusinessContext {
   const proof = raw.proofPoints.length
     ? ` Proof points available: ${raw.proofPoints.map((p) => p.label).join("; ")}.`
     : "";
+  const brainFacts = raw.brainFacts.length ? ` Approved Brain facts: ${raw.brainFacts.join("; ")}.` : "";
   const compliance =
     [
       raw.guardrails.complianceNotes || null,
@@ -107,18 +102,18 @@ export function fromAppContext(raw: AppBusinessContext): ArcBusinessContext {
   return {
     businessName: raw.businessName,
     industry: (raw.industry ?? "Not specified") + services,
-    brandVoice: [voice, identity].filter(Boolean).join(" "),
+    brandVoice: [voice, identity, brainFacts].filter(Boolean).join(" "),
     creativePolicy: DEFAULT_CREATIVE_POLICY + proof,
     compliance,
   };
 }
 
-/** Fetch + map the org's brand context for this turn; fall back to BSR_CONTEXT on any error. */
+/** Fetch + map the org's brand context for this turn; fall back to neutral context on any error. */
 export async function resolveBusinessContext(client: ArcClient): Promise<ArcBusinessContext> {
   try {
     const res = await client.apiGet<{ context: AppBusinessContext }>("/api/v1/arc/brand/context");
     return fromAppContext(res.context);
   } catch {
-    return BSR_CONTEXT;
+    return NEUTRAL_CONTEXT;
   }
 }

@@ -39,6 +39,10 @@ export type NodeFilters = {
   search?: string;
 };
 
+export type ListNodesOptions = {
+  demoFallback?: boolean;
+};
+
 type Live<T> = { status: "live" } & T;
 type Unavailable = { status: "unavailable"; message: string };
 
@@ -135,11 +139,13 @@ export async function listNodes(
   filters: NodeFilters = {},
   client?: TypedSupabaseClient,
   orgId?: string,
+  options: ListNodesOptions = {},
 ): Promise<Live<{ nodes: BrainNode[] }> | Unavailable> {
   const resolved = await resolveRead(client, orgId);
   // No Supabase configured (local preview): serve the demo brain so the page
   // renders a populated knowledge memory instead of an empty shell.
-  if (!resolved) return { status: "live", nodes: filterDemoNodes(filters) };
+  const demoFallback = options.demoFallback !== false;
+  if (!resolved) return { status: "live", nodes: demoFallback ? filterDemoNodes(filters) : [] };
   try {
     let query = resolved.client
       .from("knowledge_nodes")
@@ -165,7 +171,7 @@ export async function listNodes(
     // specific filter still returns empty.
     const unfiltered =
       !filters.kind && !filters.trustTier && !filters.persona && !filters.refTable && !filters.refId && !filters.search;
-    if (nodes.length === 0 && unfiltered) return { status: "live", nodes: filterDemoNodes({}) };
+    if (nodes.length === 0 && unfiltered && demoFallback) return { status: "live", nodes: filterDemoNodes({}) };
     return { status: "live", nodes };
   } catch (error) {
     return { status: "unavailable", message: error instanceof Error ? error.message : "Brain is unavailable." };

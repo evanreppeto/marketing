@@ -25,8 +25,9 @@ async function listTrustedBrainFacts(orgId: string) {
 
 /**
  * Assemble the Arc business-context bundle for an org. Falls back to neutral
- * defaults when no profile exists or Supabase is unconfigured, so Arc and the
- * UI always receive a usable, industry-agnostic context (graceful degradation).
+ * defaults when no active profile exists or Supabase is unconfigured, so Arc
+ * always receives a usable, industry-agnostic context until the operator
+ * explicitly activates the Brand Kit.
  */
 export async function getBusinessContext(orgId: string): Promise<ArcBusinessContext> {
   const [profile, personas, brainFacts] = await Promise.all([
@@ -34,5 +35,7 @@ export async function getBusinessContext(orgId: string): Promise<ArcBusinessCont
     listPersonaDefinitions(orgId),
     listTrustedBrainFacts(orgId),
   ]);
-  return assembleArcContext(profile ?? NEUTRAL_DEFAULTS, personas.length > 0 ? personas : NEUTRAL_PERSONAS, brainFacts);
+  const activeProfile = profile?.status === "active" ? profile : NEUTRAL_DEFAULTS;
+  const activeBrainFacts = profile?.status === "active" ? brainFacts : [];
+  return assembleArcContext(activeProfile, personas.length > 0 ? personas : NEUTRAL_PERSONAS, activeBrainFacts);
 }
