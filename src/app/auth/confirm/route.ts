@@ -14,6 +14,7 @@ function parseEmailOtpType(value: string | null): EmailOtpType | null {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const type = parseEmailOtpType(url.searchParams.get("type"));
   const next = getSafeOperatorReturnPath(url.searchParams.get("next") ?? "/");
@@ -24,12 +25,18 @@ export async function GET(request: Request) {
       { status: 303 },
     );
 
-  if (!tokenHash || !type) {
+  // Email links arrive in two shapes: the default Supabase template sends a `?code`
+  // (exchanged for a session), while a customized template sends `token_hash`+`type`
+  // (verified via OTP). Support both so invites work whether or not the template has
+  // been customized (template editing requires custom SMTP).
+  if (!code && (!tokenHash || !type)) {
     return loginWith("link");
   }
 
   const supabase = await createSupabaseAuthServerClient();
-  const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+  const { data, error } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({ type: type!, token_hash: tokenHash! });
 
   if (error || !data.user) {
     return loginWith("link");

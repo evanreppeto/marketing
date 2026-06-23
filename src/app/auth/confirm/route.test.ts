@@ -11,14 +11,16 @@ import { GET } from "./route";
 const provisionAuthenticatedUserMock = vi.mocked(provisionAuthenticatedUser);
 const createSupabaseAuthServerClientMock = vi.mocked(createSupabaseAuthServerClient);
 const verifyOtpMock = vi.fn();
+const exchangeCodeForSessionMock = vi.fn();
 
 beforeEach(() => {
   provisionAuthenticatedUserMock.mockReset();
   createSupabaseAuthServerClientMock.mockReset();
   verifyOtpMock.mockReset();
+  exchangeCodeForSessionMock.mockReset();
 
   createSupabaseAuthServerClientMock.mockResolvedValue({
-    auth: { verifyOtp: verifyOtpMock },
+    auth: { verifyOtp: verifyOtpMock, exchangeCodeForSession: exchangeCodeForSessionMock },
   } as unknown as Awaited<ReturnType<typeof createSupabaseAuthServerClient>>);
 });
 
@@ -44,10 +46,31 @@ describe("GET /auth/confirm", () => {
     expect(response.headers.get("location")).toBe("http://localhost/welcome?from=%2Farc");
   });
 
-  it("returns to login when the token is missing", async () => {
+  it("exchanges a default-email ?code (no token_hash) and routes the member onward", async () => {
+    exchangeCodeForSessionMock.mockResolvedValue({
+      data: { user: { id: "user-1", email: "invited@example.com" } },
+      error: null,
+    });
+    provisionAuthenticatedUserMock.mockResolvedValue({
+      ok: true,
+      status: "invited_member",
+      orgId: "org-1",
+      workspaceId: "ws-1",
+    });
+
+    const response = await GET(new Request("http://localhost/auth/confirm?code=abc-123&next=/arc"));
+
+    expect(exchangeCodeForSessionMock).toHaveBeenCalledWith("abc-123");
+    expect(verifyOtpMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("http://localhost/welcome?from=%2Farc");
+  });
+
+  it("returns to login when neither a code nor a token is present", async () => {
     const response = await GET(new Request("http://localhost/auth/confirm?type=invite"));
 
     expect(verifyOtpMock).not.toHaveBeenCalled();
+    expect(exchangeCodeForSessionMock).not.toHaveBeenCalled();
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("http://localhost/login?error=link&from=%2F");
   });

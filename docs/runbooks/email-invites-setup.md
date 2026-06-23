@@ -13,20 +13,20 @@ In the Supabase dashboard for your project, go to **Authentication → URL Confi
 
 Without this, Supabase will reject the `redirectTo` parameter and the invite link in the email will not work.
 
-### 1a. Invite email template (required)
+### 1a. Invite email template (OPTIONAL — only with custom SMTP)
 
-Email links must hand our app a `token_hash` to verify server-side. In the Supabase
-dashboard go to **Authentication → Email Templates → Invite user** and change the link
-target from `{{ .ConfirmationURL }}` to:
+You do **not** need to touch the template for invites to work. `/auth/confirm` accepts
+**both** token shapes:
 
-```
-{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite
-```
+- the default template's `?code` (Supabase `{{ .ConfirmationURL }}` → `/auth/v1/verify` →
+  redirects to our `redirect_to` with `?code`, which we exchange for a session), and
+- a customized template's `?token_hash` + `type` (verified via OTP).
 
-The default `{{ .ConfirmationURL }}` routes through Supabase's own `/verify` endpoint and
-does **not** deliver a usable session to a server-rendered callback, so the invite link
-appears to "do nothing" / errors out without this change. (`/auth/confirm` then calls
-`supabase.auth.verifyOtp({ type: "invite", token_hash })`.)
+Supabase **locks template editing behind custom SMTP** (which needs a verified domain), so
+until you set that up the default plain email is used — and it works via the `?code` path
+as long as `/auth/confirm` is in **Redirect URLs** (below). Once you add custom SMTP and a
+domain, switch the **Invite user** template link to a branded design pointing at
+`{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`.
 
 ## 2. Custom SMTP (Resend) for Reliable Delivery
 
