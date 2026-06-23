@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import type { ComponentProps } from "react";
 
+import { canComposeInThread } from "@/domain";
 import { countActiveApprovals } from "@/lib/approvals/read-model";
 import { countPendingOpportunities } from "@/lib/opportunities/read-model";
 import { getOperatorActor } from "@/lib/auth/operator";
@@ -16,8 +17,7 @@ import {
   type ArcConversation,
   type ArcMessage,
 } from "@/lib/arc-chat/persistence";
-import { getShareViewer, resolveConversationAccess, listConversationShares } from "@/lib/arc-chat/sharing";
-import { listCampaignNames } from "@/lib/campaigns/read-model";
+import { getShareViewer, resolveConversationAccessFor, listConversationShares } from "@/lib/arc-chat/sharing";
 import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
@@ -61,20 +61,42 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   }
 }
 
+/** Workspace member roster for the share-with picker — guarded so a missing
+ *  workspace or unconfigured Supabase degrades to an empty list, not a throw. */
+async function loadShareMembers(): Promise<{ userId: string; label: string }[]> {
+  try {
+    const workspaceId = await getCurrentWorkspaceContext()
+      .then((ctx) => ctx.workspaceId)
+      .catch(() => null);
+    if (!workspaceId) return [];
+    const roster = await listWorkspaceTeamAccess(workspaceId);
+    if (!roster.ok) return [];
+    return roster.members
+      .filter((m) => m.status === "active" && m.userId != null)
+      .map((m) => ({ userId: m.userId as string, label: m.email ?? m.role }));
+  } catch {
+    return [];
+  }
+}
+
 async function loadLiveArcChatProps(
   params: Awaited<ArcPageProps["searchParams"]>,
 ): Promise<{ chatProps: ArcChatProps; pendingOpportunities: number }> {
-  const operator = await getOperatorActor();
-  // Scope workspace-wide reads (approval count, campaign @-mentions) to the
-  // active org; the admin client bypasses RLS so this is the tenant boundary.
-  const orgId = await getCurrentOrgId().catch(() => undefined);
+  // Operator, org, and viewer are independent identity/tenancy reads — resolve
+  // them in one round-trip batch instead of three sequential awaits, which is
+  // latency the user paid on every single thread navigation. Scope workspace-wide
+  // reads (approval count, campaign @-mentions) to the active org; the admin
+  // client bypasses RLS so this is the tenant boundary. The viewer resolves
+  // sharing enforcement (open/dev mode returns enforce:false → no-op).
+  const [operator, orgId, viewer] = await Promise.all([
+    getOperatorActor(),
+    getCurrentOrgId().catch(() => undefined),
+    getShareViewer(),
+  ]);
   const showArchived = valueOf(params?.archived) === "1";
   const requestedId = valueOf(params?.c);
   const requestedProject = valueOf(params?.project);
   const requestedSkill = valueOf(params?.skill);
-
-  // Resolve the viewer once (open/dev mode returns enforce:false → no-op).
-  const viewer = await getShareViewer();
 
   // These reads are independent, so run them concurrently. Previously they were
   // ~8 sequential Supabase round-trips that summed past the page-data timeout and
@@ -86,7 +108,6 @@ async function loadLiveArcChatProps(
     pendingApprovals,
     conversations,
     projects,
-    campaigns,
     archived,
     requestedConversation,
     pendingOpportunities,
@@ -96,24 +117,39 @@ async function loadLiveArcChatProps(
     countActiveApprovals(orgId).catch(() => 0),
     listConversationsForViewer(viewer, operator),
     listProjects(operator),
-    listCampaignNames(orgId)
-      .then((list) => list.map((c) => ({ id: c.id, name: c.name })))
-      .catch(() => [] as { id: string; name: string }[]),
     showArchived ? listArchivedConversations(operator) : Promise.resolve([] as ArcConversation[]),
     requestedId ? getConversation(requestedId) : Promise.resolve(null),
     countPendingOpportunities().catch(() => 0),
   ]);
 
+  // Reuse the campaign names already loaded for @-mentions instead of issuing a
+  // second identical `listCampaignNames` query — the mention catalog and the
+  // campaign picker want the same id/name list. (getMentionables drops empty
+  // groups, so a workspace with no campaigns yields [], matching the old default.)
+  const campaigns = (mentionGroups.find((g) => g.type === "campaign")?.items ?? []).map((item) => ({
+    id: item.id,
+    name: item.label,
+  }));
+
   // Resolve the requested thread's access ONCE: this both gates visibility and
-  // derives the composer permission, so there's no duplicate access query. The
-  // gate runs before the dependent message reads below, so messages are never
-  // loaded for a thread the viewer can't access. In open/dev mode enforce is
-  // false → full access.
+  // derives the composer permission. It reuses the conversation row already
+  // fetched above (resolveConversationAccessFor) instead of re-reading it, so a
+  // thread open costs one fewer round-trip. The gate runs before the dependent
+  // message reads below, so messages are never loaded for a thread the viewer
+  // can't access. In open/dev mode enforce is false → full access.
   const activeAccess = requestedConversation
-    ? await resolveConversationAccess(requestedConversation.id, viewer)
+    ? await resolveConversationAccessFor(requestedConversation, viewer)
     : null;
   const activeConversation = activeAccess?.canView ? requestedConversation : null;
-  const canCompose = !viewer.enforce || activeAccess?.permission === "collaborate";
+  // A fresh chat (the /arc landing page, no active conversation) is always
+  // composable — the viewer owns the chat they're about to create. Without this
+  // guard, enforced sharing collapsed the landing-page composer to a "View-only
+  // — shared by the owner" notice, which is the bug operators hit every visit.
+  const canCompose = canComposeInThread({
+    enforce: viewer.enforce,
+    hasActiveConversation: Boolean(activeConversation),
+    activePermission: activeAccess?.permission ?? null,
+  });
 
   // "New chat in this project" deep link (?project=<id>) — only meaningful for a
   // fresh chat; ignored once a thread is active and validated against real projects.
@@ -129,11 +165,16 @@ async function loadLiveArcChatProps(
       ? requestedSkill
       : null;
 
-  // Dependent reads (need the resolved active conversation / project). Also
-  // concurrent. Project assets feed the Studio for an active thread and the
+  // Dependent reads (need the resolved active conversation / project). All four
+  // are concurrent — none depends on another's result, so they cost one round-trip
+  // batch instead of the three sequential phases this used to be (messages →
+  // members → shares). Project assets feed the Studio for an active thread and the
   // empty-state hero for a fresh chat opened via the ?project=<id> deep link.
+  // Share data (member roster + current shares) only drives the header Share
+  // control, which renders for an active conversation only — so it's skipped
+  // entirely on the landing page rather than costing reads no one sees.
   const assetProjectId = activeConversation?.projectId ?? newChatProjectId;
-  const [initialMessages, projectMessages] = await Promise.all([
+  const [initialMessages, projectMessages, shareMembers, conversationShares] = await Promise.all([
     activeConversation ? listMessages(activeConversation.id) : Promise.resolve([] as ArcMessage[]),
     assetProjectId
       ? listProjectAssetMessages(
@@ -142,32 +183,11 @@ async function loadLiveArcChatProps(
           activeConversation ? { excludeConversationId: activeConversation.id } : {},
         ).catch(() => [] as ArcMessage[])
       : Promise.resolve([] as ArcMessage[]),
+    activeConversation ? loadShareMembers() : Promise.resolve([] as { userId: string; label: string }[]),
+    activeConversation
+      ? listConversationShares(activeConversation.id).catch(() => [])
+      : Promise.resolve([] as { userId: string; permission: "view" | "collaborate" }[]),
   ]);
-
-  // (activeAccess + canCompose were computed above, together with the access gate.)
-
-  // Workspace member roster for the share-with picker — guarded so a missing
-  // workspace or unconfigured Supabase degrades to an empty list, not a throw.
-  const shareMembers = await (async (): Promise<{ userId: string; label: string }[]> => {
-    try {
-      const workspaceId = await getCurrentWorkspaceContext()
-        .then((ctx) => ctx.workspaceId)
-        .catch(() => null);
-      if (!workspaceId) return [];
-      const roster = await listWorkspaceTeamAccess(workspaceId);
-      if (!roster.ok) return [];
-      return roster.members
-        .filter((m) => m.status === "active" && m.userId != null)
-        .map((m) => ({ userId: m.userId as string, label: m.email ?? m.role }));
-    } catch {
-      return [];
-    }
-  })();
-
-  // Current shares on the active conversation (drives the dialog's access list).
-  const conversationShares = activeConversation
-    ? await listConversationShares(activeConversation.id).catch(() => [])
-    : [];
 
   return {
     chatProps: {

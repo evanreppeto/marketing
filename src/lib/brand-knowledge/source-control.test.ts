@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSourceControlData } from "./source-control";
+import { buildSourceControlData, groupReviewItemsBySource } from "./source-control";
+import type { SourceControlReviewItem } from "./source-control";
 
 const baseAsset = {
   folderId: null,
@@ -125,5 +126,39 @@ describe("buildSourceControlData", () => {
       },
     ]);
     expect(data.stats.driveSources).toBe(1);
+  });
+});
+
+const reviewItem = (id: string, sourceLabel: string): SourceControlReviewItem => ({
+  id,
+  kind: "brand_fact",
+  label: `fact ${id}`,
+  body: null,
+  summary: null,
+  sourceLabel,
+  sourceProvider: "Upload",
+  confidence: 0.8,
+});
+
+describe("groupReviewItemsBySource", () => {
+  it("groups items by their source document with counts", () => {
+    const groups = groupReviewItemsBySource([
+      reviewItem("1", "guide.docx"),
+      reviewItem("2", "guide.docx"),
+      reviewItem("3", "about.pdf"),
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ sourceLabel: "guide.docx", count: 2 });
+    expect(groups[0].items).toHaveLength(2);
+    expect(groups[1]).toMatchObject({ sourceLabel: "about.pdf", count: 1 });
+  });
+
+  it("returns an empty array for no items", () => {
+    expect(groupReviewItemsBySource([])).toEqual([]);
+  });
+
+  it("preserves first-seen source order", () => {
+    const groups = groupReviewItemsBySource([reviewItem("1", "b.pdf"), reviewItem("2", "a.pdf"), reviewItem("3", "b.pdf")]);
+    expect(groups.map((g) => g.sourceLabel)).toEqual(["b.pdf", "a.pdf"]);
   });
 });

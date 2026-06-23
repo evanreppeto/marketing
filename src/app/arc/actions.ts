@@ -19,6 +19,7 @@ import { claimChatTask } from "@/lib/arc-chat/inbox";
 import { loadWakeContext } from "@/lib/arc-chat/history";
 import { notifyArcWebhook } from "@/lib/arc-chat/notify";
 import { logArcChatStatus } from "@/lib/arc-chat/status-log";
+import { isAcceptedAttachment } from "@/lib/arc-chat/attachment-types";
 import { getAppSettings } from "@/lib/settings/store";
 import { getAgentName } from "@/lib/settings/agent-name";
 import {
@@ -322,15 +323,17 @@ export type UploadTicket =
   | { ok: false; message: string };
 
 /**
- * Mint a one-time signed URL the browser uses to upload a reference image
- * straight to GCS — image bytes never touch the app server. Operator-gated;
- * images only. Returns the read URL to display the image and hand it to Arc.
+ * Mint a one-time signed URL the browser uses to upload a file (image, PDF,
+ * or text) straight to GCS — bytes never touch the app server. Operator-gated.
+ * Returns the read URL to display/reference the attachment and hand it to Arc.
  */
 export async function createArcUploadUrlAction(filename: string, contentType: string): Promise<UploadTicket> {
   await requireOperator();
   if (!isGcsConfigured()) return { ok: false, message: "Photo storage isn't configured yet." };
-  if (!contentType.startsWith("image/")) return { ok: false, message: "Only images can be attached." };
-  const safe = (filename || "image").replace(/[^\w.\-]+/g, "_").slice(-80) || "image";
+  if (!isAcceptedAttachment(contentType)) {
+    return { ok: false, message: "Unsupported file. Attach an image, PDF, or text file." };
+  }
+  const safe = (filename || "file").replace(/[^\w.\-]+/g, "_").slice(-80) || "file";
   const objectPath = `arc-uploads/${randomUUID()}-${safe}`;
   try {
     const { uploadUrl } = await createSignedUploadUrl(objectPath, contentType);

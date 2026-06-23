@@ -1,9 +1,11 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getSafeOperatorReturnPath } from "@/lib/auth/operator-shared";
 import { redeemWorkspaceInviteCodeForUser } from "@/lib/auth/user-provisioning";
+import { ACTIVE_WORKSPACE_COOKIE } from "@/lib/auth/workspace";
 import { createWorkspaceForAuthenticatedUser } from "@/lib/auth/workspace-onboarding";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -17,6 +19,16 @@ export async function createWorkspaceAction(formData: FormData) {
   });
 
   if (result.ok) {
+    // Pin the freshly created workspace as active. Without this the resolver falls
+    // back to the user's first (older) membership, so creating a new workspace
+    // would silently drop them back into their existing one.
+    const cookieStore = await cookies();
+    cookieStore.set(ACTIVE_WORKSPACE_COOKIE, result.workspaceId, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
     // New owners go straight into first-run setup; /start self-guards and bounces
     // to `from` once brand capture is done.
     redirect("/start");

@@ -8,6 +8,7 @@ import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
 import { type Database, type TablesInsert, type TablesUpdate } from "@/lib/supabase/database.types";
+import { syncRecordToBrain } from "@/lib/brain-ingestion/sync";
 import { isCrmEntityKey, type CrmEntityKey } from "./entity-keys";
 
 type Persona = Database["public"]["Enums"]["persona_mapping"];
@@ -37,6 +38,9 @@ export async function createCrmRecordAction(formData: FormData) {
   if ("error" in inserted) {
     redirect(`/crm/${objectKey}?action=crm-error&message=${encodeURIComponent(inserted.error)}`);
   }
+
+  // Best-effort: mirror the new record into the Brain. Never block the CRM save.
+  try { await syncRecordToBrain(objectKey, inserted.id, { orgId }); } catch { /* ignore */ }
 
   revalidatePath(`/crm/${objectKey}`);
   revalidatePath("/crm");
@@ -71,6 +75,8 @@ export async function updateCrmRecordAction(formData: FormData) {
   if (error) {
     redirect(`/crm/${objectKey}/${recordId}?action=crm-error&message=${encodeURIComponent(error.message)}`);
   }
+
+  try { await syncRecordToBrain(objectKey, recordId, { orgId }); } catch { /* ignore */ }
 
   revalidatePath(`/crm/${objectKey}/${recordId}`);
   revalidatePath(`/crm/${objectKey}`);
