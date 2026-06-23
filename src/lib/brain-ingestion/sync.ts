@@ -1,6 +1,6 @@
-import { buildNodeInputForCrmRow, type CrmIngestTable } from "@/domain";
+import { buildNodeInputForCrmRow, buildEdgeIntentsForCrmRow, type CrmIngestTable } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { upsertReferenceNode, type WriteResult } from "@/lib/knowledge-graph/persistence";
+import { upsertReferenceNode, createEdgeIfAbsent, type WriteResult } from "@/lib/knowledge-graph/persistence";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export const CRM_INGEST_TABLES: CrmIngestTable[] = ["companies", "contacts", "leads", "properties", "jobs", "outcomes"];
@@ -13,13 +13,46 @@ async function resolve(deps: SyncDeps): Promise<{ client: TypedSupabaseClient; o
   return { client: deps.client ?? getSupabaseAdminClient(), orgId: deps.orgId ?? (await getCurrentOrgId()) };
 }
 
+/** Resolve a CRM record's node id by ref (org-scoped). Null if not ingested yet. */
+async function resolveNodeIdByRef(
+  client: TypedSupabaseClient, orgId: string, refTable: string, refId: string,
+): Promise<string | null> {
+  const { data } = await client
+    .from("knowledge_nodes").select("id")
+    .eq("org_id", orgId).eq("ref_table", refTable).eq("ref_id", refId)
+    .limit(1).maybeSingle<{ id: string }>();
+  return data?.id ?? null;
+}
+
+/** Create child->parent edges from a row's FK intents. Skips intents whose target node is missing. */
+export async function syncEdgesForCrmRow(
+  table: CrmIngestTable, fromNodeId: string, row: Record<string, unknown>, deps: SyncDeps = {},
+): Promise<{ created: number; skipped: number }> {
+  let resolved;
+  try { resolved = await resolve(deps); } catch { resolved = null; }
+  if (!resolved) return { created: 0, skipped: 0 };
+  const { client, orgId } = resolved;
+  let created = 0, skipped = 0;
+  for (const intent of buildEdgeIntentsForCrmRow(table, row)) {
+    const toNodeId = await resolveNodeIdByRef(client, orgId, intent.toTable, intent.toId);
+    if (!toNodeId) { skipped++; continue; }
+    const res = await createEdgeIfAbsent({ fromNodeId, toNodeId, relation: intent.relation }, { client, orgId });
+    if (res.ok) created++; else skipped++;
+  }
+  return { created, skipped };
+}
+
 /** Upsert a Brain node from an already-read CRM row. Used by backfill + lead ingest. */
 export async function syncCrmRowToBrain(
   table: CrmIngestTable,
   row: Record<string, unknown>,
   deps: SyncDeps = {},
 ): Promise<WriteResult> {
-  return upsertReferenceNode(buildNodeInputForCrmRow(table, row), deps);
+  const nodeResult = await upsertReferenceNode(buildNodeInputForCrmRow(table, row), deps);
+  if (nodeResult.ok) {
+    try { await syncEdgesForCrmRow(table, nodeResult.id, row, deps); } catch { /* ignore */ }
+  }
+  return nodeResult;
 }
 
 /** Read a CRM record (org-scoped, raw row) by id, then upsert its Brain node. */
@@ -50,27 +83,40 @@ const RESYNC_TABLE_LIMIT = 2000;
  */
 export async function resyncCrmIntoBrain(
   deps: SyncDeps = {},
-): Promise<{ ok: boolean; synced: number; errors: number; truncated: boolean }> {
+): Promise<{ ok: boolean; syncedNodes: number; syncedEdges: number; errors: number; truncated: boolean }> {
   let resolved;
   try { resolved = await resolve(deps); }
-  catch { return { ok: false, synced: 0, errors: 0, truncated: false }; }
-  if (!resolved) return { ok: false, synced: 0, errors: 0, truncated: false };
+  catch { return { ok: false, syncedNodes: 0, syncedEdges: 0, errors: 0, truncated: false }; }
+  if (!resolved) return { ok: false, syncedNodes: 0, syncedEdges: 0, errors: 0, truncated: false };
   const { client, orgId } = resolved;
 
-  let synced = 0;
-  let errors = 0;
-  let truncated = false;
-  let tableReadFailed = false;
+  let syncedNodes = 0, syncedEdges = 0, errors = 0, truncated = false, tableReadFailed = false;
+  const rowsByTable: Partial<Record<CrmIngestTable, Array<Record<string, unknown>>>> = {};
 
+  // Pass 1: nodes (so every edge endpoint exists).
   for (const table of CRM_INGEST_TABLES) {
     const { data, error } = await client.from(table).select("*").eq("org_id", orgId).limit(RESYNC_TABLE_LIMIT);
     if (error || !Array.isArray(data)) { tableReadFailed = true; continue; }
     if (data.length >= RESYNC_TABLE_LIMIT) truncated = true;
-    for (const row of data as Array<Record<string, unknown>>) {
+    const rows = data as Array<Record<string, unknown>>;
+    rowsByTable[table] = rows;
+    for (const row of rows) {
       if (typeof row.id !== "string") { errors++; continue; }
-      const res = await syncCrmRowToBrain(table, row, { client, orgId });
-      if (res.ok) synced++; else errors++;
+      const res = await upsertReferenceNode(buildNodeInputForCrmRow(table, row), { client, orgId });
+      if (res.ok) syncedNodes++; else errors++;
     }
   }
-  return { ok: !tableReadFailed, synced, errors, truncated };
+
+  // Pass 2: edges (endpoints now exist).
+  for (const table of CRM_INGEST_TABLES) {
+    for (const row of rowsByTable[table] ?? []) {
+      if (typeof row.id !== "string") continue;
+      const fromNodeId = await resolveNodeIdByRef(client, orgId, table, row.id);
+      if (!fromNodeId) continue;
+      const r = await syncEdgesForCrmRow(table, fromNodeId, row, { client, orgId });
+      syncedEdges += r.created;
+    }
+  }
+
+  return { ok: !tableReadFailed, syncedNodes, syncedEdges, errors, truncated };
 }

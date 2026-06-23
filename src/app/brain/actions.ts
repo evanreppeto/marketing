@@ -118,10 +118,10 @@ export async function resyncCrmIntoBrainAction(): Promise<{ ok: boolean; message
   await requireOperator();
   const result = await resyncCrmIntoBrain();
   revalidateBrainSurfaces();
-  if (!result.synced && !result.errors) {
+  if (!result.syncedNodes && !result.errors) {
     return { ok: false, message: "Nothing to sync — Supabase isn't configured or there are no CRM records yet." };
   }
-  const parts = [`Synced ${result.synced} CRM record${result.synced === 1 ? "" : "s"} into the Brain`];
+  const parts = [`Synced ${result.syncedNodes} CRM record${result.syncedNodes === 1 ? "" : "s"} and ${result.syncedEdges} link${result.syncedEdges === 1 ? "" : "s"} into the Brain`];
   if (result.errors) parts.push(`${result.errors} skipped`);
   if (result.truncated) parts.push("some tables hit the row limit — run again to finish");
   return { ok: result.ok, message: `${parts.join("; ")}.` };
