@@ -2,7 +2,7 @@ import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { resolveBusinessContext } from "./business-context";
 import { buildTurnContentAsync } from "./attachments";
-import { resolveRecallMemory } from "./recall";
+import { buildRecallQuery, resolveRecallMemory } from "./recall";
 import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
 import { buildQueryOptions, inferenceForRoute, type InferenceSettings } from "./inference";
 import type { ArcClient } from "./arc-client";
@@ -164,7 +164,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const business = await resolveBusinessContext(client);
-  const memory = await resolveRecallMemory(client, payload.message);
+  const memory = await resolveRecallMemory(client, buildRecallQuery(payload.history, payload.message));
   const skill = resolveArcSkill(payload.skillId);
   const ctx: ArcTurnContext = {
     business,
