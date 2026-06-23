@@ -227,8 +227,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
       <form action={action}>
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div className="min-w-0">
-            <div className="signal-eyebrow">Editor</div>
-            <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Edit brand</h2>
+            <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Edit brand</h2>
             <p className="mt-1 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">
               Update one section at a time. Everything here becomes the company context Arc uses.
             </p>
@@ -502,8 +501,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
           <aside className="border-t border-[var(--border-hairline)] bg-[var(--surface-panel)] p-5 xl:border-l xl:border-t-0">
             <div className="sticky top-5 grid gap-4">
               <div>
-                <div className="signal-eyebrow">Preview</div>
-                <h3 className="mt-1 text-lg font-bold text-[var(--text-primary)]">Arc will use this</h3>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">Arc will use this</h3>
                 <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
                   A quick read of the brand context before saving.
                 </p>
@@ -612,8 +610,7 @@ function EditorSection({
     >
       <div aria-hidden className={cx("h-1", style.bar)} />
       <div className={cx("border-b border-[var(--border-hairline)] px-4 py-3", style.surface)}>
-        <div className="signal-eyebrow">Editing</div>
-        <h3 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h3>
+        <h3 className="text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h3>
         <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
       </div>
       <div className="grid gap-4 bg-[var(--surface-panel)] p-4">{children}</div>
