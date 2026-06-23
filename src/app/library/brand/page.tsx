@@ -154,7 +154,7 @@ function formatIndustryLabel(value: string | null | undefined) {
 export default async function BrandPage() {
   const [profile, brain, library, agentName, personaData, sourceControl] = await Promise.all([
     loadBrandProfile(),
-    listNodes({}),
+    listNodes({}, undefined, undefined, { demoFallback: false }),
     getMediaLibraryData(),
     getAgentName(),
     getPersonaIntelligenceData(),

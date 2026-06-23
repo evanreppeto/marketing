@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt, type ArcTurnContext } from "./context";
-import { BSR_CONTEXT } from "./business-context";
+import { NEUTRAL_CONTEXT } from "./business-context";
 
 function ctx(memory: ArcTurnContext["memory"]): ArcTurnContext {
   return {
-    business: BSR_CONTEXT,
+    business: NEUTRAL_CONTEXT,
     mode: "ask",
     scope: { conversationId: "c1", projectId: null, campaignId: null, operator: "ev" },
     mentions: [],

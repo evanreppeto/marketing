@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { BSR_CONTEXT, fromAppContext, resolveBusinessContext, type AppBusinessContext } from "./business-context";
+import { NEUTRAL_CONTEXT, fromAppContext, resolveBusinessContext, type AppBusinessContext } from "./business-context";
 import type { ArcClient } from "./arc-client";
 
 const emptyColor = { label: "", hex: "" };
@@ -13,6 +13,7 @@ const APP: AppBusinessContext = {
   preferredPhrases: ["fast response"],
   bannedPhrases: ["cheap", "guaranteed"],
   proofPoints: [{ kind: "stat", label: "20 years in business" }],
+  brainFacts: ["Messaging: mention weekend support"],
   personas: [{ key: "homeowner", label: "Homeowner" }],
   guardrails: { disallowedClaims: ["same-day always"], complianceNotes: "Stay licensed-scope." },
   palette: { primary: emptyColor, secondary: emptyColor, accent: emptyColor, dark: emptyColor, light: emptyColor, headingFont: "", bodyFont: "" },
@@ -26,6 +27,7 @@ const APP: AppBusinessContext = {
 const baseApp: AppBusinessContext = {
   businessName: "BSR", industry: "Restoration", services: [], tone: "calm", voiceGuidance: null,
   preferredPhrases: [], bannedPhrases: [], proofPoints: [], personas: [],
+  brainFacts: [],
   guardrails: { disallowedClaims: [], complianceNotes: "" },
   palette: { primary: { label: "Navy", hex: "#1B2A4A" }, secondary: emptyColor, accent: { label: "Gold", hex: "#C8A24B" }, dark: emptyColor, light: emptyColor, headingFont: "Oswald", bodyFont: "" },
   logoUrl: "https://x/logo.png", tagline: "Chicago's crew", description: null, websiteUrl: "https://bsr.com", serviceAreas: ["Chicago"],
@@ -43,6 +45,7 @@ describe("fromAppContext", () => {
     expect(c.compliance).toContain("Stay licensed-scope.");
     expect(c.compliance).toContain("same-day always");
     expect(c.creativePolicy).toContain("20 years in business");
+    expect(c.brandVoice).toContain("Messaging: mention weekend support");
   });
 });
 
@@ -54,10 +57,10 @@ describe("resolveBusinessContext", () => {
     expect(client.apiGet).toHaveBeenCalledWith("/api/v1/arc/brand/context");
   });
 
-  it("falls back to BSR_CONTEXT when the fetch fails", async () => {
+  it("falls back to neutral context when the fetch fails", async () => {
     const client = { apiGet: vi.fn(async () => { throw new Error("boom"); }) } as unknown as ArcClient;
     const c = await resolveBusinessContext(client);
-    expect(c).toEqual(BSR_CONTEXT);
+    expect(c).toEqual(NEUTRAL_CONTEXT);
   });
 });
 

@@ -26,6 +26,14 @@ describe("listNodes", () => {
     expect(result.status).toBe("unavailable");
   });
 
+  it("can suppress the empty-brain demo fallback", async () => {
+    const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: [], error: null } });
+    const result = await listNodes({}, supabase as never, "org-1", { demoFallback: false });
+    expect(result.status).toBe("live");
+    if (result.status !== "live") throw new Error("expected live");
+    expect(result.nodes).toEqual([]);
+  });
+
   it("hides archived nodes from a default read", async () => {
     const supabase = createSupabaseQueryMock({ knowledge_nodes: { data: NODES, error: null } });
     await listNodes({}, supabase as never, "org-1");

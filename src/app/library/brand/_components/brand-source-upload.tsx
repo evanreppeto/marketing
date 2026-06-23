@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { CheckCircle2, FileUp, Link2, RefreshCw, TriangleAlert, UploadCloud } from "lucide-react";
 
 import { buttonClasses, StatusPill } from "@/app/_components/page-header";
@@ -28,11 +28,24 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
   const [urlState, urlAction, urlPending] = useActionState(importAndAnalyzeBrandUrlAction, initialUrlState);
   const [websiteState, websiteAction, websitePending] = useActionState(importAndAnalyzeBrandWebsiteAction, initialWebsiteState);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const isHero = placement === "hero";
+  const hasFiles = selectedFiles.length > 0;
+  const buttonLabel = pending ? "Analyzing..." : hasFiles ? "Upload and analyze" : "Choose files";
+  const selectedLabel =
+    selectedFiles.length === 0
+      ? null
+      : selectedFiles.length === 1
+        ? selectedFiles[0]
+        : `${selectedFiles.length} files selected`;
+
+  function handlePrimaryClick() {
+    if (!hasFiles) inputRef.current?.click();
+  }
 
   return (
     <div className={isHero ? "self-start bg-[var(--surface-panel)] p-5" : "border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] p-5"}>
-      <form action={action} encType="multipart/form-data">
+      <form action={action}>
         <div className={`${theme.surface.dashedEmpty} p-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-inset)]`}>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <label className="flex min-w-0 cursor-pointer items-center gap-4 text-sm text-[var(--text-secondary)]">
@@ -62,15 +75,24 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
                 className="sr-only"
                 multiple
                 name="files"
+                onChange={(event) => {
+                  setSelectedFiles(Array.from(event.currentTarget.files ?? []).map((file) => file.name));
+                }}
                 ref={inputRef}
                 type="file"
               />
             </label>
-            <button className={buttonClasses({ variant: "primary", size: "sm", className: "justify-center" })} disabled={pending} type="submit">
+            <button
+              className={buttonClasses({ variant: "primary", size: "sm", className: "justify-center" })}
+              disabled={pending}
+              onClick={handlePrimaryClick}
+              type={hasFiles ? "submit" : "button"}
+            >
               {pending ? <RefreshCw aria-hidden className="h-4 w-4 animate-spin" /> : <FileUp aria-hidden className="h-4 w-4" />}
-              {pending ? "Analyzing..." : "Upload and analyze"}
+              {buttonLabel}
             </button>
           </div>
+          {selectedLabel ? <div className="mt-3 truncate text-xs font-semibold text-[var(--text-secondary)]">{selectedLabel}</div> : null}
         </div>
         {state ? <ResultPanel state={state} /> : null}
       </form>
