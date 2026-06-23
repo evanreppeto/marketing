@@ -14,6 +14,7 @@ import { createFolderAction } from "../actions";
 export function NewFolderButton({ parentFolderId }: { parentFolderId: string | null }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [pending, startTransition] = useTransition();
 
   function submit() {
@@ -21,10 +22,12 @@ export function NewFolderButton({ parentFolderId }: { parentFolderId: string | n
     if (!trimmed) return;
     const formData = new FormData();
     formData.set("name", trimmed);
+    if (description.trim()) formData.set("description", description.trim());
     if (parentFolderId) formData.set("parentId", parentFolderId);
     startTransition(async () => {
       await createFolderAction(formData);
       setName("");
+      setDescription("");
       setOpen(false);
     });
   }
@@ -57,11 +60,18 @@ export function NewFolderButton({ parentFolderId }: { parentFolderId: string | n
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             setName("");
+            setDescription("");
             setOpen(false);
           }
         }}
         placeholder="Folder name"
         className="min-h-9 w-40 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+      />
+      <input
+        value={description}
+        onChange={(event) => setDescription(event.target.value)}
+        placeholder="What goes here (optional)"
+        className="min-h-9 w-56 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
       />
       <button
         type="submit"
@@ -75,6 +85,7 @@ export function NewFolderButton({ parentFolderId }: { parentFolderId: string | n
         className={buttonClasses({ variant: "ghost", size: "sm" })}
         onClick={() => {
           setName("");
+          setDescription("");
           setOpen(false);
         }}
       >
