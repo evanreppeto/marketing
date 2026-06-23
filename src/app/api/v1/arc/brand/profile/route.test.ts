@@ -91,4 +91,32 @@ describe("PUT /api/v1/arc/brand/profile", () => {
     expect(res.status).toBe(400);
     expect(upsertMock).not.toHaveBeenCalled();
   });
+
+  it("returns saved profile values in the response body (propagation guard)", async () => {
+    configure();
+    getMock.mockResolvedValue({
+      ...NEUTRAL_DEFAULTS,
+      displayName: "Restored Co",
+      tone: "authoritative",
+      voiceGuidance: "Use plain English.",
+      status: "draft",
+    });
+    upsertMock.mockImplementation(async (_org, profile) => profile);
+
+    const res = await PUT(
+      req("Bearer secret", {
+        displayName: "Restored Co",
+        tone: "warm",
+        voiceGuidance: "Speak like a trusted neighbor.",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.profile.displayName).toBe("Restored Co");
+    expect(body.profile.tone).toBe("warm");
+    expect(body.profile.voiceGuidance).toBe("Speak like a trusted neighbor.");
+    expect(body.profile.status).toBe("draft");
+  });
 });
