@@ -46,6 +46,10 @@ export function crmWriteTools(client: ArcClient, step: StepFn) {
                 },
               }
             : {}),
+          // A full address (all four fields) becomes a real `property` record.
+          // A PARTIAL address (e.g. only city + state, or street + city + state
+          // with no ZIP) can't form a property row, so it rides along as
+          // `location` and persists as metadata instead of being dropped.
           ...(args.street_line_1 && args.city && args.state && args.postal_code
             ? {
                 property: {
@@ -55,7 +59,16 @@ export function crmWriteTools(client: ArcClient, step: StepFn) {
                   postalCode: args.postal_code,
                 },
               }
-            : {}),
+            : args.street_line_1 || args.city || args.state || args.postal_code
+              ? {
+                  location: {
+                    streetLine1: args.street_line_1,
+                    city: args.city,
+                    state: args.state,
+                    postalCode: args.postal_code,
+                  },
+                }
+              : {}),
           ...(args.loss_summary ? { lossSummary: args.loss_summary } : {}),
         };
         return client.apiPost("/api/v1/arc/crm/leads", {

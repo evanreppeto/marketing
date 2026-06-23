@@ -44,6 +44,11 @@ export async function persistLeadIngestion({
     ? { origin: provenance.origin, review_status: provenance.reviewStatus }
     : {};
 
+  // A partial address can't become a `properties` row (all four address columns
+  // are NOT NULL), so preserve it as structured location metadata instead of
+  // dropping it. Attached to both the company and lead so it surfaces either way.
+  const locationMetadata = toLocationMetadata(input.location);
+
   const companyId = existing?.companyId
     ? existing.companyId
     : input.company
@@ -55,6 +60,7 @@ export async function persistLeadIngestion({
           metadata: {
             network_connection: input.company.networkConnection ?? null,
             ingestion_source: input.source,
+            ...(locationMetadata ? { location: locationMetadata } : {}),
           },
         })
       : null;
@@ -119,10 +125,41 @@ export async function persistLeadIngestion({
       classification: result.classification.classification,
       partner_score: result.scores.partnerScore,
       calculated_at: result.scores.calculatedAt,
+      ...(locationMetadata ? { location: locationMetadata } : {}),
     },
   });
 
   return { companyId, contactId, propertyId, leadId };
+}
+
+/**
+ * Normalizes a parsed partial-address `location` block into the snake_case shape
+ * stored in metadata, dropping absent fields and upper-casing the state code.
+ * Returns null when there is no location to persist.
+ */
+function toLocationMetadata(
+  location: ParsedLeadIngestionInput["location"],
+): Record<string, string> | null {
+  if (!location) {
+    return null;
+  }
+
+  const entries: Array<[string, string | undefined]> = [
+    ["street_line_1", location.streetLine1],
+    ["street_line_2", location.streetLine2],
+    ["city", location.city],
+    ["state", location.state?.toUpperCase()],
+    ["postal_code", location.postalCode],
+  ];
+
+  const out: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    if (value) {
+      out[key] = value;
+    }
+  }
+
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 function toDatabaseRoutingRecommendation(routing: AcceptedLeadIngestionResult["routing"]) {
