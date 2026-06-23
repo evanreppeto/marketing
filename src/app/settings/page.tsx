@@ -6,6 +6,7 @@ import { AgentPanel } from "./agent-panel";
 import { AppearanceSettings } from "./appearance-settings";
 import { BrandingSettings } from "./branding-settings";
 import { ConnectionsPanel } from "./connections-panel";
+import { ConnectorsPanel } from "./connectors-panel";
 import { GeneralSettings } from "./general-settings";
 import { MediaModelsSettings } from "./media-models-settings";
 import { NotificationSettings } from "./notification-settings";
@@ -15,6 +16,9 @@ import { SETTINGS_SECTIONS, type SettingsSectionId } from "./settings-sections";
 import { SystemStatus } from "./system-status";
 import { WorkspacesSettings } from "./workspaces-settings";
 import { WorkspaceTeamSettings } from "./workspace-team-settings";
+import { listWorkspaceConnectors } from "@/lib/connectors/read-model";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Settings" };
@@ -31,6 +35,11 @@ export default async function SettingsPage({
 }) {
   const active = activeSection((await searchParams).section);
   const activeLabel = SETTINGS_SECTIONS.find((section) => section.id === active)?.label ?? "Settings";
+
+  const ctx = isSupabaseAdminConfigured() ? await getCurrentWorkspaceContext().catch(() => null) : null;
+  const connectors = ctx?.workspaceId
+    ? await listWorkspaceConnectors(getSupabaseAdminClient(), ctx.workspaceId)
+    : [];
 
   return (
     <WorkbenchFrame
@@ -57,7 +66,12 @@ export default async function SettingsPage({
             media: <MediaModelsSettings />,
             workspace: <WorkspaceTeamSettings />,
             account: <AccountSettings />,
-            connections: <ConnectionsPanel />,
+            connections: (
+              <>
+                <ConnectionsPanel />
+                <ConnectorsPanel connectors={connectors} />
+              </>
+            ),
             agent: <AgentPanel />,
             notifications: <NotificationSettings />,
             system: <SystemStatus />,
