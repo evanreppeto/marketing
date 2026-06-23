@@ -1,9 +1,9 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { createWorkspaceAction, joinWorkspaceAction } from "./actions";
 import { buttonClasses } from "../_components/page-header";
-import { cx, theme } from "../_components/theme";
+import { theme } from "../_components/theme";
+import { AuthShell } from "@/components/ui/auth-shell";
 import { getAuthMode } from "@/lib/auth/auth-mode";
 import { getSafeOperatorReturnPath } from "@/lib/auth/operator-shared";
 import { provisionAuthenticatedUser } from "@/lib/auth/user-provisioning";
@@ -75,34 +75,16 @@ export default async function OnboardingPage({
   const errorMessage = errorMessageFor(query.error);
 
   return (
-    <main className="chicago-dark relative flex min-h-[100dvh] overflow-hidden bg-[var(--canvas)] text-[var(--text-primary)]">
-      <Image
-        alt=""
-        aria-hidden="true"
-        className="object-cover opacity-70"
-        fill
-        priority
-        sizes="100vw"
-        src="/brand/login-background-v2.png"
-      />
-      <div className="absolute inset-0 bg-[oklch(0.07_0.022_250/0.72)]" />
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(0deg,var(--canvas)_0%,transparent_100%)]" />
-
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-5xl items-center px-5 py-8">
-        <section className="grid w-full gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,440px)] lg:items-center">
-          <div className="max-w-2xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- brand mark served from /public. */}
-            <img alt="Arc" className="h-auto w-32 object-contain" src="/brand/arc-mark.png" />
-            <div className={cx("mt-8", theme.text.eyebrow)}>Workspace setup</div>
-            <h1 className="mt-3 font-display text-[clamp(2rem,5vw,4.2rem)] font-semibold leading-[0.98] text-[var(--text-primary)]">
-              Create the place where Arc learns.
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
-              Each organization owns its workspaces, members, brand context, memory, and agent configuration.
-            </p>
-          </div>
-
-          <div className="grid gap-4">
+    <AuthShell
+      formMaxWidth="max-w-[460px]"
+      headline={
+        <>
+          Create the place where Arc <span className="italic text-[var(--accent)]">learns</span>.
+        </>
+      }
+      supporting="Each organization owns its workspaces, members, brand context, memory, and agent configuration."
+    >
+      <div className="grid gap-4">
             <form
               action={joinWorkspaceAction}
               className="rounded-xl border border-[var(--border-panel)] bg-[oklch(0.105_0.026_250/0.78)] p-5 shadow-[0_28px_80px_-52px_oklch(0.74_0.115_232)] backdrop-blur-md sm:p-6"
@@ -206,9 +188,7 @@ export default async function OnboardingPage({
                 </button>
               </div>
             </form>
-          </div>
-        </section>
       </div>
-    </main>
+    </AuthShell>
   );
 }
