@@ -1,6 +1,7 @@
 import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { resolveBusinessContext } from "./business-context";
+import { buildTurnContentAsync } from "./attachments";
 import { buildRecallQuery, resolveRecallMemory } from "./recall";
 import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
 import { buildQueryOptions, inferenceForRoute, type InferenceSettings } from "./inference";
@@ -91,7 +92,7 @@ async function runArcQuery(opts: {
   mode: ArcMode;
   ctx: ArcTurnContext;
   client: ArcClient;
-  prompt: string;
+  content: TurnContent;
   inference: InferenceSettings;
   toolContext?: ToolContext;
   skill?: ArcSkill | null;
@@ -116,7 +117,7 @@ async function runArcQuery(opts: {
   let outputTokens: number | null = null;
 
   for await (const message of query({
-    prompt: opts.prompt,
+    prompt: promptInput(opts.content, opts.ctx.scope.conversationId ?? "arc-turn"),
     options: buildQueryOptions({
       inference: opts.inference,
       systemPrompt: system,
@@ -192,7 +193,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     mode: payload.mode,
     ctx,
     client,
-    prompt,
+    content,
     inference: inferenceForRoute(payload.route),
     // Thread the turn's level so media tools tell the generate endpoints which
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
@@ -238,7 +239,7 @@ export async function runArcOpportunityDraft(
     mode: "draft",
     ctx,
     client,
-    prompt: payload.message,
+    content: payload.message,
     inference: inferenceForRoute("standard"),
     toolContext: { opportunityId: payload.opportunityId },
     skill,
@@ -278,7 +279,7 @@ export async function runArcOpportunityScan(
     mode: "scan",
     ctx,
     client,
-    prompt: payload.message,
+    content: payload.message,
     inference: inferenceForRoute("standard"),
     skill,
   });
@@ -325,7 +326,7 @@ export async function runArcCampaignTask(
     mode: "draft",
     ctx,
     client,
-    prompt,
+    content: prompt,
     inference: inferenceForRoute("standard"),
     toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
     skill,
