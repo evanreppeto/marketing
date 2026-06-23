@@ -39,6 +39,44 @@ describe("lead ingestion parsing", () => {
     });
   });
 
+  it("accepts a prospecting/partner lead with no loss signals (Arc create_lead shape)", () => {
+    // Arc recruits referral partners (plumbers, insurance agents) — these leads
+    // have NO loss event, so the tool supplies no lossSignals. The lead must
+    // still be accepted and route to needs_review (classification "unknown").
+    const result = parseLeadIngestionPayload({
+      persona: "persona_plumbing_partner",
+      source: "arc_discovery",
+      company: { name: "Halsted Plumbing Co", partnerTier: "B" },
+      property: {
+        streetLine1: "123 N Halsted St",
+        city: "Chicago",
+        state: "IL",
+        postalCode: "60607",
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: "accepted",
+      routing: "needs_review",
+      persona: "persona_plumbing_partner",
+      classification: { classification: "unknown" },
+    });
+    // Defaults to the same empty array the DB column defaults to.
+    expect(result.ok && result.normalizedInput.lossSignals).toEqual([]);
+  });
+
+  it("accepts an explicitly empty lossSignals array", () => {
+    expect(
+      parseLeadIngestionPayload({
+        persona: "persona_plumbing_partner",
+        source: "arc_manual",
+        company: { name: "Acme Plumbing" },
+        lossSignals: [],
+      }),
+    ).toMatchObject({ ok: true, status: "accepted" });
+  });
+
   it("rejects unassigned_persona for new lead ingestion", () => {
     expect(
       parseLeadIngestionPayload({

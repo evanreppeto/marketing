@@ -53,7 +53,11 @@ export const leadIngestionSchema = z.object({
     })
     .optional(),
   lossSummary: z.string().trim().optional(),
-  lossSignals: z.array(z.string().trim().min(1)).min(1),
+  // Optional, defaulting to the empty array the DB column itself defaults to.
+  // Inbound damage leads carry loss signals; Arc's prospecting/partner leads
+  // (plumbers, insurers to recruit) have no loss event, so they supply none and
+  // route to needs_review via the "unknown" classification.
+  lossSignals: z.array(z.string().trim().min(1)).default([]),
   metadata: z
     .object({
       after_hours_call: z.boolean().optional(),
