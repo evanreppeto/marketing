@@ -140,6 +140,73 @@ export async function uploadAndAnalyzeBrandSourcesAction(
   return summarizeBrandKnowledgeSync(totals);
 }
 
+function brandNoteFileName(note: string): string {
+  const words = note.replace(/\s+/g, " ").trim().split(" ").slice(0, 6).join(" ");
+  const base = words.length > 48 ? `${words.slice(0, 48)}…` : words;
+  return `Brand note — ${base || "chat"}.txt`;
+}
+
+/**
+ * Capture free text (e.g. a chat message describing the brand) as a brand
+ * source so it runs through the same intake as files/URLs: it lands in the
+ * Library and Arc proposes brand facts into the Brain for operator review.
+ * Used by the brand-page "Chat with Arc" panel so typing populates the brand
+ * page and the Brain, not just a conversation thread.
+ */
+export async function ingestBrandChatNoteAction(text: string): Promise<BrandKnowledgeSyncSummary> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return NOT_CONFIGURED;
+
+  const note = text.trim();
+  if (!note) {
+    return { ok: false, message: "Nothing to save.", items: ["Type some brand details for Arc to capture"] };
+  }
+
+  const orgId = await getCurrentOrgId();
+  const uploadedBy = await getOperatorActor();
+  const bytes = new TextEncoder().encode(note);
+  const fileName = brandNoteFileName(note);
+  const totals = { sources: 1, created: 0, skipped: 0, updatedProfiles: 0, errors: [] as string[] };
+
+  try {
+    const assetId = await insertAsset({
+      orgId,
+      folderId: null,
+      fileName,
+      bytes,
+      contentType: "text/plain",
+      kind: "document",
+      byteSize: bytes.byteLength,
+      source: "note",
+      provenance: { brandSource: true, note: true, capturedVia: "brand_chat" },
+      uploadedBy,
+    });
+    const result = await learnBrandKnowledgeFromAsset(
+      {
+        id: assetId,
+        fileName,
+        kind: "document",
+        source: "note",
+        tags: ["brand source", "note"],
+        availableToArc: true,
+        extractedText: note,
+        contentType: "text/plain",
+        fileBytes: bytes,
+      },
+      { orgId },
+    );
+    totals.created += result.created;
+    totals.skipped += result.skipped;
+    if (result.updatedProfile) totals.updatedProfiles += 1;
+    totals.errors.push(...result.errors);
+  } catch (error) {
+    totals.errors.push(error instanceof Error ? error.message : "Could not save the note.");
+  }
+
+  revalidateBrandSourceViews();
+  return summarizeBrandKnowledgeSync(totals);
+}
+
 async function importUrlSourceDocument(input: {
   orgId: string;
   source: UrlSourceDocument;

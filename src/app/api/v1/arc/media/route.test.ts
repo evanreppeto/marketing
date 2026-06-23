@@ -23,7 +23,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { checkAgentBearer } from "@/lib/auth/api-token";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 const bearerMock = vi.mocked(checkAgentBearer);
 const getSupabaseMock = vi.mocked(getSupabaseAdminClient);
@@ -86,6 +86,83 @@ describe("GET /api/v1/arc/media", () => {
     expect(supabase.calls).toContainEqual(["from", "media_assets"]);
     expect(supabase.calls).toContainEqual(["eq", "org_id", "org-2"]);
     expect(supabase.calls).toContainEqual(["eq", "available_to_arc", true]);
+  });
+
+  afterEach(() => {
+    for (const [key, value] of Object.entries(env)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+});
+
+function postRequest(body: unknown, token = "secret") {
+  return new Request("http://x/api/v1/arc/media", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("POST /api/v1/arc/media", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    configuredMock.mockReturnValue(true);
+    bearerMock.mockResolvedValue({
+      ok: true,
+      tokenSource: "database",
+      orgId: "org-2",
+      workspaceId: "20000000-0000-4000-8000-000000000002",
+    });
+  });
+
+  it("401s without a valid bearer token", async () => {
+    configure();
+    bearerMock.mockResolvedValueOnce({ ok: false, reason: "unauthorized", status: 401 });
+    const res = await POST(postRequest({ action: "create_folder", name: "x" }, "wrong"));
+    expect(res.status).toBe(401);
+  });
+
+  it("creates a folder scoped to the token org", async () => {
+    configure();
+    const supabase = createSupabaseQueryMock({ media_folders: { data: { id: "f-9" }, error: null } });
+    getSupabaseMock.mockReturnValue(supabase);
+
+    const res = await POST(postRequest({ action: "create_folder", name: "Proof photos" }));
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ ok: true, folder_id: "f-9" });
+    const insert = supabase.calls.find(([m]) => m === "insert") as [string, Record<string, unknown>];
+    expect(insert[1]).toMatchObject({ org_id: "org-2", name: "Proof photos" });
+  });
+
+  it("files an asset into a folder", async () => {
+    configure();
+    const supabase = createSupabaseQueryMock({
+      media_assets: [
+        { data: { org_id: "org-2" }, error: null },
+        { data: null, error: null },
+      ],
+      media_folders: { data: { org_id: "org-2" }, error: null },
+    });
+    getSupabaseMock.mockReturnValue(supabase);
+
+    const res = await POST(postRequest({ action: "file_asset", asset_id: "a-1", folder_id: "f-1" }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, asset_id: "a-1" });
+  });
+
+  it("400s on an unknown action", async () => {
+    configure();
+    const res = await POST(postRequest({ action: "nope" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("400s on a non-object body", async () => {
+    configure();
+    const res = await POST(postRequest("not-json-object"));
+    expect(res.status).toBe(400);
   });
 
   afterEach(() => {

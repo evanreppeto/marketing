@@ -50,19 +50,17 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
         isHero ? "self-start p-5 sm:p-6" : "border-b border-[var(--border-hairline)] p-5",
       )}
     >
-      <div aria-hidden className="absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_72%,transparent),transparent)]" />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="signal-eyebrow">Brand intake</div>
-          <h3 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">Teach Arc from source material</h3>
-          <p className="mt-2 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
+          <h3 className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Teach Arc from your files</h3>
+          <p className="mt-1.5 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
             Upload brand files first, then add a public page or homepage when the best context lives online.
           </p>
         </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--accent-border)] bg-[var(--surface-inset)] px-3.5 py-2 text-xs font-semibold text-[var(--accent-contrast)] shadow-[inset_0_1px_0_rgba(255,255,255,0.055)]">
-          <Sparkles aria-hidden className="h-4 w-4" />
+        <span className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]">
+          <Sparkles aria-hidden className="h-3.5 w-3.5 text-[var(--accent)]" />
           Files, URLs, and website pages
-        </div>
+        </span>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.92fr)_minmax(0,1fr)]">
