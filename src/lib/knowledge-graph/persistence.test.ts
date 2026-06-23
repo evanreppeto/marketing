@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { createNode, createEdge, decideNode } from "./persistence";
+import { createNode, createEdge, decideNode, upsertReferenceNode } from "./persistence";
 
 const ORG = "org-1";
 
@@ -82,6 +82,63 @@ describe("createEdge", () => {
     );
     expect(result.ok).toBe(false);
     expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
+  });
+});
+
+describe("upsertReferenceNode", () => {
+  it("inserts when no node exists for (org, kind, key)", async () => {
+    // 1st from(): lookup → no row; 2nd: insert → id; 3rd: embedding update → id
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: [
+        { data: null, error: null },
+        { data: { id: "n-new" }, error: null },
+        { data: { id: "n-new" }, error: null },
+      ],
+    });
+    const result = await upsertReferenceNode(
+      { kind: "crm_company", key: "crm:companies:c1", label: "Acme", summary: "Company: Acme", refTable: "companies", refId: "c1" },
+      { client: supabase as never, orgId: ORG },
+    );
+    expect(result).toEqual({ ok: true, id: "n-new" });
+    const insert = supabase.calls.find(([m]) => m === "insert") as [string, Record<string, unknown>];
+    expect(insert[1].trust_tier).toBe("observed");
+    expect(insert[1].created_by).toBe("arc");
+    expect(insert[1].key).toBe("crm:companies:c1");
+  });
+
+  it("updates the existing node instead of inserting a duplicate", async () => {
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: [
+        { data: { id: "n-1", props: { embed_hash: "deadbeef" } }, error: null }, // lookup → existing
+        { data: { id: "n-1" }, error: null }, // update
+        { data: { id: "n-1" }, error: null }, // embedding update (text changed)
+      ],
+    });
+    const result = await upsertReferenceNode(
+      { kind: "crm_company", key: "crm:companies:c1", label: "Acme Renamed", summary: "Company: Acme Renamed", refTable: "companies", refId: "c1" },
+      { client: supabase as never, orgId: ORG },
+    );
+    expect(result).toEqual({ ok: true, id: "n-1" });
+    expect(supabase.calls.some(([m]) => m === "insert")).toBe(false);
+    const update = supabase.calls.find(([m]) => m === "update") as [string, Record<string, unknown>];
+    expect(update[1]).not.toHaveProperty("trust_tier"); // tier untouched on update
+    expect(update[1].label).toBe("Acme Renamed");
+  });
+
+  it("treats a concurrent unique-violation as benign and returns the existing node", async () => {
+    // lookup → none; insert → 23505; re-read → existing id
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: [
+        { data: null, error: null },
+        { data: null, error: { message: "duplicate key value violates unique constraint", code: "23505" } as never },
+        { data: { id: "n-existing" }, error: null },
+      ],
+    });
+    const result = await upsertReferenceNode(
+      { kind: "crm_company", key: "crm:companies:c1", label: "Acme", summary: "Company: Acme", refTable: "companies", refId: "c1" },
+      { client: supabase as never, orgId: ORG },
+    );
+    expect(result).toEqual({ ok: true, id: "n-existing" });
   });
 });
 

@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { parseLeadIngestionPayload } from "@/domain";
+import { syncRecordToBrain } from "@/lib/brain-ingestion/sync";
 import {
   persistLeadIngestion,
   type LeadProvenance,
@@ -152,6 +153,15 @@ export async function updateArcRecord(params: {
   }
   if (!data?.id) {
     return { ok: false, httpStatus: 404, message: `No ${params.table} record with id ${params.id}.` };
+  }
+
+  // Best-effort: mirror Arc's edit into the Brain so updated CRM facts stay
+  // searchable. Creation is already covered via persistLeadIngestion in
+  // createArcLead. A Brain failure must never fail the record update.
+  try {
+    await syncRecordToBrain(params.table, data.id, { client: params.supabase, orgId: params.orgId });
+  } catch {
+    /* ignore */
   }
 
   return { ok: true, id: data.id, applied };

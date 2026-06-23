@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { type EdgeRelation } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { resyncCrmIntoBrain } from "@/lib/brain-ingestion/sync";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { archiveNode, createEdge, createNode, decideNode, setNodeKind, setNodeTags, updateNode } from "@/lib/knowledge-graph/persistence";
 
@@ -110,4 +111,18 @@ export async function archiveNodeAction(nodeId: string): Promise<ActionResult> {
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
+}
+
+/** Operator-triggered backfill: mirror all CRM records into the Brain. */
+export async function resyncCrmIntoBrainAction(): Promise<{ ok: boolean; message: string }> {
+  await requireOperator();
+  const result = await resyncCrmIntoBrain();
+  revalidateBrainSurfaces();
+  if (!result.synced && !result.errors) {
+    return { ok: false, message: "Nothing to sync — Supabase isn't configured or there are no CRM records yet." };
+  }
+  const parts = [`Synced ${result.synced} CRM record${result.synced === 1 ? "" : "s"} into the Brain`];
+  if (result.errors) parts.push(`${result.errors} skipped`);
+  if (result.truncated) parts.push("some tables hit the row limit — run again to finish");
+  return { ok: result.ok, message: `${parts.join("; ")}.` };
 }
