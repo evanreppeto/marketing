@@ -112,22 +112,24 @@ function ConnectorCard({ connector }: { connector: ConnectorView }) {
           </div>
           <p className="mt-2 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">{connector.description}</p>
         </div>
-        <ToggleConnector connector={connector} />
+        {connector.credentialPresent ? <ToggleConnector connector={connector} /> : null}
       </div>
 
       {connector.authKind === "api_key" ? (
         <ConnectForm connector={connector} />
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-[var(--text-muted)]">
-          <span>Last tested: {fmt(connector.lastTestedAt)}</span>
-          {connector.lastTestError ? (
-            <span className="text-[var(--priority-text)]">Error: {connector.lastTestError}</span>
-          ) : null}
+      {connector.credentialPresent ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-[var(--text-muted)]">
+            <span>Last tested: {fmt(connector.lastTestedAt)}</span>
+            {connector.lastTestError ? (
+              <span className="text-[var(--priority-text)]">Error: {connector.lastTestError}</span>
+            ) : null}
+          </div>
+          <TestConnector connector={connector} />
         </div>
-        <TestConnector connector={connector} />
-      </div>
+      ) : null}
     </li>
   );
 }
