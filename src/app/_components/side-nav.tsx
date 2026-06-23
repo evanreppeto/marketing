@@ -59,16 +59,16 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false }
           <Link
             aria-current={isActive ? "page" : undefined}
             aria-label={showLabel ? undefined : item.label}
-            className={`group relative flex shrink-0 items-center rounded-[8px] text-sm font-semibold transition-[background-color,color,box-shadow] duration-180 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+            className={`group relative flex shrink-0 items-center rounded-[9px] transition-[background-color,color,box-shadow] duration-180 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
               mobileDock
-                ? "min-h-11 min-w-[74px] flex-col justify-center gap-1 px-2 py-1.5 text-[11px] leading-none"
+                ? "min-h-11 min-w-[74px] flex-col justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold leading-none"
                 : compactRail
                   ? "h-10 w-10 justify-center px-0"
-                  : "min-h-10 w-full gap-2.5 px-2.5"
+                  : "min-h-9 w-full gap-[11px] px-2.5 text-[13px]"
             } ${
               isActive
-                ? "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--accent)_10%,transparent),rgba(255,255,255,0.035))] text-[var(--accent-contrast)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
-                : "text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.035)] hover:text-[var(--text-primary)]"
+                ? "font-semibold text-[var(--text-primary)] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.012)),color-mix(in_srgb,var(--accent)_8%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                : "font-medium text-[var(--text-secondary)] hover:bg-[rgba(255,255,255,0.035)] hover:text-[var(--text-primary)]"
             }`}
             href={item.href}
             key={item.href}
@@ -81,7 +81,7 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false }
             onMouseEnter={() => router.prefetch(item.href)}
             prefetch
           >
-            <NavIcon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]"}`} name={item.icon} />
+            <NavIcon className={`h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]"}`} name={item.icon} />
             {showLabel ? (
               <span className={`${mobileDock ? "block max-w-full" : "block"} min-w-0 truncate`}>
                 <span className="block truncate">{item.label}</span>
@@ -91,8 +91,8 @@ export function SideNav({ active, items, collapsed = false, mobileDock = false }
               <ActiveMotionMarker
                 className={
                   mobileDock
-                    ? "pointer-events-none absolute inset-x-4 bottom-0 h-px rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] shadow-[0_0_14px_rgba(211,170,75,0.32)]"
-                    : "pointer-events-none absolute inset-y-2 right-1.5 w-px rounded-full bg-[color-mix(in_srgb,var(--accent)_72%,transparent)] shadow-[0_0_14px_rgba(211,170,75,0.30)]"
+                    ? "pointer-events-none absolute inset-x-4 bottom-0 h-px rounded-full bg-[linear-gradient(90deg,transparent,var(--accent),transparent)]"
+                    : "pointer-events-none absolute inset-y-2 left-0 w-0.5 rounded-r-full bg-[var(--accent)]"
                 }
                 layoutId={mobileDock ? "active-mobile-nav-marker" : "active-desktop-nav-marker"}
               />

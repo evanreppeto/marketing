@@ -249,6 +249,29 @@ html[data-motion="reduced"] *::after {
   }
 }
 
+/* Premium nav-rail glow — a single soft, warm light source pooling from the
+   top of the rail with a faint cool counter-tint, drifting slowly. Restrained,
+   not the old multi-blob field. Frozen under reduced motion. */
+.arc-rail-glow {
+  position: absolute;
+  inset: -22% -14% auto -14%;
+  height: 58%;
+  background:
+    radial-gradient(58% 60% at 30% 14%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 64%),
+    radial-gradient(48% 52% at 80% 28%, color-mix(in srgb, var(--ok) 12%, transparent), transparent 62%);
+  filter: blur(30px);
+  opacity: 0.85;
+  will-change: transform;
+  animation: arc-rail-glow-drift 16s ease-in-out infinite;
+}
+@keyframes arc-rail-glow-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(5%, 4%, 0) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arc-rail-glow { animation: none; }
+}
+
 * {
   border-color: var(--border-hairline);
 }

@@ -10,7 +10,6 @@ import { switchWorkspaceAction } from "../settings/workspace-actions";
 import { AgentNameProvider } from "./agent-name-context";
 import { CommandMenuProvider } from "./command-menu";
 import { WorkspaceNameProvider } from "./workspace-name-context";
-import { BackgroundGradientAnimation } from "./background-gradient-animation";
 import { NavIcon } from "./nav-icons";
 import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
@@ -60,10 +59,10 @@ function BrandWordmark() {
   );
 }
 
-const sidebarGoldDividerTop = "relative";
-const sidebarGoldDividerBottom = "";
+// Premium dock: one calm card, no gold gradient seam — the rail keeps a single
+// disciplined accent cue (the active nav bar), not a glowing divider here.
 const sidebarBottomDock =
-  "relative mt-1 rounded-xl border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-soft)_58%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] before:absolute before:inset-x-3 before:-top-px before:h-px before:bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_72%,transparent),color-mix(in_srgb,var(--ok)_34%,transparent),transparent)] before:content-['']";
+  "overflow-hidden rounded-[13px] border border-[var(--border-hairline)] bg-[linear-gradient(180deg,rgba(255,255,255,0.022),rgba(255,255,255,0.008))] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]";
 
 function routeMatches(item: ShellNavItem, path: string) {
   if (item.exact) {
@@ -97,9 +96,11 @@ export function ConsoleFrame({
   const sidebarExpanded = isSidebarExpanded({
     focusWithin: sidebarFocusWithin,
     hovered: sidebarHovered,
-    pinned: true,
+    pinned: false,
   });
   const sidebarCollapsed = !sidebarExpanded;
+  // Expanded by hover/focus floats over content instead of reflowing the page.
+  const overlayExpanded = sidebarExpanded;
 
   const homeNavItems: ShellNavItem[] = [
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
@@ -161,8 +162,10 @@ export function ConsoleFrame({
           <main className={theme.shell.canvas}>
         <div
           className={cx(
-            "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-200 lg:ease-out",
-            sidebarCollapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[244px_minmax(0,1fr)]",
+            "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:ease-out",
+            // Rail always reserves the collapsed width; hover/focus expands as an
+            // overlay (below) so page content never shifts.
+            "lg:grid-cols-[76px_minmax(0,1fr)]",
           )}
         >
           <header className="sticky top-0 z-40 flex flex-col gap-2 border-b border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--canvas-deep)_94%,transparent)] px-3 pb-2 pt-2 backdrop-blur lg:hidden">
@@ -211,8 +214,11 @@ export function ConsoleFrame({
           <aside
             className={cx(
               theme.shell.sidebar,
-              "hidden transition-[padding] duration-200 lg:flex lg:flex-col",
+              "hidden lg:flex lg:flex-col lg:transition-[width,padding] lg:duration-200 lg:ease-out",
+              sidebarExpanded ? "lg:w-[244px]" : "lg:w-[76px]",
               sidebarCollapsed ? "lg:overflow-visible lg:px-3" : "",
+              // Float over content when expanded by hover/focus (not pinned).
+              overlayExpanded ? "lg:z-30 lg:shadow-[10px_0_44px_-16px_rgba(0,0,0,0.7)]" : "lg:shadow-none",
             )}
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -224,16 +230,9 @@ export function ConsoleFrame({
             onMouseLeave={() => setSidebarHovered(false)}
           >
             <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <BackgroundGradientAnimation
-                blendingValue="soft-light"
-                containerClassName="opacity-80"
-                firstColor="200, 162, 74"
-                fourthColor="90, 52, 42"
-                secondColor="120, 96, 60"
-                size="135%"
-                thirdColor="55, 55, 66"
-              />
-              <div className="absolute inset-0 bg-[radial-gradient(100%_80%_at_25%_8%,rgba(200,162,74,0.08),transparent_46%),linear-gradient(180deg,rgba(16,16,19,0.54),rgba(16,16,19,0.88)_62%,rgba(16,16,19,0.96))]" />
+              <div className="arc-rail-glow" />
+              <div className="absolute inset-0 bg-[radial-gradient(110%_45%_at_24%_-8%,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_54%),linear-gradient(180deg,transparent_60%,rgba(0,0,0,0.22))]" />
+              <div className="absolute inset-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" />
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -255,25 +254,32 @@ export function ConsoleFrame({
                 </Link>
               </div>
 
-              <div className={cx("py-2", sidebarGoldDividerTop, sidebarGoldDividerBottom, sidebarCollapsed ? "flex justify-center" : "")}>
+              {!sidebarCollapsed ? (
+                <div
+                  aria-hidden
+                  className="mx-1 h-px bg-[linear-gradient(90deg,transparent,var(--border-panel)_18%,var(--border-panel)_82%,transparent)]"
+                />
+              ) : null}
+
+              <div className={cx(sidebarCollapsed ? "flex justify-center" : "")}>
                 <ArcCommandLink active={pathname.startsWith("/arc")} agentName={agentName} collapsed={sidebarCollapsed} />
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
-                <div className="flex flex-col gap-3">
+                <div className={cx("flex flex-col", sidebarCollapsed ? "gap-1" : "gap-3")}>
                   <SidebarSection collapsed={sidebarCollapsed} label="Workspace">
                     <SideNav active={pathname} items={homeNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
 
-                  <SidebarSection collapsed={sidebarCollapsed} label="Growth">
+                  <SidebarSection collapsed={sidebarCollapsed} divider label="Growth">
                     <SideNav active={pathname} items={growthNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
 
-                  <SidebarSection collapsed={sidebarCollapsed} label="Intelligence">
+                  <SidebarSection collapsed={sidebarCollapsed} divider label="Intelligence">
                     <SideNav active={pathname} items={intelligenceNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
 
-                  <SidebarSection collapsed={sidebarCollapsed} label="Assets">
+                  <SidebarSection collapsed={sidebarCollapsed} divider label="Assets">
                     <SideNav active={pathname} items={assetNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
                 </div>
@@ -449,33 +455,52 @@ function ArcCommandLink({
   agentName: string;
   collapsed?: boolean;
 }) {
+  if (collapsed) {
+    return (
+      <Link
+        aria-current={active ? "page" : undefined}
+        aria-label={`${agentName} command center`}
+        className={cx(
+          "group relative mx-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
+          active
+            ? "border border-[var(--accent-border)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+            : "border border-[var(--border-hairline)] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.014))] hover:border-[var(--accent-border)]",
+        )}
+        href="/arc"
+        prefetch
+      >
+        <NavIcon className="h-5.5 w-5.5 shrink-0" name="arc" />
+      </Link>
+    );
+  }
+
   return (
     <Link
       aria-current={active ? "page" : undefined}
       aria-label={`${agentName} command center`}
       className={cx(
-        "group relative flex shrink-0 items-center rounded transition duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
-        collapsed
-          ? "mx-auto h-10 w-10 justify-center"
-          : "min-h-11 gap-2.5 px-2.5",
+        "group relative flex min-h-[50px] shrink-0 items-center gap-3 rounded-[12px] px-3 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
         active
-          ? "border border-[var(--accent-border)] bg-[linear-gradient(90deg,color-mix(in_srgb,var(--accent)_11%,transparent),rgba(255,255,255,0.035))] text-[var(--accent-contrast)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
-          : "border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-hairline)] hover:bg-[rgba(255,255,255,0.035)] hover:text-[var(--text-primary)]",
+          ? "border border-[var(--accent-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.012)),color-mix(in_srgb,var(--accent)_9%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+          : "border border-[var(--border-hairline)] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.014))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-[var(--accent-border)]",
       )}
       href="/arc"
       prefetch
     >
-      <NavIcon className="h-5 w-5 shrink-0 text-[var(--accent)]" name="arc" />
-      {!collapsed ? <span className="truncate text-sm font-semibold text-current">{agentName}</span> : null}
-      {active ? (
-        <span
-          aria-hidden
-          className={cx(
-            "pointer-events-none absolute rounded-full bg-[color-mix(in_srgb,var(--accent)_62%,transparent)]",
-            collapsed ? "inset-x-3 -bottom-px h-px" : "inset-y-2 right-2 w-px",
-          )}
-        />
-      ) : null}
+      <NavIcon className="h-5.5 w-5.5 shrink-0" name="arc" />
+      <span className="flex min-w-0 flex-1 flex-col leading-tight">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{agentName}</span>
+          <span
+            aria-hidden
+            className="h-[5px] w-[5px] shrink-0 rounded-full bg-[var(--ok)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--ok)_16%,transparent)]"
+          />
+        </span>
+        <span className="truncate text-[10.5px] text-[var(--text-muted)]">AI marketing operator</span>
+      </span>
+      <kbd className="shrink-0 rounded-[5px] border border-[var(--border-panel)] px-1.5 py-0.5 font-mono text-[9.5px] font-medium tracking-[0.04em] text-[var(--text-muted)]">
+        ⌘K
+      </kbd>
     </Link>
   );
 }
@@ -496,13 +521,14 @@ function SidebarBottomDock({
   activeWorkspaceId?: string;
 }) {
   return (
-    <div className={cx(sidebarBottomDock, collapsed ? "space-y-2 px-1.5 py-2.5" : "space-y-3.5 px-3 py-3.5")}>
+    <div className={cx(sidebarBottomDock, collapsed ? "space-y-2 p-1.5" : "")}>
       <SidebarWorkspaceSwitcher
         activeWorkspaceId={activeWorkspaceId}
         collapsed={collapsed}
         workspaceName={workspaceName}
         workspaces={workspaces}
       />
+      {!collapsed ? <div aria-hidden className="h-px bg-[var(--border-hairline)]" /> : null}
       <OperatorProfile collapsed={collapsed} operator={operator} settingsHref={settingsHref} />
     </div>
   );
@@ -537,13 +563,11 @@ function SidebarWorkspaceSwitcher({
 
   return (
     <div className={cx(collapsed ? "flex justify-center" : "", switching ? "pointer-events-none opacity-70" : "")}>
-      {!collapsed ? (
-        <div className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          {switching ? "Switching…" : "Workspace"}
-        </div>
-      ) : null}
       <Workspaces onWorkspaceChange={handleChange} selectedWorkspaceId={selectedId} workspaces={list}>
-        <WorkspaceTrigger collapsed={collapsed} />
+        <WorkspaceTrigger
+          collapsed={collapsed}
+          className={collapsed ? undefined : "rounded-none px-3 py-2.5 transition-colors hover:bg-[rgba(255,255,255,0.028)]"}
+        />
         <WorkspaceContent align={collapsed ? "center" : "start"} side={collapsed ? "right" : "top"} sideOffset={10} title="Workspaces">
           <Link
             className="flex w-full items-center gap-2 rounded px-2 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
@@ -568,18 +592,30 @@ function SidebarWorkspaceSwitcher({
 function SidebarSection({
   children,
   collapsed,
+  divider,
   label,
 }: {
   children: React.ReactNode;
   collapsed?: boolean;
+  divider?: boolean;
   label?: string;
 }) {
+  // Collapsed rail has no labels, so groups blend together — a short centered
+  // hairline keeps the icon clusters visually distinct.
+  if (collapsed) {
+    return (
+      <section className="min-w-0" aria-label={label}>
+        {divider ? <div aria-hidden className="mx-auto my-1.5 h-px w-7 bg-[var(--border-hairline)]" /> : null}
+        {children}
+      </section>
+    );
+  }
+
   return (
-    <section className={cx("min-w-0", collapsed ? "pt-1" : "space-y-2 pt-4")} aria-label={label}>
-      {!collapsed && label ? (
-        <div className="flex items-center gap-2 px-2.5">
+    <section className="min-w-0 space-y-1.5 pt-3.5" aria-label={label}>
+      {label ? (
+        <div className="px-2.5">
           <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">{label}</span>
-          <span aria-hidden className="h-px flex-1 bg-[linear-gradient(90deg,color-mix(in_srgb,var(--accent)_28%,transparent),transparent)]" />
         </div>
       ) : null}
       {children}
@@ -588,9 +624,9 @@ function SidebarSection({
 }
 
 function OperatorProfile({ collapsed, operator, settingsHref }: { collapsed?: boolean; operator: OperatorShellProfile; settingsHref: string }) {
-  return (
-    <div className={cx("flex items-center", collapsed ? "justify-center" : "gap-2 border-t border-[var(--border-hairline)] pt-3")}>
-      <div className={cx("flex min-w-0 flex-1 items-center gap-3", collapsed ? "justify-center" : "")}>
+  if (collapsed) {
+    return (
+      <div className="flex justify-center">
         <div className="relative shrink-0">
           <OperatorAvatar operator={operator} size="desktop" />
           <span
@@ -598,35 +634,43 @@ function OperatorProfile({ collapsed, operator, settingsHref }: { collapsed?: bo
             className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-sidebar)] bg-[var(--ok)]"
           />
         </div>
-        {!collapsed ? (
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{operator.name}</div>
-            <div className="truncate text-[11px] text-[var(--text-muted)]">{operator.email ?? "Operator"}</div>
-          </div>
-        ) : null}
       </div>
-      {!collapsed ? (
-        <div className="flex shrink-0 items-center gap-1">
-          <Link
-            aria-label="Settings"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
-            href={settingsHref}
-            title="Settings"
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2.5">
+      <div className="relative shrink-0">
+        <OperatorAvatar operator={operator} size="desktop" />
+        <span
+          aria-label="Active"
+          className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-sidebar)] bg-[var(--ok)]"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px] font-semibold tracking-[-0.005em] text-[var(--text-primary)]">{operator.name}</div>
+        <div className="truncate text-[10.5px] text-[var(--text-muted)]">{operator.email ?? "Operator"}</div>
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <Link
+          aria-label="Settings"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+          href={settingsHref}
+          title="Settings"
+        >
+          <Cog aria-hidden className="h-4 w-4" />
+        </Link>
+        <form action="/api/auth/sign-out" method="post" className="contents">
+          <button
+            aria-label="Sign out"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
+            title="Sign out"
+            type="submit"
           >
-            <Cog aria-hidden className="h-4.5 w-4.5" />
-          </Link>
-          <form action="/api/auth/sign-out" method="post" className="contents">
-            <button
-              aria-label="Sign out"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[rgba(255,255,255,0.045)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
-              title="Sign out"
-              type="submit"
-            >
-              <LogOut aria-hidden className="h-4.5 w-4.5" />
-            </button>
-          </form>
-        </div>
-      ) : null}
+            <LogOut aria-hidden className="h-4 w-4" />
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
