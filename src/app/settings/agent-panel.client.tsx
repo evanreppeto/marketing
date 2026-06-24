@@ -163,7 +163,7 @@ export function AgentSetupBundle({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-semibold text-[var(--text-muted)]">
               Company name
-              <input className={inputClass} name="marketing_company_name" placeholder="Big Shoulders Restoration" />
+              <input className={inputClass} name="marketing_company_name" placeholder="Acme Restoration" />
             </label>
             <label className="grid gap-1 text-xs font-semibold text-[var(--text-muted)]">
               Service area

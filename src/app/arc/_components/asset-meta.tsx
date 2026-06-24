@@ -22,7 +22,7 @@ export function riskReasons(card: ArcActionCard): string[] {
  */
 
 const SOURCE_LABEL: Record<ArcMediaSource, string> = {
-  bsr_real: "Real BSR",
+  bsr_real: "Real",
   ai_generated: "AI",
   composite: "Composite",
   stock: "Stock",

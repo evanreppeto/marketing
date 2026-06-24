@@ -162,13 +162,13 @@ export function CampaignFeaturedRail({
           ) : tab === "email" && email ? (
             <EmailPreview heroUrl={heroUrl} subject={email.subject} body={email.body} />
           ) : tab === "sms" ? (
-            <SmsPreview body={smsPiece?.preview ?? "Big Shoulders Restoration: a crew can be on-site within the hour. Reply YES and we'll call you right back."} />
+            <SmsPreview body={smsPiece?.preview ?? "A crew can be on-site within the hour. Reply YES and we'll call you right back."} />
           ) : tab === "ads" ? (
             <AdsPreview piece={adPiece} thumbs={creativeThumbs} />
           ) : tab === "landing" ? (
             <LandingPreview piece={landingPiece} heroUrl="https://picsum.photos/seed/bsr-water-landing/640/300" />
           ) : (
-            <EmailPreview heroUrl={heroUrl} subject="Water in your home? We respond in 60 minutes." body="When a pipe bursts, every minute counts. Big Shoulders crews are on call 24/7." />
+            <EmailPreview heroUrl={heroUrl} subject="Water in your home? We respond in 60 minutes." body="When a pipe bursts, every minute counts. Our crews are on call 24/7." />
           )}
         </div>
 
@@ -377,7 +377,7 @@ function buildChecklist(campaign: CampaignWorkspaceListItem): ChecklistItem[] {
   const live = campaign.lifecycle === "Live";
   return [
     { label: "Audience & persona mapped", done: true },
-    { label: "Approved BSR media attached", done: hasMedia },
+    { label: "Approved media attached", done: hasMedia },
     { label: "Email draft written", done: hasEmail },
     { label: `${approvedPieces} of ${campaign.contentPieces.length} pieces approved`, done: allApproved },
     { label: "Guardrail check passed", done: hasMedia && approvedPieces > 0 },

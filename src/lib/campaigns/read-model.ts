@@ -643,7 +643,7 @@ function demoMedia(media: DemoMedia): CampaignMediaAsset {
     thumbnailUrl: `https://picsum.photos/seed/${media.seed}/240/160`,
     mimeType: media.type === "video" ? "video/mp4" : "image/jpeg",
     description: media.title,
-    source: "Approved BSR media",
+    source: "Approved media",
   };
 }
 
@@ -739,7 +739,7 @@ function demoDetailAsset(piece: DemoPiece): CampaignWorkspaceAsset {
     // Approved demo pieces in a Live campaign are deployable; everything else
     // stays dispatch-locked so the gold "outbound locked" gate shows.
     dispatchLocked: !/approved/i.test(piece.rawStatus),
-    toolSource: "Approved BSR media library",
+    toolSource: "Approved media library",
     updatedAt: "",
     media,
     revision: piece.revision ?? null,
@@ -956,7 +956,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
       recommendedAction:
         "Approve the email and SMS so the rapid-response set is live before the next freeze-thaw cycle this weekend.",
       guardrailFlags: ["No payout guarantees", "Response time stated as historical average"],
-      toolsUsed: ["Search-trend signal", "CRM service-area match", "Approved BSR media library"],
+      toolsUsed: ["Search-trend signal", "CRM service-area match", "Approved media library"],
       channels: ["Gmail", "Meta", "Instagram", "SMS"],
       sourceCount: 6,
       sources: [
@@ -1007,11 +1007,11 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
           status: "Pending approval",
           rawStatus: "pending_approval",
           needsReview: true,
-          preview: "When a pipe bursts, every minute counts. A Big Shoulders crew is on call 24/7 across the North Shore.",
+          preview: "When a pipe bursts, every minute counts. A Summit Restoration crew is on call 24/7 across the North Shore.",
           compliance:
             "Response-time claim cites historical average. No insurance-payout language. CTA links to the emergency request form, no auto-dial.",
           body:
-            "When a pipe bursts or your sump gives out, every minute counts — standing water spreads behind walls and under floors fast.\n\nBig Shoulders Restoration crews are on call 24/7 across Wilmette, Winnetka, and Evanston. We typically reach North Shore homes within 60 minutes, start extraction immediately, and document every reading and photo for your insurer from the first minute on site.\n\nOne call gets a crew rolling and your claim documented. Tap below and we'll dispatch the nearest team.\n\nRequest an emergency crew →",
+            "When a pipe bursts or your sump gives out, every minute counts — standing water spreads behind walls and under floors fast.\n\nSummit Restoration crews are on call 24/7 across Wilmette, Winnetka, and Evanston. We typically reach North Shore homes within 60 minutes, start extraction immediately, and document every reading and photo for your insurer from the first minute on site.\n\nOne call gets a crew rolling and your claim documented. Tap below and we'll dispatch the nearest team.\n\nRequest an emergency crew →",
           media: [{ id: "demo-ewr-email-hero", type: "image", title: "Crew arriving on emergency call", seed: "bsr-ewr-hero" }],
         },
         {
@@ -1025,7 +1025,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
           preview: "A crew can be on-site within the hour for your water emergency. Reply YES and we'll call you right back.",
           compliance: "Includes business identification and a clear opt-out path. No automated outbound until approved.",
           body:
-            "Big Shoulders Restoration: a crew can be on-site within the hour for your water emergency. Reply YES and we'll call you right back, or STOP to opt out.",
+            "Summit Restoration: a crew can be on-site within the hour for your water emergency. Reply YES and we'll call you right back, or STOP to opt out.",
         },
         {
           id: "demo-ewr-meta",
@@ -1036,7 +1036,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
           rawStatus: "approved",
           needsReview: false,
           preview: "We respond fast. You recover faster. 24/7 emergency water mitigation across the North Shore.",
-          compliance: "Approved BSR before/after media. No embedded text overlays that violate ad policy.",
+          compliance: "Approved before/after media. No embedded text overlays that violate ad policy.",
           body:
             "We respond fast. You recover faster.\n\n24/7 emergency water mitigation across the North Shore. Real crews, real before-and-afters, insurance documentation handled.",
           media: [
@@ -1055,7 +1055,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
           preview: "Request a crew, see live response times, and start your insurance documentation in one tap.",
           compliance: "Form-only CTA. Response-time copy matches the email's historical-average wording.",
           body:
-            "Water damage? We're already on the way.\n\nRequest a crew, see live response times for your area, and start your insurance documentation in one tap. Big Shoulders crews arrive ready to extract, dry, and document.",
+            "Water damage? We're already on the way.\n\nRequest a crew, see live response times for your area, and start your insurance documentation in one tap. Summit Restoration crews arrive ready to extract, dry, and document.",
           media: [{ id: "demo-ewr-landing-hero", type: "image", title: "Landing hero — crew with equipment", seed: "bsr-ewr-landing" }],
         },
       ],
@@ -1077,7 +1077,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
       whyBuilt: `${agentName} found unconverted overnight emergency leads and drafted a fast morning-callback package.`,
       recommendedAction: "Approve the email so the morning-callback window isn't missed.",
       guardrailFlags: ["Inbound-only follow-up"],
-      toolsUsed: ["CRM unconverted-lead scan", "Approved BSR media library"],
+      toolsUsed: ["CRM unconverted-lead scan", "Approved media library"],
       channels: ["Gmail", "SMS", "WhatsApp"],
       sourceCount: 4,
       sources: [
@@ -1110,7 +1110,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
           preview: "We saw you reached out overnight. A crew can be at your door this morning, ready to go.",
           compliance: "Replies to an inbound inquiry only. Response-time language is a historical average.",
           body:
-            "We saw you reached out about a burst pipe overnight — we don't want you waiting.\n\nA Big Shoulders crew can be at your door this morning with extraction and drying equipment ready to go, and we'll document everything for your insurer.\n\nReply or tap below and we'll lock in a priority slot.\n\nBook a morning crew →",
+            "We saw you reached out about a burst pipe overnight — we don't want you waiting.\n\nA Summit Restoration crew can be at your door this morning with extraction and drying equipment ready to go, and we'll document everything for your insurer.\n\nReply or tap below and we'll lock in a priority slot.\n\nBook a morning crew →",
           media: [{ id: "demo-bprr-email-img", type: "image", title: "Water extraction in progress", seed: "bsr-bprr-extract" }],
         },
         {
@@ -1123,7 +1123,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
           needsReview: false,
           preview: "Your overnight water emergency is still our priority. Want a crew this morning? Reply YES.",
           compliance: "Draft — includes opt-out, pending review.",
-          body: "Big Shoulders: your overnight water emergency is still our priority. Want a crew this morning? Reply YES, or STOP to opt out.",
+          body: "Summit Restoration: your overnight water emergency is still our priority. Want a crew this morning? Reply YES, or STOP to opt out.",
         },
       ],
     },
@@ -1137,14 +1137,14 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
       launchLocked: true,
       driver: "operator",
       owner: "Evan Reppeto",
-      objective: "Pre-approve Big Shoulders as the priority water-loss vendor for managed multifamily portfolios.",
+      objective: "Pre-approve Summit Restoration as the priority water-loss vendor for managed multifamily portfolios.",
       audienceSummary: "Property managers and operations directors overseeing multifamily portfolios in 60091/60093/60201.",
       offerSummary: "Managed-building SLA, insurance-ready documentation, and a vendor pre-approval packet.",
       complianceNotes: "B2B outreach to named contacts. SLA language reviewed; no contractual commitment until a packet is signed.",
       whyBuilt: `${agentName} assembled a vendor-packet outreach set targeting property managers ahead of the spring storm season.`,
       recommendedAction: "Everything is approved — send the partner intro and attach the vendor packet.",
       guardrailFlags: ["SLA is a proposal, not a contract"],
-      toolsUsed: ["CRM company portfolio match", "Approved BSR media library"],
+      toolsUsed: ["CRM company portfolio match", "Approved media library"],
       channels: ["LinkedIn", "Gmail", "Meta"],
       sourceCount: 5,
       sources: [
@@ -1178,7 +1178,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
           preview: "When a unit floods, your residents call you first. Pre-approve our crews and request the vendor packet.",
           compliance: "B2B intro to a named contact. SLA framed as a proposal.",
           body:
-            "When a unit floods, your residents call you first — and the clock starts the moment they do.\n\nBig Shoulders is set up to be your priority water-loss vendor across managed North Shore buildings: documented response SLAs, insurance-ready paperwork on every job, and one named contact for your whole portfolio.\n\nPre-approve our crews now so there's no scramble when the next storm hits. Reply and I'll send the vendor packet.\n\nRequest the vendor packet →",
+            "When a unit floods, your residents call you first — and the clock starts the moment they do.\n\nSummit Restoration is set up to be your priority water-loss vendor across managed North Shore buildings: documented response SLAs, insurance-ready paperwork on every job, and one named contact for your whole portfolio.\n\nPre-approve our crews now so there's no scramble when the next storm hits. Reply and I'll send the vendor packet.\n\nRequest the vendor packet →",
         },
         {
           id: "demo-cwm-social",
@@ -1284,7 +1284,7 @@ function DEMO_CAMPAIGNS(agentName: string): DemoCampaign[] {
       whyBuilt: `${agentName} identified recently restored homes at elevated mold risk and built a follow-up education set.`,
       recommendedAction: "Live — track assessment bookings from recently restored homes.",
       guardrailFlags: ["No medical/diagnostic claims"],
-      toolsUsed: ["CRM closed-job lookback", "Approved BSR media library"],
+      toolsUsed: ["CRM closed-job lookback", "Approved media library"],
       channels: ["Meta", "Gmail", "Landing page"],
       sourceCount: 4,
       sources: [
@@ -1980,8 +1980,8 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       category: "virtual",
       channel: "SMS",
       status: "Draft",
-      body: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Big Shoulders can document the issue and coordinate mitigation this week. Want me to hold a crew slot?",
-      preview: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Big Shoulders can document the issue and coordinate mitigation this week.",
+      body: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week. Want me to hold a crew slot?",
+      preview: "Hi Maya, quick storm follow-up: if any units are still showing moisture, Summit Restoration can document the issue and coordinate mitigation this week.",
       complianceNotes: "Demo preview content for layout review only.",
       dispatchLocked: true,
       toolSource: "Preview data",
@@ -2026,7 +2026,7 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
       category: "virtual",
       channel: "Website",
       status: "Draft",
-      body: "Headline: Document moisture fast after the storm.\n\nBody: Big Shoulders helps property managers capture photos, readings, and mitigation notes before small leaks become bigger claims.\n\nCTA: Request a same-week moisture walkthrough.",
+      body: "Headline: Document moisture fast after the storm.\n\nBody: Summit Restoration helps property managers capture photos, readings, and mitigation notes before small leaks become bigger claims.\n\nCTA: Request a same-week moisture walkthrough.",
       preview: "Landing page draft for property managers who need documentation after storm calls.",
       complianceNotes: "Demo preview content for layout review only.",
       dispatchLocked: true,
@@ -2169,7 +2169,7 @@ export function buildExecutiveOverview(input: {
 }): CampaignExecutiveOverview {
   const { campaign, assets, approvals, reasoning, sources, agentName = "Arc" } = input;
   const audience = sentenceFragment(campaign.audience_summary ?? `the ${humanize(campaign.persona)} segment`);
-  const offer = sentenceFragment(campaign.offer_summary ?? "the proposed Big Shoulders restoration offer");
+  const offer = sentenceFragment(campaign.offer_summary ?? "the proposed Summit Restoration restoration offer");
   const objective = sentenceFragment(campaign.objective ?? campaign.offer_summary ?? "No campaign objective has been captured yet");
   const payloads = [
     asObject(campaign.source_signal),
@@ -2184,7 +2184,7 @@ export function buildExecutiveOverview(input: {
     what:
       findPayloadAnswer(payloads, JOURNEY_OVERVIEW_KEYS) ??
       findPayloadAnswer(payloads, WHAT_KEYS) ??
-      `Move ${audience} toward a trusted Big Shoulders handoff with ${offer}. Objective: ${objective}.`,
+      `Move ${audience} toward a trusted Summit Restoration handoff with ${offer}. Objective: ${objective}.`,
     why: `${whySignal}. Goal: reduce decision friction and make the next step clear.`,
     timeframe:
       findPayloadAnswer(payloads, TIMEFRAME_KEYS) ??
