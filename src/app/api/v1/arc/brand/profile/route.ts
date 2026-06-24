@@ -1,6 +1,9 @@
 import { INVALID_JSON, arcGuard, fail, ok, readJson } from "@/app/api/v1/arc/_lib/http";
 import { NEUTRAL_DEFAULTS, validateBusinessProfile, type BusinessProfile, type ProofPoint } from "@/domain";
 import { getBusinessProfile, upsertBusinessProfile } from "@/lib/brand-kit/persistence";
+import { storeBrandImageFromUrl } from "@/lib/brand-kit/brand-image";
+
+export const runtime = "nodejs"; // image store needs node:dns + fetch redirect control
 
 /**
  * Lets Arc PROPOSE a brand profile (from website analysis + Q&A). Always writes
@@ -49,6 +52,39 @@ export async function PUT(request: Request) {
 
   const g = typeof body.guardrails === "object" && body.guardrails !== null ? (body.guardrails as Record<string, unknown>) : {};
 
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+  const paletteIn =
+    typeof body.brandPalette === "object" && body.brandPalette !== null
+      ? (body.brandPalette as Record<string, unknown>)
+      : {};
+  const slot = (name: "primary" | "secondary" | "accent" | "dark" | "light") => {
+    const v = paletteIn[name];
+    return typeof v === "string" && HEX.test(v.trim())
+      ? { label: current.brandPalette[name].label, hex: v.trim().toLowerCase() }
+      : current.brandPalette[name];
+  };
+  const brandPalette = {
+    ...current.brandPalette,
+    primary: slot("primary"),
+    secondary: slot("secondary"),
+    accent: slot("accent"),
+    dark: slot("dark"),
+    light: slot("light"),
+    headingFont: str(body.headingFont, current.brandPalette.headingFont) ?? current.brandPalette.headingFont,
+    bodyFont: str(body.bodyFont, current.brandPalette.bodyFont) ?? current.brandPalette.bodyFont,
+  };
+
+  // Store (not hotlink) any newly-provided external logo/favicon URL.
+  const sourceUrl = str(body.websiteUrl, current.websiteUrl) ?? "";
+  const resolveImage = async (raw: unknown, role: "logo" | "favicon", currentValue: string | null) => {
+    const value = str(raw, currentValue);
+    if (!value || value === currentValue || !/^https?:\/\//i.test(value)) return value;
+    const stored = await storeBrandImageFromUrl({ orgId, url: value, role, sourceUrl, uploadedBy: "arc" });
+    return stored ?? value;
+  };
+  const logoUrl = await resolveImage(body.logoUrl, "logo", current.logoUrl);
+  const faviconUrl = await resolveImage(body.faviconUrl, "favicon", current.faviconUrl);
+
   const merged: BusinessProfile = {
     ...current,
     displayName: str(body.displayName, current.displayName || "") ?? "",
@@ -56,8 +92,8 @@ export async function PUT(request: Request) {
     description: str(body.description, current.description),
     industry: str(body.industry, current.industry),
     websiteUrl: str(body.websiteUrl, current.websiteUrl),
-    logoUrl: str(body.logoUrl, current.logoUrl),
-    faviconUrl: str(body.faviconUrl, current.faviconUrl),
+    logoUrl,
+    faviconUrl,
     accent: str(body.accent, current.accent) ?? current.accent,
     tone: str(body.tone, current.tone) ?? current.tone,
     voiceGuidance: str(body.voiceGuidance, current.voiceGuidance),
@@ -70,6 +106,7 @@ export async function PUT(request: Request) {
       disallowedClaims: strList(g.disallowedClaims, current.guardrails.disallowedClaims),
       complianceNotes: str(g.complianceNotes, current.guardrails.complianceNotes) ?? current.guardrails.complianceNotes,
     },
+    brandPalette,
     status: "draft", // Arc can never activate
   };
 
