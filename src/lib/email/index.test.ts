@@ -1,6 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sendBrandedEmail } from "./index";
+import * as brandIdentityModule from "@/lib/brand-kit/identity";
+import { resolveBrandEmailTheme, sendBrandedEmail } from "./index";
+
+vi.mock("@/lib/brand-kit/identity", () => ({ resolveBrandIdentity: vi.fn() }));
 
 const theme = { appName: "Summit", accentColor: "#0B0B0C" };
 
@@ -39,5 +42,22 @@ describe("sendBrandedEmail", () => {
       { send, apiKey: "re_test", from: "Summit <hi@summit.com>" },
     );
     expect(result).toEqual({ ok: false, error: "Resend 422" });
+  });
+});
+
+describe("resolveBrandEmailTheme", () => {
+  const identity = vi.mocked(brandIdentityModule.resolveBrandIdentity);
+  afterEach(() => identity.mockReset());
+
+  it("maps the org identity into a theme (empty logo -> undefined)", async () => {
+    identity.mockResolvedValue({ displayName: "Summit", logoUrl: "" });
+    const theme = await resolveBrandEmailTheme();
+    expect(theme).toEqual({ appName: "Summit", logoUrl: undefined, accentColor: "#0B0B0C" });
+  });
+
+  it("falls back to defaults when identity resolution throws", async () => {
+    identity.mockImplementation(() => { throw new Error("supabase down"); });
+    const theme = await resolveBrandEmailTheme();
+    expect(theme).toEqual({ appName: "Arc", accentColor: "#0B0B0C" });
   });
 });

@@ -17,7 +17,7 @@ export async function resolveBrandEmailTheme(): Promise<BrandEmailTheme> {
     const identity = await resolveBrandIdentity();
     return {
       appName: identity.displayName || DEFAULT_THEME.appName,
-      logoUrl: identity.logoUrl ?? undefined,
+      logoUrl: identity.logoUrl || undefined,
       accentColor: DEFAULT_THEME.accentColor,
     };
   } catch {
