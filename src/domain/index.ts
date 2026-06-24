@@ -50,3 +50,4 @@ export * from "./brain-provenance";
 export * from "./brain-health";
 export * from "./activation";
 export * from "./arc-sharing";
+export * from "./higgsfield-models";
