@@ -24,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import FlowFieldBackground from "@/components/ui/flow-field-background";
 import { Workspaces, WorkspaceContent, WorkspaceTrigger, type Workspace } from "@/components/ui/workspaces";
 
 type ConsoleBrand = {
@@ -230,12 +229,6 @@ export function ConsoleFrame({
             onMouseEnter={() => setSidebarHovered(true)}
             onMouseLeave={() => setSidebarHovered(false)}
           >
-            <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="arc-rail-glow" />
-              <div className="absolute inset-0 bg-[radial-gradient(110%_45%_at_24%_-8%,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_54%),linear-gradient(180deg,transparent_60%,rgba(0,0,0,0.22))]" />
-              <div className="absolute inset-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" />
-            </div>
-
             <div className="flex min-h-0 flex-1 flex-col gap-4">
               <div className={cx("flex min-h-12 shrink-0 items-center", sidebarCollapsed ? "justify-center" : "")}>
                 <Link
@@ -297,16 +290,7 @@ export function ConsoleFrame({
               <ShellContent>{children}</ShellContent>
             </section>
           ) : (
-            <section className="arc-graphite relative isolate min-w-0 flex-1 lg:min-h-0 lg:overflow-hidden">
-              <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-                <FlowFieldBackground
-                  className="absolute inset-0 opacity-22"
-                  particleCount={360}
-                  speed={0.38}
-                  trailOpacity={0.08}
-                />
-                <div className="absolute inset-0 bg-[radial-gradient(90%_65%_at_8%_-8%,rgba(200,162,74,0.12),transparent_50%),radial-gradient(70%_54%_at_105%_0%,rgba(127,184,154,0.06),transparent_48%),linear-gradient(180deg,rgba(22,22,26,0.22),rgba(22,22,26,0.72)_62%,rgba(22,22,26,0.93))]" />
-              </div>
+            <section className="relative isolate min-w-0 flex-1 bg-[var(--canvas)] lg:min-h-0 lg:overflow-hidden">
               <div className="h-full w-full px-3 py-4 sm:px-5 lg:h-screen lg:overflow-y-auto lg:px-5 lg:py-5 xl:px-6 2xl:px-7">
                 <ShellContent>{children}</ShellContent>
               </div>
