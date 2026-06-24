@@ -235,6 +235,7 @@ export function ArcChat({
   activeWorkspacePermission = "view",
   viewerUserId = null,
   demo = false,
+  dataUnavailable = false,
 }: {
   conversations: ArcConversation[];
   projects: ArcProject[];
@@ -275,6 +276,10 @@ export function ArcChat({
   viewerUserId?: string | null;
   /** Preview mode: render the full UI with sample data, no backend writes. */
   demo?: boolean;
+  /** Configured backend, but the live read failed/timed out. Distinct from `demo`:
+   *  the shell is real-but-empty (no fabricated records) and the header shows an
+   *  honest "couldn't load — retry" banner instead of the sample-data notice. */
+  dataUnavailable?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ArcMessage[]>(initialMessages);
@@ -802,7 +807,19 @@ export function ArcChat({
                   </span>
                 ) : null}
               </button>
-              {demo ? (
+              {dataUnavailable ? (
+                <button
+                  type="button"
+                  onClick={() => router.refresh()}
+                  title="Couldn't load your workspace data — the backend may be paused or unreachable. Nothing shown here is sample data. Click to retry."
+                  aria-label="Couldn't load your workspace data. Click to retry."
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-[var(--accent)] shadow-[inset_0_0_0_1px_var(--accent-border)] transition hover:bg-[var(--surface-inset)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                >
+                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                  <span className="hidden sm:inline">Couldn&apos;t load — retry</span>
+                  <span className="sm:hidden">Retry</span>
+                </button>
+              ) : demo ? (
                 <button
                   type="button"
                   onClick={() => setAgentSettingsOpen(true)}

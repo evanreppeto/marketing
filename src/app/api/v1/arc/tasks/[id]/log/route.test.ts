@@ -86,4 +86,18 @@ describe("POST /api/v1/arc/tasks/:id/log", () => {
     const res = await POST(logRequest("Bearer secret", { message: "x" }), { params });
     expect(res.status).toBe(404);
   });
+
+  it("normalizes a run_status synonym (in_progress -> running) instead of 502-ing at the enum", async () => {
+    configure();
+    const res = await POST(logRequest("Bearer secret", { message: "x", run_status: "in_progress" }), { params });
+    expect(res.status).toBe(201);
+    expect(logMock).toHaveBeenCalledWith("t1", expect.objectContaining({ runStatus: "running" }), undefined, expect.anything());
+  });
+
+  it("400s on an unknown run_status instead of forwarding it to Postgres", async () => {
+    configure();
+    const res = await POST(logRequest("Bearer secret", { message: "x", run_status: "sideways" }), { params });
+    expect(res.status).toBe(400);
+    expect(logMock).not.toHaveBeenCalled();
+  });
 });

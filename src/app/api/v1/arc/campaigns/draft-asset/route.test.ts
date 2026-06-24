@@ -122,6 +122,47 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     );
   });
 
+  it("400s on an unknown asset_type instead of letting it 502 at Postgres", async () => {
+    configure();
+    const res = await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "banana", title: "x" }));
+    expect(res.status).toBe(400);
+    expect(promoteMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes a known asset_type alias (video_ad -> video_prompt) and persists the real enum value", async () => {
+    configure();
+    const res = await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "video_ad", title: "Clip" }));
+    expect(res.status).toBe(201);
+    expect(promoteMock).toHaveBeenCalledWith(expect.objectContaining({ assetType: "video_prompt" }));
+  });
+
+  it("400s on an unknown restoration_focus when creating a new campaign", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "lava" }),
+    );
+    expect(res.status).toBe(400);
+    expect(shellMock).not.toHaveBeenCalled();
+  });
+
+  it("400s on an unknown persona when creating a new campaign", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_alien", restoration_focus: "flood" }),
+    );
+    expect(res.status).toBe(400);
+    expect(shellMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes the restoration_focus alias water -> water_backup on the shell", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "water" }),
+    );
+    expect(res.status).toBe(201);
+    expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "water_backup" }));
+  });
+
   it("attaches to an existing campaign without creating a shell", async () => {
     configure();
     const res = await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "email", title: "Reminder" }));

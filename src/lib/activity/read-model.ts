@@ -70,7 +70,11 @@ const DEFAULT_LIMIT = 100;
 const ACTIVE_REVIEW_STATUSES = new Set(["needs_compliance", "pending_approval", "pending_owner_approval", "revision_requested"]);
 const TERMINAL_REVIEW_STATUSES = new Set(["approved", "rejected", "declined", "archived"]);
 
-export async function getRecentActivity(query: ActivityQuery = {}, client?: SupabaseClient): Promise<RecentActivity> {
+export async function getRecentActivity(
+  query: ActivityQuery = {},
+  client?: SupabaseClient,
+  orgId?: string,
+): Promise<RecentActivity> {
   const limit = query.limit ?? DEFAULT_LIMIT;
   const sourceLimit = sourceLimitForQuery(query);
 
@@ -81,31 +85,51 @@ export async function getRecentActivity(query: ActivityQuery = {}, client?: Supa
   }
 
   try {
-    const supabase = client ?? getSupabaseAdminClient();
+    // Untyped on purpose: this read-model merges many tables whose generated
+    // types are stale (several lack the org_id column the migrations added), and
+    // every row is consumed as a loose Record<string, unknown> by the mappers.
+    // Pinning the loose SupabaseClient keeps the org-scope .eq("org_id", …) filters
+    // compiling regardless of generated-type drift.
+    const supabase: SupabaseClient = client ?? getSupabaseAdminClient();
+
+    // Tenant isolation: when an orgId is supplied (Arc API tokens via arcGuard),
+    // every source MUST be org-scoped — the service-role client bypasses RLS, so
+    // this app-layer filter is the only boundary. agent_run_logs has no org_id
+    // column, so it's scoped indirectly through its task's org.
+    let scopedTaskIds: string[] = [];
+    if (orgId) {
+      const { data: taskRows } = await supabase.from("agent_tasks").select("id").eq("org_id", orgId);
+      scopedTaskIds = (taskRows ?? []).map((r: { id: string }) => r.id);
+    }
+
+    const decisionsSel = supabase
+      .from("approval_decisions")
+      .select("id,approval_item_id,decision,decided_by,decided_at,decision_notes");
+    const runsSel = supabase
+      .from("agent_run_logs")
+      .select("id,task_id,run_status,model_provider,model_name,reasoning_summary,error_message,started_at,completed_at,created_at");
+    const outputsSel = supabase
+      .from("agent_outputs")
+      .select("id,task_id,approval_item_id,title,output_type,risk_level,compliance_status,approval_status,created_at");
+    const campaignEventsSel = supabase
+      .from("campaign_events")
+      .select("id,campaign_id,approval_item_id,event_type,actor,detail,payload,occurred_at");
+    const eventsSel = supabase.from("events").select("id,actor,subject_type,subject_id,type,payload,occurred_at");
+
     const [decisions, runs, outputs, campaignEvents, events] = await Promise.all([
-      supabase
-        .from("approval_decisions")
-        .select("id,approval_item_id,decision,decided_by,decided_at,decision_notes")
+      (orgId ? decisionsSel.eq("org_id", orgId) : decisionsSel)
         .order("decided_at", { ascending: false })
         .limit(sourceLimit),
-      supabase
-        .from("agent_run_logs")
-        .select("id,task_id,run_status,model_provider,model_name,reasoning_summary,error_message,started_at,completed_at,created_at")
+      (orgId ? runsSel.in("task_id", scopedTaskIds) : runsSel)
         .order("created_at", { ascending: false })
         .limit(sourceLimit),
-      supabase
-        .from("agent_outputs")
-        .select("id,task_id,approval_item_id,title,output_type,risk_level,compliance_status,approval_status,created_at")
+      (orgId ? outputsSel.eq("org_id", orgId) : outputsSel)
         .order("created_at", { ascending: false })
         .limit(sourceLimit),
-      supabase
-        .from("campaign_events")
-        .select("id,campaign_id,approval_item_id,event_type,actor,detail,payload,occurred_at")
+      (orgId ? campaignEventsSel.eq("org_id", orgId) : campaignEventsSel)
         .order("occurred_at", { ascending: false })
         .limit(sourceLimit),
-      supabase
-        .from("events")
-        .select("id,actor,subject_type,subject_id,type,payload,occurred_at")
+      (orgId ? eventsSel.eq("org_id", orgId) : eventsSel)
         .order("occurred_at", { ascending: false })
         .limit(sourceLimit),
     ]);
