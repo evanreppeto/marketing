@@ -41,7 +41,7 @@ export const templateMinimal: CreativeTemplate = ({ brand, copy, dims, backgroun
         }}
       >
         {logoDataUrl ? (
-          <img src={logoDataUrl} style={{ height: 64 * u, objectFit: "contain" }} />
+          <img src={logoDataUrl} style={{ width: 300 * u, height: 64 * u, objectFit: "contain" }} />
         ) : (
           <div style={{ display: "flex", color: brand.light, fontFamily: "Heading", fontSize: 38 * u }}>{brand.displayName}</div>
         )}
@@ -67,6 +67,7 @@ export const templateMinimal: CreativeTemplate = ({ brand, copy, dims, backgroun
               WebkitBoxOrient: "vertical",
               WebkitLineClamp: 3,
               overflow: "hidden",
+              textOverflow: "ellipsis",
               color: brand.light,
               fontFamily: "Heading",
               fontSize: 64 * u,

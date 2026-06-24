@@ -62,6 +62,7 @@ export const templateEditorial: CreativeTemplate = ({ brand, copy, dims, backgro
             WebkitBoxOrient: "vertical",
             WebkitLineClamp: 3,
             overflow: "hidden",
+            textOverflow: "ellipsis",
             color: brand.light,
             fontFamily: "Heading",
             fontSize: 70 * u,
@@ -97,7 +98,7 @@ export const templateEditorial: CreativeTemplate = ({ brand, copy, dims, backgro
         }}
       >
         {logoDataUrl ? (
-          <img src={logoDataUrl} style={{ height: 56 * u, objectFit: "contain" }} />
+          <img src={logoDataUrl} style={{ width: 260 * u, height: 56 * u, objectFit: "contain" }} />
         ) : (
           <div style={{ display: "flex", color: brand.light, fontFamily: "Heading", fontSize: 34 * u }}>{brand.displayName}</div>
         )}

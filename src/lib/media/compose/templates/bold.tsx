@@ -40,7 +40,7 @@ export const templateBold: CreativeTemplate = ({ brand, copy, dims, backgroundDa
       {logoDataUrl ? (
         <img
           src={logoDataUrl}
-          style={{ position: "absolute", top: 56 * u, left: 56 * u, height: 72 * u, objectFit: "contain" }}
+          style={{ position: "absolute", top: 56 * u, left: 56 * u, width: 300 * u, height: 72 * u, objectFit: "contain" }}
         />
       ) : (
         <div
@@ -93,7 +93,11 @@ export const templateBold: CreativeTemplate = ({ brand, copy, dims, backgroundDa
         ) : null}
         <div
           style={{
-            display: "flex",
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
             color: brand.light,
             fontFamily: "Heading",
             fontSize: 78 * u,

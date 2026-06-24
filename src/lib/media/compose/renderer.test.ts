@@ -39,4 +39,20 @@ describe("renderCreative", () => {
       }
     }
   }, 30000);
+
+  it("renders with a logo without throwing", async () => {
+    const TINY_PNG =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const brand = { ...toBrandTokens(null), logoUrl: TINY_PNG };
+    for (const template of ["bold", "editorial", "minimal"] as const) {
+      const out = await renderCreative({
+        template,
+        format: "1:1",
+        brand,
+        copy: { headline: "Logo path renders", kicker: "Test", ctaLabel: "Go" },
+        backgroundUrl: TINY_PNG,
+      });
+      expect(out.bytes.subarray(0, 4).toString("hex")).toBe("89504e47");
+    }
+  }, 30000);
 });
