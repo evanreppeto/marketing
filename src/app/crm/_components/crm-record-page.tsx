@@ -46,12 +46,13 @@ const RECORD_FEEDBACK = [
 
 type CrmRecordPageProps = {
   action?: string;
+  tab?: string;
   objectKey: CrmObjectKey;
   recordId: string;
 };
 
 
-export async function CrmRecordPage({ action, objectKey, recordId }: CrmRecordPageProps) {
+export async function CrmRecordPage({ action, tab, objectKey, recordId }: CrmRecordPageProps) {
   // Demo fallback records (rendered when Supabase is unconfigured/empty) use
   // stable string ids like "demo-ld-northside-referral" rather than UUIDs. Let
   // those through so the read-model can resolve them; genuinely unknown ids

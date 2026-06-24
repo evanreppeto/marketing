@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ recordId:
 
 type PageProps = {
   params: Promise<{ recordId: string }>;
-  searchParams?: Promise<{ action?: string | string[] }>;
+  searchParams?: Promise<{ action?: string | string[]; tab?: string | string[] }>;
 };
 
 export default async function Page({ params, searchParams }: PageProps) {
@@ -25,7 +25,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   const { recordId } = await params;
   const query = searchParams ? await searchParams : {};
 
-  return <CrmRecordPage action={getValue(query.action)} objectKey="contacts" recordId={recordId} />;
+  return <CrmRecordPage action={getValue(query.action)} tab={getValue(query.tab)} objectKey="contacts" recordId={recordId} />;
 }
 
 function getValue(value: string | string[] | undefined) {
