@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
-import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { CampaignResolutionError, promoteAssetToCampaign, resolveOrCreateCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
 /**
@@ -61,20 +61,20 @@ export async function POST(request: Request) {
   const operator = "Arc";
 
   try {
-    let campaignId = campaignIdIn;
-    if (!campaignId) {
-      const name = str(body.name);
-      const persona = str(body.persona);
-      const restorationFocus = str(body.restoration_focus);
-      if (!name || !persona || !restorationFocus) {
-        return fail(
-          "rejected",
-          "To create a new campaign, name, persona, and restoration_focus are required (or pass campaign_id to attach to an existing campaign).",
-          400,
-        );
-      }
-      const shell = await createCampaignShell({ operator, name, persona, restorationFocus, agentName: "Arc", tenant });
-      campaignId = shell.campaignId;
+    let campaignId: string;
+    try {
+      ({ campaignId } = await resolveOrCreateCampaign({
+        operator,
+        campaignId: campaignIdIn,
+        name: str(body.name),
+        persona: str(body.persona),
+        restorationFocus: str(body.restoration_focus),
+        agentName: "Arc",
+        tenant,
+      }));
+    } catch (error) {
+      if (error instanceof CampaignResolutionError) return fail("rejected", error.message, 400);
+      throw error;
     }
 
     const asset = await promoteAssetToCampaign({
