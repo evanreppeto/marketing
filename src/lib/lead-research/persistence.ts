@@ -53,7 +53,7 @@ export async function persistLeadResearch(
         email: input.company.email,
       });
       if (Object.keys(patch).length > 0) {
-        const { error } = await supabase.from("companies").update(patch).eq("id", companyId).eq("org_id", orgId);
+        const { error } = await supabase.from("companies").update(patch as never).eq("id", companyId).eq("org_id", orgId);
         if (error) return { ok: false, error: error.message };
         enriched = true;
         await logActivity(orgId, "company", companyId, "record_updated", `Arc enriched ${input.company.name}`, provenance);
@@ -94,7 +94,7 @@ export async function persistLeadResearch(
         const contactId = existing.id as string;
         const patch = blankOnlyPatch(existing, incoming);
         if (Object.keys(patch).length > 0) {
-          const { error } = await supabase.from("contacts").update(patch).eq("id", contactId).eq("org_id", orgId);
+          const { error } = await supabase.from("contacts").update(patch as never).eq("id", contactId).eq("org_id", orgId);
           if (error) return { ok: false, error: error.message };
           enriched = true;
           await logActivity(orgId, "contact", contactId, "record_updated", "Arc enriched contact", provenance);
@@ -159,7 +159,7 @@ export async function persistLeadResearch(
 
 async function fetchById(
   supabase: SupabaseClientLike,
-  table: string,
+  table: "companies" | "contacts" | "properties" | "leads",
   columns: string,
   id: string,
   orgId: string,
@@ -202,7 +202,7 @@ async function fetchContact(
 
 async function insertReturningId(
   supabase: SupabaseClientLike,
-  table: string,
+  table: "companies" | "contacts" | "properties" | "leads",
   values: Record<string, unknown>,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const { data, error } = await supabase.from(table).insert(values).select("id").single<{ id: string }>();
