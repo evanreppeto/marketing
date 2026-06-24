@@ -34,7 +34,7 @@ export function KpiBand({ kpis }: { kpis: Kpi[] }) {
       {kpis.map((kpi) => {
         const body = (
           <>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-muted)]">
               <span className={`h-1.5 w-1.5 rounded-full ${DOT[kpi.toneVar]}`} aria-hidden="true" />
               {kpi.label}
             </div>

@@ -325,7 +325,7 @@ function StateBadge({ row }: { row: ComparisonRowData }) {
             };
 
   return (
-    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${config.className}`}>
+    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium ${config.className}`}>
       {config.label}
     </span>
   );
@@ -372,7 +372,7 @@ function AnalyticsBrandBadge({
   return (
     <div className="flex items-center gap-2 rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
       {demo ? (
-        <span className="rounded-[4px] border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--warn-text)]">
+        <span className="rounded-[4px] border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--warn-text)]">
           Demo data
         </span>
       ) : null}
@@ -435,7 +435,7 @@ function DossierStat({
   return (
     <div className="rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
       <div className={`font-display text-xl font-semibold tabular-nums ${valueClass}`}>{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-0.5 text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }

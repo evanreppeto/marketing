@@ -12,7 +12,7 @@ const inputClass =
 const textareaClass =
   "min-h-24 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)] resize-y";
 
-const subsectionHeadingClass = "text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] mb-3 mt-1";
+const subsectionHeadingClass = "text-xs font-medium text-[var(--text-muted)] mb-3 mt-1";
 
 function Feedback({ state }: { state: BrandKitActionState }) {
   if (!state) return null;

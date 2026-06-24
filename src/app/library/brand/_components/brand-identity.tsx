@@ -134,7 +134,7 @@ export function BrandIdentity({ agentName, profile }: { agentName: string; profi
               ))}
               {fonts.length > 0 ? (
                 <div className="ml-1 self-start border-l border-[var(--border-hairline)] pl-4 text-xs text-[var(--text-secondary)]">
-                  <div className="font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Type</div>
+                  <div className="font-medium text-[var(--text-muted)]">Type</div>
                   {profile.brandPalette.headingFont ? <div className="mt-1.5">Headings · {profile.brandPalette.headingFont}</div> : null}
                   {profile.brandPalette.bodyFont ? <div>Body · {profile.brandPalette.bodyFont}</div> : null}
                 </div>

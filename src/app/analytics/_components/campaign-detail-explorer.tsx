@@ -159,7 +159,7 @@ function Segmented({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[11px] font-medium text-[var(--text-muted)]">{label}</span>
       <div className="inline-flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
         {options.map((o) => {
           const active = o.value === value;
@@ -311,7 +311,7 @@ function ApprovalDonut({ approval }: { approval: CampaignAnalyticsDemoDetail["ap
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-display text-2xl font-bold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">{approval.readiness}%</span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">approved</span>
+        <span className="text-[10px] font-medium text-[var(--text-muted)]">approved</span>
       </div>
     </div>
   );
@@ -333,7 +333,7 @@ const STATUS_TONE: Record<CampaignDetailAssetRow["status"], string> = {
 
 function Chip({ className, children }: { className: string; children: React.ReactNode }) {
   return (
-    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${className}`}>
+    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium ${className}`}>
       {children}
     </span>
   );
@@ -347,7 +347,7 @@ function AssetTable({ assets }: { assets: CampaignDetailAssetRow[] }) {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-[var(--border-hairline)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+          <tr className="border-b border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-muted)]">
             <th className="px-5 py-2.5 text-left font-semibold">Asset</th>
             <th className="px-3 py-2.5 text-left font-semibold">Source</th>
             <th className="px-3 py-2.5 text-right font-semibold">Impr.</th>

@@ -26,7 +26,7 @@ export function ArcActivityRail({
       </div>
 
       <div className="mt-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Drafting now</div>
+        <div className="text-xs font-medium text-[var(--text-muted)]">Drafting now</div>
         {activity.drafting.length > 0 ? (
           <ul className="mt-2 space-y-1.5">
             {activity.drafting.map((task, i) => (
@@ -50,7 +50,7 @@ export function ArcActivityRail({
       </Link>
 
       <div className="mt-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Recent output</div>
+        <div className="text-xs font-medium text-[var(--text-muted)]">Recent output</div>
         {activity.recentOutputs.length > 0 ? (
           <ul className="mt-2 divide-y divide-[var(--border-hairline)]">
             {activity.recentOutputs.map((output, i) => (

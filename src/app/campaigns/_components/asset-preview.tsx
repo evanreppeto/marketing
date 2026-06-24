@@ -120,7 +120,7 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
       rel="noreferrer"
       className="flex h-36 flex-col justify-between rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
     >
-      <span className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+      <span className="text-xs font-medium text-[var(--text-muted)]">
         {media.type === "embed" ? "Video" : media.type === "file" ? "File" : "Link"}
       </span>
       <span className="line-clamp-2 text-sm font-semibold text-[var(--text-primary)]">{media.title}</span>

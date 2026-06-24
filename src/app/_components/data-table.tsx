@@ -39,7 +39,7 @@ export function DataTable<T>({
     <div className="overflow-x-auto">
       <table className={`w-full ${minWidth} border-separate border-spacing-0 text-left text-sm`}>
         <thead>
-          <tr className="bg-[var(--surface-inset)] text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          <tr className="bg-[var(--surface-inset)] text-[11px] text-[var(--text-muted)]">
             {columns.map((column) => (
               <th
                 key={column.key}

@@ -182,7 +182,7 @@ function CampaignOperationsDossier({
               </div>
             )}
             <div className="p-3">
-              <div className="signal-eyebrow">Selected packet</div>
+              <div className="text-[11px] font-medium text-[var(--text-muted)]">Selected packet</div>
               <h2 className="mt-2 text-base font-semibold leading-6 text-[var(--text-primary)]">{selected.name}</h2>
               <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">
                 {selected.objective || selected.audienceSummary || "Open the packet to review audience, offer, draft pieces, and launch status."}
@@ -205,7 +205,7 @@ function CampaignOperationsDossier({
           </p>
         )}
         <div className="rounded-[8px] border border-[var(--accent-border)] bg-[var(--accent-soft)] p-3">
-          <div className="signal-eyebrow text-[var(--accent-contrast)]">Arc recommendation</div>
+          <div className="text-[11px] font-semibold text-[var(--accent-contrast)]">Arc recommendation</div>
           <p className="mt-2 text-sm font-semibold leading-6 text-[var(--text-primary)]">
             Keep approvals separate from launch. Review each packet, then send only after the operator lock is clear.
           </p>
@@ -228,7 +228,7 @@ function DossierStat({
   return (
     <div className="rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
       <div className={`font-display text-xl font-semibold tabular-nums ${valueClass}`}>{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-0.5 text-[11px] font-medium text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }

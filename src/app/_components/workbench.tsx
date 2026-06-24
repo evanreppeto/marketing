@@ -8,7 +8,6 @@ export function WorkbenchFrame({
   aside,
   children,
   description,
-  eyebrow,
   tabs,
   title,
 }: {
@@ -27,8 +26,7 @@ export function WorkbenchFrame({
       <header className="mb-4 border-b border-[var(--border-hairline)] pb-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="min-w-0">
-            {eyebrow ? <div className="signal-eyebrow mb-2">{eyebrow}</div> : null}
-            <h1 className="font-display text-[clamp(1.85rem,2.2vw,2.45rem)] font-semibold leading-none tracking-[-0.02em] text-[var(--text-primary)]">
+            <h1 className="font-editorial text-[clamp(1.9rem,2.9vw,2.6rem)] font-medium leading-[1.03] tracking-[-0.02em] text-[var(--text-primary)]">
               {title}
             </h1>
             {description ? (
@@ -76,7 +74,7 @@ export function MetricCell({
           : "text-[var(--text-primary)]";
   return (
     <div className="min-w-0 border-b border-r border-[var(--border-hairline)] px-4 py-3 last:border-r-0 xl:border-b-0">
-      <div className="truncate text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{label}</div>
+      <div className="truncate text-[11px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className={cx("mt-1 font-display text-2xl font-semibold tabular-nums tracking-[-0.02em]", valueClass)}>
         {value}
       </div>

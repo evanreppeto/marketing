@@ -292,7 +292,7 @@ function RailDateInput({
 
 function RailLabel({ label, state }: { label: string; state: FieldState[string] }) {
   return (
-    <span className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+    <span className="flex items-center justify-between gap-2 text-[11px] font-medium text-[var(--text-muted)]">
       {label}
       {state ? <span className={state === "failed" ? "normal-case tracking-normal text-[var(--warn)]" : "normal-case tracking-normal"}>{stateText(state)}</span> : null}
     </span>

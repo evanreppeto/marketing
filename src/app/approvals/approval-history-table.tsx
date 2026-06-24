@@ -161,7 +161,7 @@ export function ApprovalHistoryTable({ decisions }: { decisions: ApprovalHistory
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1100px] text-sm">
           <thead>
-            <tr className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] text-left text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+            <tr className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] text-left text-xs font-medium text-[var(--text-muted)]">
               <th className="px-5 py-3">When</th>
               <th className="px-5 py-3">Decision</th>
               <th className="px-5 py-3">Item</th>

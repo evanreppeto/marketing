@@ -54,7 +54,7 @@ export function RecordTimeline({ entries }: { entries: TimelineEntry[] }) {
                 {entry.detail ? (
                   <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{entry.detail}</p>
                 ) : null}
-                <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                <div className="mt-1 text-xs font-medium text-[var(--text-muted)]">
                   {when(entry.occurredAt)}
                 </div>
               </div>

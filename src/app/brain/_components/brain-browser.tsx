@@ -18,7 +18,7 @@ export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[];
   if (nodes.length === 0) {
     return (
       <Panel>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Brain</h2>
+        <h2 className="mb-3 text-sm font-medium text-[var(--text-muted)]">Brain</h2>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">
           No facts for this filter. Run{" "}
           <code className="rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono text-xs text-[var(--text-primary)]">pnpm seed:brain</code>{" "}
@@ -42,7 +42,7 @@ export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[];
     {
       key: "kind",
       header: "Kind",
-      cell: (n) => <span className="text-xs uppercase tracking-[0.08em] text-[var(--text-muted)]">{n.kind.replace(/_/g, " ")}</span>,
+      cell: (n) => <span className="text-xs text-[var(--text-muted)]">{n.kind.replace(/_/g, " ")}</span>,
     },
     {
       key: "source",
@@ -79,7 +79,7 @@ export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[];
 
   return (
     <Panel>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Brain ({nodes.length})</h2>
+      <h2 className="mb-3 text-sm font-medium text-[var(--text-muted)]">Brain ({nodes.length})</h2>
       <DataTable columns={columns} rows={nodes} rowKey={(n) => n.id} minWidth="min-w-[760px]" />
     </Panel>
   );

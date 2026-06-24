@@ -147,7 +147,7 @@ export function TaskKanbanBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
 
       <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Color key</span>
+          <span className="text-[11px] font-medium text-[var(--text-muted)]">Color key</span>
           {COLUMNS.map((column) => {
             const appearance = statusAppearance(column.key);
             return (
@@ -370,7 +370,7 @@ function Card({
       {task.campaignLabel ? (
         <div className="mb-2 flex items-center justify-between gap-1.5">
           <span
-            className="inline-flex min-w-0 items-center gap-1.5 rounded border px-1.5 py-px text-[10px] font-bold uppercase tracking-[0.04em]"
+            className="inline-flex min-w-0 items-center gap-1.5 rounded border px-1.5 py-px text-[10px] font-medium"
             style={badgeStyle(status)}
           >
             <span className="h-1.5 w-1.5 shrink-0 rounded-[2px]" style={{ background: priority.accent }} />

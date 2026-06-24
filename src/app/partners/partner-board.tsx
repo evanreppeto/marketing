@@ -236,7 +236,7 @@ function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
           <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{partner.summary}</p>
         </div>
         <div className="shrink-0 text-left sm:text-right">
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Revenue</div>
+          <div className="text-xs font-medium text-[var(--text-muted)]">Revenue</div>
           <div className="mt-1 font-display text-2xl font-bold tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">{partner.revenue}</div>
         </div>
       </div>
@@ -249,7 +249,7 @@ function PartnerDevelopmentCard({ partner }: { partner: PartnerCard }) {
       </dl>
 
       <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{agentName}-safe next action</div>
+        <div className="text-xs font-medium text-[var(--text-muted)]">{agentName}-safe next action</div>
         <p className="mt-1 text-sm font-semibold leading-6 text-[var(--text-primary)]">{partner.nextAction}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={partner.nextActionHref}>
@@ -317,7 +317,7 @@ function isInteractiveTarget(target: EventTarget | null) {
 function MiniStat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</dt>
+      <dt className="text-[11px] font-medium text-[var(--text-muted)]">{label}</dt>
       <dd className="mt-1 truncate text-sm font-bold tabular-nums text-[var(--text-primary)]">{value}</dd>
     </div>
   );

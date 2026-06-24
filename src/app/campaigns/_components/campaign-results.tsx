@@ -38,7 +38,7 @@ export function CampaignResults({ results }: { results: CampaignResultsModel }) 
 function TierShell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="p-4">
-      <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{title}</h3>
+      <h3 className="text-xs font-medium text-[var(--text-muted)]">{title}</h3>
       <div className="mt-3">{children}</div>
     </div>
   );
@@ -114,7 +114,7 @@ function OutcomesTierView({ outcomes }: { outcomes: OutcomesTier }) {
         <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {outcomes.stats.map((s) => (
             <div key={s.label} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
-              <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{s.label}</dt>
+              <dt className="text-[10px] font-medium text-[var(--text-muted)]">{s.label}</dt>
               <dd className="mt-1 font-mono text-lg font-bold leading-none tabular-nums text-[var(--text-primary)]">{s.value}</dd>
             </div>
           ))}
@@ -128,7 +128,7 @@ function MetricRow({ label, stats }: { label: string; stats: MetricStat[] }) {
   if (stats.length === 0) return null;
   return (
     <div>
-      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 flex flex-wrap gap-2">
         {stats.map((s) => (
           <span key={s.label} className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-2 py-1 text-xs text-[var(--text-secondary)]">

@@ -322,7 +322,7 @@ export function ComponentPreviewShowroom() {
         <CompareCard label="MUI X Sparkline" note="Good for tiny performance context.">
           <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Booked jobs</div>
+              <div className="text-[10px] font-medium text-[var(--text-muted)]">Booked jobs</div>
               <div className="mt-1 font-mono text-3xl font-semibold text-[var(--text-primary)]">14</div>
             </div>
             <div className="h-20 w-40 max-w-full">
@@ -373,7 +373,7 @@ function LibraryLane({
     >
       <div className="border-b border-[var(--border-hairline)] p-4">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{source}</div>
+          <div className="text-[10px] font-medium text-[var(--text-muted)]">{source}</div>
           {choice ? (
             <span className="shrink-0 rounded-[3px] border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
               Chosen
@@ -512,7 +512,7 @@ function CompareCard({ label, note, children }: { label: string; note: string; c
 function MetaRow({ label, value, meta, tone = "neutral" }: { label: string; value: string; meta: string; tone?: "neutral" | "warn" | "ok" }) {
   return (
     <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-3 border-b border-[var(--border-hairline)] pb-2 last:border-b-0 last:pb-0">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[10px] font-medium text-[var(--text-muted)]">{label}</span>
       <span className="min-w-0">
         <span
           className={cx(

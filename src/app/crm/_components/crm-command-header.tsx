@@ -24,7 +24,7 @@ export function CrmCommandHeader({ activeObject, counts }: CrmCommandHeaderProps
             <p className="mt-2 text-sm text-[var(--text-secondary)]">Switch the object lane without changing the page header pattern.</p>
           </div>
           <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-            <div className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">Search lives inside each table</div>
+            <div className="text-xs font-medium text-[var(--accent)]">Search lives inside each table</div>
             <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
               Open a CRM object, then use the record table search and page controls to find exactly what you need.
             </p>

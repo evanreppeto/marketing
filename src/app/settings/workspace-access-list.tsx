@@ -40,7 +40,7 @@ function MemberRow({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{labelForEmail(member)}</span>
-          {isSelf ? <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">You</span> : null}
+          {isSelf ? <span className="text-[10px] font-medium text-[var(--text-muted)]">You</span> : null}
           <StatusPill tone={member.status === "active" ? "green" : "amber"}>{member.status}</StatusPill>
         </div>
         <div className="mt-0.5 text-xs text-[var(--text-muted)]">Joined {formatDate(member.joinedAt)}</div>

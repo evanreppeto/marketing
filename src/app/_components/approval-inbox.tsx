@@ -141,7 +141,7 @@ export function ApprovalInbox({ items }: { items: InboxItem[] }) {
 
                 <div className="flex flex-col justify-between gap-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Human action</div>
+                    <div className="text-xs font-medium text-[var(--text-muted)]">Human action</div>
                     <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
                       {isHighRisk(item.riskLevel) ? "Open the full packet before deciding." : "Review the packet summary, then decide or open details."}
                     </p>
@@ -194,7 +194,7 @@ function isInteractiveTarget(target: EventTarget | null) {
 function InboxDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[11px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value || "Missing"}</div>
     </div>
   );

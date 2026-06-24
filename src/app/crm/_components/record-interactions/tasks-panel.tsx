@@ -90,7 +90,7 @@ export function TasksPanel({
                 <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{task.description}</p>
               ) : null}
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                <span className="text-xs font-medium text-[var(--text-muted)]">
                   Due {dueLabel(task.dueAt)}
                 </span>
                 <form action={completeTaskAction}>
@@ -106,7 +106,7 @@ export function TasksPanel({
           ))
         )}
         {done.length > 0 ? (
-          <div className="pt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+          <div className="pt-1 text-xs font-medium text-[var(--text-muted)]">
             {done.length} completed / closed
           </div>
         ) : null}

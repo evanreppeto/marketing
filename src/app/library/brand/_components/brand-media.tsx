@@ -69,7 +69,7 @@ function MediaTile({ asset }: { asset: MediaAssetView }) {
         </div>
       )}
       {!asset.availableToArc ? (
-        <span className="absolute inset-x-0 bottom-0 bg-[color-mix(in_srgb,var(--canvas)_82%,transparent)] px-1.5 py-0.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+        <span className="absolute inset-x-0 bottom-0 bg-[color-mix(in_srgb,var(--canvas)_82%,transparent)] px-1.5 py-0.5 text-center text-[10px] font-medium text-[var(--text-muted)]">
           Hidden
         </span>
       ) : null}

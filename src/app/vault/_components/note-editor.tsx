@@ -5,7 +5,7 @@ import type { VaultNote } from "@/domain";
 
 const STATUSES = ["Draft", "Needs review", "Published"] as const;
 const FIELD = "w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
-const LABEL = "text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]";
+const LABEL = "text-xs font-medium text-[var(--text-muted)]";
 
 export function NoteEditor({ note }: { note?: VaultNote }) {
   return (

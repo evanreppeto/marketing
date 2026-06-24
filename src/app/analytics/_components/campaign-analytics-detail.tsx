@@ -90,7 +90,7 @@ export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveC
         {performance.status === "live" && performance.trafficTracked && performance.traffic.hasData ? (
           <div className="grid gap-5 p-4 xl:grid-cols-2">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Total events</div>
+              <div className="text-xs font-medium text-[var(--text-muted)]">Total events</div>
               <div className="mt-2 font-display text-3xl font-bold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">
                 {performance.traffic.totalEvents}
               </div>
@@ -173,7 +173,7 @@ export function CampaignAnalyticsDetail({ detail, performance }: { detail: LiveC
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-2 font-display text-2xl font-bold tabular-nums tracking-[-0.04em] text-[var(--text-primary)]">{value}</div>
     </div>
   );
@@ -182,7 +182,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function TrafficList({ title, rows }: { title: string; rows: Array<{ label: string; count: number }> }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{title}</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">{title}</div>
       <div className="mt-2 divide-y divide-[var(--border-hairline)] overflow-hidden rounded-xl border border-[var(--border-hairline)]">
         {rows.map((row) => (
           <div key={row.label} className="flex items-center justify-between gap-3 px-4 py-2.5">

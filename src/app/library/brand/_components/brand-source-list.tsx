@@ -103,7 +103,7 @@ export function BrandSourceList({
 
         {data.driveSources.length > 0 ? (
           <div className="border-t border-[var(--border-hairline)]">
-            <div className="bg-[var(--surface-inset)] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            <div className="bg-[var(--surface-inset)] px-5 py-2.5 text-xs font-medium text-[var(--text-muted)]">
               Drive folders
             </div>
             <div className="divide-y divide-[var(--border-hairline)]">

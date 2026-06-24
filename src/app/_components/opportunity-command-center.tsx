@@ -190,7 +190,7 @@ export function OpportunityCommandCenter({ buckets }: { buckets: OpportunityBuck
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{activeBucket.detail}</p>
           <div className="mt-4 grid gap-2">
             <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Visible records</div>
+              <div className="text-xs font-medium text-[var(--text-muted)]">Visible records</div>
               <div className="mt-1 font-mono text-lg font-bold tabular-nums text-[var(--text-primary)]">{visibleRows.length}</div>
             </div>
             <Link

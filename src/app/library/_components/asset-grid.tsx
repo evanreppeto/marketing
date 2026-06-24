@@ -111,7 +111,7 @@ export function AssetGrid({
           {filtered.map((a) => (
             <figure
               key={a.id}
-              className="group relative overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] transition hover:-translate-y-0.5 hover:border-[var(--accent-border-strong)] hover:shadow-[var(--elev-card)]"
+              className="group relative overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-panel)] transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)]"
             >
               <button
                 type="button"

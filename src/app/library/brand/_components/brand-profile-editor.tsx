@@ -245,7 +245,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
         <div className="grid gap-0 xl:grid-cols-[260px_minmax(0,1fr)_320px]">
           <aside className="border-b border-[var(--border-hairline)] bg-[var(--surface-panel)] p-3 xl:border-b-0 xl:border-r">
             <label className="mb-4 grid gap-1.5 border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Quick start</span>
+              <span className="text-xs font-medium text-[var(--text-muted)]">Quick start</span>
               <select className={inputClass} defaultValue="" onChange={(event) => applyTemplate(event.target.value)}>
                 <option disabled value="">
                   Apply template
@@ -258,7 +258,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
               </select>
             </label>
 
-            <div className="mb-2 px-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            <div className="mb-2 px-2 text-xs font-medium text-[var(--text-muted)]">
               Sections
             </div>
             <div className="grid gap-1.5">
@@ -568,7 +568,7 @@ function ColorRow({
         />
       </label>
       <label className="grid gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Hex</span>
+        <span className="text-xs font-medium text-[var(--text-muted)]">Hex</span>
         <input
           className={inputClass}
           name={`palette_${slot}_hex`}
@@ -578,7 +578,7 @@ function ColorRow({
         />
       </label>
       <label className="grid gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Label (optional)</span>
+        <span className="text-xs font-medium text-[var(--text-muted)]">Label (optional)</span>
         <input
           className={inputClass}
           name={`palette_${slot}_label`}
@@ -734,7 +734,7 @@ function TextAreaField({
 function PreviewBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
       <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
     </div>
   );
@@ -743,7 +743,7 @@ function PreviewBlock({ label, value }: { label: string; value: string }) {
 function PreviewList({ empty, items, label }: { empty: string; items: string[]; label: string }) {
   return (
     <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
       {items.length > 0 ? (
         <ul className="mt-2 grid gap-1.5">
           {items.map((item) => (

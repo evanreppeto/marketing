@@ -63,7 +63,7 @@ function DonePulse() {
 function SectionLabel({ children, action, icon }: { children: React.ReactNode; action?: React.ReactNode; icon?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2 px-2 pt-3.5">
-      <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+      <p className="flex items-center gap-1.5 text-[10px] font-medium text-[var(--text-muted)]">
         {icon ?? <span aria-hidden className="h-2.5 w-px rounded-full bg-[var(--accent)]" />}
         {children}
       </p>
@@ -75,7 +75,7 @@ function SectionLabel({ children, action, icon }: { children: React.ReactNode; a
 /** Lighter sub-label for the date buckets inside the Chats history. */
 function DateLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-2 pb-0.5 pt-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]/80">
+    <p className="px-2 pb-0.5 pt-2.5 text-[10px] font-medium text-[var(--text-muted)]/80">
       {children}
     </p>
   );
@@ -294,7 +294,7 @@ function ChatRow({
         {c.pinnedAt ? <PinGlyph /> : null}
         <span className={cx("min-w-0 flex-1 truncate", state === "done" ? "font-semibold text-[var(--text-primary)]" : "")}>{c.title}</span>
         {shared ? (
-          <StatusPill tone="gray" className="shrink-0 px-1.5 py-0 text-[9px] uppercase tracking-[0.08em]">
+          <StatusPill tone="gray" className="shrink-0 px-1.5 py-0 text-[9px]">
             Shared
           </StatusPill>
         ) : null}
