@@ -93,12 +93,17 @@ async function main() {
 
   console.log("Fetching knowledge_nodes with no embedding (trusted + observed)…");
 
-  let offset = 0;
   let totalProcessed = 0;
   let totalEmbedded = 0;
   let totalErrors = 0;
 
-  // Paginate to avoid loading all rows into memory at once
+  // Always pull the FIRST BATCH_SIZE still-null rows — do NOT advance an offset.
+  // Each successful embed drops the row out of the `embedding IS NULL` set, so the
+  // next "first N null rows" are fresh. Advancing an offset while the set shrinks
+  // under us skips rows (it steps past the rows that just became non-null). We
+  // stop when a batch embeds nothing new, i.e. only un-embeddable rows remain
+  // (empty label/summary/body, or a persistent embed failure) — otherwise those
+  // rows would be re-fetched forever.
   while (true) {
     const { data: rows, error } = await supabase
       .from("knowledge_nodes")
@@ -106,7 +111,7 @@ async function main() {
       .is("embedding", null)
       .in("trust_tier", ELIGIBLE_TIERS)
       .order("created_at", { ascending: true })
-      .range(offset, offset + BATCH_SIZE - 1);
+      .range(0, BATCH_SIZE - 1);
 
     if (error) {
       console.error("Failed to fetch batch:", error.message);
@@ -115,8 +120,9 @@ async function main() {
 
     if (!rows || rows.length === 0) break;
 
-    console.log(`Processing batch of ${rows.length} rows (offset ${offset})…`);
+    console.log(`Processing batch of ${rows.length} still-unembedded rows…`);
 
+    let batchEmbedded = 0;
     for (const row of rows) {
       totalProcessed++;
       try {
@@ -136,6 +142,7 @@ async function main() {
           totalErrors++;
         } else {
           totalEmbedded++;
+          batchEmbedded++;
           if (totalEmbedded % 10 === 0) {
             console.log(`  Embedded ${totalEmbedded} nodes so far…`);
           }
@@ -146,9 +153,12 @@ async function main() {
       }
     }
 
-    // If fewer rows than BATCH_SIZE returned, we've processed all remaining rows
-    if (rows.length < BATCH_SIZE) break;
-    offset += BATCH_SIZE;
+    // No progress this pass → only un-embeddable rows remain. Stop rather than
+    // re-fetch the same rows forever.
+    if (batchEmbedded === 0) {
+      console.warn(`Stopping: ${rows.length} row(s) remain but none could be embedded this pass.`);
+      break;
+    }
   }
 
   console.log(
