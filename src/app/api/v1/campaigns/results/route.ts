@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { CampaignResultsValidationError, parseCampaignResultsPayload } from "@/domain";
 import { checkBearerToken } from "@/lib/auth/api-token";
+import { syncPerformanceForCampaigns } from "@/lib/brain-ingestion/sync";
 import { persistCampaignResults } from "@/lib/gallery/results-persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -52,7 +53,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const summary = await persistCampaignResults(parsed, getSupabaseAdminClient());
+    const client = getSupabaseAdminClient();
+    const summary = await persistCampaignResults(parsed, client);
+    // Mirror the just-ingested results into the Brain so Arc can recall what each
+    // campaign did. Best-effort + awaited — a sync hiccup must not fail ingestion.
+    await syncPerformanceForCampaigns(parsed.map((r) => r.campaign_id), { client }).catch(() => undefined);
     return NextResponse.json({ ok: true, status: "persisted", received: parsed.length, persistence: { status: "persisted", ...summary } }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to persist campaign results.";
