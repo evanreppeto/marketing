@@ -22,6 +22,15 @@ describe("connector registry", () => {
   it("findConnector returns null for an unknown key", () => {
     expect(findConnector("nope")).toBeNull();
   });
+
+  it("seeds higgsfield as a remote-MCP, gated-write connector with the loader fields set", () => {
+    const hf = findConnector("higgsfield");
+    expect(hf).toBeTruthy();
+    expect(hf?.mcpUrl).toBe("https://mcp.higgsfield.ai/mcp");
+    expect(hf?.authHeader).toBe("Authorization");
+    expect(hf?.toolNamespace).toBe("higgsfield");
+    expect(hf?.access).toBe("gated_write");
+  });
 });
 
 describe("computeConnectorStatus", () => {

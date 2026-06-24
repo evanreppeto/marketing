@@ -51,10 +51,4 @@ export * from "./brain-provenance";
 export * from "./brain-health";
 export * from "./activation";
 export * from "./arc-sharing";
-export * from "./brand-design";
-export {
-  renderBrandedEmail,
-  type BrandEmailTheme,
-  type EmailCta,
-  type BrandedEmailInput,
-} from "./email-templates";
+export * from "./higgsfield-models";

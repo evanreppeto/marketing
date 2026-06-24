@@ -9,6 +9,7 @@ import { buildQueryOptions, inferenceForRoute, type InferenceSettings } from "./
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode, type ArcMode, type ToolContext } from "./tools";
+import { buildRemoteMcp, fetchRemoteConnectors, remoteConnectorsAllowedForMode } from "./connectors";
 import { resolveArcSkill, type ArcSkill } from "./skills";
 import type {
   ArcActionCard,
@@ -104,6 +105,13 @@ async function runArcQuery(opts: {
 
   const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, { ...(opts.toolContext ?? {}), skill: opts.skill });
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
+
+  // Remote MCP connectors (e.g. Higgsfield) load only in work modes, and only if
+  // the workspace has them enabled+credentialed. Best-effort: none on failure, so
+  // a connector outage never breaks a turn — Arc falls back to its built-in tools.
+  const remote = remoteConnectorsAllowedForMode(opts.mode) ? await fetchRemoteConnectors(opts.client) : [];
+  const { mcpServers: remoteServers, allowedTools: remoteAllowed } = buildRemoteMcp(remote);
+
   const workspaceState = await resolveWorkspaceSummary(opts.client);
   const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, { ...opts.ctx, workspaceState });
 
@@ -122,8 +130,8 @@ async function runArcQuery(opts: {
     options: buildQueryOptions({
       inference: opts.inference,
       systemPrompt: system,
-      mcpServers: { arc: arcServer },
-      allowedTools: allowedToolNames(opts.mode, opts.skill),
+      mcpServers: { arc: arcServer, ...remoteServers },
+      allowedTools: [...allowedToolNames(opts.mode, opts.skill), ...remoteAllowed],
     }),
   })) {
     if (message.type === "stream_event") {

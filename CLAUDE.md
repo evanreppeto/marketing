@@ -66,7 +66,7 @@ Arc is **not** a generic chatbot. Arc operates as Big Shoulders Restoration's (B
 - **No outbound send/publish/launch/spend/contact action happens without explicit human approval.** Never add automatic outbound behavior. Keep every change approval-safe.
 - Arc may draft, recommend, score, prepare assets, and create approval-ready records — nothing that reaches the outside world without a human gate.
 - Prefer **approved real BSR media** wherever possible. AI creative should enhance/package/resize/test authentic BSR proof, not replace it.
-- **Higgsfield** (ad production, reframing, UGC-style variants, background removal, upscaling, virality analysis) stays **operationally off** until Evan confirms the subscription is active. Wire behind a flag; do not enable.
+- **Higgsfield** is active (Ultra plan, 2026-06-24). Arc reaches it through the per-workspace **`higgsfield` remote-MCP connector** (`src/domain/connectors.ts` → hosted MCP at `mcp.higgsfield.ai/mcp`), loaded into the runner by `apps/arc-runner/src/connectors.ts` in **draft/act modes only**. Output is always an approval-gated, provenance-tagged draft asset — never auto-outbound. The connector is **OFF until enabled per workspace with a stored Vault credential**; the runner reads it from `GET /api/v1/arc/connectors`. The curated model roster lives in `src/domain/higgsfield-models.ts`. NOTE: the deployed Cloud Run runner can't use a personal account OAuth — its credential is a separate, still-open decision (runner-side OAuth vs the Cloud API key); multi-tenant per-workspace OAuth onboarding remains deferred.
 
 ### Product direction: a marketing operating system
 
