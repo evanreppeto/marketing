@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { type ArcMode, type ArcRoute } from "@/domain";
@@ -215,7 +217,7 @@ export function getSupportContactEmail(
  * Read app settings, merged over defaults. Degrades gracefully to defaults when
  * Supabase isn't configured or the table hasn't been migrated yet — never throws.
  */
-export async function getAppSettings(client?: SupabaseClient): Promise<AppSettings> {
+async function readAppSettings(client?: SupabaseClient): Promise<AppSettings> {
   const supabase: SupabaseClient | null = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
   if (!supabase) return { ...DEFAULT_APP_SETTINGS };
 
@@ -231,6 +233,21 @@ export async function getAppSettings(client?: SupabaseClient): Promise<AppSettin
     logAppSettingsFallback(message);
     return { ...DEFAULT_APP_SETTINGS };
   }
+}
+
+// Request-scoped dedup for the common no-arg read. The root layout reads settings
+// twice (generateMetadata + RootLayout), pages read it again, and the Settings
+// page fans out to ~7 panels — React cache() collapses all of those to ONE
+// app_settings SELECT per request. The client-injectable path stays uncached so
+// tests and server actions that pass an explicit client are unaffected.
+const getAppSettingsCached = cache((): Promise<AppSettings> => readAppSettings());
+
+/**
+ * Read app settings, merged over defaults. Degrades gracefully to defaults when
+ * Supabase isn't configured or the table hasn't been migrated yet — never throws.
+ */
+export function getAppSettings(client?: SupabaseClient): Promise<AppSettings> {
+  return client ? readAppSettings(client) : getAppSettingsCached();
 }
 
 /** Upsert one or more settings keys. Values are stored as jsonb. */

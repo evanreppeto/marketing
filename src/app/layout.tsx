@@ -145,11 +145,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const settings = await getAppSettings();
-  const identity = await resolveBrandIdentity();
-  const operator = await getOperatorShellProfile();
-
-  const userWorkspaces = await listWorkspacesForUser();
+  // These four reads are independent — run them in parallel so their latencies
+  // overlap instead of stacking on every navigation (the shared root layout is
+  // the per-page tax). getCurrentWorkspaceContext (below) is React cache()-wrapped,
+  // so the dependent active-workspace lookup is effectively free.
+  const [settings, identity, operator, userWorkspaces] = await Promise.all([
+    getAppSettings(),
+    resolveBrandIdentity(),
+    getOperatorShellProfile(),
+    listWorkspacesForUser(),
+  ]);
   const activeWorkspaceId =
     userWorkspaces.length > 0 ? (await getCurrentWorkspaceContext().catch(() => null))?.workspaceId ?? undefined : undefined;
   const switcherWorkspaces = userWorkspaces.map((workspace) => ({
