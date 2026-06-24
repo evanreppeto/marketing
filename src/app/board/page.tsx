@@ -104,7 +104,7 @@ function BoardRail({
         <div className="flex items-center gap-4 px-4 py-3.5">
           <Ring pct={health.acceptancePct} />
           <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            <div className="text-[11px] font-medium text-[var(--text-muted)]">
               Acceptance rate
             </div>
             <p className="mt-0.5 text-[11.5px] leading-4 text-[var(--text-secondary)]">
@@ -115,7 +115,7 @@ function BoardRail({
         </div>
 
         <div className="space-y-2 border-t border-[var(--border-hairline)] px-4 py-3.5">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+          <div className="text-[10.5px] font-medium text-[var(--text-muted)]">
             Status breakdown
           </div>
           <StatusBar label="Needs you" value={health.needsYou} total={health.total} color={STATUS_COLORS.needs_approval} />
@@ -243,7 +243,7 @@ function FeaturedThumb({ label, risk }: { label: string; risk: string }) {
         className="pointer-events-none absolute inset-0 opacity-[0.5]"
         style={{ backgroundImage: "repeating-linear-gradient(115deg, transparent 0 11px, color-mix(in oklab, var(--text-primary) 4%, transparent) 11px 12px)" }}
       />
-      <span className="relative inline-flex items-center gap-1.5 rounded border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--text-secondary)]">
+      <span className="relative inline-flex items-center gap-1.5 rounded border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
         <span className="h-1.5 w-1.5 rounded-[2px]" style={{ background: accent }} />
         <span className="max-w-[180px] truncate">{label}</span>
       </span>

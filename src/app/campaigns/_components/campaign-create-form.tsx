@@ -15,7 +15,7 @@ function titleize(value: string) {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[10px] font-medium text-[var(--text-muted)]">{label}</span>
       {children}
       {hint ? <span className="text-xs leading-5 text-[var(--text-muted)]">{hint}</span> : null}
     </label>
@@ -106,7 +106,7 @@ export function CampaignCreateForm({ assistantName, businessName }: { assistantN
 
           <form action={askArcToBuildCampaignAction} className="mt-3 space-y-3">
             <label className="block">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Tell {assistantName} what you want</span>
+              <span className="text-[10px] font-medium text-[var(--text-muted)]">Tell {assistantName} what you want</span>
               <textarea
                 name="prompt"
                 required

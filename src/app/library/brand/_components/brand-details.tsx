@@ -180,7 +180,7 @@ function GlanceCard({
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+          <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
           <h3 className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{title}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{value}</p>
         </div>

@@ -28,13 +28,13 @@ export function AggregateStrip({ totals }: { totals: GalleryTotals }) {
   return (
     <section className="module-rise mb-5 rounded-2xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Deployed performance</span>
+        <span className="text-[10px] font-medium text-[var(--text-muted)]">Deployed performance</span>
         {!metrics.hasData ? <StatusPill tone="gray">Awaiting results data</StatusPill> : null}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{stat.label}</div>
+            <div className="font-mono text-[10px] font-medium text-[var(--text-muted)]">{stat.label}</div>
             <div className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{stat.value}</div>
           </div>
         ))}

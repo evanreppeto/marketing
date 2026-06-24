@@ -77,6 +77,7 @@ export function CampaignSimpleDetail({
               <HeroFact label="Offer" value={plainOrFallback(campaign.offerSummary, "Offer not set")} />
               <HeroFact label="Channels" value={packageSummary.destinations.length > 0 ? packageSummary.destinations.join(", ") : executiveOverview.where} />
             </div>
+            <GuardrailChips flags={reasoning.guardrailFlags} />
           </div>
         </div>
 
@@ -187,7 +188,7 @@ function CampaignProgressBar({ checklist }: { checklist: ReturnType<typeof build
               className={`h-3 rounded-full ${progressSegmentClass(step.state)}`}
               title={`${index + 1}. ${step.label}: ${step.detail}`}
             />
-            <div className={`mt-1.5 hidden truncate text-[11px] font-bold uppercase tracking-[0.08em] md:block ${progressLabelClass(step.state)}`}>
+            <div className={`mt-1.5 hidden truncate text-[11px] font-medium md:block ${progressLabelClass(step.state)}`}>
               {step.label}
             </div>
           </div>
@@ -232,10 +233,30 @@ function CampaignContextRail({
   );
 }
 
+/** Guardrails Arc applied while drafting (e.g. "No payout guarantees"). Shown so
+ *  the operator sees the compliance constraints before approving anything. */
+function GuardrailChips({ flags }: { flags: string[] }) {
+  if (flags.length === 0) return null;
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Guardrails</span>
+      {flags.map((flag) => (
+        <span
+          key={flag}
+          className="inline-flex items-center rounded-full border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--warn-text)]"
+        >
+          {flag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function HeroFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 line-clamp-3 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value}</div>
     </div>
   );

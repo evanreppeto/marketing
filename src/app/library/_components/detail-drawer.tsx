@@ -178,7 +178,7 @@ export function DetailDrawer({
         ) : null}
 
         <div>
-          <div className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+          <div className="mb-1.5 text-[10.5px] font-medium text-[var(--text-muted)]">
             Tags
           </div>
           {asset.tags.length > 0 ? (

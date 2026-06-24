@@ -79,7 +79,7 @@ export function TaskDemoDetailEditable({ detail, agentName }: { detail: DemoTask
         </Link>
         <span className="text-[var(--border-strong)]">/</span>
         <span className="font-mono text-[var(--text-secondary)]">{detail.shortId}</span>
-        <span className="ml-1 rounded-md border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-contrast)]">
+        <span className="ml-1 rounded-md border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-contrast)]">
           Editable preview
         </span>
       </nav>
@@ -286,7 +286,7 @@ export function TaskDemoDetailEditable({ detail, agentName }: { detail: DemoTask
                   <li key={`${record.label}-${record.detail}`}>
                     <Link className="flex items-center justify-between gap-3 px-4 py-2.5 transition hover:bg-[var(--surface-inset)]" href={record.href}>
                       <div className="min-w-0">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{record.label}</div>
+                        <div className="text-[11px] font-medium text-[var(--text-muted)]">{record.label}</div>
                         <div className="mt-0.5 truncate text-sm font-medium text-[var(--text-primary)]">{record.detail}</div>
                       </div>
                       <span className="shrink-0 text-[var(--text-muted)]">→</span>
@@ -408,7 +408,7 @@ function OutputCard({ detail, agentName }: { detail: DemoTaskDetail; agentName: 
 
           {output.riskFlags.length > 0 ? (
             <div className="mt-4 rounded-md border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-3 py-2.5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--warn-text)]">Review flags</div>
+              <div className="text-[11px] font-medium text-[var(--warn-text)]">Review flags</div>
               <ul className="mt-1.5 space-y-1">
                 {output.riskFlags.map((flag) => (
                   <li key={flag} className="flex gap-2 text-xs leading-5 text-[var(--text-secondary)]">
@@ -488,7 +488,7 @@ function Timeline({ steps, agentName }: { steps: DemoTaskStep[]; agentName: stri
             <div className="min-w-0">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-semibold uppercase tracking-[0.1em] ${tone.text}`}>
+                  <span className={`text-[11px] font-medium ${tone.text}`}>
                     {step.actor === "Arc" ? agentName : step.actor}
                   </span>
                   <h3 className="text-sm font-semibold text-[var(--text-primary)]">{step.title}</h3>
@@ -510,7 +510,7 @@ function InputRow({ input }: { input: DemoTaskInput }) {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-[var(--text-primary)]">{input.label}</span>
-          <span className="rounded border border-[var(--border-strong)] bg-[var(--surface-raised)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
+          <span className="rounded border border-[var(--border-strong)] bg-[var(--surface-raised)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
             {input.kind}
           </span>
         </div>
@@ -549,7 +549,7 @@ function RailCard({ title, children }: { title: string; children: React.ReactNod
   return (
     <section className="overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)]">
       <div className="border-b border-[var(--border-hairline)] px-4 py-2.5">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{title}</h2>
+        <h2 className="text-[11px] font-medium text-[var(--text-muted)]">{title}</h2>
       </div>
       {children}
     </section>

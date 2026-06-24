@@ -15,7 +15,7 @@ export function ApprovalQueue({ nodes }: { nodes: BrainNode[] }) {
   if (items.length === 0) {
     return (
       <Panel>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+        <h2 className="mb-3 text-sm font-medium text-[var(--text-muted)]">
           Approval queue
         </h2>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">
@@ -35,14 +35,14 @@ export function ApprovalQueue({ nodes }: { nodes: BrainNode[] }) {
 
   return (
     <Panel>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+      <h2 className="mb-3 text-sm font-medium text-[var(--text-muted)]">
         Approval queue
       </h2>
       <ul className="flex flex-col gap-3">
         {items.map((node) => (
           <li key={node.id} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span className="text-xs font-medium text-[var(--text-muted)]">
                 {node.kind}
               </span>
               <StatusPill tone="amber">proposed</StatusPill>

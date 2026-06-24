@@ -131,7 +131,7 @@ export function CampaignDetailExplorer({ detail }: { detail: CampaignAnalyticsDe
       <WorkspacePanel
         eyebrow="Per asset"
         title="Asset performance & provenance"
-        description="Every produced deliverable — its source, format, delivery, and approval state. Real BSR media is preferred; AI work enhances and packages authentic proof."
+        description="Every produced deliverable — its source, format, delivery, and approval state. Real brand media is preferred; AI work enhances and packages authentic proof."
         aside={
           <span className="font-mono text-xs text-[var(--text-muted)]">
             {visibleAssets.length} of {detail.assets.length}
@@ -161,7 +161,7 @@ function Segmented({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[11px] font-medium text-[var(--text-muted)]">{label}</span>
       <div className="inline-flex flex-wrap gap-1 border-b border-[var(--border-hairline)] pb-3">
         {options.map((o) => {
           const active = o.value === value;
@@ -313,14 +313,14 @@ function ApprovalDonut({ approval }: { approval: CampaignAnalyticsDemoDetail["ap
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-display text-2xl font-bold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">{approval.readiness}%</span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">approved</span>
+        <span className="text-[10px] font-medium text-[var(--text-muted)]">approved</span>
       </div>
     </div>
   );
 }
 
 const SOURCE_TONE: Record<CampaignDetailAssetRow["source"], string> = {
-  "Real BSR media": "text-[var(--ok-text)] border-[var(--ok-border-soft)] bg-[var(--ok-soft)]",
+  "Real media": "text-[var(--ok-text)] border-[var(--ok-border-soft)] bg-[var(--ok-soft)]",
   Composite: "text-[var(--accent-contrast)] border-[var(--accent-border-strong)] bg-[var(--accent-soft)]",
   "AI-generated": "text-[var(--warn-text)] border-[var(--warn-border-soft)] bg-[var(--warn-soft)]",
   Stock: "text-[var(--text-secondary)] border-[var(--border-strong)] bg-[var(--surface-raised)]",
@@ -335,7 +335,7 @@ const STATUS_TONE: Record<CampaignDetailAssetRow["status"], string> = {
 
 function Chip({ className, children }: { className: string; children: React.ReactNode }) {
   return (
-    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${className}`}>
+    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium ${className}`}>
       {children}
     </span>
   );

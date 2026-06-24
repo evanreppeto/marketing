@@ -196,7 +196,7 @@ function FilterGroup({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[11px] font-medium text-[var(--text-muted)]">{label}</span>
       {dropdown ? (
         <div className="relative">
           <select

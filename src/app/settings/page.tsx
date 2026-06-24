@@ -123,7 +123,7 @@ function DossierStat({
   return (
     <div className="rounded-[8px] border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
       <div className={`font-display text-xl font-semibold tabular-nums ${tone === "ok" ? "text-[var(--ok-text)]" : "text-[var(--text-primary)]"}`}>{value}</div>
-      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-0.5 text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }

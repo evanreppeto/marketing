@@ -11,9 +11,11 @@ import { getCurrentOrgId } from "@/lib/auth/org";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { type MediaAssetView } from "@/lib/media-library/types";
-import { insertAsset } from "@/lib/media-library/persistence";
+import { insertAsset, insertAssetWithUrl } from "@/lib/media-library/persistence";
+import { analyzeBrandDesignFromUrl, fetchPublicImage, type BrandDesignProposal } from "@/lib/brand-kit/design-fetch";
+import { getBusinessProfile, upsertBusinessProfile } from "@/lib/brand-kit/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
-import { classifyKind, validateUpload } from "@/domain";
+import { classifyKind, NEUTRAL_DEFAULTS, validateUpload, type BusinessProfile } from "@/domain";
 
 function brandKnowledgeSources(assets: MediaAssetView[]) {
   return assets
@@ -344,4 +346,140 @@ export async function importAndAnalyzeBrandWebsiteAction(
 
   revalidateBrandSourceViews();
   return summarizeBrandKnowledgeSync(totals);
+}
+
+export type BrandDesignAnalyzeState =
+  | { ok: true; proposal: BrandDesignProposal }
+  | { ok: false; message: string }
+  | null;
+
+export type BrandDesignApplyState = { ok: boolean; message: string } | null;
+
+const DESIGN_NOT_CONFIGURED = { ok: false as const, message: "Supabase is not configured." };
+
+/** Fetch the operator's website and propose logo/colors/fonts (no writes). */
+export async function analyzeBrandDesignFromWebsiteAction(
+  _previous: BrandDesignAnalyzeState,
+  formData: FormData,
+): Promise<BrandDesignAnalyzeState> {
+  await requireOperator();
+
+  const rawUrl = String(formData.get("websiteUrl") ?? "").trim();
+  if (!rawUrl) return { ok: false, message: "Enter your website URL." };
+
+  const result = await analyzeBrandDesignFromUrl(rawUrl);
+  if (!result.ok) return { ok: false, message: result.message };
+  return { ok: true, proposal: result.proposal };
+}
+
+async function storeBrandImage(args: {
+  orgId: string;
+  url: string;
+  role: "logo" | "favicon";
+  sourceUrl: string;
+  uploadedBy: string;
+}): Promise<string | null> {
+  const image = await fetchPublicImage(args.url);
+  if (!image.ok) return null;
+  const host = (() => {
+    try {
+      return new URL(args.sourceUrl || args.url).hostname.replace(/^www\./, "");
+    } catch {
+      return args.role;
+    }
+  })();
+  const safeName = host.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "") || args.role;
+  const ext = image.contentType.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "png";
+  const fileName = `${args.role}-${safeName}.${ext}`;
+  const result = await insertAssetWithUrl({
+    orgId: args.orgId,
+    folderId: null,
+    fileName,
+    bytes: image.bytes,
+    contentType: image.contentType,
+    kind: classifyKind(image.contentType, fileName),
+    byteSize: image.bytes.byteLength,
+    source: "url",
+    provenance: { brandRole: args.role, sourceUrl: args.sourceUrl },
+    uploadedBy: args.uploadedBy,
+  });
+  return result.url;
+}
+
+function fillColor(current: { label: string; hex: string }, hex: string | undefined, overwrite: boolean) {
+  if (!hex) return current;
+  if (current.hex && !overwrite) return current;
+  return { label: current.label, hex };
+}
+
+function fillText(current: string, next: string | undefined, overwrite: boolean): string {
+  if (current && !overwrite) return current;
+  return next ?? current;
+}
+
+/** Apply a reviewed design proposal to the Business Profile. Re-guards + stores
+ *  the chosen logo/favicon; fills blank fields unless overwrite is set. */
+export async function applyBrandDesignAction(
+  _previous: BrandDesignApplyState,
+  formData: FormData,
+): Promise<BrandDesignApplyState> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return DESIGN_NOT_CONFIGURED;
+
+  const orgId = await getCurrentOrgId();
+  const uploadedBy = await getOperatorActor();
+  const overwrite = formData.get("overwrite") === "on";
+  const sourceUrl = String(formData.get("sourceUrl") ?? "").trim();
+
+  const current: BusinessProfile = (await getBusinessProfile(orgId)) ?? NEUTRAL_DEFAULTS;
+
+  const get = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim();
+    return v.length > 0 ? v : undefined;
+  };
+
+  const next: BusinessProfile = { ...current };
+  const imageFailures: string[] = [];
+
+  const logoUrl = get("logoUrl");
+  if (logoUrl && (!current.logoUrl || overwrite)) {
+    const stored = await storeBrandImage({ orgId, url: logoUrl, role: "logo", sourceUrl, uploadedBy });
+    if (stored) next.logoUrl = stored;
+    else imageFailures.push("logo");
+  }
+  const faviconUrl = get("faviconUrl");
+  if (faviconUrl && (!current.faviconUrl || overwrite)) {
+    const stored = await storeBrandImage({ orgId, url: faviconUrl, role: "favicon", sourceUrl, uploadedBy });
+    if (stored) next.faviconUrl = stored;
+    else imageFailures.push("favicon");
+  }
+
+  next.brandPalette = {
+    ...current.brandPalette,
+    primary: fillColor(current.brandPalette.primary, get("primary"), overwrite),
+    secondary: fillColor(current.brandPalette.secondary, get("secondary"), overwrite),
+    accent: fillColor(current.brandPalette.accent, get("accent"), overwrite),
+    dark: fillColor(current.brandPalette.dark, get("dark"), overwrite),
+    light: fillColor(current.brandPalette.light, get("light"), overwrite),
+    headingFont: fillText(current.brandPalette.headingFont, get("headingFont"), overwrite),
+    bodyFont: fillText(current.brandPalette.bodyFont, get("bodyFont"), overwrite),
+  };
+
+  if (!current.websiteUrl && sourceUrl) next.websiteUrl = sourceUrl;
+
+  try {
+    await upsertBusinessProfile(orgId, next);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't apply the design." };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/library/brand");
+  revalidatePath("/settings");
+  revalidatePath("/arc");
+  const message =
+    imageFailures.length > 0
+      ? `Brand design applied — but the ${imageFailures.join(" and ")} couldn't be imported. Try uploading it in Edit brand.`
+      : "Brand design applied.";
+  return { ok: true, message };
 }

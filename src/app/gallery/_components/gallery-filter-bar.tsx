@@ -3,7 +3,7 @@
 import type { GalleryFilters } from "@/lib/campaigns/gallery";
 
 const TYPE_OPTS: Array<[GalleryFilters["type"], string]> = [["all", "All"], ["images", "Images"], ["video", "Video"], ["docs", "Docs"]];
-const PROV_OPTS: Array<[GalleryFilters["provenance"], string]> = [["all", "All sources"], ["real", "Real BSR"], ["ai", "AI"]];
+const PROV_OPTS: Array<[GalleryFilters["provenance"], string]> = [["all", "All sources"], ["real", "Real"], ["ai", "AI"]];
 const STATUS_OPTS: Array<[GalleryFilters["status"], string]> = [["all", "Any status"], ["approved", "Approved"], ["pending", "Pending"]];
 
 export function GalleryFilterBar({

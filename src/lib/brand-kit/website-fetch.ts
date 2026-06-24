@@ -10,6 +10,10 @@ export type FetchBrandSignalResult =
   | { ok: true; signal: BrandSignal }
   | { ok: false; status: "rejected" | "failed"; message: string };
 
+export type FetchHtmlResult =
+  | { ok: true; html: string; finalUrl: string }
+  | { ok: false; status: "rejected" | "failed"; message: string };
+
 function isPrivateAddress(address: string, family: number): boolean {
   if (family === 6)
     return (
@@ -24,23 +28,24 @@ function isPrivateAddress(address: string, family: number): boolean {
   return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 }
 
-async function resolvedIsPrivate(hostname: string): Promise<boolean> {
+/** True when a hostname's resolved address is private/loopback. Best-effort:
+ *  if DNS lookup is unavailable, returns false (allow). */
+export async function hostResolvesToPrivate(hostname: string): Promise<boolean> {
   try {
     const r = await lookup(hostname);
     return isPrivateAddress(r.address, r.family);
   } catch {
-    return false; // lookup unavailable — best effort, allow
+    return false;
   }
 }
 
 /**
- * Fetch a public website and extract brand signal (title, description, favicon,
- * readable text). SSRF-guarded: http(s) only, literal + DNS-resolved private/
- * loopback addresses rejected, redirects re-validated each hop, 5s timeout, 1MB
- * cap. No LLM — callers structure the result. Shared by the Arc API route and the
- * operator first-run flow. Node runtime only (uses node:dns).
+ * Fetch a public URL's HTML with SSRF protection: http(s) only, literal +
+ * DNS-resolved private/loopback addresses rejected, redirects re-validated each
+ * hop, 5s timeout, 1MB cap. Node runtime only (uses node:dns). Returns the raw
+ * (capped) HTML and the final URL after redirects.
  */
-export async function fetchBrandSignalFromUrl(rawUrl: string): Promise<FetchBrandSignalResult> {
+export async function fetchPublicHtml(rawUrl: string): Promise<FetchHtmlResult> {
   let url: URL;
   try {
     url = assertPublicHttpUrl(rawUrl);
@@ -53,15 +58,13 @@ export async function fetchBrandSignalFromUrl(rawUrl: string): Promise<FetchBran
   try {
     let current = url;
     for (let hop = 0; ; hop++) {
-      // Re-validate the current hop's URL (literal guard); redirect targets must
-      // be re-checked, not just the initial URL.
       let safe: URL;
       try {
         safe = assertPublicHttpUrl(current.toString());
       } catch (error) {
         return { ok: false, status: "rejected", message: error instanceof Error ? error.message : "Unsafe redirect target." };
       }
-      if (await resolvedIsPrivate(safe.hostname)) {
+      if (await hostResolvesToPrivate(safe.hostname)) {
         return { ok: false, status: "rejected", message: "Refusing to fetch a private/loopback address." };
       }
 
@@ -84,12 +87,22 @@ export async function fetchBrandSignalFromUrl(rawUrl: string): Promise<FetchBran
 
       if (!res.ok) return { ok: false, status: "failed", message: `Site returned ${res.status}.` };
       const raw = await res.text();
-      const html = raw.slice(0, MAX_BYTES);
-      return { ok: true, signal: extractBrandSignal(html, safe.toString()) };
+      return { ok: true, html: raw.slice(0, MAX_BYTES), finalUrl: safe.toString() };
     }
   } catch (error) {
     return { ok: false, status: "failed", message: error instanceof Error ? error.message : "Failed to fetch the site." };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Fetch a public website and extract brand signal (title, description, favicon,
+ * readable text). SSRF-guarded via fetchPublicHtml. No LLM — callers structure
+ * the result. Shared by the Arc API route and the operator first-run flow.
+ */
+export async function fetchBrandSignalFromUrl(rawUrl: string): Promise<FetchBrandSignalResult> {
+  const result = await fetchPublicHtml(rawUrl);
+  if (!result.ok) return result;
+  return { ok: true, signal: extractBrandSignal(result.html, result.finalUrl) };
 }

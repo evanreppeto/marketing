@@ -77,7 +77,7 @@ export default function CrmCustomizePage() {
               <div className="grid gap-3 px-5 py-4 lg:grid-cols-[160px_minmax(0,1fr)_minmax(220px,0.75fr)_120px]" key={object.key}>
                 <div>
                   <div className="font-semibold text-[var(--text-primary)]">{object.label}</div>
-                  <div className="mt-1 text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">{object.key}</div>
+                  <div className="mt-1 text-xs text-[var(--text-muted)]">{object.key}</div>
                 </div>
                 <p className="text-sm leading-6 text-[var(--text-secondary)]">{object.description}</p>
                 <div className="min-w-0">

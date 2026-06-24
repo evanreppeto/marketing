@@ -61,6 +61,15 @@ async function selectOrgRowById(client: TypedSupabaseClient, table: string, id: 
   return error || !data ? null : (data as LooseRow);
 }
 
+/** Read rows where `column` is in `ids` (no org filter — caller derives org). */
+async function selectRowsIn(client: TypedSupabaseClient, table: string, column: string, ids: string[]): Promise<LooseRow[] | null> {
+  const builder = (
+    client as unknown as { from(t: string): { select(s: string): { in(c: string, v: string[]): PromiseLike<LooseResult> } } }
+  ).from(table).select("*").in(column, ids);
+  const { data, error } = await builder;
+  return error || !Array.isArray(data) ? null : (data as LooseRow[]);
+}
+
 /**
  * Resolve a batch of (kind,key)-addressed edge specs to node ids in one query and
  * idempotently upsert each edge. Ends whose node doesn't exist yet are skipped —
@@ -342,4 +351,47 @@ export async function resyncPerformanceIntoBrain(deps: SyncDeps = {}): Promise<B
     linked += res.linked;
   }
   return { ok: true, synced, linked, errors, truncated };
+}
+
+/**
+ * Mirror the results of specific campaigns into the Brain — the per-batch hook
+ * for the campaign_results ingest route, so performance flows in as it arrives
+ * (not just via the backfill button). The ingest route is global-token gated and
+ * doesn't carry org scope, and campaign_results rows have no reliable org_id, so
+ * each result's org is derived from its campaign (campaign_id → campaigns.org_id)
+ * — the result node lands in the same org as the campaign it measures.
+ */
+export async function syncPerformanceForCampaigns(campaignIds: string[], deps: SyncDeps = {}): Promise<BackfillResult> {
+  const ids = Array.from(new Set(campaignIds.filter((s): s is string => typeof s === "string" && s.length > 0)));
+  if (ids.length === 0) return { ok: true, synced: 0, linked: 0, errors: 0, truncated: false };
+
+  const client = deps.client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
+  if (!client) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+
+  const campaigns = await selectRowsIn(client, "campaigns", "id", ids);
+  if (!campaigns) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const orgByCampaign = new Map<string, string>();
+  for (const c of campaigns) {
+    if (typeof c.id === "string" && typeof c.org_id === "string") orgByCampaign.set(c.id, c.org_id);
+  }
+
+  const rows = await selectRowsIn(client, "campaign_results", "campaign_id", ids);
+  if (!rows) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+
+  let synced = 0;
+  let linked = 0;
+  let errors = 0;
+  for (const row of rows) {
+    const orgId = typeof row.campaign_id === "string" ? orgByCampaign.get(row.campaign_id) : undefined;
+    if (typeof row.id !== "string" || !orgId) { errors++; continue; }
+    const res = await syncCampaignResultToBrain(row, { client, orgId });
+    if (res.ok) synced++; else errors++;
+  }
+  for (const row of rows) {
+    const orgId = typeof row.campaign_id === "string" ? orgByCampaign.get(row.campaign_id) : undefined;
+    if (typeof row.id !== "string" || !orgId) continue;
+    const res = await linkEdgeSpecs(buildEdgesForCampaignResult(row), { client, orgId }).catch(() => ({ linked: 0, skipped: 0 }));
+    linked += res.linked;
+  }
+  return { ok: true, synced, linked, errors, truncated: false };
 }

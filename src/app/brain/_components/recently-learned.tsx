@@ -32,7 +32,7 @@ export function RecentlyLearned({ nodes }: { nodes: BrainNode[] }) {
   return (
     <Panel>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Recently learned</h2>
+        <h2 className="text-sm font-medium text-[var(--text-muted)]">Recently learned</h2>
         <span className="text-[11px] tabular-nums text-[var(--text-muted)]">{recent.length} latest</span>
       </div>
       {recent.length === 0 ? (
@@ -49,7 +49,7 @@ export function RecentlyLearned({ nodes }: { nodes: BrainNode[] }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                    <span className="flex items-center gap-1.5 truncate text-[11px] font-medium text-[var(--text-muted)]">
                       <span className="h-1.5 w-1.5 rounded-full" style={{ background: SOURCE_DOT[prov.system] }} />
                       {prov.label}
                     </span>

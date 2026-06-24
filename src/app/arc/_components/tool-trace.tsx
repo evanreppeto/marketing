@@ -58,7 +58,7 @@ function humanizeInput(raw: string): string {
 function StatusBadge({ status }: { status: ArcToolCall["status"] }) {
   if (status === "running") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--warn-text)]">
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-[var(--warn-text)]">
         <svg viewBox="0 0 24 24" className="h-3 w-3 motion-safe:animate-spin" fill="none" aria-hidden>
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
           <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: ArcToolCall["status"] }) {
   }
   if (status === "error") {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--priority-text)]">
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--priority-text)]">
         <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M6 6l8 8M14 6l-8 8" />
         </svg>
@@ -78,7 +78,7 @@ function StatusBadge({ status }: { status: ArcToolCall["status"] }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ok-text)]">
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--ok-text)]">
       <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 10.5l3.5 3.5L16 5.5" />
       </svg>
@@ -90,7 +90,7 @@ function StatusBadge({ status }: { status: ArcToolCall["status"] }) {
 function IoBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="overflow-hidden rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
-      <div className="border-b border-[var(--border-hairline)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+      <div className="border-b border-[var(--border-hairline)] px-3 py-1 text-[9px] font-medium text-[var(--text-muted)]">
         {label}
       </div>
       <p className="max-h-48 overflow-y-auto whitespace-pre-wrap px-3 py-2 text-xs leading-6 text-[var(--text-secondary)]">{value}</p>
@@ -138,7 +138,7 @@ export function ToolTraces({ tools }: { tools: ArcToolCall[] }) {
   if (!tools || tools.length === 0) return null;
   return (
     <div className="mt-3 flex flex-col gap-1.5" aria-label="Tools Arc ran">
-      <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+      <p className="px-1 text-[10px] font-medium text-[var(--text-muted)]">
         Tools Arc ran · {tools.length}
       </p>
       {tools.map((tool, i) => (

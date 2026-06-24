@@ -33,8 +33,8 @@ export function AssetThumb({ card, media, eager = false }: { card: ArcActionCard
     return (
       <div className="flex h-full w-full flex-col gap-1.5 bg-[var(--surface-soft)] p-3">
         <div className="flex items-center gap-1.5">
-          <span className="grid h-4 w-4 place-items-center rounded-full bg-[var(--accent-soft)] text-[7px] font-bold text-[var(--accent-strong)]">BS</span>
-          <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Big Shoulders</span>
+          <span className="grid h-4 w-4 place-items-center rounded-full bg-[var(--accent-soft)] text-[7px] font-bold text-[var(--accent-strong)]">YB</span>
+          <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Your brand</span>
         </div>
         {subject ? <p className="line-clamp-1 text-[11px] font-semibold text-[var(--text-primary)]">{subject}</p> : null}
         <p className="line-clamp-4 text-[10px] leading-relaxed text-[var(--text-muted)]">{body}</p>
@@ -45,7 +45,7 @@ export function AssetThumb({ card, media, eager = false }: { card: ArcActionCard
   if (c.includes("sms") || c.includes("text")) {
     return (
       <div className="flex h-full w-full flex-col justify-end gap-1 bg-[var(--canvas-deep)] p-3">
-        <span className="text-center text-[8px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">SMS</span>
+        <span className="text-center text-[8px] font-medium text-[var(--text-muted)]">SMS</span>
         <div className="max-w-[90%] self-start rounded-2xl rounded-bl-md bg-[var(--surface-raised)] px-3 py-2 shadow-[inset_0_0_0_1px_var(--border-hairline)]">
           <p className="line-clamp-4 text-[10px] leading-relaxed text-[var(--text-primary)]">{body}</p>
         </div>

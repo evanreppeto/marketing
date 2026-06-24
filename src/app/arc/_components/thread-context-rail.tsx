@@ -21,7 +21,7 @@ const TYPE_LABELS: Record<string, string> = {
 function RailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{title}</p>
+      <p className="text-[10px] font-medium text-[var(--text-muted)]">{title}</p>
       {children}
     </div>
   );

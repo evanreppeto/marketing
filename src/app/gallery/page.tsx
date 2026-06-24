@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import Link from "next/link";
 
 import { EmptyState, PageHeader, StatusPill } from "@/app/_components/page-header";
-import { theme } from "@/app/_components/theme";
+import { cx, theme } from "@/app/_components/theme";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getGalleryData } from "@/lib/gallery/read-model";
 import { getMediaGallery } from "@/lib/campaigns/gallery";
@@ -50,11 +50,7 @@ function GalleryTabs({ active }: { active: GalleryViewParam }) {
         <Link
           key={key}
           href={key === "media" ? "/gallery" : `/gallery?view=${key}`}
-          className={
-            active === key
-              ? "relative rounded-[8px] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]"
-              : "relative rounded-[8px] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          }
+          className={cx(theme.control.tabBase, active === key ? theme.control.tabActive : theme.control.tabIdle)}
         >
           {label}
           {active === key ? <span aria-hidden className={theme.control.tabMarker} /> : null}

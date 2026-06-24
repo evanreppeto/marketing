@@ -103,11 +103,11 @@ function SetupSteps({ connection }: { connection: ConnectionRowView }) {
   const steps = PROVIDER_STEPS[connection.provider] ?? ["Add credentials.", "Test the connection.", "Enable the integration."];
   return (
     <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-      <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Guided setup</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">Guided setup</div>
       <ol className="grid gap-2 md:grid-cols-3">
         {steps.map((step, index) => (
           <li className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={step}>
-            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Step {index + 1}</div>
+            <div className="text-[10px] font-medium text-[var(--accent)]">Step {index + 1}</div>
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{step}</p>
           </li>
         ))}
@@ -208,7 +208,7 @@ export function ConnectionSetupCard({ connection }: { connection: ConnectionRowV
 
       <div className="grid gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 md:grid-cols-[1fr_auto] md:items-center">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Next step</div>
+          <div className="text-xs font-medium text-[var(--text-muted)]">Next step</div>
           <p className="mt-1 text-sm leading-6 text-[var(--text-primary)]">{nextStep(connection)}</p>
         </div>
         <TestConnection connection={connection} />
@@ -226,7 +226,7 @@ export function ConnectionSetupCard({ connection }: { connection: ConnectionRowV
       </div>
 
       <details className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-        <summary className="cursor-pointer text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+        <summary className="cursor-pointer text-xs font-medium text-[var(--text-muted)]">
           Technical details
         </summary>
         <div className="mt-2 grid gap-1 text-xs leading-5 text-[var(--text-secondary)]">

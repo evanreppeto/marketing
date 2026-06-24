@@ -24,10 +24,10 @@ Rules that carry over: **no emojis, no equal 3-column dashboard rows, no neon/pu
 
 Loaded via `next/font` in `src/app/layout.tsx`; exposed as Tailwind families.
 
-- **Display:** Archivo (`font-display`, `--ff-display`) — engineered grotesk, tight tracking, weight-driven hierarchy. Headings, the Signal wordmark, key metrics.
-- **Body:** Hanken Grotesk (`font-sans`, `--ff-body`) — warm humanist grotesk, relaxed leading, ~65–74ch max for explanatory copy.
-- **Mono:** JetBrains Mono (`font-mono`, `--ff-mono`) — identifiers, scores, timestamps, tabular metrics (`tabular-nums`).
-- **Banned:** Inter, generic serifs, system-default-only stacks, gradient text, monospace as lazy "tech" shorthand.
+- **Editorial serif:** Fraunces (`font-editorial` / `--ff-editorial`, `font-optical-sizing: auto`) — the signature. Use for **display moments only**: page-title heroes (via `PageHeader`), the Today greeting, persona/record hero names, auth headlines. Fraunces is loaded at **weights 400, 500, 600** (normal + italic). Hero titles render at 600 (the global `h1,h2,h3` rule, which is unlayered and beats Tailwind weight utilities); body-editorial moments use 400/500. **Never 700+** — Fraunces isn't loaded there and would faux-bold. This is what makes the app read as "authored journal," not "AI dashboard."
+- **Display + Body:** Geist (`font-display`/`--ff-display`, `font-sans`/`--ff-body`) — one modern product grotesk (Linear/Vercel-grade) carries headings, labels, body, and metrics so the workhorse UI reads as a single intentional system. Body copy ~65–74ch max. Reserve 600 for hero metrics/titles (see §7).
+- **Mono:** Geist Mono (`font-mono`, `--ff-mono`) — identifiers, scores, timestamps. Numbers use `tabular-nums` and animate up on first paint via the `CountUp` component (`src/app/_components/count-up.tsx`).
+- **Banned:** Inter, system-default-only stacks, gradient text, monospace as lazy "tech" shorthand, **uppercase letter-spaced kicker/eyebrow labels above titles** (a top AI-slop tell — `PageHeader` renders title-first; the `eyebrow` prop is ignored).
 
 ## 4. Component Stylings
 
@@ -61,9 +61,16 @@ The installed libraries support the Signal system; they do not replace it.
 
 Persistent command rail + asymmetric content grids. Avoid repeated equal 3-column rows. Lead each route with the operational task, then supporting guidance, queues, and next actions. Constrain explanatory copy to ~65–74ch.
 
-## 6. Motion & Interaction
+## 6. Motion & Interaction — "Fluid" level
 
-CSS-only transform/opacity. Stagger modules on load (`.module-rise` + `animation-delay`). At most one live status indicator per view may breathe (`.status-breathe`). Hover feedback is a background/border step (the surface tiers exist for this); press feedback is `active:translate-y-px`. No hover levitation (`hover:-translate-y-*`), no glow `box-shadow` on hover or selected states. No animating layout dimensions, no bounce/elastic easing. Respect `prefers-reduced-motion`.
+CSS-only transform/opacity/filter; cheap enough to stay 60fps and low-latency. Everything below is reduced-motion safe (guarded in `globals.css` + the `data-motion=reduced` global).
+
+- **Entrances:** two tiers. `.module-rise` is the at-once page fade (forced to 0 delay). `.rise-in` is the opt-in **staggered blur-rise cascade** (`.rise-d1`…`.rise-d5`) for redesigned surfaces — sequence hero → sections → rail so a page *assembles* rather than snapping in.
+- **Numbers:** count up on first paint via `CountUp` (easeOutCubic, ~900–1100ms).
+- **Data:** charts may self-draw (stroke-dashoffset) where real data exists; build as inline SVG (recharts is banned here — see project notes).
+- **Hover:** background/border step on lists; arrow nudge + a small `padding-left` slide on actionable rows. The **focal card** (`.focal-card`, the single primary action per surface) is the *one* allowed accent-glow-on-hover (its border warms to `--accent-border-strong` + a soft accent bloom) — everywhere else still obeys **no levitation** (`hover:-translate-y-*`) and **no glow on ordinary cards/selected states**.
+- **Press:** `active:translate-y-px`. **Live:** at most one `.status-breathe` dot per view.
+- **No** animating layout dimensions, **no** bounce/elastic easing.
 
 ## 7. Typographic Weight Discipline
 

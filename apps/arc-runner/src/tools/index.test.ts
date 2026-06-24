@@ -27,6 +27,7 @@ const READ = [
   "list_campaigns",
   "get_campaign",
   "list_approvals",
+  "get_approval",
   "read_performance",
   "list_opportunities",
   "read_persona_intelligence",
@@ -78,15 +79,17 @@ describe("toolsForMode", () => {
     expect(names).not.toContain("propose_brand_profile");
   });
 
-  it("scan mode includes propose_opportunity and read tools", () => {
+  it("scan mode includes propose_opportunity, record_competitor_intel, and read tools", () => {
     const names = toolsForMode("scan", stubClient, step, sink).map((t) => t.name);
     expect(names).toContain("propose_opportunity");
+    expect(names).toContain("record_competitor_intel");
     // includes all read tools
     for (const r of READ) {
       expect(names).toContain(r);
     }
     // excludes draft/act write tools
     expect(names).not.toContain("create_campaign_draft");
+    expect(names).not.toContain("submit_draft");
     expect(names).not.toContain("generate_image");
     expect(names).not.toContain("record_brain_note");
     expect(names).not.toContain("log_interaction");

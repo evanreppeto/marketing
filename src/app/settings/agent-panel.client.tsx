@@ -163,7 +163,7 @@ export function AgentSetupBundle({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-semibold text-[var(--text-muted)]">
               Company name
-              <input className={inputClass} name="marketing_company_name" placeholder="Big Shoulders Restoration" />
+              <input className={inputClass} name="marketing_company_name" placeholder="Acme Restoration" />
             </label>
             <label className="grid gap-1 text-xs font-semibold text-[var(--text-muted)]">
               Service area
@@ -265,7 +265,7 @@ export function AgentSetupBundle({
               <div className="grid gap-2 sm:grid-cols-3">
                 {["Paste prompt into Arc", "Copy verification message", `Send a test message in ${agentName}`].map((item, index) => (
                   <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-2" key={item}>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Step {index + 1}</div>
+                    <div className="text-[11px] font-medium text-[var(--text-muted)]">Step {index + 1}</div>
                     <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{item}</div>
                   </div>
                 ))}

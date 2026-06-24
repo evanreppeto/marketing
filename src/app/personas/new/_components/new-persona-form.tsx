@@ -7,7 +7,7 @@ import { buttonClasses } from "@/app/_components/page-header";
 import { createPersonaAction, type CreatePersonaState } from "../../actions";
 
 const FIELD = "h-11 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]";
-const LABEL = "mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]";
+const LABEL = "mb-1.5 block text-[10px] font-medium text-[var(--text-muted)]";
 
 const SEGMENTS = [
   { value: "acquisition", label: "Acquisition" },

@@ -25,7 +25,7 @@ function GalleryCard({ campaign }: { campaign: GalleryCampaign }) {
           // eslint-disable-next-line @next/next/no-img-element -- Arc emits arbitrary remote creative URLs; no optimizer config
           <img src={campaign.thumbnailUrl} alt={campaign.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
         ) : (
-          <span className="px-4 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          <span className="px-4 text-center font-mono text-[10px] font-medium text-[var(--text-muted)]">
             {campaign.assetTypes.join(" · ") || "No creative cover"}
           </span>
         )}

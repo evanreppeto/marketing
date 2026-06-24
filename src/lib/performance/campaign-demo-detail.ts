@@ -47,7 +47,7 @@ export type CampaignDetailAssetRow = {
   title: string;
   channel: string;
   format: string;
-  source: "Real BSR media" | "AI-generated" | "Composite" | "Stock";
+  source: "Real media" | "AI-generated" | "Composite" | "Stock";
   status: "Approved" | "Needs review" | "Draft" | "Rejected";
   impressions: number;
   clicks: number;
@@ -133,10 +133,10 @@ const CAMPAIGN_SEEDS: DemoCampaignSeed[] = [
       { channel: "Referral", weight: 0.09, spendShare: 0.26 },
     ],
     assets: [
-      { id: "a1", title: "Flooded basement — 9:16 reel", channel: "Meta Ads", format: "9:16 MP4", source: "Real BSR media", status: "Approved", weight: 0.3 },
-      { id: "a2", title: "24/7 rapid response — 1:1 static", channel: "Meta Ads", format: "1:1 PNG", source: "Real BSR media", status: "Approved", weight: 0.24 },
+      { id: "a1", title: "Flooded basement — 9:16 reel", channel: "Meta Ads", format: "9:16 MP4", source: "Real media", status: "Approved", weight: 0.3 },
+      { id: "a2", title: "24/7 rapid response — 1:1 static", channel: "Meta Ads", format: "1:1 PNG", source: "Real media", status: "Approved", weight: 0.24 },
       { id: "a3", title: "Water damage hotline — 4:5 static", channel: "Meta Ads", format: "4:5 PNG", source: "Composite", status: "Approved", weight: 0.18 },
-      { id: "a4", title: "Emergency response landing one-pager", channel: "Landing", format: "Landing", source: "Real BSR media", status: "Approved", weight: 0.16 },
+      { id: "a4", title: "Emergency response landing one-pager", channel: "Landing", format: "Landing", source: "Real media", status: "Approved", weight: 0.16 },
       { id: "a5", title: "Storm-night intake email", channel: "Email", format: "Email", source: "Composite", status: "Needs review", weight: 0.12 },
     ],
     seed: 1011,
@@ -164,8 +164,8 @@ const CAMPAIGN_SEEDS: DemoCampaignSeed[] = [
     ],
     assets: [
       { id: "a1", title: "Storm-prep checklist — carousel", channel: "Meta Ads", format: "1:1 PNG", source: "Composite", status: "Approved", weight: 0.28 },
-      { id: "a2", title: "Pre-season inspection email", channel: "Email", format: "Email", source: "Real BSR media", status: "Approved", weight: 0.26 },
-      { id: "a3", title: "Gutter & sump readiness — 4:5", channel: "Meta Ads", format: "4:5 PNG", source: "Real BSR media", status: "Approved", weight: 0.2 },
+      { id: "a2", title: "Pre-season inspection email", channel: "Email", format: "Email", source: "Real media", status: "Approved", weight: 0.26 },
+      { id: "a3", title: "Gutter & sump readiness — 4:5", channel: "Meta Ads", format: "4:5 PNG", source: "Real media", status: "Approved", weight: 0.2 },
       { id: "a4", title: "Priority scheduling landing variant", channel: "Landing", format: "Landing", source: "Composite", status: "Needs review", weight: 0.16 },
       { id: "a5", title: "Storm-watch SMS nudge", channel: "SMS", format: "SMS", source: "AI-generated", status: "Draft", weight: 0.1 },
     ],
@@ -193,9 +193,9 @@ const CAMPAIGN_SEEDS: DemoCampaignSeed[] = [
       { channel: "SMS", weight: 0.08, spendShare: 0 },
     ],
     assets: [
-      { id: "a1", title: "Commercial SLA one-pager (PDF)", channel: "Landing", format: "PDF", source: "Real BSR media", status: "Approved", weight: 0.3 },
+      { id: "a1", title: "Commercial SLA one-pager (PDF)", channel: "Landing", format: "PDF", source: "Real media", status: "Approved", weight: 0.3 },
       { id: "a2", title: "PM reactivation email sequence", channel: "Email", format: "Email", source: "Composite", status: "Approved", weight: 0.26 },
-      { id: "a3", title: "Multi-unit mitigation case study", channel: "Landing", format: "Landing", source: "Real BSR media", status: "Approved", weight: 0.22 },
+      { id: "a3", title: "Multi-unit mitigation case study", channel: "Landing", format: "Landing", source: "Real media", status: "Approved", weight: 0.22 },
       { id: "a4", title: "Property-manager referral packet", channel: "Referral", format: "PDF", source: "Composite", status: "Needs review", weight: 0.14 },
       { id: "a5", title: "Facilities LinkedIn static", channel: "Meta Ads", format: "1:1 PNG", source: "AI-generated", status: "Draft", weight: 0.08 },
     ],
@@ -224,10 +224,10 @@ const CAMPAIGN_SEEDS: DemoCampaignSeed[] = [
     ],
     assets: [
       { id: "a1", title: "Hidden-mold explainer — 9:16", channel: "Meta Ads", format: "9:16 MP4", source: "Composite", status: "Approved", weight: 0.28 },
-      { id: "a2", title: "Air-quality awareness email", channel: "Email", format: "Email", source: "Real BSR media", status: "Approved", weight: 0.24 },
+      { id: "a2", title: "Air-quality awareness email", channel: "Email", format: "Email", source: "Real media", status: "Approved", weight: 0.24 },
       { id: "a3", title: "Mold inspection landing page", channel: "Landing", format: "Landing", source: "Composite", status: "Needs review", weight: 0.22 },
       { id: "a4", title: "Qualifying-question form variant", channel: "Landing", format: "Landing", source: "AI-generated", status: "Needs review", weight: 0.16 },
-      { id: "a5", title: "Before/after mold static", channel: "Meta Ads", format: "4:5 PNG", source: "Real BSR media", status: "Draft", weight: 0.1 },
+      { id: "a5", title: "Before/after mold static", channel: "Meta Ads", format: "4:5 PNG", source: "Real media", status: "Draft", weight: 0.1 },
     ],
     seed: 4044,
   },
@@ -253,7 +253,7 @@ const CAMPAIGN_SEEDS: DemoCampaignSeed[] = [
       { channel: "Referral", weight: 0.08, spendShare: 0.2 },
     ],
     assets: [
-      { id: "a1", title: "Frozen-pipe night static — 1:1", channel: "Meta Ads", format: "1:1 PNG", source: "Real BSR media", status: "Approved", weight: 0.3 },
+      { id: "a1", title: "Frozen-pipe night static — 1:1", channel: "Meta Ads", format: "1:1 PNG", source: "Real media", status: "Approved", weight: 0.3 },
       { id: "a2", title: "Same-day mitigation SMS", channel: "SMS", format: "SMS", source: "Composite", status: "Approved", weight: 0.24 },
       { id: "a3", title: "Cold-snap landing variant", channel: "Landing", format: "Landing", source: "Composite", status: "Approved", weight: 0.2 },
       { id: "a4", title: "Shut-off-valve explainer — 9:16", channel: "Meta Ads", format: "9:16 MP4", source: "AI-generated", status: "Needs review", weight: 0.16 },
@@ -283,8 +283,8 @@ const CAMPAIGN_SEEDS: DemoCampaignSeed[] = [
       { channel: "SMS", weight: 0.06, spendShare: 0 },
     ],
     assets: [
-      { id: "a1", title: "Adjuster referral packet (PDF)", channel: "Referral", format: "PDF", source: "Real BSR media", status: "Approved", weight: 0.34 },
-      { id: "a2", title: "Documentation-quality proof email", channel: "Email", format: "Email", source: "Real BSR media", status: "Approved", weight: 0.26 },
+      { id: "a1", title: "Adjuster referral packet (PDF)", channel: "Referral", format: "PDF", source: "Real media", status: "Approved", weight: 0.34 },
+      { id: "a2", title: "Documentation-quality proof email", channel: "Email", format: "Email", source: "Real media", status: "Approved", weight: 0.26 },
       { id: "a3", title: "Partner co-marketing landing", channel: "Landing", format: "Landing", source: "Composite", status: "Needs review", weight: 0.2 },
       { id: "a4", title: "Claims handoff one-pager", channel: "Referral", format: "PDF", source: "Composite", status: "Needs review", weight: 0.12 },
       { id: "a5", title: "Adjuster outreach static", channel: "Meta Ads", format: "1:1 PNG", source: "AI-generated", status: "Draft", weight: 0.08 },

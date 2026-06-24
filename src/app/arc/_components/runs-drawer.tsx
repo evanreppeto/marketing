@@ -84,7 +84,7 @@ function Section({ label, runs, nowMs, onClose }: { label: string; runs: ArcRun[
   if (runs.length === 0) return null;
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+      <p className="px-1 text-[10px] font-medium text-[var(--text-muted)]">
         {label} · {runs.length}
       </p>
       {runs.map((r) => (

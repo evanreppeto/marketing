@@ -14,7 +14,7 @@ const STRUCTURED_KEYS = ["subject", "primaryText", "headline", "cta"] as const;
 
 function EditedPill() {
   return (
-    <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+    <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-strong)]">
       Edited
     </span>
   );
@@ -136,7 +136,7 @@ export function ChannelArtifact({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-3 flex items-center gap-2">
-        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-strong)]">
           Draft
         </span>
         {view.edited ? <EditedPill /> : null}
