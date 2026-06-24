@@ -71,4 +71,19 @@ describe("POST /api/auth/workspace-invites email send", () => {
     expect(res.status).toBe(400);
     expect(generateLink).not.toHaveBeenCalled();
   });
+
+  it("returns ok+code with emailed:false when generateLink rejects (unexpected throw)", async () => {
+    generateLink.mockRejectedValue(new Error("network error"));
+    const res = await POST(req({ workspaceId: "w1", role: "member", invitedEmail: "x@co.com" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, code: "ABC123", emailed: false, emailError: "network error" });
+  });
+
+  it("returns ok+code with emailed:false when no action_link is returned", async () => {
+    generateLink.mockResolvedValue({ data: { properties: {} }, error: null });
+    const res = await POST(req({ workspaceId: "w1", role: "member", invitedEmail: "x@co.com" }));
+    expect(res.status).toBe(200);
+    expect(send).not.toHaveBeenCalled();
+    expect(await res.json()).toMatchObject({ ok: true, code: "ABC123", emailed: false });
+  });
 });
