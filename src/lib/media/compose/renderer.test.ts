@@ -55,4 +55,31 @@ describe("renderCreative", () => {
       expect(out.bytes.subarray(0, 4).toString("hex")).toBe("89504e47");
     }
   }, 30000);
+
+  it("rejects a private/loopback background URL (SSRF guard)", async () => {
+    const brand = toBrandTokens(null);
+    await expect(
+      renderCreative({
+        template: "bold",
+        format: "1:1",
+        brand,
+        copy: { headline: "x" },
+        backgroundUrl: "http://169.254.169.254/latest/meta-data/",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("degrades gracefully when the logo URL is blocked", async () => {
+    const TINY_PNG =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const brand = { ...toBrandTokens(null), logoUrl: "http://127.0.0.1/logo.png" };
+    const out = await renderCreative({
+      template: "bold",
+      format: "1:1",
+      brand,
+      copy: { headline: "x" },
+      backgroundUrl: TINY_PNG,
+    });
+    expect(out.bytes.subarray(0, 4).toString("hex")).toBe("89504e47");
+  }, 30000);
 });

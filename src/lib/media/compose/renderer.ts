@@ -9,6 +9,7 @@ import {
   type CreativeFormat,
   type CreativeTemplateId,
 } from "@/domain";
+import { assertPublicHttpUrl } from "@/lib/brand-kit/website";
 
 import { loadCreativeFonts } from "./fonts";
 import type { CreativeTemplate } from "./types";
@@ -25,6 +26,7 @@ const TEMPLATES: Record<CreativeTemplateId, CreativeTemplate> = {
 /** Fetch an http(s) image and inline it as a data: URL (satori renders these reliably). */
 async function toDataUrl(url: string): Promise<string> {
   if (url.startsWith("data:")) return url;
+  assertPublicHttpUrl(url); // SSRF guard: reject loopback/private/internal hosts before fetching
   const res = await fetch(url);
   if (!res.ok) throw new Error(`failed to fetch image (${res.status}): ${url}`);
   const contentType = res.headers.get("content-type") ?? "image/png";
