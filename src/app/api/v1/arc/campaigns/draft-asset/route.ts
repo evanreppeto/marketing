@@ -76,6 +76,31 @@ export async function POST(request: Request) {
   }
   if (!title) return fail("rejected", "title is required.", 400);
 
+  // When creating a NEW campaign (no campaign_id), persona + restoration_focus are
+  // written to Postgres enum columns — validate/normalize them at the boundary so
+  // an unknown value is a clean 400 here, not a late enum 502. (Restored after the
+  // resolveOrCreateCampaign refactor dropped this from the Arc draft path; the
+  // validators are already imported for it.)
+  const personaIn = str(body.persona);
+  const restorationFocusIn = str(body.restoration_focus);
+  let restorationFocus = restorationFocusIn;
+  if (!campaignIdIn) {
+    if (personaIn && !isOfficialPersonaMapping(personaIn)) {
+      return fail("rejected", `Unknown persona "${personaIn}". Use an official persona key.`, 400);
+    }
+    if (restorationFocusIn) {
+      const normalized = normalizeRestorationFocus(restorationFocusIn);
+      if (!normalized) {
+        return fail(
+          "rejected",
+          `Unknown restoration_focus "${restorationFocusIn}". Use one of: ${RESTORATION_FOCUS_VALUES.join(", ")}.`,
+          400,
+        );
+      }
+      restorationFocus = normalized;
+    }
+  }
+
   const operator = "Arc";
 
   try {
@@ -85,8 +110,8 @@ export async function POST(request: Request) {
         operator,
         campaignId: campaignIdIn,
         name: str(body.name),
-        persona: str(body.persona),
-        restorationFocus: str(body.restoration_focus),
+        persona: personaIn,
+        restorationFocus,
         agentName: "Arc",
         tenant,
       }));
