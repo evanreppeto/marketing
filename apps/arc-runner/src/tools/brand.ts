@@ -22,6 +22,16 @@ export function brandTools(client: ArcClient, step: StepFn, collectCard: (card: 
       ),
   );
 
+  const analyzeBrandDesign = tool(
+    "analyze_brand_design",
+    "Fetch a company's public website and detect their visual brand design — best logo candidate, brand colors (as hex), and heading/body fonts. Use when the operator asks you to pull or match their brand look from their site. Read-only and safe. After calling it, pass the palette + fonts (and logoUrl) into propose_brand_profile so the operator can review and activate them.",
+    { url: z.string().describe("The company's website URL (http or https).") },
+    async (args) =>
+      runTool(step, "Reading brand design", () =>
+        client.apiPost("/api/v1/arc/brand/design", { url: args.url }),
+      ),
+  );
+
   const proposeBrandProfile = tool(
     "propose_brand_profile",
     "Save a DRAFT brand profile for the operator to review and activate. Provide every field you can infer from the website + the operator's answers. You CANNOT activate it — say so, and tell the operator to review and switch it to Active in Settings. Do not include any status field; it is always saved as a draft.",
@@ -34,6 +44,18 @@ export function brandTools(client: ArcClient, step: StepFn, collectCard: (card: 
       logoUrl: z.string().optional(),
       faviconUrl: z.string().optional(),
       accent: z.string().optional().describe("Brand accent color, hex (e.g. #C8A24B)."),
+      brandPalette: z
+        .object({
+          primary: z.string().optional(),
+          secondary: z.string().optional(),
+          accent: z.string().optional(),
+          dark: z.string().optional(),
+          light: z.string().optional(),
+        })
+        .optional()
+        .describe("Brand colors as 6-digit hex (e.g. #C8A24B)."),
+      headingFont: z.string().optional().describe("Heading font family name."),
+      bodyFont: z.string().optional().describe("Body font family name."),
       tone: z.string().optional().describe("Brand voice tone, e.g. 'calm, expert'."),
       voiceGuidance: z.string().optional(),
       services: z.array(z.string()).optional(),
@@ -76,5 +98,5 @@ export function brandTools(client: ArcClient, step: StepFn, collectCard: (card: 
     },
   );
 
-  return [analyzeWebsite, proposeBrandProfile];
+  return [analyzeWebsite, analyzeBrandDesign, proposeBrandProfile];
 }

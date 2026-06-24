@@ -67,4 +67,36 @@ describe("brandTools", () => {
     expect(cards).toHaveLength(0);
     expect(res.content[0].text).toContain("failed");
   });
+
+  it("analyze_brand_design posts to the design route and returns the proposal text", async () => {
+    const client = {
+      apiPost: vi.fn(async () => ({ ok: true, logoUrl: "https://acme.com/logo.png", palette: { primary: "#c8a24b" } })),
+    } as unknown as ArcClient;
+    const tools = toolsByName(client, () => {});
+    const res = await callHandler(tools["analyze_brand_design"], { url: "https://acme.com" });
+    expect(client.apiPost).toHaveBeenCalledWith("/api/v1/arc/brand/design", { url: "https://acme.com" });
+    expect(res.content[0].text).toContain("#c8a24b");
+  });
+
+  it("propose_brand_profile forwards brandPalette and fonts", async () => {
+    const client = {
+      apiPut: vi.fn(async () => ({ ok: true, profile: { displayName: "Acme Co", status: "draft" } })),
+    } as unknown as ArcClient;
+    const tools = toolsByName(client, () => {});
+    await callHandler(tools["propose_brand_profile"], {
+      displayName: "Acme Co",
+      brandPalette: { primary: "#c8a24b", secondary: "#1b2a4a" },
+      headingFont: "Oswald",
+      bodyFont: "Inter",
+    });
+    expect(client.apiPut).toHaveBeenCalledWith(
+      "/api/v1/arc/brand/profile",
+      expect.objectContaining({
+        displayName: "Acme Co",
+        brandPalette: { primary: "#c8a24b", secondary: "#1b2a4a" },
+        headingFont: "Oswald",
+        bodyFont: "Inter",
+      }),
+    );
+  });
 });
