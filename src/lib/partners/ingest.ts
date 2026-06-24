@@ -38,6 +38,8 @@ export const ingestPayloadSchema = z.object({
   partners: z.array(partnerRecordSchema).min(1).max(500),
 });
 
+// Mirrors arcGuard's resolved scope. workspaceId is carried for parity with the
+// guard and reserved for future workspace-level filtering; org_id is today's tenant key.
 export type IngestScope = { orgId: string; workspaceId: string };
 export type IngestError = { source_id: string; message: string };
 export type IngestResult = { created: number; updated: number; errors: IngestError[] };
@@ -50,9 +52,9 @@ function mapStatus(input: string | null | undefined): "active" | "inactive" {
 
 function splitName(name: string): { first_name: string; last_name: string | null } {
   const trimmed = name.trim();
-  const space = trimmed.indexOf(" ");
-  if (space === -1) return { first_name: trimmed, last_name: null };
-  return { first_name: trimmed.slice(0, space), last_name: trimmed.slice(space + 1).trim() || null };
+  const match = trimmed.match(/^(\S+)\s+([\s\S]+)$/);
+  if (!match) return { first_name: trimmed, last_name: null };
+  return { first_name: match[1], last_name: match[2].trim() || null };
 }
 
 function buildMetadata(r: PartnerRecord): Record<string, unknown> {
@@ -101,6 +103,9 @@ async function upsertCompany(
     return { id: existing.id, created: false };
   }
 
+  // Lookup-then-insert is not serializable: a concurrent run with the same
+  // source_plumber_id can hit the partial unique index (23505). That surfaces
+  // as a per-record error (caught by the caller) — never a duplicate row.
   const { data, error } = await supabase
     .from("companies")
     .insert(payload)
@@ -140,6 +145,8 @@ async function upsertContact(
     metadata: { source: "bsr-bd", source_plumber_id: r.source_id },
   };
 
+  // On update we re-write company_id so the contact always tracks the current
+  // company for this source_plumber_id (correct if a company row was recreated).
   if (existing?.id) {
     const { error } = await supabase.from("contacts").update(payload).eq("id", existing.id);
     if (error) throw new Error(error.message);
