@@ -1,3 +1,5 @@
+import "server-only";
+
 import { ImageResponse } from "next/og";
 
 import {
@@ -11,16 +13,18 @@ import {
 import { loadCreativeFonts } from "./fonts";
 import type { CreativeTemplate } from "./types";
 import { templateBold } from "./templates/bold";
+import { templateEditorial } from "./templates/editorial";
+import { templateMinimal } from "./templates/minimal";
 
 const TEMPLATES: Record<CreativeTemplateId, CreativeTemplate> = {
   bold: templateBold,
-  // editorial + minimal registered in Task 4
-  editorial: templateBold,
-  minimal: templateBold,
+  editorial: templateEditorial,
+  minimal: templateMinimal,
 };
 
 /** Fetch an http(s) image and inline it as a data: URL (satori renders these reliably). */
 async function toDataUrl(url: string): Promise<string> {
+  if (url.startsWith("data:")) return url;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`failed to fetch image (${res.status}): ${url}`);
   const contentType = res.headers.get("content-type") ?? "image/png";
