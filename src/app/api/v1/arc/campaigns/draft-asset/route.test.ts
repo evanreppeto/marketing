@@ -115,7 +115,7 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       expect.objectContaining({
         name: "Fall Water Push",
         persona: "persona_homeowner_emergency",
-        restorationFocus: "water",
+        restorationFocus: "water_backup",
         tenant: { org_id: "org-1", workspace_id: "workspace-1" },
       }),
     );
@@ -150,7 +150,7 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "lava" }),
     );
     expect(res.status).toBe(400);
-    expect(shellMock).not.toHaveBeenCalled();
+    expect(resolveMock).not.toHaveBeenCalled();
   });
 
   it("400s on an unknown persona when creating a new campaign", async () => {
@@ -159,7 +159,7 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_alien", restoration_focus: "flood" }),
     );
     expect(res.status).toBe(400);
-    expect(shellMock).not.toHaveBeenCalled();
+    expect(resolveMock).not.toHaveBeenCalled();
   });
 
   it("normalizes the restoration_focus alias water -> water_backup on the shell", async () => {
@@ -168,7 +168,7 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "water" }),
     );
     expect(res.status).toBe(201);
-    expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "water_backup" }));
+    expect(resolveMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "water_backup" }));
   });
 
   it("attaches to an existing campaign without creating a shell", async () => {
