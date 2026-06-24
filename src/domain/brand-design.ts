@@ -6,7 +6,7 @@
  * in src/lib/brand-kit/design-fetch.ts.
  */
 
-export type BrandDesignColor = { hex: string; source: "theme-color" | "css-var" | "frequency" };
+export type BrandDesignColor = { hex: string; source: "theme-color" | "css-var" | "frequency"; count?: number };
 
 export type BrandDesignSignal = {
   logoCandidates: string[];
@@ -88,7 +88,8 @@ function extractLogos(html: string, baseUrl: string): { candidates: string[]; fa
 
 function normalizeHex(raw: string): string | null {
   let v = raw.trim().toLowerCase();
-  if (/^#[0-9a-f]{3}$/.test(v)) v = `#${v[1]}${v[1]}${v[2]}${v[2]}${v[3]}${v[3]}`;
+  if (/^#[0-9a-f]{3,4}$/.test(v)) v = `#${v[1]}${v[1]}${v[2]}${v[2]}${v[3]}${v[3]}`;
+  else if (/^#[0-9a-f]{8}$/.test(v)) v = v.slice(0, 7);
   return /^#[0-9a-f]{6}$/.test(v) ? v : null;
 }
 
@@ -120,8 +121,8 @@ function saturation(hex: string): number {
 
 function extractColors(html: string): BrandDesignColor[] {
   const found = new Map<string, BrandDesignColor>();
-  const add = (hex: string | null, source: BrandDesignColor["source"]) => {
-    if (hex && !found.has(hex)) found.set(hex, { hex, source });
+  const add = (hex: string | null, source: BrandDesignColor["source"], count?: number) => {
+    if (hex && !found.has(hex)) found.set(hex, { hex, source, ...(count !== undefined ? { count } : {}) });
   };
 
   for (const t of tagsOf(html, "meta")) {
@@ -133,11 +134,12 @@ function extractColors(html: string): BrandDesignColor[] {
   const css = `${styles}\n${inline}`;
 
   for (const m of css.matchAll(/--[\w-]*(?:primary|secondary|accent|brand|color)[\w-]*\s*:\s*([^;}]+)/gi)) {
-    add(normalizeHex(m[1]) ?? rgbToHex(m[1]), "css-var");
+    const firstToken = m[1].trim().split(/\s+/)[0]; // drop "!important" and trailing tokens
+    add(normalizeHex(firstToken) ?? rgbToHex(m[1]), "css-var");
   }
 
   const freq = new Map<string, number>();
-  for (const m of css.matchAll(/#[0-9a-fA-F]{3,6}\b/g)) {
+  for (const m of css.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
     const hex = normalizeHex(m[0]);
     if (hex) freq.set(hex, (freq.get(hex) ?? 0) + 1);
   }
@@ -145,17 +147,19 @@ function extractColors(html: string): BrandDesignColor[] {
     const hex = rgbToHex(m[0]);
     if (hex) freq.set(hex, (freq.get(hex) ?? 0) + 1);
   }
-  for (const [hex] of [...freq.entries()].sort((a, b) => b[1] - a[1])) add(hex, "frequency");
+  for (const [hex, count] of [...freq.entries()].sort((a, b) => b[1] - a[1])) add(hex, "frequency", count);
 
   // Rank: saturated brand colors first, gray extremes last; within a bucket,
   // trust an explicit brand-named CSS variable over a theme-color meta (often a
-  // dark chrome color) over a raw frequency match.
+  // dark chrome color) over a raw frequency match; then by on-page prominence.
   const sourceRank = (s: BrandDesignColor["source"]) => (s === "css-var" ? 0 : s === "theme-color" ? 1 : 2);
   return [...found.values()].sort((a, b) => {
     const va = saturation(a.hex) > 0.15 ? 0 : 1;
     const vb = saturation(b.hex) > 0.15 ? 0 : 1;
     if (va !== vb) return va - vb;
-    return sourceRank(a.source) - sourceRank(b.source);
+    const r = sourceRank(a.source) - sourceRank(b.source);
+    if (r !== 0) return r;
+    return (b.count ?? 0) - (a.count ?? 0);
   });
 }
 

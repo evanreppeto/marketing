@@ -64,6 +64,29 @@ describe("extractBrandDesign — colors", () => {
     const signal = extractBrandDesign(html, BASE);
     expect(signal.colors[0].hex).toBe("#c8a24b");
   });
+
+  it("normalizes 8-digit hex (#rrggbbaa) by dropping the alpha", () => {
+    const signal = extractBrandDesign(`<head><style>body{color:#1b2a4aff}</style></head>`, BASE);
+    expect(signal.colors.map((c) => c.hex)).toContain("#1b2a4a");
+  });
+
+  it("tags an !important brand CSS variable as css-var", () => {
+    const signal = extractBrandDesign(`<head><style>:root{--brand-primary:#C8A24B !important}</style></head>`, BASE);
+    expect(signal.colors.find((c) => c.hex === "#c8a24b")?.source).toBe("css-var");
+  });
+
+  it("orders equal-tier frequency colors by prominence (count)", () => {
+    const html = `<head><style>
+      a{color:#0f8a5f} .b{border-color:#0f8a5f} .c{outline-color:#0f8a5f}
+      h2{color:#c8a24b}
+    </style></head>`;
+    const signal = extractBrandDesign(html, BASE);
+    const i0f = signal.colors.findIndex((c) => c.hex === "#0f8a5f");
+    const ic8 = signal.colors.findIndex((c) => c.hex === "#c8a24b");
+    expect(i0f).toBeGreaterThanOrEqual(0);
+    expect(ic8).toBeGreaterThanOrEqual(0);
+    expect(i0f).toBeLessThan(ic8);
+  });
 });
 
 describe("extractBrandDesign — fonts", () => {
