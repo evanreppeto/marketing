@@ -5,6 +5,7 @@ import { campaignReadTools } from "./campaigns";
 import { performanceReadTools } from "./performance";
 import { intelligenceTools } from "./intelligence";
 import { interactionWriteTools } from "./interactions";
+import { crmWriteTools } from "./crm-write";
 import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
 import { mediaTools } from "./media";
@@ -32,9 +33,9 @@ function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   ];
 }
 
-/** Append-only writes: CRM interactions + brain observations. act/draft only. */
+/** act/draft writes: brain observations, append-only CRM interactions, and research-sourced CRM lead creation. */
 function writeTools(client: ArcClient, step: StepFn) {
-  return [...brainWriteTools(client, step), ...interactionWriteTools(client, step)];
+  return [...brainWriteTools(client, step), ...interactionWriteTools(client, step), ...crmWriteTools(client, step)];
 }
 
 /** Draft work products: create approval-gated campaign assets + brand learning. draft mode only. */
