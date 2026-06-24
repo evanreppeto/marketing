@@ -14,13 +14,21 @@ export type GeminiWebSearchResult = {
   searchQueries: string[];
 };
 
+/**
+ * Minimal structural shape of the @google/genai client we depend on. Declaring it
+ * here (rather than mocking a fictional surface) keeps tests honest: a fake injected
+ * via `createClient` must mirror the REAL SDK — `models.generateContent` with a
+ * Google Search grounding tool — the same call the live `GoogleGenAI` makes.
+ */
+type GenerateContentArgs = {
+  model: string;
+  contents: string;
+  config?: { tools?: Array<{ googleSearch: Record<string, never> }> };
+};
+
 type GeminiWebSearchClient = {
-  interactions?: {
-    create?: (input: {
-      model: string;
-      input: string;
-      tools: Array<{ type: "google_search" }>;
-    }) => Promise<unknown>;
+  models: {
+    generateContent: (args: GenerateContentArgs) => Promise<unknown>;
   };
 };
 
@@ -50,62 +58,79 @@ function numberOrUndefined(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+/** First candidate of a generateContent response (the only one we request). */
+function firstCandidate(response: unknown): Record<string, unknown> {
+  return asRecord(array(asRecord(response).candidates)[0]);
+}
+
+/** Grounding metadata attached to the first candidate (Google Search results). */
+function groundingMetadata(response: unknown): Record<string, unknown> {
+  return asRecord(firstCandidate(response).groundingMetadata);
+}
+
+/** Executed Google searches the model ran, from groundingMetadata.webSearchQueries. */
 function extractSearchQueries(response: unknown): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const step of array(asRecord(response).steps)) {
-    const item = asRecord(step);
-    if (item.type !== "google_search_call") continue;
-    const args = asRecord(item.arguments);
-    for (const raw of array(args.queries)) {
-      const query = cleanText(raw, 240);
-      const key = query.toLowerCase();
-      if (!query || seen.has(key)) continue;
-      seen.add(key);
-      out.push(query);
-    }
+  for (const raw of array(groundingMetadata(response).webSearchQueries)) {
+    const query = cleanText(raw, 240);
+    const key = query.toLowerCase();
+    if (!query || seen.has(key)) continue;
+    seen.add(key);
+    out.push(query);
   }
   return out;
 }
 
+/** Model answer text — the `.text` convenience getter, falling back to candidate parts. */
 function extractModelOutputText(response: unknown): string {
-  const root = asRecord(response);
-  const direct = cleanText(root.output_text ?? root.outputText, 12000);
+  const direct = cleanText(asRecord(response).text, 12000);
   if (direct) return direct;
 
-  for (const step of array(root.steps)) {
-    const item = asRecord(step);
-    if (item.type !== "model_output") continue;
-    const chunks = array(item.content)
-      .map((content) => cleanText(asRecord(content).text, 12000))
-      .filter(Boolean);
-    if (chunks.length > 0) return chunks.join("\n\n");
-  }
-  return "";
+  const parts = array(asRecord(firstCandidate(response).content).parts);
+  const chunks = parts.map((part) => cleanText(asRecord(part).text, 12000)).filter(Boolean);
+  return chunks.join("\n\n");
 }
 
+/**
+ * Citations from groundingMetadata.groundingChunks[].web, enriched with the text
+ * offsets in groundingSupports[] (a support points at chunk indices via
+ * groundingChunkIndices and carries the segment start/end for the cited span).
+ */
 function extractCitations(response: unknown): WebSearchCitation[] {
-  const out: WebSearchCitation[] = [];
-  const seen = new Set<string>();
-  for (const step of array(asRecord(response).steps)) {
-    const item = asRecord(step);
-    if (item.type !== "model_output") continue;
-    for (const content of array(item.content)) {
-      for (const annotation of array(asRecord(content).annotations)) {
-        const citation = asRecord(annotation);
-        if (citation.type !== "url_citation") continue;
-        const url = cleanText(citation.url, 1000);
-        if (!url || seen.has(url)) continue;
-        seen.add(url);
-        out.push({
-          title: cleanText(citation.title, 180) || url,
-          url,
-          startIndex: numberOrUndefined(citation.start_index ?? citation.startIndex),
-          endIndex: numberOrUndefined(citation.end_index ?? citation.endIndex),
-        });
-      }
+  const meta = groundingMetadata(response);
+  const chunks = array(meta.groundingChunks);
+
+  const indexToSpan = new Map<number, { startIndex?: number; endIndex?: number }>();
+  for (const support of array(meta.groundingSupports)) {
+    const item = asRecord(support);
+    const segment = asRecord(item.segment);
+    const span = {
+      startIndex: numberOrUndefined(segment.startIndex),
+      endIndex: numberOrUndefined(segment.endIndex),
+    };
+    for (const rawIndex of array(item.groundingChunkIndices)) {
+      const index = numberOrUndefined(rawIndex);
+      if (index === undefined || indexToSpan.has(index)) continue;
+      indexToSpan.set(index, span);
     }
   }
+
+  const out: WebSearchCitation[] = [];
+  const seen = new Set<string>();
+  chunks.forEach((chunk, index) => {
+    const web = asRecord(asRecord(chunk).web);
+    const url = cleanText(web.uri, 1000);
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    const span = indexToSpan.get(index);
+    out.push({
+      title: cleanText(web.title, 180) || url,
+      url,
+      startIndex: span?.startIndex,
+      endIndex: span?.endIndex,
+    });
+  });
   return out;
 }
 
@@ -120,6 +145,11 @@ function buildInput(query: string, context?: string): string {
   return parts.join("\n\n");
 }
 
+/**
+ * Read-only grounded web research via Gemini + Google Search. Returns the model's
+ * answer with citations and the searches it ran. Throws on missing input/key or any
+ * Gemini failure — the caller (the research route) maps a throw to HTTP 502.
+ */
 export async function searchWebWithGemini(input: SearchWebWithGeminiInput): Promise<GeminiWebSearchResult> {
   const query = cleanText(input.query, 1000);
   if (!query) throw new Error("query is required");
@@ -128,15 +158,16 @@ export async function searchWebWithGemini(input: SearchWebWithGeminiInput): Prom
   if (!apiKey) throw new Error("GEMINI_API_KEY is required");
 
   const model = cleanText(input.model ?? process.env.GEMINI_WEB_SEARCH_MODEL, 120) || DEFAULT_MODEL;
-  const client = input.createClient ? input.createClient(apiKey) : new GoogleGenAI({ apiKey });
-  const create = client.interactions?.create;
-  if (!create) throw new Error("Gemini interactions API is unavailable in @google/genai");
+  const client: GeminiWebSearchClient = input.createClient
+    ? input.createClient(apiKey)
+    : (new GoogleGenAI({ apiKey }) as unknown as GeminiWebSearchClient);
 
-  const response = await create({
+  const response = await client.models.generateContent({
     model,
-    input: buildInput(query, input.context),
-    tools: [{ type: "google_search" }],
+    contents: buildInput(query, input.context),
+    config: { tools: [{ googleSearch: {} }] },
   });
+
   const text = extractModelOutputText(response);
   if (!text) throw new Error("Gemini returned no research text");
 
