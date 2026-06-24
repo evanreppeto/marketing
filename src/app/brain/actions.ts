@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { type EdgeRelation } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { resyncCampaignsIntoBrain, resyncCrmIntoBrain, resyncMediaIntoBrain, resyncPerformanceIntoBrain } from "@/lib/brain-ingestion/sync";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { archiveNode, createEdge, createNode, decideNode, setNodeKind, setNodeTags, updateNode } from "@/lib/knowledge-graph/persistence";
 
@@ -110,4 +111,31 @@ export async function archiveNodeAction(nodeId: string): Promise<ActionResult> {
   if (!result.ok) return result;
   revalidateBrainSurfaces();
   return { ok: true };
+}
+
+/** Operator-triggered backfill: mirror CRM, campaigns, media, and performance into the Brain. */
+export async function resyncCrmIntoBrainAction(): Promise<{ ok: boolean; message: string }> {
+  await requireOperator();
+  // CRM and campaigns first so persona/CRM/campaign nodes exist before performance
+  // links `learned_from` edges to them.
+  const crm = await resyncCrmIntoBrain();
+  const campaigns = await resyncCampaignsIntoBrain();
+  const media = await resyncMediaIntoBrain();
+  const performance = await resyncPerformanceIntoBrain();
+  revalidateBrainSurfaces();
+
+  const sources = [crm, campaigns, media, performance];
+  const synced = sources.reduce((n, s) => n + s.synced, 0);
+  const linked = sources.reduce((n, s) => n + s.linked, 0);
+  const errors = sources.reduce((n, s) => n + s.errors, 0);
+  const truncated = sources.some((s) => s.truncated);
+
+  if (!synced && !errors) {
+    return { ok: false, message: "Nothing to sync — Supabase isn't configured or there are no records yet." };
+  }
+  const parts = [`Synced ${synced} record${synced === 1 ? "" : "s"} into the Brain`];
+  if (linked) parts.push(`linked ${linked} relationship${linked === 1 ? "" : "s"}`);
+  if (errors) parts.push(`${errors} skipped`);
+  if (truncated) parts.push("some tables hit the row limit — run again to finish");
+  return { ok: sources.every((s) => s.ok), message: `${parts.join("; ")}.` };
 }

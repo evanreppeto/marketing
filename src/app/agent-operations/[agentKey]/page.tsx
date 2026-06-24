@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
-import { DataTable } from "@/app/_components/data-table";
 import { IntelligencePanel } from "@/app/_components/intelligence-panel";
+import { AgentTaskTable } from "./_components/agent-task-table";
 import { EmptyState, PageHeader, StatusPill, buttonClasses } from "@/app/_components/page-header";
 import { WorkspacePanel } from "@/app/_components/workspace";
 import { getAgentName } from "@/lib/settings/agent-name";
@@ -60,33 +60,7 @@ export default async function Page({ params }: PageProps) {
             description="Agent-specific work queue. Outputs are internal until the approval queue authorizes the next step."
             aside={<StatusPill tone={tasks.length > 0 ? "blue" : "gray"}>{tasks.length} tasks</StatusPill>}
           >
-            <DataTable
-              rows={tasks}
-              rowKey={(row) => row.fullId}
-              rowHref={(row) => row.href}
-              minWidth="min-w-[920px]"
-              columns={[
-                {
-                  key: "objective",
-                  header: "Objective",
-                  cell: (row) => (
-                    <>
-                      <div className="font-bold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.task}</div>
-                      <div className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{row.objective}</div>
-                    </>
-                  ),
-                },
-                { key: "status", header: "Status", cell: (row) => <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill> },
-                { key: "risk", header: "Risk", cell: (row) => <StatusPill tone={riskTone(row.risk)}>{row.risk}</StatusPill> },
-                {
-                  key: "linked",
-                  header: "Linked work",
-                  cell: (row) => <span className="text-sm font-semibold text-[var(--accent)]">{row.linkedObject}</span>,
-                },
-                { key: "updated", header: "Updated", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.updated },
-              ]}
-              emptyState={<EmptyState title="No tasks for this agent" detail="When tasks are assigned here, they will appear with linked records, risk, and approval state." />}
-            />
+            <AgentTaskTable tasks={tasks} />
           </WorkspacePanel>
 
           <WorkspacePanel eyebrow="Risk flags" title="Operating rules">
@@ -139,8 +113,3 @@ function statusTone(status: string) {
   return "blue";
 }
 
-function riskTone(risk: string) {
-  if (/blocked|high/i.test(risk)) return "red";
-  if (/medium|warning/i.test(risk)) return "amber";
-  return "green";
-}

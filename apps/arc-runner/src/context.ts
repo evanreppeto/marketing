@@ -3,11 +3,7 @@ import { ARC_PERSONAS } from "./personas";
 import type { ArcHistoryTurn, MarkMention } from "./types";
 import type { RecallItem } from "./recall";
 import type { ArcSkill } from "./skills";
-
-/** Route → model. Fast chat rides Haiku; heavier "standard" work rides Opus. */
-export function modelForRoute(route: "fast" | "standard"): string {
-  return route === "standard" ? "claude-opus-4-8" : "claude-haiku-4-5";
-}
+import type { WorkspaceSummary } from "./workspace-summary";
 
 /** Render bounded thread history as a prompt preamble. Empty string when none. */
 export function formatHistory(turns: ArcHistoryTurn[] | undefined): string {
@@ -30,6 +26,8 @@ export type ArcTurnContext = {
   mentions: MarkMention[];
   /** Durable memory recalled from the brain across past chats (may be empty). */
   memory?: RecallItem[];
+  /** Live workspace snapshot injected as situational awareness (may be absent). */
+  workspaceState?: WorkspaceSummary | null;
   assistantTone?: string;
   assistantResponseStyle?: string;
   approvalStrictness?: string;
@@ -129,11 +127,30 @@ function memoryBlock(memory: RecallItem[] | undefined): string | null {
   ].join("\n");
 }
 
+function workspaceStateBlock(s: WorkspaceSummary | null | undefined): string | null {
+  if (!s) return null;
+  const brand =
+    s.brandKit === "active"
+      ? "Brand Kit active"
+      : s.brandKit === "draft"
+        ? "Brand Kit in draft — not yet active; tell the operator to activate it in Settings"
+        : "no Brand Kit yet — running on neutral defaults";
+  return [
+    "WORKSPACE STATE (live snapshot — use for situational awareness; call get_workspace_settings for detail):",
+    `- ${brand}`,
+    `- Connectors: ${s.connectors.connected} of ${s.connectors.total} connected`,
+    `- Library: ${s.mediaAvailable} approved media available to you`,
+    `- Approvals: ${s.pendingApprovals} pending`,
+    `- Personas: ${s.personas} configured`,
+  ].join("\n");
+}
+
 /** Compose the full system prompt from the base prompt + per-turn context. */
 export function buildSystemPrompt(base: string, ctx: ArcTurnContext): string {
   const parts: (string | null)[] = [
     base,
     businessBlock(ctx.business),
+    workspaceStateBlock(ctx.workspaceState),
     memoryBlock(ctx.memory),
     personasBlock(),
     modeBlock(ctx.mode),

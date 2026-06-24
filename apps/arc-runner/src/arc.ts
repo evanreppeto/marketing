@@ -1,8 +1,11 @@
 import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 
 import { resolveBusinessContext } from "./business-context";
-import { resolveRecallMemory } from "./recall";
-import { buildSystemPrompt, formatHistory, modelForRoute, type ArcTurnContext } from "./context";
+import { resolveWorkspaceSummary } from "./workspace-summary";
+import { buildTurnContentAsync } from "./attachments";
+import { buildRecallQuery, resolveRecallMemory } from "./recall";
+import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
+import { buildQueryOptions, inferenceForRoute, type InferenceSettings } from "./inference";
 import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode, type ArcMode, type ToolContext } from "./tools";
@@ -66,13 +69,32 @@ function makeSink() {
  *  smooths between chunks. */
 const STREAM_THROTTLE_MS = 180;
 
+/** The model input for a turn: a plain string, or content blocks for multimodal. */
+type TurnContent = Awaited<ReturnType<typeof buildTurnContentAsync>>;
+
+/** Adapt our turn content into the SDK's prompt input. A plain string stays a
+ *  string (unchanged path); content blocks are wrapped in a single streamed
+ *  user message so images/documents/text reach the model. */
+function promptInput(content: TurnContent, sessionId: string) {
+  if (typeof content === "string") return content;
+  async function* once() {
+    yield {
+      type: "user" as const,
+      session_id: sessionId,
+      parent_tool_use_id: null,
+      message: { role: "user" as const, content },
+    };
+  }
+  return once();
+}
+
 async function runArcQuery(opts: {
   step: StepFn;
   mode: ArcMode;
   ctx: ArcTurnContext;
   client: ArcClient;
-  prompt: string;
-  model: string;
+  content: TurnContent;
+  inference: InferenceSettings;
   toolContext?: ToolContext;
   skill?: ArcSkill | null;
   /** Live partial reply text, posted as the model streams (chat-turn only). */
@@ -82,7 +104,8 @@ async function runArcQuery(opts: {
 
   const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, { ...(opts.toolContext ?? {}), skill: opts.skill });
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
-  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, opts.ctx);
+  const workspaceState = await resolveWorkspaceSummary(opts.client);
+  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, { ...opts.ctx, workspaceState });
 
   let assistantText = "";
   let resultText = "";
@@ -95,17 +118,13 @@ async function runArcQuery(opts: {
   let outputTokens: number | null = null;
 
   for await (const message of query({
-    prompt: opts.prompt,
-    options: {
+    prompt: promptInput(opts.content, opts.ctx.scope.conversationId ?? "arc-turn"),
+    options: buildQueryOptions({
+      inference: opts.inference,
       systemPrompt: system,
-      model: opts.model,
       mcpServers: { arc: arcServer },
       allowedTools: allowedToolNames(opts.mode, opts.skill),
-      permissionMode: "bypassPermissions",
-      // Emit SDKPartialAssistantMessage ('stream_event') token deltas so we can
-      // type the reply out live; the final assistant/result messages still land.
-      includePartialMessages: true,
-    },
+    }),
   })) {
     if (message.type === "stream_event") {
       const event = message.event;
@@ -139,7 +158,7 @@ async function runArcQuery(opts: {
     suggestions: suggestions.slice(0, 4),
     sources,
     questions: questions.slice(0, 4),
-    usage: { model: opts.model, inputTokens, outputTokens },
+    usage: { model: opts.inference.model, inputTokens, outputTokens },
   };
 }
 
@@ -147,7 +166,7 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   const step = (label: string, status: "running" | "done") => client.postStep(payload.agentTaskId, label, status);
 
   const business = await resolveBusinessContext(client);
-  const memory = await resolveRecallMemory(client, payload.message);
+  const memory = await resolveRecallMemory(client, buildRecallQuery(payload.history, payload.message));
   const skill = resolveArcSkill(payload.skillId);
   const ctx: ArcTurnContext = {
     business,
@@ -167,15 +186,16 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
   };
 
   const preamble = formatHistory(payload.history);
-  const prompt = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
+  const text = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
+  const content = await buildTurnContentAsync(text, payload.attachments);
 
   return runArcQuery({
     step,
     mode: payload.mode,
     ctx,
     client,
-    prompt,
-    model: modelForRoute(payload.route),
+    content,
+    inference: inferenceForRoute(payload.route),
     // Thread the turn's level so media tools tell the generate endpoints which
     // tier (Swift=fast / Studio=standard) to resolve image/video models from.
     // Also thread conversationId so draft tools can link the chat to the campaign.
@@ -220,8 +240,8 @@ export async function runArcOpportunityDraft(
     mode: "draft",
     ctx,
     client,
-    prompt: payload.message,
-    model: modelForRoute("standard"),
+    content: payload.message,
+    inference: inferenceForRoute("standard"),
     toolContext: { opportunityId: payload.opportunityId },
     skill,
   });
@@ -260,8 +280,8 @@ export async function runArcOpportunityScan(
     mode: "scan",
     ctx,
     client,
-    prompt: payload.message,
-    model: modelForRoute("standard"),
+    content: payload.message,
+    inference: inferenceForRoute("standard"),
     skill,
   });
 }
@@ -307,8 +327,8 @@ export async function runArcCampaignTask(
     mode: "draft",
     ctx,
     client,
-    prompt,
-    model: modelForRoute("standard"),
+    content: prompt,
+    inference: inferenceForRoute("standard"),
     toolContext: { campaignId: payload.campaignId, conversationId: payload.conversationId },
     skill,
   });

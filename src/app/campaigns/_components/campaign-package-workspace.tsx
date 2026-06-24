@@ -8,7 +8,9 @@ import { Button, StatusPill } from "@/app/_components/page-header";
 import type { CampaignWorkspaceAsset, LiveCampaignWorkspace } from "@/lib/campaigns/read-model";
 import type { ConnectionView } from "@/lib/connections/read-model";
 
-import { AssetPreview } from "./asset-preview";
+import { AssetPreview, MediaProvenanceBadge } from "./asset-preview";
+import { AttachMediaButton } from "./attach-media-control";
+import { SafeImage } from "./safe-image";
 import { assembleCopyText, isChannelDeployable } from "./campaign-deploy-model";
 import { contentStatusForLaunch, contentWhere, type CampaignPackageSummary, type PlainTone } from "./campaign-detail-model";
 import { CopyTextButton } from "./copy-text-button";
@@ -189,6 +191,16 @@ function CampaignPiece({
       <div className="space-y-3 p-4">
         <PieceQuickFacts asset={asset} statusLabel={status.label} />
         {hasMedia ? <MediaReview asset={asset} /> : <MessageReviewPane asset={asset} />}
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
+          <span className="text-xs text-[var(--text-muted)]">
+            {hasMedia ? "Need a different image?" : "No approved media attached yet."}
+          </span>
+          <AttachMediaButton
+            assetId={asset.id}
+            campaignId={campaignId}
+            label={hasMedia ? "Attach more from Library" : "Attach approved media"}
+          />
+        </div>
         {showDecisionControls ? (
           <div className="sticky bottom-3 z-20 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 shadow-[0_-14px_30px_rgba(0,0,0,0.22)]">
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -212,9 +224,15 @@ function MediaReview({ asset }: { asset: CampaignWorkspaceAsset }) {
     <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
       <div className="overflow-hidden rounded-xl border border-[var(--accent-border-strong)] bg-[var(--media-void)]">
         {primary?.type === "image" ? (
-          <a href={primary.url} target="_blank" rel="noreferrer" className="group block">
-            {/* eslint-disable-next-line @next/next/no-img-element -- preview media can be arbitrary remote creative URLs */}
-            <img src={primary.thumbnailUrl ?? primary.url} alt={primary.title} className="h-[22rem] w-full object-cover transition group-hover:scale-[1.015]" />
+          <a href={primary.url} target="_blank" rel="noreferrer" className="group relative block">
+            <SafeImage
+              src={primary.thumbnailUrl ?? primary.url}
+              alt={primary.title}
+              className="h-[22rem] w-full object-cover transition group-hover:scale-[1.015]"
+            />
+            <span className="absolute left-3 top-3">
+              <MediaProvenanceBadge media={primary} />
+            </span>
           </a>
         ) : (
           <AssetPreview asset={{ ...asset, body: "" }} />

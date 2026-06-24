@@ -197,6 +197,11 @@ export function buildSourceControlData(input: {
   };
 }
 
+// Pure grouping helper lives in review-grouping.ts so client components can use
+// it without dragging this module's server-only imports into the browser bundle.
+// Re-exported here for server-side callers and existing test imports.
+export { groupReviewItemsBySource, type ReviewSourceGroup } from "./review-grouping";
+
 export async function loadSourceControlData(): Promise<SourceControlData> {
   const [library, nodesResult, driveSources] = await Promise.all([
     getMediaLibraryData(),

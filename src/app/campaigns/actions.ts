@@ -12,6 +12,7 @@ import { deployAsset, launchCampaign } from "@/lib/campaigns/launch";
 import { sendArcDirective } from "@/lib/campaigns/arc-conversation";
 import { queueCampaignBuildTask, queueCampaignDirectiveTask } from "@/lib/campaigns/queue";
 import { requestAssetRevision } from "@/lib/campaigns/revisions";
+import { attachMediaToCampaignAsset, listAttachableMedia, type AttachableMediaItem } from "@/lib/campaigns/attach-media";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { getAgentName } from "@/lib/settings/agent-name";
 import { assignConversationToCampaign, createConversation, insertOperatorMessage } from "@/lib/arc-chat/persistence";
@@ -545,4 +546,62 @@ export async function handToArcAction(formData: FormData): Promise<void> {
   revalidatePath("/campaigns");
   redirect(`/campaigns/${campaignId}?action=handed-to-arc`);
 
+}
+
+export type AttachMediaActionState = { ok: boolean; message: string } | null;
+
+/**
+ * Operator attaches an approved Library media asset to an existing campaign
+ * asset (e.g. an email's hero). Gated + Supabase-guarded; persists in place via
+ * `attachMediaToCampaignAsset`. Outbound stays locked — this only adds creative.
+ */
+export async function attachMediaAction(
+  _previous: AttachMediaActionState,
+  formData: FormData,
+): Promise<AttachMediaActionState> {
+  await requireOperator();
+
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, message: "Supabase isn't configured yet, so media can't be attached." };
+  }
+
+  const assetId = String(formData.get("assetId") ?? "").trim();
+  const campaignId = String(formData.get("campaignId") ?? "").trim();
+  const libraryAssetId = String(formData.get("libraryAssetId") ?? "").trim();
+  if (!assetId || !libraryAssetId) {
+    return { ok: false, message: "Pick a deliverable and a Library asset to attach." };
+  }
+
+  let attached = false;
+  try {
+    const tenant = await getCurrentAgentTaskTenantFields();
+    const result = await attachMediaToCampaignAsset(
+      { assetId, libraryAssetId, operator: await getOperatorActor(), tenant },
+      getSupabaseAdminClient(),
+    );
+    attached = result.attached;
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Couldn't attach the media." };
+  }
+
+  if (campaignId) {
+    revalidatePath(`/campaigns/${campaignId}`);
+  }
+  revalidatePath("/campaigns");
+
+  return {
+    ok: true,
+    message: attached ? "Approved media attached." : "That media is already attached to this piece.",
+  };
+}
+
+/**
+ * Load the workspace's attachable Library media for the operator's attach
+ * picker. Gated; returns [] when Supabase isn't configured (picker shows empty).
+ */
+export async function listAttachableMediaAction(): Promise<AttachableMediaItem[]> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return [];
+  const tenant = await getCurrentAgentTaskTenantFields();
+  return listAttachableMedia(tenant.org_id, getSupabaseAdminClient());
 }

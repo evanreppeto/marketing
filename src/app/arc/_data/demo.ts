@@ -1,5 +1,5 @@
-import type { ArcActionCard } from "@/domain";
-import type { ArcConversation, ArcMessage, ArcProject } from "@/lib/arc-chat/persistence";
+import type { ArcActionCard, ArcStepKind } from "@/domain";
+import type { ArcConversation, ArcMessage, ArcProject, ArcStep } from "@/lib/arc-chat/persistence";
 import type { MentionGroup } from "@/lib/arc-chat/mention-search";
 
 /**
@@ -40,6 +40,7 @@ function conv(id: string, title: string, agoMs: number, extra?: Partial<ArcConve
     projectId: null,
     campaignId: null,
     ownerId: null,
+    workspaceId: null,
     visibility: "private",
     workspacePermission: "view",
     createdAt: ago(agoMs + HOUR),
@@ -369,6 +370,7 @@ export type DemoChatProps = {
   mentionGroups: MentionGroup[];
   operatorName: string | null;
   pendingApprovals: number;
+  assistantName: string;
 };
 
 /** Full ArcChat prop bag for preview mode. */
@@ -388,27 +390,95 @@ export function getDemoChat(): DemoChatProps {
     mentionGroups: MENTION_GROUPS,
     operatorName: "Evan",
     pendingApprovals: 2,
+    // Preview mode has no settings to read, so name the assistant after the
+    // product rather than the bare "Agent" default — the demo should read as Arc.
+    assistantName: "Arc",
   };
 }
 
-/** A canned Arc reply for preview-mode sends (no backend). */
-export function demoReply(toBody: string): ArcMessage {
-  return {
-    id: `demo-reply-${toBody.length}-${toBody.slice(0, 8)}`,
-    conversationId: CONV,
-    role: "arc",
-    body:
-      "This is **preview mode**, so I'm showing sample behavior rather than really working.\n\n" +
-      "Connect Supabase (and apply the latest migration) to chat with me for real — then sends, drafts, saves, and promote-to-campaign all persist.",
-    status: "complete",
-    agentTaskId: null,
-    mentions: [],
-    media: [],
-    steps: [],
-    feedback: null,
-    actions: [],
-    suggestions: ["Show me the saved view", "Attach a campaign to this chat"],
-    attachments: [],
-    createdAt: new Date().toISOString(),
-  };
+/** One step of the preview-mode "thinking → answer" sequence: a delay (ms to
+ *  wait after the previous frame) and a transform applied to the in-flight
+ *  pending Arc message. Driven by ArcChat's `startDemoReply`. */
+export type DemoReplyFrame = {
+  delay: number;
+  apply: (msg: ArcMessage) => ArcMessage;
+};
+
+/**
+ * A staged reply for preview-mode sends. Instead of snapping a canned message
+ * onto the thread, this walks through the same premium affordances the live
+ * runner drives — the breathing loader, the step-by-step thinking spine with
+ * its shimmer, a line of reasoning, then the streamed reply — so the full Arc
+ * experience is visible without a backend. Honest about being a simulation.
+ */
+export function buildDemoReplyFrames(prompt: string): DemoReplyFrame[] {
+  const trimmed = prompt.trim();
+  const echo = trimmed.length > 88 ? `${trimmed.slice(0, 87)}…` : trimmed;
+  const at = () => new Date().toISOString();
+  const step = (label: string, status: "running" | "done", kind: ArcStepKind): ArcStep => ({
+    label,
+    status,
+    at: at(),
+    kind,
+  });
+  const reasoning =
+    "I'm in preview mode, so I'm simulating the workflow rather than touching live data. " +
+    "With Supabase connected, these steps run against your real CRM, personas, and approved media — " +
+    "and you'd watch each one resolve here before I write the reply.";
+  const body =
+    `You asked me to **“${echo}”**.\n\n` +
+    "This is **preview mode**, so I'm walking through how I work rather than really doing it. " +
+    "Connect Supabase (and apply the latest migration) and I'll run these for real — finding " +
+    "source-backed opportunities, drafting approval-gated work, and keeping every outbound action " +
+    "locked until you approve.";
+  const suggestions = ["Show me the saved view", "Attach a campaign to this chat", "What can you do once connected?"];
+
+  return [
+    // 1 — loader only for a beat, then the first step appears.
+    { delay: 440, apply: (m) => ({ ...m, steps: [step("Reading your request", "running", "think")] }) },
+    {
+      delay: 620,
+      apply: (m) => ({
+        ...m,
+        steps: [
+          step("Reading your request", "done", "think"),
+          step("Checking connected records", "running", "search"),
+        ],
+      }),
+    },
+    {
+      delay: 680,
+      apply: (m) => ({
+        ...m,
+        steps: [
+          step("Reading your request", "done", "think"),
+          step("Checking connected records", "done", "search"),
+          step("Matching personas and signals", "running", "match"),
+        ],
+      }),
+    },
+    {
+      delay: 720,
+      apply: (m) => ({
+        ...m,
+        reasoning,
+        steps: [
+          step("Reading your request", "done", "think"),
+          step("Checking connected records", "done", "search"),
+          step("Matching personas and signals", "done", "match"),
+          step("Drafting a response", "running", "draft"),
+        ],
+      }),
+    },
+    // 2 — work finished; the body begins streaming (the typewriter reveals it).
+    {
+      delay: 700,
+      apply: (m) => ({ ...m, body, steps: m.steps.map((s) => ({ ...s, status: "done" as const })) }),
+    },
+    // 3 — reply lands: flip to complete so the trace collapses and follow-ups show.
+    {
+      delay: 2200,
+      apply: (m) => ({ ...m, status: "complete" as const, body, reasoning, suggestions }),
+    },
+  ];
 }

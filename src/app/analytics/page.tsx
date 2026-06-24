@@ -3,12 +3,11 @@ import Link from "next/link";
 
 import { EmptyState } from "../_components/page-header";
 import { WorkspacePanel } from "../_components/workspace";
-import { DataTable, type Column } from "../_components/data-table";
 import { theme } from "../_components/theme";
 import { DossierPanel, WorkbenchFrame } from "../_components/workbench";
 import { buildPortfolioSplit } from "./_components/campaign-analytics-model";
 import { DonutSplit, type DonutSegment } from "./_components/charts/donut-split";
-import { SegmentedBar } from "./_components/charts/segmented-bar";
+import { CampaignComparisonTable, type ComparisonRowData } from "./_components/overview/campaign-comparison-table";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getPerformanceReadModel } from "@/lib/performance/read-model";
 import { getAppSettings } from "@/lib/settings/store";
@@ -176,14 +175,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
             </WorkspacePanel>
           ) : (
             <WorkspacePanel className="mb-5" title="Campaigns" description="Every campaign and its progress. Select one to open its full analytics.">
-              <DataTable
-                columns={CAMPAIGN_COLUMNS}
-                rows={rows}
-                rowKey={(row) => row.id}
-                rowHref={(row) => `/analytics/${row.id}`}
-                minWidth="min-w-[760px]"
-                emptyState={<EmptyState title="No campaigns yet" detail="When Arc drafts a campaign or you create one, it will appear here with its progress." />}
-              />
+              <CampaignComparisonTable rows={rows} />
             </WorkspacePanel>
           )}
         </>
@@ -207,20 +199,6 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
     </WorkbenchFrame>
   );
 }
-
-type ComparisonRowData = {
-  id: string;
-  name: string;
-  persona: string;
-  updatedAt: string;
-  assetCount: number;
-  approved: number;
-  total: number;
-  pending: number;
-  changes: number;
-  readiness: number;
-  state: "ready" | "changes" | "waiting" | "draft";
-};
 
 function toComparisonRow(campaign: CampaignWorkspaceListItem): ComparisonRowData {
   const { approved, pending, changes, total } = campaign.rollup;
@@ -250,85 +228,6 @@ function byMostNeedingAttention(a: ComparisonRowData, b: ComparisonRowData) {
   const diff = weight(b) - weight(a);
   if (diff !== 0) return diff;
   return b.readiness - a.readiness;
-}
-
-const CAMPAIGN_COLUMNS: Column<ComparisonRowData>[] = [
-  {
-    key: "campaign",
-    header: "Campaign",
-    cell: (row) => (
-      <div className="min-w-0">
-        <div className="truncate font-semibold text-[var(--text-primary)]">{row.name}</div>
-        <div className="mt-0.5 text-xs text-[var(--text-secondary)]">
-          {row.persona} &middot; {row.assetCount} {row.assetCount === 1 ? "asset" : "assets"} &middot; updated {row.updatedAt}
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: "status",
-    header: "Status",
-    width: "w-[180px]",
-    cell: (row) => <StateBadge row={row} />,
-  },
-  {
-    key: "progress",
-    header: "Progress",
-    width: "w-[220px]",
-    cell: (row) => (
-      <div className="min-w-0">
-        <SegmentedBar
-          segments={[
-            { key: "approved", value: row.approved, toneVar: "ok" },
-            { key: "pending", value: row.pending, toneVar: "warn" },
-            { key: "changes", value: row.changes, toneVar: "priority" },
-            { key: "draft", value: Math.max(row.total - row.approved - row.pending - row.changes, 0), toneVar: "idle" },
-          ]}
-        />
-        <div className="mt-1.5 text-xs font-medium text-[var(--text-muted)]">
-          {row.total > 0 ? `${row.approved} of ${row.total} approved` : "No pieces yet"}
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: "readiness",
-    header: "Approved",
-    align: "right",
-    width: "w-[96px]",
-    cell: (row) => (
-      <span className="font-display text-lg font-bold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">{row.readiness}%</span>
-    ),
-  },
-];
-
-function StateBadge({ row }: { row: ComparisonRowData }) {
-  const config =
-    row.state === "changes"
-      ? {
-          label: `${row.changes} need ${row.changes === 1 ? "a change" : "changes"}`,
-          className: "border-[oklch(0.68_0.2_26/0.4)] bg-[oklch(0.68_0.2_26/0.13)] text-[oklch(0.86_0.09_26)]",
-        }
-      : row.state === "waiting"
-        ? {
-            label: `${row.pending} waiting for approval`,
-            className: "border-[oklch(0.82_0.13_85/0.36)] bg-[oklch(0.82_0.13_85/0.12)] text-[oklch(0.9_0.09_85)]",
-          }
-        : row.state === "ready"
-          ? {
-              label: "Ready",
-              className: "border-[oklch(0.78_0.14_158/0.36)] bg-[oklch(0.78_0.14_158/0.12)] text-[oklch(0.88_0.1_158)]",
-            }
-          : {
-              label: "In draft",
-              className: "border-[var(--border-hairline)] bg-[var(--surface-soft)] text-[var(--text-muted)]",
-            };
-
-  return (
-    <span className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium ${config.className}`}>
-      {config.label}
-    </span>
-  );
 }
 
 function AnalyticsRangeTabs({

@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 
 import { useAgentName } from "@/app/_components/agent-name-context";
 import { theme } from "@/app/_components/theme";
-import { DataTable } from "../_components/data-table";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState, StatusPill } from "../_components/page-header";
-import { PaginationControls } from "../_components/pagination-controls";
 import { type AgentOperationsTask } from "@/lib/agent-operations/read-model";
 
 type TaskFilter = "all" | "queued" | "running" | "blocked" | "approval" | "completed";
@@ -22,11 +22,32 @@ const FILTERS: Array<{ key: TaskFilter; label: string }> = [
   { key: "completed", label: "Completed" },
 ];
 
+const COLUMNS: ColumnDef<AgentOperationsTask>[] = [
+  {
+    id: "task",
+    header: "Objective",
+    cell: ({ row }) => (
+      <>
+        <div className="font-bold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.original.task}</div>
+        <div className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{row.original.objective}</div>
+      </>
+    ),
+  },
+  { id: "agent", header: "Agent", meta: { cellClassName: "text-[var(--text-secondary)]" }, cell: ({ row }) => row.original.agentName },
+  { id: "status", header: "Status", cell: ({ row }) => <StatusPill tone={statusTone(row.original.status)}>{row.original.status}</StatusPill> },
+  { id: "risk", header: "Risk", cell: ({ row }) => <StatusPill tone={riskTone(row.original.risk)}>{row.original.risk}</StatusPill> },
+  {
+    id: "linked",
+    header: "Linked record",
+    cell: ({ row }) => <span className="text-sm font-semibold text-[var(--accent)]">{row.original.linkedObject}</span>,
+  },
+  { id: "updated", header: "Updated", meta: { cellClassName: "text-[var(--text-secondary)]" }, cell: ({ row }) => row.original.updated },
+];
+
 export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
   const agentName = useAgentName();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("all");
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -51,16 +72,6 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
     });
   }, [filter, normalizedQuery, tasks]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, pageCount);
-  const startIndex = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filtered.length);
-  const visibleTasks = filtered.slice(startIndex, endIndex);
-
-  function resetPage() {
-    setPage(1);
-  }
-
   if (tasks.length === 0) {
     return (
       <div className="p-4">
@@ -80,8 +91,8 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
               <StatusPill tone="blue">{tasks.length} tasks</StatusPill>
             </div>
             <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              Showing {startIndex + (filtered.length > 0 ? 1 : 0)}-{endIndex} of {filtered.length}
-              {filtered.length === tasks.length ? "" : ` matched from ${tasks.length}`} task records.
+              Showing {filtered.length} of {tasks.length} task records
+              {filtered.length === tasks.length ? "" : " (filtered)"}.
             </p>
           </div>
 
@@ -104,7 +115,6 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
                 className="h-11 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] py-2 pl-9 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 onChange={(event) => {
                   setQuery(event.target.value);
-                  resetPage();
                 }}
                 placeholder={`Search ${agentName} tasks...`}
                 type="search"
@@ -116,10 +126,7 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
               <span className="sr-only">{`${agentName} tasks per page`}</span>
               <select
                 className="h-11 w-full cursor-pointer rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 text-sm font-bold text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value));
-                  resetPage();
-                }}
+                onChange={(event) => setPageSize(Number(event.target.value))}
                 value={pageSize}
               >
                 {PAGE_SIZES.map((size) => (
@@ -148,7 +155,6 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
                 key={item.key}
                 onClick={() => {
                   setFilter(item.key);
-                  resetPage();
                 }}
                 type="button"
               >
@@ -162,42 +168,14 @@ export function AgentTaskBoard({ tasks }: { tasks: AgentOperationsTask[] }) {
       </div>
 
       <DataTable
-        rows={visibleTasks}
-        rowKey={(row) => row.fullId}
+        columns={COLUMNS}
+        data={filtered}
+        getRowId={(row) => row.fullId}
         rowHref={(row) => row.href}
         minWidth="min-w-[1020px]"
-        columns={[
-          {
-            key: "task",
-            header: "Objective",
-            cell: (row) => (
-              <>
-                <div className="font-bold text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{row.task}</div>
-                <div className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{row.objective}</div>
-              </>
-            ),
-          },
-          { key: "agent", header: "Agent", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.agentName },
-          { key: "status", header: "Status", cell: (row) => <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill> },
-          { key: "risk", header: "Risk", cell: (row) => <StatusPill tone={riskTone(row.risk)}>{row.risk}</StatusPill> },
-          {
-            key: "linked",
-            header: "Linked record",
-            cell: (row) => <span className="text-sm font-semibold text-[var(--accent)]">{row.linkedObject}</span>,
-          },
-          { key: "updated", header: "Updated", cellClassName: "text-[var(--text-secondary)]", cell: (row) => row.updated },
-        ]}
+        pageSize={pageSize}
+        paginationLabel="tasks"
         emptyState={<EmptyState title={`No matching ${agentName} tasks`} detail="Clear the search or choose a different task status filter." />}
-      />
-
-      <PaginationControls
-        currentPage={currentPage}
-        endIndex={endIndex}
-        itemLabel="tasks"
-        onPageChange={setPage}
-        pageCount={pageCount}
-        startIndex={startIndex}
-        total={filtered.length}
       />
     </section>
   );

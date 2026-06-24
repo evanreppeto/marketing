@@ -29,7 +29,7 @@ import { ThreadMenu } from "./thread-menu";
 import { ThreadSidebar } from "./thread-sidebar";
 import { ShareDialog } from "./share-dialog";
 import { useThreadPoll } from "./use-thread-poll";
-import { demoReply } from "../_data/demo";
+import { buildDemoReplyFrames } from "../_data/demo";
 
 function HeaderTitle({
   activeId,
@@ -348,17 +348,46 @@ export function ArcChat({
   // No polling in preview mode (it would hit the server and fail).
   useThreadPoll(demo ? "" : activeId, messages, setMessages);
 
-  // Preview-mode send: append the operator message + a canned Arc reply locally.
+  // Preview-mode reply animation. Real mode streams from the runner via polling;
+  // here we drive the same premium affordances (loader → thinking spine → reply)
+  // off timers so the experience is visible without a backend. Timers are tracked
+  // so a Stop / unmount cancels the simulation cleanly. A monotonic counter keeps
+  // every optimistic id unique (sending the same text twice must not collide).
+  const demoTimersRef = useRef<number[]>([]);
+  const demoSeqRef = useRef(0);
+  function clearDemoTimers() {
+    for (const id of demoTimersRef.current) window.clearTimeout(id);
+    demoTimersRef.current = [];
+  }
+  useEffect(() => () => clearDemoTimers(), []);
+
+  // Append a fresh pending Arc bubble and walk it through the staged thinking
+  // frames so preview mode shows the full premium sequence.
+  function startDemoReply(prompt: string) {
+    clearDemoTimers();
+    const pendingId = `demo-pending-${demoSeqRef.current++}`;
+    setMessages((prev) => [...prev, pendingArcMessage(pendingId, activeId)]);
+    let elapsed = 0;
+    for (const frame of buildDemoReplyFrames(prompt)) {
+      elapsed += frame.delay;
+      const id = window.setTimeout(() => {
+        setMessages((prev) => prev.map((m) => (m.id === pendingId ? frame.apply(m) : m)));
+      }, elapsed);
+      demoTimersRef.current.push(id);
+    }
+  }
+
+  // Preview-mode send: append the operator message, then run the staged reply.
   function demoSend(text: string) {
-    if (!text.trim()) return;
-    const now = new Date().toISOString();
+    const body = text.trim();
+    if (!body) return;
     setMessages((prev) => [
       ...prev,
       {
-        id: `demo-op-${prev.length}`,
+        id: `demo-op-${demoSeqRef.current++}`,
         conversationId: activeId,
         role: "operator",
-        body: text.trim(),
+        body,
         status: "sent",
         agentTaskId: null,
         mentions: [],
@@ -368,11 +397,11 @@ export function ArcChat({
         actions: [],
         suggestions: [],
         attachments: [],
-        createdAt: now,
+        createdAt: new Date().toISOString(),
       },
     ]);
     setDraft("");
-    window.setTimeout(() => setMessages((prev) => [...prev, demoReply(text)]), 650);
+    startDemoReply(body);
   }
 
   // Per-thread draft persistence: typed-but-unsent text survives switching
@@ -438,8 +467,9 @@ export function ArcChat({
   }
 
   async function handleStop() {
+    clearDemoTimers();
     setMessages((prev) => prev.filter((m) => !(m.role === "arc" && m.status === "pending")));
-    await cancelReplyAction(activeId);
+    if (!demo) await cancelReplyAction(activeId);
   }
 
   // Swap a stuck optimistic "thinking" bubble for a failed reply so a server
@@ -472,11 +502,9 @@ export function ArcChat({
     const body = newBody.trim();
     if (!body) return;
     if (demo) {
-      setMessages((prev) => {
-        if (!prev.some((m) => m.id === messageId)) return prev;
-        const updated = prev.map((m) => (m.id === messageId ? { ...m, body } : m));
-        return [...updated, demoReply(body)];
-      });
+      if (!messages.some((m) => m.id === messageId)) return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, body } : m)));
+      startDemoReply(body);
       return;
     }
     const tempId = `temp-pending-edit-${messageId}-${Date.now()}`;

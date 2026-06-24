@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 
+import { type ColumnDef } from "@tanstack/react-table";
 import { ChannelLogo } from "@/app/_components/brand-logos";
 import { theme } from "@/app/_components/theme";
 import { WorkspacePanel } from "@/app/_components/workspace";
 import { StatusPill } from "@/app/_components/page-header";
+import { DataTable } from "@/components/ui/data-table";
 import type {
   CampaignAnalyticsDemoDetail,
   CampaignDetailAssetRow,
@@ -339,52 +341,71 @@ function Chip({ className, children }: { className: string; children: React.Reac
   );
 }
 
+const ASSET_COLUMNS: ColumnDef<CampaignDetailAssetRow>[] = [
+  {
+    id: "asset",
+    header: "Asset",
+    meta: { headClassName: "px-5", cellClassName: "px-5" },
+    cell: ({ row }) => {
+      const a = row.original;
+      return (
+        <div className="flex items-center gap-2.5">
+          <ChannelLogo channel={a.channel} size={20} />
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">{a.title}</div>
+            <div className="mt-0.5 text-xs text-[var(--text-secondary)]">
+              {a.channel} · {a.format}
+            </div>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    id: "source",
+    header: "Source",
+    cell: ({ row }) => <Chip className={SOURCE_TONE[row.original.source]}>{row.original.source}</Chip>,
+  },
+  {
+    id: "impressions",
+    header: "Impr.",
+    meta: { align: "right", cellClassName: "font-mono tabular-nums text-[var(--text-secondary)]" },
+    cell: ({ row }) => NUM.format(row.original.impressions),
+  },
+  {
+    id: "clicks",
+    header: "Clicks",
+    meta: { align: "right", cellClassName: "font-mono tabular-nums text-[var(--text-secondary)]" },
+    cell: ({ row }) => NUM.format(row.original.clicks),
+  },
+  {
+    id: "leads",
+    header: "Leads",
+    meta: { align: "right", cellClassName: "font-mono font-semibold tabular-nums text-[var(--text-primary)]" },
+    cell: ({ row }) => NUM.format(row.original.leads),
+  },
+  {
+    id: "ctr",
+    header: "CTR",
+    meta: { align: "right", cellClassName: "font-mono tabular-nums text-[var(--text-secondary)]" },
+    cell: ({ row }) => `${row.original.ctr}%`,
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: { align: "right", headClassName: "px-5", cellClassName: "px-5" },
+    cell: ({ row }) => <Chip className={STATUS_TONE[row.original.status]}>{row.original.status}</Chip>,
+  },
+];
+
 function AssetTable({ assets }: { assets: CampaignDetailAssetRow[] }) {
-  if (assets.length === 0) {
-    return <div className="p-5 text-sm text-[var(--text-muted)]">No assets match the current filters.</div>;
-  }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-[var(--border-hairline)] text-[11px] font-medium text-[var(--text-muted)]">
-            <th className="px-5 py-2.5 text-left font-semibold">Asset</th>
-            <th className="px-3 py-2.5 text-left font-semibold">Source</th>
-            <th className="px-3 py-2.5 text-right font-semibold">Impr.</th>
-            <th className="px-3 py-2.5 text-right font-semibold">Clicks</th>
-            <th className="px-3 py-2.5 text-right font-semibold">Leads</th>
-            <th className="px-3 py-2.5 text-right font-semibold">CTR</th>
-            <th className="px-5 py-2.5 text-right font-semibold">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--border-hairline)]">
-          {assets.map((a) => (
-            <tr key={a.id} className="transition hover:bg-[var(--surface-inset)]">
-              <td className="px-5 py-3">
-                <div className="flex items-center gap-2.5">
-                  <ChannelLogo channel={a.channel} size={20} />
-                  <div>
-                    <div className="font-semibold text-[var(--text-primary)]">{a.title}</div>
-                    <div className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                      {a.channel} · {a.format}
-                    </div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-3 py-3">
-                <Chip className={SOURCE_TONE[a.source]}>{a.source}</Chip>
-              </td>
-              <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{NUM.format(a.impressions)}</td>
-              <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{NUM.format(a.clicks)}</td>
-              <td className="px-3 py-3 text-right font-mono font-semibold tabular-nums text-[var(--text-primary)]">{NUM.format(a.leads)}</td>
-              <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{a.ctr}%</td>
-              <td className="px-5 py-3 text-right">
-                <Chip className={STATUS_TONE[a.status]}>{a.status}</Chip>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={ASSET_COLUMNS}
+      data={assets}
+      getRowId={(a) => a.id}
+      minWidth="min-w-[760px]"
+      emptyState={<div className="text-sm text-[var(--text-muted)]">No assets match the current filters.</div>}
+    />
   );
 }

@@ -5,6 +5,7 @@ vi.mock("@/lib/campaigns/create", () => ({
   promoteAssetToCampaign: vi.fn(),
 }));
 
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/opportunities/persistence", () => ({ markOpportunityDrafted: vi.fn(async () => ({ ok: true })) }));
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(async () => ({

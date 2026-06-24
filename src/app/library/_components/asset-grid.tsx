@@ -53,6 +53,8 @@ export function AssetGrid({
         return assets.filter((a) => a.kind === "image" || a.kind === "logo");
       case "video":
         return assets.filter((a) => a.kind === "video");
+      case "documents":
+        return assets.filter((a) => a.kind === "document");
       case "arc":
         return assets.filter((a) => a.availableToArc);
       case "unused":

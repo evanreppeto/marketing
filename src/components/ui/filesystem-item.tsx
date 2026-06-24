@@ -20,6 +20,7 @@ export type FilesystemNode = {
   border?: string;
   isActive?: boolean;
   defaultOpen?: boolean;
+  description?: string;
   nodes?: FilesystemNode[];
 };
 
@@ -60,7 +61,7 @@ export function FilesystemItem({ node, animated = false, depth = 0 }: Filesystem
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium leading-5">{node.name}</span>
+        <span className="block truncate font-medium leading-5" title={node.description ?? undefined}>{node.name}</span>
         {node.meta ? <span className="block truncate text-[10.5px] leading-3 text-[var(--text-muted)]">{node.meta}</span> : null}
       </span>
       {typeof node.count === "number" ? (

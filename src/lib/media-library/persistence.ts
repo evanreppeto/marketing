@@ -1,6 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { syncMediaRecordToBrain } from "@/lib/brain-ingestion/sync";
+import { getSupabaseAdminClient, type TypedSupabaseClient } from "@/lib/supabase/server";
 
 const BUCKET = "campaign-media";
 
@@ -56,9 +57,43 @@ export function defaultUploader(client: SupabaseClient): ImageUploader {
   };
 }
 
-export type CreateFolderInput = { orgId: string; name: string; parentId?: string | null; client?: SupabaseClient };
-export async function createFolder({ orgId, name, parentId = null, client = getSupabaseAdminClient() }: CreateFolderInput): Promise<string> {
-  return insertGetId(client, "media_folders", { org_id: orgId, name, parent_id: parentId });
+export type CreateFolderInput = { orgId: string; name: string; parentId?: string | null; description?: string | null; client?: SupabaseClient };
+export async function createFolder({ orgId, name, parentId = null, description = null, client = getSupabaseAdminClient() }: CreateFolderInput): Promise<string> {
+  return insertGetId(client, "media_folders", { org_id: orgId, name, parent_id: parentId, description });
+}
+
+/** Generic starter folders seeded for a new workspace. Names/descriptions are
+ *  editable; Arc and operators can add more (e.g. a literal "Damage" folder).
+ *  Kept industry-agnostic — this is a multi-tenant product. */
+export const DEFAULT_MEDIA_FOLDERS: { name: string; description: string }[] = [
+  { name: "Logos & Brand", description: "Official logos, wordmarks, and brand marks — headers, watermarks, co-branding." },
+  { name: "Team & People", description: "Staff, crew, and leadership photos for trust-building and about/team pages." },
+  { name: "Before & After / Proof", description: "Before/after and proof-of-work photos that show real results." },
+  { name: "Facilities & Equipment", description: "Trucks, equipment, signage, and workspace shots." },
+  { name: "General", description: "Uncategorized media." },
+];
+
+/** Seed the default folder set for an org, but only if it has none yet
+ *  (idempotent — safe to call on every onboarding). Returns rows created. */
+export async function seedDefaultMediaFolders(
+  { orgId, client = getSupabaseAdminClient() }: { orgId: string; client?: SupabaseClient },
+): Promise<number> {
+  const { count, error: countError } = await client
+    .from("media_folders" as string)
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId);
+  if (countError) throw new Error(`media_folders count failed: ${countError.message}`);
+  if ((count ?? 0) > 0) return 0;
+
+  const rows = DEFAULT_MEDIA_FOLDERS.map((folder, index) => ({
+    org_id: orgId,
+    name: folder.name,
+    description: folder.description,
+    sort_order: index,
+  }));
+  const { error } = await client.from("media_folders" as string).insert(rows);
+  if (error) throw new Error(`media_folders seed failed: ${error.message}`);
+  return rows.length;
 }
 
 export async function renameFolder(id: string, name: string, client: SupabaseClient = getSupabaseAdminClient()) {
@@ -112,6 +147,8 @@ export async function insertAssetWithUrl(input: InsertAssetInput): Promise<Inser
   const path = buildStoragePath(input.orgId, id, input.fileName);
   const url = await upload(path, input.bytes, input.contentType);
   await updateRow(client, "media_assets", { storage_path: path, public_url: url }, id);
+  // Best-effort: mirror the asset into the Brain so Arc can recall/prefer it.
+  await syncMediaRecordToBrain(id, { client: client as unknown as TypedSupabaseClient, orgId: input.orgId }).catch(() => undefined);
   return { id, url };
 }
 

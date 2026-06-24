@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -16,6 +16,7 @@ import { Button, Panel, StatusPill } from "@/app/_components/page-header";
 import { cx, theme } from "@/app/_components/theme";
 import { applyIndustryTemplate, INDUSTRY_TEMPLATES, type BusinessProfile } from "@/domain";
 import { saveBrandKitAction, type BrandKitActionState } from "@/app/settings/brand-kit-actions";
+import { fieldErrorMap } from "@/lib/brand-kit/field-errors";
 
 type EditorTab = "company" | "voice" | "palette" | "proof" | "rules";
 
@@ -126,6 +127,8 @@ const tabs: Array<{
   },
 ];
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 const inputClass =
   "min-h-10 w-full rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]";
 
@@ -200,9 +203,27 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
   const [activeTab, setActiveTab] = useState<EditorTab>("company");
   const [values, setValues] = useState<FormValues>(() => toValues(profile));
 
+  const profileSignature = useMemo(() => JSON.stringify(toValues(profile)), [profile]);
+  useEffect(() => {
+    // Re-seed form state when the server profile changes (e.g. Arc updates it).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setValues(toValues(profile));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileSignature]);
+
   const serviceList = useMemo(() => splitList(values.services), [values.services]);
   const proofList = useMemo(() => splitList(values.proofPoints), [values.proofPoints]);
   const blockedList = useMemo(() => splitList(values.disallowedClaims), [values.disallowedClaims]);
+
+  const fieldErrors = useMemo(() => {
+    const codes: string[] = [];
+    if (!values.displayName.trim()) codes.push("display_name_required");
+    for (const slot of ["primary", "secondary", "accent", "dark", "light"] as const) {
+      const hex = values[`${slot}Hex`];
+      if (hex && !HEX_RE.test(hex)) codes.push(`palette_${slot}_invalid`);
+    }
+    return fieldErrorMap(codes);
+  }, [values]);
 
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -227,15 +248,14 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
       <form action={action}>
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
           <div className="min-w-0">
-            <div className="signal-eyebrow">Editor</div>
-            <h2 className="mt-1 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Edit brand</h2>
+            <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Edit brand</h2>
             <p className="mt-1 max-w-[70ch] text-sm leading-6 text-[var(--text-secondary)]">
               Update one section at a time. Everything here becomes the company context Arc uses.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {state ? <StatusPill tone={actionTone(state)}>{state.message}</StatusPill> : null}
-            <Button disabled={pending} size="sm" type="submit" variant="primary">
+            <Button disabled={pending || Object.keys(fieldErrors).length > 0} size="sm" type="submit" variant="primary">
               <Save aria-hidden className="h-4 w-4" />
               {pending ? "Saving..." : "Save brand"}
             </Button>
@@ -295,7 +315,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
               tone="company"
             >
               <div className="grid gap-4 md:grid-cols-2">
-                <TextField label="Display name" name="displayName" onChange={(value) => update("displayName", value)} value={values.displayName} />
+                <TextField error={fieldErrors.displayName} label="Display name" name="displayName" onChange={(value) => update("displayName", value)} value={values.displayName} />
                 <TextField label="Legal name" name="legalName" onChange={(value) => update("legalName", value)} value={values.legalName} />
                 <TextField label="Tagline" name="tagline" onChange={(value) => update("tagline", value)} value={values.tagline} />
                 <IndustrySelectField onChange={(value) => update("industry", value)} value={values.industry} />
@@ -401,6 +421,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
                 ] as const).map(([slot, label, hex, name]) => (
                   <ColorRow
                     key={slot}
+                    error={fieldErrors[`${slot}Hex`]}
                     slot={slot}
                     label={label}
                     hex={hex}
@@ -502,8 +523,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
           <aside className="border-t border-[var(--border-hairline)] bg-[var(--surface-panel)] p-5 xl:border-l xl:border-t-0">
             <div className="sticky top-5 grid gap-4">
               <div>
-                <div className="signal-eyebrow">Preview</div>
-                <h3 className="mt-1 text-lg font-bold text-[var(--text-primary)]">Arc will use this</h3>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">Arc will use this</h3>
                 <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
                   A quick read of the brand context before saving.
                 </p>
@@ -540,6 +560,7 @@ export function BrandProfileEditor({ profile }: { profile: BusinessProfile }) {
 }
 
 function ColorRow({
+  error,
   slot,
   label,
   hex,
@@ -547,6 +568,7 @@ function ColorRow({
   onHex,
   onLabel,
 }: {
+  error?: string;
   slot: string;
   label: string;
   hex: string;
@@ -554,7 +576,7 @@ function ColorRow({
   onHex: (v: string) => void;
   onLabel: (v: string) => void;
 }) {
-  const swatch = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#000000";
+  const swatch = HEX_RE.test(hex) ? hex : "#000000";
   return (
     <div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.4fr)]">
       <label className="grid gap-1.5">
@@ -576,6 +598,7 @@ function ColorRow({
           value={hex}
           onChange={(e) => onHex(e.target.value)}
         />
+        {error ? <span className="text-xs text-[var(--priority-text)]">{error}</span> : null}
       </label>
       <label className="grid gap-1.5">
         <span className="text-xs font-medium text-[var(--text-muted)]">Label (optional)</span>
@@ -612,8 +635,7 @@ function EditorSection({
     >
       <div aria-hidden className={cx("h-1", style.bar)} />
       <div className={cx("border-b border-[var(--border-hairline)] px-4 py-3", style.surface)}>
-        <div className="signal-eyebrow">Editing</div>
-        <h3 className="mt-1 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h3>
+        <h3 className="text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h3>
         <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
       </div>
       <div className="grid gap-4 bg-[var(--surface-panel)] p-4">{children}</div>
@@ -622,12 +644,14 @@ function EditorSection({
 }
 
 function TextField({
+  error,
   label,
   name,
   onChange,
   type = "text",
   value,
 }: {
+  error?: string;
   label: string;
   name: keyof FormValues;
   onChange: (value: string) => void;
@@ -638,6 +662,7 @@ function TextField({
     <label className="grid gap-1.5">
       <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
       <input className={inputClass} name={name} onChange={(event) => onChange(event.target.value)} type={type} value={value} />
+      {error ? <span className="text-xs text-[var(--priority-text)]">{error}</span> : null}
     </label>
   );
 }

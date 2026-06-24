@@ -469,11 +469,32 @@ h4, .font-display {
   border-color: var(--accent);
 }
 
-.chicago-dark .auth-input-shell :where(input):focus,
-.chicago-dark .auth-input-shell :where(input):focus-visible {
+/* The field SHELL owns the focus ring (focus-within wraps the whole control —
+   icon, input, and any trailing toggle). Suppress the generic per-input outline
+   above so the indicator isn't a gold rectangle drawn around only the inner text
+   box. */
+.chicago-dark .auth-field-shell :where(input):focus,
+.chicago-dark .auth-field-shell :where(input):focus-visible {
   border-color: transparent !important;
   box-shadow: none !important;
   outline: 0 !important;
+}
+
+/* Browser autofill (saved credentials) paints inputs with a hard light-blue/white
+   background that ignores `bg-transparent`, leaving a glaring white box inside the
+   dark field. WebKit/Blink lock the real background, so paint over it with an inset
+   box-shadow the exact color of the field shell, force the text/caret to the cream
+   foreground, and park the background transition far in the future so the override
+   survives Chrome's animated repaint. */
+.chicago-dark input:-webkit-autofill,
+.chicago-dark input:-webkit-autofill:hover,
+.chicago-dark input:-webkit-autofill:focus,
+.chicago-dark input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px color-mix(in srgb, var(--surface-inset) 82%, var(--canvas)) inset;
+  box-shadow: 0 0 0 1000px color-mix(in srgb, var(--surface-inset) 82%, var(--canvas)) inset;
+  transition: background-color 600000s 0s, color 600000s 0s;
 }
 
 .chicago-dark .auth-checkbox:focus-visible {
@@ -760,7 +781,7 @@ h4, .font-display {
   }
 }
 
-.auth-input-shell input:focus-visible {
+.auth-field-shell input:focus-visible {
   outline: none !important;
   border-color: transparent !important;
 }
@@ -1198,6 +1219,51 @@ h4, .font-display {
 }
 @media (prefers-reduced-motion: reduce) {
   .arc-luma > span { animation: none; inset: 0 54% 54% 0; }
+}
+
+/* Initial "thinking" indicator — a calm breathing gold core wrapped in a soft
+   halo, shown before any steps stream in (the no-steps pending state). The
+   container is the halo; the inner `.core` is the solid center dot. This is the
+   first thing the operator sees after hitting send, so it has to read as alive
+   and premium, not a dead bullet. */
+.arc-tstep-dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.arc-tstep-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  opacity: 0.3;
+  animation: arc-tstep-halo 1.8s ease-in-out infinite;
+}
+.arc-tstep-dot .core {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 0 7px var(--accent-soft);
+  animation: arc-tstep-core 1.8s ease-in-out infinite;
+}
+@keyframes arc-tstep-halo {
+  0%, 100% { transform: scale(0.65); opacity: 0.16; }
+  50% { transform: scale(1.1); opacity: 0.42; }
+}
+@keyframes arc-tstep-core {
+  0%, 100% { transform: scale(0.82); opacity: 0.7; }
+  50% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arc-tstep-dot::before { animation: none; opacity: 0.25; }
+  .arc-tstep-dot .core { animation: none; opacity: 0.9; }
 }
 
 /* ============================================================================

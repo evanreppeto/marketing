@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 
-import { DataTable, type Column } from "@/app/_components/data-table";
+import { type ColumnDef } from "@tanstack/react-table";
+
+import { DataTable } from "@/components/ui/data-table";
 import { Panel, StatusPill } from "@/app/_components/page-header";
 import { type ThemeTone } from "@/app/_components/theme";
 import { nodeProvenance } from "@/domain";
@@ -28,27 +30,32 @@ export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[];
     );
   }
 
-  const columns: Array<Column<BrainNode>> = [
+  const columns: ColumnDef<BrainNode>[] = [
     {
-      key: "fact",
+      id: "fact",
       header: "Fact",
-      cell: (n) => (
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-[var(--text-primary)]">{n.label}</p>
-          {n.body ? <p className="truncate text-sm leading-6 text-[var(--text-secondary)]">{n.body}</p> : null}
-        </div>
+      cell: ({ row }) => {
+        const n = row.original;
+        return (
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-[var(--text-primary)]">{n.label}</p>
+            {n.body ? <p className="truncate text-sm leading-6 text-[var(--text-secondary)]">{n.body}</p> : null}
+          </div>
+        );
+      },
+    },
+    {
+      id: "kind",
+      header: "Kind",
+      cell: ({ row }) => (
+        <span className="text-xs text-[var(--text-muted)]">{row.original.kind.replace(/_/g, " ")}</span>
       ),
     },
     {
-      key: "kind",
-      header: "Kind",
-      cell: (n) => <span className="text-xs text-[var(--text-muted)]">{n.kind.replace(/_/g, " ")}</span>,
-    },
-    {
-      key: "source",
+      id: "source",
       header: "Source",
-      cell: (n) => {
-        const prov = nodeProvenance(n);
+      cell: ({ row }) => {
+        const prov = nodeProvenance(row.original);
         return (
           <span className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: SOURCE_DOT[prov.system] }} />
@@ -58,16 +65,16 @@ export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[];
       },
     },
     {
-      key: "trust",
+      id: "trust",
       header: "Trust",
-      cell: (n) => <StatusPill tone={TIER_TONE[n.trustTier] ?? "blue"}>{n.trustTier}</StatusPill>,
+      cell: ({ row }) => <StatusPill tone={TIER_TONE[row.original.trustTier] ?? "blue"}>{row.original.trustTier}</StatusPill>,
     },
     {
-      key: "link",
+      id: "link",
       header: "",
-      align: "right",
-      cell: (n) => {
-        const prov = nodeProvenance(n);
+      meta: { align: "right" },
+      cell: ({ row }) => {
+        const prov = nodeProvenance(row.original);
         return prov.deepLink ? (
           <Link href={prov.deepLink.href} className="text-xs text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--accent)] hover:underline">
             {prov.deepLink.label} ↗
@@ -80,7 +87,7 @@ export function BrainBrowser({ nodes, agentName = "Arc" }: { nodes: BrainNode[];
   return (
     <Panel>
       <h2 className="mb-3 text-sm font-medium text-[var(--text-muted)]">Brain ({nodes.length})</h2>
-      <DataTable columns={columns} rows={nodes} rowKey={(n) => n.id} minWidth="min-w-[760px]" />
+      <DataTable columns={columns} data={nodes} getRowId={(n) => n.id} minWidth="min-w-[760px]" />
     </Panel>
   );
 }

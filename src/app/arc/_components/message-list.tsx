@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { cx } from "@/app/_components/theme";
 import { stepGlyphKind, summarizeSteps, normalizeArcBody } from "@/domain";
 import type { ArcMessage, ArcStep, ArcToolCall } from "@/lib/arc-chat/persistence";
+import { attachmentKind } from "@/lib/arc-chat/attachment-types";
 
 import { WorkGlyph } from "./work-glyph";
 
@@ -767,12 +768,19 @@ function Message({
         </div>
         {message.attachments.length > 0 ? (
           <div className="mt-1.5 flex max-w-[48rem] flex-wrap justify-end gap-1.5">
-            {message.attachments.map((a) => (
-              <a key={a.objectPath} href={a.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
-                {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
-                <img src={a.url} alt={a.name} className="h-24 w-24 object-cover transition hover:opacity-90" />
-              </a>
-            ))}
+            {message.attachments.map((a) =>
+              attachmentKind(a.contentType) === "image" ? (
+                <a key={a.objectPath} href={a.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg shadow-[inset_0_0_0_1px_var(--border-strong)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- signed GCS URL, no optimizer config */}
+                  <img src={a.url} alt={a.name} className="h-24 w-24 object-cover transition hover:opacity-90" />
+                </a>
+              ) : (
+                <a key={a.objectPath} href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_var(--border-strong)] transition hover:text-[var(--text-primary)]">
+                  <span className="font-semibold uppercase">{attachmentKind(a.contentType) === "pdf" ? "PDF" : "TXT"}</span>
+                  <span className="max-w-[12rem] truncate">{a.name}</span>
+                </a>
+              ),
+            )}
           </div>
         ) : null}
         <MentionChips mentions={message.mentions} align="end" />
