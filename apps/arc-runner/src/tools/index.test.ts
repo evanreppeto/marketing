@@ -37,7 +37,7 @@ const READ = [
   "cite_sources",
   "ask_operator",
 ];
-const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction"];
+const WRITE = ["record_brain_note", "link_brain_nodes", "log_interaction", "create_lead_from_research"];
 const DRAFT = ["create_campaign_draft", "generate_image", "generate_video", "analyze_website", "propose_brand_profile"];
 
 describe("toolsForMode", () => {
