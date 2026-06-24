@@ -131,7 +131,7 @@ export function CampaignDetailExplorer({ detail }: { detail: CampaignAnalyticsDe
       <WorkspacePanel
         eyebrow="Per asset"
         title="Asset performance & provenance"
-        description="Every produced deliverable — its source, format, delivery, and approval state. Real BSR media is preferred; AI work enhances and packages authentic proof."
+        description="Every produced deliverable — its source, format, delivery, and approval state. Real brand media is preferred; AI work enhances and packages authentic proof."
         aside={
           <span className="font-mono text-xs text-[var(--text-muted)]">
             {visibleAssets.length} of {detail.assets.length}
@@ -320,7 +320,7 @@ function ApprovalDonut({ approval }: { approval: CampaignAnalyticsDemoDetail["ap
 }
 
 const SOURCE_TONE: Record<CampaignDetailAssetRow["source"], string> = {
-  "Real BSR media": "text-[var(--ok-text)] border-[var(--ok-border-soft)] bg-[var(--ok-soft)]",
+  "Real media": "text-[var(--ok-text)] border-[var(--ok-border-soft)] bg-[var(--ok-soft)]",
   Composite: "text-[var(--accent-contrast)] border-[var(--accent-border-strong)] bg-[var(--accent-soft)]",
   "AI-generated": "text-[var(--warn-text)] border-[var(--warn-border-soft)] bg-[var(--warn-soft)]",
   Stock: "text-[var(--text-secondary)] border-[var(--border-strong)] bg-[var(--surface-raised)]",
