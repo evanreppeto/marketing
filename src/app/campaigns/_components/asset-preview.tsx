@@ -124,7 +124,7 @@ function MediaTile({ media, topPick = false }: { media: CampaignMediaAsset; topP
         />
         <span className="absolute left-2 top-2 flex flex-wrap items-center gap-1">
           {topPick ? (
-            <span className="rounded-full border border-[var(--accent)] bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--accent-contrast)]">
+            <span className="rounded-full border border-[var(--accent)] bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--on-accent)]">
               Top pick
             </span>
           ) : null}
@@ -146,7 +146,7 @@ function MediaTile({ media, topPick = false }: { media: CampaignMediaAsset; topP
         />
         <span className="absolute left-2 top-2 flex flex-wrap items-center gap-1">
           {topPick ? (
-            <span className="rounded-full border border-[var(--accent)] bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--accent-contrast)]">
+            <span className="rounded-full border border-[var(--accent)] bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--on-accent)]">
               Top pick
             </span>
           ) : null}
