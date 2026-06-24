@@ -79,6 +79,16 @@ export function BrandDesignImport() {
               )}
             </div>
 
+            {proposal.faviconUrl ? (
+              <div className="grid gap-1.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Favicon</span>
+                <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-xl border border-[var(--border-hairline)] bg-white p-2.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img alt="Detected favicon" className="h-full w-full object-contain" src={proposal.faviconUrl} />
+                </span>
+              </div>
+            ) : null}
+
             <div className="grid gap-1.5">
               <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Colors</span>
               <div className="flex flex-wrap gap-2">
