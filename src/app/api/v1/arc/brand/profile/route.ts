@@ -76,11 +76,15 @@ export async function PUT(request: Request) {
 
   // Store (not hotlink) any newly-provided external logo/favicon URL.
   const sourceUrl = str(body.websiteUrl, current.websiteUrl) ?? "";
+  // Non-http(s) values (relative paths, data: URIs) and unchanged values pass
+  // through unstored by design; a fresh external URL is downloaded + stored so we
+  // never hotlink. If the store fails, keep the current value rather than persist
+  // a URL the SSRF guard just judged unfetchable.
   const resolveImage = async (raw: unknown, role: "logo" | "favicon", currentValue: string | null) => {
     const value = str(raw, currentValue);
     if (!value || value === currentValue || !/^https?:\/\//i.test(value)) return value;
     const stored = await storeBrandImageFromUrl({ orgId, url: value, role, sourceUrl, uploadedBy: "arc" });
-    return stored ?? value;
+    return stored ?? currentValue;
   };
   const logoUrl = await resolveImage(body.logoUrl, "logo", current.logoUrl);
   const faviconUrl = await resolveImage(body.faviconUrl, "favicon", current.faviconUrl);

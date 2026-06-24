@@ -152,6 +152,15 @@ describe("PUT /api/v1/arc/brand/profile", () => {
     expect(upsertMock.mock.calls[0][1].logoUrl).toBe("https://store.example/logo.png");
   });
 
+  it("keeps the current logo (does not hotlink) when the image store fails", async () => {
+    configure();
+    getMock.mockResolvedValue({ ...NEUTRAL_DEFAULTS, displayName: "Acme Co", logoUrl: "https://store.example/old-logo.png", status: "draft" });
+    vi.mocked(storeBrandImageFromUrl).mockResolvedValue(null);
+    const res = await PUT(req("Bearer secret", { displayName: "Acme Co", logoUrl: "https://acme.com/new-logo.png" }));
+    expect(res.status).toBe(200);
+    expect(upsertMock.mock.calls[0][1].logoUrl).toBe("https://store.example/old-logo.png"); // kept, not the raw new URL
+  });
+
   it("ignores an invalid palette hex (keeps the current slot)", async () => {
     configure();
     const res = await PUT(req("Bearer secret", { displayName: "Acme Co", brandPalette: { primary: "not-a-hex" } }));
