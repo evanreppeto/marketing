@@ -16,7 +16,9 @@ export async function GET(request: Request) {
 
   const orgId = allowed.scope.orgId;
   const supabase = getSupabaseAdminClient();
-  const like = `%${q}%`;
+  // Strip PostgREST or()-filter delimiters so a query can't break out of its
+  // term (the value is interpolated into an `or(...)` DSL string below).
+  const like = `%${q.replace(/[(),*]/g, "")}%`;
 
   try {
     const out: Record<string, unknown> = {};
