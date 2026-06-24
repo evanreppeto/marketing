@@ -40,7 +40,7 @@ export async function listOpenOpportunities(
   const { data, error } = await client
     .from("opportunities")
     .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, evidence")
-    .eq("org_id", orgId)
+    .eq("org_id", resolvedOrgId)
     .in("status", ["pending", "drafting", "drafted"])
     .order("created_at", { ascending: false });
   if (error) return [];

@@ -76,6 +76,28 @@ export async function POST(request: Request) {
   }
   if (!title) return fail("rejected", "title is required.", 400);
 
+  // Boundary-validate the create-path enums so an unknown persona / restoration_focus
+  // becomes a clean 400 here instead of a late, opaque Postgres enum 502 when the
+  // shell is created. Only relevant when creating a new campaign (no campaign_id).
+  let restorationFocus = str(body.restoration_focus);
+  if (!campaignIdIn) {
+    const personaIn = str(body.persona);
+    if (personaIn && !isOfficialPersonaMapping(personaIn)) {
+      return fail("rejected", `Unknown persona "${personaIn}".`, 400);
+    }
+    if (restorationFocus) {
+      const normalizedFocus = normalizeRestorationFocus(restorationFocus);
+      if (!normalizedFocus) {
+        return fail(
+          "rejected",
+          `Unknown restoration_focus "${restorationFocus}". Use one of: ${RESTORATION_FOCUS_VALUES.join(", ")}.`,
+          400,
+        );
+      }
+      restorationFocus = normalizedFocus;
+    }
+  }
+
   const operator = "Arc";
 
   try {
@@ -86,7 +108,7 @@ export async function POST(request: Request) {
         campaignId: campaignIdIn,
         name: str(body.name),
         persona: str(body.persona),
-        restorationFocus: str(body.restoration_focus),
+        restorationFocus,
         agentName: "Arc",
         tenant,
       }));
