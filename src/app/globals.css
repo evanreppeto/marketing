@@ -249,28 +249,6 @@ html[data-motion="reduced"] *::after {
   }
 }
 
-/* Premium nav-rail glow — a single soft, warm light source pooling from the
-   top of the rail with a faint cool counter-tint, drifting slowly. Restrained,
-   not the old multi-blob field. Frozen under reduced motion. */
-.arc-rail-glow {
-  position: absolute;
-  inset: -22% -14% auto -14%;
-  height: 58%;
-  background:
-    radial-gradient(58% 60% at 30% 14%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 64%),
-    radial-gradient(48% 52% at 80% 28%, color-mix(in srgb, var(--ok) 12%, transparent), transparent 62%);
-  filter: blur(30px);
-  opacity: 0.85;
-  will-change: transform;
-  animation: arc-rail-glow-drift 16s ease-in-out infinite;
-}
-@keyframes arc-rail-glow-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(5%, 4%, 0) scale(1.06); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .arc-rail-glow { animation: none; }
-}
 
 * {
   border-color: var(--border-hairline);
@@ -848,53 +826,21 @@ h4, .font-display {
   .rise-in { animation: none; }
 }
 
-/* Hero aura — a single soft, warm accent bloom for hero moments only (Today,
-   Arc). NOT for ordinary pages. Slowly drifts; frozen under reduced motion.
-   Position/size are set per-use via utility classes. */
-.hero-aura {
-  position: absolute;
-  z-index: 0;
-  pointer-events: none;
-  filter: blur(46px);
-  opacity: 0.5;
-  background:
-    radial-gradient(42% 60% at 32% 48%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
-    radial-gradient(44% 54% at 70% 42%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%);
-  animation: hero-aura-drift 17s ease-in-out infinite;
-}
-@keyframes hero-aura-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(34px, 16px, 0) scale(1.08); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-aura { animation: none; }
-}
+/* Hero aura retired in the redesign foundation — the calm canvas replaces the
+   accent bloom. Kept as a no-op so existing `.hero-aura` markup is harmless
+   until each page drops the dead class during its own redesign cycle. */
+.hero-aura { display: none; }
 
-/* Focal card — the single "primary action" block per surface. A hairline that
-   warms on hover (no levitation, per the motion system) with a soft corner
-   accent glow. Pair with .signal-panel for the base surface. */
+/* Focal card — the single "primary action" block per surface. The one allowed
+   focal cue: a hairline that warms on hover. No glow bloom (redesign foundation). */
 .focal-card {
   position: relative;
   overflow: hidden;
-  transition: border-color 220ms ease, box-shadow 220ms ease;
-}
-.focal-card::before {
-  content: "";
-  position: absolute;
-  top: -90px;
-  left: -50px;
-  width: 300px;
-  height: 240px;
-  pointer-events: none;
-  opacity: 0.7;
-  transition: opacity 260ms ease;
-  background: radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%);
+  transition: border-color 220ms ease;
 }
 .focal-card:hover {
   border-color: var(--accent-border-strong);
-  box-shadow: var(--elev-raised), 0 0 44px -24px color-mix(in srgb, var(--accent) 60%, transparent);
 }
-.focal-card:hover::before { opacity: 1; }
 
 /* Arc chat motion */
 @keyframes msg-rise {
