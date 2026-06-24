@@ -80,6 +80,13 @@ describe("persistLeadResearch", () => {
       website_url: "https://acme.example",
       org_id: "org-1",
     });
+    expect(insertFor(supabase, "contacts")[0]).toMatchObject({
+      org_id: "org-1",
+      company_id: "company-1",
+      first_name: "Dana",
+      title: "Owner",
+      metadata: { source: "arc_research", evidence: input.evidence },
+    });
   });
 
   it("enriches only blank fields on a matched company without inserting a duplicate", async () => {

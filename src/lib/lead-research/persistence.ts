@@ -106,7 +106,7 @@ export async function persistLeadResearch(
           company_id: companyId,
           persona: input.persona,
           ...incoming,
-          metadata: { source: "arc_research" },
+          metadata: provenance,
         });
         if (!inserted.ok) return inserted;
         contactIds.push(inserted.id);
@@ -178,6 +178,8 @@ async function fetchByName(
     .select("id, website_url, phone, email")
     .eq("org_id", orgId)
     .ilike("name", name)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   return (data as Record<string, unknown> | null) ?? null;
 }
@@ -190,11 +192,11 @@ async function fetchContact(
 ): Promise<Record<string, unknown> | null> {
   const columns = "id, first_name, last_name, title, email, phone";
   if (email) {
-    const { data } = await supabase.from("contacts").select(columns).eq("org_id", orgId).eq("email", email).maybeSingle();
+    const { data } = await supabase.from("contacts").select(columns).eq("org_id", orgId).eq("email", email).order("created_at", { ascending: true }).limit(1).maybeSingle();
     if (data) return data as Record<string, unknown>;
   }
   if (phone) {
-    const { data } = await supabase.from("contacts").select(columns).eq("org_id", orgId).eq("phone", phone).maybeSingle();
+    const { data } = await supabase.from("contacts").select(columns).eq("org_id", orgId).eq("phone", phone).order("created_at", { ascending: true }).limit(1).maybeSingle();
     if (data) return data as Record<string, unknown>;
   }
   return null;
