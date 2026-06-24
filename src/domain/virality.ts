@@ -98,3 +98,41 @@ export function creativeQualityScore(input: CreativeQualityInput): ProxyQualityS
     disclaimer: VIRALITY_DISCLAIMER,
   };
 }
+
+export type ScoredVariant = {
+  id: string;
+  kind: "video" | "image";
+  score: ViralityScore;
+};
+
+export type RankedVariants = {
+  ordered: ScoredVariant[];
+  topK: ScoredVariant[];
+  rationale: string;
+};
+
+function rankValue(score: ViralityScore): number {
+  return score.kind === "predicted" ? score.viralPotential : score.qualityScore;
+}
+
+const WEAK_HOOK_THRESHOLD = 40;
+
+/** Order variants best-first by their kind-appropriate score and take the top K.
+ *  Videos rank by viralPotential, images by qualityScore; the two are never
+ *  compared across kind by callers (a batch is single-kind). */
+export function rankVariants(variants: ScoredVariant[], topK: number): RankedVariants {
+  const ordered = [...variants].sort((a, b) => rankValue(b.score) - rankValue(a.score));
+  const best = ordered[0];
+  let rationale = "No variants to rank.";
+  if (best) {
+    if (best.score.kind === "predicted") {
+      rationale =
+        best.score.hookScore < WEAK_HOOK_THRESHOLD
+          ? `Top pick scores ${best.score.viralPotential}/100, but the hook is weak (${best.score.hookScore}/100) — the first 3s don't grab. Worth a stronger opener.`
+          : `Top pick scores ${best.score.viralPotential}/100 with a solid hook (${best.score.hookScore}/100).`;
+    } else {
+      rationale = `Top pick passes the creative check at ${best.score.qualityScore}/100 (${best.score.factors.join(", ")}).`;
+    }
+  }
+  return { ordered, topK: ordered.slice(0, Math.max(0, topK)), rationale };
+}
