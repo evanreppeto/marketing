@@ -14,6 +14,7 @@ import { libraryReadTools, libraryDraftTools, libraryWriteTools } from "./librar
 import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
 import { brandTools } from "./brand";
 import { proposeOpportunityTool } from "./opportunities";
+import { competitorIntelTool } from "./competitor-intel";
 import { appMapTools } from "./app-map";
 import { settingsReadTools } from "./settings";
 import type { StepFn, TurnSink } from "./helpers";
@@ -79,6 +80,7 @@ function filterToolsForSkill<T extends { name: string }>(tools: T[], skill: ArcS
 /**
  * The tool set for a turn, gated by operator mode:
  *   ask         → read + reply-shaping (emit_card, suggest_followups, cite_sources) only
+ *   scan        → read + proactive capture (propose_opportunity, record_competitor_intel)
  *   act / draft → + writes (CRM interactions, brain observations)
  *                 + draft work products (create approval-gated campaign assets, generate images)
  * Act and draft share the same capabilities — both "create approval-ready records"
@@ -97,7 +99,8 @@ export function toolsForMode(
   // pushing differently-typed tools into a narrowed array won't compile.
   const read = readTools(client, step, sink);
   if (mode === "ask") return filterToolsForSkill([...read], ctx.skill);
-  if (mode === "scan") return filterToolsForSkill([...read, proposeOpportunityTool(client, step)], ctx.skill);
+  if (mode === "scan")
+    return filterToolsForSkill([...read, proposeOpportunityTool(client, step), competitorIntelTool(client, step)], ctx.skill);
   const write = writeTools(client, step);
   return filterToolsForSkill([...read, ...write, ...draftTools(client, step, sink, ctx)], ctx.skill);
 }

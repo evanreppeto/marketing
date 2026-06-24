@@ -42,7 +42,7 @@ export const ARC_APP_MAP: readonly ArcSurface[] = [
     purpose: "Approval-gated campaign packages and their draft assets across channels.",
     route: "/campaigns",
     reads: ["list_campaigns", "get_campaign", "list_approvals", "get_approval"],
-    writes: ["create_campaign_draft", "generate_image", "generate_video", "recommend_on_approval"],
+    writes: ["create_campaign_draft", "submit_draft", "generate_image", "generate_video", "recommend_on_approval"],
     approval: "proposes_to_approval",
   },
   {
@@ -85,10 +85,10 @@ export const ARC_APP_MAP: readonly ArcSurface[] = [
   {
     id: "opportunities",
     label: "Opportunities",
-    purpose: "The source-backed opportunity inbox Arc surveys and proposes into.",
+    purpose: "The source-backed opportunity inbox Arc surveys and proposes into, plus competitor intelligence it records.",
     route: "/opportunities",
     reads: ["list_opportunities"],
-    writes: ["propose_opportunity"],
+    writes: ["propose_opportunity", "record_competitor_intel"],
     approval: "proposes_to_approval",
   },
   {
