@@ -6,6 +6,7 @@ import {
   higgsfieldModelsByCategory,
   findHiggsfieldModel,
   defaultHiggsfieldModel,
+  resolveHiggsfieldModel,
   type HiggsfieldCategory,
 } from "../higgsfield-models";
 
@@ -57,5 +58,28 @@ describe("Higgsfield model roster", () => {
   it("auto-picks purpose-built marketing models as the image and video defaults", () => {
     expect(defaultHiggsfieldModel("image")?.id).toBe("marketing_studio_image");
     expect(defaultHiggsfieldModel("video")?.id).toBe("marketing_studio_video");
+  });
+});
+
+describe("resolveHiggsfieldModel (Arc auto-pick + operator override)", () => {
+  it("uses the category default when there is no override", () => {
+    expect(resolveHiggsfieldModel("video")?.id).toBe("marketing_studio_video");
+  });
+
+  it("honors a valid operator override within the category", () => {
+    expect(resolveHiggsfieldModel("video", "kling3_0")?.id).toBe("kling3_0");
+  });
+
+  it("falls back to the default when the override id is unknown", () => {
+    expect(resolveHiggsfieldModel("image", "totally_made_up")?.id).toBe("marketing_studio_image");
+  });
+
+  it("falls back to the default when the override belongs to a different category", () => {
+    // veo3_1 is a video model; an image request must not resolve to it.
+    expect(resolveHiggsfieldModel("image", "veo3_1")?.id).toBe("marketing_studio_image");
+  });
+
+  it("ignores blank/whitespace overrides", () => {
+    expect(resolveHiggsfieldModel("video", "   ")?.id).toBe("marketing_studio_video");
   });
 });

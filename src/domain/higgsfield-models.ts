@@ -92,3 +92,17 @@ export function findHiggsfieldModel(id: string): HiggsfieldModel | null {
 export function defaultHiggsfieldModel(category: HiggsfieldCategory): HiggsfieldModel | null {
   return HIGGSFIELD_MODELS.find((m) => m.category === category && m.recommended) ?? null;
 }
+
+/**
+ * The model to generate with for a category: the operator's `overrideId` when it
+ * names a real model in that same category, otherwise Arc's recommended default.
+ * A blank, unknown, or wrong-category override is ignored (auto-pick wins).
+ */
+export function resolveHiggsfieldModel(
+  category: HiggsfieldCategory,
+  overrideId?: string | null,
+): HiggsfieldModel | null {
+  const chosen = overrideId?.trim() ? findHiggsfieldModel(overrideId.trim()) : null;
+  if (chosen && chosen.category === category) return chosen;
+  return defaultHiggsfieldModel(category);
+}
