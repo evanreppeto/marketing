@@ -9,6 +9,15 @@ const VIDEO_POLL_MS = 10_000;
 const VIDEO_MAX_POLLS = 36; // ~6 min
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Map a compose output format to an aspect ratio the image generator supports
+ *  (Imagen has no 4:5 — use the nearest portrait so the background isn't rejected). */
+const BG_ASPECT_FOR_FORMAT: Record<string, string> = {
+  "1:1": "1:1",
+  "4:5": "3:4",
+  "9:16": "9:16",
+  "16:9": "16:9",
+};
+
 /**
  * Media generation (act/draft mode). `generate_image` creates an AI image and
  * lands it as an approval-gated draft campaign asset with a thumbnail card.
@@ -199,7 +208,7 @@ export function mediaTools(
           const bg = await client.apiPost<{ media: ArcMedia }>("/api/v1/arc/media/generate-image", {
             prompt: args.prompt,
             style: args.style,
-            aspect_ratio: args.format,
+            aspect_ratio: args.format ? (BG_ASPECT_FOR_FORMAT[args.format] ?? "1:1") : undefined,
             level: ctx.level,
           });
           backgroundUrl = bg.media.url;
