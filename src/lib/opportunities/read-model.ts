@@ -5,6 +5,13 @@ import type { ThemeTone } from "@/app/_components/theme";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
+type OpportunityEvidence = {
+  persona?: string;
+  daysCold?: number;
+  leadScore?: number;
+  lastActivityAt?: string;
+};
+
 type OpportunityRecord = {
   id: string;
   subject_type: string;
@@ -15,14 +22,15 @@ type OpportunityRecord = {
   urgency: "low" | "medium" | "high";
   status: string;
   recommended_action: string;
+  evidence?: OpportunityEvidence | null;
 };
 
 const URGENCY_TONE: Record<OpportunityRecord["urgency"], ThemeTone> = { high: "red", medium: "amber", low: "blue" };
 const URGENCY_RANK: Record<OpportunityRecord["urgency"], number> = { high: 0, medium: 1, low: 2 };
 
-/** Open opportunities (pending/drafting/drafted) for the inbox. Empty when unconfigured.
- *  `orgId` is the token-resolved scope for Arc API callers; operator/cookie callers
- *  omit it and fall back to getCurrentOrgId(). */
+export type { OpportunityRecord, OpportunityEvidence };
+
+/** Open opportunities (pending/drafting/drafted) for the inbox. Empty when unconfigured. */
 export async function listOpenOpportunities(
   client: SupabaseClient = getSupabaseAdminClient(),
   orgId?: string,
@@ -31,8 +39,8 @@ export async function listOpenOpportunities(
   const resolvedOrgId = orgId ?? (await getCurrentOrgId());
   const { data, error } = await client
     .from("opportunities")
-    .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action")
-    .eq("org_id", resolvedOrgId)
+    .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, evidence")
+    .eq("org_id", orgId)
     .in("status", ["pending", "drafting", "drafted"])
     .order("created_at", { ascending: false });
   if (error) return [];
