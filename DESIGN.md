@@ -79,3 +79,17 @@ Reserve 700 (bold) for page titles and hero metrics only. UI labels, pills, tabl
 ## 8. Anti-Patterns
 
 No emojis, no pure black, no purple/neon AI palette, no gradient text, no side-stripe (`border-left`/`right` > 1px) accent borders on cards/lists/callouts, no nested cards, no equal 3-column dashboard rows, no fake round metrics or placeholder names, no glassmorphism-everywhere, no developer jargon in primary UI. No raster/clip-art iconography (SVG line icons in `currentColor` only). No decorative background imagery behind page headers or panels. No neon glow shadows, no pulsing/radar/ripple ambience. No multi-hue gradient strips as decoration.
+
+## Redesign — Calm Principles (every page must follow)
+
+The foundation pass removed ambient decoration (particle field, hero auras, rail
+glow, focal-card bloom). Every redesigned page inherits these rules:
+
+- Lead with the operational task; exactly **one focal moment** per screen.
+- Whitespace and hairlines over cards-in-cards; **no nested panels**.
+- **No equal 3-column dashboard rows**; use asymmetric grids.
+- **One accent use** per screen (the primary/focal cue); one serif (Fraunces)
+  display moment (the page title).
+- **Calm motion only:** short fades; no levitation (`hover:-translate-y-*`) or
+  glow on ordinary elements; at most one live `.status-breathe` dot per view.
+- `/arc` and `/mark` are the deliberate rich exceptions — these rules don't bind them.
