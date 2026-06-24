@@ -10,6 +10,7 @@ import { crmWriteTools } from "./crm-write";
 import { emitCardTool } from "./cards";
 import { draftWorkProductTools } from "./drafts";
 import { mediaTools } from "./media";
+import { variantsTools } from "./variants";
 import { libraryReadTools, libraryDraftTools, libraryWriteTools } from "./library";
 import { suggestFollowupsTool, citeSourcesTool, askOperatorTool } from "./reply-meta";
 import { brandTools } from "./brand";
@@ -66,6 +67,7 @@ function draftTools(client: ArcClient, step: StepFn, sink: TurnSink, ctx: ToolCo
   return [
     ...draftWorkProductTools(client, step, sink.card, ctx),
     ...mediaTools(client, step, sink.card, ctx),
+    ...variantsTools(client, step, sink.card, ctx),
     ...libraryDraftTools(client, step, sink.card),
     ...brandTools(client, step, sink.card),
   ];

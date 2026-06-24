@@ -38,7 +38,7 @@ describe("deriveSourceType", () => {
 
 function item(partial: Partial<GalleryItem>): GalleryItem {
   return {
-    media: { id: "m1", type: "image", origin: "attached", title: "t", url: "https://x/a.png", thumbnailUrl: null, mimeType: null, description: null, source: "s" },
+    media: { id: "m1", type: "image", origin: "attached", title: "t", url: "https://x/a.png", thumbnailUrl: null, mimeType: null, description: null, source: "s", virality: null },
     campaignId: "c1",
     campaignName: "Campaign",
     assetType: "social_ad",
@@ -53,9 +53,9 @@ function item(partial: Partial<GalleryItem>): GalleryItem {
 
 describe("filterGalleryItems", () => {
   const items = [
-    item({ media: { id: "a", type: "image", origin: "attached", title: "a", url: "https://x/a.png", thumbnailUrl: null, mimeType: null, description: null, source: "s" }, sourceType: "real", approvalStatus: "approved" }),
-    item({ media: { id: "b", type: "video", origin: "generated", title: "b", url: "https://x/b.mp4", thumbnailUrl: null, mimeType: null, description: null, source: "s" }, sourceType: "ai", approvalStatus: "pending" }),
-    item({ media: { id: "c", type: "file", origin: "attached", title: "c", url: "https://x/c.pdf", thumbnailUrl: null, mimeType: null, description: null, source: "s" }, sourceType: "real", approvalStatus: "approved" }),
+    item({ media: { id: "a", type: "image", origin: "attached", title: "a", url: "https://x/a.png", thumbnailUrl: null, mimeType: null, description: null, source: "s", virality: null }, sourceType: "real", approvalStatus: "approved" }),
+    item({ media: { id: "b", type: "video", origin: "generated", title: "b", url: "https://x/b.mp4", thumbnailUrl: null, mimeType: null, description: null, source: "s", virality: null }, sourceType: "ai", approvalStatus: "pending" }),
+    item({ media: { id: "c", type: "file", origin: "attached", title: "c", url: "https://x/c.pdf", thumbnailUrl: null, mimeType: null, description: null, source: "s", virality: null }, sourceType: "real", approvalStatus: "approved" }),
   ];
 
   it("returns everything when filters are 'all'", () => {
