@@ -24,10 +24,10 @@ import {
   NextBestAction,
   PersonaIntelligence,
   RecordHeaderBand,
-  RecordQuickStats,
   RelationshipGraph,
   StoredFields,
 } from "./crm-record-detail";
+import { CrmRecordTabs, normalizeRecordTab } from "./crm-record-tabs";
 
 const RECORD_FEEDBACK = [
   "created",
@@ -78,6 +78,8 @@ export async function CrmRecordPage({ action, tab, objectKey, recordId }: CrmRec
   }
 
   const record = recordResult;
+  const activeTab = normalizeRecordTab(tab);
+  const basePath = `/crm/${record.key}/${record.id}`;
   const linkKind = recordLinkKind(objectKey);
   const linkedCampaigns = linkKind ? await getCampaignsForRecord(linkKind, recordId) : [];
   const entityType = entityTypeFromCrmObjectKey(objectKey);
@@ -137,42 +139,52 @@ export async function CrmRecordPage({ action, tab, objectKey, recordId }: CrmRec
       <div className="space-y-5">
         <RecordHeaderBand record={record} />
 
-        {showEditForm && isCrmEntityKey(objectKey) ? (
-          <CrmRecordForm objectKey={objectKey} mode="edit" recordId={recordId} values={editValues} />
+        <CrmRecordTabs activeTab={activeTab} basePath={basePath} />
+
+        {activeTab === "overview" ? (
+          <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="min-w-0 space-y-5">
+              {showEditForm && isCrmEntityKey(objectKey) ? (
+                <CrmRecordForm objectKey={objectKey} mode="edit" recordId={recordId} values={editValues} />
+              ) : null}
+              <StoredFields record={record} />
+            </div>
+            <aside className="min-w-0 space-y-5">
+              <NextBestAction record={record} />
+              {timeline?.status === "live" ? <RecordTimeline entries={timeline.entries} /> : null}
+            </aside>
+          </div>
         ) : null}
 
-        <RecordQuickStats stats={record.quickStats} />
+        {activeTab === "activity" && entityType ? (
+          <div className="min-w-0 space-y-5">
+            {tasks?.status === "live" ? (
+              <TasksPanel entityType={entityType} entityId={recordId} tasks={tasks.tasks} />
+            ) : null}
+            {notes?.status === "live" ? (
+              <NotesPanel entityType={entityType} entityId={recordId} notes={notes.notes} agentName={agentName} />
+            ) : null}
+            {timeline?.status === "live" ? <RecordTimeline entries={timeline.entries} /> : null}
+          </div>
+        ) : null}
 
-        <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
-          {/* Intelligence rail — rendered first in source so it leads the page on
-             narrow viewports, and sticks to the top on wide ones. */}
-          <aside className="min-w-0 space-y-5 lg:order-2 lg:sticky lg:top-5 lg:self-start">
-            <NextBestAction record={record} />
+        {activeTab === "intelligence" ? (
+          <div className="min-w-0 space-y-5">
             <PersonaIntelligence record={record} />
+            <EngagementSummary metrics={record.engagement} />
+            <EvidenceSection record={record} />
+            <RelationshipGraph nodes={record.graph} />
+            <DataQuality items={record.dataQuality} recordId={record.id} objectLabel={record.label} />
+          </div>
+        ) : null}
+
+        {activeTab === "related" ? (
+          <div className="grid min-w-0 items-start gap-5 lg:grid-cols-2">
             <ConnectedRecords record={record} agentName={agentName} />
             <ContactChannels record={record} />
             <LinkedCampaignsPanel campaigns={linkedCampaigns} />
-            <DataQuality items={record.dataQuality} recordId={record.id} objectLabel={record.label} />
-          </aside>
-
-          <div className="min-w-0 space-y-5 lg:order-1">
-            <StoredFields record={record} />
-            <EvidenceSection record={record} />
-            <EngagementSummary metrics={record.engagement} />
-            <RelationshipGraph nodes={record.graph} />
-            {entityType ? (
-              <>
-                {tasks?.status === "live" ? (
-                  <TasksPanel entityType={entityType} entityId={recordId} tasks={tasks.tasks} />
-                ) : null}
-                {notes?.status === "live" ? (
-                  <NotesPanel entityType={entityType} entityId={recordId} notes={notes.notes} agentName={agentName} />
-                ) : null}
-                {timeline?.status === "live" ? <RecordTimeline entries={timeline.entries} /> : null}
-              </>
-            ) : null}
           </div>
-        </div>
+        ) : null}
       </div>
     </AppShell>
   );
