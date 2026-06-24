@@ -8,6 +8,7 @@ import { getPersonaIntelligenceData } from "@/lib/persona-intelligence/read-mode
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { BrandIdentity } from "./_components/brand-identity";
+import { BrandDesignImport } from "./_components/brand-design-import";
 import { BrandDetails, type ApprovedFact } from "./_components/brand-details";
 import { BrandReviewQueue } from "./_components/brand-review-queue";
 import { BrandPersonasSummary } from "./_components/brand-personas-summary";
@@ -56,6 +57,7 @@ export default async function BrandPage() {
     <div className="flex flex-col gap-6">
       <LibraryTabs active="brand" />
       <BrandIdentity agentName={agentName} profile={profile} />
+      <BrandDesignImport />
       <TeachArc agentName={agentName} />
       <BrandReviewQueue agentName={agentName} items={sourceControl.reviewItems} />
       <BrandDetails approvedFacts={approvedFacts} profile={profile} />
