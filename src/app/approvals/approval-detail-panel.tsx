@@ -99,7 +99,7 @@ export function ApprovalDetailPanel({
           <CreativeAssetList item={item} />
 
           <details className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-4">
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+            <summary className="cursor-pointer text-xs font-medium text-[var(--text-muted)]">
               Debug inputs
             </summary>
             <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3 text-xs leading-5 text-[var(--text-secondary)]">
@@ -202,7 +202,7 @@ function DecisionForms({ item, agentName }: { item: ApprovalCard; agentName: str
   return (
     <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Human decision</span>
+        <span className="text-xs font-medium text-[var(--text-muted)]">Human decision</span>
         <StatusPill tone="amber">{item.statusLabel}</StatusPill>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-1">
@@ -214,7 +214,7 @@ function DecisionForms({ item, agentName }: { item: ApprovalCard; agentName: str
         <input name="approvalItemId" type="hidden" value={item.id} />
         <input name="decisionAction" type="hidden" value="revise" />
         <label className="block">
-          <span className="mb-1 block text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+          <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">
             Revision note
           </span>
           <textarea
@@ -303,7 +303,7 @@ function LeadCandidateCard({ candidate }: { candidate: ApprovalLeadCandidate }) 
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="line-clamp-2 font-bold text-[var(--text-primary)]">{candidate.companyName}</h3>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+          <p className="mt-1 text-xs font-medium text-[var(--text-muted)]">
             {candidate.persona}
           </p>
         </div>
@@ -411,7 +411,7 @@ function CreativeAssetList({ item }: { item: ApprovalCard }) {
               <img alt="" className="mb-3 aspect-video w-full rounded-lg object-cover" src={asset.thumbnailUrl ?? asset.url} />
             ) : null}
             <div className="font-bold text-[var(--text-primary)]">{asset.title}</div>
-            <div className="mt-1 text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">{asset.type}</div>
+            <div className="mt-1 text-xs text-[var(--text-muted)]">{asset.type}</div>
             {asset.description ? <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{asset.description}</p> : null}
           </a>
         ))}
@@ -423,7 +423,7 @@ function CreativeAssetList({ item }: { item: ApprovalCard }) {
 function PacketSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <section className="rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">{title}</h3>
+      <h3 className="mb-3 text-xs font-medium text-[var(--text-muted)]">{title}</h3>
       {children}
     </section>
   );
@@ -432,7 +432,7 @@ function PacketSection({ children, title }: { children: React.ReactNode; title: 
 function CompactField({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 whitespace-pre-wrap break-words text-sm font-semibold leading-5 text-[var(--text-primary)]">
         {value || "Missing"}
       </div>

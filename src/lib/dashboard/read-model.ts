@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { isDemoDataEnabled } from "../demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 const ACTIVE_APPROVAL_STATUSES = ["needs_compliance", "pending_approval", "pending_owner_approval", "revision_requested"];
@@ -23,6 +24,17 @@ export type DashboardCounts =
 
 export async function getDashboardCounts(client?: SupabaseClient): Promise<DashboardCounts> {
   if (!client && !isSupabaseAdminConfigured()) {
+    if (isDemoDataEnabled()) {
+      return {
+        status: "live",
+        approvalsWaiting: 3,
+        leadsFound: 48,
+        leadsAwaitingReview: 12,
+        campaignsDrafted: 5,
+        agentTasksOpen: 6,
+        agentTasksCompleted: 23,
+      };
+    }
     return {
       status: "unavailable",
       message: "Supabase env vars are not configured.",

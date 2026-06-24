@@ -121,7 +121,7 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
                 ) : submittedEmail && result.emailed === false ? (
                   <div className="mb-2 text-sm font-semibold text-[var(--priority-text)]">Couldn't email them — share this code instead.</div>
                 ) : null}
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ok-text)]">Invite code</div>
+                <div className="text-xs font-medium text-[var(--ok-text)]">Invite code</div>
                 <div className="mt-1 font-mono text-xl font-bold tracking-[0.08em] text-[var(--text-primary)]">{result.code}</div>
                 <div className="mt-1 text-xs text-[var(--text-muted)]">Expires {new Date(result.expiresAt).toLocaleDateString()}.</div>
               </div>

@@ -262,7 +262,7 @@ function isInteractiveTarget(target: EventTarget | null) {
 function QueueDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-[var(--text-primary)]">{humanizeQueueValue(value || "Missing")}</div>
     </div>
   );
@@ -271,10 +271,10 @@ function QueueDetail({ label, value }: { label: string; value: string }) {
 function QueueStat({ detail, label, value }: { detail: string; label: string; value: number }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 flex items-baseline justify-between gap-2">
         <span className="font-mono text-sm font-bold text-[var(--accent)]">{value}</span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{detail}</span>
+        <span className="truncate text-[10px] font-medium text-[var(--text-muted)]">{detail}</span>
       </div>
     </div>
   );

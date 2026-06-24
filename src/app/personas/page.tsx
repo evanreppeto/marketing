@@ -64,7 +64,7 @@ export default async function PersonasPage({ searchParams }: PageProps) {
           className="module-rise mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_28%,var(--border-panel))] bg-[color-mix(in_srgb,var(--accent)_6%,var(--surface-panel))] px-4 py-3 transition hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-panel))]"
         >
           <span className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Arc</span>
+            <span className="text-[11px] font-medium text-[var(--accent)]">Arc</span>
             <span>
               <span className="font-semibold text-[var(--text-primary)]">{arcDrafts} drafts</span> awaiting your approval across these personas.
             </span>
@@ -106,7 +106,7 @@ function SegmentRail({ active, personas }: { active: PersonaSegmentKey | "all"; 
 
   return (
     <nav aria-label="Persona segments" className="flex flex-col gap-0.5 lg:sticky lg:top-5 lg:self-start">
-      <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Segments</div>
+      <div className="px-3 pb-2 text-[10px] font-medium text-[var(--text-muted)]">Segments</div>
       {items.map((item) => {
         const isActive = active === item.key;
         return (

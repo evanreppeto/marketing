@@ -76,7 +76,7 @@ export function CrmRecordForm({
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {fields.map((field) => (
           <label className={`block ${field.name === "street_line_1" || field.name === "name" ? "sm:col-span-2" : ""}`} key={field.name}>
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            <span className="text-xs font-medium text-[var(--text-muted)]">
               {field.label}
               {field.required ? <span className="ml-1 text-[var(--priority-bright)]">*</span> : null}
             </span>

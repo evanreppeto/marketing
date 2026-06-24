@@ -45,7 +45,7 @@ export function AssetThumb({ card, media, eager = false }: { card: ArcActionCard
   if (c.includes("sms") || c.includes("text")) {
     return (
       <div className="flex h-full w-full flex-col justify-end gap-1 bg-[var(--canvas-deep)] p-3">
-        <span className="text-center text-[8px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">SMS</span>
+        <span className="text-center text-[8px] font-medium text-[var(--text-muted)]">SMS</span>
         <div className="max-w-[90%] self-start rounded-2xl rounded-bl-md bg-[var(--surface-raised)] px-3 py-2 shadow-[inset_0_0_0_1px_var(--border-hairline)]">
           <p className="line-clamp-4 text-[10px] leading-relaxed text-[var(--text-primary)]">{body}</p>
         </div>

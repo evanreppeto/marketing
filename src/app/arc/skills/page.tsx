@@ -70,7 +70,7 @@ export default async function ArcSkillsPage() {
 
       {/* Plugins / connectors — the home for external integrations as they ship. */}
       <div className="mt-8">
-        <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+        <p className="mb-2 flex items-center gap-1.5 text-[10px] font-medium text-[var(--text-muted)]">
           <span aria-hidden className="h-2.5 w-px rounded-full bg-[var(--accent)]" />
           Plugins &amp; connectors
         </p>

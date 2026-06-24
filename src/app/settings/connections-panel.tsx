@@ -90,7 +90,7 @@ function SummaryTile({ icon, label, value, ready }: { icon: ReactNode; label: st
     <div className="flex items-center gap-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
       {icon}
       <div className="min-w-0">
-        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+        <div className="text-[11px] font-medium text-[var(--text-muted)]">{label}</div>
         <div className={`mt-1 text-sm font-bold ${ready ? "text-[var(--ok-text)]" : "text-[var(--warn-text)]"}`}>{value}</div>
       </div>
     </div>

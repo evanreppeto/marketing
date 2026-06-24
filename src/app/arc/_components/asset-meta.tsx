@@ -44,7 +44,7 @@ export function SourceBadge({ source }: { source: ArcMediaSource }) {
         ? "text-[var(--accent-strong)] bg-[var(--accent-soft)]"
         : "text-[var(--text-secondary)] bg-[var(--surface-inset)]";
   return (
-    <span className={cx("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]", tone)}>
+    <span className={cx("rounded px-1.5 py-0.5 text-[9px] font-medium", tone)}>
       {SOURCE_LABEL[source]}
     </span>
   );
@@ -60,7 +60,7 @@ export function StatusPill({ status }: { status: ArcAssetStatus }) {
           ? "text-[var(--warn-text)] bg-[var(--warn-soft)]"
           : "text-[var(--text-muted)] bg-[var(--surface-inset)]";
   return (
-    <span className={cx("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]", tone)}>
+    <span className={cx("rounded-full px-2 py-0.5 text-[9px] font-medium", tone)}>
       {STATUS_LABEL[status]}
     </span>
   );
@@ -68,7 +68,7 @@ export function StatusPill({ status }: { status: ArcAssetStatus }) {
 
 export function FormatChip({ format }: { format: string }) {
   return (
-    <span className="rounded bg-[var(--surface-inset)] px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]">
+    <span className="rounded bg-[var(--surface-inset)] px-1.5 py-0.5 font-mono text-[9px] font-medium text-[var(--text-muted)]">
       {format}
     </span>
   );

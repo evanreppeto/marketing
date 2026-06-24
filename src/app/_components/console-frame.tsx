@@ -393,7 +393,7 @@ function MobileNavDock({
           className="min-w-56 border-[var(--border-panel)] bg-[var(--surface-raised)] p-1.5 text-[var(--text-primary)] shadow-[var(--elev-raised)]"
           sideOffset={8}
         >
-          <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-medium text-[var(--text-muted)]">
             Navigate
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="bg-[var(--border-hairline)]" />
@@ -616,7 +616,7 @@ function SidebarSection({
             ? <div aria-hidden className="mx-auto h-px w-7 bg-[var(--border-hairline)]" />
             : null
           : label
-            ? <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">{label}</span>
+            ? <span className="text-[10px] font-medium text-[var(--text-muted)]">{label}</span>
             : null}
       </div>
       {children}

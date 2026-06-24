@@ -95,7 +95,7 @@ export function BrandSourceUpload({ placement = "inline" }: { placement?: "hero"
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {["Docs", "Images", "Logos", "Proof"].map((item) => (
               <span
-                className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]"
+                className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-1.5 text-center text-[10px] font-medium text-[var(--text-muted)]"
                 key={item}
               >
                 {item}

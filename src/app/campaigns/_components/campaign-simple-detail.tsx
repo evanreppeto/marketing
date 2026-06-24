@@ -188,7 +188,7 @@ function CampaignProgressBar({ checklist }: { checklist: ReturnType<typeof build
               className={`h-3 rounded-full ${progressSegmentClass(step.state)}`}
               title={`${index + 1}. ${step.label}: ${step.detail}`}
             />
-            <div className={`mt-1.5 hidden truncate text-[11px] font-bold uppercase tracking-[0.08em] md:block ${progressLabelClass(step.state)}`}>
+            <div className={`mt-1.5 hidden truncate text-[11px] font-medium md:block ${progressLabelClass(step.state)}`}>
               {step.label}
             </div>
           </div>
@@ -256,7 +256,7 @@ function GuardrailChips({ flags }: { flags: string[] }) {
 function HeroFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 line-clamp-3 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value}</div>
     </div>
   );

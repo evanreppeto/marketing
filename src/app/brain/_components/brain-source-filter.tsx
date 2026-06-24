@@ -22,7 +22,7 @@ export function BrainSourceFilter({ nodes, active, onChange }: Props) {
         onClick={() => onChange(key)}
         aria-pressed={isActive}
         className={cx(
-          "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition",
+          "relative flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition after:hidden",
           isActive
             ? "border-[var(--accent-border-strong)] bg-[var(--accent-soft)] font-semibold text-[var(--accent-contrast)]"
             : "border-[var(--border-hairline)] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]",

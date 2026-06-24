@@ -2,8 +2,9 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { ActivationChecklist } from "./_components/activation-checklist";
-import { buttonClasses, PageHeader, Panel, StatStrip, StatusPill, type StatItem } from "./_components/page-header";
-import { theme } from "./_components/theme";
+import { CountUp } from "./_components/count-up";
+import { buttonClasses, Panel, StatusPill } from "./_components/page-header";
+import { cx } from "./_components/theme";
 import { getActivationState } from "@/lib/activation/read-model";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getRecentActivity } from "@/lib/activity/read-model";
@@ -42,300 +43,241 @@ export default async function HomePage() {
   const configuredConnections = connections.filter((item) => item.status === "connected").length;
   const agentReady = isAgentConfigured();
 
+  const approvalsWaiting = counts.status === "live" ? counts.approvalsWaiting : 0;
+  const leadsAwaitingReview = counts.status === "live" ? counts.leadsAwaitingReview : 0;
+  const openAgentTasks = counts.status === "live" ? counts.agentTasksOpen : 0;
+  const readyCampaigns = campaigns.filter((campaign) => campaign.lifecycle === "Ready").length;
+  const needs = approvalsWaiting + leadsAwaitingReview;
+
+  const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const focal = reviewCampaign ?? readyCampaign ?? null;
+
+  // Quiet list — the decisions that aren't the single top priority.
+  const quietRows: QuietRowProps[] = [];
+  if (leadsAwaitingReview > 0) {
+    quietRows.push({
+      href: "/crm/leads",
+      title: `${leadsAwaitingReview} lead signal${leadsAwaitingReview === 1 ? "" : "s"} awaiting review`,
+      detail: `${agentName} scored and routed them — confirm the next move.`,
+      tone: "accent",
+    });
+  }
+  if (readyCampaign && focal !== readyCampaign) {
+    quietRows.push({
+      href: readyCampaign.href,
+      title: `Launch ${readyCampaign.name}`,
+      detail: "Approvals are clear — check the audience and channel plan before launch.",
+      tone: "ok",
+    });
+  }
+  quietRows.push({
+    href: "/settings?section=brand-kit",
+    title: `Keep ${agentName} inside the brand`,
+    detail: "Proof points, voice, banned claims, and local detail — specific context is the antidote to generic output.",
+    tone: "muted",
+  });
+
   return (
     <>
-      <PageHeader
-        eyebrow="Home"
-        title="Today’s work"
-        description="A short operating brief for campaigns, approvals, lead signals, and the parts of the system that need a human decision."
-        aside={
-          <>
-            <Link href="/arc" className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              Open {agentName}
-            </Link>
-            <Link
-              href={reviewCampaign?.href ?? readyCampaign?.href ?? "/campaigns"}
-              className={buttonClasses({ size: "sm" })}
-            >
-              Review work
-            </Link>
-          </>
-        }
-      />
+      <header className="relative isolate mb-9 pt-1">
+        <div aria-hidden className="hero-aura left-[-4rem] right-[-1rem] top-[-6rem] h-[20rem]" />
+        <div className="rise-in rise-d1 relative z-10">
+          <h1 className="font-editorial text-[clamp(2.1rem,3.4vw,2.95rem)] font-medium leading-[1] tracking-[-0.022em] text-[var(--text-primary)]">
+            Today
+          </h1>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            {dateStr}
+            <span className="mx-2 text-[var(--border-strong)]">·</span>
+            {needs > 0
+              ? `${needs} ${needs === 1 ? "thing needs" : "things need"} your decision`
+              : `${agentName} has nothing waiting on you`}
+          </p>
+        </div>
+      </header>
 
       {activation?.checklist.showChecklist ? (
-        <ActivationChecklist checklist={activation.checklist} orgName={activation.orgName} />
+        <div className="rise-in rise-d2 mb-8">
+          <ActivationChecklist checklist={activation.checklist} orgName={activation.orgName} />
+        </div>
       ) : null}
 
-      <StatStrip
-        columns={4}
-        items={buildStats({
-          approvalsWaiting: counts.status === "live" ? counts.approvalsWaiting : 0,
-          leadsAwaitingReview: counts.status === "live" ? counts.leadsAwaitingReview : 0,
-          readyCampaigns: campaigns.filter((campaign) => campaign.lifecycle === "Ready").length,
-          openAgentTasks: counts.status === "live" ? counts.agentTasksOpen : 0,
-        })}
-      />
-
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
-        <Panel className="module-rise p-0 [animation-delay:40ms]" aria-labelledby="home-priority-title">
-          <div className="border-b border-[var(--border-hairline)] px-4 py-4 sm:px-5">
-            <div className={theme.text.eyebrow}>Priority lane</div>
-            <h2 id="home-priority-title" className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-              Start with the decision, not the tool
+      <div className="grid gap-x-10 gap-y-9 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        {/* ---- Left: the decisions ---- */}
+        <div className="min-w-0">
+          <div className="rise-in rise-d2 flex items-baseline justify-between">
+            <h2 className="font-editorial text-[1.18rem] font-medium tracking-[-0.012em] text-[var(--text-primary)]">
+              Needs you
             </h2>
-            <p className="mt-1 max-w-[68ch] text-sm leading-6 text-[var(--text-secondary)]">
-              Arc can prepare work, but this console should make the next human call obvious.
-            </p>
+            <span className="tabular-nums text-xs text-[var(--text-muted)]">{needs} open</span>
           </div>
-          <div className="divide-y divide-[var(--border-hairline)]">
-            <PriorityRow
-              href={reviewCampaign?.href ?? "/campaigns?view=needs-attention"}
-              label="Review"
-              title={reviewCampaign ? reviewCampaign.name : "No campaign is waiting on approval"}
-              detail={
-                reviewCampaign
-                  ? `${reviewCampaign.pendingCount} piece${reviewCampaign.pendingCount === 1 ? " needs" : "s need"} a decision before anything goes out.`
-                  : "When a draft, asset, or send package needs approval, it will appear here first."
-              }
-              tone={reviewCampaign ? "amber" : "green"}
-              action={reviewCampaign ? "Open campaign" : "View campaigns"}
-            />
-            <PriorityRow
-              href={readyCampaign?.href ?? "/campaigns?view=ready-to-send"}
-              label="Launch"
-              title={readyCampaign ? readyCampaign.name : "Nothing is staged for launch"}
-              detail={
-                readyCampaign
-                  ? "All required approvals are clear. Check the audience and channel plan before launch."
-                  : "Approved campaigns move here once the launch checklist is clean."
-              }
-              tone={readyCampaign ? "green" : "gray"}
-              action={readyCampaign ? "Check launch" : "View ready queue"}
-            />
-            <PriorityRow
-              href="/settings?section=brand-kit"
-              label="Quality"
-              title="Keep Arc inside the brand"
-              detail="Use the Brand Kit for proof points, voice, banned claims, services, and local details. Specific context is the antidote to generic output."
-              tone="blue"
-              action="Tune Brand Kit"
-            />
-          </div>
-        </Panel>
+          <div
+            aria-hidden
+            className="mb-1 mt-3 h-px bg-[linear-gradient(90deg,var(--accent-border-strong),var(--border-hairline)_36%,transparent)]"
+          />
 
-        <Panel className="module-rise p-0 [animation-delay:80ms]" aria-labelledby="home-setup-title">
-          <div className="border-b border-[var(--border-hairline)] px-4 py-4 sm:px-5">
-            <div className={theme.text.eyebrow}>Product readiness</div>
-            <h2 id="home-setup-title" className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-              Workspace setup
-            </h2>
-          </div>
-          <div className="grid gap-0 divide-y divide-[var(--border-hairline)]">
-            <SetupRow
-              title="Business profile"
-              detail="Brand, services, claims, proof, and voice are editable."
-              href="/settings?section=brand-kit"
-              ready={Boolean(settings.workspaceName && settings.assistantName)}
-            />
-            <SetupRow
-              title="Agent runner"
-              detail={agentReady ? `${agentName} has the runner settings it needs.` : "Connect the runner before relying on background work."}
-              href="/settings?section=agent"
-              ready={agentReady}
-            />
-            <SetupRow
-              title="Outbound channels"
-              detail={
-                configuredConnections > 0
-                  ? `${configuredConnections} connection${configuredConnections === 1 ? "" : "s"} ready.`
-                  : "Connect email or social before launch workflows feel real."
-              }
-              href="/settings?section=connections"
-              ready={configuredConnections > 0}
-            />
-            <SetupRow
-              title="Database"
-              detail={isSupabaseAdminConfigured() ? "Live workspace data is available." : "Preview mode is running without live persistence."}
-              href="/settings?section=system"
-              ready={isSupabaseAdminConfigured()}
-            />
-          </div>
-        </Panel>
-      </section>
+          <FocalPriority focal={focal} isReview={Boolean(reviewCampaign)} agentName={agentName} />
 
-      <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Panel className="module-rise p-0 [animation-delay:120ms]" aria-labelledby="home-campaign-title">
-          <SectionHeader title="Campaign queue" detail={campaignSummary(campaigns)} href="/campaigns" action="Open campaigns" />
-          <div className="divide-y divide-[var(--border-hairline)]">
-            {campaigns.slice(0, 4).map((campaign) => (
-              <CampaignRow key={campaign.id} campaign={campaign} />
+          <div className="rise-in rise-d3 mt-6">
+            {quietRows.map((row) => (
+              <QuietRow key={row.href + row.title} {...row} />
             ))}
-            {campaigns.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-[var(--text-muted)]">No campaigns yet. Create one manually or ask Arc for a draft packet.</div>
-            ) : null}
           </div>
-        </Panel>
 
-        <Panel className="module-rise p-0 [animation-delay:160ms]" aria-labelledby="home-activity-title">
-          <SectionHeader title="Recent activity" detail="Decisions, drafts, runs, and campaign changes." href="/activity" action="Open activity" />
-          <div className="divide-y divide-[var(--border-hairline)]">
-            {activity.status === "live" || activity.status === "unavailable"
-              ? activity.status === "live" && activity.entries.length > 0
-                ? activity.entries.slice(0, 5).map((entry) => (
-                    <Link
-                      key={entry.id}
-                      href={entry.href ?? "/activity"}
-                      className="block px-4 py-3 transition hover:bg-[var(--surface-soft)]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{entry.title}</div>
-                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{entry.detail}</p>
-                        </div>
-                        <StatusPill tone={activityTone(entry.tone)}>{entry.insightLabel ?? entry.category}</StatusPill>
-                      </div>
-                    </Link>
-                  ))
-                : (
-                    <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
-                      {activity.status === "unavailable" ? activity.message : "No activity has been recorded yet."}
-                    </div>
-                  )
-              : null}
+          <div className="rise-in rise-d4 mt-9 flex flex-wrap items-end gap-x-11 gap-y-6 border-t border-[var(--border-hairline)] pt-7">
+            <Metric value={approvalsWaiting} label="Needs decision" warn={approvalsWaiting > 0} />
+            <Metric value={leadsAwaitingReview} label="Lead signals" />
+            <Metric value={readyCampaigns} label="Ready to launch" />
+            <Metric value={openAgentTasks} label={`${agentName} tasks`} />
           </div>
-        </Panel>
-      </section>
+        </div>
+
+        {/* ---- Right: momentum rail (selective panels) ---- */}
+        <div className="min-w-0 lg:border-l lg:border-[var(--border-hairline)] lg:pl-10">
+          <h2 className="rise-in rise-d3 mb-4 font-editorial text-[1.18rem] font-medium tracking-[-0.012em] text-[var(--text-primary)]">
+            Momentum
+          </h2>
+
+          <Panel className="rise-in rise-d3 p-0">
+            <div className="flex items-center justify-between border-b border-[var(--border-hairline)] px-4 py-3.5">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">Recent activity</span>
+              <Link
+                href="/activity"
+                className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--accent)]"
+              >
+                Open →
+              </Link>
+            </div>
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {activity.status === "live" && activity.entries.length > 0 ? (
+                activity.entries.slice(0, 4).map((entry) => (
+                  <Link key={entry.id} href={entry.href ?? "/activity"} className="block px-4 py-3 transition hover:bg-[var(--surface-soft)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-medium text-[var(--text-primary)]">{entry.title}</div>
+                        <p className="mt-1 line-clamp-1 text-xs text-[var(--text-muted)]">{entry.detail}</p>
+                      </div>
+                      <StatusPill tone={activityTone(entry.tone)}>{entry.insightLabel ?? entry.category}</StatusPill>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
+                  {activity.status === "unavailable" ? activity.message : `No activity yet — ${agentName}'s runs will appear here.`}
+                </div>
+              )}
+            </div>
+          </Panel>
+
+          <Panel className="rise-in rise-d4 mt-4 p-0">
+            <div className="border-b border-[var(--border-hairline)] px-4 py-3.5">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">Workspace setup</span>
+            </div>
+            <div className="divide-y divide-[var(--border-hairline)]">
+              <SetupRow title="Business profile" href="/settings?section=brand-kit" ready={Boolean(settings.workspaceName && settings.assistantName)} />
+              <SetupRow title="Agent runner" href="/settings?section=agent" ready={agentReady} />
+              <SetupRow title="Outbound channels" href="/settings?section=connections" ready={configuredConnections > 0} />
+              <SetupRow title="Database" href="/settings?section=system" ready={isSupabaseAdminConfigured()} />
+            </div>
+          </Panel>
+        </div>
+      </div>
     </>
   );
 }
 
-function buildStats(input: {
-  approvalsWaiting: number;
-  leadsAwaitingReview: number;
-  readyCampaigns: number;
-  openAgentTasks: number;
-}): StatItem[] {
-  return [
-    {
-      label: "Needs decision",
-      value: input.approvalsWaiting,
-      hint: input.approvalsWaiting > 0 ? "Review before outbound" : "Clear",
-      tone: input.approvalsWaiting > 0 ? "amber" : "ok",
-    },
-    {
-      label: "Lead signals",
-      value: input.leadsAwaitingReview,
-      hint: input.leadsAwaitingReview > 0 ? "Awaiting review" : "None pending",
-      tone: input.leadsAwaitingReview > 0 ? "accent" : "neutral",
-    },
-    {
-      label: "Ready campaigns",
-      value: input.readyCampaigns,
-      hint: input.readyCampaigns > 0 ? "Launch checklist next" : "No launch queue",
-      tone: input.readyCampaigns > 0 ? "ok" : "neutral",
-    },
-    {
-      label: "Arc tasks",
-      value: input.openAgentTasks,
-      hint: input.openAgentTasks > 0 ? "Open or running" : "No open tasks",
-      tone: input.openAgentTasks > 0 ? "accent" : "neutral",
-    },
-  ];
+function FocalPriority({ focal, isReview, agentName }: { focal: CampaignWorkspaceListItem | null; isReview: boolean; agentName: string }) {
+  let label: string;
+  let title: string;
+  let detail: string;
+  let href: string;
+  let cta: string;
+
+  if (focal && isReview) {
+    label = "Top priority";
+    title = focal.name;
+    detail = `${focal.pendingCount} piece${focal.pendingCount === 1 ? "" : "s"} ${focal.pendingCount === 1 ? "needs" : "need"} a decision before anything goes out. Outbound stays locked until you approve.`;
+    href = focal.href;
+    cta = "Review & approve";
+  } else if (focal) {
+    label = "Ready to launch";
+    title = focal.name;
+    detail = "All required approvals are clear. Check the audience and channel plan, then launch.";
+    href = focal.href;
+    cta = "Check launch";
+  } else {
+    label = "You’re clear";
+    title = "Nothing is waiting on a decision";
+    detail = `${agentName} is watching for signals and will surface the next thing that needs you right here.`;
+    href = "/campaigns";
+    cta = "Browse campaigns";
+  }
+
+  return (
+    <Link href={href} className={cx("signal-panel focal-card rise-in rise-d2 mt-4 block p-5")}>
+      <div className="relative">
+        <div className="text-[0.72rem] font-semibold tracking-[0.01em] text-[var(--accent-contrast)]">{label}</div>
+        <div className="mt-1.5 font-editorial text-[1.32rem] font-medium leading-tight tracking-[-0.014em] text-[var(--text-primary)]">
+          {title}
+        </div>
+        <p className="mt-2 max-w-[54ch] text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
+        <div className="mt-4 inline-flex">
+          <span className={buttonClasses({ size: "sm" })}>{cta}&nbsp;→</span>
+        </div>
+      </div>
+    </Link>
+  );
 }
 
-function PriorityRow({
-  label,
-  title,
-  detail,
-  href,
-  action,
-  tone,
-}: {
-  label: string;
+type QuietRowProps = {
+  href: string;
   title: string;
   detail: string;
-  href: string;
-  action: string;
-  tone: "green" | "amber" | "blue" | "gray";
-}) {
+  tone: "accent" | "ok" | "warn" | "muted";
+};
+
+function QuietRow({ href, title, detail, tone }: QuietRowProps) {
+  const dot =
+    tone === "warn" ? "var(--warn)" : tone === "accent" ? "var(--accent)" : tone === "ok" ? "var(--ok)" : "var(--text-muted)";
   return (
-    <Link href={href} className="group block px-4 py-4 transition hover:bg-[var(--surface-soft)] sm:px-5">
-      <div className="grid gap-3 lg:grid-cols-[120px_minmax(0,1fr)_auto] lg:items-center">
-        <div className="flex items-center gap-2">
-          <StatusPill tone={tone}>{label}</StatusPill>
-        </div>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-[var(--text-primary)]">{title}</div>
-          <p className="mt-1 max-w-[72ch] text-xs leading-5 text-[var(--text-muted)]">{detail}</p>
-        </div>
-        <div className="text-xs font-semibold text-[var(--accent-contrast)] transition group-hover:text-[var(--text-primary)]">
-          {action}
-        </div>
-      </div>
+    <Link
+      href={href}
+      className="group flex items-center gap-3.5 border-b border-[var(--border-hairline)] py-3.5 pl-1 transition-[padding] duration-200 first:border-t hover:pl-2.5"
+    >
+      <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dot }} />
+      <span className="min-w-0">
+        <span className="block text-[13.5px] font-medium text-[var(--text-primary)]">{title}</span>
+        <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{detail}</span>
+      </span>
+      <span className="ml-auto shrink-0 text-xs font-semibold text-[var(--text-secondary)] transition group-hover:text-[var(--accent)]">
+        Open&nbsp;→
+      </span>
     </Link>
   );
 }
 
-function SetupRow({ title, detail, href, ready }: { title: string; detail: string; href: string; ready: boolean }) {
+function Metric({ value, label, warn = false }: { value: number; label: string; warn?: boolean }) {
   return (
-    <Link href={href} className="group block px-4 py-3.5 transition hover:bg-[var(--surface-soft)] sm:px-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-[var(--text-primary)]">{title}</div>
-          <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{detail}</p>
-        </div>
-        <StatusPill tone={ready ? "green" : "amber"}>{ready ? "Ready" : "Needs setup"}</StatusPill>
+    <div>
+      <div
+        className={cx(
+          "font-display text-[1.7rem] font-semibold leading-none tracking-[-0.02em] tabular-nums",
+          warn ? "text-[var(--warn-text)]" : "text-[var(--text-primary)]",
+        )}
+      >
+        <CountUp value={value} />
       </div>
-    </Link>
-  );
-}
-
-function SectionHeader({ title, detail, href, action }: { title: string; detail: string; href: string; action: string }) {
-  return (
-    <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-      <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
-      </div>
-      <Link href={href} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-        {action}
-      </Link>
+      <div className="mt-2 text-xs text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }
 
-function CampaignRow({ campaign }: { campaign: CampaignWorkspaceListItem }) {
-  const needsReview = campaign.pendingCount > 0 || campaign.lifecycle === "In review";
+function SetupRow({ title, href, ready }: { title: string; href: string; ready: boolean }) {
   return (
-    <Link href={campaign.href} className="group block px-4 py-3.5 transition hover:bg-[var(--surface-soft)] sm:px-5">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] text-sm font-semibold text-[var(--accent)]">
-          {campaign.name.slice(0, 1).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{campaign.name}</div>
-            <StatusPill tone={needsReview ? "amber" : campaign.lifecycle === "Live" ? "green" : "gray"}>{campaign.lifecycle}</StatusPill>
-          </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">
-            {campaign.objective || campaign.audienceSummary}
-          </p>
-        </div>
-        <div className="hidden text-right text-xs text-[var(--text-muted)] sm:block">
-          <div>{campaign.assetCount} pieces</div>
-          <div>{campaign.mediaCount} media</div>
-        </div>
-      </div>
+    <Link href={href} className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-[var(--surface-soft)]">
+      <span className="text-[13px] font-medium text-[var(--text-primary)]">{title}</span>
+      <StatusPill tone={ready ? "green" : "amber"}>{ready ? "Ready" : "Set up"}</StatusPill>
     </Link>
   );
-}
-
-function campaignSummary(campaigns: CampaignWorkspaceListItem[]) {
-  if (campaigns.length === 0) return "Create a campaign packet or ask Arc to prepare one.";
-  const waiting = campaigns.filter((campaign) => campaign.pendingCount > 0 || campaign.lifecycle === "In review").length;
-  const ready = campaigns.filter((campaign) => campaign.lifecycle === "Ready").length;
-  return `${campaigns.length} campaigns, ${waiting} waiting, ${ready} ready.`;
 }
 
 function activityTone(tone: "green" | "red" | "amber" | "blue" | "gray") {

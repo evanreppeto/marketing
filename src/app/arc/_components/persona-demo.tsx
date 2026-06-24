@@ -120,7 +120,7 @@ export function PersonaDemo() {
         <section className="flex min-h-[28rem] flex-col justify-between rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-5 shadow-[var(--elev-panel)]">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Arc persona</p>
+              <p className="text-[10px] font-medium text-[var(--text-muted)]">Arc persona</p>
               <h1 className="mt-2 font-display text-2xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
                 {active.label}
               </h1>
@@ -156,7 +156,7 @@ export function PersonaDemo() {
         </section>
 
         <aside className="flex flex-col gap-3 rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Chat scale</p>
+          <p className="text-[10px] font-medium text-[var(--text-muted)]">Chat scale</p>
           <PreviewRow state="idle" label="Idle" body="Waiting for the next instruction." />
           <PreviewRow state="listening" label="Listening" body="Reading the operator's prompt and mentions." />
           <PreviewRow state="thinking" label="Thinking" body="Building the campaign recommendation." />

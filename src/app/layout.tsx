@@ -55,7 +55,7 @@ const mono = Geist_Mono({
 // (an intentional, confident type moment). The app-wide `--ff-serif` stays Geist.
 const editorial = Fraunces({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600"],
   style: ["normal", "italic"],
   variable: "--ff-editorial",
   display: "swap",

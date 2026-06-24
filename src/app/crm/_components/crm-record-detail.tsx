@@ -79,7 +79,7 @@ export function RecordHeaderBand({ record }: { record: CrmRecordData }) {
               const mono = isHeaderMetricMono(metric.value);
               return (
                 <div key={metric.label} className="min-w-0">
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{metric.label}</dt>
+                  <dt className="text-[10px] font-medium text-[var(--text-muted)]">{metric.label}</dt>
                   <dd
                     className={cx(
                       "mt-1 truncate text-sm font-semibold",
@@ -99,7 +99,7 @@ export function RecordHeaderBand({ record }: { record: CrmRecordData }) {
           <div className="flex shrink-0 items-center gap-4 self-start rounded-xl border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-5 py-4">
             <ScoreDial value={primaryScore} ring={badge.ring} />
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">{scoreLabel}</div>
+              <div className="text-[10px] font-medium text-[var(--text-muted)]">{scoreLabel}</div>
               <div className="mt-1 font-mono text-3xl font-semibold leading-none tabular-nums" style={{ color: badge.text }}>
                 {typeof primaryScore === "number" ? primaryScore : "—"}
               </div>
@@ -162,7 +162,7 @@ export function RecordQuickStats({ stats }: { stats: CrmRecordMetric[] }) {
     >
       {stats.map((stat) => (
         <div key={stat.label} className="bg-[var(--surface-panel)] px-4 py-3.5">
-          <div className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{stat.label}</div>
+          <div className="truncate text-[10px] font-medium text-[var(--text-muted)]">{stat.label}</div>
           <div className={cx("mt-1.5 font-mono text-xl font-semibold tabular-nums tracking-tight", stat.tone ? METRIC_TONE[stat.tone] : "text-[var(--text-primary)]")}>
             {stat.value}
           </div>
@@ -267,7 +267,7 @@ export function StoredFields({ record }: { record: CrmRecordData }) {
             const missing = field.value === "Missing";
             return (
               <div key={field.label} className="px-4 py-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{field.label}</dt>
+                <dt className="text-[10px] font-medium text-[var(--text-muted)]">{field.label}</dt>
                 <dd className={cx("mt-1.5 text-sm leading-6", missing ? "text-[var(--warn-text)]" : "text-[var(--text-secondary)]")}>
                   {field.value}
                 </dd>
@@ -292,7 +292,7 @@ export function StoredFields({ record }: { record: CrmRecordData }) {
                 isLast ? "" : "border-b border-[var(--border-hairline)]",
               )}
             >
-              <dt className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">{field.label}</dt>
+              <dt className="shrink-0 text-[11px] font-medium text-[var(--text-muted)]">{field.label}</dt>
               <dd
                 className={cx(
                   "min-w-0 truncate text-right text-sm",
@@ -312,7 +312,7 @@ export function StoredFields({ record }: { record: CrmRecordData }) {
         <dl className="divide-y divide-[var(--border-hairline)] border-t border-[var(--border-hairline)]">
           {wideFields.map((field) => (
             <div key={field.label} className="flex items-baseline justify-between gap-4 px-4 py-3">
-              <dt className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">{field.label}</dt>
+              <dt className="shrink-0 text-[11px] font-medium text-[var(--text-muted)]">{field.label}</dt>
               <dd className="min-w-0 truncate text-right font-mono text-[13px] tracking-tight text-[var(--text-primary)]" title={field.value}>
                 {displayFieldValue(field.label, field.value)}
               </dd>
@@ -374,7 +374,7 @@ export function EvidenceSection({ record }: { record: CrmRecordData }) {
 
       {hasProof ? (
         <div className="px-4 py-3.5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Proof points</div>
+          <div className="text-[10px] font-medium text-[var(--text-muted)]">Proof points</div>
           <ul className="mt-2 space-y-1.5">
             {record.proofPoints.map((point) => (
               <li key={point} className="flex items-start gap-2 text-[13px] leading-5 text-[var(--text-secondary)]">
@@ -436,7 +436,7 @@ export function ContactChannels({ record }: { record: CrmRecordData }) {
                 {c.channel === "phone" ? <PhoneGlyph /> : <BrandGlyph channel={c.channel} className="h-4 w-4" />}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{c.label}</div>
+                <div className="text-[10px] font-medium text-[var(--text-muted)]">{c.label}</div>
                 <div className="truncate font-mono text-[13px] tabular-nums text-[var(--text-primary)] transition-colors group-hover/ch:text-[var(--accent)]">
                   {c.value}
                 </div>
@@ -513,7 +513,7 @@ export function ConnectedRecords({ record, agentName }: { record: CrmRecordData;
           {ordered.map(([label, rels]) => (
             <div key={label} className="px-4 py-3">
               <div className="mb-2 flex items-center gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                <span className="text-[10px] font-medium text-[var(--text-muted)]">
                   {relGroupPlural(label, rels.length)}
                 </span>
                 <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">{rels.length}</span>
@@ -592,7 +592,7 @@ export function EngagementSummary({ metrics }: { metrics: CrmRecordMetric[] }) {
             >
               {m.value}
             </div>
-            <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{m.label}</div>
+            <div className="mt-2 text-[11px] font-medium text-[var(--text-muted)]">{m.label}</div>
             {m.hint ? <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">{m.hint}</div> : null}
           </div>
         ))}
@@ -617,7 +617,7 @@ export function ScoreBars({ bars }: { bars: CrmRecordScoreBar[] }) {
         return (
           <div key={bar.label}>
             <div className="flex items-baseline justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{bar.label}</span>
+              <span className="text-[11px] font-medium text-[var(--text-muted)]">{bar.label}</span>
               <span className="font-mono text-sm font-semibold tabular-nums" style={{ color }}>
                 {typeof bar.value === "number" ? bar.value : "—"}
               </span>
@@ -665,7 +665,7 @@ export function PersonaIntelligence({ record }: { record: CrmRecordData }) {
 
       {record.proofPoints.length > 0 ? (
         <div className="border-t border-[var(--border-hairline)] px-4 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Recommended proof points</div>
+          <div className="text-[11px] font-medium text-[var(--text-muted)]">Recommended proof points</div>
           <ul className="mt-2.5 space-y-1.5">
             {record.proofPoints.map((point) => (
               <li key={point} className="flex items-start gap-2 text-[13px] leading-5 text-[var(--text-secondary)]">
@@ -683,7 +683,7 @@ export function PersonaIntelligence({ record }: { record: CrmRecordData }) {
 function RailField({ label, value, right = false, top = false }: { label: string; value: string; right?: boolean; top?: boolean }) {
   return (
     <div className={cx("px-4 py-3", !right && "border-r border-[var(--border-hairline)]", top && "border-t border-[var(--border-hairline)]")}>
-      <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</dt>
+      <dt className="text-[10px] font-medium text-[var(--text-muted)]">{label}</dt>
       <dd className="mt-1 text-sm font-semibold leading-5 text-[var(--text-primary)]">{value}</dd>
     </div>
   );
@@ -693,7 +693,7 @@ function Narrative({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
     <div>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[11px] font-medium text-[var(--text-muted)]">{label}</div>
       <p className="mt-1 text-[13px] leading-6 text-[var(--text-secondary)]">{value}</p>
     </div>
   );
@@ -843,9 +843,9 @@ export function DataQuality({ items, recordId, objectLabel }: { items: CrmRecord
           ))}
         </ul>
         <div className="mt-4 border-t border-[var(--border-hairline)] pt-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Record id</div>
+          <div className="text-[10px] font-medium text-[var(--text-muted)]">Record id</div>
           <div className="mt-0.5 truncate font-mono text-[11px] text-[var(--text-secondary)]">{recordId}</div>
-          <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Object</div>
+          <div className="mt-2 text-[10px] font-medium text-[var(--text-muted)]">Object</div>
           <div className="mt-0.5 text-[12px] font-semibold text-[var(--text-primary)]">{objectLabel}</div>
         </div>
       </div>

@@ -54,7 +54,7 @@ export function GoogleDriveHealthCard({ health }: { health: GoogleDriveHealth })
         {health.checks.map((check) => (
           <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3" key={check.key}>
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              <span className="inline-flex min-w-0 items-center gap-2 text-xs font-medium text-[var(--text-muted)]">
                 <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-[var(--accent)] [&>svg]:h-4 [&>svg]:w-4">
                   {checkIcon(check)}
                 </span>
@@ -71,7 +71,7 @@ export function GoogleDriveHealthCard({ health }: { health: GoogleDriveHealth })
         <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
           <div className="flex items-center gap-2">
             <KeyRound aria-hidden className="h-4 w-4 text-[var(--accent)]" />
-            <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Current operator</div>
+            <div className="text-xs font-medium text-[var(--text-muted)]">Current operator</div>
           </div>
           <div className="mt-3 grid gap-1 text-xs leading-5 text-[var(--text-secondary)]">
             <span>Connected email: {health.connectedEmail ?? "Not connected"}</span>
@@ -85,7 +85,7 @@ export function GoogleDriveHealthCard({ health }: { health: GoogleDriveHealth })
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <FolderSync aria-hidden className="h-4 w-4 text-[var(--accent)]" />
-              <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Saved Drive folders</div>
+              <div className="text-xs font-medium text-[var(--text-muted)]">Saved Drive folders</div>
             </div>
             <StatusPill tone={health.errorSourceCount > 0 ? "red" : health.sourceCount > 0 ? "green" : "amber"}>
               {health.sourceCount}

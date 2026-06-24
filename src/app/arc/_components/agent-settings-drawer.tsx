@@ -95,7 +95,7 @@ export function AgentSettingsDrawer({ open, onClose }: { open: boolean; onClose:
           </form>
         ) : null}
 
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Connection</h3>
+        <h3 className="mb-2 text-[11px] font-medium text-[var(--text-muted)]">Connection</h3>
         <div className="divide-y divide-[var(--border-hairline)] rounded-lg border border-[var(--border-hairline)]">
           <ChecklistRow ok={Boolean(info?.runnerConfigured)} label="Runner endpoint" env="ARC_RUNNER_URL" hint="Where the app wakes your agent." />
           <ChecklistRow ok={Boolean(info?.tokenConfigured)} label="Agent API token" env="ARC_AGENT_API_TOKEN" hint="Bearer token your agent uses to reach the control-plane API." />

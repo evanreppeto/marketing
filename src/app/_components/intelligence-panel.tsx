@@ -81,7 +81,7 @@ export function IntelligencePanel({
               {model.scores.map((score) => (
                 <div key={score.label} className="min-w-0 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
                   <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-                    <div className="min-w-0 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{score.label}</div>
+                    <div className="min-w-0 text-xs font-medium text-[var(--text-muted)]">{score.label}</div>
                     <ToneBadge tone={score.tone ?? scoreTone(score.value)} />
                   </div>
                   <div className="mt-2 break-words font-display text-2xl font-bold tracking-[-0.04em] text-[var(--text-primary)]">
@@ -118,7 +118,7 @@ export function IntelligencePanel({
 
           {model.proofPoints && model.proofPoints.length > 0 ? (
             <div className="border-t border-[var(--border-hairline)] px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Proof points</div>
+              <div className="text-xs font-medium text-[var(--text-muted)]">Proof points</div>
               <ul className="mt-3 space-y-2">
                 {model.proofPoints.map((point) => (
                   <li key={point} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 text-sm leading-6 text-[var(--text-secondary)]">
@@ -131,7 +131,7 @@ export function IntelligencePanel({
 
           {model.evidence && model.evidence.length > 0 ? (
             <div className="border-t border-[var(--border-hairline)] px-4 py-4">
-              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Evidence</div>
+              <div className="mb-3 text-xs font-medium text-[var(--text-muted)]">Evidence</div>
               <div className="grid gap-2">
                 {model.evidence.slice(0, 6).map((item) =>
                   item.href ? (
@@ -201,7 +201,7 @@ export function IntelligenceLinkList({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 break-words text-sm font-bold leading-5 text-[var(--text-primary)]">{formatReadableText(value)}</div>
     </div>
   );
@@ -211,7 +211,7 @@ function Narrative({ label, value, strong = false }: { label: string; value?: st
   if (!value) return null;
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
       <p className={`mt-1 text-sm leading-6 ${strong ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
         {formatReadableText(value)}
       </p>
@@ -244,7 +244,7 @@ function ToneBadge({ tone }: { tone: ThemeTone }) {
             : "Signal";
 
   return (
-    <span className={cx("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]", theme.pill[tone])}>
+    <span className={cx("rounded-full border px-2 py-0.5 text-[10px] font-medium", theme.pill[tone])}>
       {label}
     </span>
   );

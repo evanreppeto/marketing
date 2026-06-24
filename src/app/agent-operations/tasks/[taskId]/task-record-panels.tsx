@@ -228,7 +228,7 @@ export function TaskOutputsPanel({ outputs }: { outputs: TaskOutputRecord[] }) {
                 <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                   {output.structuredSections.slice(0, 6).map((section) => (
                     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2" key={section.label}>
-                      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{section.label}</dt>
+                      <dt className="text-xs font-medium text-[var(--text-muted)]">{section.label}</dt>
                       <dd className="mt-1 whitespace-pre-wrap text-sm font-semibold leading-6 text-[var(--text-primary)]">{section.value}</dd>
                     </div>
                   ))}
@@ -257,7 +257,7 @@ export function TaskOutputsPanel({ outputs }: { outputs: TaskOutputRecord[] }) {
 
               {output.body && output.body !== output.readableBody ? (
                 <details className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                  <summary className="cursor-pointer text-xs font-medium text-[var(--text-muted)]">
                     Raw output packet
                   </summary>
                   <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-[var(--text-secondary)]">{output.body}</pre>
@@ -416,7 +416,7 @@ function TaskSectionToolbar({
         <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2">
           <div className="mb-2 flex items-start justify-between gap-3 px-1">
             <div className="min-w-0">
-              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{searchLabel}</span>
+              <span className="text-xs font-medium text-[var(--accent)]">{searchLabel}</span>
               <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{searchHelp}</p>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">{resultCount} visible</span>
@@ -491,7 +491,7 @@ function LogSummaryStrip({ logs }: { logs: TaskLogRecord[] }) {
       <SmallLogStat label="Retries" value={retryTotal} />
       <SmallLogStat label="Models used" value={modelCount || "None"} />
       <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2 sm:col-span-4">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Most recent activity</div>
+        <div className="text-[11px] font-medium text-[var(--text-muted)]">Most recent activity</div>
         <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{formatDate(lastCompleted ?? null)}</div>
       </div>
     </div>
@@ -533,7 +533,7 @@ function LogEntryCard({ agentName, log, ordinal }: { agentName: string; log: Tas
           </div>
 
           <div className="mt-3 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">What this row means</div>
+            <div className="text-[11px] font-medium text-[var(--text-muted)]">What this row means</div>
             <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
               {`This is one recorded step from ${agentName}'s runner: a claim, model run, retry, block, or completion event for this ticket.`}
             </p>
@@ -576,7 +576,7 @@ function LogEntryCard({ agentName, log, ordinal }: { agentName: string; log: Tas
 function SmallLogStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</dt>
+      <dt className="text-[11px] font-medium text-[var(--text-muted)]">{label}</dt>
       <dd className="mt-1 truncate text-sm font-bold tabular-nums text-[var(--text-primary)]">{value}</dd>
     </div>
   );
@@ -593,7 +593,7 @@ function KeyValuePreview({ payload }: { payload: Record<string, unknown> }) {
     <dl className="mt-3 grid gap-2 sm:grid-cols-2">
       {entries.map(([key, value]) => (
         <div key={key} className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{humanize(key)}</dt>
+          <dt className="text-xs font-medium text-[var(--text-muted)]">{humanize(key)}</dt>
           <dd className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{String(value)}</dd>
         </div>
       ))}

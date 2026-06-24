@@ -101,7 +101,7 @@ export function RecallRow({ node, relation, direction, hops, onSelect }: RecallH
           <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dot }} />
           <span className="truncate text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{node.label}</span>
         </span>
-        <span className="mt-0.5 block truncate text-[10px] uppercase tracking-[0.04em] text-[var(--text-muted)]">
+        <span className="mt-0.5 block truncate text-[10px] text-[var(--text-muted)]">
           {relationPhrase(relation)} · {kindLabel(node.kind)}
           {hops > 1 ? ` · ${hops} hops` : ""}
         </span>

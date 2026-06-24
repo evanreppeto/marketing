@@ -54,7 +54,7 @@ export const theme = {
     tabIdle: "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
     tabIcon: "h-4 w-4 shrink-0 transition-colors",
     tabMarker:
-      "pointer-events-none absolute inset-x-2 bottom-[-0.75rem] h-px rounded-full bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_92%,transparent),transparent)] shadow-[0_0_16px_rgba(211,170,75,0.34)] after:absolute after:inset-x-3 after:top-[-3px] after:h-[7px] after:rounded-full after:bg-[radial-gradient(ellipse_at_center,rgba(211,170,75,0.20),transparent_70%)] after:content-['']",
+      "pointer-events-none absolute inset-x-2 bottom-[-0.75rem] h-px rounded-full bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--accent)_80%,transparent),transparent)]",
     cardInteractive:
       "transition hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] active:translate-y-px",
     kbd: "rounded border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-1 font-mono",

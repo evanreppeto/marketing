@@ -76,11 +76,11 @@ export function ContractTab({ contracts }: { contracts: LivePerformance["contrac
           <div className="grid gap-3 px-5 py-4 lg:grid-cols-[180px_minmax(0,1fr)]" key={contract.area}>
             <div>
               <div className="font-bold text-[var(--text-primary)]">{contract.area}</div>
-              <div className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">{contract.currentSignal}</div>
+              <div className="mt-1 text-xs font-medium text-[var(--accent)]">{contract.currentSignal}</div>
             </div>
             <div className="space-y-2">
               <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2">
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Missing fields</div>
+                <div className="text-xs font-medium text-[var(--text-muted)]">Missing fields</div>
                 <div className="mt-1 font-mono text-xs leading-5 text-[var(--text-secondary)]">{contract.missingFields}</div>
               </div>
               <p className="text-sm leading-6 text-[var(--text-secondary)]">{contract.nextBackendStep}</p>
@@ -138,5 +138,5 @@ function ToneTag({ tone }: { tone: PerformanceTone }) {
             ? "border-[oklch(0.74_0.115_232/0.34)] bg-[var(--accent-soft)] text-[var(--accent)]"
             : "border-[var(--border-hairline)] bg-[var(--surface-soft)] text-[var(--text-muted)]";
 
-  return <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${className}`}>{label}</span>;
+  return <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium ${className}`}>{label}</span>;
 }

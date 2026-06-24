@@ -83,3 +83,34 @@ describe("create_campaign_draft", () => {
     );
   });
 });
+
+describe("submit_draft", () => {
+  function getSubmit(apiPostImpl: () => Promise<unknown>) {
+    const client = { apiPost: vi.fn(apiPostImpl) } as unknown as ArcClient;
+    const step = vi.fn(async () => {});
+    const submit = draftWorkProductTools(client, step, () => {}).find((t) => t.name === "submit_draft")!;
+    const call = (args: Record<string, unknown>) =>
+      (submit.handler as (a: Record<string, unknown>, e?: unknown) => Promise<{ content: Array<{ type: string; text: string }> }>)(args);
+    return { client, call };
+  }
+
+  it("submits a generic non-campaign draft into the approval queue with only the provided fields", async () => {
+    const { client, call } = getSubmit(async () => ({ ok: true, status: "drafted", approvalItemId: "ap1", agentOutputId: "out1" }));
+    const out = await call({
+      item_type: "partner_handoff_note",
+      draft: "Call Acme re: the flood job their tenant reported.",
+      lead_id: "L1",
+    });
+    expect(client.apiPost).toHaveBeenCalledWith("/api/v1/arc/drafts", {
+      item_type: "partner_handoff_note",
+      draft: "Call Acme re: the flood job their tenant reported.",
+      lead_id: "L1",
+    });
+    expect(out.content[0].text).toContain("ap1");
+  });
+
+  it("is exposed alongside create_campaign_draft", () => {
+    const names = draftWorkProductTools({} as ArcClient, async () => {}, () => {}).map((t) => t.name);
+    expect(names).toEqual(["create_campaign_draft", "submit_draft"]);
+  });
+});

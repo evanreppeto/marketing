@@ -56,7 +56,7 @@ type PageHeaderProps = {
   backLabel?: string;
 };
 
-export function PageHeader({ eyebrow, title, description, aside, backHref, backLabel }: PageHeaderProps) {
+export function PageHeader({ title, description, aside, backHref, backLabel }: PageHeaderProps) {
   const visibleAside = aside && !isPassiveStatusAside(aside) ? aside : null;
 
   return (
@@ -65,8 +65,7 @@ export function PageHeader({ eyebrow, title, description, aside, backHref, backL
       <MotionReveal className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" y={8}>
         <div className="min-w-0 max-w-[76ch]">
           {backHref ? <BackLink href={backHref} label={backLabel ?? "back"} /> : null}
-          {eyebrow ? <div className={cx("mb-2", theme.text.eyebrow)}>{eyebrow}</div> : null}
-          <h1 className="font-serif text-[clamp(1.75rem,2.6vw,2.45rem)] font-semibold leading-[1.02] tracking-[-0.018em] text-[var(--text-primary)]">
+          <h1 className="font-editorial text-[clamp(1.9rem,2.9vw,2.6rem)] font-medium leading-[1.03] tracking-[-0.02em] text-[var(--text-primary)]">
             {title}
           </h1>
           {description ? (
@@ -155,7 +154,7 @@ export function StatCard({ label, value, hint, delta, deltaTone = "neutral", ton
     <div className="min-w-0 border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-panel)_82%,var(--canvas))] px-3.5 py-3">
       <div className="flex items-center gap-1.5">
         {icon ? <span className="inline-flex h-3.5 w-3.5 items-center justify-center text-[var(--text-muted)] [&>svg]:h-3.5 [&>svg]:w-3.5">{icon}</span> : null}
-        <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</span>
+        <span className="truncate text-[10px] font-medium text-[var(--text-muted)]">{label}</span>
       </div>
       <div className="mt-1.5 flex items-end justify-between gap-2">
         <div className={cx("font-display text-[1.55rem] font-semibold leading-none tracking-[-0.02em]", STAT_VALUE_TONE[tone])}>

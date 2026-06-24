@@ -517,7 +517,7 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
   return (
     <div className="my-2 overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--media-void)]">
       <div className="flex items-center justify-between border-b border-[var(--border-hairline)] px-3 py-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">{lang || "code"}</span>
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">{lang || "code"}</span>
         <button
           type="button"
           onClick={async () => {
@@ -627,7 +627,7 @@ function DaySeparator({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3" aria-hidden suppressHydrationWarning>
       <span className="h-px flex-1 bg-[var(--border-hairline)]" />
-      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[10px] font-medium text-[var(--text-muted)]">{label}</span>
       <span className="h-px flex-1 bg-[var(--border-hairline)]" />
     </div>
   );
