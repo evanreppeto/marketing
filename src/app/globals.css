@@ -9,16 +9,16 @@
 
 :root {
   /* Surface tiers — warm near-black, stepping up for separation */
-  --canvas: #080b0d;            /* page background, deepest */
-  --canvas-deep: #050708;       /* gutter / behind-rail void */
-  --surface-panel: #0e1316;     /* cards & modules */
-  --surface-inset: #12181c;     /* headers, fields, sub-blocks inside a panel */
-  --surface-soft: #0b1013;      /* quiet strips, list backgrounds */
-  --surface-raised: #171e22;    /* hover, popovers, selected */
-  --surface-sidebar: #070a0c;
-  --surface-operator: linear-gradient(145deg, #1c1c21, #101013);
-  --media-void: #060809;
-  --overlay: rgba(8, 8, 10, 0.78);
+  --canvas: #16161a;            /* page background, warm obsidian */
+  --canvas-deep: #101013;       /* gutter / behind-rail void */
+  --surface-panel: #1c1c21;     /* cards & modules */
+  --surface-inset: #202027;     /* headers, fields, sub-blocks inside a panel */
+  --surface-soft: #191920;      /* quiet strips, list backgrounds */
+  --surface-raised: #26262d;    /* hover, popovers, selected */
+  --surface-sidebar: #121316;
+  --surface-operator: linear-gradient(145deg, #24242b, #16161a);
+  --media-void: #0d0d10;
+  --overlay: rgba(10, 10, 12, 0.78);
 
   /* Text tiers — warm ivory */
   --text-primary: #f2eee4;
@@ -31,14 +31,14 @@
   --border-strong: rgba(232, 224, 205, 0.20);
 
   /* Accent — antique gold */
-  --accent: #d3aa4b;
-  --accent-strong: #e2c06a;
-  --accent-hover: #e9c96f;
-  --accent-active: #b98b30;
-  --accent-soft: rgba(211, 170, 75, 0.12);
-  --accent-contrast: #f1d58b;
-  --accent-border: rgba(211, 170, 75, 0.28);
-  --accent-border-strong: rgba(211, 170, 75, 0.46);
+  --accent: #c8a24a;
+  --accent-strong: #dbb869;
+  --accent-hover: #e1c074;
+  --accent-active: #a9842f;
+  --accent-soft: rgba(200, 162, 74, 0.12);
+  --accent-contrast: #ecd596;
+  --accent-border: rgba(200, 162, 74, 0.28);
+  --accent-border-strong: rgba(200, 162, 74, 0.46);
   --on-accent: #16161a;         /* ink on a solid gold fill */
 
   /* Priority — restrained red, for destructive/decline only */
