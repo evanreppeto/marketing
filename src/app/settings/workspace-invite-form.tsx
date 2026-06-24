@@ -70,7 +70,7 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
             type="email"
             value={email}
           />
-          <span className="text-xs text-[var(--text-muted)]">We'll email them a join link. Leave blank to just generate a code.</span>
+          <span className="text-xs text-[var(--text-muted)]">We&apos;ll email them a join link. Leave blank to just generate a code.</span>
         </label>
 
         <label className="grid gap-1.5">
@@ -119,7 +119,7 @@ export function WorkspaceInviteForm({ workspaceId }: { workspaceId: string }) {
                 {result.emailed ? (
                   <div className="mb-2 text-sm font-semibold text-[var(--ok-text)]">Invited {submittedEmail}</div>
                 ) : submittedEmail && result.emailed === false ? (
-                  <div className="mb-2 text-sm font-semibold text-[var(--priority-text)]">Couldn't email them — share this code instead.</div>
+                  <div className="mb-2 text-sm font-semibold text-[var(--priority-text)]">Couldn&apos;t email them — share this code instead.</div>
                 ) : null}
                 <div className="text-xs font-medium text-[var(--ok-text)]">Invite code</div>
                 <div className="mt-1 font-mono text-xl font-bold tracking-[0.08em] text-[var(--text-primary)]">{result.code}</div>
