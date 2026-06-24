@@ -105,41 +105,36 @@ export function ConsoleFrame({
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
   ];
 
-  const growthNavItems: ShellNavItem[] = [
+  const workNavItems: ShellNavItem[] = [
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
     { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
   ];
 
-  const intelligenceNavItems: ShellNavItem[] = [
-    { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
-    { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
-    { label: "Usage", href: "/usage", icon: "usage", matches: ["/usage"] },
-    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
-    { label: "Personas", href: "/personas", icon: "personas", matches: ["/personas"] },
+  const studioNavItems: ShellNavItem[] = [
+    { label: "Brand & Files", href: "/library/brand", icon: "brand", matches: ["/library"] },
+    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
+    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
   ];
 
-  const assetNavItems: ShellNavItem[] = [
-    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
-    // Brand + Files are one section: lands on the brand view, stays active on
-    // both /library/brand and the /library Files tab (matches "/library").
-    { label: "Brand", href: "/library/brand", icon: "brand", matches: ["/library"] },
-    { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
-    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
+  const intelligenceNavItems: ShellNavItem[] = [
+    { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
+    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
+    { label: "Personas", href: "/personas", icon: "personas", matches: ["/personas"] },
   ];
 
   const navItems: ShellNavItem[] = [
     homeNavItems[0],
     { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] },
-    ...growthNavItems,
+    ...workNavItems,
+    ...studioNavItems,
     ...intelligenceNavItems,
-    ...assetNavItems,
   ];
 
   const utilityNavItems: ShellNavItem[] = [
     { label: "Settings", href: "/settings", icon: "settings", matches: ["/settings"] },
   ];
-  const mobilePrimaryNavItems = [homeNavItems[0], navItems[1], growthNavItems[0], growthNavItems[1]];
+  const mobilePrimaryNavItems = [homeNavItems[0], navItems[1], workNavItems[0], workNavItems[1]];
   const mobileMoreNavItems = navItems.filter((item) => !mobilePrimaryNavItems.some((primary) => primary.href === item.href));
   const activeMobileItem = [...navItems, ...utilityNavItems].find((item) => routeMatches(item, pathname));
   const activeMobileLabel = activeMobileItem?.label ?? brand.productLabel;
@@ -267,16 +262,16 @@ export function ConsoleFrame({
                     <SideNav active={pathname} items={homeNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
 
-                  <SidebarSection collapsed={sidebarCollapsed} divider label="Growth">
-                    <SideNav active={pathname} items={growthNavItems} collapsed={sidebarCollapsed} />
+                  <SidebarSection collapsed={sidebarCollapsed} divider label="Work">
+                    <SideNav active={pathname} items={workNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
+
+                  <SidebarSection collapsed={sidebarCollapsed} divider label="Studio">
+                    <SideNav active={pathname} items={studioNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
 
                   <SidebarSection collapsed={sidebarCollapsed} divider label="Intelligence">
                     <SideNav active={pathname} items={intelligenceNavItems} collapsed={sidebarCollapsed} />
-                  </SidebarSection>
-
-                  <SidebarSection collapsed={sidebarCollapsed} divider label="Assets">
-                    <SideNav active={pathname} items={assetNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
                 </div>
               </div>
