@@ -50,6 +50,7 @@ export * from "./brain-provenance";
 export * from "./brain-health";
 export * from "./activation";
 export * from "./arc-sharing";
+export * from "./brand-design";
 export {
   renderBrandedEmail,
   type BrandEmailTheme,
