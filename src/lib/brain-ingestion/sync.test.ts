@@ -19,6 +19,7 @@ import {
   resyncMediaIntoBrain,
   syncCampaignResultToBrain,
   resyncPerformanceIntoBrain,
+  syncPerformanceForCampaigns,
 } from "./sync";
 
 const upsertMock = vi.mocked(upsertReferenceNode);
@@ -272,5 +273,35 @@ describe("resyncPerformanceIntoBrain", () => {
     const res = await resyncPerformanceIntoBrain({ client: supabase as never, orgId: ORG });
     expect(res).toEqual({ ok: true, synced: 1, linked: 1, errors: 0, truncated: false });
     expect(edgeMock).toHaveBeenCalledWith("pn1", "cn1", "learned_from", { client: expect.anything(), orgId: ORG });
+  });
+});
+
+describe("syncPerformanceForCampaigns", () => {
+  it("derives each result's org from its campaign and mirrors nodes + learned_from edges", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "pn" });
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: [{ id: "cmp1", org_id: "org-1" }], error: null }, // campaign → org map
+      campaign_results: { data: [{ id: "r1", campaign_id: "cmp1" }], error: null },
+      knowledge_nodes: { data: [{ id: "pn1", key: "perf:r1" }, { id: "cn1", key: "campaign:cmp1" }], error: null },
+    });
+    const res = await syncPerformanceForCampaigns(["cmp1"], { client: supabase as never });
+    expect(res).toEqual({ ok: true, synced: 1, linked: 1, errors: 0, truncated: false });
+    // The result node lands in the CAMPAIGN's org, not a caller-supplied one.
+    expect(upsertMock.mock.calls.at(-1)![1]).toMatchObject({ orgId: "org-1" });
+    expect(edgeMock).toHaveBeenCalledWith("pn1", "cn1", "learned_from", { client: expect.anything(), orgId: "org-1" });
+  });
+
+  it("counts a result whose campaign org can't be resolved as an error (no cross-org write)", async () => {
+    const supabase = createSupabaseQueryMock({
+      campaigns: { data: [], error: null }, // campaign not found → no org
+      campaign_results: { data: [{ id: "r1", campaign_id: "cmpX" }], error: null },
+    });
+    const res = await syncPerformanceForCampaigns(["cmpX"], { client: supabase as never });
+    expect(res).toEqual({ ok: true, synced: 0, linked: 0, errors: 1, truncated: false });
+  });
+
+  it("no-ops on an empty campaign id list", async () => {
+    const res = await syncPerformanceForCampaigns([], { client: {} as never });
+    expect(res).toEqual({ ok: true, synced: 0, linked: 0, errors: 0, truncated: false });
   });
 });
