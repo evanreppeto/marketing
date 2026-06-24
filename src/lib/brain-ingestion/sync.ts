@@ -6,6 +6,10 @@ import {
   buildNodeInputForCampaignResult,
   buildNodeInputForCrmRow,
   buildNodeInputForMedia,
+  buildPersonaNodeInput,
+  crmChildRefs,
+  crmNodeKey,
+  CRM_NODE_KINDS,
   type CrmEdgeSpec,
   type CrmIngestTable,
 } from "@/domain";
@@ -35,19 +39,6 @@ function eqOrg<T>(query: T, orgId: string): T {
 type LooseRow = Record<string, unknown>;
 type LooseResult = { data: unknown; error: { message: string } | null };
 
-/** Read every row of a table for an org. media_assets / campaign_results carry
- *  org_id at runtime but not in the generated types, so go through a structural
- *  cast (same spirit as media-library/persistence's string-table bypass). */
-async function selectOrgRows(client: TypedSupabaseClient, table: string, orgId: string, limit: number): Promise<LooseRow[] | null> {
-  const builder = (
-    client as unknown as {
-      from(t: string): { select(s: string): { eq(c: string, v: string): { limit(n: number): PromiseLike<LooseResult> } } };
-    }
-  ).from(table).select("*").eq("org_id", orgId).limit(limit);
-  const { data, error } = await builder;
-  return error || !Array.isArray(data) ? null : (data as LooseRow[]);
-}
-
 /** Read one org-scoped row by id, bypassing the stale generated types. */
 async function selectOrgRowById(client: TypedSupabaseClient, table: string, id: string, orgId: string): Promise<LooseRow | null> {
   const builder = (
@@ -59,6 +50,62 @@ async function selectOrgRowById(client: TypedSupabaseClient, table: string, id: 
   ).from(table).select("*").eq("id", id).eq("org_id", orgId).maybeSingle();
   const { data, error } = await builder;
   return error || !data ? null : (data as LooseRow);
+}
+
+/** Rows per page when backfilling, and a hard ceiling that bounds a runaway loop. */
+export const RESYNC_PAGE_SIZE = 1000;
+const RESYNC_HARD_CAP = 50000;
+
+export type PagedRows =
+  | { ok: true; rows: LooseRow[]; truncated: boolean }
+  | { ok: false };
+
+/**
+ * Page through EVERY org-scoped row of a table (no 2000-row cap — that cap is
+ * what made the Brain silently miss records past it). Stops when a short page
+ * arrives, or flags `truncated` if the hard safety ceiling is hit so the operator
+ * knows to investigate rather than lose data silently. Structural cast bypasses
+ * the stale generated types (some tables carry org_id only at runtime).
+ */
+export async function selectAllOrgRows(
+  client: TypedSupabaseClient,
+  table: string,
+  orgId: string,
+  pageSize: number = RESYNC_PAGE_SIZE,
+  hardCap: number = RESYNC_HARD_CAP,
+): Promise<PagedRows> {
+  const out: LooseRow[] = [];
+  let offset = 0;
+  for (;;) {
+    const builder = (
+      client as unknown as {
+        from(t: string): { select(s: string): { eq(c: string, v: string): { range(a: number, b: number): PromiseLike<LooseResult> } } };
+      }
+    ).from(table).select("*").eq("org_id", orgId).range(offset, offset + pageSize - 1);
+    const { data, error } = await builder;
+    if (error || !Array.isArray(data)) return out.length ? { ok: true, rows: out, truncated: false } : { ok: false };
+    out.push(...(data as LooseRow[]));
+    if (data.length < pageSize) return { ok: true, rows: out, truncated: false };
+    offset += pageSize;
+    if (offset >= hardCap) return { ok: true, rows: out, truncated: true };
+  }
+}
+
+/** Read child rows that reference a parent: `column = parentId` within the org. */
+async function selectChildRows(
+  client: TypedSupabaseClient,
+  table: string,
+  column: string,
+  parentId: string,
+  orgId: string,
+): Promise<LooseRow[] | null> {
+  const builder = (
+    client as unknown as {
+      from(t: string): { select(s: string): { eq(c: string, v: string): { eq(c: string, v: string): PromiseLike<LooseResult> } } };
+    }
+  ).from(table).select("id").eq(column, parentId).eq("org_id", orgId);
+  const { data, error } = await builder;
+  return error || !Array.isArray(data) ? null : (data as LooseRow[]);
 }
 
 /** Read rows where `column` is in `ids` (no org filter — caller derives org). */
@@ -91,6 +138,19 @@ async function linkEdgeSpecs(specs: CrmEdgeSpec[], deps: SyncDeps): Promise<{ li
 
   const idByKey = new Map<string, string>();
   for (const r of data as Array<{ id: string; key: string }>) idByKey.set(r.key, r.id);
+
+  // Persona endpoints are addressable from the key alone (the key IS the persona
+  // value). Create any that don't exist yet so a `targets persona` edge always
+  // lands instead of silently skipping — this is the fix for "the Brain doesn't
+  // link things". CRM/campaign refs are NOT auto-created here (we lack their data;
+  // they mirror in through their own sync path).
+  const missingPersonaKeys = Array.from(
+    new Set(specs.filter((s) => s.toKind === "persona" && !idByKey.has(s.toKey)).map((s) => s.toKey)),
+  );
+  for (const personaKey of missingPersonaKeys) {
+    const res = await upsertReferenceNode(buildPersonaNodeInput(personaKey), { client, orgId });
+    if (res.ok) idByKey.set(personaKey, res.id);
+  }
 
   let linked = 0;
   let skipped = 0;
@@ -162,6 +222,45 @@ export async function syncCampaignRecordToBrain(campaignId: string, deps: SyncDe
   return nodeResult;
 }
 
+/**
+ * Link a record to its already-synced *children* (the reverse of its own
+ * `belongs_to` edges). When a parent is created/synced after its children, each
+ * child's forward edge was skipped (the parent had no node yet); this re-links
+ * them from the parent's side so the graph connects regardless of sync order.
+ * Best-effort; never throws.
+ */
+export async function syncRecordBackEdges(
+  table: CrmIngestTable,
+  recordId: string,
+  deps: SyncDeps = {},
+): Promise<{ linked: number; skipped: number }> {
+  const children = crmChildRefs(table);
+  if (children.length === 0) return { linked: 0, skipped: 0 };
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch { return { linked: 0, skipped: 0 }; }
+  if (!resolved) return { linked: 0, skipped: 0 };
+  const { client, orgId } = resolved;
+
+  const specs: CrmEdgeSpec[] = [];
+  for (const child of children) {
+    const rows = await selectChildRows(client, child.table, child.column, recordId, orgId);
+    if (!rows) continue;
+    for (const row of rows) {
+      const childId = typeof row.id === "string" ? row.id : null;
+      if (!childId) continue;
+      specs.push({
+        fromKind: CRM_NODE_KINDS[child.table],
+        fromKey: crmNodeKey(child.table, childId),
+        toKind: CRM_NODE_KINDS[table],
+        toKey: crmNodeKey(table, recordId),
+        relation: "belongs_to",
+      });
+    }
+  }
+  return linkEdgeSpecs(specs, { client, orgId });
+}
+
 /** Read a CRM record (org-scoped, raw row) by id, then upsert its Brain node. */
 export async function syncRecordToBrain(table: CrmIngestTable, recordId: string, deps: SyncDeps = {}): Promise<WriteResult> {
   let resolved;
@@ -178,18 +277,19 @@ export async function syncRecordToBrain(table: CrmIngestTable, recordId: string,
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: false, error: `${table} ${recordId} not found.` };
   const nodeResult = await syncCrmRowToBrain(table, data, { client, orgId });
-  // Best-effort linking: a missing parent or edge hiccup must never fail the node write.
+  // Best-effort linking: a missing parent or edge hiccup must never fail the node
+  // write. Forward edges (this row → its parents) AND back-edges (already-synced
+  // children → this row) so linking lands regardless of creation order.
   await syncCrmRowEdges(table, data, { client, orgId }).catch(() => undefined);
+  await syncRecordBackEdges(table, recordId, { client, orgId }).catch(() => undefined);
   return nodeResult;
 }
 
-/** Max rows pulled per CRM table in one backfill pass. Hitting it sets `truncated`. */
-const RESYNC_TABLE_LIMIT = 2000;
-
 /**
- * Backfill: upsert a Brain node for every CRM row in the org. Returns counts.
- * `truncated` is true if any table had more rows than RESYNC_TABLE_LIMIT (so the
- * caller can tell the operator to re-run). `ok` is false if any table failed to read.
+ * Backfill: upsert a Brain node for every CRM row in the org (paged — no row cap).
+ * Returns counts. `truncated` is true only if a table hit the hard safety ceiling
+ * (selectAllOrgRows), so the caller can tell the operator to re-run. `ok` is false
+ * if any table failed to read.
  */
 export async function resyncCrmIntoBrain(
   deps: SyncDeps = {},
@@ -209,10 +309,10 @@ export async function resyncCrmIntoBrain(
   // Pass 1: upsert a node for every row, keeping the rows for the edge pass.
   const pulled: Array<{ table: CrmIngestTable; rows: Array<Record<string, unknown>> }> = [];
   for (const table of CRM_INGEST_TABLES) {
-    const { data, error } = await client.from(table).select("*").eq("org_id", orgId).limit(RESYNC_TABLE_LIMIT);
-    if (error || !Array.isArray(data)) { tableReadFailed = true; continue; }
-    if (data.length >= RESYNC_TABLE_LIMIT) truncated = true;
-    const rows = data as Array<Record<string, unknown>>;
+    const page = await selectAllOrgRows(client, table, orgId);
+    if (!page.ok) { tableReadFailed = true; continue; }
+    if (page.truncated) truncated = true;
+    const rows = page.rows as Array<Record<string, unknown>>;
     pulled.push({ table, rows });
     for (const row of rows) {
       if (typeof row.id !== "string") { errors++; continue; }
@@ -247,10 +347,10 @@ export async function resyncCampaignsIntoBrain(
   if (!resolved) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
   const { client, orgId } = resolved;
 
-  const { data, error } = await eqOrg(client.from("campaigns").select("*"), orgId).limit(RESYNC_TABLE_LIMIT);
-  if (error || !Array.isArray(data)) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
-  const rows = data as Array<Record<string, unknown>>;
-  const truncated = rows.length >= RESYNC_TABLE_LIMIT;
+  const page = await selectAllOrgRows(client, "campaigns", orgId);
+  if (!page.ok) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const rows = page.rows as Array<Record<string, unknown>>;
+  const truncated = page.truncated;
 
   let synced = 0;
   let linked = 0;
@@ -299,9 +399,10 @@ export async function resyncMediaIntoBrain(deps: SyncDeps = {}): Promise<Backfil
   if (!resolved) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
   const { client, orgId } = resolved;
 
-  const rows = await selectOrgRows(client, "media_assets", orgId, RESYNC_TABLE_LIMIT);
-  if (!rows) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
-  const truncated = rows.length >= RESYNC_TABLE_LIMIT;
+  const page = await selectAllOrgRows(client, "media_assets", orgId);
+  if (!page.ok) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const rows = page.rows;
+  const truncated = page.truncated;
 
   let synced = 0;
   let errors = 0;
@@ -333,9 +434,10 @@ export async function resyncPerformanceIntoBrain(deps: SyncDeps = {}): Promise<B
   if (!resolved) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
   const { client, orgId } = resolved;
 
-  const rows = await selectOrgRows(client, "campaign_results", orgId, RESYNC_TABLE_LIMIT);
-  if (!rows) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
-  const truncated = rows.length >= RESYNC_TABLE_LIMIT;
+  const page = await selectAllOrgRows(client, "campaign_results", orgId);
+  if (!page.ok) return { ok: false, synced: 0, linked: 0, errors: 0, truncated: false };
+  const rows = page.rows;
+  const truncated = page.truncated;
 
   let synced = 0;
   let linked = 0;

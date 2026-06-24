@@ -1,7 +1,6 @@
 import { Command } from "lucide-react";
 
 import { cx } from "./theme";
-import { WorkbenchTopBar } from "./workbench-top-bar";
 
 export function WorkbenchFrame({
   actions,
@@ -21,8 +20,6 @@ export function WorkbenchFrame({
 }) {
   return (
     <div className="min-h-full min-w-0">
-      <WorkbenchTopBar actions={actions} />
-
       <header className="mb-4 border-b border-[var(--border-hairline)] pb-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="min-w-0">
@@ -33,7 +30,7 @@ export function WorkbenchFrame({
               <p className="mt-2 max-w-[82ch] text-sm leading-6 text-[var(--text-secondary)]">{description}</p>
             ) : null}
           </div>
-          {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2 lg:hidden">{actions}</div> : null}
+          {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
         </div>
         {tabs ? <div className="mt-5">{tabs}</div> : null}
       </header>

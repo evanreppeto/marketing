@@ -9,16 +9,16 @@
 
 :root {
   /* Surface tiers — warm near-black, stepping up for separation */
-  --canvas: #080b0d;            /* page background, deepest */
-  --canvas-deep: #050708;       /* gutter / behind-rail void */
-  --surface-panel: #0e1316;     /* cards & modules */
-  --surface-inset: #12181c;     /* headers, fields, sub-blocks inside a panel */
-  --surface-soft: #0b1013;      /* quiet strips, list backgrounds */
-  --surface-raised: #171e22;    /* hover, popovers, selected */
-  --surface-sidebar: #070a0c;
-  --surface-operator: linear-gradient(145deg, #1c1c21, #101013);
-  --media-void: #060809;
-  --overlay: rgba(8, 8, 10, 0.78);
+  --canvas: #16161a;            /* page background, warm obsidian */
+  --canvas-deep: #101013;       /* gutter / behind-rail void */
+  --surface-panel: #1c1c21;     /* cards & modules */
+  --surface-inset: #202027;     /* headers, fields, sub-blocks inside a panel */
+  --surface-soft: #191920;      /* quiet strips, list backgrounds */
+  --surface-raised: #26262d;    /* hover, popovers, selected */
+  --surface-sidebar: #121316;
+  --surface-operator: linear-gradient(145deg, #24242b, #16161a);
+  --media-void: #0d0d10;
+  --overlay: rgba(10, 10, 12, 0.78);
 
   /* Text tiers — warm ivory */
   --text-primary: #f2eee4;
@@ -31,14 +31,14 @@
   --border-strong: rgba(232, 224, 205, 0.20);
 
   /* Accent — antique gold */
-  --accent: #d3aa4b;
-  --accent-strong: #e2c06a;
-  --accent-hover: #e9c96f;
-  --accent-active: #b98b30;
-  --accent-soft: rgba(211, 170, 75, 0.12);
-  --accent-contrast: #f1d58b;
-  --accent-border: rgba(211, 170, 75, 0.28);
-  --accent-border-strong: rgba(211, 170, 75, 0.46);
+  --accent: #c8a24a;
+  --accent-strong: #dbb869;
+  --accent-hover: #e1c074;
+  --accent-active: #a9842f;
+  --accent-soft: rgba(200, 162, 74, 0.12);
+  --accent-contrast: #ecd596;
+  --accent-border: rgba(200, 162, 74, 0.28);
+  --accent-border-strong: rgba(200, 162, 74, 0.46);
   --on-accent: #16161a;         /* ink on a solid gold fill */
 
   /* Priority — restrained red, for destructive/decline only */
@@ -249,28 +249,6 @@ html[data-motion="reduced"] *::after {
   }
 }
 
-/* Premium nav-rail glow — a single soft, warm light source pooling from the
-   top of the rail with a faint cool counter-tint, drifting slowly. Restrained,
-   not the old multi-blob field. Frozen under reduced motion. */
-.arc-rail-glow {
-  position: absolute;
-  inset: -22% -14% auto -14%;
-  height: 58%;
-  background:
-    radial-gradient(58% 60% at 30% 14%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 64%),
-    radial-gradient(48% 52% at 80% 28%, color-mix(in srgb, var(--ok) 12%, transparent), transparent 62%);
-  filter: blur(30px);
-  opacity: 0.85;
-  will-change: transform;
-  animation: arc-rail-glow-drift 16s ease-in-out infinite;
-}
-@keyframes arc-rail-glow-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(5%, 4%, 0) scale(1.06); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .arc-rail-glow { animation: none; }
-}
 
 * {
   border-color: var(--border-hairline);
@@ -382,12 +360,8 @@ h4, .font-display {
 .signal-panel {
   border-radius: 0.875rem;
   border: 1px solid var(--border-panel);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 36%),
-    var(--surface-panel);
-  /* Machined depth: ambient drop + a hairline inner top highlight so panels read
-     as physical plates, not flat AI cards. */
-  box-shadow: var(--elev-panel), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  background: var(--surface-panel);
+  box-shadow: var(--elev-panel);
   color: var(--text-primary);
 }
 
@@ -848,53 +822,21 @@ h4, .font-display {
   .rise-in { animation: none; }
 }
 
-/* Hero aura — a single soft, warm accent bloom for hero moments only (Today,
-   Arc). NOT for ordinary pages. Slowly drifts; frozen under reduced motion.
-   Position/size are set per-use via utility classes. */
-.hero-aura {
-  position: absolute;
-  z-index: 0;
-  pointer-events: none;
-  filter: blur(46px);
-  opacity: 0.5;
-  background:
-    radial-gradient(42% 60% at 32% 48%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
-    radial-gradient(44% 54% at 70% 42%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%);
-  animation: hero-aura-drift 17s ease-in-out infinite;
-}
-@keyframes hero-aura-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(34px, 16px, 0) scale(1.08); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-aura { animation: none; }
-}
+/* Hero aura retired in the redesign foundation — the calm canvas replaces the
+   accent bloom. Kept as a no-op so existing `.hero-aura` markup is harmless
+   until each page drops the dead class during its own redesign cycle. */
+.hero-aura { display: none; }
 
-/* Focal card — the single "primary action" block per surface. A hairline that
-   warms on hover (no levitation, per the motion system) with a soft corner
-   accent glow. Pair with .signal-panel for the base surface. */
+/* Focal card — the single "primary action" block per surface. The one allowed
+   focal cue: a hairline that warms on hover. No glow bloom (redesign foundation). */
 .focal-card {
   position: relative;
   overflow: hidden;
-  transition: border-color 220ms ease, box-shadow 220ms ease;
-}
-.focal-card::before {
-  content: "";
-  position: absolute;
-  top: -90px;
-  left: -50px;
-  width: 300px;
-  height: 240px;
-  pointer-events: none;
-  opacity: 0.7;
-  transition: opacity 260ms ease;
-  background: radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%);
+  transition: border-color 220ms ease;
 }
 .focal-card:hover {
   border-color: var(--accent-border-strong);
-  box-shadow: var(--elev-raised), 0 0 44px -24px color-mix(in srgb, var(--accent) 60%, transparent);
 }
-.focal-card:hover::before { opacity: 1; }
 
 /* Arc chat motion */
 @keyframes msg-rise {

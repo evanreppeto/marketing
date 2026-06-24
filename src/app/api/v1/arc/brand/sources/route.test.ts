@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/brand-knowledge/sources-read-model", () => ({ listBrandSources: vi.fn(), getBrandSource: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
+}));
 import { listBrandSources, getBrandSource } from "@/lib/brand-knowledge/sources-read-model";
 import { GET } from "./route";
 
@@ -20,15 +23,16 @@ describe("GET /api/v1/arc/brand/sources", () => {
     expect((await GET(req("Bearer wrong"))).status).toBe(401);
     expect(listMock).not.toHaveBeenCalled();
   });
-  it("lists brand documents", async () => {
+  it("lists brand documents scoped to the token org", async () => {
     configure();
     expect(await (await GET(req("Bearer secret"))).json()).toMatchObject({ ok: true, documents: [{ id: "a1" }] });
+    expect(listMock).toHaveBeenCalledWith("org-1");
   });
-  it("returns one document for ?id=", async () => {
+  it("returns one document for ?id= scoped to the token org", async () => {
     configure();
     const res = await GET(req("Bearer secret", "a1"));
     expect(await res.json()).toMatchObject({ ok: true, document: { id: "a1" } });
-    expect(getMock).toHaveBeenCalledWith("a1");
+    expect(getMock).toHaveBeenCalledWith("a1", "org-1");
   });
   it("404s when the id is not an Arc-available brand source", async () => {
     configure(); getMock.mockResolvedValue(null as never);

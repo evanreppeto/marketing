@@ -137,14 +137,17 @@ export function folderAndDescendantIds(folders: MediaFolderView[], folderId: str
   return ids;
 }
 
-export async function getMediaLibraryData(client?: SupabaseClient): Promise<MediaLibraryData> {
+export async function getMediaLibraryData(client?: SupabaseClient, orgIdArg?: string): Promise<MediaLibraryData> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
   const db = client ?? getSupabaseAdminClient();
   let orgId: string;
   try {
-    orgId = await getCurrentOrgId();
+    // Explicit org wins (Arc API token scope); operator/cookie callers fall back
+    // to getCurrentOrgId(). A cookieless runner token must pass its scope, else
+    // getCurrentOrgId() resolves the DEFAULT org and leaks the wrong tenant.
+    orgId = orgIdArg ?? (await getCurrentOrgId());
   } catch (error) {
     if (error instanceof OrgUnavailableError) return { status: "unavailable", message: error.message };
     throw error;

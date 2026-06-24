@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { cx } from "@/app/_components/theme";
 import { getArcAgentStatusAction, type ArcAgentStatus } from "../actions";
+import { relativeTime } from "./relative-time";
 
 /**
  * Production trust signal: is the Arc runner connected to this workspace? Polls
@@ -33,7 +34,7 @@ export function ArcConnection() {
 
   if (!status) return null;
   const attached = status.attached;
-  const lastSeen = status.lastSeenAt ? ` Last seen ${status.lastSeenAt}.` : "";
+  const lastSeen = status.lastSeenAt ? ` Last seen ${relativeTime(status.lastSeenAt)}.` : "";
 
   return (
     <span

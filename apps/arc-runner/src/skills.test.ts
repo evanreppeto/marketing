@@ -29,4 +29,19 @@ describe("Arc skill registry", () => {
     expect(ARC_SKILLS.length).toBeGreaterThan(0);
     expect(ARC_SKILLS.every((skill) => skill.businessAgnostic)).toBe(true);
   });
+
+  it("registers an approval-gated campaign-package skill that drafts but does not generate media", () => {
+    const skill = resolveArcSkill("campaign-package-drafting");
+
+    expect(skill).toMatchObject({
+      id: "campaign-package-drafting",
+      businessAgnostic: true,
+      approvalPolicy: "approval_gated_drafts",
+    });
+    expect(skill?.allowedTools).toContain("create_campaign_draft");
+    expect(skill?.allowedTools).toContain("attach_media");
+    // Boundary: net-new media generation stays with the broader drafting skill.
+    expect(skill?.allowedTools).not.toContain("generate_image");
+    expect(skill?.allowedTools).not.toContain("generate_video");
+  });
 });

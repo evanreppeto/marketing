@@ -312,7 +312,7 @@ export function StatusPill({
     <span
       style={style}
       className={cx(
-        "inline-flex items-center gap-1.5 rounded-[3px] border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
+        "inline-flex items-center gap-1.5 rounded-[6px] border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]",
         theme.pill[tone],
         className,
       )}

@@ -2,8 +2,15 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
+import {
+  CAMPAIGN_ASSET_TYPE_VALUES,
+  RESTORATION_FOCUS_VALUES,
+  isOfficialPersonaMapping,
+  normalizeCampaignAssetType,
+  normalizeRestorationFocus,
+} from "@/domain";
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
-import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { CampaignResolutionError, promoteAssetToCampaign, resolveOrCreateCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
 /**
@@ -56,31 +63,42 @@ export async function POST(request: Request) {
   };
 
   if (!assetType) return fail("rejected", "asset_type is required.", 400);
+  // Validate/normalize the enum-typed asset_type at the boundary so an unknown
+  // value (e.g. the runner's old "video_ad") becomes a clean 400 here instead of
+  // a late, opaque Postgres enum 502 when it reaches campaign_assets.asset_type.
+  const normalizedAssetType = normalizeCampaignAssetType(assetType);
+  if (!normalizedAssetType) {
+    return fail(
+      "rejected",
+      `Unknown asset_type "${assetType}". Use one of: ${CAMPAIGN_ASSET_TYPE_VALUES.join(", ")}.`,
+      400,
+    );
+  }
   if (!title) return fail("rejected", "title is required.", 400);
 
   const operator = "Arc";
 
   try {
-    let campaignId = campaignIdIn;
-    if (!campaignId) {
-      const name = str(body.name);
-      const persona = str(body.persona);
-      const restorationFocus = str(body.restoration_focus);
-      if (!name || !persona || !restorationFocus) {
-        return fail(
-          "rejected",
-          "To create a new campaign, name, persona, and restoration_focus are required (or pass campaign_id to attach to an existing campaign).",
-          400,
-        );
-      }
-      const shell = await createCampaignShell({ operator, name, persona, restorationFocus, agentName: "Arc", tenant });
-      campaignId = shell.campaignId;
+    let campaignId: string;
+    try {
+      ({ campaignId } = await resolveOrCreateCampaign({
+        operator,
+        campaignId: campaignIdIn,
+        name: str(body.name),
+        persona: str(body.persona),
+        restorationFocus: str(body.restoration_focus),
+        agentName: "Arc",
+        tenant,
+      }));
+    } catch (error) {
+      if (error instanceof CampaignResolutionError) return fail("rejected", error.message, 400);
+      throw error;
     }
 
     const asset = await promoteAssetToCampaign({
       operator,
       campaignId,
-      assetType,
+      assetType: normalizedAssetType,
       title,
       body: draftBody,
       mediaUrl,

@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type ParsedCampaignDraft } from "@/domain";
+import { type ParsedCampaignDraft, type ViralityScore } from "@/domain";
 
 import { getSupabaseAdminClient, type TypedSupabaseClient } from "../supabase/server";
 import { type AgentTaskTenantFields } from "../agent-tasks/scope";
@@ -211,6 +211,62 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
   return { campaignId };
 }
 
+/**
+ * Thrown by `resolveOrCreateCampaign` when no `campaignId` is given and the
+ * new-campaign fields (name/persona/restorationFocus) are incomplete. Routes
+ * catch this to return a 400 rather than a 502, keeping the API contract.
+ */
+export class CampaignResolutionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CampaignResolutionError";
+  }
+}
+
+export type ResolveOrCreateCampaignInput = {
+  operator: string;
+  /** Existing campaign to attach to; when empty, a draft shell is created. */
+  campaignId?: string | null;
+  name?: string | null;
+  persona?: string | null;
+  restorationFocus?: string | null;
+  agentName?: string;
+  client?: SupabaseClient;
+  tenant?: AgentTaskTenantFields;
+};
+
+/**
+ * Resolve an existing campaign id, or create a fresh draft shell from
+ * name/persona/restoration_focus. Shared by the Arc draft-asset and
+ * submit-variants routes so neither duplicates campaign-creation logic.
+ *
+ * Throws `CampaignResolutionError` (→ 400) when creating a new campaign without
+ * the required fields.
+ */
+export async function resolveOrCreateCampaign(input: ResolveOrCreateCampaignInput): Promise<{ campaignId: string }> {
+  const existing = input.campaignId?.trim();
+  if (existing) return { campaignId: existing };
+
+  const name = input.name?.trim();
+  const persona = input.persona?.trim();
+  const restorationFocus = input.restorationFocus?.trim();
+  if (!name || !persona || !restorationFocus) {
+    throw new CampaignResolutionError(
+      "To create a new campaign, name, persona, and restoration_focus are required (or pass campaign_id to attach to an existing campaign).",
+    );
+  }
+
+  return createCampaignShell({
+    operator: input.operator,
+    name,
+    persona,
+    restorationFocus,
+    agentName: input.agentName ?? "Arc",
+    client: input.client,
+    tenant: input.tenant,
+  });
+}
+
 /** Provenance for a generated/attached media asset, persisted into audit_payload
  *  so the AI tag + model/job/risk flags survive on the durable record (not just
  *  the ephemeral chat card). All optional — a plain reference URL carries none. */
@@ -221,6 +277,8 @@ export type AssetMediaProvenance = {
   format?: string;
   riskFlags?: string[];
   libraryAssetId?: string; // exact link back to a media_assets row (powers "Used in")
+  /** Virality prediction (video) or computed creative-quality proxy (image). */
+  virality?: ViralityScore;
 };
 
 export type PromoteAssetInput = {
@@ -258,6 +316,7 @@ export async function promoteAssetToCampaign(input: PromoteAssetInput): Promise<
         ...(provenance.format ? { format: provenance.format } : {}),
         ...(provenance.riskFlags?.length ? { risk_flags: provenance.riskFlags } : {}),
         ...(provenance.libraryAssetId ? { library_asset_id: provenance.libraryAssetId } : {}),
+        ...(provenance.virality ? { virality: provenance.virality } : {}),
       }
     : null;
   const assetId = await insertOne(client, "campaign_assets", {

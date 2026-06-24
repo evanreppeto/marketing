@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/campaigns/create", () => ({
-  createCampaignShell: vi.fn(),
+vi.mock("@/lib/campaigns/create", async (orig) => ({
+  ...(await orig<typeof import("@/lib/campaigns/create")>()),
+  resolveOrCreateCampaign: vi.fn(),
   promoteAssetToCampaign: vi.fn(),
 }));
 
@@ -18,12 +19,12 @@ vi.mock("@/lib/arc-chat/persistence", () => ({ linkConversationToCampaign: vi.fn
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 const linkMock = vi.mocked(linkConversationToCampaign);
 
-import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
+import { CampaignResolutionError, promoteAssetToCampaign, resolveOrCreateCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
 import { POST } from "./route";
 
-const shellMock = vi.mocked(createCampaignShell);
+const resolveMock = vi.mocked(resolveOrCreateCampaign);
 const promoteMock = vi.mocked(promoteAssetToCampaign);
 const markDraftedMock = vi.mocked(markOpportunityDrafted);
 
@@ -48,11 +49,12 @@ function configure() {
 }
 
 beforeEach(() => {
-  shellMock.mockReset();
+  resolveMock.mockReset();
   promoteMock.mockReset();
   markDraftedMock.mockReset();
   linkMock.mockReset();
-  shellMock.mockResolvedValue({ campaignId: "camp_1" });
+  // Default: resolve to the existing campaign id when given, otherwise the shell id.
+  resolveMock.mockImplementation(async ({ campaignId }) => ({ campaignId: campaignId?.trim() || "camp_1" }));
   promoteMock.mockResolvedValue({ assetId: "asset_1" });
   markDraftedMock.mockResolvedValue({ ok: true });
   linkMock.mockResolvedValue(undefined);
@@ -70,7 +72,7 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     process.env.ARC_AGENT_API_TOKEN = "secret";
     const res = await POST(req("Bearer wrong", { asset_type: "social_ad", title: "x" }));
     expect(res.status).toBe(401);
-    expect(shellMock).not.toHaveBeenCalled();
+    expect(resolveMock).not.toHaveBeenCalled();
     expect(promoteMock).not.toHaveBeenCalled();
   });
 
@@ -83,9 +85,10 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
 
   it("400s when creating a new campaign without name/persona/restoration_focus", async () => {
     configure();
+    resolveMock.mockRejectedValueOnce(new CampaignResolutionError("missing fields"));
     const res = await POST(req("Bearer secret", { asset_type: "social_ad", title: "Fall ad" }));
     expect(res.status).toBe(400);
-    expect(shellMock).not.toHaveBeenCalled();
+    expect(promoteMock).not.toHaveBeenCalled();
   });
 
   it("creates a shell + asset and returns 201 with both ids", async () => {
@@ -107,9 +110,14 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
       campaignId: "camp_1",
       assetId: "asset_1",
     });
-    expect(shellMock).toHaveBeenCalledOnce();
-    expect(shellMock).toHaveBeenCalledWith(
-      expect.objectContaining({ tenant: { org_id: "org-1", workspace_id: "workspace-1" } }),
+    expect(resolveMock).toHaveBeenCalledOnce();
+    expect(resolveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Fall Water Push",
+        persona: "persona_homeowner_emergency",
+        restorationFocus: "water",
+        tenant: { org_id: "org-1", workspace_id: "workspace-1" },
+      }),
     );
     expect(promoteMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -122,11 +130,52 @@ describe("POST /api/v1/arc/campaigns/draft-asset", () => {
     );
   });
 
+  it("400s on an unknown asset_type instead of letting it 502 at Postgres", async () => {
+    configure();
+    const res = await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "banana", title: "x" }));
+    expect(res.status).toBe(400);
+    expect(promoteMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes a known asset_type alias (video_ad -> video_prompt) and persists the real enum value", async () => {
+    configure();
+    const res = await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "video_ad", title: "Clip" }));
+    expect(res.status).toBe(201);
+    expect(promoteMock).toHaveBeenCalledWith(expect.objectContaining({ assetType: "video_prompt" }));
+  });
+
+  it("400s on an unknown restoration_focus when creating a new campaign", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "lava" }),
+    );
+    expect(res.status).toBe(400);
+    expect(shellMock).not.toHaveBeenCalled();
+  });
+
+  it("400s on an unknown persona when creating a new campaign", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_alien", restoration_focus: "flood" }),
+    );
+    expect(res.status).toBe(400);
+    expect(shellMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes the restoration_focus alias water -> water_backup on the shell", async () => {
+    configure();
+    const res = await POST(
+      req("Bearer secret", { asset_type: "social_ad", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "water" }),
+    );
+    expect(res.status).toBe(201);
+    expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ restorationFocus: "water_backup" }));
+  });
+
   it("attaches to an existing campaign without creating a shell", async () => {
     configure();
     const res = await POST(req("Bearer secret", { campaign_id: "camp_existing", asset_type: "email", title: "Reminder" }));
     expect(res.status).toBe(201);
-    expect(shellMock).not.toHaveBeenCalled();
+    expect(resolveMock).toHaveBeenCalledWith(expect.objectContaining({ campaignId: "camp_existing" }));
     expect(promoteMock).toHaveBeenCalledWith(
       expect.objectContaining({
         campaignId: "camp_existing",

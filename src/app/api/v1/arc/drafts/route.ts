@@ -35,6 +35,19 @@ export async function POST(request: Request) {
     return fail("rejected", "A non-empty draft is required.", 400);
   }
 
+  // approval_items enforces a subject CHECK (>=1 of campaign/asset/company/contact/
+  // lead). Reject up front with a clean 400 rather than letting a subject-less
+  // draft fail as an opaque Postgres CHECK 502. task_id does NOT satisfy it.
+  const SUBJECT_KEYS = ["campaign_id", "campaign_asset_id", "company_id", "contact_id", "lead_id"] as const;
+  const hasSubject = SUBJECT_KEYS.some((k) => typeof body[k] === "string" && (body[k] as string).trim().length > 0);
+  if (!hasSubject) {
+    return fail(
+      "rejected",
+      "A draft must link a subject — provide one of campaign_id, campaign_asset_id, company_id, contact_id, or lead_id.",
+      400,
+    );
+  }
+
   const str = (key: string) => (typeof body[key] === "string" ? (body[key] as string) : undefined);
 
   try {

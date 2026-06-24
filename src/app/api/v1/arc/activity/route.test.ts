@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/activity/read-model", () => ({ getRecentActivity: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
+}));
 import { getRecentActivity } from "@/lib/activity/read-model";
 import { GET } from "./route";
 
@@ -16,9 +19,11 @@ describe("GET /api/v1/arc/activity", () => {
     expect((await GET(req("Bearer wrong"))).status).toBe(401);
     expect(mock).not.toHaveBeenCalled();
   });
-  it("returns recent activity entries + summary", async () => {
+  it("returns recent activity entries + summary, scoped to the token org", async () => {
     configure();
     expect(await (await GET(req("Bearer secret"))).json()).toMatchObject({ ok: true, entries: [{ id: "e1" }], summary: { total: 1 } });
+    // Tenancy: the feed must be scoped to the arcGuard-resolved token org.
+    expect(mock).toHaveBeenCalledWith({}, undefined, "org-1");
   });
   it("502s when activity is unavailable", async () => {
     configure(); mock.mockResolvedValue({ status: "unavailable", message: "no db" } as never);

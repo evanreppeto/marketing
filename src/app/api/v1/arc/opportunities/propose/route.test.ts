@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/opportunities/persistence", () => ({ upsertOpportunities: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
+}));
 import { upsertOpportunities } from "@/lib/opportunities/persistence";
 import { POST } from "./route";
 
@@ -22,11 +25,14 @@ describe("POST /api/v1/arc/opportunities/propose", () => {
     expect((await POST(req("Bearer wrong", valid))).status).toBe(401);
     expect(mock).not.toHaveBeenCalled();
   });
-  it("persists a valid proposal and returns created count", async () => {
+  it("persists a valid proposal scoped to the token org and returns created count", async () => {
     configure();
     const res = await POST(req("Bearer secret", valid));
     expect(await res.json()).toMatchObject({ ok: true, created: 1 });
     expect(mock).toHaveBeenCalledTimes(1);
+    // Tenancy: the write must carry the arcGuard-resolved token scope, not fall
+    // back to the cookie/default org inside upsertOpportunities.
+    expect(mock).toHaveBeenCalledWith([expect.objectContaining({ subjectId: "co_1" })], undefined, { orgId: "org-1" });
   });
   it("returns created:0 when deduped", async () => {
     configure(); mock.mockResolvedValue({ ok: true, count: 0 } as never);
