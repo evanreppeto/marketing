@@ -3,18 +3,33 @@ import { connection } from "next/server";
 
 import { ActivationChecklist } from "./_components/activation-checklist";
 import { CountUp } from "./_components/count-up";
+import { EvidenceChip } from "./_components/evidence-chip";
 import { buttonClasses, Panel, StatusPill } from "./_components/page-header";
-import { cx } from "./_components/theme";
+import { cx, type ThemeTone } from "./_components/theme";
 import { getActivationState } from "@/lib/activation/read-model";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getRecentActivity } from "@/lib/activity/read-model";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { getConnections } from "@/lib/connections/read-model";
 import { getDashboardCounts } from "@/lib/dashboard/read-model";
-import { getAgentDisplayName, isAgentConfigured } from "@/lib/arc-chat/agent-config";
+import { listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
+import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+const URGENCY_TONE: Record<OpportunityRecord["urgency"], ThemeTone> = { high: "red", medium: "amber", low: "blue" };
+const URGENCY_LABEL: Record<OpportunityRecord["urgency"], string> = {
+  high: "High urgency",
+  medium: "Medium urgency",
+  low: "Low urgency",
+};
+
+function greetingFor(date: Date) {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
 
 export default async function HomePage() {
   await connection();
@@ -30,18 +45,18 @@ export default async function HomePage() {
         }))
         .catch(() => null)
     : null;
-  const [counts, campaignList, activity, connections] = await Promise.all([
+  const [counts, campaignList, activity, opportunities] = await Promise.all([
     getDashboardCounts(),
     getCampaignWorkspaceList(undefined, agentName, orgId),
     getRecentActivity({ limit: 5 }),
-    getConnections(),
+    listOpenOpportunities().catch(() => [] as OpportunityRecord[]),
   ]);
 
   const campaigns = campaignList.status === "live" ? campaignList.campaigns : [];
-  const readyCampaign = campaigns.find((campaign) => campaign.lifecycle === "Ready");
-  const reviewCampaign = campaigns.find((campaign) => campaign.pendingCount > 0 || campaign.lifecycle === "In review");
-  const configuredConnections = connections.filter((item) => item.status === "connected").length;
-  const agentReady = isAgentConfigured();
+  const readyCampaign = campaigns.find((campaign) => campaign.lifecycle === "Ready") ?? null;
+  const reviewCampaign =
+    campaigns.find((campaign) => campaign.pendingCount > 0 || campaign.lifecycle === "In review") ?? null;
+  const topOpportunity = opportunities[0] ?? null;
 
   const approvalsWaiting = counts.status === "live" ? counts.approvalsWaiting : 0;
   const leadsAwaitingReview = counts.status === "live" ? counts.leadsAwaitingReview : 0;
@@ -50,7 +65,19 @@ export default async function HomePage() {
   const needs = approvalsWaiting + leadsAwaitingReview;
 
   const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const focal = reviewCampaign ?? readyCampaign ?? null;
+  const greeting = greetingFor(new Date());
+
+  // Which single thing leads the page. Approval-gated work outranks a recommendation.
+  const focalKind: "reviewCampaign" | "opportunity" | "readyCampaign" | "clear" = reviewCampaign
+    ? "reviewCampaign"
+    : topOpportunity
+      ? "opportunity"
+      : readyCampaign
+        ? "readyCampaign"
+        : "clear";
+
+  // Signals rail = open opportunities not already shown as the focal.
+  const railSignals = (focalKind === "opportunity" ? opportunities.slice(1) : opportunities).slice(0, 4);
 
   // Quiet list — the decisions that aren't the single top priority.
   const quietRows: QuietRowProps[] = [];
@@ -59,40 +86,40 @@ export default async function HomePage() {
       href: "/crm/leads",
       title: `${leadsAwaitingReview} lead signal${leadsAwaitingReview === 1 ? "" : "s"} awaiting review`,
       detail: `${agentName} scored and routed them — confirm the next move.`,
-      tone: "accent",
+      pillTone: "amber",
+      pillLabel: "Needs you",
     });
   }
-  if (readyCampaign && focal !== readyCampaign) {
+  if (readyCampaign && focalKind !== "readyCampaign") {
     quietRows.push({
       href: readyCampaign.href,
       title: `Launch ${readyCampaign.name}`,
       detail: "Approvals are clear — check the audience and channel plan before launch.",
-      tone: "ok",
+      pillTone: "green",
+      pillLabel: "Ready",
     });
   }
   quietRows.push({
     href: "/settings?section=brand-kit",
     title: `Keep ${agentName} inside the brand`,
     detail: "Proof points, voice, banned claims, and local detail — specific context is the antidote to generic output.",
-    tone: "muted",
+    pillTone: "gray",
+    pillLabel: "Tip",
   });
 
   return (
     <>
-      <header className="relative isolate mb-9 pt-1">
-        <div aria-hidden className="hero-aura left-[-4rem] right-[-1rem] top-[-6rem] h-[20rem]" />
-        <div className="rise-in rise-d1 relative z-10">
-          <h1 className="font-editorial text-[clamp(2.1rem,3.4vw,2.95rem)] font-medium leading-[1] tracking-[-0.022em] text-[var(--text-primary)]">
-            Today
-          </h1>
-          <p className="mt-3 text-sm text-[var(--text-muted)]">
-            {dateStr}
-            <span className="mx-2 text-[var(--border-strong)]">·</span>
-            {needs > 0
-              ? `${needs} ${needs === 1 ? "thing needs" : "things need"} your decision`
-              : `${agentName} has nothing waiting on you`}
-          </p>
-        </div>
+      <header className="rise-in rise-d1 mb-9 pt-1">
+        <h1 className="font-editorial text-[clamp(2.1rem,3.4vw,2.95rem)] font-medium leading-[1] tracking-[-0.022em] text-[var(--text-primary)]">
+          {greeting}
+        </h1>
+        <p className="mt-3 text-sm text-[var(--text-muted)]">
+          {dateStr}
+          <span className="mx-2 text-[var(--border-strong)]">·</span>
+          {needs > 0
+            ? `${needs} ${needs === 1 ? "thing needs" : "things need"} your decision`
+            : `${agentName} has nothing waiting on you`}
+        </p>
       </header>
 
       {activation?.checklist.showChecklist ? (
@@ -115,7 +142,15 @@ export default async function HomePage() {
             className="mb-1 mt-3 h-px bg-[linear-gradient(90deg,var(--accent-border-strong),var(--border-hairline)_36%,transparent)]"
           />
 
-          <FocalPriority focal={focal} isReview={Boolean(reviewCampaign)} agentName={agentName} />
+          {focalKind === "opportunity" && topOpportunity ? (
+            <OpportunityFocal opp={topOpportunity} />
+          ) : focalKind === "reviewCampaign" && reviewCampaign ? (
+            <CampaignFocal focal={reviewCampaign} isReview />
+          ) : focalKind === "readyCampaign" && readyCampaign ? (
+            <CampaignFocal focal={readyCampaign} isReview={false} />
+          ) : (
+            <ClearFocal agentName={agentName} />
+          )}
 
           <div className="rise-in rise-d3 mt-6">
             {quietRows.map((row) => (
@@ -131,7 +166,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* ---- Right: momentum rail (selective panels) ---- */}
+        {/* ---- Right: momentum rail (Signals + agent activity) ---- */}
         <div className="min-w-0 lg:border-l lg:border-[var(--border-hairline)] lg:pl-10">
           <h2 className="rise-in rise-d3 mb-4 font-editorial text-[1.18rem] font-medium tracking-[-0.012em] text-[var(--text-primary)]">
             Momentum
@@ -139,7 +174,28 @@ export default async function HomePage() {
 
           <Panel className="rise-in rise-d3 p-0">
             <div className="flex items-center justify-between border-b border-[var(--border-hairline)] px-4 py-3.5">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Recent activity</span>
+              <span className="text-sm font-semibold text-[var(--text-primary)]">Signals</span>
+              <Link
+                href="/opportunities"
+                className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--accent)]"
+              >
+                Open →
+              </Link>
+            </div>
+            <div className="divide-y divide-[var(--border-hairline)]">
+              {railSignals.length > 0 ? (
+                railSignals.map((opp) => <SignalRow key={opp.id} opp={opp} />)
+              ) : (
+                <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
+                  No open signals — {agentName} is watching for opportunities and will surface them here.
+                </div>
+              )}
+            </div>
+          </Panel>
+
+          <Panel className="rise-in rise-d4 mt-4 p-0">
+            <div className="flex items-center justify-between border-b border-[var(--border-hairline)] px-4 py-3.5">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">{agentName} activity</span>
               <Link
                 href="/activity"
                 className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--accent)]"
@@ -150,7 +206,11 @@ export default async function HomePage() {
             <div className="divide-y divide-[var(--border-hairline)]">
               {activity.status === "live" && activity.entries.length > 0 ? (
                 activity.entries.slice(0, 4).map((entry) => (
-                  <Link key={entry.id} href={entry.href ?? "/activity"} className="block px-4 py-3 transition hover:bg-[var(--surface-soft)]">
+                  <Link
+                    key={entry.id}
+                    href={entry.href ?? "/activity"}
+                    className="block px-4 py-3 transition hover:bg-[var(--surface-soft)]"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-[13px] font-medium text-[var(--text-primary)]">{entry.title}</div>
@@ -167,57 +227,76 @@ export default async function HomePage() {
               )}
             </div>
           </Panel>
-
-          <Panel className="rise-in rise-d4 mt-4 p-0">
-            <div className="border-b border-[var(--border-hairline)] px-4 py-3.5">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Workspace setup</span>
-            </div>
-            <div className="divide-y divide-[var(--border-hairline)]">
-              <SetupRow title="Business profile" href="/settings?section=brand-kit" ready={Boolean(settings.workspaceName && settings.assistantName)} />
-              <SetupRow title="Agent runner" href="/settings?section=agent" ready={agentReady} />
-              <SetupRow title="Outbound channels" href="/settings?section=connections" ready={configuredConnections > 0} />
-              <SetupRow title="Database" href="/settings?section=system" ready={isSupabaseAdminConfigured()} />
-            </div>
-          </Panel>
         </div>
       </div>
     </>
   );
 }
 
-function FocalPriority({ focal, isReview, agentName }: { focal: CampaignWorkspaceListItem | null; isReview: boolean; agentName: string }) {
-  let label: string;
-  let title: string;
-  let detail: string;
-  let href: string;
-  let cta: string;
-
-  if (focal && isReview) {
-    label = "Top priority";
-    title = focal.name;
-    detail = `${focal.pendingCount} piece${focal.pendingCount === 1 ? "" : "s"} ${focal.pendingCount === 1 ? "needs" : "need"} a decision before anything goes out. Outbound stays locked until you approve.`;
-    href = focal.href;
-    cta = "Review & approve";
-  } else if (focal) {
-    label = "Ready to launch";
-    title = focal.name;
-    detail = "All required approvals are clear. Check the audience and channel plan, then launch.";
-    href = focal.href;
-    cta = "Check launch";
-  } else {
-    label = "You’re clear";
-    title = "Nothing is waiting on a decision";
-    detail = `${agentName} is watching for signals and will surface the next thing that needs you right here.`;
-    href = "/campaigns";
-    cta = "Browse campaigns";
-  }
+function OpportunityFocal({ opp }: { opp: OpportunityRecord }) {
+  const ev = opp.evidence ?? {};
+  const chips: { key: string; label: string }[] = [];
+  if (ev.persona) chips.push({ key: "persona", label: ev.persona });
+  if (typeof ev.daysCold === "number") chips.push({ key: "cold", label: `${ev.daysCold}d cold` });
+  if (typeof ev.leadScore === "number") chips.push({ key: "score", label: `Lead score ${ev.leadScore}` });
+  const confidence = Math.max(0, Math.min(100, Math.round(opp.confidence)));
 
   return (
-    <Link href={href} className={cx("signal-panel focal-card rise-in rise-d2 mt-4 block p-5")}>
+    <Link href="/opportunities" className={cx("signal-panel focal-card rise-in rise-d2 mt-4 block p-5")}>
+      <div className="relative">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[0.72rem] font-semibold tracking-[0.01em] text-[var(--accent-contrast)]">
+            Top opportunity
+          </span>
+          <StatusPill tone={URGENCY_TONE[opp.urgency]}>{URGENCY_LABEL[opp.urgency]}</StatusPill>
+        </div>
+        <div className="mt-1.5 font-editorial text-[1.32rem] font-medium leading-tight tracking-[-0.014em] text-[var(--text-primary)]">
+          {opp.title}
+        </div>
+        <p className="mt-2 max-w-[54ch] text-sm leading-6 text-[var(--text-secondary)]">{opp.summary}</p>
+        {chips.length > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {chips.map((chip, index) => (
+              <EvidenceChip key={chip.key} index={index + 1} label={chip.label} />
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-4">
+          <ConfidenceBar value={confidence} />
+        </div>
+        <div className="mt-4 inline-flex">
+          <span className={buttonClasses({ size: "sm" })}>Review&nbsp;→</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ConfidenceBar({ value }: { value: number }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="text-[11px] font-medium text-[var(--text-muted)]">Confidence</span>
+      <span className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--surface-inset)]">
+        <span className="block h-full rounded-full bg-[var(--accent)]" style={{ width: `${value}%` }} />
+      </span>
+      <span className="font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">{value}%</span>
+    </div>
+  );
+}
+
+function CampaignFocal({ focal, isReview }: { focal: CampaignWorkspaceListItem; isReview: boolean }) {
+  const label = isReview ? "Top priority" : "Ready to launch";
+  const detail = isReview
+    ? `${focal.pendingCount} piece${focal.pendingCount === 1 ? "" : "s"} ${focal.pendingCount === 1 ? "needs" : "need"} a decision before anything goes out. Outbound stays locked until you approve.`
+    : "All required approvals are clear. Check the audience and channel plan, then launch.";
+  const cta = isReview ? "Review & approve" : "Check launch";
+
+  return (
+    <Link href={focal.href} className={cx("signal-panel focal-card rise-in rise-d2 mt-4 block p-5")}>
       <div className="relative">
         <div className="text-[0.72rem] font-semibold tracking-[0.01em] text-[var(--accent-contrast)]">{label}</div>
         <div className="mt-1.5 font-editorial text-[1.32rem] font-medium leading-tight tracking-[-0.014em] text-[var(--text-primary)]">
-          {title}
+          {focal.name}
         </div>
         <p className="mt-2 max-w-[54ch] text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
         <div className="mt-4 inline-flex">
@@ -228,22 +307,42 @@ function FocalPriority({ focal, isReview, agentName }: { focal: CampaignWorkspac
   );
 }
 
+function ClearFocal({ agentName }: { agentName: string }) {
+  return (
+    <Link href="/campaigns" className={cx("signal-panel focal-card rise-in rise-d2 mt-4 block p-5")}>
+      <div className="relative">
+        <div className="text-[0.72rem] font-semibold tracking-[0.01em] text-[var(--accent-contrast)]">You’re clear</div>
+        <div className="mt-1.5 font-editorial text-[1.32rem] font-medium leading-tight tracking-[-0.014em] text-[var(--text-primary)]">
+          Nothing is waiting on a decision
+        </div>
+        <p className="mt-2 max-w-[54ch] text-sm leading-6 text-[var(--text-secondary)]">
+          {agentName} is watching for signals and will surface the next thing that needs you right here.
+        </p>
+        <div className="mt-4 inline-flex">
+          <span className={buttonClasses({ size: "sm" })}>Browse campaigns&nbsp;→</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 type QuietRowProps = {
   href: string;
   title: string;
   detail: string;
-  tone: "accent" | "ok" | "warn" | "muted";
+  pillTone: ThemeTone;
+  pillLabel: string;
 };
 
-function QuietRow({ href, title, detail, tone }: QuietRowProps) {
-  const dot =
-    tone === "warn" ? "var(--warn)" : tone === "accent" ? "var(--accent)" : tone === "ok" ? "var(--ok)" : "var(--text-muted)";
+function QuietRow({ href, title, detail, pillTone, pillLabel }: QuietRowProps) {
   return (
     <Link
       href={href}
       className="group flex items-center gap-3.5 border-b border-[var(--border-hairline)] py-3.5 pl-1 transition-[padding] duration-200 first:border-t hover:pl-2.5"
     >
-      <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dot }} />
+      <StatusPill tone={pillTone} className="shrink-0">
+        {pillLabel}
+      </StatusPill>
       <span className="min-w-0">
         <span className="block text-[13.5px] font-medium text-[var(--text-primary)]">{title}</span>
         <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{detail}</span>
@@ -251,6 +350,25 @@ function QuietRow({ href, title, detail, tone }: QuietRowProps) {
       <span className="ml-auto shrink-0 text-xs font-semibold text-[var(--text-secondary)] transition group-hover:text-[var(--accent)]">
         Open&nbsp;→
       </span>
+    </Link>
+  );
+}
+
+function SignalRow({ opp }: { opp: OpportunityRecord }) {
+  return (
+    <Link href="/opportunities" className="block px-4 py-3 transition hover:bg-[var(--surface-soft)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-medium text-[var(--text-primary)]">{opp.title}</div>
+          <p className="mt-1 line-clamp-1 text-xs text-[var(--text-muted)]">{opp.recommended_action}</p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <StatusPill tone={URGENCY_TONE[opp.urgency]}>{opp.urgency}</StatusPill>
+          <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
+            {Math.round(opp.confidence)}%
+          </span>
+        </div>
+      </div>
     </Link>
   );
 }
@@ -268,15 +386,6 @@ function Metric({ value, label, warn = false }: { value: number; label: string; 
       </div>
       <div className="mt-2 text-xs text-[var(--text-muted)]">{label}</div>
     </div>
-  );
-}
-
-function SetupRow({ title, href, ready }: { title: string; href: string; ready: boolean }) {
-  return (
-    <Link href={href} className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-[var(--surface-soft)]">
-      <span className="text-[13px] font-medium text-[var(--text-primary)]">{title}</span>
-      <StatusPill tone={ready ? "green" : "amber"}>{ready ? "Ready" : "Set up"}</StatusPill>
-    </Link>
   );
 }
 
