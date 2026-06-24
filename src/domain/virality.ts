@@ -63,3 +63,38 @@ export function normalizeViralityPrediction(
     ...(meta.scoredAt ? { scoredAt: meta.scoredAt } : {}),
   };
 }
+
+export type CreativeQualityInput = {
+  riskFlags: string[];
+  formatMatchesChannel: boolean;
+  hasBrand: boolean;
+  width: number | null;
+  height: number | null;
+};
+
+/** A deterministic 0..100 creative-quality proxy for still images. Starts at 100
+ *  and subtracts for risk flags, format mismatch, missing brand, and low resolution. */
+export function creativeQualityScore(input: CreativeQualityInput): ProxyQualityScore {
+  let score = 100;
+  const factors: string[] = [];
+
+  const flagCount = input.riskFlags.length;
+  score -= flagCount * 15;
+  factors.push(flagCount === 0 ? "0 risk flags" : `${flagCount} risk flag${flagCount > 1 ? "s" : ""}`);
+
+  if (input.formatMatchesChannel) factors.push("format match");
+  else score -= 20;
+
+  if (input.hasBrand) factors.push("brand present");
+  else score -= 10;
+
+  const minSide = Math.min(input.width ?? 0, input.height ?? 0);
+  if (minSide > 0 && minSide < 720) score -= 15;
+
+  return {
+    kind: "proxy",
+    qualityScore: Math.max(0, Math.min(100, Math.round(score))),
+    factors,
+    disclaimer: VIRALITY_DISCLAIMER,
+  };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeViralityPrediction } from "../virality";
+import { creativeQualityScore, normalizeViralityPrediction } from "../virality";
 
 // Captured live from mcp__higgsfield__virality_predictor on the BSR water-damage
 // ad (job 0962ba9c…), raw_data.params.analysis.scores. See the design spec.
@@ -46,5 +46,38 @@ describe("normalizeViralityPrediction", () => {
     const score = normalizeViralityPrediction({ viral_potential: 250, hook_score: -5 }, {});
     expect(score.viralPotential).toBe(100);
     expect(score.hookScore).toBe(0);
+  });
+});
+
+describe("creativeQualityScore", () => {
+  it("rewards a clean, format-matched, branded image", () => {
+    const score = creativeQualityScore({
+      riskFlags: [],
+      formatMatchesChannel: true,
+      hasBrand: true,
+      width: 1080,
+      height: 1080,
+    });
+    expect(score.kind).toBe("proxy");
+    expect(score.qualityScore).toBeGreaterThanOrEqual(90);
+    expect(score.factors).toContain("0 risk flags");
+  });
+
+  it("penalizes risk flags and format mismatch", () => {
+    const clean = creativeQualityScore({ riskFlags: [], formatMatchesChannel: true, hasBrand: true, width: 1080, height: 1080 });
+    const risky = creativeQualityScore({
+      riskFlags: ["embedded text", "claim risk"],
+      formatMatchesChannel: false,
+      hasBrand: false,
+      width: 400,
+      height: 400,
+    });
+    expect(risky.qualityScore).toBeLessThan(clean.qualityScore);
+    expect(risky.kind).toBe("proxy");
+  });
+
+  it("never returns a viralPotential field (proxy is not a prediction)", () => {
+    const score = creativeQualityScore({ riskFlags: [], formatMatchesChannel: true, hasBrand: true, width: 1080, height: 1080 });
+    expect("viralPotential" in score).toBe(false);
   });
 });
