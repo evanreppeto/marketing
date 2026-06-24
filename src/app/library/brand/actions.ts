@@ -412,6 +412,11 @@ function fillColor(current: { label: string; hex: string }, hex: string | undefi
   return { label: current.label, hex };
 }
 
+function fillText(current: string, next: string | undefined, overwrite: boolean): string {
+  if (current && !overwrite) return current;
+  return next ?? current;
+}
+
 /** Apply a reviewed design proposal to the Business Profile. Re-guards + stores
  *  the chosen logo/favicon; fills blank fields unless overwrite is set. */
 export async function applyBrandDesignAction(
@@ -434,16 +439,19 @@ export async function applyBrandDesignAction(
   };
 
   const next: BusinessProfile = { ...current };
+  const imageFailures: string[] = [];
 
   const logoUrl = get("logoUrl");
   if (logoUrl && (!current.logoUrl || overwrite)) {
     const stored = await storeBrandImage({ orgId, url: logoUrl, role: "logo", sourceUrl, uploadedBy });
     if (stored) next.logoUrl = stored;
+    else imageFailures.push("logo");
   }
   const faviconUrl = get("faviconUrl");
   if (faviconUrl && (!current.faviconUrl || overwrite)) {
     const stored = await storeBrandImage({ orgId, url: faviconUrl, role: "favicon", sourceUrl, uploadedBy });
     if (stored) next.faviconUrl = stored;
+    else imageFailures.push("favicon");
   }
 
   next.brandPalette = {
@@ -453,8 +461,8 @@ export async function applyBrandDesignAction(
     accent: fillColor(current.brandPalette.accent, get("accent"), overwrite),
     dark: fillColor(current.brandPalette.dark, get("dark"), overwrite),
     light: fillColor(current.brandPalette.light, get("light"), overwrite),
-    headingFont: current.brandPalette.headingFont && !overwrite ? current.brandPalette.headingFont : get("headingFont") ?? current.brandPalette.headingFont,
-    bodyFont: current.brandPalette.bodyFont && !overwrite ? current.brandPalette.bodyFont : get("bodyFont") ?? current.brandPalette.bodyFont,
+    headingFont: fillText(current.brandPalette.headingFont, get("headingFont"), overwrite),
+    bodyFont: fillText(current.brandPalette.bodyFont, get("bodyFont"), overwrite),
   };
 
   if (!current.websiteUrl && sourceUrl) next.websiteUrl = sourceUrl;
@@ -469,5 +477,9 @@ export async function applyBrandDesignAction(
   revalidatePath("/library/brand");
   revalidatePath("/settings");
   revalidatePath("/arc");
-  return { ok: true, message: "Brand design applied." };
+  const message =
+    imageFailures.length > 0
+      ? `Brand design applied — but the ${imageFailures.join(" and ")} couldn't be imported. Try uploading it in Edit brand.`
+      : "Brand design applied.";
+  return { ok: true, message };
 }
