@@ -28,9 +28,13 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function safeAccent(value: string): string {
+  return /^#[0-9a-fA-F]{3,8}$/.test(value.trim()) ? value.trim() : "#0B0B0C";
+}
+
 export function renderBrandedEmail(input: BrandedEmailInput): { html: string; text: string } {
   const { heading, bodyBlocks, cta, theme, footerNote } = input;
-  const accent = theme.accentColor;
+  const accent = safeAccent(theme.accentColor);
 
   const logo = theme.logoUrl
     ? `<img src="${escapeHtml(theme.logoUrl)}" alt="${escapeHtml(theme.appName)}" height="32" style="height:32px;display:block" />`

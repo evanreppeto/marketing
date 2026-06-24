@@ -43,4 +43,26 @@ describe("renderBrandedEmail", () => {
     expect(html).not.toContain("<img");
     expect(html).not.toContain("<a ");
   });
+
+  it("includes footerNote in both html and text when provided", () => {
+    const { html, text } = renderBrandedEmail({
+      heading: "Hi",
+      bodyBlocks: ["Body."],
+      theme: { appName: "Summit", accentColor: "#0B0B0C" },
+      footerNote: "Sent by Summit.",
+    });
+    expect(html).toContain("Sent by Summit.");
+    expect(text).toContain("Sent by Summit.");
+  });
+
+  it("ignores a non-hex accentColor (no CSS injection)", () => {
+    const { html } = renderBrandedEmail({
+      heading: "Hi",
+      bodyBlocks: ["Body."],
+      cta: { label: "Go", url: "https://x.test" },
+      theme: { appName: "Summit", accentColor: "red;}body{display:none" },
+    });
+    expect(html).not.toContain("display:none");
+    expect(html).toContain("#0B0B0C");
+  });
 });
