@@ -134,9 +134,12 @@ This is where "create new" and "enrich existing" unify as a single **upsert**.
   status: 'needs_review', routing_recommendation: 'target',
   metadata { evidence, confidence }, org_id`. (`needs_review` = live in the Leads
   list, flagged for human triage — not an approval gate.)
-- **Audit:** write a `crm_activities` row per created/enriched entity
-  (`activity_type = 'arc_research_lead_created'` / `'arc_research_enriched'`,
-  `actor_kind = 'agent'`, `actor_name = 'Arc'`, summary + evidence in detail).
+- **Audit:** write a `crm_activities` row per created/enriched entity by reusing
+  the existing `insertActivity` (`src/lib/interactions/persistence.ts`).
+  `activity_type` must be a value in the `CRM_ACTIVITY_TYPES` enum — use
+  `record_created` for new records and `record_updated` for enrichment; carry
+  `source: 'arc_research'` + evidence in `metadata`. `actor_kind='agent'`,
+  `actor_name='Arc'`.
 - Reuse the `insertAndReturnId` helper pattern from the ingest persistence; all
   inserts carry `org_id` for tenancy.
 
