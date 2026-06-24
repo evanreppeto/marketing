@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
+import { AGENT_RUN_STATUS_VALUES, normalizeAgentRunStatus } from "@/domain";
 import { appendAgentRunLog } from "@/lib/arc-api";
 
 /**
@@ -35,11 +36,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return fail("rejected", "A non-empty message or reasoning_summary is required.", 400);
   }
 
+  // run_status writes to the agent_run_status Postgres enum. Normalize the model's
+  // synonyms (in_progress->running, done->completed…) and reject an unknown value
+  // with a clean 400 rather than forwarding it to a late, opaque Postgres 502.
+  let runStatus: string | undefined;
+  if (typeof body.run_status === "string" && body.run_status.trim().length > 0) {
+    const normalized = normalizeAgentRunStatus(body.run_status);
+    if (!normalized) {
+      return fail("rejected", `Unknown run_status "${body.run_status}". Use one of: ${AGENT_RUN_STATUS_VALUES.join(", ")}.`, 400);
+    }
+    runStatus = normalized;
+  }
+
   try {
     const result = await appendAgentRunLog(id, {
       message: message || undefined,
       reasoningSummary: reasoningSummary || undefined,
-      runStatus: typeof body.run_status === "string" ? body.run_status : undefined,
+      runStatus,
       modelProvider: typeof body.model_provider === "string" ? body.model_provider : undefined,
       modelName: typeof body.model_name === "string" ? body.model_name : undefined,
       metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : undefined,

@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/opportunities/read-model", () => ({ listOpenOpportunities: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
+}));
 import { listOpenOpportunities } from "@/lib/opportunities/read-model";
 import { GET } from "./route";
 
@@ -16,10 +19,12 @@ describe("GET /api/v1/arc/opportunities", () => {
     expect((await GET(req("Bearer wrong"))).status).toBe(401);
     expect(mock).not.toHaveBeenCalled();
   });
-  it("returns open opportunities", async () => {
+  it("returns open opportunities scoped to the token org", async () => {
     configure();
     const res = await GET(req("Bearer secret"));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ ok: true, opportunities: [{ id: "o1", title: "Flood lead" }] });
+    // Tenancy: the read must be scoped to the arcGuard-resolved token org.
+    expect(mock).toHaveBeenCalledWith(undefined, "org-1");
   });
 });

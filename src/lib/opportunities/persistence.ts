@@ -19,10 +19,14 @@ const OPEN_STATUSES = ["pending", "drafting", "drafted"];
 export async function upsertOpportunities(
   candidates: OpportunityCandidate[],
   client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: OpportunityScope,
 ): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
   if (candidates.length === 0) return { ok: true, count: 0 };
-  const orgId = await getCurrentOrgId();
+  // Prefer the caller's explicit (token-resolved) org. getCurrentOrgId() falls
+  // back to the cookie/default workspace, which is wrong for a headless runner
+  // token — see the Arc propose route which now passes its arcGuard scope.
+  const orgId = scope?.orgId ?? (await getCurrentOrgId());
   const kind = candidates[0].kind;
 
   const { data: open, error: readErr } = await client

@@ -40,32 +40,34 @@ function summarize(asset: MediaAssetView, c: BrandSourceClassification, nodes: B
   };
 }
 
-async function loadBrandAssets(): Promise<{ asset: MediaAssetView; c: BrandSourceClassification }[]> {
-  const library = await getMediaLibraryData();
+// `orgId` is the token-resolved scope for Arc API callers; operator/cookie callers
+// omit it and the downstream read-models fall back to getCurrentOrgId().
+async function loadBrandAssets(orgId?: string): Promise<{ asset: MediaAssetView; c: BrandSourceClassification }[]> {
+  const library = await getMediaLibraryData(undefined, orgId);
   if (library.status !== "live") return [];
   return library.assets
     .map((asset) => ({ asset, c: classifyBrandSource(asset) }))
     .filter(({ asset, c }) => asset.availableToArc && isBrandSource(asset, c));
 }
 
-async function loadNodes(filters: Parameters<typeof listNodes>[0]): Promise<BrainNode[]> {
-  const res = await listNodes(filters);
+async function loadNodes(filters: Parameters<typeof listNodes>[0], orgId?: string): Promise<BrainNode[]> {
+  const res = await listNodes(filters, undefined, orgId);
   return res.status === "live" ? res.nodes : [];
 }
 
 /** Inventory of Arc-available brand source documents + per-doc knowledge stats. */
-export async function listBrandSources(): Promise<BrandSourceSummary[]> {
-  const sources = await loadBrandAssets();
+export async function listBrandSources(orgId?: string): Promise<BrandSourceSummary[]> {
+  const sources = await loadBrandAssets(orgId);
   if (sources.length === 0) return [];
-  const nodes = await loadNodes({ refTable: "media_assets" });
+  const nodes = await loadNodes({ refTable: "media_assets" }, orgId);
   return sources.map(({ asset, c }) => summarize(asset, c, nodes));
 }
 
 /** One brand document + the knowledge extracted from it (incl. proposed). Null if not an Arc-available brand source. */
-export async function getBrandSource(assetId: string): Promise<BrandSourceDetail | null> {
-  const match = (await loadBrandAssets()).find(({ asset }) => asset.id === assetId);
+export async function getBrandSource(assetId: string, orgId?: string): Promise<BrandSourceDetail | null> {
+  const match = (await loadBrandAssets(orgId)).find(({ asset }) => asset.id === assetId);
   if (!match) return null;
-  const nodes = await loadNodes({ refTable: "media_assets", refId: assetId });
+  const nodes = await loadNodes({ refTable: "media_assets", refId: assetId }, orgId);
   const summary = summarize(match.asset, match.c, nodes);
   return {
     ...summary,

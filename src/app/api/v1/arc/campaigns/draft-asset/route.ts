@@ -2,6 +2,13 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
+import {
+  CAMPAIGN_ASSET_TYPE_VALUES,
+  RESTORATION_FOCUS_VALUES,
+  isOfficialPersonaMapping,
+  normalizeCampaignAssetType,
+  normalizeRestorationFocus,
+} from "@/domain";
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
 import { CampaignResolutionError, promoteAssetToCampaign, resolveOrCreateCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
@@ -56,6 +63,17 @@ export async function POST(request: Request) {
   };
 
   if (!assetType) return fail("rejected", "asset_type is required.", 400);
+  // Validate/normalize the enum-typed asset_type at the boundary so an unknown
+  // value (e.g. the runner's old "video_ad") becomes a clean 400 here instead of
+  // a late, opaque Postgres enum 502 when it reaches campaign_assets.asset_type.
+  const normalizedAssetType = normalizeCampaignAssetType(assetType);
+  if (!normalizedAssetType) {
+    return fail(
+      "rejected",
+      `Unknown asset_type "${assetType}". Use one of: ${CAMPAIGN_ASSET_TYPE_VALUES.join(", ")}.`,
+      400,
+    );
+  }
   if (!title) return fail("rejected", "title is required.", 400);
 
   const operator = "Arc";
@@ -80,7 +98,7 @@ export async function POST(request: Request) {
     const asset = await promoteAssetToCampaign({
       operator,
       campaignId,
-      assetType,
+      assetType: normalizedAssetType,
       title,
       body: draftBody,
       mediaUrl,

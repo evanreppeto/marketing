@@ -203,6 +203,57 @@ export function buildEdgesForCrmRow(table: CrmIngestTable, row: Record<string, u
   return edges;
 }
 
+/** Persona slugs whose words read as acronyms — uppercased in display labels. */
+const PERSONA_LABEL_ACRONYMS = new Set(["hoa", "hvac", "gc"]);
+
+/**
+ * Humanize a persona slug into a readable label (pure). Strips the `persona_`
+ * prefix, title-cases each word, and uppercases known acronyms. Works for the
+ * BSR defaults and for any org-custom persona slug, so it stays generic.
+ */
+export function personaDisplayLabel(persona: string): string {
+  const base = persona.startsWith("persona_") ? persona.slice("persona_".length) : persona;
+  const label = base
+    .split("_")
+    .filter(Boolean)
+    .map((w) => (PERSONA_LABEL_ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
+  return label || "Persona";
+}
+
+/**
+ * Build a Brain node input for a persona, keyed by the persona value itself so a
+ * CRM/campaign row's `targets persona` edge (whose `toKey` is the raw persona)
+ * can resolve to it. Without these nodes every persona edge silently skips — this
+ * is what makes the graph actually connect records through their personas.
+ */
+export function buildPersonaNodeInput(persona: string): KnowledgeNodeInput {
+  return {
+    kind: "persona",
+    key: persona,
+    label: personaDisplayLabel(persona),
+    persona,
+    source: "persona-sync",
+    tags: ["persona"],
+  };
+}
+
+/**
+ * Inverse of `CRM_BELONGS_TO` (pure): the child tables (and FK column) that point
+ * at `parent`. Used to back-link — when a parent record mirrors into the Brain,
+ * its already-synced children can have their `belongs_to` edge linked even though
+ * the child was synced first (when the parent's node didn't yet exist).
+ */
+export function crmChildRefs(parent: CrmIngestTable): Array<{ table: CrmIngestTable; column: string }> {
+  const out: Array<{ table: CrmIngestTable; column: string }> = [];
+  for (const child of Object.keys(CRM_BELONGS_TO) as CrmIngestTable[]) {
+    for (const fk of CRM_BELONGS_TO[child]) {
+      if (fk.table === parent) out.push({ table: child, column: fk.column });
+    }
+  }
+  return out;
+}
+
 // --- Campaigns → Brain (slice 4) ------------------------------------------
 // Campaigns are a 7th source. They mirror in as `campaign_ref` nodes that
 // `targets` their persona and `relates_to` the CRM records they're aimed at, so

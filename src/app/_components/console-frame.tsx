@@ -24,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import FlowFieldBackground from "@/components/ui/flow-field-background";
 import { Workspaces, WorkspaceContent, WorkspaceTrigger, type Workspace } from "@/components/ui/workspaces";
 
 type ConsoleBrand = {
@@ -106,41 +105,36 @@ export function ConsoleFrame({
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
   ];
 
-  const growthNavItems: ShellNavItem[] = [
+  const workNavItems: ShellNavItem[] = [
     { label: "Campaigns", href: "/campaigns", icon: "campaigns", matches: ["/campaigns"] },
     { label: "CRM", href: "/crm", icon: "crm", matches: ["/crm"] },
     { label: "Opportunities", href: "/opportunities", icon: "opportunities", matches: ["/opportunities"] },
   ];
 
-  const intelligenceNavItems: ShellNavItem[] = [
-    { label: "Activity", href: "/activity", icon: "activity", matches: ["/activity"] },
-    { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
-    { label: "Usage", href: "/usage", icon: "usage", matches: ["/usage"] },
-    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
-    { label: "Personas", href: "/personas", icon: "personas", matches: ["/personas"] },
+  const studioNavItems: ShellNavItem[] = [
+    { label: "Brand & Files", href: "/library/brand", icon: "brand", matches: ["/library"] },
+    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
+    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
   ];
 
-  const assetNavItems: ShellNavItem[] = [
-    { label: "Gallery", href: "/gallery", icon: "gallery", matches: ["/gallery"] },
-    // Brand + Files are one section: lands on the brand view, stays active on
-    // both /library/brand and the /library Files tab (matches "/library").
-    { label: "Brand", href: "/library/brand", icon: "brand", matches: ["/library"] },
-    { label: "Outbox", href: "/outbox", icon: "outbox", matches: ["/outbox"] },
-    { label: "Board", href: "/board", icon: "board", matches: ["/board"] },
+  const intelligenceNavItems: ShellNavItem[] = [
+    { label: "Analytics", href: "/analytics", icon: "analytics", matches: ["/analytics"] },
+    { label: "Brain", href: "/brain", icon: "brain", matches: ["/brain"] },
+    { label: "Personas", href: "/personas", icon: "personas", matches: ["/personas"] },
   ];
 
   const navItems: ShellNavItem[] = [
     homeNavItems[0],
     { label: agentName, href: "/arc", icon: "arc", matches: ["/arc"] },
-    ...growthNavItems,
+    ...workNavItems,
+    ...studioNavItems,
     ...intelligenceNavItems,
-    ...assetNavItems,
   ];
 
   const utilityNavItems: ShellNavItem[] = [
     { label: "Settings", href: "/settings", icon: "settings", matches: ["/settings"] },
   ];
-  const mobilePrimaryNavItems = [homeNavItems[0], navItems[1], growthNavItems[0], growthNavItems[1]];
+  const mobilePrimaryNavItems = [homeNavItems[0], navItems[1], workNavItems[0], workNavItems[1]];
   const mobileMoreNavItems = navItems.filter((item) => !mobilePrimaryNavItems.some((primary) => primary.href === item.href));
   const activeMobileItem = [...navItems, ...utilityNavItems].find((item) => routeMatches(item, pathname));
   const activeMobileLabel = activeMobileItem?.label ?? brand.productLabel;
@@ -230,12 +224,6 @@ export function ConsoleFrame({
             onMouseEnter={() => setSidebarHovered(true)}
             onMouseLeave={() => setSidebarHovered(false)}
           >
-            <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-              <div className="arc-rail-glow" />
-              <div className="absolute inset-0 bg-[radial-gradient(110%_45%_at_24%_-8%,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_54%),linear-gradient(180deg,transparent_60%,rgba(0,0,0,0.22))]" />
-              <div className="absolute inset-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" />
-            </div>
-
             <div className="flex min-h-0 flex-1 flex-col gap-4">
               <div className={cx("flex min-h-12 shrink-0 items-center", sidebarCollapsed ? "justify-center" : "")}>
                 <Link
@@ -274,16 +262,16 @@ export function ConsoleFrame({
                     <SideNav active={pathname} items={homeNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
 
-                  <SidebarSection collapsed={sidebarCollapsed} divider label="Growth">
-                    <SideNav active={pathname} items={growthNavItems} collapsed={sidebarCollapsed} />
+                  <SidebarSection collapsed={sidebarCollapsed} divider label="Work">
+                    <SideNav active={pathname} items={workNavItems} collapsed={sidebarCollapsed} />
+                  </SidebarSection>
+
+                  <SidebarSection collapsed={sidebarCollapsed} divider label="Studio">
+                    <SideNav active={pathname} items={studioNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
 
                   <SidebarSection collapsed={sidebarCollapsed} divider label="Intelligence">
                     <SideNav active={pathname} items={intelligenceNavItems} collapsed={sidebarCollapsed} />
-                  </SidebarSection>
-
-                  <SidebarSection collapsed={sidebarCollapsed} divider label="Assets">
-                    <SideNav active={pathname} items={assetNavItems} collapsed={sidebarCollapsed} />
                   </SidebarSection>
                 </div>
               </div>
@@ -297,16 +285,7 @@ export function ConsoleFrame({
               <ShellContent>{children}</ShellContent>
             </section>
           ) : (
-            <section className="arc-graphite relative isolate min-w-0 flex-1 lg:min-h-0 lg:overflow-hidden">
-              <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-                <FlowFieldBackground
-                  className="absolute inset-0 opacity-22"
-                  particleCount={360}
-                  speed={0.38}
-                  trailOpacity={0.08}
-                />
-                <div className="absolute inset-0 bg-[radial-gradient(90%_65%_at_8%_-8%,rgba(200,162,74,0.12),transparent_50%),radial-gradient(70%_54%_at_105%_0%,rgba(127,184,154,0.06),transparent_48%),linear-gradient(180deg,rgba(22,22,26,0.22),rgba(22,22,26,0.72)_62%,rgba(22,22,26,0.93))]" />
-              </div>
+            <section className="relative isolate min-w-0 flex-1 bg-[var(--canvas)] lg:min-h-0 lg:overflow-hidden">
               <div className="h-full w-full px-3 py-4 sm:px-5 lg:h-screen lg:overflow-y-auto lg:px-5 lg:py-5 xl:px-6 2xl:px-7">
                 <ShellContent>{children}</ShellContent>
               </div>

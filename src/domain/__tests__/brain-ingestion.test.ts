@@ -7,11 +7,14 @@ import {
   buildNodeInputForCampaignResult,
   buildNodeInputForCrmRow,
   buildNodeInputForMedia,
+  buildPersonaNodeInput,
   campaignNodeKey,
   campaignResultNodeKey,
+  crmChildRefs,
   crmNodeKey,
   embedHash,
   mediaNodeKey,
+  personaDisplayLabel,
   CRM_NODE_KINDS,
 } from "../brain-ingestion";
 
@@ -250,5 +253,61 @@ describe("buildEdgesForCampaignResult", () => {
 describe("campaignResultNodeKey", () => {
   it("builds a stable per-result key", () => {
     expect(campaignResultNodeKey("r9")).toBe("perf:r9");
+  });
+});
+
+describe("personaDisplayLabel", () => {
+  it("humanizes a persona slug into a readable label", () => {
+    expect(personaDisplayLabel("persona_landlord")).toBe("Landlord");
+    expect(personaDisplayLabel("persona_homeowner_emergency")).toBe("Homeowner Emergency");
+  });
+
+  it("uppercases known acronyms", () => {
+    expect(personaDisplayLabel("persona_hoa_board")).toBe("HOA Board");
+    expect(personaDisplayLabel("persona_hvac_roof_electrical_partner")).toBe("HVAC Roof Electrical Partner");
+    expect(personaDisplayLabel("persona_gc_remodeler_partner")).toBe("GC Remodeler Partner");
+  });
+
+  it("works for org-custom slugs without the persona_ prefix", () => {
+    expect(personaDisplayLabel("vip_referral_partner")).toBe("Vip Referral Partner");
+  });
+});
+
+describe("buildPersonaNodeInput", () => {
+  it("builds a persona node keyed by the persona value so edges can resolve it", () => {
+    const input = buildPersonaNodeInput("persona_landlord");
+    expect(input.kind).toBe("persona");
+    expect(input.key).toBe("persona_landlord");
+    expect(input.persona).toBe("persona_landlord");
+    expect(input.label).toBe("Landlord");
+    expect(input.tags).toContain("persona");
+  });
+
+  it("does not carry a CRM ref (a persona is not a CRM record)", () => {
+    const input = buildPersonaNodeInput("persona_hoa_board");
+    expect(input.refTable == null).toBe(true);
+    expect(input.refId == null).toBe(true);
+  });
+});
+
+describe("crmChildRefs", () => {
+  it("is the inverse of the belongs_to map: companies are referenced by contacts/properties/leads/jobs", () => {
+    const children = crmChildRefs("companies");
+    expect(children).toContainEqual({ table: "contacts", column: "company_id" });
+    expect(children).toContainEqual({ table: "properties", column: "company_id" });
+    expect(children).toContainEqual({ table: "leads", column: "company_id" });
+    expect(children).toContainEqual({ table: "jobs", column: "company_id" });
+    expect(children).toHaveLength(4);
+  });
+
+  it("leads are referenced by jobs and outcomes", () => {
+    const children = crmChildRefs("leads");
+    expect(children).toContainEqual({ table: "jobs", column: "lead_id" });
+    expect(children).toContainEqual({ table: "outcomes", column: "lead_id" });
+    expect(children).toHaveLength(2);
+  });
+
+  it("outcomes are a leaf — nothing references them", () => {
+    expect(crmChildRefs("outcomes")).toEqual([]);
   });
 });
