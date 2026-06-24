@@ -44,6 +44,6 @@ for (const [name, t] of Object.entries(templates)) {
     footerNote: `Sent by ${APP_NAME}. If you didn't expect this email, you can safely ignore it.`,
   });
   const file = resolve(outDir, `${name}.html`);
-  writeFileSync(file, html, "utf8");
+  writeFileSync(file, html + "\n", "utf8");
   console.log(`wrote ${file}`);
 }
