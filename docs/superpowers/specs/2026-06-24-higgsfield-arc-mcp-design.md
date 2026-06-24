@@ -18,6 +18,35 @@ virality prediction — as **approval-gated, provenance-tagged draft assets**. N
 send. Single-tenant (one BSR workspace) for now; multi-company per-workspace credentials
 are explicitly deferred.
 
+### Program scope (expanded 2026-06-24)
+
+The intent grew beyond "add a connector": **Higgsfield should become Arc's media engine,
+replacing Gemini**, with model choice and a cleaner chat surface. Decisions locked with Evan:
+
+- **Higgsfield replaces Gemini for media — safely.** Add Higgsfield first (additive), make
+  it the default, keep Gemini as a *silent fallback* until Higgsfield is proven solid
+  end-to-end, then retire Gemini. Never a window where Arc has zero media.
+- **Model roster + selection.** Replace the Gemini `levelMediaModels` mapping with a curated
+  **Arc media roster** drawn from Higgsfield's models. Arc **auto-picks** the best model for
+  the task by default; the operator can **override** via a **capability-categorized selector**
+  (e.g. Video / Image / … ) that lists every Higgsfield model in each category. Categories
+  mirror what Higgsfield actually exposes (image + video-centric; spike confirms the list).
+- **Chat control-bar redesign — deferred to its own brainstorm.** The ask/act/draft/scan mode
+  bar is to be replaced with "something more useful" (candidate: the model/output selector
+  above). This is a separate UX brainstorm AFTER the media work, because those modes gate
+  **all** writes/drafts (not just media) — the redesign must consciously set the default
+  capability posture while **preserving every approval gate** (no outbound without a human).
+
+### Phasing
+
+- **Phase 0** — headless-OAuth spike (go/no-go). Gates everything below.
+- **Phase 1** — Higgsfield remote-MCP connector into the runner, *additive* (Gemini intact).
+  Covered by the committed plan `docs/superpowers/plans/2026-06-24-higgsfield-arc-mcp.md`.
+- **Phase 2** — Higgsfield becomes the default media path + categorized model roster/selector;
+  Gemini demoted to fallback. **Gets its own plan after the spike**, since the roster depends
+  on the exact model/tool names the spike discovers.
+- **Phase 3** — chat control-bar redesign. **Its own brainstorm → spec → plan**, after Phase 2.
+
 ### What already exists (the seam was built for this)
 
 - **Arc runs on MCP.** `apps/arc-runner/src/arc.ts` builds an in-process SDK MCP server
@@ -106,7 +135,10 @@ separate billing) or (b) Higgsfield on interactive Claude only. Do not write Pha
 - Per-workspace connector OAuth UI and onboarding.
 - Automated token refresh / rotation service.
 - Higgsfield Cloud API key path (revisit only if the spike fails or at multi-tenant scale).
-- Higgsfield-specific UI surfaces (asset cards already render AI provenance).
+
+Note: model selection and the model-roster selector are **in scope** (Phase 2), and the
+chat control-bar redesign is **in scope** (Phase 3) — both moved in from the original
+"out of scope" framing by the 2026-06-24 expansion above.
 
 ## Open questions
 
