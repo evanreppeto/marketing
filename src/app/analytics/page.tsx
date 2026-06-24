@@ -25,6 +25,7 @@ import { StatStrip, type StatItem } from "../_components/page-header";
 import { ConversionTab, ContractTab, LeadVolumeTab, PartnerSignalsTab, RevenueTab } from "./_components/performance-breakdowns";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { TabNav } from "../_components/tab-nav";
 
 export const metadata = {
   title: "Analytics",
@@ -67,6 +68,16 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
         eyebrow="Executive reporting"
         title="Analytics"
       >
+        <TabNav
+          ariaLabel="Analytics views"
+          activeKey="performance"
+          columns=""
+          className="mb-4"
+          tabs={[
+            { key: "performance", label: "Performance", href: "/analytics" },
+            { key: "activity", label: "Activity", href: "/activity" },
+          ]}
+        />
         <EmptyState
           title="No campaign data to show yet"
           detail="Once campaigns are connected, this page will show how each one is doing and what is waiting on you."
@@ -122,6 +133,17 @@ export default async function AnalyticsPage({ searchParams }: { searchParams?: P
       tabs={<AnalyticsRangeTabs activeRange={activeRange.v} ranges={RANGES} />}
       title="Analytics"
     >
+
+      <TabNav
+        ariaLabel="Analytics views"
+        activeKey="performance"
+        columns=""
+        className="mb-4"
+        tabs={[
+          { key: "performance", label: "Performance", href: "/analytics" },
+          { key: "activity", label: "Activity", href: "/activity" },
+        ]}
+      />
 
       {/* General analytics + range filter — the at-a-glance read */}
       {statItems ? <StatStrip items={statItems} /> : <KpiBand kpis={fallbackKpis} />}

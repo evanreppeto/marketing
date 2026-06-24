@@ -5,6 +5,7 @@ import { getOutboxList } from "@/lib/dispatch/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
 import { OutboxConsole } from "./_components/outbox-console";
+import { TabNav } from "../_components/tab-nav";
 
 import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Outbox" };
@@ -21,6 +22,16 @@ export default async function OutboxPage() {
         title="Outbox"
         description={`Every approved deliverable that has been launched, and where it stands. The app records dispatch state and hands off to ${agentName} — it does not send, publish, or contact anyone.`}
         aside={<StatusPill tone="amber">Outbound locked</StatusPill>}
+      />
+      <TabNav
+        ariaLabel="Board views"
+        activeKey="outbox"
+        columns=""
+        className="mb-4"
+        tabs={[
+          { key: "board", label: "Board", href: "/board" },
+          { key: "outbox", label: "Outbox", href: "/outbox" },
+        ]}
       />
       {list.status === "unavailable" ? (
         <EmptyState title="Outbox unavailable" detail={list.message} />
