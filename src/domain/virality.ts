@@ -57,7 +57,7 @@ export function normalizeViralityPrediction(
     hookScore: clamp100(raw.hook_score),
     sustain: clamp100(raw.sustain),
     brainEngagement: clamp100(raw.brain_engagement),
-    peakSecond: typeof raw.peak_second === "number" ? raw.peak_second : 0,
+    peakSecond: Number.isFinite(raw.peak_second) ? (raw.peak_second as number) : 0,
     ...(meta.dashboardUrl ? { dashboardUrl: meta.dashboardUrl } : {}),
     disclaimer: VIRALITY_DISCLAIMER,
     ...(meta.scoredAt ? { scoredAt: meta.scoredAt } : {}),
@@ -93,7 +93,7 @@ export function creativeQualityScore(input: CreativeQualityInput): ProxyQualityS
 
   return {
     kind: "proxy",
-    qualityScore: Math.max(0, Math.min(100, Math.round(score))),
+    qualityScore: clamp100(score),
     factors,
     disclaimer: VIRALITY_DISCLAIMER,
   };
@@ -121,6 +121,7 @@ const WEAK_HOOK_THRESHOLD = 40;
  *  Videos rank by viralPotential, images by qualityScore; the two are never
  *  compared across kind by callers (a batch is single-kind). */
 export function rankVariants(variants: ScoredVariant[], topK: number): RankedVariants {
+  // Relies on Array.prototype.sort being stable (ES2019+) so equal-scored variants keep input order.
   const ordered = [...variants].sort((a, b) => rankValue(b.score) - rankValue(a.score));
   const best = ordered[0];
   let rationale = "No variants to rank.";
