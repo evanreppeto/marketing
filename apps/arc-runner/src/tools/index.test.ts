@@ -23,6 +23,7 @@ const READ = [
   "search_jobs",
   "search_outcomes",
   "search_properties",
+  "search_crm",
   "query_brain",
   "list_campaigns",
   "get_campaign",
