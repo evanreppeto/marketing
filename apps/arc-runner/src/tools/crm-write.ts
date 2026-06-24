@@ -19,12 +19,14 @@ export function crmWriteTools(client: ArcClient, step: StepFn) {
       persona: z
         .string()
         .describe("Best-fit persona key for this lead, e.g. persona_plumbing_partner. Must be one of the org's personas."),
-      company: z.object({
-        name: z.string(),
-        website_url: z.string().optional(),
-        phone: z.string().optional(),
-        email: z.string().optional(),
-      }),
+      company: z
+        .object({
+          name: z.string(),
+          website_url: z.string().optional(),
+          phone: z.string().optional(),
+          email: z.string().optional(),
+        })
+        .describe("The business. Only include website/phone/email you found in a real source — omit, don't guess."),
       contacts: z
         .array(
           z.object({
@@ -35,7 +37,8 @@ export function crmWriteTools(client: ArcClient, step: StepFn) {
             phone: z.string().optional(),
           }),
         )
-        .min(1),
+        .min(1)
+        .describe("People at the company. Include title/email/phone only when found in a real source — never invent them; leave a field out if unknown."),
       property: z
         .object({
           street_line_1: z.string(),

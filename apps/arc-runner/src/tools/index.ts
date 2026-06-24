@@ -33,7 +33,7 @@ function readTools(client: ArcClient, step: StepFn, sink: TurnSink) {
   ];
 }
 
-/** Append-only writes: CRM interactions, brain observations, and research lead creation. act/draft only. */
+/** act/draft writes: brain observations, append-only CRM interactions, and research-sourced CRM lead creation. */
 function writeTools(client: ArcClient, step: StepFn) {
   return [...brainWriteTools(client, step), ...interactionWriteTools(client, step), ...crmWriteTools(client, step)];
 }

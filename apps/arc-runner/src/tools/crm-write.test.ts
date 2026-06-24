@@ -29,6 +29,23 @@ describe("crmWriteTools", () => {
     expect(res.content[0].text).toContain("lead-1");
   });
 
+  it("forwards existing_company_id / existing_contact_id for the enrich path", async () => {
+    const client = {
+      apiPost: vi.fn(async () => ({ ok: true, leadId: "lead-2", companyId: "company-9", contactIds: ["contact-9"], enriched: true })),
+    } as unknown as ArcClient;
+    const tools = byName(client);
+    const args = {
+      persona: "persona_plumbing_partner",
+      company: { name: "Acme Plumbing" },
+      contacts: [{ email: "dana@acme.example" }],
+      evidence: [{ url: "https://acme.example" }],
+      existing_company_id: "company-9",
+      existing_contact_id: "contact-9",
+    };
+    await callHandler(tools["create_lead_from_research"], args);
+    expect(client.apiPost).toHaveBeenCalledWith("/api/v1/arc/crm/leads", { ...args, author_name: "Arc" });
+  });
+
   it("exposes exactly the one write tool", () => {
     const names = crmWriteTools({} as ArcClient, noStep).map((t) => t.name);
     expect(names).toEqual(["create_lead_from_research"]);
