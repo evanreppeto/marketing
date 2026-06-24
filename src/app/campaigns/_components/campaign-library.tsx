@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 
 import { ChannelRow } from "@/app/_components/brand-logos";
-import { cx, theme } from "@/app/_components/theme";
+import { StatusPill } from "@/app/_components/page-header";
+import { cx, theme, type ThemeTone } from "@/app/_components/theme";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import type { CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 
@@ -273,7 +274,14 @@ function CampaignRow({
 
       <div className="min-w-0 md:border-l md:border-[var(--border-hairline)] md:pl-3">
         <div className={cx("text-[12px] font-semibold leading-5", statusTextClass(status.tone))}>{nextStep}</div>
-        <div className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]">{targetLabel(campaign.persona)}</div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <StatusPill tone={toPillTone(status.tone)}>{status.label}</StatusPill>
+          {campaign.persona ? (
+            <span className="inline-flex max-w-[12rem] items-center truncate rounded-[6px] border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+              {targetLabel(campaign.persona)}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex min-w-0 items-center gap-2 md:block">
@@ -296,6 +304,13 @@ function statusTextClass(tone: string) {
   if (tone === "red") return "text-[var(--priority-text)]";
   if (tone === "blue" || tone === "dark") return "text-[#9dc3e6]";
   return "text-[var(--text-muted)]";
+}
+
+function toPillTone(tone: string): ThemeTone {
+  if (tone === "green" || tone === "amber" || tone === "red" || tone === "blue" || tone === "gray" || tone === "dark") {
+    return tone;
+  }
+  return "gray";
 }
 
 function groupToneClass(tone: string) {
