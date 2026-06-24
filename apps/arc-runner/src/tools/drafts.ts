@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { ArcClient } from "../arc-client";
 import type { ArcActionCard } from "../types";
 import type { ToolContext } from "./index";
-import { textResult, type StepFn } from "./helpers";
+import { runTool, textResult, type StepFn } from "./helpers";
 
 /**
  * Map an asset type to the card's channel/format so the chat thumbnail can render
@@ -100,5 +100,37 @@ export function draftWorkProductTools(
     },
   );
 
-  return [createCampaignDraft];
+  const submitDraft = tool(
+    "submit_draft",
+    "Submit a GENERIC, non-campaign draft into the human approval queue — e.g. a partner/sales handoff note, a one-off outreach message, or a record-specific recommendation that isn't a campaign asset. For campaign creative (social_ad, email, sms, image, landing page) use create_campaign_draft instead. The item is created pending_approval and locked; nothing is sent. Link it to the record it's about with the matching id. Returns approvalItemId.",
+    {
+      item_type: z.string().describe("What kind of draft this is, e.g. partner_handoff_note | outreach_message | record_recommendation"),
+      draft: z.string().describe("The draft content the human will review."),
+      title: z.string().optional().describe("Short title for the queue entry"),
+      summary: z.string().optional().describe("One-line summary of what this is and why"),
+      risk_level: z.string().optional().describe("low | medium | high"),
+      campaign_id: z.string().optional().describe("Link to a campaign, if relevant"),
+      company_id: z.string().optional().describe("Link to a CRM company"),
+      contact_id: z.string().optional().describe("Link to a CRM contact"),
+      lead_id: z.string().optional().describe("Link to a CRM lead"),
+      task_id: z.string().optional().describe("Link to an agent task"),
+    },
+    async (args) =>
+      runTool(step, "Submitting draft for approval", () =>
+        client.apiPost("/api/v1/arc/drafts", {
+          item_type: args.item_type,
+          draft: args.draft,
+          ...(args.title ? { title: args.title } : {}),
+          ...(args.summary ? { summary: args.summary } : {}),
+          ...(args.risk_level ? { risk_level: args.risk_level } : {}),
+          ...(args.campaign_id ? { campaign_id: args.campaign_id } : {}),
+          ...(args.company_id ? { company_id: args.company_id } : {}),
+          ...(args.contact_id ? { contact_id: args.contact_id } : {}),
+          ...(args.lead_id ? { lead_id: args.lead_id } : {}),
+          ...(args.task_id ? { task_id: args.task_id } : {}),
+        }),
+      ),
+  );
+
+  return [createCampaignDraft, submitDraft];
 }
