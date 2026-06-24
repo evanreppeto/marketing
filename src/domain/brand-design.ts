@@ -119,6 +119,15 @@ function saturation(hex: string): number {
   return max === 0 ? 0 : (max - min) / max;
 }
 
+/** Euclidean RGB distance (0–441). Used to collapse near-identical swatches. */
+function rgbDistance(a: string, b: string): number {
+  const ch = (h: string, i: number) => parseInt(h.slice(i, i + 2), 16);
+  const dr = ch(a, 1) - ch(b, 1);
+  const dg = ch(a, 3) - ch(b, 3);
+  const db = ch(a, 5) - ch(b, 5);
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
 function extractColors(html: string): BrandDesignColor[] {
   const found = new Map<string, BrandDesignColor>();
   const add = (hex: string | null, source: BrandDesignColor["source"], count?: number) => {
@@ -153,7 +162,7 @@ function extractColors(html: string): BrandDesignColor[] {
   // trust an explicit brand-named CSS variable over a theme-color meta (often a
   // dark chrome color) over a raw frequency match; then by on-page prominence.
   const sourceRank = (s: BrandDesignColor["source"]) => (s === "css-var" ? 0 : s === "theme-color" ? 1 : 2);
-  return [...found.values()].sort((a, b) => {
+  const sorted = [...found.values()].sort((a, b) => {
     const va = saturation(a.hex) > 0.15 ? 0 : 1;
     const vb = saturation(b.hex) > 0.15 ? 0 : 1;
     if (va !== vb) return va - vb;
@@ -161,6 +170,13 @@ function extractColors(html: string): BrandDesignColor[] {
     if (r !== 0) return r;
     return (b.count ?? 0) - (a.count ?? 0);
   });
+  // Collapse near-identical swatches; the earlier (higher-priority) one wins.
+  const deduped: BrandDesignColor[] = [];
+  for (const c of sorted) {
+    if (deduped.some((kept) => rgbDistance(kept.hex, c.hex) < 32)) continue;
+    deduped.push(c);
+  }
+  return deduped;
 }
 
 function cleanFamily(raw: string): string | null {
@@ -215,10 +231,16 @@ export function brandDesignToPaletteUpdate(signal: BrandDesignSignal): BrandDesi
   if (secondary) update.secondary = secondary;
   if (accent) update.accent = accent;
 
-  const byLum = [...signal.colors].sort((a, b) => luminance(a.hex) - luminance(b.hex));
-  if (byLum.length > 0) {
-    update.dark = byLum[0].hex;
-    update.light = byLum[byLum.length - 1].hex;
+  // Prefer true neutrals (colors not chosen as a vivid brand color) for dark/light,
+  // so a vivid primary doesn't also become the "dark" ink.
+  const vividPicks = new Set([primary, secondary, accent].filter(Boolean));
+  const neutrals = signal.colors.filter((c) => !vividPicks.has(c.hex));
+  const pool = (neutrals.length > 0 ? neutrals : signal.colors)
+    .slice()
+    .sort((a, b) => luminance(a.hex) - luminance(b.hex));
+  if (pool.length > 0) {
+    update.dark = pool[0].hex;
+    update.light = pool[pool.length - 1].hex;
   }
   if (signal.headingFont) update.headingFont = signal.headingFont;
   if (signal.bodyFont) update.bodyFont = signal.bodyFont;

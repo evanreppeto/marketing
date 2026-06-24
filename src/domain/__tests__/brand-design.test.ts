@@ -87,6 +87,14 @@ describe("extractBrandDesign — colors", () => {
     expect(ic8).toBeGreaterThanOrEqual(0);
     expect(i0f).toBeLessThan(ic8);
   });
+
+  it("collapses near-identical colors into one swatch (keeps higher-priority source)", () => {
+    const html = `<head><style>:root{--brand-primary:#c8a24b} body{color:#c9a34c}</style></head>`;
+    const signal = extractBrandDesign(html, BASE);
+    const goldish = signal.colors.filter((c) => c.hex === "#c8a24b" || c.hex === "#c9a34c");
+    expect(goldish).toHaveLength(1);
+    expect(goldish[0].hex).toBe("#c8a24b"); // css-var beats the near-duplicate frequency color
+  });
 });
 
 describe("extractBrandDesign — fonts", () => {
@@ -149,5 +157,20 @@ describe("brandDesignToPaletteUpdate", () => {
     expect(update.primary).toBe("#c8a24b");
     expect(update.secondary).toBeUndefined();
     expect(update.headingFont).toBeUndefined();
+  });
+
+  it("keeps a vivid brand color out of the dark/light slots when a neutral exists", () => {
+    const update = brandDesignToPaletteUpdate({
+      logoCandidates: [], faviconUrl: null,
+      colors: [
+        { hex: "#1a0a2e", source: "css-var" },   // very dark purple — vivid → primary
+        { hex: "#333333", source: "frequency" }, // neutral gray
+        { hex: "#fafafa", source: "frequency" }, // near-white neutral
+      ],
+      headingFont: null, bodyFont: null,
+    });
+    expect(update.primary).toBe("#1a0a2e");
+    expect(update.dark).toBe("#333333");  // not the darker vivid purple
+    expect(update.light).toBe("#fafafa");
   });
 });
