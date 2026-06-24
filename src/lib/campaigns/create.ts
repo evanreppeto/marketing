@@ -5,6 +5,7 @@ import { type ParsedCampaignDraft, type ViralityScore } from "@/domain";
 import { getSupabaseAdminClient, type TypedSupabaseClient } from "../supabase/server";
 import { type AgentTaskTenantFields } from "../agent-tasks/scope";
 import { syncCampaignRecordToBrain } from "../brain-ingestion/sync";
+import { deferAfterResponse } from "../defer";
 
 /** Mirror a freshly created/updated campaign into the Brain. Best-effort and
  *  awaited (serverless can kill post-response work) — a sync hiccup must never
@@ -207,7 +208,10 @@ export async function createCampaignShell(input: CreateCampaignShellInput): Prom
     actor: input.operator,
     detail: `created from ${agentName} saved item`,
   });
-  await mirrorCampaignToBrain(client, campaignId, input.tenant);
+  // Best-effort brain mirror (re-reads the row + upserts graph nodes/edges) with
+  // no dependents — run it after the response so it stops serializing ~2 extra DB
+  // round-trips into every Arc draft-asset / campaign-create call.
+  deferAfterResponse(() => mirrorCampaignToBrain(client, campaignId, input.tenant));
   return { campaignId };
 }
 
