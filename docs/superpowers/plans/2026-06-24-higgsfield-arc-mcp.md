@@ -106,6 +106,13 @@ main().catch((err) => {
 Run: `cd apps/arc-runner && HIGGSFIELD_TOKEN=<captured> npx tsx src/spike-higgsfield.ts`
 Expected (PASS): a `tool_use` for a `mcp__higgsfield__*` tool and a real result payload, no auth error.
 
+**Known failure mode — distinguish transport from auth:** SDK issue #202 — the HTTP
+transport may omit `Accept: text/event-stream` and get a **406** from strict streamable-HTTP
+servers. A 406 (or "Not Acceptable") is a TRANSPORT problem, NOT a NO-GO on the auth premise.
+If it occurs: (a) try the connector with `type: "sse"` instead of `"http"`; (b) bump
+`@anthropic-ai/claude-agent-sdk` past the fix for #202; then re-run. Only a genuine
+auth/credit failure (401/403, or no credit consumed) counts toward NO-GO.
+
 - [ ] **Step 3: Confirm credit consumption.** Check the Higgsfield account usage/credits dashboard before and after; confirm the run consumed Ultra credits.
 - [ ] **Step 4: Record** in "Phase 0 results": exact tool names + input schemas observed, the working header format, and whether credits decremented.
 
