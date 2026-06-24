@@ -24,7 +24,7 @@ export type CrmFieldPreset = {
 
 export const CRM_FIELD_PRESETS: Record<CrmObjectKey, CrmFieldPreset> = {
   companies: {
-    tableColumns: ["primary", "secondary", "links", "status", "updated", "nextAction"],
+    tableColumns: ["primary", "persona", "status", "updated"],
     studioFields: [
       { label: "Company", type: "Text", required: true },
       { label: "Type", type: "Status" },
@@ -34,7 +34,7 @@ export const CRM_FIELD_PRESETS: Record<CrmObjectKey, CrmFieldPreset> = {
     ],
   },
   contacts: {
-    tableColumns: ["primary", "secondary", "links", "status", "updated", "nextAction"],
+    tableColumns: ["primary", "persona", "status", "updated"],
     studioFields: [
       { label: "Contact", type: "Text", required: true },
       { label: "Relationship", type: "Relationship" },
@@ -44,7 +44,7 @@ export const CRM_FIELD_PRESETS: Record<CrmObjectKey, CrmFieldPreset> = {
     ],
   },
   properties: {
-    tableColumns: ["primary", "secondary", "persona", "score", "status", "updated", "nextAction"],
+    tableColumns: ["primary", "persona", "score", "status", "updated"],
     studioFields: [
       { label: "Asset", type: "Text", required: true },
       { label: "Owner / contact", type: "Relationship" },
@@ -55,7 +55,7 @@ export const CRM_FIELD_PRESETS: Record<CrmObjectKey, CrmFieldPreset> = {
     ],
   },
   leads: {
-    tableColumns: ["primary", "secondary", "persona", "score", "status", "updated", "nextAction"],
+    tableColumns: ["primary", "persona", "score", "status", "updated"],
     studioFields: [
       { label: "Lead", type: "Text", required: true },
       { label: "Source", type: "Tag" },
@@ -66,7 +66,7 @@ export const CRM_FIELD_PRESETS: Record<CrmObjectKey, CrmFieldPreset> = {
     ],
   },
   jobs: {
-    tableColumns: ["primary", "secondary", "value", "links", "status", "updated", "nextAction"],
+    tableColumns: ["primary", "status", "value", "updated"],
     studioFields: [
       { label: "Project", type: "Text", required: true },
       { label: "Stage", type: "Status" },
@@ -77,7 +77,7 @@ export const CRM_FIELD_PRESETS: Record<CrmObjectKey, CrmFieldPreset> = {
     ],
   },
   outcomes: {
-    tableColumns: ["primary", "secondary", "value", "links", "status", "updated"],
+    tableColumns: ["primary", "status", "value", "updated"],
     studioFields: [
       { label: "Outcome", type: "Text", required: true },
       { label: "Attribution", type: "Relationship" },
