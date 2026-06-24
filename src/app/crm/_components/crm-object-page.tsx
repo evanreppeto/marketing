@@ -117,13 +117,11 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
               activeView={activeView}
               activeViewDescription={activeViewMeta.description}
               activeViewLabel={activeViewMeta.label}
-              objectHref={crmObject.href}
               objectKey={objectKey}
               objectLabel={crmObject.label}
               primaryField={crmObject.primaryField}
               rows={filteredRows}
               secondaryField={crmObject.secondaryField}
-              selectedRecordId={selectedRow?.id}
               views={crmListViews.map((listView) => ({
                 ...listView,
                 count: getRowsForListView(crmObject.sampleRows, listView.key).length,
