@@ -360,12 +360,8 @@ h4, .font-display {
 .signal-panel {
   border-radius: 0.875rem;
   border: 1px solid var(--border-panel);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 36%),
-    var(--surface-panel);
-  /* Machined depth: ambient drop + a hairline inner top highlight so panels read
-     as physical plates, not flat AI cards. */
-  box-shadow: var(--elev-panel), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  background: var(--surface-panel);
+  box-shadow: var(--elev-panel);
   color: var(--text-primary);
 }
 
