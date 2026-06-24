@@ -58,7 +58,7 @@ function Artifact({ card, image, onDecision }: { card: ArcActionCard; image?: Ar
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-3 flex items-center gap-2">
-        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-strong)]">
           {card.kind === "draft" ? "Draft" : "Result"}
         </span>
         {card.status ? <StatusPill status={card.status} /> : null}
@@ -214,7 +214,7 @@ function Building({ steps }: { steps: ArcStep[] }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-3 flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--accent)]">Building</span>
+        <span className="font-mono text-[11px] text-[var(--accent)]">Building</span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-[var(--surface-soft)] p-4 shadow-[inset_0_0_0_1px_var(--border-hairline)]">
         {steps.length > 0 ? (
@@ -262,7 +262,7 @@ function Context({ assistantName, messages }: { assistantName: string; messages:
       {hasRecords ? (
         [...byType.entries()].map(([type, items]) => (
           <div key={type} className="flex flex-col gap-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{TYPE_LABELS[type] ?? type}</p>
+            <p className="text-[10px] font-medium text-[var(--text-muted)]">{TYPE_LABELS[type] ?? type}</p>
             {items.slice(0, 6).map((m) => (
               <Link
                 key={`${m.type}:${m.id}`}
@@ -442,7 +442,7 @@ export function WorkCanvas({
     <>
       <div className="mb-3 flex items-center gap-2">
         {variant === "docked" ? (
-          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Studio</span>
+          <span className="text-[10px] font-medium text-[var(--text-muted)]">Studio</span>
         ) : null}
         {showTabs ? (
           <span className="ml-auto">

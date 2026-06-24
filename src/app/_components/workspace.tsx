@@ -55,8 +55,8 @@ export function MetricStrip({
         const body = (
           <>
             <div className="flex items-center justify-between gap-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{metric.label}</div>
-              {metric.tone ? <span className={cx("text-[10px] font-semibold uppercase tracking-[0.12em]", toneTextClass(metric.tone))}>{toneLabel(metric.tone)}</span> : null}
+              <div className="text-xs font-medium text-[var(--text-muted)]">{metric.label}</div>
+              {metric.tone ? <span className={cx("text-[10px] font-medium", toneTextClass(metric.tone))}>{toneLabel(metric.tone)}</span> : null}
             </div>
             <div className="mt-3 font-display text-3xl font-bold tabular-nums tracking-[-0.05em] text-[var(--text-primary)]">{metric.value}</div>
             {metric.detail ? <div className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">{metric.detail}</div> : null}
@@ -116,7 +116,7 @@ export function DetailStack({ items }: { items: Array<{ label: string; value: Re
     <dl className="divide-y divide-[var(--border-hairline)]">
       {items.map((item) => (
         <div className="grid gap-3 px-5 py-3 sm:grid-cols-[150px_minmax(0,1fr)]" key={item.label}>
-          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{item.label}</dt>
+          <dt className="text-xs font-medium text-[var(--text-muted)]">{item.label}</dt>
           <dd className="min-w-0 text-sm font-medium leading-6 text-[var(--text-primary)]">{item.value}</dd>
         </div>
       ))}
@@ -136,7 +136,7 @@ export function EmptyWorkspace({
   return (
     <div className={cx("m-4 p-6 sm:p-8", theme.surface.dashedEmpty)}>
       <div className="relative flex max-w-2xl gap-4">
-        <span className="mt-0.5 h-10 w-1 shrink-0 rounded-full bg-[linear-gradient(180deg,var(--accent),color-mix(in_srgb,var(--accent)_18%,transparent))] shadow-[0_0_18px_color-mix(in_srgb,var(--accent)_28%,transparent)]" />
+        <span className="mt-0.5 h-10 w-px shrink-0 rounded-full bg-[linear-gradient(180deg,var(--accent),color-mix(in_srgb,var(--accent)_18%,transparent))]" />
         <div className="min-w-0">
           <div className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">{title}</div>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>

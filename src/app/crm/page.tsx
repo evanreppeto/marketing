@@ -84,8 +84,8 @@ export default async function CrmOverviewPage({ searchParams }: { searchParams?:
             <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-display text-xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
-                    Leads: Working List
+                  <h2 className="font-editorial text-xl font-medium tracking-[-0.012em] text-[var(--text-primary)]">
+                    Leads
                   </h2>
                   <StatusPill tone="blue">{visibleRows.length} shown</StatusPill>
                 </div>
@@ -117,7 +117,7 @@ function CrmFocusStrip({ stats }: { stats: ReturnType<typeof buildFocusStats> })
         >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{item.label}</div>
+              <div className="text-xs font-medium text-[var(--text-muted)]">{item.label}</div>
               <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{item.detail}</div>
             </div>
             <span className={`flex h-9 min-w-9 items-center justify-center rounded-md border px-2 font-mono text-sm font-bold ${item.tone}`}>
@@ -176,7 +176,7 @@ function SelectedRecordPanel({ selectedRecord }: { selectedRecord: CrmPipelineRo
   return (
     <DossierPanel title="Selected record">
       <div className="flex items-center justify-between gap-3">
-        <div className="signal-eyebrow">Lead dossier</div>
+        <div className="text-xs font-medium text-[var(--text-muted)]">Lead dossier</div>
         <div className="flex items-center gap-2">
           <StatusPill tone="amber">Draft locked</StatusPill>
           <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={selectedRecord.href}>
@@ -200,30 +200,30 @@ function SelectedRecordPanel({ selectedRecord }: { selectedRecord: CrmPipelineRo
         </div>
 
         <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] p-3">
-          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Persona intelligence</div>
+          <div className="text-[11px] font-medium text-[var(--text-muted)]">Persona intelligence</div>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {personaIntel(selectedRecord).map((item) => (
               <div className="min-w-0" key={item.label}>
-                <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">{item.label}</div>
+                <div className="text-[10px] font-medium text-[var(--text-muted)]">{item.label}</div>
                 <div className={`mt-1 truncate text-sm font-semibold ${item.tone}`} title={item.value}>{item.value}</div>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-lg border border-[var(--accent-border-strong)] bg-[var(--accent-soft)] p-3">
-          <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent)]">Next best action</div>
-          <p className="mt-1 text-sm font-semibold leading-6 text-[var(--text-primary)]">{selectedRecord.nextStep}</p>
-          <div className="mt-2 flex items-center gap-2 border-t border-[var(--accent-border-strong)] pt-2">
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--accent)]">CTA</span>
-            <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{recommendedCta(selectedRecord)}</span>
+        <section className="rounded-lg border border-[var(--accent-border)] bg-[var(--accent-soft)] p-3">
+          <div className="text-[11px] font-semibold text-[var(--accent-contrast)]">Next best action</div>
+          <p className="mt-1 text-sm font-medium leading-6 text-[var(--text-primary)]">{selectedRecord.nextStep}</p>
+          <div className="mt-2 flex items-center gap-2 border-t border-[var(--border-hairline)] pt-2">
+            <span className="text-[11px] font-medium text-[var(--text-muted)]">CTA</span>
+            <span className="truncate text-sm font-medium text-[var(--text-primary)]">{recommendedCta(selectedRecord)}</span>
           </div>
         </section>
 
         <dl className="grid grid-cols-2 gap-2">
           {keyFacts.map(([label, value]) => (
             <div className="min-w-0 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-1.5" key={label}>
-              <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</dt>
+              <dt className="text-[11px] font-medium text-[var(--text-muted)]">{label}</dt>
               <dd className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]" title={value}>
                 {value}
               </dd>

@@ -60,7 +60,7 @@ function canIssueInvites(role: WorkspaceRole | null | undefined) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3.5 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{value}</div>
     </div>
   );

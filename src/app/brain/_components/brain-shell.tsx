@@ -103,16 +103,13 @@ export function BrainShell({ graphNodes, graphEdges, allNodes, agentName, source
               type="button"
               onClick={() => setTab(t.key)}
               aria-current={active ? "page" : undefined}
-              className={cx(
-                theme.control.tabBase,
-                // Clean filled active state — no gold underline marker.
-                active ? cx(theme.control.tabActive, "bg-[var(--surface-inset)]") : theme.control.tabIdle,
-              )}
+              className={cx(theme.control.tabBase, active ? theme.control.tabActive : theme.control.tabIdle)}
             >
-              <span className="truncate text-sm font-bold text-current">{t.label}</span>
+              <span className="truncate text-sm font-semibold text-current">{t.label}</span>
               {t.count !== undefined ? (
                 <span className={cx(theme.control.tabBadge, active ? "text-[var(--accent)]" : "")}>{t.count}</span>
               ) : null}
+              {active ? <span aria-hidden className={theme.control.tabMarker} /> : null}
             </button>
           );
         })}

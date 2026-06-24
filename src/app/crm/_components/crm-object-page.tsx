@@ -96,8 +96,8 @@ export function CrmObjectPage({ action, liveMessage, liveObject, navCounts, obje
             <div className="flex flex-col gap-3 border-b border-[var(--border-hairline)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-display text-xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
-                    {crmObject.label}: Working List
+                  <h2 className="font-editorial text-xl font-medium tracking-[-0.012em] text-[var(--text-primary)]">
+                    {crmObject.label}
                   </h2>
                   <StatusPill tone="blue">{filteredRows.length} shown</StatusPill>
                 </div>
@@ -189,7 +189,7 @@ function RecordPreviewPanel({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <Link
-                  className="block break-words font-display text-xl font-semibold tracking-[-0.03em] text-[var(--text-primary)] transition hover:text-[var(--accent)]"
+                  className="block break-words font-editorial text-xl font-medium tracking-[-0.014em] text-[var(--text-primary)] transition hover:text-[var(--accent)]"
                   href={selectedRow.href}
                 >
                   {selectedRow.name}
@@ -199,9 +199,9 @@ function RecordPreviewPanel({
               <StatusPill tone={statusTone(selectedRow.status)}>{selectedRow.status}</StatusPill>
             </div>
 
-            <section className="border-l border-[var(--accent)] bg-[var(--surface-inset)] px-3 py-2.5">
-              <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent)]">Next step</div>
-              <p className="mt-1 text-sm font-semibold leading-6 text-[var(--text-primary)]">{selectedRow.nextStep}</p>
+            <section className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-2.5">
+              <div className="text-[11px] font-semibold text-[var(--accent-contrast)]">Next step</div>
+              <p className="mt-1 text-sm font-medium leading-6 text-[var(--text-primary)]">{selectedRow.nextStep}</p>
             </section>
 
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 2xl:grid-cols-3">
@@ -224,7 +224,7 @@ function RecordPreviewPanel({
                 ["Missing data", selectedRow.missingFields.length === 0 ? "Complete" : selectedRow.missingFields.map(formatMissingField).join(", ")],
               ].map(([label, value]) => (
                 <div className="min-w-0 rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-3 py-1.5" key={label}>
-                  <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</dt>
+                  <dt className="text-[11px] font-medium text-[var(--text-muted)]">{label}</dt>
                   <dd className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]" title={value}>
                     {value}
                   </dd>

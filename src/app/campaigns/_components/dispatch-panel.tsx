@@ -7,7 +7,7 @@ export function DispatchPanel({ dispatches }: { dispatches: DispatchView[] }) {
   return (
     <section className="rounded-xl border border-[var(--border-panel)] bg-[var(--surface-panel)] p-4 shadow-[var(--elev-panel)]">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Dispatch</span>
+        <span className="text-[10px] font-medium text-[var(--text-muted)]">Dispatch</span>
         <Link href="/outbox" className="text-xs font-semibold text-[var(--accent)] hover:underline">Open Outbox</Link>
       </div>
       <ul className="space-y-1.5">

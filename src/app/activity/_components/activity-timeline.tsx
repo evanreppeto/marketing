@@ -153,7 +153,7 @@ export function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
           <section key={group.label} aria-label={group.label}>
             {/* Sticky day label */}
             <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border-hairline)] bg-[color-mix(in_oklab,var(--surface-panel)_92%,transparent)] px-4 py-1.5 backdrop-blur-sm">
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+              <span className="text-[10.5px] font-medium text-[var(--text-secondary)]">
                 {group.label}
               </span>
               <span className="font-mono text-[10.5px] tabular-nums text-[var(--text-muted)]">{group.entries.length}</span>

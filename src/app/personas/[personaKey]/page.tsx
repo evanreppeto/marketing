@@ -66,8 +66,8 @@ export default async function PersonaDetailPage({ params }: PageProps) {
                 <h1 className="truncate font-display text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)]">{persona.name}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <StatusPill tone={STAGE_TONE[persona.stage]}>{persona.stage}</StatusPill>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{segmentLabel(persona.segment)}</span>
-                  {persona.live ? <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--ok)]">Live data</span> : null}
+                  <span className="text-[11px] font-medium text-[var(--text-muted)]">{segmentLabel(persona.segment)}</span>
+                  {persona.live ? <span className="text-[11px] font-medium text-[var(--ok)]">Live data</span> : null}
                 </div>
               </div>
             </div>
@@ -78,7 +78,7 @@ export default async function PersonaDetailPage({ params }: PageProps) {
 
           <div className="flex shrink-0 gap-8 border-t border-[var(--border-hairline)] pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Lead score</div>
+              <div className="text-[10px] font-medium text-[var(--text-muted)]">Lead score</div>
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span className="font-display text-5xl font-bold leading-none tracking-[-0.05em] tabular-nums text-[var(--text-primary)]">{persona.score}</span>
                 <span className="text-sm text-[var(--text-muted)]">/100</span>
@@ -92,7 +92,7 @@ export default async function PersonaDetailPage({ params }: PageProps) {
               </div>
             </div>
             <div className="border-l border-[var(--border-hairline)] pl-8">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Audience</div>
+              <div className="text-[10px] font-medium text-[var(--text-muted)]">Audience</div>
               <div className="mt-1 font-display text-5xl font-bold leading-none tracking-[-0.05em] tabular-nums text-[var(--text-primary)]">{persona.audienceShare}%</div>
               <div className="mt-3 text-xs text-[var(--text-muted)]">of all contacts</div>
             </div>
@@ -103,7 +103,7 @@ export default async function PersonaDetailPage({ params }: PageProps) {
       <section className="module-rise mb-5 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,var(--border-panel))] bg-[color-mix(in_srgb,var(--accent)_6%,var(--surface-panel))] shadow-[var(--elev-panel)] [animation-delay:60ms]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--accent)_18%,transparent)] px-6 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">{AGENT_NAME}</div>
+            <div className="text-[11px] font-medium text-[var(--accent)]">{AGENT_NAME}</div>
             <h2 className="mt-0.5 font-display text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">Working this persona for you</h2>
           </div>
           {awaiting > 0 ? <StatusPill tone="amber">{awaiting} awaiting approval</StatusPill> : <StatusPill tone="gray">Up to date</StatusPill>}
@@ -273,7 +273,7 @@ function AdjacentLink({ persona, direction }: { persona: Persona; direction: "pr
         <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--accent)]" strokeWidth={1.9} />
       )}
       <span className="min-w-0">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{isNext ? "Next" : "Previous"}</span>
+        <span className="block text-[10px] font-medium text-[var(--text-muted)]">{isNext ? "Next" : "Previous"}</span>
         <span className="block truncate text-sm font-medium text-[var(--text-primary)] transition group-hover:text-[var(--accent)]">{persona.name}</span>
       </span>
     </Link>
@@ -338,7 +338,7 @@ function SignalBlock({ label, hint, value, drivers }: { label: string; hint: str
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">{children}</div>;
+  return <div className="text-[10px] font-medium text-[var(--text-muted)]">{children}</div>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

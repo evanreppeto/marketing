@@ -89,7 +89,7 @@ export function CampaignCover({
 
       {personas.length > 0 ? (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">Audience</span>
+          <span className="text-[10px] font-medium text-[var(--text-muted)]">Audience</span>
           {personas.map((p) => (
             <span key={p} className="rounded-full bg-[var(--surface-inset)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">{p}</span>
           ))}

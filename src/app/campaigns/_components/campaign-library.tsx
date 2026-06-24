@@ -188,7 +188,7 @@ function CampaignIndex({ campaigns, agentName }: { campaigns: CampaignWorkspaceL
       </div>
       <div
         aria-hidden
-        className="hidden grid-cols-[minmax(17rem,1.45fr)_minmax(9rem,0.7fr)_minmax(12rem,0.85fr)] gap-4 border-b border-[var(--border-hairline)] px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)] md:grid"
+        className="hidden grid-cols-[minmax(17rem,1.45fr)_minmax(9rem,0.7fr)_minmax(12rem,0.85fr)] gap-4 border-b border-[var(--border-hairline)] px-4 py-2 text-[9px] font-medium text-[var(--text-muted)] md:grid"
       >
         <span>Campaign</span>
         <span>Next action</span>
@@ -197,9 +197,9 @@ function CampaignIndex({ campaigns, agentName }: { campaigns: CampaignWorkspaceL
       {groups.map((group) => (
         <Collapsible.Root key={group.key} defaultOpen className="border-b border-[var(--border-hairline)] last:border-b-0">
           <Collapsible.Trigger className={cx("group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-y border-[var(--border-hairline)] px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition hover:bg-[color-mix(in_srgb,var(--surface-raised)_44%,transparent)] [&[data-state=open]>svg]:rotate-180", groupHeaderSurface(group.tone))}>
-            <span aria-hidden className={cx("h-7 w-1 rounded-full shadow-[0_0_18px_currentColor]", groupToneClass(group.tone))} />
+            <span aria-hidden className={cx("h-7 w-1 rounded-full", groupToneClass(group.tone))} />
             <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--text-primary)]">{group.label}</span>
+              <span className="truncate text-[11px] font-medium text-[var(--text-primary)]">{group.label}</span>
               <span className="rounded-[5px] border border-[var(--border-hairline)] bg-[color-mix(in_srgb,var(--surface-sidebar)_72%,transparent)] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-[var(--text-primary)]">{group.items.length}</span>
               <span className="hidden truncate text-[11px] text-[var(--text-secondary)] sm:inline">{group.summary}</span>
             </span>
@@ -277,7 +277,7 @@ function CampaignRow({
       </div>
 
       <div className="flex min-w-0 items-center gap-2 md:block">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)] md:hidden">Delivery</span>
+        <span className="text-[10px] font-medium text-[var(--text-muted)] md:hidden">Delivery</span>
         <div className="flex min-w-0 items-center gap-2">
           <ChannelRow channels={channelNames} size={18} max={4} />
           <span className="min-w-0 truncate text-[11px] text-[var(--text-secondary)]">{channelNames.slice(0, 3).join(", ") || "Not chosen"}</span>

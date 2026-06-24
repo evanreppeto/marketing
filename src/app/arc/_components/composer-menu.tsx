@@ -135,7 +135,7 @@ export function AutocompleteMenu({
           return (
             <Fragment key={r.key}>
               {showHeader ? (
-                <li aria-hidden className="px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                <li aria-hidden className="px-2 pb-0.5 pt-1.5 text-[10px] font-medium text-[var(--text-muted)]">
                   {r.group}
                 </li>
               ) : null}

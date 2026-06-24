@@ -39,7 +39,7 @@ function AssetTile({
     <button
       type="button"
       onClick={() => onSelect(asset.id)}
-      className="group flex flex-col overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--accent-border-strong)] hover:shadow-[var(--elev-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      className="group flex flex-col overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-panel)] text-left transition duration-200 hover:border-[var(--accent-border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
     >
       <span className="relative block aspect-[4/3] w-full overflow-hidden bg-[var(--media-void)]">
         <AssetThumb card={card} media={media} eager={eager} />

@@ -60,7 +60,7 @@ export function PersonaRoster({ personas }: { personas: DemoPersona[] }) {
           />
         </label>
         <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <span className="font-semibold uppercase tracking-[0.12em]">Sort</span>
+          <span className="font-medium">Sort</span>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as SortKey)}
@@ -104,7 +104,7 @@ function PersonaRow({ persona }: { persona: DemoPersona }) {
         </span>
         <span className="mt-0.5 block truncate text-[12px] leading-[1.4] text-[var(--text-secondary)]">{persona.angle}</span>
       </span>
-      <span className="hidden w-24 shrink-0 text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)] lg:block">
+      <span className="hidden w-24 shrink-0 text-[10px] font-medium text-[var(--text-muted)] lg:block">
         {segmentLabel(persona.segment)}
       </span>
       <span className="hidden shrink-0 items-center gap-1.5 md:flex" title={trendDelta >= 0 ? "Trending up" : "Trending down"}>
@@ -160,7 +160,7 @@ function Monogram({ initials, live }: { initials: string; live: boolean }) {
 function ScoreMeter({ score }: { score: number }) {
   return (
     <span className="w-[62px] shrink-0">
-      <span className="block text-right text-[9.5px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">Score</span>
+      <span className="block text-right text-[9.5px] font-medium text-[var(--text-muted)]">Score</span>
       <span className="block text-right font-display text-[15px] font-semibold tabular-nums leading-none text-[var(--text-primary)]">{score}</span>
       <span className="mt-1.5 block h-[3px] overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--text-primary)_10%,transparent)]">
         <span className="block h-full rounded-full bg-[var(--accent)]" style={{ width: `${score}%` }} />

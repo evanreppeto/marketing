@@ -83,7 +83,7 @@ function DeployPieceRow({ piece, campaignId, scheduledFor }: { piece: DeployPiec
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill tone={statusTone(piece)}>{piece.statusLabel}</StatusPill>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">{piece.channel}</span>
+          <span className="text-[11px] font-medium text-[var(--text-muted)]">{piece.channel}</span>
           <span className="text-[11px] font-semibold text-[var(--text-muted)]">&middot; {piece.connectionLabel}</span>
         </div>
         <div className="mt-1 truncate text-sm font-bold text-[var(--text-primary)]">{piece.title}</div>

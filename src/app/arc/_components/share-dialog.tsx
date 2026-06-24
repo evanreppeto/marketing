@@ -58,7 +58,7 @@ export function ShareDialog({
   const nextVisibility = isWorkspace ? "private" : "workspace";
 
   const fieldLabel =
-    "text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]";
+    "text-[10px] font-medium text-[var(--text-muted)]";
   const selectCls =
     "h-8 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 text-xs text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]";
 

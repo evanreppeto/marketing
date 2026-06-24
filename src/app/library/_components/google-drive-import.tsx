@@ -222,7 +222,7 @@ export function GoogleDriveImport({
         {sources.length > 0 ? (
           <div className="mt-3 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-inset)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] px-3 py-2">
-              <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Drive sources</div>
+              <div className="text-xs font-medium text-[var(--text-muted)]">Drive sources</div>
               <div className="text-xs font-semibold text-[var(--text-muted)]">{sources.length}</div>
             </div>
             <div className="divide-y divide-[var(--border-hairline)]">

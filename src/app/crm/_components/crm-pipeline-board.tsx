@@ -201,7 +201,7 @@ export function CrmPipelineBoard({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm">
           <thead>
-            <tr className="bg-[var(--surface-inset)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            <tr className="bg-[var(--surface-inset)] text-[11px] font-medium text-[var(--text-muted)]">
               {["Lead", "Account / Asset", "Persona", "Score", "Stage", "Last activity", "Next step"].map((header) => (
                 <th className="border-b border-[var(--border-hairline)] px-3 py-3" key={header} scope="col">
                   <span className="inline-flex items-center gap-1">

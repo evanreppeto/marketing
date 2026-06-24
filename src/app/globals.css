@@ -403,12 +403,14 @@ h4, .font-display {
 
 .signal-divider { border-color: var(--border-hairline); }
 
+/* De-louded: the old uppercase + 0.2em-tracked kicker was a top AI-slop tell.
+   Now a quiet sentence-case micro-label (hierarchy via weight + color). */
 .signal-eyebrow {
   font-family: var(--font-display);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -618,14 +620,10 @@ h4, .font-display {
   color: var(--text-primary) !important;
 }
 
-.chicago-dark :where(a, button)[aria-pressed="true"]::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--accent);
-}
+/* Pressed toggles indicate active state via their own background/border/color
+   (and the stronger border above) — not a global gold underline bar. The old
+   ::after bar read as a stray line under rounded pills (e.g. Brain's Source
+   filter), so it's removed for a unified, calmer toggle treatment. */
 
 /* ============================================================================
    Motion
@@ -830,6 +828,73 @@ h4, .font-display {
   width: var(--bar-target, 100%);
   animation: bar-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ----------------------------------------------------------------------------
+   Editorial entrance + focal patterns (the evolved "Signal" language)
+   .module-rise is forced to 0 delay for an at-once page fade; .rise-in is the
+   opt-in gentle cascade for redesigned surfaces (hero -> sections -> rail).
+   ---------------------------------------------------------------------------- */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+.rise-in { animation: rise-in 0.7s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.rise-d1 { animation-delay: 0.04s; }
+.rise-d2 { animation-delay: 0.12s; }
+.rise-d3 { animation-delay: 0.2s; }
+.rise-d4 { animation-delay: 0.28s; }
+.rise-d5 { animation-delay: 0.36s; }
+@media (prefers-reduced-motion: reduce) {
+  .rise-in { animation: none; }
+}
+
+/* Hero aura — a single soft, warm accent bloom for hero moments only (Today,
+   Arc). NOT for ordinary pages. Slowly drifts; frozen under reduced motion.
+   Position/size are set per-use via utility classes. */
+.hero-aura {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(46px);
+  opacity: 0.5;
+  background:
+    radial-gradient(42% 60% at 32% 48%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    radial-gradient(44% 54% at 70% 42%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%);
+  animation: hero-aura-drift 17s ease-in-out infinite;
+}
+@keyframes hero-aura-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(34px, 16px, 0) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-aura { animation: none; }
+}
+
+/* Focal card — the single "primary action" block per surface. A hairline that
+   warms on hover (no levitation, per the motion system) with a soft corner
+   accent glow. Pair with .signal-panel for the base surface. */
+.focal-card {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+.focal-card::before {
+  content: "";
+  position: absolute;
+  top: -90px;
+  left: -50px;
+  width: 300px;
+  height: 240px;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 260ms ease;
+  background: radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%);
+}
+.focal-card:hover {
+  border-color: var(--accent-border-strong);
+  box-shadow: var(--elev-raised), 0 0 44px -24px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.focal-card:hover::before { opacity: 1; }
 
 /* Arc chat motion */
 @keyframes msg-rise {

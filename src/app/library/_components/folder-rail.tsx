@@ -24,7 +24,7 @@ export function FolderRail({
   return (
     <nav className="w-[300px] shrink-0 border-r border-[var(--border-hairline)] pr-5">
       <div className="mb-3 flex items-center justify-between px-1">
-        <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+        <div className="text-[10.5px] font-medium text-[var(--text-muted)]">
           File tree
         </div>
         <div className="rounded-full border border-[var(--border-hairline)] bg-[var(--surface-inset)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">

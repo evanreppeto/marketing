@@ -88,7 +88,7 @@ export function CampaignBriefTabs({
             <MiniFact label="Offer" value={offer} />
             {activeStep ? (
               <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--surface-soft)] p-3">
-                <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Current step</div>
+                <div className="text-xs font-medium text-[var(--text-muted)]">Current step</div>
                 <div className="mt-2 flex gap-2">
                   <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${stepDotClass(activeStep.state)}`} />
                   <div className="min-w-0">
@@ -126,7 +126,7 @@ export function CampaignBriefTabs({
 function MiniFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-[var(--border-hairline)] bg-[var(--surface-soft)] px-3 py-2">
-      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
+      <div className="text-[10px] font-medium text-[var(--text-muted)]">{label}</div>
       <p className="mt-1 line-clamp-3 text-sm leading-5 text-[var(--text-secondary)]">{value}</p>
     </div>
   );
@@ -157,7 +157,7 @@ function LinkedRecords({ sources }: { sources: CampaignWorkspaceSource[] }) {
               </a>
             ) : null}
           </div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{source.kind}</div>
+          <div className="mt-1 text-[10px] font-medium text-[var(--text-muted)]">{source.kind}</div>
           <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">{source.detail}</p>
         </li>
       ))}
