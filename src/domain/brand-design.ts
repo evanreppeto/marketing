@@ -132,7 +132,7 @@ function extractColors(html: string): BrandDesignColor[] {
   const inline = (html.match(/style\s*=\s*"([^"]*)"/gi) ?? []).join("\n");
   const css = `${styles}\n${inline}`;
 
-  for (const m of css.matchAll(/--[\w-]*(?:primary|secondary|accent|brand|color)[\w-]*\s*:\s*([^;]+)/gi)) {
+  for (const m of css.matchAll(/--[\w-]*(?:primary|secondary|accent|brand|color)[\w-]*\s*:\s*([^;}]+)/gi)) {
     add(normalizeHex(m[1]) ?? rgbToHex(m[1]), "css-var");
   }
 
@@ -147,11 +147,15 @@ function extractColors(html: string): BrandDesignColor[] {
   }
   for (const [hex] of [...freq.entries()].sort((a, b) => b[1] - a[1])) add(hex, "frequency");
 
-  // Rank: saturated brand colors first, gray extremes last.
+  // Rank: saturated brand colors first, gray extremes last; within a bucket,
+  // trust an explicit brand-named CSS variable over a theme-color meta (often a
+  // dark chrome color) over a raw frequency match.
+  const sourceRank = (s: BrandDesignColor["source"]) => (s === "css-var" ? 0 : s === "theme-color" ? 1 : 2);
   return [...found.values()].sort((a, b) => {
     const va = saturation(a.hex) > 0.15 ? 0 : 1;
     const vb = saturation(b.hex) > 0.15 ? 0 : 1;
-    return va - vb;
+    if (va !== vb) return va - vb;
+    return sourceRank(a.source) - sourceRank(b.source);
   });
 }
 

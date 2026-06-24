@@ -55,6 +55,15 @@ describe("extractBrandDesign — colors", () => {
     const signal = extractBrandDesign(html, BASE);
     expect(signal.colors.map((c) => c.hex)).toContain("#c8a24b");
   });
+
+  it("ranks a brand CSS variable ahead of the theme-color meta", () => {
+    const html = `<head>
+      <meta name="theme-color" content="#1B2A4A">
+      <style>:root{--brand-primary:#C8A24B}</style>
+    </head>`;
+    const signal = extractBrandDesign(html, BASE);
+    expect(signal.colors[0].hex).toBe("#c8a24b");
+  });
 });
 
 describe("extractBrandDesign — fonts", () => {
