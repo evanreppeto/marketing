@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup } from "@/domain";
+import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup, type ViralityScore } from "@/domain";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
@@ -40,6 +40,9 @@ export type CampaignMediaAsset = {
   mimeType: string | null;
   description: string | null;
   source: string;
+  /** Virality prediction (video) or computed creative-quality proxy (image),
+   *  carried from the asset's audit_payload media block. Null when unscored. */
+  virality: ViralityScore | null;
 };
 
 /**
@@ -644,6 +647,7 @@ function demoMedia(media: DemoMedia): CampaignMediaAsset {
     mimeType: media.type === "video" ? "video/mp4" : "image/jpeg",
     description: media.title,
     source: "Approved media",
+    virality: null,
   };
 }
 
@@ -2014,6 +2018,7 @@ function buildPreviewCampaignPieces(updatedAt: string): CampaignWorkspaceAsset[]
           mimeType: "image/jpeg",
           description: "Demo preview image for a storm response social creative.",
           source: "Preview data",
+          virality: null,
         },
       ],
       revision: null,
@@ -2631,6 +2636,8 @@ function mapMediaAsset(value: unknown, source: string, origin: CampaignMediaOrig
   );
   const resolvedOrigin: CampaignMediaOrigin = origin === "attached" && hasProvenance ? "generated" : origin;
 
+  const virality = isObject(value.virality) ? (value.virality as unknown as ViralityScore) : null;
+
   return createMediaAsset({
     url,
     source,
@@ -2640,8 +2647,12 @@ function mapMediaAsset(value: unknown, source: string, origin: CampaignMediaOrig
     thumbnailUrl: getString(value.thumbnail_url) ?? getString(value.thumbnailUrl) ?? getString(value.poster_url) ?? null,
     mimeType: getString(value.mime_type) ?? getString(value.mimeType) ?? null,
     hintedType: getString(value.type) ?? getString(value.asset_type) ?? getString(value.media_type) ?? undefined,
+    virality,
   });
 }
+
+/** Test-only alias so unit tests can reach the otherwise module-private mapper. */
+export const mapMediaAssetForTest = mapMediaAsset;
 
 function createMediaAsset(input: {
   url: string;
@@ -2652,6 +2663,7 @@ function createMediaAsset(input: {
   thumbnailUrl?: string | null;
   mimeType?: string | null;
   hintedType?: string;
+  virality?: ViralityScore | null;
 }): CampaignMediaAsset {
   const type = classifyMediaAsset(input.url, input.mimeType, input.hintedType);
   return {
@@ -2664,6 +2676,7 @@ function createMediaAsset(input: {
     mimeType: input.mimeType ?? null,
     description: input.description ?? null,
     source: input.source,
+    virality: input.virality ?? null,
   };
 }
 
