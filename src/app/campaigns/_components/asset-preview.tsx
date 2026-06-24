@@ -24,6 +24,7 @@ export function MediaProvenanceBadge({ media }: { media: CampaignMediaAsset }) {
 
 export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
   const hasMedia = asset.media.length > 0;
+  const showTopPick = asset.media.length > 1;
 
   return (
     <div className="space-y-3">
@@ -33,7 +34,7 @@ export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
             .sort((a, b) => viralityRank(b) - viralityRank(a))
             .slice(0, 4)
             .map((media, index) => (
-              <MediaTile key={media.id} media={media} topPick={index === 0 && viralityRank(media) >= 0} />
+              <MediaTile key={media.id} media={media} topPick={index === 0 && showTopPick && viralityRank(media) >= 0} />
             ))}
         </div>
       ) : null}
