@@ -4,6 +4,7 @@ import {
   isAccessTokenStale,
   buildRefreshRequest,
   applyRefreshResponse,
+  serializeOAuthBundle,
 } from "../oauth-refresh";
 
 const bundle = {
@@ -35,6 +36,18 @@ describe("parseConnectorCredential", () => {
   it("treats malformed JSON or non-refresh JSON as a bearer string (never throws)", () => {
     expect(parseConnectorCredential("{not json")).toEqual({ kind: "bearer", token: "{not json" });
     expect(parseConnectorCredential('{"type":"other"}')).toEqual({ kind: "bearer", token: '{"type":"other"}' });
+  });
+
+  it("round-trips serializeOAuthBundle back to the oauth_refresh credential", () => {
+    const inMemoryBundle = {
+      kind: "oauth_refresh" as const,
+      accessToken: "oat_old",
+      refreshToken: "rt_old",
+      expiresAt: 1_000_000,
+      clientId: "client_123",
+      tokenEndpoint: "https://mcp.higgsfield.ai/oauth2/token",
+    };
+    expect(parseConnectorCredential(serializeOAuthBundle(inMemoryBundle))).toEqual(inMemoryBundle);
   });
 });
 
