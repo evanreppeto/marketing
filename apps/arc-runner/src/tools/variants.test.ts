@@ -41,4 +41,28 @@ describe("submit_ad_variants", () => {
     expect(JSON.stringify(result)).toContain("solid hook");
     expect(cards).toHaveLength(1);
   });
+
+  it("degrades gracefully when apiPost rejects (no throw, no card)", async () => {
+    const cards: ArcActionCard[] = [];
+    const failingClient = {
+      apiPost: vi.fn(async () => {
+        throw new Error("boom");
+      }),
+    } as unknown as ArcClient;
+    const [submit] = variantsTools(failingClient, step, (c) => cards.push(c), {});
+    const handler = submit.handler as (
+      a: Record<string, unknown>,
+      e?: unknown,
+    ) => Promise<{ content: Array<{ type: string; text: string }> }>;
+    const result = await handler(
+      {
+        campaign_id: "c1",
+        asset_type: "video_ad",
+        variants: [{ title: "A", media_url: "https://x/a.mp4" }],
+      },
+      {} as never,
+    );
+    expect(result.content[0].text).toContain("failed");
+    expect(cards).toHaveLength(0);
+  });
 });
