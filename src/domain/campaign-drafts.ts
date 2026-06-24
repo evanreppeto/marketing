@@ -20,6 +20,37 @@ export const RESTORATION_FOCUS_VALUES = [
 
 export type RestorationFocus = (typeof RESTORATION_FOCUS_VALUES)[number];
 
+const RESTORATION_FOCUS_SET = new Set<string>(RESTORATION_FOCUS_VALUES);
+
+/**
+ * Aliases the agent's tool descriptions historically suggested (e.g. "water",
+ * "storm") that are NOT enum members. Mapped to the real value so an Arc draft
+ * lands instead of failing as a late Postgres 502. Every value MUST be a real
+ * RestorationFocus.
+ */
+const RESTORATION_FOCUS_ALIASES: Record<string, RestorationFocus> = {
+  water: "water_backup",
+  water_damage: "water_backup",
+  storm: "storm_surge",
+  storm_damage: "storm_surge",
+  flooding: "flood",
+  sewer: "sewage",
+  fire_damage: "fire",
+};
+
+/**
+ * Normalize a free-string restoration focus to a valid `restoration_focus`,
+ * applying the alias map first. Returns null when unresolved so the caller can
+ * reject with a clean 400 rather than a late enum 502.
+ */
+export function normalizeRestorationFocus(value: unknown): RestorationFocus | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim().toLowerCase();
+  if (v.length === 0) return null;
+  if (RESTORATION_FOCUS_SET.has(v)) return v as RestorationFocus;
+  return RESTORATION_FOCUS_ALIASES[v] ?? null;
+}
+
 export type ParsedCampaignDraft = {
   name: string;
   persona: string;

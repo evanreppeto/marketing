@@ -242,20 +242,50 @@ export default async function ArcPage({ searchParams }: ArcPageProps) {
   const params = await searchParams;
   let markChatProps: ArcChatProps;
   let pendingOpportunities = 0;
-  let demo = false;
+  const demo = false;
+  let dataUnavailable = false;
   try {
     const live = await withTimeout(loadLiveArcChatProps(params), ARC_PAGE_DATA_TIMEOUT_MS);
     markChatProps = live.chatProps;
     pendingOpportunities = live.pendingOpportunities;
   } catch (err) {
-    // Supabase may be paused, unreachable, or missing migrations. Keep the app
-    // open with the full preview instead of making Vercel wait on backend reads.
-    // Log it — a silent fallback here is what made a slow-load regression look
-    // like "every chat feature is broken" instead of a visible error.
-    console.error("[mark] live data load failed; falling back to demo preview:", err);
-    markChatProps = getDemoChat();
-    demo = true;
+    // Supabase IS configured but the live read failed/timed out (paused DB,
+    // transient error, missing migration). Do NOT fabricate sample records as
+    // if real — that "demo masks features" trap let an incident look like a
+    // working workspace. Render an empty, honest shell with a "couldn't load —
+    // retry" banner; the composer stays in real mode so a send surfaces a
+    // retryable failed bubble instead of a fake reply. Keep the app open (don't
+    // make Vercel wait on backend reads) and log the cause.
+    console.error("[arc] live data load failed; rendering empty shell with a load-error banner:", err);
+    markChatProps = {
+      ...getDemoChat(),
+      conversations: [],
+      projects: [],
+      archived: [],
+      showArchived: false,
+      activeId: "",
+      activeTitle: "",
+      activeProjectId: null,
+      activeCampaignId: null,
+      campaigns: [],
+      activePinned: false,
+      initialMessages: [],
+      // Strip the remaining demo CONSTANTS so the "honest empty shell" carries no
+      // fabricated data during an outage: the demo @-mention catalog (fake CRM /
+      // campaign records), the seeded approval count, and the demo operator name.
+      mentionGroups: [],
+      pendingApprovals: 0,
+      operatorName: null,
+    };
+    dataUnavailable = true;
   }
 
-  return <ArcChat {...markChatProps} demo={demo} pendingOpportunities={pendingOpportunities} />;
+  return (
+    <ArcChat
+      {...markChatProps}
+      demo={demo}
+      dataUnavailable={dataUnavailable}
+      pendingOpportunities={pendingOpportunities}
+    />
+  );
 }

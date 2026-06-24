@@ -61,6 +61,12 @@ describe("upsertOpportunities", () => {
     expect(res.ok).toBe(true);
     expect(inserted.map((r) => r.subject_id)).toEqual(["lead-B"]); // A deduped
   });
+
+  it("scopes inserts to the explicit token org when provided (not the cookie/default org)", async () => {
+    const res = await upsertOpportunities([candidate("lead-Z")], undefined as never, { orgId: "org-2" });
+    expect(res.ok).toBe(true);
+    expect(inserted[0]?.org_id).toBe("org-2"); // token scope wins over getCurrentOrgId() "org-1"
+  });
 });
 
 describe("markOpportunityDrafted", () => {

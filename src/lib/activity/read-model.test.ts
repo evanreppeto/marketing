@@ -325,6 +325,44 @@ describe("getRecentActivity source resilience", () => {
 
     expect(result.status).toBe("unavailable");
   });
+
+  it("org-scopes every source when an orgId is supplied (tenant isolation)", async () => {
+    const calls: Array<[string, string, string, unknown]> = [];
+    // Thenable builder so the agent_tasks pre-fetch (await ...eq()) and the main
+    // .order().limit() queries both resolve, while recording eq/in filters.
+    const client = {
+      from(table: string) {
+        const data = table === "agent_tasks" ? [{ id: "task-1" }] : [];
+        const result = { data, error: null };
+        const builder: Record<string, unknown> = {
+          select: () => builder,
+          order: () => builder,
+          limit: () => Promise.resolve(result),
+          eq: (col: string, val: unknown) => {
+            calls.push([table, "eq", col, val]);
+            return builder;
+          },
+          in: (col: string, val: unknown) => {
+            calls.push([table, "in", col, val]);
+            return builder;
+          },
+          then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+            Promise.resolve(result).then(resolve, reject),
+        };
+        return builder;
+      },
+    } as unknown as SupabaseClient;
+
+    const result = await getRecentActivity({}, client, "org-9");
+    expect(result.status).toBe("live");
+
+    for (const table of ["approval_decisions", "agent_outputs", "campaign_events", "events"]) {
+      expect(calls).toContainEqual([table, "eq", "org_id", "org-9"]);
+    }
+    // agent_run_logs has no org_id — scoped via its task's org instead.
+    expect(calls).toContainEqual(["agent_tasks", "eq", "org_id", "org-9"]);
+    expect(calls).toContainEqual(["agent_run_logs", "in", "task_id", ["task-1"]]);
+  });
 });
 
 describe("mapCampaignEvent", () => {
