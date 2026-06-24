@@ -105,13 +105,16 @@ export async function POST(request: Request) {
     return { id: String(i), kind: isVideo ? "video" : "image", score, input: v };
   });
 
-  // Rank only the variants that actually have a score; unscored (degraded) ones
-  // are submitted unranked so they still reach approval, just without a badge.
+  // Rank the variants that have a score and submit the top-K of those. A batch is
+  // expected to be uniform (all scored or none), so a partial mix isn't a designed
+  // case: when some variants scored, the unscored ones are intentionally dropped
+  // here. They only resurface in the full-degradation fallback below.
   const withScore = scored.filter((s): s is ScoredWithInput & { score: ViralityScore } => s.score !== null);
   const withoutScore = scored.filter((s) => s.score === null);
   const ranked = rankVariants(withScore, topK);
   const rankedTopK = ranked.topK as ScoredWithInput[];
-  // If nothing scored (full degradation), fall back to the first top_k raw variants.
+  // If NOTHING scored at all (e.g. predictor unavailable), fall back to submitting
+  // the first top_k variants unranked so the work still reaches approval.
   const toSubmit: ScoredWithInput[] = rankedTopK.length > 0 ? rankedTopK : withoutScore.slice(0, topK);
 
   try {
