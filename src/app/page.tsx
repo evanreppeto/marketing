@@ -31,6 +31,15 @@ function greetingFor(date: Date) {
   return "Good evening";
 }
 
+/** Humanize a persona key like `persona_homeowner_emergency` → "Homeowner Emergency". */
+function personaLabel(key: string) {
+  return key
+    .replace(/^persona[_-]/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
 export default async function HomePage() {
   await connection();
 
@@ -236,7 +245,7 @@ export default async function HomePage() {
 function OpportunityFocal({ opp }: { opp: OpportunityRecord }) {
   const ev = opp.evidence ?? {};
   const chips: { key: string; label: string }[] = [];
-  if (ev.persona) chips.push({ key: "persona", label: ev.persona });
+  if (ev.persona) chips.push({ key: "persona", label: personaLabel(ev.persona) });
   if (typeof ev.daysCold === "number") chips.push({ key: "cold", label: `${ev.daysCold}d cold` });
   if (typeof ev.leadScore === "number") chips.push({ key: "score", label: `Lead score ${ev.leadScore}` });
   const confidence = Math.max(0, Math.min(100, Math.round(opp.confidence)));
@@ -276,7 +285,14 @@ function ConfidenceBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2.5">
       <span className="text-[11px] font-medium text-[var(--text-muted)]">Confidence</span>
-      <span className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--surface-inset)]">
+      <span
+        role="progressbar"
+        aria-label="Confidence"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--surface-inset)]"
+      >
         <span className="block h-full rounded-full bg-[var(--accent)]" style={{ width: `${value}%` }} />
       </span>
       <span className="font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">{value}%</span>
