@@ -15,6 +15,7 @@ import { ShellContent } from "./shell-content";
 import { SideNav, type ShellNavItem } from "./side-nav";
 import { isSidebarExpanded } from "./sidebar-state";
 import { cx, theme } from "./theme";
+import { WorkbenchTopBar } from "./workbench-top-bar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -287,6 +288,7 @@ export function ConsoleFrame({
           ) : (
             <section className="relative isolate min-w-0 flex-1 bg-[var(--canvas)] lg:min-h-0 lg:overflow-hidden">
               <div className="h-full w-full px-3 py-4 sm:px-5 lg:h-screen lg:overflow-y-auto lg:px-5 lg:py-5 xl:px-6 2xl:px-7">
+                <WorkbenchTopBar avatar={<OperatorAvatar operator={operator} size="desktop" />} />
                 <ShellContent>{children}</ShellContent>
               </div>
             </section>
