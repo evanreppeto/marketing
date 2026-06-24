@@ -9,6 +9,15 @@ const VIDEO_POLL_MS = 10_000;
 const VIDEO_MAX_POLLS = 36; // ~6 min
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Map a compose output format to an aspect ratio the image generator supports
+ *  (Imagen has no 4:5 — use the nearest portrait so the background isn't rejected). */
+const BG_ASPECT_FOR_FORMAT: Record<string, string> = {
+  "1:1": "1:1",
+  "4:5": "3:4",
+  "9:16": "9:16",
+  "16:9": "16:9",
+};
+
 /**
  * Media generation (act/draft mode). `generate_image` creates an AI image and
  * lands it as an approval-gated draft campaign asset with a thumbnail card.
@@ -166,5 +175,100 @@ export function mediaTools(
     },
   );
 
-  return [generateImage, generateVideo];
+  const composeCreative = tool(
+    "compose_creative",
+    "Produce a FINISHED, on-brand creative — the business's real logo + headline + CTA + brand colors/fonts composited onto an AI background — and land it as an approval-gated draft asset. Use this (not generate_image alone) whenever the operator wants a usable ad/social/one-pager creative. Provide the SCENE for the background via `prompt` (+ optional `style`), OR pass an existing `background_url`. Write the on-image words in `headline` (short, punchy), optional `kicker` (small eyebrow), and `cta_label` (button text). The server pulls the brand logo/palette/fonts from the Brand Kit and picks a layout (override with `template`). Do NOT bake text/logos into the background prompt — the compositor adds the real ones. Attach to an existing campaign with campaign_id, or start a new draft with name + persona + restoration_focus; infer sensible values rather than interrogating the operator and note your assumptions.",
+    {
+      headline: z.string().describe("The main on-image line — short and punchy. No logos/URLs."),
+      title: z.string().describe("Short title for the asset"),
+      prompt: z.string().optional().describe("Scene for the AI background (omit if passing background_url). No text/logos."),
+      background_url: z.string().optional().describe("Use this existing image as the background instead of generating one"),
+      style: z.string().optional().describe("Background look, e.g. 'candid documentary photograph, natural lighting'"),
+      kicker: z.string().optional().describe("Small eyebrow line above the headline"),
+      cta_label: z.string().optional().describe("Call-to-action button text, e.g. 'Call (312) 555-0199'"),
+      format: z.string().optional().describe("1:1 | 4:5 | 9:16 | 16:9 (default 1:1)"),
+      template: z.string().optional().describe("bold | editorial | minimal (default: auto-selected)"),
+      asset_type: z.string().optional().describe("default image_prompt"),
+      campaign_id: z.string().optional(),
+      name: z.string().optional(),
+      persona: z.string().optional(),
+      restoration_focus: z.string().optional(),
+    },
+    async (args) => {
+      const label = "Composing creative";
+      await step(label, "running");
+      try {
+        // 1. Resolve the background: use a passed URL, or generate one.
+        let backgroundUrl = args.background_url?.trim();
+        if (!backgroundUrl) {
+          if (!args.prompt?.trim()) {
+            await step(label, "done");
+            return textResult("compose_creative needs either a background_url or a prompt to generate the background.");
+          }
+          const bg = await client.apiPost<{ media: ArcMedia }>("/api/v1/arc/media/generate-image", {
+            prompt: args.prompt,
+            style: args.style,
+            aspect_ratio: args.format ? (BG_ASPECT_FOR_FORMAT[args.format] ?? "1:1") : undefined,
+            level: ctx.level,
+          });
+          backgroundUrl = bg.media.url;
+        }
+
+        // 2. Composite the finished creative.
+        const composed = await client.apiPost<{ media: ArcMedia; objectPath?: string; template: string }>(
+          "/api/v1/arc/media/compose",
+          {
+            background_url: backgroundUrl,
+            headline: args.headline,
+            kicker: args.kicker,
+            cta_label: args.cta_label,
+            format: args.format,
+            template: args.template,
+            seed: ctx.campaignId ?? args.campaign_id,
+          },
+        );
+
+        // 3. Land it as one approval-gated draft asset.
+        const draft = await client.apiPost<{ campaignId: string; assetId: string }>(
+          "/api/v1/arc/campaigns/draft-asset",
+          {
+            ...(args.campaign_id ? { campaign_id: args.campaign_id } : ctx.campaignId ? { campaign_id: ctx.campaignId } : {}),
+            name: args.name,
+            persona: args.persona,
+            restoration_focus: args.restoration_focus,
+            asset_type: args.asset_type ?? "image_prompt",
+            title: args.title,
+            media_url: composed.media.url,
+            media_path: composed.objectPath,
+            media: composed.media,
+            ...(ctx.conversationId ? { conversation_id: ctx.conversationId } : {}),
+          },
+        );
+
+        await step(label, "done");
+        collectCard({
+          kind: "draft",
+          title: args.title,
+          rows: [],
+          flags: [],
+          media: composed.media,
+          approval: { kind: "campaign", campaignId: draft.campaignId, assetId: draft.assetId },
+        });
+        return textResult(
+          JSON.stringify({
+            campaignId: draft.campaignId,
+            assetId: draft.assetId,
+            media: composed.media,
+            template: composed.template,
+            status: "finished composite created, pending approval",
+          }),
+        );
+      } catch (error) {
+        await step(label, "done");
+        return textResult(`${label} failed: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+    },
+  );
+
+  return [generateImage, generateVideo, composeCreative];
 }

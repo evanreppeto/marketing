@@ -10,6 +10,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // server-only is a no-op guard; mock it out so tests can import server modules
+      "server-only": path.resolve(__dirname, "./src/__mocks__/server-only.ts"),
     },
   },
 });

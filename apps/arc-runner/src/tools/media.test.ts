@@ -92,6 +92,73 @@ function setupVideo(posts: Array<() => Promise<unknown>>) {
   return { cards, apiPost, call, genVideo };
 }
 
+describe("compose_creative", () => {
+  it("exposes compose_creative", () => {
+    const client = { apiPost: vi.fn() } as unknown as ArcClient;
+    const step = vi.fn(async () => {});
+    const names = mediaTools(client, step, () => {}, {}).map((t) => t.name);
+    expect(names).toContain("compose_creative");
+  });
+
+  it("calls generate-image with remapped aspect_ratio, composes, drafts, and returns assetId", async () => {
+    const bgMedia = { kind: "image", url: "https://cdn/bg.png", source: "ai_generated" };
+    const composedMedia = { kind: "image", url: "https://cdn/out.png", source: "composite", format: "4:5" };
+    const cards: ArcActionCard[] = [];
+    const apiPost = vi
+      .fn()
+      .mockResolvedValueOnce({ media: bgMedia })
+      .mockResolvedValueOnce({ media: composedMedia, objectPath: "arc-composite/o/w/x.png", template: "bold" })
+      .mockResolvedValueOnce({ campaignId: "c1", assetId: "a1" });
+    const client = { apiPost } as unknown as ArcClient;
+    const step = vi.fn(async () => {});
+    const [, , composeCreative] = mediaTools(client, step, (c) => cards.push(c), { campaignId: "c1" });
+    const handler = composeCreative.handler as (
+      a: Record<string, unknown>,
+      e?: unknown,
+    ) => Promise<{ content: Array<{ type: string; text: string }> }>;
+
+    const out = await handler({
+      headline: "Flooded?",
+      title: "WD social",
+      prompt: "flooded living room, air movers",
+      cta_label: "Call now",
+      format: "4:5",
+    });
+
+    // 3 API calls total
+    expect(apiPost).toHaveBeenCalledTimes(3);
+
+    // 1st call: generate-image with remapped aspect_ratio 3:4 (not 4:5)
+    expect(apiPost).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/arc/media/generate-image",
+      expect.objectContaining({ aspect_ratio: "3:4" }),
+    );
+
+    // 2nd call: compose with original format 4:5, background_url, and headline
+    expect(apiPost).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/arc/media/compose",
+      expect.objectContaining({ background_url: "https://cdn/bg.png", format: "4:5", headline: "Flooded?" }),
+    );
+
+    // 3rd call: draft-asset with composed media url and source
+    expect(apiPost).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/arc/campaigns/draft-asset",
+      expect.objectContaining({
+        media_url: "https://cdn/out.png",
+        media: expect.objectContaining({ source: "composite" }),
+        title: "WD social",
+      }),
+    );
+
+    // Result contains assetId and pending approval status
+    expect(out.content[0].text).toContain("a1");
+    expect(out.content[0].text).toContain("pending approval");
+  });
+});
+
 describe("generate_video", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
