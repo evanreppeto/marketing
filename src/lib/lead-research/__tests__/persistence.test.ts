@@ -104,6 +104,31 @@ describe("persistLeadResearch", () => {
     expect(updateCall?.[1]).toEqual({ phone: "3125550100" });
   });
 
+  it("enriches blank fields on a matched contact instead of inserting a duplicate", async () => {
+    const supabase = createSupabaseQueryMock({
+      companies: [{ data: null, error: null }, { data: { id: "company-1" }, error: null }],
+      contacts: {
+        data: { id: "contact-1", first_name: "Dana", last_name: "Lee", title: null, email: "dana@acme.example", phone: null },
+        error: null,
+      },
+      leads: { data: { id: "lead-1" }, error: null },
+    });
+    getSupabaseMock.mockReturnValue(supabase);
+
+    const result = await persistLeadResearch(input, { orgId: "org-1" });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.enriched).toBe(true);
+      expect(result.contactIds).toEqual(["contact-1"]);
+    }
+    // matched by email → enriched in place, no duplicate contact inserted
+    expect(insertFor(supabase, "contacts")).toHaveLength(0);
+    // only the contact's blank `title` is filled; name/email already set are untouched
+    const updateCall = supabase.calls.find((c) => c[0] === "update");
+    expect(updateCall?.[1]).toEqual({ title: "Owner" });
+  });
+
   it("returns an error when Supabase is not configured", async () => {
     const { isSupabaseAdminConfigured } = await import("@/lib/supabase/server");
     vi.mocked(isSupabaseAdminConfigured).mockReturnValueOnce(false);

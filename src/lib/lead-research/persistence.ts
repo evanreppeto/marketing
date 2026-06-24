@@ -211,6 +211,12 @@ async function insertReturningId(
   return { ok: true, id: data.id };
 }
 
+/**
+ * Best-effort audit breadcrumb. insertActivity returns a PersistResult and does
+ * not throw, so a failed activity write is intentionally non-fatal — the core
+ * company/contact/lead rows are already committed and must not be rolled back
+ * by an audit-log hiccup.
+ */
 async function logActivity(
   orgId: string,
   entityType: "company" | "contact" | "lead",
