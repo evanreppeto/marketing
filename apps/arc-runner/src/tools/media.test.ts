@@ -92,6 +92,15 @@ function setupVideo(posts: Array<() => Promise<unknown>>) {
   return { cards, apiPost, call, genVideo };
 }
 
+describe("compose_creative", () => {
+  it("exposes compose_creative", () => {
+    const client = { apiPost: vi.fn() } as unknown as ArcClient;
+    const step = vi.fn(async () => {});
+    const names = mediaTools(client, step, () => {}, {}).map((t) => t.name);
+    expect(names).toContain("compose_creative");
+  });
+});
+
 describe("generate_video", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
