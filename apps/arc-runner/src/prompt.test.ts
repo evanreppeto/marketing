@@ -35,6 +35,7 @@ describe("ARC_SYSTEM_PROMPT", () => {
       "create_lead",
       "update_record",
       "generate_image",
+      "compose_creative",
       "analyze_website",
       "propose_brand_profile",
     ]) {

@@ -33,8 +33,8 @@ export function AssetThumb({ card, media, eager = false }: { card: ArcActionCard
     return (
       <div className="flex h-full w-full flex-col gap-1.5 bg-[var(--surface-soft)] p-3">
         <div className="flex items-center gap-1.5">
-          <span className="grid h-4 w-4 place-items-center rounded-full bg-[var(--accent-soft)] text-[7px] font-bold text-[var(--accent-strong)]">BS</span>
-          <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Big Shoulders</span>
+          <span className="grid h-4 w-4 place-items-center rounded-full bg-[var(--accent-soft)] text-[7px] font-bold text-[var(--accent-strong)]">YB</span>
+          <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Your brand</span>
         </div>
         {subject ? <p className="line-clamp-1 text-[11px] font-semibold text-[var(--text-primary)]">{subject}</p> : null}
         <p className="line-clamp-4 text-[10px] leading-relaxed text-[var(--text-muted)]">{body}</p>

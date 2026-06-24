@@ -37,6 +37,7 @@ export * from "./brain-recall";
 export * from "./campaign-performance";
 export * from "./brand-kit";
 export * from "./brand-design";
+export * from "./creative-templates";
 export * from "./dispatch-scheduling";
 export * from "./opportunity-detection";
 export * from "./opportunity-proposal";

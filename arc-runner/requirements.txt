@@ -1,4 +1,0 @@
-# mcp_server.py needs `mcp`; realtime_subscriber.py needs `realtime` (the Supabase
-# realtime-py client). poller.py and webhook.py remain stdlib-only.
-mcp>=1.2.0
-realtime>=2.0.0

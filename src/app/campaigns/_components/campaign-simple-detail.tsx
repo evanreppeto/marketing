@@ -77,6 +77,7 @@ export function CampaignSimpleDetail({
               <HeroFact label="Offer" value={plainOrFallback(campaign.offerSummary, "Offer not set")} />
               <HeroFact label="Channels" value={packageSummary.destinations.length > 0 ? packageSummary.destinations.join(", ") : executiveOverview.where} />
             </div>
+            <GuardrailChips flags={reasoning.guardrailFlags} />
           </div>
         </div>
 
@@ -229,6 +230,26 @@ function CampaignContextRail({
         why={audienceWhy}
       />
     </aside>
+  );
+}
+
+/** Guardrails Arc applied while drafting (e.g. "No payout guarantees"). Shown so
+ *  the operator sees the compliance constraints before approving anything. */
+function GuardrailChips({ flags }: { flags: string[] }) {
+  if (flags.length === 0) return null;
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Guardrails</span>
+      {flags.map((flag) => (
+        <span
+          key={flag}
+          className="inline-flex items-center rounded-full border border-[var(--warn-border-soft)] bg-[var(--warn-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--warn-text)]"
+        >
+          {flag}
+        </span>
+      ))}
+    </div>
   );
 }
 

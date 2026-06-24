@@ -57,7 +57,7 @@ export function MediaLightbox({ item, onClose }: { item: GalleryItem | null; onC
             <p className="mt-1 text-sm text-[var(--text-secondary)]">{item.campaignName}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatusPill tone={item.sourceType === "ai" ? "red" : "gray"}>{item.sourceType === "ai" ? "AI generated" : "Real BSR media"}</StatusPill>
+            <StatusPill tone={item.sourceType === "ai" ? "red" : "gray"}>{item.sourceType === "ai" ? "AI generated" : "Real media"}</StatusPill>
             <StatusPill tone={STATUS_TONE[item.approvalStatus]}>{item.approvalStatus}</StatusPill>
           </div>
           <dl className="mt-1 space-y-2 border-t border-[var(--border-hairline)] pt-3 text-sm">

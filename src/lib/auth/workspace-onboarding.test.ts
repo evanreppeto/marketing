@@ -46,21 +46,19 @@ class QueryBuilder {
 
   insert(...args: unknown[]) {
     this.calls.push(["insert", ...args]);
-    const self = this;
     // Support both:
     //   client.from(t).insert(data)                    → awaited directly (Promise<{data,error}>)
     //   client.from(t).insert(data).select().single()  → chained
-    const chainable = Object.assign(self, {
-      then(resolve: (value: unknown) => unknown) {
-        return Promise.resolve(resolve(self.shiftResponse("insert", { data: null, error: null })));
+    const chainable = Object.assign(this, {
+      then: (resolve: (value: unknown) => unknown) =>
+        Promise.resolve(resolve(this.shiftResponse("insert", { data: null, error: null }))),
+      select: (...selectArgs: unknown[]) => {
+        this.calls.push(["select-after-insert", ...selectArgs]);
+        return this;
       },
-      select(...selectArgs: unknown[]) {
-        self.calls.push(["select-after-insert", ...selectArgs]);
-        return self;
-      },
-      single<T>() {
-        self.calls.push(["single-after-insert"]);
-        return Promise.resolve(self.shiftResponse<{ data: T | null; error: unknown | null }>("single", { data: null, error: null }));
+      single: <T>() => {
+        this.calls.push(["single-after-insert"]);
+        return Promise.resolve(this.shiftResponse<{ data: T | null; error: unknown | null }>("single", { data: null, error: null }));
       },
     });
     return chainable;

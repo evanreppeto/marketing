@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { cancelWorkspaceInvite, issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
+import { resolveBrandEmailTheme, sendBrandedEmail } from "@/lib/email";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 function statusCodeFor(status: string) {
@@ -34,11 +35,32 @@ export async function POST(request: Request) {
   if (invitedEmail) {
     const origin = new URL(request.url).origin;
     try {
-      const { error } = await getSupabaseAdminClient().auth.admin.inviteUserByEmail(invitedEmail, {
-        data: { pending_invite_code: result.code },
-        redirectTo: `${origin}/auth/confirm`,
+      const { data, error } = await getSupabaseAdminClient().auth.admin.generateLink({
+        type: "invite",
+        email: invitedEmail,
+        options: { redirectTo: `${origin}/auth/confirm`, data: { pending_invite_code: result.code } },
       });
-      return NextResponse.json({ ...result, emailed: !error, emailError: error?.message ?? null });
+      const actionLink = data?.properties?.action_link;
+      if (error || !actionLink) {
+        return NextResponse.json({
+          ...result,
+          emailed: false,
+          emailError: error?.message ?? "Could not generate the invite link.",
+        });
+      }
+      const theme = await resolveBrandEmailTheme();
+      const sent = await sendBrandedEmail({
+        to: invitedEmail,
+        subject: `You're invited to ${theme.appName}`,
+        heading: `Join ${theme.appName}`,
+        bodyBlocks: [
+          `You've been invited to collaborate in ${theme.appName}.`,
+          "Click below to accept your invitation and finish setting up your account.",
+        ],
+        cta: { label: "Accept invitation", url: actionLink },
+        theme,
+      });
+      return NextResponse.json({ ...result, emailed: sent.ok, emailError: sent.ok ? null : sent.error ?? null });
     } catch (error) {
       return NextResponse.json({
         ...result,

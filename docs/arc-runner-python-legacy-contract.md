@@ -1,3 +1,5 @@
+> ARCHIVED 2026-06-24: This describes the retired Python reference poller. The live runner is the TypeScript `apps/arc-runner` on Cloud Run. Kept for historical context only.
+
 # Arc integration contract
 
 How Arc (a Claude agent profile) connects to the **BSR growth engine**

@@ -22,7 +22,7 @@ const COMMANDS: Omit<SlashCommand, "skillId">[] = [
   { cmd: "/draft-email", label: "Draft an email", hint: "Persona-matched outreach — for approval", prompt: "Draft an outreach email for @ — persona-matched angle and proof points, for my approval.", mode: "draft" },
   { cmd: "/follow-up", label: "Follow up", hint: "Re-engage quiet leads — for approval", prompt: "Who has gone quiet and is worth a follow-up? Draft the follow-up for my approval.", mode: "draft" },
   // Assets & review
-  { cmd: "/assets", label: "Find assets", hint: "Approved BSR media & recent assets", prompt: "Show approved BSR media and recent assets relevant to @ — source, format, and status." },
+  { cmd: "/assets", label: "Find assets", hint: "Approved media & recent assets", prompt: "Show approved media and recent assets relevant to @ — source, format, and status." },
   // Learn
   { cmd: "/performance", label: "Performance", hint: "What's working, by channel & persona", prompt: "How are my campaigns performing by channel, persona, and asset — and what should I iterate next?" },
   { cmd: "/signals", label: "Signals", hint: "Weather & competitor signals to watch", prompt: "What weather and competitor signals should we be watching right now, and how should we respond?" },
