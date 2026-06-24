@@ -21,7 +21,10 @@ beforeEach(() => {
 describe("interaction persistence", () => {
   it("stamps notes and companion activities with explicit org scope when provided", async () => {
     const supabase = createSupabaseQueryMock({
-      crm_notes: { data: { id: "note-1" }, error: null },
+      crm_notes: [
+        { data: [], error: null }, // dedup select: no recent match
+        { data: { id: "note-1" }, error: null }, // insert
+      ],
       crm_activities: { data: { id: "activity-1" }, error: null },
     });
     getSupabaseMock.mockReturnValue(supabase);
