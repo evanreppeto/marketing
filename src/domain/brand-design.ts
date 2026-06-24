@@ -156,10 +156,13 @@ function extractColors(html: string): BrandDesignColor[] {
 }
 
 function cleanFamily(raw: string): string | null {
-  const first = raw.split(",")[0]?.trim().replace(/^['"]|['"]$/g, "").trim();
-  if (!first) return null;
-  if (GENERIC_FONTS.has(first.toLowerCase())) return null;
-  return first;
+  for (const token of raw.split(",")) {
+    const name = token.trim().replace(/^['"]|['"]$/g, "").trim();
+    if (!name) continue;
+    if (GENERIC_FONTS.has(name.toLowerCase())) continue;
+    return name;
+  }
+  return null;
 }
 
 function extractFonts(html: string): { headingFont: string | null; bodyFont: string | null } {

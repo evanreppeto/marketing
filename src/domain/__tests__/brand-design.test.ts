@@ -49,6 +49,12 @@ describe("extractBrandDesign — colors", () => {
     const signal = extractBrandDesign(html, BASE);
     expect(signal.colors[0].hex).toBe("#c8a24b");
   });
+
+  it("extracts rgb() colors as hex", () => {
+    const html = `<head><style>:root{--brand-primary:rgb(200,162,75)} body{color:rgb(17,17,17)}</style></head>`;
+    const signal = extractBrandDesign(html, BASE);
+    expect(signal.colors.map((c) => c.hex)).toContain("#c8a24b");
+  });
 });
 
 describe("extractBrandDesign — fonts", () => {
@@ -66,6 +72,16 @@ describe("extractBrandDesign — fonts", () => {
     const signal = extractBrandDesign("<head></head>", BASE);
     expect(signal.headingFont).toBeNull();
     expect(signal.bodyFont).toBeNull();
+  });
+
+  it("skips system-font fallbacks and picks the first real family in a stack", () => {
+    const html = `<head><style>
+      h1{font-family:system-ui,'Oswald',sans-serif}
+      body{font-family:-apple-system,Inter,Arial,sans-serif}
+    </style></head>`;
+    const signal = extractBrandDesign(html, BASE);
+    expect(signal.headingFont).toBe("Oswald");
+    expect(signal.bodyFont).toBe("Inter");
   });
 });
 
