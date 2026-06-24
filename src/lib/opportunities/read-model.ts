@@ -33,9 +33,10 @@ export type { OpportunityRecord, OpportunityEvidence };
 /** Open opportunities (pending/drafting/drafted) for the inbox. Empty when unconfigured. */
 export async function listOpenOpportunities(
   client: SupabaseClient = getSupabaseAdminClient(),
+  orgId?: string,
 ): Promise<OpportunityRecord[]> {
   if (!isSupabaseAdminConfigured()) return [];
-  const orgId = await getCurrentOrgId();
+  const resolvedOrgId = orgId ?? (await getCurrentOrgId());
   const { data, error } = await client
     .from("opportunities")
     .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, evidence")

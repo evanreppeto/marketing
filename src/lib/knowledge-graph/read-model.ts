@@ -1,4 +1,4 @@
-import { type TrustTier } from "@/domain";
+import { CRM_NODE_KINDS, type CrmIngestTable, type TrustTier } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -231,6 +231,47 @@ export async function getNode(
     return { status: "live", node: mapNode(node.data as NodeRow), edges: edgeRows.map(mapEdge), neighbors };
   } catch (error) {
     return { status: "unavailable", message: error instanceof Error ? error.message : "Brain is unavailable." };
+  }
+}
+
+/** The six CRM tables and the brain node kinds they mirror into. */
+const CRM_COVERAGE_TABLES = Object.keys(CRM_NODE_KINDS) as CrmIngestTable[];
+const CRM_COVERAGE_KINDS = Object.values(CRM_NODE_KINDS);
+
+export type BrainCrmCoverage = { crmRecords: number; brainRecords: number; behind: number };
+
+/**
+ * How far the Brain trails the CRM: total CRM rows (across the six objects) vs the
+ * number of `crm_*` reference nodes already mirrored in. `behind` drives the
+ * "your Brain is N records behind — sync now" prompt so a stale/empty graph is
+ * visible and one click from being fixed, instead of silently looking complete.
+ */
+export async function getBrainCrmCoverage(
+  client?: TypedSupabaseClient,
+  orgId?: string,
+): Promise<Live<BrainCrmCoverage> | Unavailable> {
+  const resolved = await resolveRead(client, orgId);
+  if (!resolved) return { status: "unavailable", message: "Supabase is not configured." };
+  try {
+    let crmRecords = 0;
+    for (const table of CRM_COVERAGE_TABLES) {
+      const { count, error } = await resolved.client
+        .from(table)
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", resolved.orgId);
+      if (error) return { status: "unavailable", message: error.message };
+      crmRecords += count ?? 0;
+    }
+    const brain = await resolved.client
+      .from("knowledge_nodes")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", resolved.orgId)
+      .in("kind", CRM_COVERAGE_KINDS);
+    if (brain.error) return { status: "unavailable", message: brain.error.message };
+    const brainRecords = brain.count ?? 0;
+    return { status: "live", crmRecords, brainRecords, behind: Math.max(0, crmRecords - brainRecords) };
+  } catch (error) {
+    return { status: "unavailable", message: error instanceof Error ? error.message : "Brain coverage unavailable." };
   }
 }
 

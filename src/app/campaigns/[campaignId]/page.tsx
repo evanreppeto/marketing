@@ -16,7 +16,10 @@ import { CampaignSimpleDetail } from "../_components/campaign-simple-detail";
 export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }): Promise<Metadata> {
   try {
     const { campaignId } = await params;
-    const detail = await getCampaignWorkspaceDetail(campaignId, undefined, "Arc", undefined);
+    // Org-scope the title lookup the same way the page body does, so a guessed
+    // campaignId from another tenant can't leak its name into this page's <title>.
+    const orgId = isSupabaseAdminConfigured() ? await getCurrentOrgId().catch(() => undefined) : undefined;
+    const detail = await getCampaignWorkspaceDetail(campaignId, undefined, "Arc", orgId);
     return { title: (detail.status === "live" ? detail.campaign.name?.trim() : null) || "Campaign" };
   } catch {
     return { title: "Campaign" };

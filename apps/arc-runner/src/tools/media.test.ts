@@ -197,7 +197,7 @@ describe("generate_video", () => {
       expect.objectContaining({
         media_url: "https://x/v.mp4",
         media_path: "arc-generated/v.mp4",
-        asset_type: "video_ad",
+        asset_type: "video_prompt",
         title: "Clip",
       }),
     );

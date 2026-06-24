@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { theme } from "@/app/_components/theme";
 import type { CampaignMediaAsset, CampaignMediaOrigin, CampaignWorkspaceAsset } from "@/lib/campaigns/read-model";
 import { SafeImage } from "./safe-image";
+import { ViralityBadge, viralityRank } from "./virality-badge";
 
 /** Human-readable provenance label for a media asset's origin. */
 export function mediaOriginLabel(origin: CampaignMediaOrigin): string {
@@ -23,14 +24,18 @@ export function MediaProvenanceBadge({ media }: { media: CampaignMediaAsset }) {
 
 export function AssetPreview({ asset }: { asset: CampaignWorkspaceAsset }) {
   const hasMedia = asset.media.length > 0;
+  const showTopPick = asset.media.length > 1;
 
   return (
     <div className="space-y-3">
       {hasMedia ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          {asset.media.slice(0, 4).map((media) => (
-            <MediaTile key={media.id} media={media} />
-          ))}
+          {[...asset.media]
+            .sort((a, b) => viralityRank(b) - viralityRank(a))
+            .slice(0, 4)
+            .map((media, index) => (
+              <MediaTile key={media.id} media={media} topPick={index === 0 && showTopPick && viralityRank(media) >= 0} />
+            ))}
         </div>
       ) : null}
 
@@ -103,7 +108,7 @@ function ReadableCopy({ body, expandLabel }: { body: string; expandLabel: string
   );
 }
 
-function MediaTile({ media }: { media: CampaignMediaAsset }) {
+function MediaTile({ media, topPick = false }: { media: CampaignMediaAsset; topPick?: boolean }) {
   if (media.type === "image") {
     return (
       <a
@@ -118,8 +123,14 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
           alt={media.title}
           className="h-36 w-full object-contain transition group-hover:scale-[1.02]"
         />
-        <span className="absolute left-2 top-2">
+        <span className="absolute left-2 top-2 flex flex-wrap items-center gap-1">
+          {topPick ? (
+            <span className="rounded-full border border-[var(--accent)] bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--on-accent)]">
+              Top pick
+            </span>
+          ) : null}
           <MediaProvenanceBadge media={media} />
+          <ViralityBadge media={media} />
         </span>
       </a>
     );
@@ -127,12 +138,23 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
 
   if (media.type === "video") {
     return (
-      <video
-        src={media.url}
-        poster={media.thumbnailUrl ?? undefined}
-        controls
-        className="h-36 w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--media-void)] object-contain"
-      />
+      <div className="relative overflow-hidden rounded-lg border border-[var(--border-hairline)] bg-[var(--media-void)]">
+        <video
+          src={media.url}
+          poster={media.thumbnailUrl ?? undefined}
+          controls
+          className="h-36 w-full object-contain"
+        />
+        <span className="absolute left-2 top-2 flex flex-wrap items-center gap-1">
+          {topPick ? (
+            <span className="rounded-full border border-[var(--accent)] bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--on-accent)]">
+              Top pick
+            </span>
+          ) : null}
+          <MediaProvenanceBadge media={media} />
+          <ViralityBadge media={media} />
+        </span>
+      </div>
     );
   }
 

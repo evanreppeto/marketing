@@ -83,15 +83,18 @@ export function libraryWriteTools(client: ArcClient, step: StepFn) {
 export function libraryDraftTools(client: ArcClient, step: StepFn, collectCard: (card: ArcActionCard) => void) {
   const attachMedia = tool(
     "attach_media",
-    "Attach a REAL Library asset (by id from list_media) to a campaign as an approval-gated draft asset — the approval-safe way to reuse authentic BSR photos/video. Provide library_asset_id and a short title. Attach to an existing campaign with campaign_id, OR start a new draft campaign with name + persona (a persona key) + restoration_focus. The asset stays pending approval and never goes outbound.",
+    "Attach a REAL Library asset (by id from list_media) to a campaign as an approval-gated draft asset — the approval-safe way to reuse authentic BSR photos/video. Provide library_asset_id and a short title. Attach to an existing campaign with campaign_id, OR start a new draft campaign with name + persona (a persona key) + restoration_focus (one of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire). The asset stays pending approval and never goes outbound.",
     {
       library_asset_id: z.string().describe("Asset id from list_media"),
       title: z.string().describe("Short title for the attached asset"),
       asset_type: z.string().optional().describe("default social_ad"),
       campaign_id: z.string().optional().describe("Existing campaign to attach to; omit to create a new draft campaign"),
       name: z.string().optional().describe("New campaign name (when campaign_id omitted)"),
-      persona: z.string().optional(),
-      restoration_focus: z.string().optional(),
+      persona: z.string().optional().describe("Persona key (required when creating a new campaign)"),
+      restoration_focus: z
+        .string()
+        .optional()
+        .describe("Loss focus, required when creating a new campaign. One of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire"),
     },
     async (args) => {
       const label = "Attaching media";

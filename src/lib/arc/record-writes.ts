@@ -1,14 +1,88 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { parseLeadIngestionPayload } from "@/domain";
+import { isOfficialPersonaMapping, parseLeadIngestionPayload } from "@/domain";
 import { syncRecordToBrain } from "@/lib/brain-ingestion/sync";
 import {
   persistLeadIngestion,
   type LeadProvenance,
   type PersistedLeadIngestion,
 } from "@/lib/lead-ingestion/persistence";
+import type { Database } from "@/lib/supabase/database.types";
 
 export type ArcWritableTable = "leads" | "companies" | "contacts";
+
+type Enums = Database["public"]["Enums"];
+
+// Allowed values for the enum/CHECK-typed columns Arc may set, kept as literal
+// unions backed by `satisfies Database[...]Enums[...]` so they can't drift from
+// the schema. Validating these at the app layer turns an invalid value into a
+// clean 400 instead of a late, opaque Postgres enum 502.
+const LEAD_STATUS = ["new", "validated", "needs_review", "qualified", "converted", "lost", "archived"] as const satisfies readonly Enums["lead_status"][];
+const COMPANY_STATUS = ["active", "inactive", "archived"] as const satisfies readonly Enums["company_status"][];
+const CONTACT_STATUS = ["active", "inactive", "do_not_contact", "archived"] as const satisfies readonly Enums["contact_status"][];
+const ROUTING_RECOMMENDATION = ["target", "elevated", "downgraded", "isolated", "archived"] as const satisfies readonly Enums["routing_recommendation"][];
+const PARTNER_TIER = ["A", "B", "C"] as const; // companies.partner_tier CHECK
+
+type EnumRule =
+  | { allowed: readonly string[] }
+  | "persona"
+  | "nonEmptyString"
+  | { numeric: { min: number; max: number; integer?: boolean } };
+
+const ENUM_FIELDS: Record<ArcWritableTable, Record<string, EnumRule>> = {
+  // Beyond the string enums, two whitelisted columns carry Postgres CHECKs that
+  // would otherwise 502 late: leads.lead_score (between 0 and 100) and
+  // companies.name (length(btrim(name)) > 0).
+  leads: {
+    status: { allowed: LEAD_STATUS },
+    routing_recommendation: { allowed: ROUTING_RECOMMENDATION },
+    persona: "persona",
+    lead_score: { numeric: { min: 0, max: 100, integer: true } },
+  },
+  companies: { status: { allowed: COMPANY_STATUS }, partner_tier: { allowed: PARTNER_TIER }, persona: "persona", name: "nonEmptyString" },
+  contacts: { status: { allowed: CONTACT_STATUS }, persona: "persona" },
+};
+
+export type EnumValidation = { ok: true } | { ok: false; message: string };
+
+/**
+ * Pure: validate the enum/CHECK-typed values among the (already key-filtered)
+ * fields. Free-text fields without a rule (loss_summary, contact info) are
+ * ignored. Returns a clean 400-able message instead of letting a bad value 502
+ * at Postgres.
+ */
+export function validateRecordEnums(table: ArcWritableTable, fields: Record<string, unknown>): EnumValidation {
+  const rules = ENUM_FIELDS[table];
+  for (const [key, rule] of Object.entries(rules)) {
+    if (!(key in fields) || fields[key] === undefined || fields[key] === null) continue;
+    const value = fields[key];
+    if (rule === "persona") {
+      if (!isOfficialPersonaMapping(value)) {
+        return { ok: false, message: `Invalid persona "${String(value)}". Use an official persona key.` };
+      }
+      continue;
+    }
+    if (rule === "nonEmptyString") {
+      if (typeof value !== "string" || value.trim().length === 0) {
+        return { ok: false, message: `${key} must be a non-empty string.` };
+      }
+      continue;
+    }
+    if ("numeric" in rule) {
+      const { min, max, integer } = rule.numeric;
+      // Require an actual number — don't coerce strings (Number("") === 0,
+      // Number("0x10") === 16) past the check only to 502 at the integer column.
+      if (typeof value !== "number" || !Number.isFinite(value) || (integer && !Number.isInteger(value)) || value < min || value > max) {
+        return { ok: false, message: `${key} must be ${integer ? "an integer" : "a number"} between ${min} and ${max}.` };
+      }
+      continue;
+    }
+    if (typeof value !== "string" || !rule.allowed.includes(value)) {
+      return { ok: false, message: `Invalid ${key} "${String(value)}". Allowed: ${rule.allowed.join(", ")}.` };
+    }
+  }
+  return { ok: true };
+}
 
 /**
  * Per-table whitelist of columns Arc may set on an update. Pure data.
@@ -138,6 +212,13 @@ export async function updateArcRecord(params: {
   const applied = pickAllowedFields(params.table, params.fields);
   if (Object.keys(applied).length === 0) {
     return { ok: false, httpStatus: 400, message: "No updatable fields supplied." };
+  }
+
+  // Reject out-of-range enum values up front (clean 400) instead of forwarding
+  // them to Postgres where they'd fail as an opaque 502.
+  const enumCheck = validateRecordEnums(params.table, applied);
+  if (!enumCheck.ok) {
+    return { ok: false, httpStatus: 400, message: enumCheck.message };
   }
 
   const { data, error } = await params.supabase

@@ -26,6 +26,7 @@ function cardChannelFormat(assetType: string): { channel?: string; format?: stri
       return { channel: "Landing page" };
     case "social_ad":
       return { channel: "Paid social", format: "1:1" };
+    case "video_prompt":
     case "video_ad":
       return { channel: "Video", format: "9:16" };
     case "image":
@@ -50,7 +51,7 @@ export function draftWorkProductTools(
 ) {
   const createCampaignDraft = tool(
     "create_campaign_draft",
-    "Create an approval-gated campaign DRAFT asset (e.g. social_ad, email, sms, image_prompt, landing_page, one_pager). Attach to an existing campaign with campaign_id, or create a new draft campaign by giving name + persona (use a persona key) + restoration_focus (water|flood|sewage|mold|fire|storm). The asset is created pending approval and surfaced with an inline Approve/Decline card — nothing is sent. Returns campaignId + assetId.",
+    "Create an approval-gated campaign DRAFT asset (e.g. social_ad, email, sms, image_prompt, video_prompt, landing_page, one_pager). Attach to an existing campaign with campaign_id, or create a new draft campaign by giving name + persona (use a persona key) + restoration_focus (one of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire). The asset is created pending approval and surfaced with an inline Approve/Decline card — nothing is sent. Returns campaignId + assetId.",
     {
       campaign_id: z.string().optional().describe("Existing campaign to attach to; omit to create a new draft campaign"),
       name: z.string().optional().describe("New campaign name (required when campaign_id is omitted)"),
@@ -58,7 +59,9 @@ export function draftWorkProductTools(
       restoration_focus: z
         .string()
         .optional()
-        .describe("Loss focus: water|flood|sewage|mold|fire|storm (required when creating a new campaign)"),
+        .describe(
+          "Loss focus, required when creating a new campaign. One of: flood | water_backup | burst_pipe | storm_surge | standing_water | mold | sewage | fire",
+        ),
       asset_type: z.string().describe("Asset type, e.g. social_ad | email | sms | image_prompt | landing_page | one_pager"),
       title: z.string().describe("Short title for the asset"),
       body: z.string().optional().describe("The draft copy/content"),
@@ -102,7 +105,7 @@ export function draftWorkProductTools(
 
   const submitDraft = tool(
     "submit_draft",
-    "Submit a GENERIC, non-campaign draft into the human approval queue — e.g. a partner/sales handoff note, a one-off outreach message, or a record-specific recommendation that isn't a campaign asset. For campaign creative (social_ad, email, sms, image, landing page) use create_campaign_draft instead. The item is created pending_approval and locked; nothing is sent. Link it to the record it's about with the matching id. Returns approvalItemId.",
+    "Submit a GENERIC, non-campaign draft into the human approval queue — e.g. a partner/sales handoff note, a one-off outreach message, or a record-specific recommendation that isn't a campaign asset. For campaign creative (social_ad, email, sms, image, landing page) use create_campaign_draft instead. The item is created pending_approval and locked; nothing is sent. You MUST link it to the record it's about with at least one of campaign_id / company_id / contact_id / lead_id (a draft with no subject is rejected); task_id alone is not enough. Returns approvalItemId.",
     {
       item_type: z.string().describe("What kind of draft this is, e.g. partner_handoff_note | outreach_message | record_recommendation"),
       draft: z.string().describe("The draft content the human will review."),
