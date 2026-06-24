@@ -14,6 +14,7 @@ import { SettingsShell } from "./settings-shell";
 import { SettingsHome } from "./settings-home";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "./settings-sections";
 import { SystemStatus } from "./system-status";
+import { UsageSettings } from "./usage-settings";
 import { WorkspacesSettings } from "./workspaces-settings";
 import { WorkspaceTeamSettings } from "./workspace-team-settings";
 import { listWorkspaceConnectors } from "@/lib/connectors/read-model";
@@ -74,6 +75,7 @@ export default async function SettingsPage({
             ),
             agent: <AgentPanel />,
             notifications: <NotificationSettings />,
+            usage: <UsageSettings />,
             system: <SystemStatus />,
           }}
         />

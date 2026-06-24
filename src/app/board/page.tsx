@@ -12,6 +12,7 @@ import {
   type AgentOperationsTask,
 } from "@/lib/agent-operations/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
+import { TabNav } from "../_components/tab-nav";
 
 import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Board" };
@@ -26,6 +27,16 @@ export default async function BoardPage() {
     return (
       <>
         <Header agentName={agentName} />
+        <TabNav
+          ariaLabel="Board views"
+          activeKey="board"
+          columns=""
+          className="mb-4"
+          tabs={[
+            { key: "board", label: "Board", href: "/board" },
+            { key: "outbox", label: "Outbox", href: "/outbox" },
+          ]}
+        />
         <EmptyState title="Task board unavailable" detail={dashboard.message} />
       </>
     );
@@ -37,6 +48,16 @@ export default async function BoardPage() {
   return (
     <>
       <Header agentName={agentName} />
+      <TabNav
+        ariaLabel="Board views"
+        activeKey="board"
+        columns=""
+        className="mb-4"
+        tabs={[
+          { key: "board", label: "Board", href: "/board" },
+          { key: "outbox", label: "Outbox", href: "/outbox" },
+        ]}
+      />
 
       <StatStrip items={stats} columns={6} />
 

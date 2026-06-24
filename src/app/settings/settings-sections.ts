@@ -5,6 +5,7 @@ import {
   Cable,
   CircleUser,
   Clapperboard,
+  Gauge,
   LayoutDashboard,
   LayoutGrid,
   Package,
@@ -126,6 +127,14 @@ export const SETTINGS_SECTIONS = [
     icon: CircleUser,
     blurb: "Operator identity, sign-in, and session.",
     keywords: "account operator identity sign out password passkey support session",
+  },
+  {
+    id: "usage",
+    label: "Usage & billing",
+    group: "Account",
+    icon: Gauge,
+    blurb: "Token usage, run volume, and plan limits.",
+    keywords: "usage billing tokens credits plan limits volume spend cost",
   },
   {
     id: "system",
