@@ -5,9 +5,8 @@ import FormControl from "@mui/material/FormControl";
 import MenuItem from "@mui/material/MenuItem";
 import Select, { type SelectChangeEvent } from "@mui/material/Select";
 import { type ColumnDef } from "@tanstack/react-table";
-import { ArrowRight, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Search } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState, StatusPill } from "../../_components/page-header";
@@ -32,29 +31,23 @@ export function CrmObjectTable({
   activeView,
   activeViewDescription,
   activeViewLabel,
-  objectHref,
   objectKey,
   objectLabel,
   primaryField,
   rows,
   secondaryField,
-  selectedRecordId,
   views,
 }: {
   activeView: CrmListViewKey;
   activeViewDescription: string;
   activeViewLabel: string;
-  objectHref: string;
   objectKey: CrmObjectKey;
   objectLabel: string;
   primaryField: string;
   rows: CrmObjectRow[];
   secondaryField: string;
-  selectedRecordId?: string;
   views: CrmListView[];
 }) {
-  const router = useRouter();
-  const clickTimeoutRef = useRef<number | null>(null);
   const [query, setQuery] = useState("");
   const [dataFilter, setDataFilter] = useState<DataFilter>("all");
   const [personaFilter, setPersonaFilter] = useState("all");
@@ -71,38 +64,12 @@ export function CrmObjectTable({
   );
 
   const columnDefs = useMemo<ColumnDef<CrmObjectRow>[]>(() => {
-    const defs: ColumnDef<CrmObjectRow>[] = tableColumns.map((column) => ({
+    return tableColumns.map((column) => ({
       id: column.key,
       header: column.header,
-      cell: ({ row }) => renderColumnContent(column.key, row.original, selectedRecordId === row.original.id),
+      cell: ({ row }) => renderColumnContent(column.key, row.original),
     }));
-
-    defs.push({
-      id: "open",
-      header: "",
-      meta: { width: "w-9", align: "right" },
-      cell: ({ row }) => (
-        <button
-          aria-label={`Open ${row.original.name}`}
-          className="flex h-full w-full cursor-pointer items-center justify-center px-2 text-[var(--text-muted)] transition-colors duration-300 group-hover:text-[var(--accent)]"
-          onClick={(event) => {
-            event.stopPropagation();
-            openRecord(row.original);
-          }}
-          type="button"
-        >
-          <ArrowRight
-            aria-hidden
-            className="h-4 w-4 shrink-0 -translate-x-0.5 opacity-0 transition-all duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100"
-            strokeWidth={1.9}
-          />
-        </button>
-      ),
-    });
-
-    return defs;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableColumns, selectedRecordId]);
+  }, [tableColumns]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -131,55 +98,10 @@ export function CrmObjectTable({
     });
   }, [dataFilter, normalizedQuery, personaFilter, rows]);
 
-  useEffect(() => {
-    return () => {
-      if (clickTimeoutRef.current) {
-        window.clearTimeout(clickTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  function selectedHref(row: CrmObjectRow) {
-    const params = new URLSearchParams();
-    if (activeView !== "all-records") {
-      params.set("view", activeView);
-    }
-    params.set("selected", row.id);
-    return `${objectHref}?${params.toString()}`;
-  }
-
-  function selectRecord(row: CrmObjectRow) {
-    router.replace(selectedHref(row), { scroll: false });
-  }
-
-  function openRecord(row: CrmObjectRow) {
-    router.push(row.href);
-  }
-
-  function scheduleSelectRecord(row: CrmObjectRow) {
-    if (clickTimeoutRef.current) {
-      window.clearTimeout(clickTimeoutRef.current);
-    }
-
-    clickTimeoutRef.current = window.setTimeout(() => {
-      selectRecord(row);
-      clickTimeoutRef.current = null;
-    }, 60);
-  }
-
-  function openRecordFromDoubleClick(row: CrmObjectRow) {
-    if (clickTimeoutRef.current) {
-      window.clearTimeout(clickTimeoutRef.current);
-      clickTimeoutRef.current = null;
-    }
-
-    openRecord(row);
-  }
-
   return (
     <>
       <div className="border-b border-[var(--border-hairline)] bg-[var(--surface-inset)] px-4 py-3">
-        <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2 xl:grid-cols-[minmax(240px,1fr)_170px_150px_140px_130px]">
+        <div className="grid gap-2 rounded-md border border-[var(--border-hairline)] bg-[var(--surface-panel)] p-2 xl:grid-cols-[minmax(240px,1fr)_150px_140px_130px]">
           <label className="relative block">
             <span className="sr-only">Search {objectLabel}</span>
             <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" strokeWidth={1.9} />
@@ -194,20 +116,6 @@ export function CrmObjectTable({
               value={query}
             />
           </label>
-
-          <SignalSelect
-            label="List view"
-            onChange={(value) => {
-              window.location.href = value;
-            }}
-            value={viewHref(objectHref, activeView)}
-          >
-            {views.map((view) => (
-              <MenuItem key={view.key} value={view.href}>
-                View: {view.label}
-              </MenuItem>
-            ))}
-          </SignalSelect>
 
           <SignalSelect
             label="Data quality"
@@ -275,13 +183,10 @@ export function CrmObjectTable({
         columns={columnDefs}
         data={filteredRows}
         getRowId={(row) => row.id}
-        onRowClick={scheduleSelectRecord}
-        onRowDoubleClick={openRecordFromDoubleClick}
-        isSelected={(row) => selectedRecordId === row.id}
-        pinnedAccentRail
+        rowHref={(row) => row.href}
         pageSize={pageSize}
         paginationLabel="records"
-        minWidth="min-w-[900px]"
+        minWidth="min-w-[760px]"
         emptyState={
           <EmptyState
             title={activeView === "all-records" ? `No ${objectLabel.toLowerCase()} found` : `No ${activeViewLabel.toLowerCase()} records found`}
@@ -340,11 +245,11 @@ function getTableColumns({
   return CRM_FIELD_PRESETS[objectKey].tableColumns.map((key) => ({ key, header: headers[key] }));
 }
 
-function renderColumnContent(column: CrmTableColumnKey, row: CrmObjectRow, selected: boolean) {
+function renderColumnContent(column: CrmTableColumnKey, row: CrmObjectRow) {
   if (column === "primary") {
     return (
       <>
-        <span className={`block max-w-[28ch] truncate font-semibold transition-colors group-hover:text-[var(--accent)] ${selected ? "text-[var(--accent)]" : "text-[var(--text-primary)]"}`}>
+        <span className="block max-w-[28ch] truncate font-semibold text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent)]">
           {row.name}
         </span>
         <span className="mt-1 block text-xs text-[var(--text-secondary)]">{row.sourceLabel}</span>
@@ -533,10 +438,6 @@ function Tag({ children }: { children: React.ReactNode }) {
       <span className="truncate">{children}</span>
     </span>
   );
-}
-
-function viewHref(objectHref: string, activeView: CrmListViewKey) {
-  return `${objectHref}?view=${activeView}`;
 }
 
 function statusTone(status: string) {

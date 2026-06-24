@@ -90,6 +90,7 @@ describe("lead ingestion persistence", () => {
       contactId: "contact-1",
       propertyId: "property-1",
       leadId: "lead-1",
+      leadCreated: true,
     });
     expect(calls.map((call) => call.table)).toEqual(["companies", "contacts", "properties", "leads"]);
     expect(calls[0].values).toMatchObject({
