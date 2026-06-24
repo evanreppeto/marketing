@@ -20,6 +20,7 @@ import {
   syncCampaignResultToBrain,
   resyncPerformanceIntoBrain,
   syncPerformanceForCampaigns,
+  selectAllOrgRows,
 } from "./sync";
 
 const upsertMock = vi.mocked(upsertReferenceNode);
@@ -29,6 +30,40 @@ const ORG = "org-s-1";
 beforeEach(() => {
   edgeMock.mockReset();
   edgeMock.mockResolvedValue({ ok: true, id: "e-1" });
+});
+
+describe("selectAllOrgRows", () => {
+  it("pages through every row beyond a single page (no 2000-row cap)", async () => {
+    const supabase = createSupabaseQueryMock({
+      companies: [
+        { data: [{ id: "c1" }], error: null }, // page 0 — full (size 1)
+        { data: [{ id: "c2" }], error: null }, // page 1 — full
+        { data: [], error: null }, // page 2 — empty → stop
+      ],
+    });
+    const page = await selectAllOrgRows(supabase as never, "companies", ORG, 1);
+    expect(page.ok).toBe(true);
+    expect(page.ok && page.rows.map((r) => r.id)).toEqual(["c1", "c2"]);
+    expect(page.ok && page.truncated).toBe(false);
+  });
+
+  it("returns ok:false when the first page errors", async () => {
+    const supabase = createSupabaseQueryMock({
+      companies: { data: null, error: { message: "boom" } as never },
+    });
+    const page = await selectAllOrgRows(supabase as never, "companies", ORG, 1000);
+    expect(page.ok).toBe(false);
+  });
+
+  it("flags truncated when the hard safety cap is reached", async () => {
+    const supabase = createSupabaseQueryMock({
+      // Every page returns a full page of 1 → would loop forever without the cap.
+      companies: { data: [{ id: "c" }], error: null },
+    });
+    const page = await selectAllOrgRows(supabase as never, "companies", ORG, 1, 2);
+    expect(page.ok && page.truncated).toBe(true);
+    expect(page.ok && page.rows.length).toBe(2); // stopped at the hard cap
+  });
 });
 
 describe("syncCrmRowToBrain", () => {
@@ -56,6 +91,24 @@ describe("syncRecordToBrain", () => {
     const supabase = createSupabaseQueryMock({ companies: { data: null, error: null } });
     const res = await syncRecordToBrain("companies", "missing", { client: supabase as never, orgId: ORG });
     expect(res.ok).toBe(false);
+  });
+
+  it("back-links an already-synced child to the parent it was waiting on (order-independent)", async () => {
+    upsertMock.mockResolvedValue({ ok: true, id: "n-co" });
+    const supabase = createSupabaseQueryMock({
+      companies: { data: { id: "co1", name: "Acme" }, error: null }, // the parent being synced
+      contacts: { data: [{ id: "k1" }], error: null }, // a contact created EARLIER that points at co1
+      // properties/leads/jobs default to [] (no children there)
+      knowledge_nodes: {
+        data: [{ id: "n-k1", key: "crm:contacts:k1" }, { id: "n-co", key: "crm:companies:co1" }],
+        error: null,
+      },
+    });
+    const res = await syncRecordToBrain("companies", "co1", { client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ ok: true, id: "n-co" });
+    // The child's belongs_to edge links now, even though the child was synced
+    // before the company node existed (its forward edge had been skipped).
+    expect(edgeMock).toHaveBeenCalledWith("n-k1", "n-co", "belongs_to", { client: expect.anything(), orgId: ORG });
   });
 });
 
@@ -124,6 +177,20 @@ describe("syncCrmRowEdges", () => {
     const res = await syncCrmRowEdges("leads", { id: "l1", company_id: "co1" }, { client: supabase as never, orgId: ORG });
     expect(res).toEqual({ linked: 0, skipped: 1 });
     expect(edgeMock).not.toHaveBeenCalled();
+  });
+
+  it("creates a missing persona node on the fly so the targets edge always lands", async () => {
+    // The lead's own node resolves; NO persona node exists yet in the graph.
+    const supabase = createSupabaseQueryMock({
+      knowledge_nodes: { data: [{ id: "n-lead", key: "crm:leads:l1" }], error: null },
+    });
+    upsertMock.mockResolvedValue({ ok: true, id: "n-persona-new" });
+    const res = await syncCrmRowEdges("leads", { id: "l1", persona: "persona_landlord" }, { client: supabase as never, orgId: ORG });
+    expect(res).toEqual({ linked: 1, skipped: 0 });
+    // The persona node was upserted keyed by the persona value...
+    expect(upsertMock.mock.calls.at(-1)![0]).toMatchObject({ kind: "persona", key: "persona_landlord" });
+    // ...and the edge linked using that freshly-created persona id.
+    expect(edgeMock).toHaveBeenCalledWith("n-lead", "n-persona-new", "targets", { client: expect.anything(), orgId: ORG });
   });
 
   it("does nothing for a row with no FKs or persona", async () => {
