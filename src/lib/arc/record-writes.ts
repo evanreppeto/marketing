@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { normalizePhoneKey, parseLeadIngestionPayload } from "@/domain";
+import { isOfficialPersonaMapping, normalizePhoneKey, parseLeadIngestionPayload } from "@/domain";
 import { syncRecordToBrain } from "@/lib/brain-ingestion/sync";
 import {
   persistLeadIngestion,
