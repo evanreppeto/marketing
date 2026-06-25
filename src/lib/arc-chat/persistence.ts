@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type ArcActionCard, type ArcMedia, type ArcMention, type ArcMode, type ArcQuestion, type ArcRoute, type ArcStepKind, parseActions, parseMedia, parseMentions, parseQuestions } from "@/domain";
+import { type ArcActionCard, type ArcMedia, type ArcMention, type ArcMode, type ArcQuestion, type ArcRecall, type ArcRoute, type ArcStepKind, parseActions, parseMedia, parseMentions, parseQuestions, parseRecall } from "@/domain";
 import { type ArcSkillId } from "@/lib/arc-skills/catalog";
 
 import { getSupabaseAdminClient } from "../supabase/server";
@@ -68,6 +68,9 @@ export type ArcMessage = {
   /** Structured questions Arc poses for the operator (agent-provided), rendered
    *  as an interactive panel above the composer. Absent on rows without them. */
   questions?: ArcQuestion[];
+  /** Memory lines Arc recalled from the brain for this reply (agent-provided),
+   *  shown as evidence chips. Absent on rows without them. */
+  recall?: ArcRecall[];
   /** Operator-uploaded reference images attached to this message. */
   attachments: ArcAttachment[];
   /** The mode/route this turn was sent with (operator messages); lets Regenerate
@@ -230,6 +233,7 @@ function toMessage(row: MessageRow): ArcMessage {
     actions: parseActions((row.metadata as { actions?: unknown } | null)?.actions),
     suggestions: parseSuggestions((row.metadata as { suggestions?: unknown } | null)?.suggestions),
     questions: parseQuestions((row.metadata as { questions?: unknown } | null)?.questions),
+    recall: parseRecall((row.metadata as { recall?: unknown } | null)?.recall),
     attachments: parseAttachments((row.metadata as { attachments?: unknown } | null)?.attachments),
     mode: parseOptionalMode((row.metadata as { mode?: unknown } | null)?.mode),
     route: parseOptionalRoute((row.metadata as { route?: unknown } | null)?.route),
