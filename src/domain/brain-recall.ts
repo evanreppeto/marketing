@@ -194,6 +194,27 @@ export function enrichRecall(
   });
 }
 
+// ─── Task 3: recallRelevance — confidence score for a recalled node ──────────
+
+const TIER_CONFIDENCE_BASE: Record<string, number> = { trusted: 0.7, observed: 0.5 };
+
+/**
+ * A 0–1 confidence that a recalled node is relevant to the operator message.
+ * Blends trust tier (a node the operator confirmed counts more) with keyword
+ * overlap against the message. Deterministic and pure — used to rank and to show
+ * a confidence read on the chat recall chips.
+ */
+export function recallRelevance(candidate: RecallCandidate, message: string): number {
+  const base = TIER_CONFIDENCE_BASE[candidate.trustTier] ?? 0.4;
+  const tokens = [...new Set(tokenize(message))];
+  if (tokens.length === 0) return base;
+  const text = candidateText(candidate);
+  const matched = tokens.reduce((n, t) => (text.includes(t) ? n + 1 : n), 0);
+  const overlap = matched / tokens.length; // 0..1
+  const bonus = Math.min(0.3, overlap * 0.3);
+  return Math.min(1, base + bonus);
+}
+
 // ─── Task 4: previewRecall — operator-facing "what would Arc recall?" ─────────
 
 export type RecallPreviewNode = {
