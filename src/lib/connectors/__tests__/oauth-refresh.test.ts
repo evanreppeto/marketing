@@ -61,4 +61,20 @@ describe("ensureFreshAccessToken", () => {
     const res = await ensureFreshAccessToken({} as never, "ref-1", baseBundle);
     expect(res.ok).toBe(false);
   });
+
+  it("returns needs_reconnect when a 200 response omits access_token", async () => {
+    const persist = credentials.updateConnectorCredential;
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({}) })));
+    const res = await ensureFreshAccessToken({} as never, "ref-1", baseBundle);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("needs_reconnect");
+    expect(persist).not.toHaveBeenCalled(); // never persists a token-less response
+  });
+
+  it("returns needs_reconnect when a 200 body is not JSON", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => { throw new Error("not json"); } })));
+    const res = await ensureFreshAccessToken({} as never, "ref-1", baseBundle);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("needs_reconnect");
+  });
 });
