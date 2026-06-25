@@ -6,7 +6,7 @@ import ReactArcdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { cx } from "@/app/_components/theme";
-import { stepGlyphKind, summarizeSteps, normalizeArcBody } from "@/domain";
+import { stepGlyphKind, summarizeSteps, normalizeArcBody, capSteps } from "@/domain";
 import type { ArcMessage, ArcStep, ArcToolCall } from "@/lib/arc-chat/persistence";
 import { attachmentKind } from "@/lib/arc-chat/attachment-types";
 
@@ -191,12 +191,14 @@ function ChainOfThoughtTrace({
   title: ReactNode;
   defaultOpen?: boolean;
 }) {
+  const [showAll, setShowAll] = useState(false);
   if (steps.length === 0) return null;
+  const { visible, hidden } = capSteps(steps, showAll ? 0 : 5);
   return (
     <ChainOfThought defaultOpen={defaultOpen}>
       <ChainOfThoughtHeader>{title}</ChainOfThoughtHeader>
       <ChainOfThoughtContent>
-        {steps.map((s, i) => (
+        {visible.map((s, i) => (
           <ChainOfThoughtStep
             key={`${i}-${s.label}`}
             label={s.label}
@@ -211,6 +213,15 @@ function ChainOfThoughtTrace({
             ) : null}
           </ChainOfThoughtStep>
         ))}
+        {hidden > 0 && !showAll ? (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="rounded-md text-[11px] font-medium text-[var(--accent)] transition hover:text-[var(--text-primary)]"
+          >
+            ＋{hidden} more {hidden === 1 ? "step" : "steps"}
+          </button>
+        ) : null}
       </ChainOfThoughtContent>
     </ChainOfThought>
   );
@@ -239,12 +250,14 @@ function shortLabel(label: string): string {
  * keeps the collapsible ChainOfThought trace (`StepTrace`).
  */
 function ThinkingTrace({ steps, assistantName }: { steps: ArcStep[]; assistantName: string }) {
+  const [showAll, setShowAll] = useState(false);
   if (steps.length === 0) return null;
+  const { visible, hidden } = capSteps(steps, showAll ? 0 : 5);
   return (
     <div role="status" aria-live="polite" aria-label={`${assistantName} is thinking`} className="flex flex-col">
-      {steps.map((s, i) => {
+      {visible.map((s, i) => {
         const done = s.status === "done";
-        const isLast = i === steps.length - 1;
+        const isLast = i === visible.length - 1 && hidden === 0;
         return (
           <div key={`${i}-${s.label}`} className="msg-rise flex gap-2.5">
             <div className="flex flex-col items-center">
@@ -276,6 +289,15 @@ function ThinkingTrace({ steps, assistantName }: { steps: ArcStep[]; assistantNa
           </div>
         );
       })}
+      {hidden > 0 && !showAll ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="ml-[1.9rem] mt-1 self-start rounded-md text-[11px] font-medium text-[var(--accent)] transition hover:text-[var(--text-primary)]"
+        >
+          ＋{hidden} more {hidden === 1 ? "step" : "steps"}
+        </button>
+      ) : null}
     </div>
   );
 }
