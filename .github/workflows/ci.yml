@@ -18,7 +18,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22 matches Vercel (where the app runs). Node 20 lacks the
+          # global WebSocket that supabase-js needs at runtime — pinning 20
+          # made route tests fail in CI while passing locally.
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
