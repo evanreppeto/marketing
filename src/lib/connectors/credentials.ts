@@ -43,6 +43,43 @@ export async function writeConnectorCredential(
   return ref;
 }
 
+type UpdateSecretArgs = { secret_id: string; new_secret: string };
+
+/** Update an existing Vault secret in place. Best-effort: returns false on any
+ *  failure (caller can still use a freshly-minted token for the current request).
+ *  Mirrors writeConnectorCredential's direct → vault-schema fallback. */
+export async function updateConnectorCredential(
+  client: SupabaseClient,
+  ref: string | null,
+  plaintext: string,
+): Promise<boolean> {
+  if (!ref) return false;
+  const args: UpdateSecretArgs = { secret_id: ref, new_secret: plaintext };
+
+  try {
+    const direct = await (
+      client.rpc as unknown as (fn: string, a: UpdateSecretArgs) => Promise<{ error: { message: string } | null }>
+    )("update_secret", args);
+    if (!direct.error) return true;
+  } catch {
+    // fall through to scoped attempt
+  }
+
+  if (typeof client.schema === "function") {
+    try {
+      const scoped = await (client as unknown as {
+        schema(s: "vault"): { rpc(fn: "update_secret", a: UpdateSecretArgs): Promise<{ error: { message: string } | null }> };
+      })
+        .schema("vault")
+        .rpc("update_secret", args);
+      if (!scoped.error) return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 export async function readConnectorCredential(client: SupabaseClient, ref: string | null): Promise<string | null> {
   if (!ref) return null;
   try {
