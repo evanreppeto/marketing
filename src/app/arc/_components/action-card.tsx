@@ -5,8 +5,8 @@ import Link from "next/link";
 import { cx } from "@/app/_components/theme";
 import type { ArcActionCard, ArcActionFlag, ArcMedia } from "@/domain";
 
-import { decideCampaignDraftAction } from "../actions";
 import { ArtifactImage } from "./artifact-image";
+import { DraftDecisionControls } from "./draft-decision-controls";
 import { MediaProvenance, StatusPill } from "./asset-meta";
 import { SaveStar } from "./save-star";
 
@@ -127,28 +127,7 @@ export function ActionCard({
 
       {isDraft && card.approval ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-hairline)] px-3 py-2.5">
-          <form action={decideCampaignDraftAction}>
-            <input type="hidden" name="assetId" value={card.approval.assetId} />
-            <input type="hidden" name="campaignId" value={card.approval.campaignId} />
-            <input type="hidden" name="decision" value="approved" />
-            <button type="submit" className="rounded-md border border-[var(--ok-border)] bg-[var(--ok-solid)] px-3 py-1 text-xs font-semibold text-[var(--on-ok)] transition hover:bg-[var(--ok-hover)]">
-              Approve
-            </button>
-          </form>
-          <Link
-            href={`/campaigns/${card.approval.campaignId}`}
-            className="rounded-md border border-[var(--warn-border)] px-3 py-1 text-xs font-semibold text-[var(--warn-text)] transition hover:bg-[var(--warn-soft)]"
-          >
-            Request revision
-          </Link>
-          <form action={decideCampaignDraftAction}>
-            <input type="hidden" name="assetId" value={card.approval.assetId} />
-            <input type="hidden" name="campaignId" value={card.approval.campaignId} />
-            <input type="hidden" name="decision" value="declined" />
-            <button type="submit" className="rounded-md border border-[var(--border-hairline)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--priority-bright)] hover:text-[var(--priority-bright)]">
-              Decline
-            </button>
-          </form>
+          <DraftDecisionControls campaignId={card.approval.campaignId} assetId={card.approval.assetId} />
           <LockNote />
         </div>
       ) : null}
