@@ -25,7 +25,8 @@
     "diagnose:arc": "node scripts/diagnose-arc-connection.mjs",
     "backfill:embeddings": "node scripts/backfill-embeddings.mjs",
     "test": "vitest run",
-    "email:export": "tsx scripts/export-auth-templates.ts"
+    "email:export": "tsx scripts/export-auth-templates.ts",
+    "connectors:capture-higgsfield": "tsx scripts/connectors/capture-higgsfield.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

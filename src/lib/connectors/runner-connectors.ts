@@ -1,8 +1,9 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { CONNECTOR_REGISTRY } from "@/domain";
+import { CONNECTOR_REGISTRY, parseConnectorCredential } from "@/domain";
 
 import { readConnectorCredential } from "./credentials";
+import { ensureFreshAccessToken } from "./oauth-refresh";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "./read-model";
 
 /** A remote MCP connector the runner should load: namespace, endpoint, header, token. */
@@ -30,8 +31,18 @@ export async function resolveRemoteConnectorsForRunner(
   for (const entry of CONNECTOR_REGISTRY) {
     if (!entry.mcpUrl || !entry.authHeader || !enabledKeys.has(entry.key)) continue;
     const ref = await resolveConnectorCredentialRef(client, workspaceId, entry.key);
-    const token = await readConnectorCredential(client, ref);
-    if (!token) continue;
+    const raw = await readConnectorCredential(client, ref);
+    if (!raw) continue;
+
+    const cred = parseConnectorCredential(raw);
+    let token: string;
+    if (cred.kind === "oauth_refresh") {
+      const fresh = await ensureFreshAccessToken(client, ref, cred);
+      if (!fresh.ok) continue; // needs reconnect — drop connector, runner degrades
+      token = fresh.accessToken;
+    } else {
+      token = cred.token;
+    }
     out.push({ toolNamespace: entry.toolNamespace, mcpUrl: entry.mcpUrl, authHeader: entry.authHeader, token });
   }
   return out;

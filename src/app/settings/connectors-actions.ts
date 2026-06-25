@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
-import { findConnector } from "@/domain";
+import { findConnector, parseConnectorCredential } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
+import { checkHiggsfieldToken } from "@/lib/connectors/higgsfield-health";
+import { ensureFreshAccessToken } from "@/lib/connectors/oauth-refresh";
 import {
   recordConnectorTest,
   setConnectorCredentialRef,
@@ -91,6 +93,35 @@ export async function testConnectorAction(
   const connectorKey = String(formData.get("connectorKey") ?? "");
   const entry = findConnector(connectorKey);
   if (!entry) return { ok: false, message: "Unknown connector." };
+
+  if (connectorKey === "higgsfield") {
+    let workspaceId: string;
+    try {
+      ({ workspaceId } = await workspaceScope());
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : "No workspace." };
+    }
+    const client = getSupabaseAdminClient();
+    const ref = await resolveConnectorCredentialRef(client, workspaceId, connectorKey);
+    const raw = ref ? await readConnectorCredential(client, ref) : null;
+    if (!raw) {
+      await recordConnectorTest(client, { workspaceId, connectorKey, result: { ok: false, error: "No credential stored." } }).catch(() => undefined);
+      revalidatePath("/settings");
+      return { ok: false, message: "Connect and enable Higgsfield first." };
+    }
+    const cred = parseConnectorCredential(raw);
+    const access = cred.kind === "oauth_refresh" ? await ensureFreshAccessToken(client, ref, cred) : { ok: true as const, accessToken: cred.token };
+    if (!access.ok) {
+      await recordConnectorTest(client, { workspaceId, connectorKey, result: { ok: false, error: "Token refresh failed — reconnect Higgsfield." } }).catch(() => undefined);
+      revalidatePath("/settings");
+      return { ok: false, message: "Higgsfield token expired — reconnect required." };
+    }
+    const health = await checkHiggsfieldToken(access.accessToken);
+    await recordConnectorTest(client, { workspaceId, connectorKey, result: health }).catch(() => undefined);
+    revalidatePath("/settings");
+    return health.ok ? { ok: true, message: `${entry.label} is healthy.` } : { ok: false, message: health.error ?? "Health check failed." };
+  }
+
   if (connectorKey !== "gemini-research") return { ok: false, message: "No live test for this connector yet." };
 
   const client = getSupabaseAdminClient();
