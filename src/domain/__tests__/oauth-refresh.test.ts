@@ -7,8 +7,9 @@ import {
   serializeOAuthBundle,
 } from "../oauth-refresh";
 
+// In-memory bundle (discriminator is `kind`); the on-the-wire JSON shape uses `type`.
 const bundle = {
-  type: "oauth_refresh" as const,
+  kind: "oauth_refresh" as const,
   accessToken: "oat_old",
   refreshToken: "rt_old",
   expiresAt: 1_000_000,
@@ -18,7 +19,16 @@ const bundle = {
 
 describe("parseConnectorCredential", () => {
   it("parses an oauth_refresh JSON bundle", () => {
-    const c = parseConnectorCredential(JSON.stringify(bundle));
+    const c = parseConnectorCredential(
+      JSON.stringify({
+        type: "oauth_refresh",
+        accessToken: "oat_old",
+        refreshToken: "rt_old",
+        expiresAt: 1_000_000,
+        clientId: "client_123",
+        tokenEndpoint: "https://mcp.higgsfield.ai/oauth2/token",
+      }),
+    );
     expect(c).toEqual({
       kind: "oauth_refresh",
       accessToken: "oat_old",
