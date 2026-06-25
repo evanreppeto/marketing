@@ -8,6 +8,7 @@ import type { ArcActionCard, ArcActionFlag, ArcMedia } from "@/domain";
 import { ArtifactImage } from "./artifact-image";
 import { DraftDecisionControls } from "./draft-decision-controls";
 import { MediaProvenance, StatusPill } from "./asset-meta";
+import { NavigateCard } from "./navigate-card";
 import { SaveStar } from "./save-star";
 
 function flagClass(tone: ArcActionFlag["tone"]): string {
@@ -43,6 +44,7 @@ export function ActionCard({
   /** Opens the full deliverable in the work canvas (draft cards only). */
   onReview?: () => void;
 }) {
+  if (card.kind === "navigate") return <NavigateCard card={card} />;
   const isDraft = card.kind === "draft";
   const media = image ?? card.media;
   return (
