@@ -280,6 +280,22 @@ export function parseActions(value: unknown): ArcActionCard[] {
   return out;
 }
 
+/** The approval ids of draft cards safe to bulk-approve: a draft, with an
+ *  approval block, not yet decided, and carrying no warn/risk flags. Pure. */
+export function cleanApprovableDrafts(cards: ArcActionCard[]): { campaignId: string; assetId: string }[] {
+  return cards
+    .filter(
+      (c) =>
+        c.kind === "draft" &&
+        c.approval &&
+        c.status !== "approved" &&
+        c.status !== "rejected" &&
+        c.status !== "revision" &&
+        !c.flags.some((f) => f.tone === "warn" || f.tone === "risk"),
+    )
+    .map((c) => ({ campaignId: c.approval!.campaignId, assetId: c.approval!.assetId }));
+}
+
 /** A memory line Arc recalled from the brain, surfaced as a chat evidence chip. */
 export type ArcRecall = {
   label: string;

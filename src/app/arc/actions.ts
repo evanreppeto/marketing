@@ -801,6 +801,32 @@ export async function decideCampaignDraftAction(formData: FormData): Promise<voi
   revalidatePath("/campaigns");
 }
 
+/** Approve every clean (flagless, undecided) draft in a chat reply in one click.
+ *  Each id pair is approved via the same campaign decision lib; outbound stays
+ *  locked. Operator-gated; no-op when Supabase isn't configured. */
+export async function approveCleanDraftsAction(formData: FormData): Promise<void> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return;
+  let pairs: { campaignId: string; assetId: string }[] = [];
+  try {
+    const raw = JSON.parse(String(formData.get("drafts") ?? "[]"));
+    if (Array.isArray(raw)) {
+      pairs = raw
+        .filter((p): p is { campaignId: string; assetId: string } =>
+          !!p && typeof p.campaignId === "string" && typeof p.assetId === "string" && !!p.assetId)
+        .slice(0, 24);
+    }
+  } catch {
+    return;
+  }
+  const operator = await getOperatorActor();
+  for (const { campaignId, assetId } of pairs) {
+    await decideAsset({ assetId, campaignId, decision: "approved", operator }).catch(() => undefined);
+  }
+  revalidatePath("/arc");
+  revalidatePath("/campaigns");
+}
+
 // ── Save & Promote ───────────────────────────────────────────────────────────
 
 export type SaveItemActionInput = {
