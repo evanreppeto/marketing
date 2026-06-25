@@ -12,10 +12,12 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { buildHiggsfieldBundleFromMcpEntry } from "@/lib/connectors/capture-bundle";
-import { writeConnectorCredential } from "@/lib/connectors/credentials";
-import { setConnectorCredentialRef, setConnectorEnabled } from "@/lib/connectors/persistence";
-import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+// Relative imports (not @/ aliases): this script runs under tsx, which does not
+// resolve tsconfig `paths` at runtime. Matches scripts/export-auth-templates.ts.
+import { buildHiggsfieldBundleFromMcpEntry } from "../../src/lib/connectors/capture-bundle";
+import { writeConnectorCredential } from "../../src/lib/connectors/credentials";
+import { setConnectorCredentialRef, setConnectorEnabled } from "../../src/lib/connectors/persistence";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../../src/lib/supabase/server";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
