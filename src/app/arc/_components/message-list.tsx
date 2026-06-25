@@ -17,6 +17,7 @@ import { ActionCard } from "./action-card";
 import { CampaignDeck } from "./campaign-deck";
 import { ArcAvatar } from "./arc-avatar";
 import { MessageMedia } from "./message-media";
+import { RecallChips } from "./recall-chips";
 import { SaveStar } from "./save-star";
 import {
   ChainOfThought,
@@ -858,7 +859,10 @@ function Message({
         ) : failed ? (
           <div className="whitespace-pre-wrap text-sm leading-7 text-[var(--priority-bright)]">{message.body}</div>
         ) : (
-          <ArcBody body={message.body} />
+          <>
+            {message.recall && message.recall.length > 0 ? <RecallChips items={message.recall} /> : null}
+            <ArcBody body={message.body} />
+          </>
         )}
         {!pending && message.reasoning ? <ArcReasoning text={message.reasoning} /> : null}
         {!pending && message.toolCalls && message.toolCalls.length > 0 ? <ToolTraces tools={message.toolCalls} /> : null}
