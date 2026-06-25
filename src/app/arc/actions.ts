@@ -820,8 +820,9 @@ export async function approveCleanDraftsAction(formData: FormData): Promise<void
     return;
   }
   const operator = await getOperatorActor();
+  const tenant = await getCurrentAgentTaskTenantFields();
   for (const { campaignId, assetId } of pairs) {
-    await decideAsset({ assetId, campaignId, decision: "approved", operator }).catch(() => undefined);
+    await decideAsset({ assetId, campaignId, decision: "approved", operator, tenant }, getSupabaseAdminClient()).catch(() => undefined);
   }
   for (const campaignId of new Set(pairs.map((p) => p.campaignId).filter(Boolean))) {
     revalidatePath(`/campaigns/${campaignId}`);
