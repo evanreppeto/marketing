@@ -22,6 +22,7 @@ export async function handleChatMessage(
     if (result.actions.length > 0) metadata.actions = result.actions;
     if (result.suggestions.length > 0) metadata.suggestions = result.suggestions;
     if (result.questions.length > 0) metadata.questions = result.questions;
+    if (result.memory.length > 0) metadata.recall = result.memory;
     await client.postChatReply({
       agentTaskId: payload.agentTaskId,
       body: reply || "(Arc returned an empty reply.)",
@@ -133,6 +134,7 @@ export async function handleCampaignTask(
     if (result.actions.length > 0) metadata.actions = result.actions;
     if (result.suggestions.length > 0) metadata.suggestions = result.suggestions;
     if (result.questions.length > 0) metadata.questions = result.questions;
+    if (result.memory.length > 0) metadata.recall = result.memory;
 
     if (payload.conversationId) {
       await client.postChatReply({

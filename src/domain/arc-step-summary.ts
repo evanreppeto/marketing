@@ -90,3 +90,13 @@ export function summarizeSteps<T extends StepInput>(steps: T[]): StepSummary<T> 
 
   return { groups, totalSteps: steps.length, doneCount };
 }
+
+/**
+ * Cap a list to the first `max` items, reporting how many were hidden, so a long
+ * timeline shows "first N + ＋N more" instead of flooding the thread. `max <= 0`
+ * means no cap. Pure.
+ */
+export function capSteps<T>(items: T[], max: number): { visible: T[]; hidden: number } {
+  if (max <= 0 || items.length <= max) return { visible: items, hidden: 0 };
+  return { visible: items.slice(0, max), hidden: items.length - max };
+}

@@ -59,4 +59,21 @@ describe("emit_card", () => {
     });
     expect(cards[0].media).toEqual({ kind: "image", url: "https://x/y.jpg", source: "bsr_real", format: "1:1" });
   });
+
+  it("collects a navigate card with appState", async () => {
+    const collected: ArcActionCard[] = [];
+    const tool = emitCardTool((c) => collected.push(c));
+    const call = (args: Record<string, unknown>): Promise<HandlerResult> =>
+      (tool.handler as (a: Record<string, unknown>, e?: unknown) => Promise<HandlerResult>)(args);
+    await call({
+      kind: "navigate",
+      title: "Open the 3 matching leads in CRM",
+      appState: { href: "/crm/leads?persona=landlord", filters: ["persona: landlord"] },
+    });
+    expect(collected[0]).toMatchObject({
+      kind: "navigate",
+      title: "Open the 3 matching leads in CRM",
+      appState: { href: "/crm/leads?persona=landlord", filters: ["persona: landlord"] },
+    });
+  });
 });

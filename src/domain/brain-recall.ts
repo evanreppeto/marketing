@@ -15,7 +15,16 @@ export type RecallCandidate = {
 };
 
 /** A prompt-ready memory line. */
-export type RecallItem = { label: string; summary: string | null; kind: string; related?: string[] };
+export type RecallItem = {
+  label: string;
+  summary: string | null;
+  kind: string;
+  related?: string[];
+  /** 0–1 relevance confidence (set when enrichRecall is given the message). */
+  confidence?: number;
+  /** Source brain node id, so the UI can link the chip back to the brain. */
+  nodeId?: string;
+};
 
 export type RankRecallOptions = { coreLimit?: number; matchLimit?: number; cap?: number };
 
@@ -152,6 +161,8 @@ export type EnrichOptions = {
   relationsPerNode?: number;
   depth?: number;
   maxPerSeed?: number;
+  /** When set, each item gets a confidence (recallRelevance) + nodeId. */
+  message?: string;
 };
 
 /**
@@ -177,7 +188,14 @@ export function enrichRecall(
   });
 
   return selected.map((c) => {
-    const base: RecallItem = { label: c.label, summary: c.summary, kind: c.kind };
+    const base: RecallItem = {
+      label: c.label,
+      summary: c.summary,
+      kind: c.kind,
+      ...(options.message !== undefined
+        ? { confidence: recallRelevance(c, options.message), nodeId: c.id }
+        : {}),
+    };
     const conns = traversal.get(c.id);
     if (!conns || conns.length === 0) return base;
     const related = conns
@@ -192,6 +210,27 @@ export function enrichRecall(
       .slice(0, relationsPerNode);
     return related.length ? { ...base, related } : base;
   });
+}
+
+// ─── Task 3: recallRelevance — confidence score for a recalled node ──────────
+
+const TIER_CONFIDENCE_BASE: Record<string, number> = { trusted: 0.7, observed: 0.5 };
+
+/**
+ * A 0–1 confidence that a recalled node is relevant to the operator message.
+ * Blends trust tier (a node the operator confirmed counts more) with keyword
+ * overlap against the message. Deterministic and pure — used to rank and to show
+ * a confidence read on the chat recall chips.
+ */
+export function recallRelevance(candidate: RecallCandidate, message: string): number {
+  const base = TIER_CONFIDENCE_BASE[candidate.trustTier] ?? 0.4;
+  const tokens = [...new Set(tokenize(message))];
+  if (tokens.length === 0) return base;
+  const text = candidateText(candidate);
+  const matched = tokens.reduce((n, t) => (text.includes(t) ? n + 1 : n), 0);
+  const overlap = matched / tokens.length; // 0..1
+  const bonus = Math.min(0.3, overlap * 0.3);
+  return Math.min(1, base + bonus);
 }
 
 // ─── Task 4: previewRecall — operator-facing "what would Arc recall?" ─────────

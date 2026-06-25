@@ -187,8 +187,10 @@ export function parseArcRoute(value: unknown): ArcRoute {
 export type ArcActionFlag = { tone: "ok" | "warn" | "risk"; label: string };
 export type ArcActionRow = { name: string; meta?: string; badge?: string; href?: string };
 export type ArcActionApproval = { kind: "campaign"; campaignId: string; assetId: string };
+/** A deep-link into a pre-filtered in-app view. href must be an in-app path (/…). */
+export type ArcAppState = { href: string; filters: string[] };
 export type ArcActionCard = {
-  kind: "result" | "draft";
+  kind: "result" | "draft" | "navigate";
   title: string;
   href?: string;
   rows: ArcActionRow[];
@@ -200,6 +202,7 @@ export type ArcActionCard = {
   channel?: string; // "Meta / Instagram" | "Email" | "SMS" | …
   format?: string; // aspect/format label
   status?: ArcAssetStatus;
+  appState?: ArcAppState;
 };
 
 function str(v: unknown): string | undefined {
@@ -246,6 +249,18 @@ function parseApproval(value: unknown): ArcActionApproval | undefined {
   return { kind: "campaign", campaignId, assetId };
 }
 
+function parseAppState(value: unknown): ArcAppState | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const href = str((value as { href?: unknown }).href);
+  // In-app routes only — never an external URL.
+  if (!href || !href.startsWith("/")) return undefined;
+  const rawFilters = (value as { filters?: unknown }).filters;
+  const filters = Array.isArray(rawFilters)
+    ? rawFilters.filter((f): f is string => typeof f === "string" && f.trim().length > 0).map((f) => f.trim()).slice(0, 6)
+    : [];
+  return { href, filters };
+}
+
 /** Parse Arc's structured action cards from message metadata. Defensive: drops
  *  malformed entries (must have a valid kind + title), never throws. */
 export function parseActions(value: unknown): ArcActionCard[] {
@@ -255,7 +270,10 @@ export function parseActions(value: unknown): ArcActionCard[] {
     if (!item || typeof item !== "object") continue;
     const kind = (item as { kind?: unknown }).kind;
     const title = str((item as { title?: unknown }).title);
-    if ((kind !== "result" && kind !== "draft") || !title) continue;
+    if ((kind !== "result" && kind !== "draft" && kind !== "navigate") || !title) continue;
+    const appState = kind === "navigate" ? parseAppState((item as { appState?: unknown }).appState) : undefined;
+    // A navigate card with no valid in-app destination is useless — drop it.
+    if (kind === "navigate" && !appState) continue;
     const mediaValue = (item as { media?: unknown }).media;
     const media = mediaValue ? parseMedia([mediaValue])[0] : undefined;
     const statusRaw = (item as { status?: unknown }).status;
@@ -264,7 +282,7 @@ export function parseActions(value: unknown): ArcActionCard[] {
         ? (statusRaw as ArcAssetStatus)
         : undefined;
     out.push({
-      kind,
+      kind: kind as "result" | "draft" | "navigate",
       title,
       href: str((item as { href?: unknown }).href),
       rows: parseRows((item as { rows?: unknown }).rows),
@@ -275,7 +293,57 @@ export function parseActions(value: unknown): ArcActionCard[] {
       channel: str((item as { channel?: unknown }).channel),
       format: str((item as { format?: unknown }).format),
       status,
+      ...(appState ? { appState } : {}),
     });
+  }
+  return out;
+}
+
+/** The approval ids of draft cards safe to bulk-approve: a draft, with an
+ *  approval block, not yet decided, and carrying no warn/risk flags. Pure. */
+export function cleanApprovableDrafts(cards: ArcActionCard[]): { campaignId: string; assetId: string }[] {
+  return cards
+    .filter(
+      (c) =>
+        c.kind === "draft" &&
+        c.approval &&
+        c.status !== "approved" &&
+        c.status !== "rejected" &&
+        c.status !== "revision" &&
+        !c.flags.some((f) => f.tone === "warn" || f.tone === "risk"),
+    )
+    .map((c) => ({ campaignId: c.approval!.campaignId, assetId: c.approval!.assetId }));
+}
+
+/** A memory line Arc recalled from the brain, surfaced as a chat evidence chip. */
+export type ArcRecall = {
+  label: string;
+  confidence?: number;
+  kind?: string;
+  nodeId?: string;
+};
+
+/** Parse Arc's recalled-memory items from message metadata. Defensive: requires a
+ *  label, clamps confidence to [0,1], drops malformed entries, never throws. */
+export function parseRecall(value: unknown): ArcRecall[] {
+  if (!Array.isArray(value)) return [];
+  const out: ArcRecall[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const label = str((item as { label?: unknown }).label);
+    if (!label) continue;
+    const rawConfidence = (item as { confidence?: unknown }).confidence;
+    const confidence =
+      typeof rawConfidence === "number" && Number.isFinite(rawConfidence)
+        ? Math.min(1, Math.max(0, rawConfidence))
+        : undefined;
+    out.push({
+      label,
+      ...(confidence !== undefined ? { confidence } : {}),
+      ...(str((item as { kind?: unknown }).kind) ? { kind: str((item as { kind?: unknown }).kind) } : {}),
+      ...(str((item as { nodeId?: unknown }).nodeId) ? { nodeId: str((item as { nodeId?: unknown }).nodeId) } : {}),
+    });
+    if (out.length >= 8) break;
   }
   return out;
 }

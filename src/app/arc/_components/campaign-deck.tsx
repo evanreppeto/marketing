@@ -3,9 +3,9 @@
 import { useRef } from "react";
 
 import { cx } from "@/app/_components/theme";
-import type { ArcActionCard } from "@/domain";
+import { cleanApprovableDrafts, type ArcActionCard } from "@/domain";
 
-import { decideCampaignDraftAction } from "../actions";
+import { approveCleanDraftsAction, decideCampaignDraftAction } from "../actions";
 import { MediaProvenance, StatusPill, riskReasons, type AssetDecision } from "./asset-meta";
 import { AssetThumb, CopySnippet } from "./asset-thumb";
 
@@ -147,6 +147,7 @@ export function CampaignDeck({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pending = cards.filter((c) => c.status !== "approved" && c.status !== "rejected").length;
+  const cleanDrafts = cleanApprovableDrafts(cards);
 
   function scrollBy(dir: 1 | -1) {
     scrollRef.current?.scrollBy({ left: dir * 272, behavior: "smooth" });
@@ -171,6 +172,17 @@ export function CampaignDeck({
           </button>
         </span>
       </div>
+      {cleanDrafts.length > 0 ? (
+        <form action={approveCleanDraftsAction} className="mb-2 flex items-center justify-end">
+          <input type="hidden" name="drafts" value={JSON.stringify(cleanDrafts)} />
+          <button
+            type="submit"
+            className="rounded-md border border-[var(--ok-border)] bg-[var(--ok-soft)] px-3 py-1 text-xs font-semibold text-[var(--ok-text)] transition hover:bg-[var(--ok-solid)] hover:text-[var(--on-ok)]"
+          >
+            Approve all clean ({cleanDrafts.length})
+          </button>
+        </form>
+      ) : null}
       <div
         ref={scrollRef}
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]"
