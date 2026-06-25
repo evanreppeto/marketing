@@ -15,7 +15,16 @@ export type RecallCandidate = {
 };
 
 /** A prompt-ready memory line. */
-export type RecallItem = { label: string; summary: string | null; kind: string; related?: string[] };
+export type RecallItem = {
+  label: string;
+  summary: string | null;
+  kind: string;
+  related?: string[];
+  /** 0–1 relevance confidence (set when enrichRecall is given the message). */
+  confidence?: number;
+  /** Source brain node id, so the UI can link the chip back to the brain. */
+  nodeId?: string;
+};
 
 export type RankRecallOptions = { coreLimit?: number; matchLimit?: number; cap?: number };
 
@@ -152,6 +161,8 @@ export type EnrichOptions = {
   relationsPerNode?: number;
   depth?: number;
   maxPerSeed?: number;
+  /** When set, each item gets a confidence (recallRelevance) + nodeId. */
+  message?: string;
 };
 
 /**
@@ -177,7 +188,14 @@ export function enrichRecall(
   });
 
   return selected.map((c) => {
-    const base: RecallItem = { label: c.label, summary: c.summary, kind: c.kind };
+    const base: RecallItem = {
+      label: c.label,
+      summary: c.summary,
+      kind: c.kind,
+      ...(options.message !== undefined
+        ? { confidence: recallRelevance(c, options.message), nodeId: c.id }
+        : {}),
+    };
     const conns = traversal.get(c.id);
     if (!conns || conns.length === 0) return base;
     const related = conns

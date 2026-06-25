@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { recallRelevance, type RecallCandidate } from "@/domain";
+import { enrichRecall, type RecallGraph } from "@/domain";
 
 const cand = (over: Partial<RecallCandidate> = {}): RecallCandidate => ({
   id: "n1",
@@ -35,5 +36,24 @@ describe("recallRelevance", () => {
   it("never exceeds 1 even with heavy overlap", () => {
     const score = recallRelevance(cand(), "landlord storm playbook re-engage persona");
     expect(score).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("enrichRecall confidence", () => {
+  it("attaches confidence + nodeId when a message is provided", () => {
+    const selected: RecallCandidate[] = [cand({ id: "n1" })];
+    const graph: RecallGraph = { nodes: [{ id: "n1", label: "Landlord persona playbook", kind: "note" }], edges: [] };
+    const [item] = enrichRecall(selected, graph, { message: "landlord storm" });
+    expect(item.nodeId).toBe("n1");
+    expect(typeof item.confidence).toBe("number");
+    expect(item.confidence).toBeGreaterThan(0);
+  });
+
+  it("omits confidence + nodeId when no message is provided (back-compat)", () => {
+    const selected: RecallCandidate[] = [cand({ id: "n1" })];
+    const graph: RecallGraph = { nodes: [{ id: "n1", label: "X", kind: "note" }], edges: [] };
+    const [item] = enrichRecall(selected, graph);
+    expect(item.confidence).toBeUndefined();
+    expect(item.nodeId).toBeUndefined();
   });
 });

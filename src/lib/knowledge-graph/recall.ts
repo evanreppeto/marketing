@@ -76,5 +76,5 @@ export async function getRecallMemory(
     nodes: graph.nodes.map((n) => ({ id: n.id, label: n.label, kind: n.kind })),
     edges: graph.edges.map((e) => ({ fromNodeId: e.fromNodeId, toNodeId: e.toNodeId, relation: e.relation })),
   };
-  return enrichRecall(selected, recallGraph);
+  return enrichRecall(selected, recallGraph, { message });
 }
