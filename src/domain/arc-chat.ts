@@ -280,6 +280,39 @@ export function parseActions(value: unknown): ArcActionCard[] {
   return out;
 }
 
+/** A memory line Arc recalled from the brain, surfaced as a chat evidence chip. */
+export type ArcRecall = {
+  label: string;
+  confidence?: number;
+  kind?: string;
+  nodeId?: string;
+};
+
+/** Parse Arc's recalled-memory items from message metadata. Defensive: requires a
+ *  label, clamps confidence to [0,1], drops malformed entries, never throws. */
+export function parseRecall(value: unknown): ArcRecall[] {
+  if (!Array.isArray(value)) return [];
+  const out: ArcRecall[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const label = str((item as { label?: unknown }).label);
+    if (!label) continue;
+    const rawConfidence = (item as { confidence?: unknown }).confidence;
+    const confidence =
+      typeof rawConfidence === "number" && Number.isFinite(rawConfidence)
+        ? Math.min(1, Math.max(0, rawConfidence))
+        : undefined;
+    out.push({
+      label,
+      ...(confidence !== undefined ? { confidence } : {}),
+      ...(str((item as { kind?: unknown }).kind) ? { kind: str((item as { kind?: unknown }).kind) } : {}),
+      ...(str((item as { nodeId?: unknown }).nodeId) ? { nodeId: str((item as { nodeId?: unknown }).nodeId) } : {}),
+    });
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
 /**
  * A structured question Arc poses to the operator, rendered as an interactive
  * panel (option chips / checkboxes / free text) above the composer instead of a
