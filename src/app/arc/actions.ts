@@ -823,6 +823,9 @@ export async function approveCleanDraftsAction(formData: FormData): Promise<void
   for (const { campaignId, assetId } of pairs) {
     await decideAsset({ assetId, campaignId, decision: "approved", operator }).catch(() => undefined);
   }
+  for (const campaignId of new Set(pairs.map((p) => p.campaignId).filter(Boolean))) {
+    revalidatePath(`/campaigns/${campaignId}`);
+  }
   revalidatePath("/arc");
   revalidatePath("/campaigns");
 }
