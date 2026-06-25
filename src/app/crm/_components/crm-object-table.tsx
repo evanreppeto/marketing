@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import FormControl from "@mui/material/FormControl";
-import MenuItem from "@mui/material/MenuItem";
-import Select, { type SelectChangeEvent } from "@mui/material/Select";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTable } from "@/components/ui/data-table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, StatusPill } from "../../_components/page-header";
 import { theme } from "../../_components/theme";
 import { CRM_FIELD_PRESETS, type CrmObjectKey, type CrmTableColumnKey } from "./crm-field-presets";
@@ -124,9 +122,9 @@ export function CrmObjectTable({
             }}
             value={dataFilter}
           >
-            <MenuItem value="all">Data: All</MenuItem>
-            <MenuItem value="missing">Data: Missing</MenuItem>
-            <MenuItem value="complete">Data: Complete</MenuItem>
+            <SelectItem value="all">Data: All</SelectItem>
+            <SelectItem value="missing">Data: Missing</SelectItem>
+            <SelectItem value="complete">Data: Complete</SelectItem>
           </SignalSelect>
 
           <FilterSelect
@@ -145,9 +143,9 @@ export function CrmObjectTable({
             value={String(pageSize)}
           >
             {PAGE_SIZES.map((size) => (
-              <MenuItem key={size} value={String(size)}>
+              <SelectItem key={size} value={String(size)}>
                 {size} / page
-              </MenuItem>
+              </SelectItem>
             ))}
           </SignalSelect>
         </div>
@@ -211,11 +209,11 @@ function FilterSelect({
 }) {
   return (
     <SignalSelect label={label} onChange={onChange} value={value}>
-      <MenuItem value="all">{label}: All</MenuItem>
+      <SelectItem value="all">{label}: All</SelectItem>
       {options.map((option) => (
-        <MenuItem key={option} value={option}>
+        <SelectItem key={option} value={option}>
           {option}
-        </MenuItem>
+        </SelectItem>
       ))}
     </SignalSelect>
   );
@@ -336,70 +334,15 @@ function SignalSelect({
   onChange: (value: string) => void;
   value: string;
 }) {
-  function handleChange(event: SelectChangeEvent<string>) {
-    onChange(event.target.value);
-  }
-
+  // Radix Select (already app-themed) — replaces @mui/material so the CRM route
+  // no longer pulls MUI + the @emotion CSS-in-JS runtime into its client bundle.
   return (
-    <FormControl fullWidth size="small">
-      <span className="sr-only">{label}</span>
-      <Select
-        aria-label={label}
-        displayEmpty
-        onChange={handleChange}
-        size="small"
-        sx={{
-          "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: "var(--border-hairline)",
-          },
-          "& .MuiSelect-select": {
-            alignItems: "center",
-            display: "flex",
-            minHeight: compact ? "30px" : "38px",
-            paddingBottom: compact ? "0" : "0",
-            paddingTop: compact ? "0" : "0",
-          },
-          "& .MuiSvgIcon-root": {
-            color: "var(--text-muted)",
-          },
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: "var(--accent)",
-            borderWidth: "1px",
-          },
-          "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: "var(--accent-border-strong)",
-          },
-          backgroundColor: "var(--surface-inset)",
-          borderRadius: "8px",
-          color: "var(--text-primary)",
-          fontFamily: "inherit",
-          fontSize: "0.875rem",
-          fontWeight: 650,
-          height: compact ? 32 : 40,
-        }}
-        value={value}
-        MenuProps={{
-          PaperProps: {
-            sx: {
-              "& .MuiMenuItem-root": {
-                fontFamily: "inherit",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-              },
-              "& .MuiMenuItem-root.Mui-selected": {
-                backgroundColor: "var(--accent-soft)",
-              },
-              backgroundColor: "var(--surface-raised)",
-              border: "1px solid var(--border-panel)",
-              borderRadius: "8px",
-              color: "var(--text-primary)",
-            },
-          },
-        }}
-      >
-        {children}
-      </Select>
-    </FormControl>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={label} size={compact ? "sm" : "default"} className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
   );
 }
 
