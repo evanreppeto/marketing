@@ -61,13 +61,22 @@ describe("POST /api/v1/arc/drafts", () => {
     expect(createDraftMock).not.toHaveBeenCalled();
   });
 
-  it("creates a draft (201)", async () => {
+  it("rejects a subject-less draft with a clean 400 (would otherwise 502 on the DB subject CHECK)", async () => {
     configure();
     const res = await POST(draftRequest("Bearer secret", { item_type: "partner_outreach", draft: "copy" }));
+    expect(res.status).toBe(400);
+    expect(createDraftMock).not.toHaveBeenCalled();
+  });
+
+  it("creates a draft (201) when linked to a subject record", async () => {
+    configure();
+    const res = await POST(
+      draftRequest("Bearer secret", { item_type: "partner_outreach", draft: "copy", company_id: "co-1" }),
+    );
     expect(res.status).toBe(201);
     expect((await res.json()).status).toBe("drafted");
     expect(createDraftMock).toHaveBeenCalledWith(
-      expect.objectContaining({ itemType: "partner_outreach", draft: "copy" }),
+      expect.objectContaining({ itemType: "partner_outreach", draft: "copy", companyId: "co-1" }),
       undefined,
       { orgId: "org-1", workspaceId: "workspace-1" },
     );

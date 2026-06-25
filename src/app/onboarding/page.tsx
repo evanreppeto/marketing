@@ -143,7 +143,7 @@ export default async function OnboardingPage({
                     maxLength={96}
                     minLength={2}
                     name="organizationName"
-                    placeholder="Big Shoulders Restoration"
+                    placeholder="Acme Restoration"
                     required
                   />
                 </label>

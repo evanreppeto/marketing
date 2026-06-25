@@ -9,6 +9,7 @@
 
 import { hasActiveAgentTokens, verifyAgentToken, type VerifyAgentTokenResult } from "@/lib/agent/tokens";
 import { recordAgentSeen } from "@/lib/agent/health";
+import { deferAfterResponse } from "@/lib/defer";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 export type BearerTokenResult =
@@ -82,14 +83,18 @@ export async function checkAgentBearer(request: HeaderCarrier, deps: AgentBearer
   const recordSeen = deps.recordSeen ?? recordAgentSeen;
 
   if (token && envToken && token === envToken) {
-    await recordSeen().catch(() => undefined);
+    // Telemetry only (last_seen_at) — nothing in the request depends on it, and
+    // the runner polls the inbox on every interval, so defer it out of the hot
+    // auth path instead of blocking the bearer check on a workspace-context read
+    // + connection UPDATE.
+    deferAfterResponse(recordSeen);
     return { ok: true, tokenSource: "env" };
   }
 
   if (token) {
     const verified = await verify(token);
     if (verified.ok) {
-      await recordSeen().catch(() => undefined);
+      deferAfterResponse(recordSeen);
       return { ok: true, tokenSource: "database", orgId: verified.orgId, workspaceId: verified.workspaceId };
     }
   }

@@ -1,6 +1,7 @@
 import {
   type ActivityInput,
   type CrmActivityType,
+  isWithinWindow,
   type NoteInput,
   type TaskInput,
 } from "@/domain";
@@ -59,6 +60,26 @@ export async function insertNote(input: NoteInput, scope?: PersistScope): Promis
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
   const orgId = await resolveOrgId(scope);
   const supabase = getSupabaseAdminClient();
+
+  const DEDUPE_WINDOW_MS = 10 * 60 * 1000;
+  if (input.entityType && input.entityId) {
+    const { data: recentNotes } = await supabase
+      .from("crm_notes")
+      .select("id, body, created_at")
+      .eq("org_id", orgId)
+      .eq("entity_type", input.entityType)
+      .eq("entity_id", input.entityId)
+      .eq("author_kind", input.authorKind)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const nowIso = new Date().toISOString();
+    const duplicate = (recentNotes ?? []).find(
+      (note: { id: string; body: string; created_at: string }) =>
+        note.body === input.body && isWithinWindow(note.created_at, nowIso, DEDUPE_WINDOW_MS),
+    );
+    if (duplicate) return { ok: true, id: duplicate.id };
+  }
+
   const { data, error } = await supabase
     .from("crm_notes")
     .insert({
@@ -93,6 +114,26 @@ export async function insertTask(input: TaskInput, scope?: PersistScope): Promis
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
   const orgId = await resolveOrgId(scope);
   const supabase = getSupabaseAdminClient();
+
+  const DEDUPE_WINDOW_MS = 10 * 60 * 1000;
+  if (input.entityType && input.entityId) {
+    const { data: recentTasks } = await supabase
+      .from("crm_tasks")
+      .select("id, title, created_at")
+      .eq("org_id", orgId)
+      .eq("entity_type", input.entityType)
+      .eq("entity_id", input.entityId)
+      .eq("author_kind", input.authorKind)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const nowIso = new Date().toISOString();
+    const duplicate = (recentTasks ?? []).find(
+      (task: { id: string; title: string; created_at: string }) =>
+        task.title === input.title && isWithinWindow(task.created_at, nowIso, DEDUPE_WINDOW_MS),
+    );
+    if (duplicate) return { ok: true, id: duplicate.id };
+  }
+
   const { data, error } = await supabase
     .from("crm_tasks")
     .insert({

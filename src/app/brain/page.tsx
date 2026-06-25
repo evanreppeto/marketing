@@ -1,9 +1,10 @@
 import { PageHeader, StatStrip, type StatItem } from "@/app/_components/page-header";
+import { BrainCoverageBanner } from "@/app/brain/_components/coverage-banner";
 import { BrainShell } from "@/app/brain/_components/brain-shell";
 import { ResyncCrmButton } from "@/app/brain/_components/resync-crm-button";
 import { buildBrainSourceReviewData } from "@/lib/brand-knowledge/source-review";
 import { getBrainGraph } from "@/lib/knowledge-graph/graph";
-import { brainSummary, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
+import { brainSummary, getBrainCrmCoverage, listNodes, listProposed } from "@/lib/knowledge-graph/read-model";
 import { getMediaLibraryData } from "@/lib/media-library/read-model";
 import { getAgentName } from "@/lib/settings/agent-name";
 
@@ -13,13 +14,14 @@ export const metadata: Metadata = { title: "Brain" };
 export const dynamic = "force-dynamic";
 
 export default async function BrainPage() {
-  const [graph, proposed, all, summary, agentName, library] = await Promise.all([
+  const [graph, proposed, all, summary, agentName, library, coverage] = await Promise.all([
     getBrainGraph(),
     listProposed(),
     listNodes({}),
     brainSummary(),
     getAgentName(),
     getMediaLibraryData(),
+    getBrainCrmCoverage(),
   ]);
 
   const graphNodes = graph.status === "live" ? graph.nodes : [];
@@ -64,6 +66,13 @@ export default async function BrainPage() {
         aside={<ResyncCrmButton />}
       />
       {summary.status === "live" ? <StatStrip items={stats} columns={4} /> : null}
+      {coverage.status === "live" ? (
+        <BrainCoverageBanner
+          behind={coverage.behind}
+          crmRecords={coverage.crmRecords}
+          brainRecords={coverage.brainRecords}
+        />
+      ) : null}
       <BrainShell
         graphNodes={graphNodes}
         graphEdges={graphEdges}

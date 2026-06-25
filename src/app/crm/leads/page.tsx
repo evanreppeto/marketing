@@ -6,7 +6,7 @@ import { getAgentName } from "@/lib/settings/agent-name";
 import { CrmObjectPage } from "../_components/crm-object-page";
 
 type PageProps = {
-  searchParams?: Promise<{ action?: string | string[]; selected?: string | string[]; view?: string | string[] }>;
+  searchParams?: Promise<{ action?: string | string[]; view?: string | string[] }>;
 };
 
 export default async function Page({ searchParams }: PageProps) {
@@ -23,7 +23,6 @@ export default async function Page({ searchParams }: PageProps) {
       liveObject={liveObject.status === "live" ? liveObject : undefined}
       navCounts={navCounts.status === "live" ? navCounts.counts : undefined}
       objectKey="leads"
-      selected={getValue(query.selected)}
       view={getValue(query.view)}
     />
   );

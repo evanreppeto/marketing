@@ -18,7 +18,13 @@ type PersistLeadInput = {
   /** When set, stamps companies/contacts/properties/leads with origin + review_status. */
   provenance?: LeadProvenance;
   /** Pre-resolved (deduped) ids to reuse instead of inserting. */
-  existing?: { companyId?: string | null; contactId?: string | null };
+  existing?: {
+    companyId?: string | null;
+    contactId?: string | null;
+    propertyId?: string | null;
+    /** When set, the matching lead is UPDATED in place instead of inserting a new row. */
+    leadId?: string | null;
+  };
 };
 
 type InsertResult = {
@@ -30,6 +36,8 @@ export type PersistedLeadIngestion = {
   contactId: string | null;
   propertyId: string | null;
   leadId: string;
+  /** false when an existing lead was updated rather than inserted. */
+  leadCreated: boolean;
 };
 
 export async function persistLeadIngestion({
@@ -82,24 +90,26 @@ export async function persistLeadIngestion({
         })
       : null;
 
-  const propertyId = input.property
-    ? await insertAndReturnId(supabase, "properties", orgId, {
-        company_id: companyId,
-        contact_id: contactId,
-        persona: result.persona,
-        street_line_1: input.property.streetLine1,
-        street_line_2: input.property.streetLine2 ?? null,
-        city: input.property.city,
-        state: input.property.state.toUpperCase(),
-        postal_code: input.property.postalCode,
-        ...stamp,
-        metadata: {
-          ingestion_source: input.source,
-        },
-      })
-    : null;
+  const propertyId = existing?.propertyId
+    ? existing.propertyId
+    : input.property
+      ? await insertAndReturnId(supabase, "properties", orgId, {
+          company_id: companyId,
+          contact_id: contactId,
+          persona: result.persona,
+          street_line_1: input.property.streetLine1,
+          street_line_2: input.property.streetLine2 ?? null,
+          city: input.property.city,
+          state: input.property.state.toUpperCase(),
+          postal_code: input.property.postalCode,
+          ...stamp,
+          metadata: {
+            ingestion_source: input.source,
+          },
+        })
+      : null;
 
-  const leadId = await insertAndReturnId(supabase, "leads", orgId, {
+  const leadValues = {
     company_id: companyId,
     contact_id: contactId,
     property_id: propertyId,
@@ -127,7 +137,26 @@ export async function persistLeadIngestion({
       calculated_at: result.scores.calculatedAt,
       ...(locationMetadata ? { location: locationMetadata } : {}),
     },
-  });
+  };
+
+  let leadId: string;
+  let leadCreated: boolean;
+  if (existing?.leadId) {
+    const { data, error } = await supabase
+      .from("leads")
+      .update({ ...leadValues, updated_at: new Date().toISOString() })
+      .eq("id", existing.leadId)
+      .eq("org_id", orgId)
+      .select("id")
+      .single<InsertResult>();
+    if (error) throw new Error(`Failed to update lead: ${error.message}`);
+    if (!data?.id) throw new Error("Failed to update lead: no row matched.");
+    leadId = data.id;
+    leadCreated = false;
+  } else {
+    leadId = await insertAndReturnId(supabase, "leads", orgId, leadValues);
+    leadCreated = true;
+  }
 
   // Best-effort Brain mirror of the new lead (recall degrades gracefully without it).
   try {
@@ -135,7 +164,7 @@ export async function persistLeadIngestion({
     await syncRecordToBrain("leads", leadId, { client: supabase, orgId });
   } catch { /* ignore */ }
 
-  return { companyId, contactId, propertyId, leadId };
+  return { companyId, contactId, propertyId, leadId, leadCreated };
 }
 
 /**

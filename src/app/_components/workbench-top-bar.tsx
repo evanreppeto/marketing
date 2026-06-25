@@ -7,12 +7,19 @@ import { useCommandMenu } from "./command-menu";
 import { useWorkspaceName } from "./workspace-name-context";
 
 /**
- * Desktop workbench header bar. Every control here is interactive:
+ * Desktop workbench header bar, rendered once app-wide by the shell. Controls:
  * - the workspace chip links to workspace settings and reflects the real name
  * - the command box (and Ctrl/Cmd+K) opens the shared command palette
- * - page-level `actions` render on the right (e.g. CRM "New lead")
+ * - `actions` render on the right (optional page-level actions)
+ * - `avatar` renders far right (the operator avatar, passed by the shell)
  */
-export function WorkbenchTopBar({ actions }: { actions?: React.ReactNode }) {
+export function WorkbenchTopBar({
+  actions,
+  avatar,
+}: {
+  actions?: React.ReactNode;
+  avatar?: React.ReactNode;
+}) {
   const workspaceName = useWorkspaceName();
   const commandMenu = useCommandMenu();
 
@@ -44,6 +51,8 @@ export function WorkbenchTopBar({ actions }: { actions?: React.ReactNode }) {
       {actions ? (
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>
       ) : null}
+
+      {avatar ? <div className="ml-1 shrink-0">{avatar}</div> : null}
     </div>
   );
 }

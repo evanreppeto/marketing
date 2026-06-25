@@ -12,6 +12,7 @@ import {
 } from "@/lib/activity/read-model";
 
 import { ActivityTimeline } from "./_components/activity-timeline";
+import { TabNav } from "../_components/tab-nav";
 
 export const metadata = {
   title: "Activity",
@@ -40,6 +41,16 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
     return (
       <>
         <ActivityHeader selectedRange={selectedRange} />
+        <TabNav
+          ariaLabel="Analytics views"
+          activeKey="activity"
+          columns=""
+          className="mb-4"
+          tabs={[
+            { key: "performance", label: "Performance", href: "/analytics" },
+            { key: "activity", label: "Activity", href: "/activity" },
+          ]}
+        />
         <EmptyState
           title="Activity will appear once the workspace is connected"
           detail="The log uses workspace records, agent runs, approvals, campaigns, and CRM events."
@@ -51,6 +62,16 @@ export default async function ActivityPage({ searchParams }: ActivityPageProps) 
   return (
     <>
       <ActivityHeader selectedRange={selectedRange} />
+      <TabNav
+        ariaLabel="Analytics views"
+        activeKey="activity"
+        columns=""
+        className="mb-4"
+        tabs={[
+          { key: "performance", label: "Performance", href: "/analytics" },
+          { key: "activity", label: "Activity", href: "/activity" },
+        ]}
+      />
 
       <StatStrip items={buildActivityStats(activity.summary, activity.entries.length)} columns={5} />
 

@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/vault/read-model", () => ({ getVaultNotes: vi.fn(), getVaultNote: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
+}));
 import { getVaultNotes, getVaultNote } from "@/lib/vault/read-model";
 import { GET } from "./route";
 
@@ -24,15 +27,16 @@ describe("GET /api/v1/arc/vault", () => {
     expect((await GET(req("Bearer wrong"))).status).toBe(401);
     expect(notesMock).not.toHaveBeenCalled();
   });
-  it("lists notes when no slug", async () => {
+  it("lists notes when no slug, scoped to the token org", async () => {
     configure();
     expect(await (await GET(req("Bearer secret"))).json()).toMatchObject({ ok: true, notes: [{ slug: "n1" }] });
+    expect(notesMock).toHaveBeenCalledWith("org-1");
   });
-  it("returns a single note for ?slug=", async () => {
+  it("returns a single note for ?slug=, scoped to the token org", async () => {
     configure();
     const res = await GET(req("Bearer secret", "n1"));
     expect(await res.json()).toMatchObject({ ok: true, note: { slug: "n1" } });
-    expect(noteMock).toHaveBeenCalledWith("n1");
+    expect(noteMock).toHaveBeenCalledWith("n1", "org-1");
   });
   it("404s when the slug is not found", async () => {
     configure(); noteMock.mockResolvedValue(null as never);

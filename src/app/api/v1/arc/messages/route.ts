@@ -43,10 +43,15 @@ export async function GET(request: Request) {
     const queued = await listQueuedChatTasks(limit, undefined, scope);
     // Claim before handing out so a message is processed exactly once, even if
     // the webhook push already woke Arc. A lost claim race just means another
-    // path already took it, so drop it from this response.
+    // path already took it, so drop it from this response. Each claim is an
+    // independent atomic UPDATE, so run them in parallel — latency no longer
+    // scales linearly with queue depth — while preserving the queued order.
+    const claims = await Promise.all(
+      queued.map((item) => claimChatTask(item.agentTaskId, undefined, scope).then((won) => ({ item, won }))),
+    );
     const messages = [];
-    for (const item of queued) {
-      if (await claimChatTask(item.agentTaskId, undefined, scope)) {
+    for (const { item, won } of claims) {
+      if (won) {
         logArcChatStatus("processing", { agentTaskId: item.agentTaskId, conversationId: item.conversationId, detail: "via=inbox" });
         messages.push(item);
       }

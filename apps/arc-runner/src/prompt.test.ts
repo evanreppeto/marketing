@@ -35,11 +35,21 @@ describe("ARC_SYSTEM_PROMPT", () => {
       "create_lead",
       "update_record",
       "generate_image",
+      "compose_creative",
       "analyze_website",
       "propose_brand_profile",
     ]) {
       expect(ARC_SYSTEM_PROMPT).toContain(token);
     }
+  });
+
+  it("makes Arc aware of Higgsfield and keeps its output approval-gated", () => {
+    expect(ARC_SYSTEM_PROMPT).toMatch(/Higgsfield/);
+    // The Higgsfield guidance must sit in the creative block that already enforces
+    // AI-tagged, approval-gated drafts.
+    const creative = ARC_SYSTEM_PROMPT.slice(ARC_SYSTEM_PROMPT.indexOf("CREATIVE."));
+    expect(creative).toMatch(/Higgsfield/);
+    expect(creative.toLowerCase()).toContain("approval-gated");
   });
 
   it("preserves mechanical tool parameters and anti-fabrication guards", () => {

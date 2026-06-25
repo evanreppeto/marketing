@@ -125,5 +125,18 @@ export function crmReadTools(client: ArcClient, step: StepFn) {
       }),
   );
 
-  return [searchCompanies, searchContacts, searchLeads, getLead, searchJobs, searchOutcomes, searchProperties];
+  const searchCrm = tool(
+    "search_crm",
+    "Search existing CRM records (companies, contacts, leads) by name, email, phone, or domain BEFORE creating anything. Always call this first when you might add a lead/company/contact, and prefer update_record on a match instead of create_lead.",
+    {
+      q: z.string().describe("Name, email, phone, or domain to look up (min 2 chars)"),
+      type: z.enum(["all", "company", "contact", "lead"]).optional(),
+    },
+    async (args) =>
+      runTool(step, `Searching CRM for ${args.q}`, async () =>
+        client.apiGet(`/api/v1/arc/crm/search`, { q: args.q, type: args.type }),
+      ),
+  );
+
+  return [searchCompanies, searchContacts, searchLeads, getLead, searchJobs, searchOutcomes, searchProperties, searchCrm];
 }

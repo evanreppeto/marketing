@@ -42,6 +42,45 @@ Supabase's built-in email sender is rate-limited (2 emails/hour on the free tier
    - **Sender email**: a verified domain address, e.g. `invites@yourdomain.com`
 4. Save and send a test email to confirm delivery.
 
+## 2a. Where each setting lives (config matrix)
+
+| Setting | Vercel (app) | local `.env.local` | Supabase dashboard | Cloud Run (runner) |
+|---|---|---|---|---|
+| `RESEND_API_KEY` | yes | yes | — | NO — runner sends no email |
+| `RESEND_FROM` (branded, on the verified domain) | yes | yes | — | NO |
+| Custom SMTP (`smtp.resend.com`, user `resend`, pass = Resend key, sender = branded addr) | — | — | yes (Auth -> SMTP) | — |
+| Site URL + Redirect URLs (`/auth/confirm`, `/auth/callback`) | — | — | yes (Auth -> URL Config) | — |
+| DKIM / SPF / DMARC | — | — | — (DNS / registrar) | — |
+
+**Cloud Run runner — verify, don't change.** The runner (`apps/arc-runner`) reads no
+Resend vars and needs no change for email. Only confirm its shared Arc secrets still
+match Vercel:
+
+```bash
+gcloud run services describe arc-runner --region us-central1 \
+  --format='value(spec.template.spec.containers[0].env)'
+```
+
+`APP_API_BASE_URL` should point at the prod app; `ARC_AGENT_API_TOKEN` and
+`ARC_WEBHOOK_SECRET` (Secret Manager) must resolve to the same values Vercel holds.
+Do not add `RESEND_*` here.
+
+## 2b. Branded invite emails (in-app)
+
+Invites are no longer sent by Supabase. `POST /api/auth/workspace-invites` calls
+`auth.admin.generateLink({ type: 'invite' })` to mint the action link WITHOUT sending,
+then renders the branded invite (shared shell in `src/domain/email-templates.ts`) and
+sends it via Resend with `RESEND_FROM`. The code-only fallback is unchanged: any link or
+send failure still returns `ok:true` with the shareable `code` and `emailed:false`.
+
+## 2c. Branded hosted templates (magic link / recovery / signup confirm)
+
+These remain Supabase-sent. Run `pnpm email:export` to regenerate
+`docs/email-templates/*.html` from the same brand shell, then paste each into its
+Supabase dashboard editor (Authentication -> Email Templates). Re-run + re-paste when the
+shell changes. Optionally set `EMAIL_EXPORT_APP_NAME` / `EMAIL_EXPORT_LOGO_URL` before
+running to brand the exported HTML.
+
 ## 3. How Acceptance Works
 
 When an invited user clicks the link in their email:

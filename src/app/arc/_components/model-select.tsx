@@ -129,7 +129,7 @@ export function ModelSelect({
             <SparkGlyph className="h-4 w-4 shrink-0 text-[var(--accent)]" />
             <span className="flex min-w-0 flex-col">
               <span className="text-xs font-semibold text-[var(--text-primary)]">Arc model</span>
-              <span className="text-[10px] leading-tight text-[var(--text-muted)]">Tuned for BSR · adjust per message</span>
+              <span className="text-[10px] leading-tight text-[var(--text-muted)]">Tuned to your brand · adjust per message</span>
             </span>
           </div>
 

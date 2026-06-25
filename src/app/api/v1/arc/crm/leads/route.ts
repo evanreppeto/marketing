@@ -84,7 +84,7 @@ export async function POST(request: Request) {
         review_status: reviewStatus,
         dedup: result.dedup,
       },
-      201,
+      result.persisted.leadCreated ? 201 : 200,
     );
   } catch (error) {
     return fail("failed", error instanceof Error ? error.message : "Failed to create lead.", 502);

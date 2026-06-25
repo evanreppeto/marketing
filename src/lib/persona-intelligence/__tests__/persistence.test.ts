@@ -53,6 +53,7 @@ const persisted: PersistedLeadIngestion = {
   contactId: "contact-1",
   propertyId: "property-1",
   leadId: "lead-1",
+  leadCreated: true,
 };
 
 describe("persona intelligence persistence", () => {

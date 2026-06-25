@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { listNodes, listProposed, brainSummary } from "./read-model";
+import { listNodes, listProposed, brainSummary, getBrainCrmCoverage } from "./read-model";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -79,6 +79,44 @@ describe("listProposed", () => {
     expect(result.status).toBe("live");
     if (result.status !== "live") throw new Error("expected live");
     expect(result.nodes.every((n) => n.trustTier === "proposed")).toBe(true);
+  });
+});
+
+describe("getBrainCrmCoverage", () => {
+  it("reports how far the brain trails the CRM (sum of CRM rows minus crm_* nodes)", async () => {
+    const supabase = createSupabaseQueryMock({
+      companies: { data: null, error: null, count: 3 },
+      contacts: { data: null, error: null, count: 5 },
+      leads: { data: null, error: null, count: 4 },
+      properties: { data: null, error: null, count: 0 },
+      jobs: { data: null, error: null, count: 0 },
+      outcomes: { data: null, error: null, count: 0 },
+      knowledge_nodes: { data: null, error: null, count: 2 },
+    });
+    const res = await getBrainCrmCoverage(supabase as never, "org-1");
+    expect(res).toEqual({ status: "live", crmRecords: 12, brainRecords: 2, behind: 10 });
+  });
+
+  it("reports caught up (behind 0) when the brain meets or exceeds the CRM", async () => {
+    const supabase = createSupabaseQueryMock({
+      companies: { data: null, error: null, count: 2 },
+      contacts: { data: null, error: null, count: 0 },
+      leads: { data: null, error: null, count: 0 },
+      properties: { data: null, error: null, count: 0 },
+      jobs: { data: null, error: null, count: 0 },
+      outcomes: { data: null, error: null, count: 0 },
+      knowledge_nodes: { data: null, error: null, count: 9 },
+    });
+    const res = await getBrainCrmCoverage(supabase as never, "org-1");
+    expect(res).toMatchObject({ status: "live", crmRecords: 2, behind: 0 });
+  });
+
+  it("reports unavailable on a Supabase error", async () => {
+    const supabase = createSupabaseQueryMock({
+      companies: { data: null, error: { message: "boom" } },
+    });
+    const res = await getBrainCrmCoverage(supabase as never, "org-1");
+    expect(res.status).toBe("unavailable");
   });
 });
 

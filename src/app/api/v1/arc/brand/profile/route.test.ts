@@ -18,8 +18,12 @@ vi.mock("@/lib/brand-kit/persistence", () => ({
   getBusinessProfile: vi.fn(),
   upsertBusinessProfile: vi.fn(),
 }));
+vi.mock("@/lib/brand-kit/brand-image", () => ({
+  storeBrandImageFromUrl: vi.fn(async () => "https://store.example/logo.png"),
+}));
 
 import { getBusinessProfile, upsertBusinessProfile } from "@/lib/brand-kit/persistence";
+import { storeBrandImageFromUrl } from "@/lib/brand-kit/brand-image";
 import { NEUTRAL_DEFAULTS } from "@/domain";
 import { PUT } from "./route";
 
@@ -50,6 +54,8 @@ beforeEach(() => {
   upsertMock.mockReset();
   getMock.mockResolvedValue(null);
   upsertMock.mockImplementation(async (_org, profile) => profile);
+  vi.mocked(storeBrandImageFromUrl).mockClear();
+  vi.mocked(storeBrandImageFromUrl).mockResolvedValue("https://store.example/logo.png");
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(env)) {
@@ -118,5 +124,47 @@ describe("PUT /api/v1/arc/brand/profile", () => {
     expect(body.profile.tone).toBe("warm");
     expect(body.profile.voiceGuidance).toBe("Speak like a trusted neighbor.");
     expect(body.profile.status).toBe("draft");
+  });
+
+  it("merges a proposed palette and fonts into the draft", async () => {
+    configure();
+    const res = await PUT(req("Bearer secret", {
+      displayName: "Acme Co",
+      brandPalette: { primary: "#C8A24B", secondary: "#1B2A4A" },
+      headingFont: "Oswald",
+      bodyFont: "Inter",
+    }));
+    expect(res.status).toBe(200);
+    const profile = upsertMock.mock.calls[0][1];
+    expect(profile.brandPalette.primary.hex).toBe("#c8a24b");
+    expect(profile.brandPalette.secondary.hex).toBe("#1b2a4a");
+    expect(profile.brandPalette.headingFont).toBe("Oswald");
+    expect(profile.brandPalette.bodyFont).toBe("Inter");
+  });
+
+  it("downloads + stores an external logo instead of hotlinking it", async () => {
+    configure();
+    const res = await PUT(req("Bearer secret", { displayName: "Acme Co", logoUrl: "https://acme.com/logo.png" }));
+    expect(res.status).toBe(200);
+    expect(storeBrandImageFromUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "https://acme.com/logo.png", role: "logo" }),
+    );
+    expect(upsertMock.mock.calls[0][1].logoUrl).toBe("https://store.example/logo.png");
+  });
+
+  it("keeps the current logo (does not hotlink) when the image store fails", async () => {
+    configure();
+    getMock.mockResolvedValue({ ...NEUTRAL_DEFAULTS, displayName: "Acme Co", logoUrl: "https://store.example/old-logo.png", status: "draft" });
+    vi.mocked(storeBrandImageFromUrl).mockResolvedValue(null);
+    const res = await PUT(req("Bearer secret", { displayName: "Acme Co", logoUrl: "https://acme.com/new-logo.png" }));
+    expect(res.status).toBe(200);
+    expect(upsertMock.mock.calls[0][1].logoUrl).toBe("https://store.example/old-logo.png"); // kept, not the raw new URL
+  });
+
+  it("ignores an invalid palette hex (keeps the current slot)", async () => {
+    configure();
+    const res = await PUT(req("Bearer secret", { displayName: "Acme Co", brandPalette: { primary: "not-a-hex" } }));
+    expect(res.status).toBe(200);
+    expect(upsertMock.mock.calls[0][1].brandPalette.primary.hex).toBe(""); // NEUTRAL_DEFAULTS empty
   });
 });

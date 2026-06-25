@@ -35,6 +35,19 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     mcpUrl: null,
     toolNamespace: "gemini",
   },
+  {
+    key: "higgsfield",
+    label: "Higgsfield",
+    description:
+      "Cinematic image & video generation, UGC/viral ad variants, and virality prediction on this " +
+      "workspace's own Higgsfield credits. Loaded into the runner as a remote MCP; output lands as " +
+      "approval-gated draft assets.",
+    authKind: "oauth",
+    access: "gated_write",
+    mcpUrl: "https://mcp.higgsfield.ai/mcp",
+    authHeader: "Authorization",
+    toolNamespace: "higgsfield",
+  },
 ];
 
 export function findConnector(key: string): ConnectorRegistryEntry | null {
