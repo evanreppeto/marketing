@@ -187,8 +187,10 @@ export function parseArcRoute(value: unknown): ArcRoute {
 export type ArcActionFlag = { tone: "ok" | "warn" | "risk"; label: string };
 export type ArcActionRow = { name: string; meta?: string; badge?: string; href?: string };
 export type ArcActionApproval = { kind: "campaign"; campaignId: string; assetId: string };
+/** A deep-link into a pre-filtered in-app view. href must be an in-app path (/…). */
+export type ArcAppState = { href: string; filters: string[] };
 export type ArcActionCard = {
-  kind: "result" | "draft";
+  kind: "result" | "draft" | "navigate";
   title: string;
   href?: string;
   rows: ArcActionRow[];
@@ -200,6 +202,7 @@ export type ArcActionCard = {
   channel?: string; // "Meta / Instagram" | "Email" | "SMS" | …
   format?: string; // aspect/format label
   status?: ArcAssetStatus;
+  appState?: ArcAppState;
 };
 
 function str(v: unknown): string | undefined {
@@ -246,6 +249,18 @@ function parseApproval(value: unknown): ArcActionApproval | undefined {
   return { kind: "campaign", campaignId, assetId };
 }
 
+function parseAppState(value: unknown): ArcAppState | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const href = str((value as { href?: unknown }).href);
+  // In-app routes only — never an external URL.
+  if (!href || !href.startsWith("/")) return undefined;
+  const rawFilters = (value as { filters?: unknown }).filters;
+  const filters = Array.isArray(rawFilters)
+    ? rawFilters.filter((f): f is string => typeof f === "string" && f.trim().length > 0).map((f) => f.trim()).slice(0, 6)
+    : [];
+  return { href, filters };
+}
+
 /** Parse Arc's structured action cards from message metadata. Defensive: drops
  *  malformed entries (must have a valid kind + title), never throws. */
 export function parseActions(value: unknown): ArcActionCard[] {
@@ -255,7 +270,10 @@ export function parseActions(value: unknown): ArcActionCard[] {
     if (!item || typeof item !== "object") continue;
     const kind = (item as { kind?: unknown }).kind;
     const title = str((item as { title?: unknown }).title);
-    if ((kind !== "result" && kind !== "draft") || !title) continue;
+    if ((kind !== "result" && kind !== "draft" && kind !== "navigate") || !title) continue;
+    const appState = kind === "navigate" ? parseAppState((item as { appState?: unknown }).appState) : undefined;
+    // A navigate card with no valid in-app destination is useless — drop it.
+    if (kind === "navigate" && !appState) continue;
     const mediaValue = (item as { media?: unknown }).media;
     const media = mediaValue ? parseMedia([mediaValue])[0] : undefined;
     const statusRaw = (item as { status?: unknown }).status;
@@ -264,7 +282,7 @@ export function parseActions(value: unknown): ArcActionCard[] {
         ? (statusRaw as ArcAssetStatus)
         : undefined;
     out.push({
-      kind,
+      kind: kind as "result" | "draft" | "navigate",
       title,
       href: str((item as { href?: unknown }).href),
       rows: parseRows((item as { rows?: unknown }).rows),
@@ -275,6 +293,7 @@ export function parseActions(value: unknown): ArcActionCard[] {
       channel: str((item as { channel?: unknown }).channel),
       format: str((item as { format?: unknown }).format),
       status,
+      ...(appState ? { appState } : {}),
     });
   }
   return out;
