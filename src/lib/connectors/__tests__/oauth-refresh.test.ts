@@ -3,7 +3,10 @@ import { ensureFreshAccessToken } from "../oauth-refresh";
 import type { OAuthRefreshBundle } from "@/domain";
 
 const credentials = vi.hoisted(() => ({
-  updateConnectorCredential: vi.fn(async (_client: unknown, _ref: string | null, _plaintext: string) => true),
+  // Typed signature (not named params) so mock.calls[0] destructures as a tuple.
+  updateConnectorCredential: vi.fn<(client: unknown, ref: string | null, plaintext: string) => Promise<boolean>>(
+    async () => true,
+  ),
 }));
 vi.mock("../credentials", () => credentials);
 
