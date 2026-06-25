@@ -3,7 +3,7 @@ import { createSdkMcpServer, query } from "@anthropic-ai/claude-agent-sdk";
 import { resolveBusinessContext } from "./business-context";
 import { resolveWorkspaceSummary } from "./workspace-summary";
 import { buildTurnContentAsync } from "./attachments";
-import { buildRecallQuery, resolveRecallMemory } from "./recall";
+import { buildRecallQuery, resolveRecallMemory, type RecallItem } from "./recall";
 import { buildSystemPrompt, formatHistory, type ArcTurnContext } from "./context";
 import { buildQueryOptions, inferenceForRoute, type InferenceSettings } from "./inference";
 import type { ArcClient } from "./arc-client";
@@ -29,6 +29,7 @@ export type ArcTurnResult = {
   suggestions: string[];
   sources: ArcMention[];
   questions: ArcQuestion[];
+  memory: RecallItem[];
   usage: { model: string; inputTokens: number | null; outputTokens: number | null };
 };
 
@@ -166,6 +167,7 @@ async function runArcQuery(opts: {
     suggestions: suggestions.slice(0, 4),
     sources,
     questions: questions.slice(0, 4),
+    memory: opts.ctx.memory ?? [],
     usage: { model: opts.inference.model, inputTokens, outputTokens },
   };
 }

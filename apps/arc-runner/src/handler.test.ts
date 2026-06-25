@@ -12,6 +12,7 @@ vi.mock("./arc", () => ({
     suggestions: ["Review the drafts"],
     sources: [],
     questions: [],
+    memory: [],
   })),
 }));
 
@@ -82,6 +83,39 @@ describe("handleCampaignTask", () => {
         summary: "I drafted the first campaign assets.",
         outputs: expect.objectContaining({
           actions: [expect.objectContaining({ title: "Email" })],
+        }),
+      }),
+    );
+  });
+
+  it("surfaces recalled memory as metadata.recall when memory items are present", async () => {
+    const fakeClient = client();
+
+    vi.mocked(runArcCampaignTask).mockResolvedValueOnce({
+      body: "I drafted campaign assets using recalled memory.",
+      actions: [],
+      suggestions: [],
+      sources: [],
+      questions: [],
+      memory: [{ label: "Landlord playbook", summary: null, kind: "note", confidence: 0.8, nodeId: "n1" }],
+      usage: { model: "claude-sonnet-4-5", inputTokens: null, outputTokens: null },
+    });
+
+    await handleCampaignTask(fakeClient, {} as Config, {
+      type: "arc_campaign_task",
+      agentTaskId: "task-3",
+      campaignId: "campaign-2",
+      conversationId: "conversation-2",
+      message: "Build this campaign.",
+      operator: "Operator",
+      taskType: "campaign_brief_draft",
+    });
+
+    expect(fakeClient.postChatReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentTaskId: "task-3",
+        metadata: expect.objectContaining({
+          recall: [expect.objectContaining({ label: "Landlord playbook", confidence: 0.8 })],
         }),
       }),
     );
