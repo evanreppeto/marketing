@@ -17,9 +17,9 @@ import { textResult } from "./helpers";
 export function emitCardTool(collectCard: (card: ArcActionCard) => void) {
   return tool(
     "emit_card",
-    "Attach a structured card to your reply (renders below your text). Use kind 'result' to present records you found (rows = clickable record lines: name + optional meta/badge/href). Use kind 'draft' to present a proposed asset for review (preview + flags). Only add an `approval` block { kind:'campaign', campaignId, assetId } when referencing an EXISTING campaign asset you read via get_campaign — never invent ids. Call alongside your text reply.",
+    "Attach a structured card to your reply (renders below your text). Use kind 'result' to present records you found (rows = clickable record lines: name + optional meta/badge/href). Use kind 'draft' to present a proposed asset for review (preview + flags). Only add an `approval` block { kind:'campaign', campaignId, assetId } when referencing an EXISTING campaign asset you read via get_campaign — never invent ids. Call alongside your text reply. Use kind 'navigate' to hand back a one-click deep link into the app: set appState.href to an in-app route (from get_app_map) with query filters, and appState.filters to the human-readable filter labels.",
     {
-      kind: z.enum(["result", "draft"]),
+      kind: z.enum(["result", "draft", "navigate"]),
       title: z.string(),
       href: z.string().optional(),
       rows: z
@@ -56,6 +56,13 @@ export function emitCardTool(collectCard: (card: ArcActionCard) => void) {
         })
         .optional()
         .describe("Thumbnail + provenance. Use a real url (e.g. approved BSR media, source:'bsr_real'); never invent a url."),
+      appState: z
+        .object({
+          href: z.string().describe("In-app route only, must start with '/'. Build it from get_app_map routes + query filters."),
+          filters: z.array(z.string()).optional().describe("Human-readable filter labels shown as chips, e.g. 'persona: landlord'."),
+        })
+        .optional()
+        .describe("For kind:'navigate' — a pre-filtered in-app view the operator opens in one click."),
     },
     async (args) => {
       const card: ArcActionCard = {
@@ -70,6 +77,7 @@ export function emitCardTool(collectCard: (card: ArcActionCard) => void) {
         ...(args.format ? { format: args.format } : {}),
         ...(args.status ? { status: args.status } : {}),
         ...(args.media ? { media: args.media } : {}),
+        ...(args.appState ? { appState: args.appState } : {}),
       };
       collectCard(card);
       return textResult(`Attached ${args.kind} card: ${args.title}`);

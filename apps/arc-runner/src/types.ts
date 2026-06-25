@@ -118,8 +118,9 @@ export type ArcMedia = {
   riskFlags?: string[];
 };
 
+export type ArcAppState = { href: string; filters?: string[] };
 export type ArcActionCard = {
-  kind: "result" | "draft";
+  kind: "result" | "draft" | "navigate";
   title: string;
   href?: string;
   rows: ArcActionRow[];
@@ -130,4 +131,5 @@ export type ArcActionCard = {
   format?: string;
   status?: "draft" | "revision" | "approved" | "rejected";
   media?: ArcMedia;
+  appState?: ArcAppState;
 };
