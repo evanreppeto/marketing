@@ -8,10 +8,35 @@ import {
   getIndustryTemplate,
   assembleArcContext,
   parseBrandPalette,
+  EMPTY_BRAND_PALETTE,
+  mergeBrandPalette,
   type BusinessProfile,
   type PersonaDefinition,
   type ArcBusinessContext,
 } from "@/domain/brand-kit";
+
+describe("mergeBrandPalette", () => {
+  it("fills empty slots from a vision palette, normalizes hex, keeps set slots, ignores invalid", () => {
+    const current = { ...EMPTY_BRAND_PALETTE, primary: { label: "Brand", hex: "#123456" } };
+    const result = mergeBrandPalette(current, {
+      primary: { label: "New", hex: "#999999" }, // already set → ignored
+      secondary: { label: "Teal", hex: "#18B4A6" }, // fills, lowercased
+      accent: { label: "Amber", hex: "f2a93b" }, // missing # → normalized
+      dark: { label: "Bad", hex: "not-a-hex" }, // invalid → ignored
+      headingFont: "Fraunces",
+    });
+    expect(result.primary).toEqual({ label: "Brand", hex: "#123456" });
+    expect(result.secondary).toEqual({ label: "Teal", hex: "#18b4a6" });
+    expect(result.accent).toEqual({ label: "Amber", hex: "#f2a93b" });
+    expect(result.dark).toEqual({ label: "", hex: "" });
+    expect(result.headingFont).toBe("Fraunces");
+    expect(result.bodyFont).toBe("");
+  });
+
+  it("returns the current palette unchanged when the update is null", () => {
+    expect(mergeBrandPalette(EMPTY_BRAND_PALETTE, null)).toEqual(EMPTY_BRAND_PALETTE);
+  });
+});
 
 describe("NEUTRAL_DEFAULTS", () => {
   it("is industry-agnostic: no services, no restoration assumptions, draft status", () => {

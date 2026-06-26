@@ -237,6 +237,45 @@ export function validateBusinessProfile(profile: BusinessProfile): ProfileValida
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }
 
+/** A partial palette proposed by vision / website analysis (any subset of slots + fonts). */
+export type BrandPaletteUpdate = Partial<BrandPalette>;
+
+/** Normalize a candidate hex ("f2a93b", "#18B4A6") to "#rrggbb", or null if not a valid 6-digit hex. */
+function normalizeHex(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  return HEX_COLOR.test(withHash) ? withHash : null;
+}
+
+function fillColor(current: BrandColor, incoming: BrandColor | undefined): BrandColor {
+  if (current.hex.length > 0) return current; // never overwrite a slot the operator already set
+  const hex = normalizeHex(incoming?.hex);
+  if (!hex) return current; // ignore missing/invalid hex
+  return { label: asString(incoming?.label, ""), hex };
+}
+
+/**
+ * Merge a vision/website-extracted palette into the current one with keep-or-fill
+ * semantics: only empty colour slots are filled, and only from a valid (normalizable)
+ * hex; fonts fill only when blank. Existing values and invalid colours are preserved.
+ */
+export function mergeBrandPalette(
+  current: BrandPalette,
+  update: BrandPaletteUpdate | null | undefined,
+): BrandPalette {
+  if (!update) return current;
+  return {
+    primary: fillColor(current.primary, update.primary),
+    secondary: fillColor(current.secondary, update.secondary),
+    accent: fillColor(current.accent, update.accent),
+    dark: fillColor(current.dark, update.dark),
+    light: fillColor(current.light, update.light),
+    headingFont: current.headingFont || asString(update.headingFont, ""),
+    bodyFont: current.bodyFont || asString(update.bodyFont, ""),
+  };
+}
+
 export type IndustryTemplate = {
   id: string;
   label: string;
