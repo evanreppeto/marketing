@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Build — Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --canvas:#16161a; --canvas-deep:#0d0d10; --panel:#1b1b20; --inset:#202027; --raised:#26262d;
+    --line:rgba(232,224,205,.08); --line-2:rgba(232,224,205,.12); --line-3:rgba(232,224,205,.20);
+    --text:#f1ede2; --text-2:#b9b9c0; --muted:#83838c;
+    --accent:#c8a24a; --accent-soft:rgba(200,162,74,.12); --accent-border:rgba(200,162,74,.34); --accent-contrast:#ecd596;
+    --ok:#7fb89a; --ok-text:#a3d0b8; --ok-soft:rgba(127,184,154,.14); --ok-border:rgba(127,184,154,.4);
+    --blue:#88b6d8; --blue-text:#9cc1e0;
+    --serif:"Fraunces",Georgia,serif; --sans:"Geist",ui-sans-serif,system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,monospace;
+    --ease:cubic-bezier(.16,1,.3,1); --pvb:#3b6ef5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--canvas);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+  ::selection{background:rgba(200,162,74,.28)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  .obroot{min-height:100vh;display:grid;grid-template-columns:minmax(380px,42%) 1fr}
+  @media(max-width:900px){.obroot{grid-template-columns:1fr}.obside{display:none}}
+
+  /* left panel */
+  .obside{position:relative;overflow:hidden;border-right:1px solid var(--line-2);padding:clamp(26px,3.4vw,42px);display:flex;flex-direction:column;gap:26px;background:var(--canvas-deep)}
+  .obside>*{position:relative;z-index:3}
+  /* EtheralShadow — the real auth-screen background shader */
+  .obshade-svg{position:absolute;height:0;width:0}
+  .obside .obshade-wrap{position:absolute;inset:0;z-index:0;opacity:.72;overflow:hidden;isolation:isolate;pointer-events:none;background:radial-gradient(120% 120% at 18% 8%,rgba(241,237,226,.1),transparent 34%),linear-gradient(145deg,#101013 0%,#1c1c21 54%,#0e0e10 100%)}
+  .auth-shadow-field{position:absolute;inset:-65px;z-index:1;filter:url(#obshadow);background-color:rgba(211,170,75,.46);mask-image:url("https://framerusercontent.com/images/ceBGguIpUU8luwByxuQz79t7To.png");mask-position:center;mask-repeat:no-repeat;mask-size:cover;-webkit-mask-image:url("https://framerusercontent.com/images/ceBGguIpUU8luwByxuQz79t7To.png");-webkit-mask-position:center;-webkit-mask-repeat:no-repeat;-webkit-mask-size:cover;will-change:transform}
+  body.mo .auth-shadow-field{animation:authShadowDrift 25s ease-in-out infinite}
+  .auth-shadow-field::after{content:"";position:absolute;inset:0;background:radial-gradient(44% 42% at 66% 62%,rgba(241,237,226,.08),transparent 74%),radial-gradient(36% 34% at 34% 26%,rgba(255,255,255,.08),transparent 72%)}
+  @keyframes authShadowDrift{0%,100%{transform:translate3d(-3%,-2%,0) scale(1.04)}50%{transform:translate3d(3%,2%,0) scale(1.1)}}
+  .obshade-noise{position:absolute;inset:0;z-index:2;mix-blend-mode:soft-light;opacity:.3;background-image:radial-gradient(circle at 20% 30%,rgba(255,255,255,.08) 0 1px,transparent 1px),radial-gradient(circle at 70% 60%,rgba(255,255,255,.055) 0 1px,transparent 1px);background-size:165px 165px;pointer-events:none}
+  .obside .obshade-fade{position:absolute;inset:0;z-index:1;background:linear-gradient(120deg,transparent 40%,var(--canvas) 100%);pointer-events:none}
+  .brandmk{display:flex;align-items:center;gap:11px}
+  .brandmk .mk{width:36px;height:36px;border-radius:10px;border:1px solid var(--accent-border);background:var(--accent-soft);display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--accent);font-size:18px}
+  .brandmk .wm{font-family:var(--serif);font-weight:600;font-size:18px}
+  .brandmk .wm small{display:block;font-family:var(--sans);font-weight:500;font-size:10.5px;color:var(--muted)}
+
+  /* vertical stepper */
+  .vsteps{display:flex;flex-direction:column}
+  .vstep{display:flex;gap:13px;position:relative;padding-bottom:18px}
+  .vstep:last-child{padding-bottom:0}
+  .vstep::before{content:"";position:absolute;left:13px;top:30px;bottom:2px;width:1.5px;background:var(--line-2)}
+  .vstep.done::before{background:var(--ok-border)}
+  .vstep:last-child::before{display:none}
+  .vsn{width:27px;height:27px;border-radius:50%;border:1.5px solid var(--line-2);background:var(--inset);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0;transition:.25s var(--ease);z-index:1}
+  .vstep.on .vsn{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 4px var(--accent-soft)}
+  .vstep.done .vsn{border-color:var(--ok-border);color:var(--ok-text);background:var(--ok-soft)}
+  .vsn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5}
+  .vstep .vsl{padding-top:3px}
+  .vstep .vst{font-size:13px;font-weight:600;color:var(--text-2);transition:.2s}.vstep.on .vst,.vstep.done .vst{color:var(--text)}
+  .vstep .vsd{font-size:11px;color:var(--muted);margin-top:1px}
+
+  /* evolving workspace preview */
+  .pvcard{margin-top:auto;border:1px solid var(--line-2);border-radius:15px;background:linear-gradient(180deg,color-mix(in srgb,var(--pvb) 9%,var(--panel)),var(--panel));overflow:hidden;transition:.4s var(--ease)}
+  .pvc-top{display:flex;align-items:center;gap:12px;padding:15px}
+  .pvc-logo{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;flex-shrink:0;transition:.4s var(--ease);border:1px dashed var(--line-3);background:var(--inset);color:var(--muted);font-family:var(--serif);font-weight:600;font-size:19px}
+  .pvc-logo.live{border:0;background:linear-gradient(150deg,#6c93ff,var(--pvb) 60%,#2f57d6);box-shadow:0 10px 26px -12px color-mix(in srgb,var(--pvb) 70%,transparent)}
+  .pvc-logo.live svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2.3}
+  .pvc-nm{font-family:var(--serif);font-weight:600;font-size:18px;letter-spacing:-.01em;transition:.2s}
+  .pvc-nm.ph{color:var(--muted)}
+  .pvc-tag{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--text-2);margin-top:2px;min-height:16px}
+  .pvc-body{padding:0 15px 15px;display:flex;flex-direction:column;gap:12px}
+  .pvc-row .pl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .pvc-pal{display:flex;gap:6px}.pvc-pal i{width:26px;height:26px;border-radius:7px;background:var(--inset);border:1px solid var(--line-2);transition:.4s var(--ease)}
+  .pvc-goals{display:flex;gap:6px;flex-wrap:wrap}
+  .pvc-chip{font-size:10.5px;font-weight:600;color:var(--text);background:color-mix(in srgb,var(--pvb) 16%,transparent);border:1px solid color-mix(in srgb,var(--pvb) 38%,transparent);border-radius:99px;padding:3px 9px}
+  .pvc-status{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);border-top:1px solid var(--line);padding-top:11px}
+  .pvc-status .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 var(--accent-soft);animation:pulse 2.4s var(--ease) infinite}
+  .pvc-status.ready .dot{background:var(--ok);animation:none}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,162,74,.4)}50%{box-shadow:0 0 0 5px rgba(200,162,74,0)}}
+
+  /* right panel */
+  .obmain{display:flex;flex-direction:column;min-height:100vh}
+  .obtop{display:flex;align-items:center;justify-content:space-between;padding:18px clamp(20px,4vw,46px)}
+  .obtop .mkm{display:none;align-items:center;gap:9px}
+  @media(max-width:900px){.obtop .mkm{display:flex}.obtop .mkm .mk{width:30px;height:30px;border-radius:9px;border:1px solid var(--accent-border);background:var(--accent-soft);display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--accent);font-size:15px}.obtop .mkm .wm{font-family:var(--serif);font-weight:600}}
+  .skip{font-size:12.5px;color:var(--muted);cursor:pointer}.skip:hover{color:var(--text-2)}
+  .obscroll{flex:1;display:flex;align-items:center;justify-content:center;padding:10px clamp(20px,4vw,46px) 40px}
+  .obpanel{width:min(440px,100%)}
+  .stepno{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+  .stepno .pbar{flex:1;height:3px;border-radius:99px;background:var(--inset);overflow:hidden;max-width:120px}
+  .stepno .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-contrast));transition:width .4s var(--ease)}
+  .obcontent h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.6rem,2.6vw,2rem);letter-spacing:-.02em;margin:0;line-height:1.1}
+  .obcontent .lead{font-size:13.5px;color:var(--muted);margin:9px 0 24px;line-height:1.6;max-width:46ch}
+  @keyframes slidein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  body.mo .obcontent>*{animation:slidein .5s var(--ease) both}
+  body.mo .obcontent>*:nth-child(2){animation-delay:.05s}
+  body.mo .obcontent>*:nth-child(3){animation-delay:.1s}
+  body.mo .obcontent>*:nth-child(4){animation-delay:.15s}
+  body.mo .obcontent>*:nth-child(5){animation-delay:.2s}
+  body.mo .typecards .tc{animation:slidein .5s var(--ease) both}
+  body.mo .typecards .tc:nth-child(2){animation-delay:.07s}body.mo .typecards .tc:nth-child(3){animation-delay:.13s}
+
+  label.fl{display:block;font-size:11.5px;font-weight:600;color:var(--text-2);margin:0 0 7px}
+  .inp{width:100%;height:44px;padding:0 14px;border:1px solid var(--line-2);border-radius:11px;background:var(--inset);color:var(--text);font:inherit;font-size:14px;outline:none;transition:.14s}
+  .inp:focus{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-soft)}
+  .fld{margin-bottom:18px}
+  .typecards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .tc{border:1px solid var(--line-2);border-radius:12px;background:var(--inset);padding:14px 12px;cursor:pointer;transition:.15s;text-align:left;color:var(--text);font-family:inherit}
+  .tc:hover{border-color:var(--line-3);transform:translateY(-2px)} .tc.on{border-color:var(--accent-border);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-border)}
+  .tc .ti{width:32px;height:32px;border-radius:9px;background:var(--accent-soft);border:1px solid var(--accent-border);display:grid;place-items:center;color:var(--accent-contrast);margin-bottom:10px;transition:.15s}
+  .tc.on .ti{background:var(--accent);border-color:var(--accent);color:#201808} .tc .ti svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9}
+  .tc .tn{font-size:12.5px;font-weight:600}.tc .td{font-size:10.5px;color:var(--muted);margin-top:2px}
+
+  .urow{display:flex;gap:9px}.urow .inp{flex:1}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border-radius:11px;border:1px solid var(--line-2);background:transparent;color:var(--text);font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;transition:.15s;white-space:nowrap}
+  .btn:hover{border-color:var(--accent-border)} .btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9}
+  .btn.gold{border:1px solid #b8974a;background:linear-gradient(180deg,#dcbd6e,#c8a24a 55%,#ad8838);color:#201808;box-shadow:0 10px 24px -12px rgba(200,162,74,.6)}
+  .btn.gold:hover{transform:translateY(-1px);filter:brightness(1.04)} .btn.gold svg{stroke:#201808}
+  .btn.ghost{color:var(--text-2);border-color:transparent;padding-left:8px} .btn.ghost:hover{color:var(--text);border-color:transparent}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .obactions{display:flex;align-items:center;gap:10px;margin-top:26px}.obactions .grow{flex:1}
+  .fhint{font-size:11px;color:var(--muted)}
+
+  /* analyze sequence */
+  .reading{border:1px solid var(--line-2);border-radius:13px;background:var(--inset);padding:15px;margin-top:4px}
+  .reading .rh{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-2);margin-bottom:11px}
+  .reading .rh .sp{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent-border);border-top-color:var(--accent);animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .rpage{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted);padding:4px 0;opacity:.35;transition:.3s}
+  .rpage.on{opacity:1;color:var(--text-2)} .rpage .rc{width:16px;height:16px;border-radius:50%;border:1px solid var(--line-2);display:grid;place-items:center;color:transparent;flex-shrink:0}
+  .rpage.on .rc{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok-text)} .rpage .rc svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:3}
+  .brandfound{border:1px solid var(--ok-border);border-radius:12px;background:var(--ok-soft);padding:12px 14px;margin-top:12px;display:flex;align-items:center;gap:11px;font-size:12.5px;color:var(--text-2);animation:slidein .4s var(--ease)}
+  .brandfound b{color:var(--text);font-weight:600} .brandfound .bf-ic{width:30px;height:30px;border-radius:9px;background:var(--ok);display:grid;place-items:center;color:#13241b;flex-shrink:0}
+  .brandfound .bf-ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.4}
+
+  /* goals */
+  .goalgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  @media(max-width:520px){.goalgrid{grid-template-columns:1fr}}
+  .gc{display:flex;align-items:center;gap:11px;border:1px solid var(--line-2);border-radius:12px;background:var(--inset);padding:13px;cursor:pointer;transition:.15s;text-align:left;color:var(--text);font-family:inherit}
+  .gc:hover{border-color:var(--line-3);transform:translateY(-1px)} .gc.on{border-color:var(--accent-border);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-border)}
+  .gci{width:34px;height:34px;border-radius:9px;background:var(--accent-soft);border:1px solid var(--accent-border);display:grid;place-items:center;color:var(--accent-contrast);flex-shrink:0;transition:.15s}
+  .gc.on .gci{background:var(--accent);border-color:var(--accent);color:#201808} .gci svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9}
+  .gct{flex:1;min-width:0}.gcn{font-size:12.5px;font-weight:600;display:block}.gcd{font-size:10.5px;color:var(--muted);display:block;margin-top:1px}
+  .gcck{width:20px;height:20px;border-radius:50%;border:1px solid var(--line-2);display:grid;place-items:center;color:transparent;flex-shrink:0;transition:.14s}
+  .gc.on .gcck{background:var(--accent);border-color:var(--accent);color:#201808} .gcck svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:3}
+
+  /* ready */
+  .done-ring{width:58px;height:58px;border-radius:50%;background:var(--ok-soft);border:1px solid var(--ok-border);display:grid;place-items:center;color:var(--ok-text);margin-bottom:18px}
+  .done-ring svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:2.3}
+  .nextlist{display:flex;flex-direction:column;gap:1px;margin-top:20px}
+  .nx{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--text-2)}
+  .nx:last-child{border-bottom:0} .nx b{color:var(--text);font-weight:600}
+  .nx .ni{width:28px;height:28px;border-radius:8px;background:var(--accent-soft);border:1px solid var(--accent-border);display:grid;place-items:center;color:var(--accent);flex-shrink:0}
+  .nx .ni svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9}
+
+  .ob-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(12px);background:var(--raised);border:1px solid var(--accent-border);color:var(--text);font-size:12.5px;padding:9px 15px;border-radius:10px;box-shadow:0 18px 50px -20px rgba(0,0,0,.9);opacity:0;transition:.25s var(--ease);z-index:60;pointer-events:none}
+  .ob-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  body.mo .pvcard,body.mo .vsteps{animation:slidein .5s var(--ease) both}
+
+  /* ===== premium layer ===== */
+  /* the brand-assembly moment */
+  .pvcard.assembled{border-color:color-mix(in srgb,var(--pvb) 30%,var(--line-2));box-shadow:0 0 0 1px color-mix(in srgb,var(--pvb) 26%,transparent),0 24px 60px -30px color-mix(in srgb,var(--pvb) 60%,transparent)}
+  .pvc-logo.live svg{transition:none}
+  body.mo .pvcard.assembled .pvc-logo.live{animation:logopop .6s var(--ease) both}
+  body.mo .pvcard.assembled .pvc-pal i{animation:popdot .5s var(--ease) both}
+  body.mo .pvcard.assembled .pvc-pal i:nth-child(1){animation-delay:.05s}body.mo .pvcard.assembled .pvc-pal i:nth-child(2){animation-delay:.11s}body.mo .pvcard.assembled .pvc-pal i:nth-child(3){animation-delay:.17s}body.mo .pvcard.assembled .pvc-pal i:nth-child(4){animation-delay:.23s}body.mo .pvcard.assembled .pvc-pal i:nth-child(5){animation-delay:.29s}
+  body.mo .pvc-chip{animation:popdot .42s var(--ease) both}
+  @keyframes logopop{0%{transform:scale(.6);opacity:.3}55%{transform:scale(1.1)}100%{transform:scale(1)}}
+  @keyframes popdot{0%{transform:scale(0);opacity:0}65%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+  /* gold CTA — sheen + arrow nudge */
+  .btn.gold{position:relative;overflow:hidden}
+  .btn.gold::after{content:"";position:absolute;top:-20%;left:-70%;width:45%;height:140%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent);transform:skewX(-18deg);pointer-events:none}
+  body.mo .btn.gold::after{animation:sheen 5s var(--ease) infinite}
+  @keyframes sheen{0%,70%{left:-70%}88%{left:140%}100%{left:140%}}
+  .btn.gold svg{transition:transform .2s var(--ease)} .btn.gold:hover svg{transform:translateX(3px)}
+
+  /* richer card hover */
+  .tc:hover{box-shadow:0 16px 34px -24px rgba(0,0,0,.85),0 0 0 1px var(--accent-border)}
+  .gc:hover{box-shadow:0 14px 30px -24px rgba(0,0,0,.85)}
+  .inp{transition:.16s var(--ease)} .inp:hover{border-color:var(--line-3)}
+
+  /* sharper type */
+  .obcontent h1{letter-spacing:-.025em}
+  .vstep.on .vsn{animation:vsteppop .3s var(--ease)}
+  @keyframes vsteppop{0%{transform:scale(.85)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div class="obroot">
+  <aside class="obside">
+    <svg class="obshade-svg" aria-hidden="true"><defs><filter id="obshadow"><feTurbulence type="turbulence" baseFrequency="0.000916 0.002656" numOctaves="2" seed="3" result="undulation"/><feDisplacementMap in="SourceGraphic" in2="undulation" scale="65" result="output"/></filter></defs></svg>
+    <div class="obshade-wrap" aria-hidden="true"><div class="auth-shadow-field"></div><div class="obshade-noise"></div></div>
+    <div class="obshade-fade" aria-hidden="true"></div>
+    <div class="brandmk"><img src="brand/arc-mark.png" alt="" style="height:40px;width:auto;object-fit:contain"/><img src="brand/arc-wordmark.png" alt="Arc" style="height:26px;width:auto;object-fit:contain"/></div>
+    <div class="vsteps" id="vsteps"></div>
+    <div class="pvcard" id="pvcard"></div>
+  </aside>
+
+  <main class="obmain">
+    <div class="obtop"><span class="mkm"><img src="brand/arc-mark.png" alt="" style="height:30px;width:auto;object-fit:contain"/><img src="brand/arc-wordmark.png" alt="Arc" style="height:19px;width:auto;object-fit:contain"/></span><span class="grow" style="flex:1"></span><span class="skip" id="signinlink">Already have an account? Sign in</span></div>
+    <div class="obscroll">
+      <div class="obpanel">
+        <div class="stepno" id="stepno"></div>
+        <div class="obcontent" id="obcontent"></div>
+        <div class="obactions" id="obactions"></div>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+function s(p){return '<svg viewBox="0 0 24 24">'+p+'</svg>';}
+var _toast=document.createElement('div');_toast.className='ob-toast';document.body.appendChild(_toast);var _toastT;
+function toast(m){_toast.textContent=m;_toast.classList.add('show');clearTimeout(_toastT);_toastT=setTimeout(function(){_toast.classList.remove('show');},1900);}
+var ARROW=s('<path d="M5 12h14M13 6l6 6-6 6"/>');
+
+var STEPS=[['Workspace','Name & business type'],['Brand','Your site, colors & voice'],['Goals','What Arc works on first'],['Ready','Review & launch']];
+var GOALS=[
+  ['leads','Find new leads','Source-backed prospects in your ICP','<path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12 21l-5-2.7 1-5.5-4-4 5.5-.8z"/>'],
+  ['winback','Win back customers','Re-engage dormant accounts','<path d="M21 12a9 9 0 11-3-6.7M21 4v4h-4"/>'],
+  ['launch','Launch a product','Announce &amp; drive signups','<path d="M5 19l2.5-.8 8.2-8.2a3 3 0 00-4.2-4.2L3.3 14l-.8 2.5z M14 6l4 4"/>'],
+  ['social','Grow on social','Schedule &amp; test content','<circle cx="6" cy="12" r="2.4"/><circle cx="17" cy="6" r="2.4"/><circle cx="17" cy="18" r="2.4"/><path d="M8.2 11l6.6-3.8M8.2 13l6.6 3.8"/>'],
+  ['convert','Improve conversion','Nurture + optimize funnels','<path d="M4 5h16l-6 7v5l-4 2v-7z"/>']
+];
+var GOALLBL={leads:'finding new leads',winback:'winning back dormant customers',launch:'planning your launch',social:'growing your social presence',convert:'improving conversion'};
+var BPAL=['#3b6ef5','#18b4a6','#f2a93b','#14181f','#f5f7fa'];
+
+var st=0, analyzed=false, wtype='Company', goals=['leads'], wname='Stride';
+
+/* ---- left: stepper + evolving preview ---- */
+function renderSteps(){
+  document.getElementById('vsteps').innerHTML=STEPS.map(function(s2,i){
+    var cls=i<st?'done':i===st?'on':'';
+    var sn=i<st?s('<path d="M5 12l4 4L19 6"/>'):(i+1);
+    return '<div class="vstep '+cls+'"><span class="vsn">'+sn+'</span><div class="vsl"><div class="vst">'+s2[0]+'</div><div class="vsd">'+s2[1]+'</div></div></div>';
+  }).join('');
+}
+function buildPreview(){
+  document.getElementById('pvcard').innerHTML=
+    '<div class="pvc-top"><span class="pvc-logo" id="pvlogo">A</span><div style="min-width:0"><div class="pvc-nm ph" id="pvnm">Your workspace</div><div class="pvc-tag" id="pvtag">&nbsp;</div></div></div>'
+    +'<div class="pvc-body"><div class="pvc-row"><div class="pl">Palette</div><div class="pvc-pal" id="pvpal">'+BPAL.map(function(){return '<i></i>';}).join('')+'</div></div>'
+    +'<div class="pvc-row" id="pvgoalrow" style="display:none"><div class="pl">Focus</div><div class="pvc-goals" id="pvgoals"></div></div>'
+    +'<div class="pvc-status" id="pvstatus"><span class="dot"></span><span id="pvtxt"></span></div></div>';
+}
+function updatePreview(){
+  var nm=wname.trim()||'Your workspace';
+  var nmEl=document.getElementById('pvnm'); nmEl.textContent=nm; nmEl.classList.toggle('ph',!wname.trim());
+  var lg=document.getElementById('pvlogo');
+  if(analyzed){ if(!lg.classList.contains('live')){lg.className='pvc-logo live'; lg.innerHTML=s('<path d="M5 8l5 4-5 4M11 16h8"/>');} }
+  else { lg.className='pvc-logo'; lg.textContent=wname.trim()?wname.trim()[0].toUpperCase():'A'; }
+  document.getElementById('pvtag').innerHTML=analyzed?'“Ship faster without breaking prod.”':(st>=1?'Reading your site…':'&nbsp;');
+  document.getElementById('pvcard').classList.toggle('assembled',analyzed);
+  document.querySelectorAll('#pvpal i').forEach(function(i,n){ i.style.background=analyzed?BPAL[n]:''; i.style.borderColor=analyzed?'rgba(255,255,255,.12)':''; });
+  var gr=document.getElementById('pvgoalrow');
+  if(goals.length&&st>=2){ gr.style.display=''; document.getElementById('pvgoals').innerHTML=goals.map(function(g){var G=GOALS.find(function(x){return x[0]===g;});return '<span class="pvc-chip">'+(G?G[1]:g)+'</span>';}).join(''); } else gr.style.display='none';
+  document.getElementById('pvstatus').classList.toggle('ready',st>=3);
+  document.getElementById('pvtxt').textContent=st>=3?'Ready to launch':(['Setting up your workspace…','Learning your brand…','Choosing your focus…'][st]||'');
+}
+var pvbuilt=false;
+function renderPreview(){ if(!pvbuilt){buildPreview();pvbuilt=true;} updatePreview(); }
+function paint(){renderSteps();renderPreview();
+  var pct=[12,38,66,100][st];
+  document.getElementById('stepno').innerHTML='STEP '+(st+1)+' OF 4<span class="pbar"><i style="width:'+pct+'%"></i></span>';
+}
+
+/* ---- right: steps ---- */
+function tc(name,desc,icon){return '<button class="tc'+(wtype===name?' on':'')+'" data-type="'+name+'"><span class="ti">'+s(icon)+'</span><div class="tn">'+name+'</div><div class="td">'+desc+'</div></button>';}
+function goalCard(g){var on=goals.indexOf(g[0])>=0;return '<button class="gc'+(on?' on':'')+'" data-goal="'+g[0]+'"><span class="gci">'+s(g[3])+'</span><span class="gct"><span class="gcn">'+g[1]+'</span><span class="gcd">'+g[2]+'</span></span><span class="gcck">'+s('<path d="M5 12l4 4L19 6"/>')+'</span></button>';}
+function nx(icon,t,d){return '<div class="nx"><span class="ni">'+icon+'</span><div><b>'+t+'</b> — '+d+'</div></div>';}
+
+function render(){
+  paint();
+  var b=document.getElementById('obcontent'), f=document.getElementById('obactions');
+  if(st===0){
+    b.innerHTML='<h1>Welcome to Arc</h1><div class="lead">Your AI marketing operator. Let’s start with the basics — this configures your personas, signals, and templates.</div>'
+      +'<div class="fld"><label class="fl">Workspace name</label><input class="inp" id="wname" value="'+wname+'" placeholder="Acme Inc."/></div>'
+      +'<div class="fld"><label class="fl">What kind of business?</label><div class="typecards" id="typecards">'
+        +tc('Company','Sells a product','<path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/>')
+        +tc('Agency','Markets for clients','<circle cx="8" cy="9" r="2.5"/><circle cx="16" cy="9" r="2.5"/><path d="M3 19c0-3 2-4.5 5-4.5M21 19c0-3-2-4.5-5-4.5"/>')
+        +tc('Individual','Solo / creator','<circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.3 3-5.5 7-5.5s7 2.2 7 5.5"/>')
+      +'</div></div>'
+      +'<div class="fld" style="margin-bottom:0"><label class="fl">Industry</label><select class="inp" id="ind"><option>B2B SaaS — Developer tools</option><option>Restoration &amp; home services</option><option>E-commerce / DTC</option><option>Professional services</option></select></div>';
+    f.innerHTML='<span class="grow"></span><button class="btn gold" id="next">Continue '+ARROW+'</button>';
+    bind0();
+  } else if(st===1){
+    b.innerHTML='<h1>Show Arc your brand</h1><div class="lead">Paste your website and Arc reads it — your logo, colors, fonts, voice and proof points. You approve everything before it’s used.</div>'
+      +'<div class="fld" style="margin-bottom:0"><label class="fl">Your website</label><div class="urow"><input class="inp" id="url" value="https://stride.dev" spellcheck="false"/><button class="btn gold" id="analyze">'+s('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>')+'Analyze</button></div></div>'
+      +'<div id="result"></div>';
+    f.innerHTML='<button class="btn ghost" id="back">'+s('<path d="M19 12H5M11 18l-6-6 6-6"/>')+'Back</button><span class="grow"></span><button class="btn ghost" id="skip2">I’ll do this later</button><button class="btn gold" id="next" '+(analyzed?'':'disabled')+'>Continue '+ARROW+'</button>';
+    if(analyzed)showBrand();
+    bind1();
+  } else if(st===2){
+    b.innerHTML='<h1>What should Arc work on first?</h1><div class="lead">Pick one or more. Arc scans for these opportunities and drafts your first campaign around them — you can change focus any time.</div><div class="goalgrid" id="goalgrid">'+GOALS.map(goalCard).join('')+'</div>';
+    f.innerHTML='<button class="btn ghost" id="back">'+s('<path d="M19 12H5M11 18l-6-6 6-6"/>')+'Back</button><span class="grow"></span><button class="btn gold" id="next"'+(goals.length?'':' disabled')+'>Continue '+ARROW+'</button>';
+    bind2();
+  } else {
+    b.innerHTML='<div class="done-ring">'+s('<path d="M5 12l4 4L19 6"/>')+'</div><h1>You’re all set</h1><div class="lead">Your workspace and brand are ready. Arc will start by <b style="color:var(--text)">'+(GOALLBL[goals[0]]||'finding opportunities')+'</b> — every step gated by your approval.</div>'
+      +'<div class="nextlist">'
+        +nx(s('<path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12 21l-5-2.7 1-5.5-4-4 5.5-.8z"/>'),'Scans for opportunities','matched to your goals — leads, signals &amp; competitor moves.')
+        +nx(s('<path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/>'),'Drafts your first campaign','email, SMS, ad &amp; landing copy — ready for review.')
+        +nx(s('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>'),'Waits for your yes','nothing sends, posts, or spends without you.')
+      +'</div>';
+    f.innerHTML='<button class="btn ghost" id="back">'+s('<path d="M19 12H5M11 18l-6-6 6-6"/>')+'Back</button><span class="grow"></span><button class="btn gold" id="enter">Enter Arc '+ARROW+'</button>';
+    bind3();
+  }
+}
+function bind0(){
+  var wn=document.getElementById('wname');wn.addEventListener('input',function(){wname=wn.value;renderPreview();});
+  document.querySelectorAll('#typecards .tc').forEach(function(c){c.addEventListener('click',function(){wtype=c.getAttribute('data-type');document.querySelectorAll('#typecards .tc').forEach(function(x){x.classList.remove('on')});c.classList.add('on');});});
+  document.getElementById('next').addEventListener('click',function(){toast('Workspace saved');st=1;render();});
+}
+function bind1(){
+  document.getElementById('back').addEventListener('click',function(){st=0;render();});
+  document.getElementById('skip2').addEventListener('click',function(){toast('Skipped — add your brand any time in Settings → Brand');st=2;render();});
+  var nb=document.getElementById('next');if(nb&&analyzed)nb.addEventListener('click',function(){st=2;render();});
+  document.getElementById('analyze').addEventListener('click',runAnalyze);
+}
+function runAnalyze(){
+  var pages=['Home','About','Pricing','Customers','Blog'];
+  var r=document.getElementById('result');
+  r.innerHTML='<div class="reading"><div class="rh"><span class="sp"></span>Reading <b style="color:var(--text)">stride.dev</b> — up to 6 pages…</div>'+pages.map(function(p){return '<div class="rpage"><span class="rc">'+s('<path d="M5 12l4 4L19 6"/>')+'</span>'+p+'</div>';}).join('')+'</div>';
+  toast('Reading your site…');
+  var rows=r.querySelectorAll('.rpage'), i=0;
+  var iv=setInterval(function(){if(i<rows.length){rows[i].classList.add('on');i++;}else{clearInterval(iv);analyzed=true;renderPreview();showBrand();var nb=document.getElementById('next');if(nb){nb.disabled=false;nb.addEventListener('click',function(){st=2;render();});}}},230);
+}
+function showBrand(){
+  var r=document.getElementById('result');
+  if(!r.querySelector('.reading'))r.innerHTML='<div class="reading"><div class="rh">'+s('<path d="M5 12l4 4L19 6"/>')+' Read 5 pages of stride.dev</div></div>';
+  r.insertAdjacentHTML('beforeend','<div class="brandfound"><span class="bf-ic">'+s('<path d="M5 12l4 4L19 6"/>')+'</span><div><b>Brand captured.</b> Logo, a 5-color palette, voice (confident · technical) and <b>23 proof facts</b> — review them in your Brain before they’re used. See it build on the left.</div></div>');
+}
+function bind2(){
+  document.getElementById('back').addEventListener('click',function(){st=1;render();});
+  document.getElementById('next').addEventListener('click',function(){if(goals.length){toast('Focus saved — Arc will prioritize '+goals.length+' goal'+(goals.length>1?'s':''));st=3;render();}});
+  bindGoalCards();
+}
+function bindGoalCards(){
+  document.querySelectorAll('#goalgrid .gc').forEach(function(c){c.addEventListener('click',function(){
+    var k=c.getAttribute('data-goal'),i=goals.indexOf(k);
+    if(i>=0){if(goals.length>1)goals.splice(i,1);}else goals.push(k);
+    document.getElementById('goalgrid').innerHTML=GOALS.map(goalCard).join('');bindGoalCards();renderPreview();
+    var nb=document.getElementById('next');if(nb)nb.disabled=!goals.length;
+  });});
+}
+function bind3(){
+  document.getElementById('back').addEventListener('click',function(){st=2;render();});
+  document.getElementById('enter').addEventListener('click',function(){toast('Welcome to Arc — setting up your workspace…');setTimeout(function(){location.href='build-home.html';},700);});
+}
+document.getElementById('signinlink').addEventListener('click',function(){location.href='build-signin.html';});
+if(document.visibilityState==='visible')document.body.classList.add('mo');
+render();
+</script>
+</body>
+</html>

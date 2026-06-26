@@ -183,3 +183,30 @@ export function bucketCostByDay(
   }
   return dayKeys.map((date) => ({ date, costCents: totals.get(date) ?? 0 }));
 }
+
+export type UsageSummaryCard = {
+  totalCostCents: number;
+  totalTokens: number;
+  totalRuns: number;
+  /** Percent of the soft cap, rounded; 0 when no cap is set. */
+  pctOfCap: number;
+  /** True at or above 80% of the soft cap. */
+  isNearCap: boolean;
+};
+
+/**
+ * Collapse a UsageSummary into the headline numbers for the Settings → Usage card.
+ * `softCapCents` is the workspace's optional spend ceiling; when unset (0/undefined)
+ * there is no cap and pctOfCap is 0. Pure — no I/O.
+ */
+export function summarizeUsageForSettings(summary: UsageSummary, softCapCents?: number): UsageSummaryCard {
+  const cap = softCapCents ?? 0;
+  const pctOfCap = cap > 0 ? Math.round((summary.totalCostCents / cap) * 100) : 0;
+  return {
+    totalCostCents: summary.totalCostCents,
+    totalTokens: summary.totalInputTokens + summary.totalOutputTokens,
+    totalRuns: summary.eventCount,
+    pctOfCap,
+    isNearCap: cap > 0 && pctOfCap >= 80,
+  };
+}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home — Mockup vs Build</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{--canvas:#101013;--panel:#16161a;--line:rgba(232,224,205,.12);--text:#f1ede2;--muted:#83838c;--accent:#c8a24a;
+    --serif:"Fraunces",Georgia,serif;--sans:"Geist",system-ui,sans-serif;--mono:"Geist Mono",monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--canvas);color:var(--text);font-family:var(--sans)}
+  header{position:sticky;top:0;z-index:5;display:flex;align-items:baseline;gap:14px;padding:16px 28px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(8px)}
+  header h1{font-family:var(--serif);font-weight:500;font-size:20px;margin:0;letter-spacing:-.01em}
+  header span{font-size:12.5px;color:var(--muted)}
+  header a{margin-left:auto;font-size:12px;color:var(--muted);font-family:var(--mono)}
+  .wrap{max-width:1320px;margin:0 auto;padding:26px 28px 60px}
+  .pair{display:grid;gap:26px}
+  @media(min-width:1500px){.pair{grid-template-columns:1fr 1fr}}
+  .panel{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+  .plabel{display:flex;align-items:center;gap:9px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600;letter-spacing:.02em}
+  .plabel .d{width:8px;height:8px;border-radius:50%}
+  .plabel .mock{background:var(--muted)} .plabel .build{background:var(--accent)}
+  .plabel span{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted);font-weight:400}
+  .panel img{display:block;width:100%;height:auto}
+  .frame{position:relative;width:100%;aspect-ratio:1280/760;background:var(--panel)}
+  .frame iframe{position:absolute;inset:0;width:1280px;height:760px;border:0;transform-origin:top left}
+  .note{margin:22px 2px 0;font-size:13px;color:var(--muted);line-height:1.6}
+  .note b{color:var(--text);font-weight:500}
+</style>
+</head>
+<body>
+<header>
+  <h1>Home — Command Center</h1>
+  <span>Mockup (target) vs Build (new app design)</span>
+  <a href="/build-home.html" target="_blank">open build full-size ↗</a>
+</header>
+<div class="wrap">
+  <div class="pair">
+    <figure class="panel" style="margin:0">
+      <div class="plabel"><i class="d mock"></i>Mockup — the image you approved<span>01-command-center.png</span></div>
+      <img src="/01-command-center.png" alt="Home mockup" />
+    </figure>
+    <figure class="panel" style="margin:0">
+      <div class="plabel"><i class="d build"></i>Build — real design tokens, faithful layout<span>build-home.html</span></div>
+      <div class="frame"><iframe id="bf" src="/build-home.html" scrolling="no"></iframe></div>
+    </figure>
+  </div>
+  <p class="note">This <b>Build</b> uses the app's real design language — warm obsidian <code style="font-family:var(--mono)">#16161a</code>, antique gold <code style="font-family:var(--mono)">#c8a24a</code>, Fraunces serif for the one display moment, Geist UI, hairline structure. If this matches what you want, I wire this exact layout into the real Home page. Tell me what to change and I'll iterate here first — fast loop, no waiting on deploys.</p>
+</div>
+<script>
+  // Scale the 1280px-wide build frame to fit its column width.
+  function fit(){
+    var f=document.getElementById('bf'); if(!f)return;
+    var w=f.parentElement.clientWidth; f.style.transform='scale('+(w/1280)+')';
+    f.parentElement.style.aspectRatio='1280/'+Math.round(760);
+  }
+  window.addEventListener('resize',fit); window.addEventListener('load',fit); fit();
+</script>
+</body>
+</html>

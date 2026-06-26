@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-import { NEUTRAL_DEFAULTS, type BusinessProfile, type KnowledgeNodeInput, type ProofPoint } from "@/domain";
+import { mergeBrandPalette, NEUTRAL_DEFAULTS, type BrandColor, type BrandPaletteUpdate, type BusinessProfile, type KnowledgeNodeInput, type ProofPoint } from "@/domain";
 
 import { type BrandKnowledgeAsset } from "./brain-sync";
 
@@ -35,6 +35,8 @@ export type BrandProfileUpdate = {
   proofPoints?: string[];
   disallowedClaims?: string[];
   complianceNotes?: string | null;
+  brandPalette?: BrandPaletteUpdate | null;
+  shortMark?: string | null;
 };
 
 export type BrandKnowledgeExtraction = {
@@ -139,6 +141,8 @@ export function mergeBrandProfileUpdate(current: BusinessProfile, update: BrandP
       disallowedClaims: mergeList(current.guardrails.disallowedClaims, update.disallowedClaims),
       complianceNotes: mergeText(current.guardrails.complianceNotes, update.complianceNotes) ?? "",
     },
+    brandPalette: mergeBrandPalette(current.brandPalette, update.brandPalette),
+    shortMark: keepOrFill(current.shortMark, update.shortMark),
   };
 }
 
@@ -175,6 +179,29 @@ export function parseBrandKnowledgeJson(value: string): ParsedBrandKnowledgeNode
   return parseBrandKnowledgeExtractionJson(value).nodes;
 }
 
+function parsePaletteColor(value: unknown): BrandColor | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const v = value as Record<string, unknown>;
+  const hex = cleanText(v.hex, 12);
+  if (!hex) return undefined;
+  return { label: cleanText(v.label, 40), hex };
+}
+
+function parsePaletteUpdate(value: unknown): BrandPaletteUpdate | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  const out: BrandPaletteUpdate = {};
+  for (const slot of ["primary", "secondary", "accent", "dark", "light"] as const) {
+    const color = parsePaletteColor(v[slot]);
+    if (color) out[slot] = color;
+  }
+  const headingFont = cleanText(v.headingFont, 60);
+  const bodyFont = cleanText(v.bodyFont, 60);
+  if (headingFont) out.headingFont = headingFont;
+  if (bodyFont) out.bodyFont = bodyFont;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 function parseProfile(value: unknown): BrandProfileUpdate | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const item = value as Record<string, unknown>;
@@ -194,6 +221,8 @@ function parseProfile(value: unknown): BrandProfileUpdate | null {
     proofPoints: cleanArray(item.proofPoints),
     disallowedClaims: cleanArray(item.disallowedClaims),
     complianceNotes: cleanText(item.complianceNotes, 900) || null,
+    brandPalette: parsePaletteUpdate(item.brandPalette),
+    shortMark: cleanText(item.shortMark, 6) || null,
   };
   const hasValue = Object.values(profile).some((entry) => (Array.isArray(entry) ? entry.length > 0 : Boolean(entry)));
   return hasValue ? profile : null;
@@ -290,10 +319,10 @@ function buildPrompt(asset: BrandKnowledgeAsset) {
   return [
     "Read this brand source and extract only facts Mark can use after human approval.",
     "Return JSON only with this shape:",
-    '{"profile":{"displayName":null,"legalName":null,"tagline":null,"description":null,"industry":null,"websiteUrl":null,"serviceAreas":[],"tone":null,"voiceGuidance":null,"preferredPhrases":[],"bannedPhrases":[],"services":[],"proofPoints":[],"disallowedClaims":[],"complianceNotes":null},"nodes":[{"kind":"brand_fact|messaging_angle|proof_point|cta","label":"short fact","body":"supporting detail","summary":"optional short summary","confidence":80,"tags":["brand"]}]}',
+    '{"profile":{"displayName":null,"legalName":null,"tagline":null,"description":null,"industry":null,"websiteUrl":null,"serviceAreas":[],"tone":null,"voiceGuidance":null,"preferredPhrases":[],"bannedPhrases":[],"services":[],"proofPoints":[],"disallowedClaims":[],"complianceNotes":null,"brandPalette":{"primary":{"label":"","hex":""},"secondary":{"label":"","hex":""},"accent":{"label":"","hex":""},"dark":{"label":"","hex":""},"light":{"label":"","hex":""},"headingFont":"","bodyFont":""},"shortMark":null},"nodes":[{"kind":"brand_fact|messaging_angle|proof_point|cta","label":"short fact","body":"supporting detail","summary":"optional short summary","confidence":80,"tags":["brand"]}]}',
     "Keep it conservative. Do not invent claims. If the source is weak, return an empty nodes array.",
     "Use profile for editable Brand details: company, voice, offerings, proof, and rules.",
-    "For logos, photos, moodboards, and reference media, extract visual themes, colors, typography cues, logo usage, style rules, and brand-safe visual guidance.",
+    "For logos, photos, moodboards, and reference media, extract visual themes, colors, typography cues, logo usage, style rules, and brand-safe visual guidance. When colours are readable, populate profile.brandPalette (primary/secondary/accent/dark/light as {label,hex} with 6-digit hex, plus headingFont/bodyFont) and suggest a 1–3 character profile.shortMark.",
     `File name: ${asset.fileName}`,
     text ? `Document text:\n${text.slice(0, 16000)}` : "Use the attached file content.",
   ].join("\n\n");

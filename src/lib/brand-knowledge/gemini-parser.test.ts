@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { extractBrandKnowledgeBundleWithGemini, parseBrandKnowledgeJson, toBrandKnowledgeNodeInputs } from "./gemini-parser";
+import { NEUTRAL_DEFAULTS } from "@/domain/brand-kit";
+
+import { extractBrandKnowledgeBundleWithGemini, mergeBrandProfileUpdate, parseBrandKnowledgeJson, toBrandKnowledgeNodeInputs } from "./gemini-parser";
+
+describe("mergeBrandProfileUpdate — vision palette", () => {
+  it("fills the empty brand palette and short mark from a vision-extracted update", () => {
+    const result = mergeBrandProfileUpdate(NEUTRAL_DEFAULTS, {
+      brandPalette: { primary: { label: "Blue", hex: "#3b6ef5" }, headingFont: "Fraunces" },
+      shortMark: "ST",
+    });
+    expect(result.brandPalette.primary).toEqual({ label: "Blue", hex: "#3b6ef5" });
+    expect(result.brandPalette.headingFont).toBe("Fraunces");
+    expect(result.shortMark).toBe("ST");
+  });
+});
 
 describe("parseBrandKnowledgeJson", () => {
   it("keeps only simple approved Brain node kinds from Gemini JSON", () => {
@@ -95,5 +109,37 @@ describe("extractBrandKnowledgeBundleWithGemini", () => {
 
     expect(prompt).toContain("visual themes");
     expect(prompt).toContain("colors");
+  });
+
+  it("asks for and extracts a structured palette + short mark from a logo", async () => {
+    let prompt = "";
+    const { profile } = await extractBrandKnowledgeBundleWithGemini(
+      {
+        id: "logo-1",
+        fileName: "logo.png",
+        kind: "image",
+        source: "uploaded",
+        tags: [],
+        availableToArc: true,
+        contentType: "image/png",
+        fileBytes: new Uint8Array([1, 2, 3]),
+      },
+      {
+        generateText: async (nextPrompt) => {
+          prompt = nextPrompt;
+          return JSON.stringify({
+            profile: {
+              brandPalette: { primary: { label: "Brand Blue", hex: "#3B6EF5" }, accent: { label: "Amber", hex: "f2a93b" } },
+              shortMark: "ST",
+            },
+            nodes: [],
+          });
+        },
+      },
+    );
+
+    expect(prompt.toLowerCase()).toContain("palette");
+    expect(profile?.brandPalette?.primary).toEqual({ label: "Brand Blue", hex: "#3B6EF5" });
+    expect(profile?.shortMark).toBe("ST");
   });
 });

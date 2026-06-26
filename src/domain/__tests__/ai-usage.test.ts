@@ -6,8 +6,42 @@ import {
   estimateMediaCostCents,
   isPricedModel,
 } from "../ai-usage";
-import type { UsageRollupEvent } from "../ai-usage";
-import { summarizeUsage, bucketCostByDay } from "../ai-usage";
+import type { UsageRollupEvent, UsageSummary } from "../ai-usage";
+import { summarizeUsage, bucketCostByDay, summarizeUsageForSettings } from "../ai-usage";
+
+describe("summarizeUsageForSettings", () => {
+  const base: UsageSummary = {
+    totalCostCents: 4800,
+    totalInputTokens: 1_200_000,
+    totalOutputTokens: 640_000,
+    totalUnits: 0,
+    eventCount: 312,
+    byService: [],
+    byModel: [],
+    byUser: [],
+  };
+
+  it("computes cost, total tokens, runs, and % of a soft cap", () => {
+    const result = summarizeUsageForSettings(base, 8000); // $80.00 soft cap
+    expect(result.totalCostCents).toBe(4800);
+    expect(result.totalTokens).toBe(1_840_000);
+    expect(result.totalRuns).toBe(312);
+    expect(result.pctOfCap).toBe(60);
+    expect(result.isNearCap).toBe(false);
+  });
+
+  it("reports 0% and not-near when no soft cap is set", () => {
+    const result = summarizeUsageForSettings(base);
+    expect(result.pctOfCap).toBe(0);
+    expect(result.isNearCap).toBe(false);
+  });
+
+  it("flags near-cap at or above 80%", () => {
+    const result = summarizeUsageForSettings({ ...base, totalCostCents: 6800 }, 8000); // 85%
+    expect(result.pctOfCap).toBe(85);
+    expect(result.isNearCap).toBe(true);
+  });
+});
 
 const EVENTS: UsageRollupEvent[] = [
   { service: "arc_claude", model: "claude-opus-4-8", actorUser: "evan", inputTokens: 1000, outputTokens: 500, units: null, costCents: 30, occurredAt: "2026-06-20T10:00:00Z" },
