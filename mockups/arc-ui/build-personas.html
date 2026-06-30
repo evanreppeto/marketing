@@ -208,14 +208,16 @@
   .scellbar .mb{width:40px;height:5px;border-radius:99px;background:var(--inset);overflow:hidden}.scellbar .mb i{display:block;height:100%;border-radius:99px}
   .hidden{display:none}
 </style>
+<script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
 </head>
 <body>
 <div class="app">
   <aside class="rail">
-    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">B2B SaaS · Premium</div></div><span class="cv">▾</span></div>
-    <div class="indtag"><i></i>B2B SAAS workspace</div>
+    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">Restoration · Premium</div></div><span class="cv">▾</span></div>
+    <div class="indtag"><i></i>RESTORATION workspace</div>
     <div class="navwrap">
       <div class="grp">WORKSPACE</div>
+      <a class="nav" href="/build-arc-v2.html"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
@@ -252,7 +254,7 @@
       </div>
       <div class="arcalert">
         <span class="am">A</span>
-        <span class="at"><b>Arc drafted 2 playbook updates</b> — refreshed proof points for Champion &amp; a new angle for Evaluator. Approval-gated.</span>
+        <span class="at"><b>Arc drafted 2 playbook updates</b> — refreshed proof points for Past customer &amp; a new angle for Comparison shopper. Approval-gated.</span>
         <span class="ab"><span class="miniabtn">Review drafts</span><span class="miniabtn ghost">Dismiss</span></span>
       </div>
     </div>
@@ -287,85 +289,85 @@ function spark(points,tone,w,h){w=w||120;h=h||30;var max=Math.max.apply(null,poi
 function scoreColor(s){return s>=80?'var(--ok)':s>=60?'var(--accent)':'var(--warn)';}
 function scoreHex(s){return s>=80?'#7fb89a':s>=60?'#c8a24a':'#d8a24a';}
 var SEGC={acquisition:'#88b6d8',engagement:'#c8a24a',retention:'#7fb89a'};
-var STAGEC={'Hot lead':['var(--red-text)','var(--red-soft)'],'Champion':['var(--ok-text)','var(--ok-soft)'],'Active':['var(--accent-contrast)','var(--accent-soft)'],'New':['var(--blue-text)','rgba(136,182,216,.13)'],'At risk':['var(--warn-text)','var(--warn-soft)'],'Dormant':['var(--muted)','var(--inset)']};
+var STAGEC={'Hot lead':['var(--red-text)','var(--red-soft)'],'Repeat customer':['var(--ok-text)','var(--ok-soft)'],'Active':['var(--accent-contrast)','var(--accent-soft)'],'New':['var(--blue-text)','rgba(136,182,216,.13)'],'At risk':['var(--warn-text)','var(--warn-soft)'],'Dormant':['var(--muted)','var(--inset)']};
 
 var P=[
-  {slug:'decision-maker',name:'Decision Maker',initials:'DM',seg:'acquisition',stage:'Hot lead',score:92,live:true,share:24,
-   sig:{engagement:84,fit:91,intent:88},sigd:{engagement:'Opened 3 emails · pricing 2×',fit:'ICP match · 540 employees',intent:'Demo requested this week'},
+  {slug:'storm-damage-homeowner',name:'Storm-damage homeowner',initials:'SH',seg:'acquisition',stage:'Hot lead',score:92,live:true,share:24,
+   sig:{engagement:84,fit:91,intent:88},sigd:{engagement:'Opened 3 texts · viewed storm map 2×',fit:'In Naperville hail zone · roof 14+ yrs',intent:'Requested free inspection this week'},
    trend:[6,6,7,7,8,9,9],
-   profile:'Holds budget authority and signs off on platform decisions. Evaluates ROI and risk, not features.',
-   quote:'"Show me the business case and the rollout risk — then we can talk."',
-   angle:'Lead with operational-efficiency gains and long-term ROI; pair every claim with proof.',
-   cta:'Schedule a strategic alignment call', channel:'Email', timing:'Tue–Thu, 8–10am',
-   proof:['Similar-industry case study','Benchmark / ROI data','Named customer outcome','Security & compliance brief'],
-   obj:['Switching cost & rollout risk','Needs CFO sign-off','Integration with existing stack'],
-   msg:{subject:'A phased rollout that de-risks the switch',preview:'Margaret — most teams your size see ROI inside two quarters with a staged rollout. Here\'s the business case + how we de-risk migration…'},
-   nba:'Send the phased-rollout ROI brief, then propose a QBR slot.',
+   profile:'Fresh hail or wind damage and an insurance claim in progress. Moves fast, wants the roof handled before the next storm.',
+   quote:'"My roof took a beating in the June 24 hail — can you get out here and help with the claim?"',
+   angle:'Lead with the free post-storm inspection and full insurance-claim coordination; pair every claim with before/after proof.',
+   cta:'Book a free inspection', channel:'SMS', timing:'Tue–Thu, 8–10am',
+   proof:['Before/after storm-repair photo set','Maple Grove HOA reroofed in 5 days','Workmanship warranty','Licensed & insured local crews'],
+   obj:['Worried the claim gets denied','Wants the roof done before next storm','Comparing to a competitor flyer'],
+   msg:{subject:'Free post-storm inspection for 12 Oak Ridge Ct',preview:'Linda — your block took direct hail on June 24. We can do a free inspection and document everything claim-ready for State Farm before the deadline…'},
+   nba:'Send the claim-ready inspection offer, then lock a Tue–Thu inspection slot.',
    perf:{contacts:48,leads:22,rev:'$132k',conv:'21%'}},
-  {slug:'champion',name:'Champion',initials:'CH',seg:'engagement',stage:'Champion',score:88,live:true,share:18,
-   sig:{engagement:92,fit:78,intent:74},sigd:{engagement:'Shares internally · replies fast',fit:'Power user, not the buyer',intent:'Advocating to leadership'},
+  {slug:'past-customer',name:'Past customer',initials:'PC',seg:'engagement',stage:'Repeat customer',score:88,live:true,share:18,
+   sig:{engagement:92,fit:78,intent:74},sigd:{engagement:'Replies fast · refers neighbors',fit:'Prior BSR roof job · 4 yrs ago',intent:'Asking about gutters & siding'},
    trend:[5,6,6,7,7,8,8],
-   profile:'Internal advocate who sells on your behalf. Needs ammunition to move the deal up the chain.',
-   quote:'"Give me something I can forward to my VP."',
-   angle:'Arm them with a forwardable one-pager and a crisp internal business case.',
-   cta:'Send a forwardable business case', channel:'Email', timing:'Mon mornings',
-   proof:['One-page ROI summary','Peer logos','Internal champion kit'],
-   obj:['Limited internal influence','Competing priorities'],
-   msg:{subject:'The one-pager for your VP',preview:'Here\'s a clean summary you can forward — outcomes, timeline, and the numbers that matter to leadership…'},
-   nba:'Deliver the champion kit; ask who else should be in the next call.',
+   profile:'Already had a BSR job and trusts the crew. Prime for repeat work and neighbor referrals after the storm.',
+   quote:'"You did our roof in 2022 — half my street got hit, who do I send your way?"',
+   angle:'Reward the relationship — easy referral ask plus a check-in on gutters, siding, and any new storm damage.',
+   cta:'Send a referral & post-storm check-in', channel:'Email', timing:'Mon mornings',
+   proof:['Before/after from their own job','Workmanship warranty','Neighbor referral wins'],
+   obj:['No current damage','Busy — needs it low-effort'],
+   msg:{subject:'Checking in after the Naperville hail',preview:'Marcus — half of Birchwood Dr got hit on June 24. Want us to swing by for a free look at your roof, gutters and siding while we\'re in the area?…'},
+   nba:'Send the Autumn Boost re-engagement note; ask which neighbors to inspect.',
    perf:{contacts:36,leads:14,rev:'$84k',conv:'18%'}},
-  {slug:'influencer',name:'Influencer',initials:'IN',seg:'acquisition',stage:'Active',score:76,live:true,share:16,
-   sig:{engagement:71,fit:80,intent:64},sigd:{engagement:'Webinar attendee',fit:'Technical evaluator',intent:'Comparing 2 vendors'},
+  {slug:'comparison-shopper',name:'Comparison shopper',initials:'CS',seg:'acquisition',stage:'Active',score:76,live:true,share:16,
+   sig:{engagement:71,fit:80,intent:64},sigd:{engagement:'Browsed storm-zone map',fit:'Older roof · price-sensitive',intent:'Getting 2–3 bids'},
    trend:[4,5,5,6,6,6,7],
-   profile:'Shapes the shortlist on technical merit. Skeptical of marketing; convinced by depth.',
-   quote:'"Can it actually do what the demo claims?"',
-   angle:'Go deep and technical — architecture, docs, and a hands-on path beat slogans.',
-   cta:'Share the technical deep-dive', channel:'LinkedIn', timing:'Midweek afternoons',
-   proof:['Architecture overview','API docs','Sandbox / trial'],
-   obj:['Doubts on technical depth','Migration effort'],
-   msg:{subject:'Under the hood — architecture & sandbox',preview:'You asked the right questions on the webinar. Here\'s the architecture doc and a sandbox so you can pressure-test it yourself…'},
-   nba:'Offer a sandbox + a 30-min architecture review.',
+   profile:'Collecting multiple bids on an aging roof. Skeptical of sales pitches; convinced by transparent value and proof.',
+   quote:'"I\'ve got three estimates — why should I go with you?"',
+   angle:'Go transparent — itemized claim-ready estimate, warranty, and real before/after sets beat a low price.',
+   cta:'Get a claim-ready estimate', channel:'Email', timing:'Midweek afternoons',
+   proof:['Itemized claim-ready estimate','Workmanship warranty','Before/after storm-repair photo sets'],
+   obj:['Chasing the lowest bid','Unsure damage is claimable'],
+   msg:{subject:'Your claim-ready estimate, side by side',preview:'You\'re comparing bids — here\'s an itemized, claim-ready estimate plus before/after photos so you can see exactly what you\'re paying for…'},
+   nba:'Send the itemized estimate + a side-by-side proof set.',
    perf:{contacts:42,leads:11,rev:'$49k',conv:'12%'}},
-  {slug:'evaluator',name:'Evaluator',initials:'EV',seg:'engagement',stage:'Active',score:65,live:false,share:14,
-   sig:{engagement:58,fit:72,intent:55},sigd:{engagement:'Reads, rarely replies',fit:'Mid-fit · security-led',intent:'Early research'},
+  {slug:'property-manager',name:'Property manager',initials:'PM',seg:'engagement',stage:'Active',score:65,live:false,share:14,
+   sig:{engagement:58,fit:72,intent:55},sigd:{engagement:'Reads, rarely replies',fit:'Maple Grove HOA · multi-unit',intent:'Scoping portfolio inspection'},
    trend:[4,4,5,5,5,6,6],
-   profile:'Methodical, risk-averse, security-first. Moves when the proof is airtight.',
-   quote:'"Walk me through your security posture."',
-   angle:'Lead with trust — security, references, and a low-risk pilot.',
-   cta:'Offer a low-risk pilot', channel:'Email', timing:'Thu–Fri',
-   proof:['SOC 2 / security brief','Reference calls','30-day pilot'],
-   obj:['Security review backlog','Needs references'],
-   msg:{subject:'Security brief + a 30-day pilot',preview:'Attaching our security posture and two references in your space. If it helps, we can scope a low-risk 30-day pilot…'},
-   nba:'Send the security brief; book a reference call.',
+   profile:'Manages HOAs and multi-unit portfolios. Methodical and risk-averse; moves when the documentation is airtight.',
+   quote:'"Walk me through how you\'d handle 40 roofs and the board\'s sign-off."',
+   angle:'Lead with reliability — portfolio inspection plan, references, and a phased, low-disruption schedule.',
+   cta:'Scope a portfolio inspection', channel:'Email', timing:'Thu–Fri',
+   proof:['Maple Grove HOA reroofed in 5 days','Licensed & insured local crews','HOA board references'],
+   obj:['Board approval backlog','Needs references'],
+   msg:{subject:'Portfolio inspection plan for Maple Grove HOA',preview:'Daniel — attaching a phased inspection plan for the community and two HOA references. We can scope a low-disruption rollout across the units…'},
+   nba:'Send the portfolio plan; book an HOA board reference call.',
    perf:{contacts:31,leads:9,rev:'$56k',conv:'9%'}},
-  {slug:'economic-buyer',name:'Economic Buyer',initials:'EB',seg:'retention',stage:'New',score:71,live:false,share:18,
-   sig:{engagement:48,fit:88,intent:60},sigd:{engagement:'Joined late in cycle',fit:'CFO · budget owner',intent:'Reviewing renewal'},
+  {slug:'insurance-adjuster',name:'Insurance adjuster',initials:'IA',seg:'retention',stage:'New',score:71,live:false,share:18,
+   sig:{engagement:48,fit:88,intent:60},sigd:{engagement:'Joined late in the claim',fit:'State Farm · claim coordinator',intent:'Coordinating storm-zone claims'},
    trend:[3,4,5,5,6,6,7],
-   profile:'Owns the budget and the renewal. Cares about total cost, payback, and downside.',
-   quote:'"What\'s the all-in cost and the payback period?"',
-   angle:'Quantify payback and total cost of ownership; remove downside.',
-   cta:'Send a TCO / payback model', channel:'Email', timing:'Month-end',
-   proof:['TCO model','Payback timeline','Renewal incentive'],
-   obj:['Budget freeze','Prefers annual commit discount'],
-   msg:{subject:'Your payback model',preview:'Here\'s the all-in cost and payback timeline for the next term, plus a multi-year option that lowers TCO…'},
-   nba:'Share the TCO model; propose a multi-year structure.',
+   profile:'Coordinates claims and steers a referral network. Cares about clean documentation, fast turnaround, and trustworthy crews.',
+   quote:'"Give me clean, claim-ready documentation and I\'ll keep sending you work."',
+   angle:'Make their job easy — claim-ready photo packets, fast turnaround, and a reliable preferred-contractor relationship.',
+   cta:'Share a claim-ready documentation packet', channel:'Email', timing:'Month-end',
+   proof:['Claim-ready photo documentation','Fast turnaround track record','Licensed & insured local crews'],
+   obj:['Claim volume backlog','Prefers a vetted preferred-contractor list'],
+   msg:{subject:'Claim-ready packets for your Naperville storm claims',preview:'Karen — here\'s a sample claim-ready documentation packet and our turnaround times. Happy to be a preferred contractor for the storm-zone claims…'},
+   nba:'Share the documentation packet; propose a preferred-contractor relationship.',
    perf:{contacts:19,leads:6,rev:'$71k',conv:'14%'}},
-  {slug:'gatekeeper',name:'Gatekeeper',initials:'GK',seg:'acquisition',stage:'At risk',score:54,live:false,share:10,
-   sig:{engagement:40,fit:55,intent:38},sigd:{engagement:'Low open rate',fit:'Screens vendors',intent:'No active project'},
+  {slug:'storm-zone-neighbor',name:'Storm-zone neighbor',initials:'SZ',seg:'acquisition',stage:'At risk',score:54,live:false,share:10,
+   sig:{engagement:40,fit:55,intent:38},sigd:{engagement:'Low open rate',fit:'In storm zone · no claim yet',intent:'No active project'},
    trend:[5,4,4,4,3,3,3],
-   profile:'Controls access to the buyer. Won\'t engage unless you make their job easier.',
-   quote:'"Send me one page and I\'ll decide if it\'s worth their time."',
-   angle:'Respect their time — one crisp page, zero fluff, clear relevance.',
-   cta:'Send a single-page relevance brief', channel:'Email', timing:'Early week',
-   proof:['One-page relevance brief','Peer in their industry'],
-   obj:['Protective of buyer\'s time','No urgency'],
-   msg:{subject:'One page — is this worth 15 minutes?',preview:'I\'ll keep this to a page: here\'s exactly why teams like yours look at us, and what a 15-minute intro would cover…'},
-   nba:'Send the one-pager; ask for a warm intro if relevant.',
+   profile:'Lives in the Naperville storm zone but hasn\'t acted. Damage may be hidden; won\'t engage unless it\'s easy and low-pressure.',
+   quote:'"My roof looks fine — is it really worth getting it checked?"',
+   angle:'Respect their time — one clear, no-pressure offer: a free look while crews are already on the street.',
+   cta:'Book a free inspection', channel:'Email', timing:'Early week',
+   proof:['See the storm-zone map','Neighbor before/after on the same street'],
+   obj:['Doesn\'t think there\'s damage','No urgency'],
+   msg:{subject:'We\'re inspecting roofs on your street this week',preview:'Your block is inside the June 24 Naperville hail zone. We\'re already inspecting neighbors — want a free, no-pressure look while we\'re here?…'},
+   nba:'Send the storm-zone map; offer a free look while crews are nearby.',
    perf:{contacts:53,leads:1,rev:'$0',conv:'2%'}}
 ];
 P.forEach(function(p){p.revNum=parseInt(p.perf.rev.replace(/[^0-9]/g,''))||0;p.convNum=parseInt(p.perf.conv)||0;});
 var SEGLABEL={acquisition:'Acquisition',engagement:'Engagement',retention:'Retention'};
-var curSeg='all', curSlug='decision-maker', curView='roster';
+var curSeg='all', curSlug='storm-damage-homeowner', curView='roster';
 
 /* radar */
 function radar(sig){
@@ -534,5 +536,10 @@ renderDetail();
 <script>
   if(document.visibilityState==='visible'){document.body.classList.add('mo');}
 </script>
+<link rel="stylesheet" href="/gallery-fix.css">
+<script src="/gallery-panes.js" defer></script>
+<script src="/gallery-cmdk.js" defer></script>
+<script src="/gallery-keys.js" defer></script>
+<script src="/gallery-nav.js" defer></script>
 </body>
 </html>

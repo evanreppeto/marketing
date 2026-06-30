@@ -207,14 +207,16 @@
   .dr-f{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--canvas-deep) 30%,transparent)}
   .dr-f .ibtn{flex:1}
 </style>
+<script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
 </head>
 <body>
 <div class="app">
   <aside class="rail">
-    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">B2B SaaS · Premium</div></div><span class="cv">▾</span></div>
-    <div class="indtag"><i></i>B2B SAAS workspace</div>
+    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">Restoration · Premium</div></div><span class="cv">▾</span></div>
+    <div class="indtag"><i></i>RESTORATION workspace</div>
     <div class="navwrap">
       <div class="grp">WORKSPACE</div>
+      <a class="nav" href="/build-arc-v2.html"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
@@ -293,14 +295,14 @@ var OUT_LANES=[
   {k:'sent',n:'Sent',c:'#9678c8'},{k:'delivered',n:'Delivered',c:'#7fb89a'},{k:'failed',n:'Failed',c:'#cc6a6a'}
 ];
 var DISPATCHES=[
-  {id:'d1',lane:'queued',del:'Win-back — Email A',camp:'Q3 Reactivation',ch:'email',aud:'Dormant 60–90d',count:2412,when:'12m ago',appr:'Evan',appd:'Jun 24',subj:'We kept your spot warm',body:'It’s been a while since your last deploy. Here’s what shipped in Stride — zero-downtime releases, instant rollbacks, and a faster CLI.',prov:'resend',ev:[['Approved','Jun 24'],['Queued','12m ago']]},
-  {id:'d2',lane:'queued',del:'v4 Launch — Email',camp:'v4 Launch',ch:'email',aud:'All active',count:8740,when:'40m ago',appr:'Evan',appd:'Jun 25',subj:'Stride v4 is here',body:'Faster builds, a new CLI, and audit logs your security team will actually trust. Upgrade in one command.',prov:'resend',ev:[['Approved','Jun 25'],['Queued','40m ago']]},
-  {id:'d3',lane:'queued',del:'Trial nudge — SMS',camp:'Trial Conversion',ch:'sms',aud:'Trials, day 10',count:540,when:'held',blocked:true,subj:'',body:'SMS transport is not implemented — send_sms is in blocked_actions. This deliverable can’t leave the Outbox until an SMS provider is wired.',ev:[['Held','channel not wired']]},
-  {id:'d4',lane:'scheduled',del:'Weekly digest — Email',camp:'Lifecycle',ch:'email',aud:'Subscribers',count:11200,when:'Jun 28 · 9:00',sched:true,appr:'Evan',appd:'Jun 23',subj:'Your week in Stride',body:'Deploys, uptime, and the changelog — everything that moved this week.',prov:'resend',ev:[['Approved','Jun 23'],['Queued','2d ago'],['Scheduled','Jun 28 9:00']]},
-  {id:'d5',lane:'scheduled',del:'Webinar invite — Email',camp:'Webinar Jul',ch:'email',aud:'Enterprise tier',count:430,when:'Jun 30 · 14:00',sched:true,appr:'Dana',appd:'Jun 25',subj:'Live: zero-downtime at scale',body:'Join our staff engineers for a teardown of how Stride ships with no downtime.',prov:'resend',ev:[['Approved','Jun 25'],['Queued','1d ago'],['Scheduled','Jun 30 14:00']]},
-  {id:'d6',lane:'sent',del:'Onboarding nudge — Email',camp:'Onboarding',ch:'email',aud:'New signups',count:1180,when:'2h ago',appr:'Evan',appd:'Jun 26',subj:'Deploy your first app',body:'Three steps to your first zero-downtime deploy. We’ll be around if you get stuck.',prov:'resend',msgid:'re_8f2a91c…',ev:[['Approved','Jun 26'],['Queued','3h ago'],['Sent','2h ago']]},
-  {id:'d7',lane:'delivered',del:'Feature update — Email',camp:'Product',ch:'email',aud:'Active devs',count:3204,when:'44% open',appr:'Evan',appd:'Jun 22',subj:'Instant rollbacks are live',body:'One command to roll back a bad deploy. Here’s how it works.',prov:'resend',msgid:'re_4c19be…',ev:[['Queued','3d ago'],['Sent','3d ago'],['Delivered','3d ago · 44% open']]},
-  {id:'d8',lane:'failed',del:'Trial expiry — Email',camp:'Trial Conversion',ch:'email',aud:'Expiring trials',count:96,when:'hard bounce',failed:true,appr:'Evan',appd:'Jun 21',subj:'Your trial ends tomorrow',body:'Keep your projects running — upgrade before your trial expires.',prov:'resend',err:'550 mailbox unavailable · 96 recipients',ev:[['Queued','1d ago'],['Sent','1d ago'],['Failed','1d ago']]}
+  {id:'d1',lane:'queued',del:'Re-engagement — Email A',camp:'Autumn Boost',ch:'email',aud:'Past customers 12–24mo',count:2412,when:'12m ago',appr:'Evan',appd:'Jun 24',subj:'Time for a free roof check-up?',body:'It’s been a while since we worked on your home. Our local crews are in the area — book a free inspection and we’ll make sure your roof weathered the season.',prov:'resend',ev:[['Approved','Jun 24'],['Queued','12m ago']]},
+  {id:'d2',lane:'queued',del:'Storm Rapid Response — Email',camp:'Storm Rapid Response',ch:'email',aud:'Naperville storm zone',count:8740,when:'40m ago',appr:'Evan',appd:'Jun 25',subj:'Hail hit Naperville — is your roof ok?',body:'The June 24 hailstorm damaged 1,400+ homes in your area. Get a free post-storm inspection and a claim-ready estimate from licensed, GAF-certified local crews.',prov:'resend',ev:[['Approved','Jun 25'],['Queued','40m ago']]},
+  {id:'d3',lane:'queued',del:'Inspection reminder — SMS',camp:'Storm Rapid Response',ch:'sms',aud:'Inspection requests, day 10',count:540,when:'held',blocked:true,subj:'',body:'SMS transport is not implemented — send_sms is in blocked_actions. This deliverable can’t leave the Outbox until an SMS provider is wired.',ev:[['Held','channel not wired']]},
+  {id:'d4',lane:'scheduled',del:'Storm-zone update — Email',camp:'Storm Rapid Response',ch:'email',aud:'Naperville homeowners',count:11200,when:'Jun 28 · 9:00',sched:true,appr:'Evan',appd:'Jun 23',subj:'Your storm-zone repair update',body:'Where claims and repairs stand in the Naperville storm zone — plus how to book a free inspection before the next round of weather.',prov:'resend',ev:[['Approved','Jun 23'],['Queued','2d ago'],['Scheduled','Jun 28 9:00']]},
+  {id:'d5',lane:'scheduled',del:'Adjuster referral — Email',camp:'Adjuster Referral',ch:'email',aud:'Insurance adjusters',count:430,when:'Jun 30 · 14:00',sched:true,appr:'Dana',appd:'Jun 25',subj:'Claim-ready estimates, fast turnaround',body:'A look at how our licensed, GAF-certified crews coordinate insurance claims and deliver documentation your policyholders can trust.',prov:'resend',ev:[['Approved','Jun 25'],['Queued','1d ago'],['Scheduled','Jun 30 14:00']]},
+  {id:'d6',lane:'sent',del:'New-lead welcome — Email',camp:'Storm Rapid Response',ch:'email',aud:'New inspection requests',count:1180,when:'2h ago',appr:'Evan',appd:'Jun 26',subj:'Your free inspection is on the way',body:'Here’s what to expect from your free post-storm inspection. We’ll be around if you have any questions before our crew arrives.',prov:'resend',msgid:'re_8f2a91c…',ev:[['Approved','Jun 26'],['Queued','3h ago'],['Sent','2h ago']]},
+  {id:'d7',lane:'delivered',del:'Proof story — Email',camp:'Autumn Boost',ch:'email',aud:'Past customers',count:3204,when:'44% open',appr:'Evan',appd:'Jun 22',subj:'Maple Grove HOA reroofed in 5 days',body:'See the before/after photos from a recent storm-repair job — and what our workmanship warranty covers.',prov:'resend',msgid:'re_4c19be…',ev:[['Queued','3d ago'],['Sent','3d ago'],['Delivered','3d ago · 44% open']]},
+  {id:'d8',lane:'failed',del:'Estimate follow-up — Email',camp:'Storm Rapid Response',ch:'email',aud:'Pending estimates',count:96,when:'hard bounce',failed:true,appr:'Evan',appd:'Jun 21',subj:'Your claim-ready estimate is ready',body:'Your free post-storm estimate is ready — book your inspection to lock in a spot with our local crews.',prov:'resend',err:'550 mailbox unavailable · 96 recipients',ev:[['Queued','1d ago'],['Sent','1d ago'],['Failed','1d ago']]}
 ];
 
 /* ---- Board: agent_tasks ---- */
@@ -309,13 +311,13 @@ var BOARD_LANES=[
   {k:'needs_approval',n:'Needs approval',c:'#88b6d8'},{k:'blocked',n:'Blocked',c:'#cc6a6a'},{k:'completed',n:'Done',c:'#7fb89a'}
 ];
 var TASKS=[
-  {id:'t1',lane:'queued',title:'Draft win-back email variants',owner:'agent',rel:'Q3 Reactivation',when:'queued',desc:'Generate 3 subject/body variants for the dormant 60–90d segment, then submit for approval.'},
-  {id:'t2',lane:'running',title:'Scan competitor pricing pages',owner:'agent',rel:'Signals',when:'running · 2m',desc:'Fetch + diff DeployForge and Vercel pricing pages; open an Opportunity if anything changed.'},
-  {id:'t3',lane:'needs_approval',title:'Approve 3 assets — Win-back Q3',owner:'human',rel:'Campaigns',when:'waiting on you',desc:'Email A/B + an SMS draft are ready. They can’t queue to the Outbox until you approve them.',go:'build-campaign-builder.html'},
-  {id:'t4',lane:'needs_approval',title:'New persona segment proposed',owner:'human',rel:'Personas',when:'waiting on you',desc:'“Platform skeptics” — 318 contacts clustered by behavior. Review before Arc targets them.',go:'build-personas.html'},
+  {id:'t1',lane:'queued',title:'Draft re-engagement email variants',owner:'agent',rel:'Autumn Boost',when:'queued',desc:'Generate 3 subject/body variants for the past-customer 12–24mo segment, then submit for approval.'},
+  {id:'t2',lane:'running',title:'Scan competitor storm-response pages',owner:'agent',rel:'Signals',when:'running · 2m',desc:'Fetch + diff local roofing competitors’ storm-response pages; open an Opportunity if anything changed.'},
+  {id:'t3',lane:'needs_approval',title:'Approve 3 assets — Autumn Boost',owner:'human',rel:'Campaigns',when:'waiting on you',desc:'Email A/B + an SMS draft are ready. They can’t queue to the Outbox until you approve them.',go:'build-campaign-builder.html'},
+  {id:'t4',lane:'needs_approval',title:'New persona segment proposed',owner:'human',rel:'Personas',when:'waiting on you',desc:'“Comparison shoppers” — 318 contacts clustered by behavior. Review before Arc targets them.',go:'build-personas.html'},
   {id:'t5',lane:'blocked',title:'Render launch video',owner:'system',rel:'Studio',when:'blocked',desc:'Higgsfield connector is OFF for this workspace. Enable it with a stored Vault credential to unblock video.'},
   {id:'t6',lane:'completed',title:'Enriched 42 leads from Apollo',owner:'agent',rel:'CRM',when:'1h ago',desc:'Added firmographics + persona mapping to 42 newly discovered leads.'},
-  {id:'t7',lane:'completed',title:'Learned brand from stride.dev',owner:'agent',rel:'Brand',when:'6d ago',desc:'Crawled 6 pages, extracted 18 brand facts into the review queue.'}
+  {id:'t7',lane:'completed',title:'Learned brand from bigshoulders.co',owner:'agent',rel:'Brand',when:'6d ago',desc:'Crawled 6 pages, extracted 18 brand facts into the review queue.'}
 ];
 
 var view='outbox', sel=null, chFilter='all';
@@ -396,7 +398,7 @@ function openConfirm(ids){
   var checks=[
     'Approved'+(single?' by '+single.appr+' · '+single.appd:' — every item human-approved'),
     'Guardrails passed · 0 banned phrases, claims verified',
-    'From hello@stride.dev · domain verified (Resend)',
+    'From hello@bigshoulders.co · domain verified (Resend)',
     'Unsubscribe link present · suppression list applied'
   ];
   var pf=checks.map(function(c){return '<div class="pf"><span class="pc">'+svg('<path d="M5 12l4 4L19 6"/>')+'</span><span>'+c+'</span></div>';}).join('');
@@ -512,5 +514,10 @@ render();
 }
 </style>
 <script>if(document.visibilityState==='visible')document.body.classList.add('mo');</script>
+<link rel="stylesheet" href="/gallery-fix.css">
+<script src="/gallery-panes.js" defer></script>
+<script src="/gallery-cmdk.js" defer></script>
+<script src="/gallery-keys.js" defer></script>
+<script src="/gallery-nav.js" defer></script>
 </body>
 </html>

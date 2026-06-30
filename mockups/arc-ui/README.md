@@ -10,14 +10,28 @@ before porting into the real Next.js app.
 
 ```bash
 node mockups/arc-ui/server.mjs
-# then open http://localhost:8910/  (or /builds.html for the index)
+# opens on the Home command center → http://localhost:8910/
+# gallery index (one card per screen) → http://localhost:8910/builds.html
 ```
 
 In Claude Code you can also start the **"gallery"** config from `.claude/launch.json`.
 
+## Shared runtime (loaded on every screen)
+
+Two small files make the static pages behave like one app:
+
+- `gallery-nav.js` — wires the sidebar nav so each item links to its screen,
+  prefetches on hover, marks the active item (`aria-current`), mirrors icon
+  `title`s into `aria-label`, and routes the logo Home.
+- `gallery-fix.css` — responsive layout (rails stack / rows wrap below ~1080px
+  so nothing overflows its box), cross-document view-transition fades, a
+  universal keyboard focus ring, and shell normalization.
+
 ## Where to start
 
-- `builds.html` (also `index.html`) — the gallery index, one card per screen.
+- `/` — opens directly on the Home command center.
+- `builds.html` — the gallery index, one card per screen (`index.html` is the
+  original product-thesis landing page).
 - `build-arc.html` — the Arc chat (most recently iterated: production-matched
   composer, dot-ring streaming loader, package tray + expand-to-canvas, the
   Skills/Connections dock + modals, single-line thread rail).

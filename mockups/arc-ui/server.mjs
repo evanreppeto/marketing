@@ -19,7 +19,7 @@ const TYPES = {
 const server = createServer(async (req, res) => {
   try {
     let path = decodeURIComponent((req.url || "/").split("?")[0]);
-    if (path === "/") path = "/index.html";
+    if (path === "/") path = "/build-home.html";
     // prevent path traversal
     const safe = normalize(path).replace(/^(\.\.[/\\])+/, "");
     const filePath = join(ROOT, safe);

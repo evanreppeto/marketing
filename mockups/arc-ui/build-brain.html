@@ -224,14 +224,16 @@
   .kindchip{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;color:var(--text-2)}.kindchip .d{width:8px;height:8px;border-radius:50%}
   .fconf{font-family:var(--mono);font-size:11px}
 </style>
+<script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
 </head>
 <body>
 <div class="app">
   <aside class="rail">
-    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">B2B SaaS · Premium</div></div><span class="cv">▾</span></div>
-    <div class="indtag"><i></i>B2B SAAS workspace</div>
+    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">Restoration · Premium</div></div><span class="cv">▾</span></div>
+    <div class="indtag"><i></i>RESTORATION workspace</div>
     <div class="navwrap">
       <div class="grp">WORKSPACE</div>
+      <a class="nav" href="/build-arc-v2.html"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
@@ -305,7 +307,7 @@
       <div class="pane hidden" data-pane="ask">
         <div class="scroll"><div class="inner">
           <h3 class="sh">Ask what Arc remembers <span class="tg wired">wired · semantic + graph recall</span></h3>
-          <div class="askbox"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-11.5 7.2L4 21l1.8-5.5A8 8 0 1121 12z"/></svg><input value="What do we know about the Decision Maker persona?" /><span class="askgo">Recall</span></div>
+          <div class="askbox"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-11.5 7.2L4 21l1.8-5.5A8 8 0 1121 12z"/></svg><input value="What do we know about the storm-damage homeowner persona?" /><span class="askgo">Recall</span></div>
           <div class="recallmeta"><span>Retrieved <b>5 of 214</b> nodes</span><span>·</span><span><b>pgvector</b> (Gemini 768d) + keyword + graph traversal (depth 2)</span></div>
           <div id="recall"></div>
         </div></div>
@@ -359,56 +361,56 @@ var KINDC={arc:'#c8a24a',brand_fact:'#c47055',service:'#5a90b8',persona:'#9a8fc4
 var KINDLBL={arc:'Arc',brand_fact:'Brand fact',service:'Service',persona:'Persona',proof_point:'Proof point',messaging_angle:'Messaging angle',cta:'CTA',campaign_ref:'Campaign',learning:'Learning',signal:'Signal',segment:'Segment',asset_ref:'Asset',crm_company:'CRM company',crm_contact:'CRM contact'};
 
 var NODES=[
-  {id:'arc',kind:'arc',label:'Arc',tier:'trusted',conf:null,source:'arc',by:'system',ref:null,summary:'Central memory hub for Arc, the AI marketing operator for this B2B SaaS workspace.'},
-  {id:'persona-decision-maker',kind:'persona',label:'Decision Maker (VP Eng)',tier:'trusted',conf:88,source:'persona-sync',by:'operator',ref:null,summary:'The VP of Engineering or CTO who owns budget and signs off on platform purchases.'},
-  {id:'persona-champion',kind:'persona',label:'Champion (Staff Engineer)',tier:'trusted',conf:84,source:'persona-sync',by:'operator',ref:null,summary:'The hands-on staff engineer who pilots the tool internally and sells it upward.'},
-  {id:'persona-evaluator',kind:'persona',label:'Technical Evaluator',tier:'trusted',conf:79,source:'persona-sync',by:'operator',ref:null,summary:'Senior engineer running the security review and proof-of-concept against requirements.'},
-  {id:'persona-economic-buyer',kind:'persona',label:'Economic Buyer (CFO)',tier:'trusted',conf:73,source:'persona-sync',by:'operator',ref:null,summary:'Finance leader who scrutinizes ROI, contract terms, and total cost of ownership.'},
-  {id:'persona-influencer',kind:'persona',label:'Influencer (Security Lead)',tier:'proposed',conf:61,source:'persona-sync',by:'arc',ref:null,summary:'Security or compliance lead who can veto a deal but rarely initiates it.'},
-  {id:'bf-soc2',kind:'brand_fact',label:'SOC 2 Type II certified',tier:'trusted',conf:98,source:'brand_source_ingestion',by:'operator',ref:null,summary:'The platform holds a current SOC 2 Type II attestation with an unqualified opinion.'},
-  {id:'bf-uptime',kind:'brand_fact',label:'99.99% uptime SLA',tier:'trusted',conf:95,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Contractual 99.99% uptime SLA backed by service credits on the Enterprise plan.'},
-  {id:'bf-gdpr',kind:'brand_fact',label:'GDPR & data residency',tier:'trusted',conf:92,source:'brand_source_ingestion',by:'operator',ref:null,summary:'EU data residency option with a signed DPA and GDPR-compliant subprocessing.'},
-  {id:'bf-time-to-value',kind:'brand_fact',label:'Live in under 30 minutes',tier:'trusted',conf:86,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Self-serve onboarding gets a first integration live in under 30 minutes.'},
-  {id:'bf-roi',kind:'brand_fact',label:'3.2x first-year ROI (proposed)',tier:'proposed',conf:58,source:'arc',by:'arc',ref:null,summary:'Arc-estimated 3.2x first-year ROI derived from aggregate customer time savings — not yet validated.'},
-  {id:'pp-acme-deploys',kind:'proof_point',label:'Acme cut deploy time 40%',tier:'trusted',conf:90,source:'performance-sync',by:'operator',ref:'outcomes',summary:'Acme Robotics reduced mean deploy time by 40% within one quarter of adoption.'},
-  {id:'pp-northwind-uptime',kind:'proof_point',label:'Northwind hit 99.99% in prod',tier:'trusted',conf:87,source:'performance-sync',by:'operator',ref:'outcomes',summary:'Northwind Labs sustained 99.99% production uptime across two consecutive quarters.'},
-  {id:'pp-g2-leader',kind:'proof_point',label:'G2 Leader, 4.8/5 (312 reviews)',tier:'trusted',conf:83,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Rated 4.8 out of 5 across 312 verified G2 reviews and named a category Leader.'},
-  {id:'pp-fedramp-prog',kind:'proof_point',label:'FedRAMP audit in progress',tier:'proposed',conf:54,source:'arc',by:'arc',ref:null,summary:'Arc heard the FedRAMP authorization is underway; unconfirmed timeline, do not cite externally.'},
-  {id:'svc-platform',kind:'service',label:'Core Platform',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'The flagship developer infrastructure platform sold on a seat + usage model.'},
-  {id:'svc-enterprise',kind:'service',label:'Enterprise Plan',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Enterprise tier adding SSO, audit logs, the 99.99% SLA, and dedicated support.'},
-  {id:'svc-onboarding',kind:'service',label:'White-glove Onboarding',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Guided migration and implementation service offered to Enterprise accounts.'},
-  {id:'svc-api',kind:'service',label:'Developer API & SDKs',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Public REST/GraphQL API plus first-party SDKs that anchor the self-serve motion.'},
-  {id:'ma-ship-faster',kind:'messaging_angle',label:'Ship faster without breaking prod',tier:'trusted',conf:85,source:'campaign-sync',by:'operator',ref:null,summary:'Speed-vs-safety angle for the Decision Maker: velocity gains without reliability risk.'},
-  {id:'ma-compliance-built-in',kind:'messaging_angle',label:'Compliance built in, not bolted on',tier:'trusted',conf:80,source:'campaign-sync',by:'operator',ref:null,summary:'Security-first angle aimed at the Evaluator and Influencer reviewing the platform.'},
-  {id:'ma-prove-roi',kind:'messaging_angle',label:'Prove ROI in the first quarter',tier:'proposed',conf:64,source:'arc',by:'arc',ref:null,summary:'ROI-led angle for the Economic Buyer; leans on the unverified 3.2x figure, needs approval.'},
-  {id:'ma-champion-enablement',kind:'messaging_angle',label:'Arm your champion to sell up',tier:'proposed',conf:59,source:'arc',by:'arc',ref:null,summary:'Enablement angle giving the internal Champion a deck and ROI story to pitch leadership.'},
-  {id:'cta-book-demo',kind:'cta',label:'Book a 30-min demo',tier:'trusted',conf:82,source:'campaign-sync',by:'operator',ref:null,summary:'Primary high-intent CTA driving Decision Makers to a scoped product demo.'},
-  {id:'cta-roi-calculator',kind:'cta',label:'Run the ROI calculator',tier:'proposed',conf:56,source:'arc',by:'arc',ref:null,summary:'Self-serve ROI calculator CTA for the Economic Buyer; depends on the unverified ROI claim.'},
-  {id:'cta-start-trial',kind:'cta',label:'Start a free trial',tier:'trusted',conf:77,source:'campaign-sync',by:'operator',ref:null,summary:'Low-friction CTA aimed at the Champion to begin a self-serve evaluation.'},
-  {id:'camp-q2-velocity',kind:'campaign_ref',label:'Q2 Ship-Velocity Outbound',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Outbound email + LinkedIn sequence targeting VP Eng Decision Makers on the velocity angle.'},
-  {id:'camp-security-nurture',kind:'campaign_ref',label:'Security-First Nurture',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Drip nurture for Evaluators and security Influencers leading with SOC 2 and GDPR proof.'},
-  {id:'camp-roi-webinar',kind:'campaign_ref',label:'ROI Webinar Q2',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Live webinar + follow-up aimed at Economic Buyers on cost savings and payback.'},
-  {id:'camp-champion-plg',kind:'campaign_ref',label:'Champion PLG Trial Push',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Product-led trial activation campaign nudging Champions through onboarding milestones.'},
-  {id:'learn-vp-replies',kind:'learning',label:'VP Eng replies to velocity hook',tier:'observed',conf:76,source:'performance-sync',by:'arc',ref:null,summary:'Decision Makers reply 2.1x more when the opener leads with deploy velocity over cost.'},
-  {id:'learn-soc2-opens',kind:'learning',label:'SOC 2 in subject lifts opens',tier:'observed',conf:71,source:'performance-sync',by:'arc',ref:null,summary:'Naming SOC 2 in the subject line raised open rate ~14% in the security nurture.'},
-  {id:'learn-roi-soft',kind:'learning',label:'ROI webinar underperformed',tier:'observed',conf:63,source:'performance-sync',by:'arc',ref:null,summary:'The ROI webinar booked fewer meetings than the velocity outbound, signaling angle fatigue.'},
-  {id:'learn-trial-onboard',kind:'learning',label:'Onboarding step gates trials',tier:'observed',conf:68,source:'performance-sync',by:'arc',ref:null,summary:'Trial-to-paid conversion correlates with completing the first integration within 30 minutes.'},
-  {id:'sig-competitor-launch',kind:'signal',label:'Competitor shipped audit logs',tier:'observed',conf:70,source:'arc',by:'arc',ref:null,summary:'DeployForge announced audit-log parity, eroding a former differentiation point.'},
-  {id:'sig-acme-expansion',kind:'signal',label:'Acme hiring 12 engineers',tier:'observed',conf:66,source:'crm-sync',by:'arc',ref:null,summary:'Acme Robotics posted 12 engineering roles — an expansion/upsell signal on a live account.'},
-  {id:'sig-northwind-quiet',kind:'signal',label:'Northwind went quiet 45 days',tier:'observed',conf:62,source:'crm-sync',by:'arc',ref:null,summary:'No logins or replies from Northwind Labs in 45 days — a churn-risk inactivity signal.'},
-  {id:'sig-g2-spike',kind:'signal',label:'G2 review velocity up 30%',tier:'observed',conf:58,source:'performance-sync',by:'arc',ref:null,summary:'Inbound G2 reviews rose 30% month-over-month, a proof-point freshness signal.'},
-  {id:'seg-vp-eng-mid',kind:'segment',label:'VP Eng, 200-1000 employees',tier:'proposed',conf:67,source:'arc',by:'arc',ref:null,summary:'Arc-synthesized segment of mid-market VP Eng Decision Makers; awaiting operator approval.'},
-  {id:'seg-dormant-trials',kind:'segment',label:'Dormant trial accounts',tier:'proposed',conf:55,source:'arc',by:'arc',ref:null,summary:'Trials that stalled before first integration; candidate re-engagement segment, unapproved.'},
-  {id:'asset-velocity-case',kind:'asset_ref',label:'Acme case study PDF',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'media_assets',summary:'One-page Acme deploy-velocity case study used in the velocity outbound sequence.'},
-  {id:'asset-security-onepager',kind:'asset_ref',label:'Security & compliance one-pager',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'media_assets',summary:'SOC 2 / GDPR trust one-pager attached to the security-first nurture.'},
-  {id:'asset-roi-deck',kind:'asset_ref',label:'ROI webinar deck',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'media_assets',summary:'Slide deck used in the ROI webinar; embeds the proposed 3.2x ROI figure pending approval.'},
-  {id:'co-acme',kind:'crm_company',label:'Acme Robotics',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'Mid-market robotics SaaS, ~450 employees; active Enterprise customer and upsell target.'},
-  {id:'co-northwind',kind:'crm_company',label:'Northwind Labs',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'Data-infrastructure startup, ~220 employees; active account currently showing churn risk.'},
-  {id:'co-globex',kind:'crm_company',label:'Globex Systems',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'Enterprise fintech, ~1200 employees; open opportunity in late-stage security review.'},
-  {id:'co-initech',kind:'crm_company',label:'Initech Cloud',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'SMB cloud-tools vendor, ~80 employees; self-serve trial with no opportunity yet.'},
-  {id:'ct-acme-vp',kind:'crm_contact',label:'Dana Cole, VP Eng @ Acme',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'contacts',summary:'Decision Maker at Acme Robotics; primary economic sponsor of the Enterprise renewal.'},
-  {id:'ct-northwind-staff',kind:'crm_contact',label:'Raj Patel, Staff Eng @ Northwind',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'contacts',summary:'Internal Champion at Northwind Labs who drove the original adoption.'},
-  {id:'ct-globex-sec',kind:'crm_contact',label:'Mei Lin, Security Lead @ Globex',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'contacts',summary:'Influencer/Evaluator at Globex running the security review that gates the deal.'}
+  {id:'arc',kind:'arc',label:'Arc',tier:'trusted',conf:null,source:'arc',by:'system',ref:null,summary:'Central memory hub for Arc, the AI marketing operator for Big Shoulders Restoration.'},
+  {id:'persona-decision-maker',kind:'persona',label:'Storm-damage homeowner',tier:'trusted',conf:88,source:'persona-sync',by:'operator',ref:null,summary:'Homeowner with fresh hail or wind damage and an insurance claim in progress — the primary persona.'},
+  {id:'persona-champion',kind:'persona',label:'Past customer',tier:'trusted',conf:84,source:'persona-sync',by:'operator',ref:null,summary:'Prior BSR job; strong referral and repeat-work potential.'},
+  {id:'persona-evaluator',kind:'persona',label:'Insurance adjuster',tier:'trusted',conf:79,source:'persona-sync',by:'operator',ref:null,summary:'Claim coordinator who validates storm damage and feeds the referral network.'},
+  {id:'persona-economic-buyer',kind:'persona',label:'Property manager',tier:'trusted',conf:73,source:'persona-sync',by:'operator',ref:null,summary:'Manages HOAs and multi-unit portfolios; buys roofing across many homes at once.'},
+  {id:'persona-influencer',kind:'persona',label:'Comparison shopper',tier:'proposed',conf:61,source:'persona-sync',by:'arc',ref:null,summary:'Getting multiple bids on an older roof; price-sensitive and slow to commit.'},
+  {id:'bf-soc2',kind:'brand_fact',label:'Licensed & insured local crews',tier:'trusted',conf:98,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Fully licensed and insured BSR crews based locally in the Naperville storm zone.'},
+  {id:'bf-uptime',kind:'brand_fact',label:'Workmanship warranty',tier:'trusted',conf:95,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Every roof replacement is backed by a written BSR workmanship warranty.'},
+  {id:'bf-gdpr',kind:'brand_fact',label:'Full insurance-claim coordination',tier:'trusted',conf:92,source:'brand_source_ingestion',by:'operator',ref:null,summary:'BSR handles the insurance claim end to end, from inspection through adjuster meeting.'},
+  {id:'bf-time-to-value',kind:'brand_fact',label:'Fast local turnaround',tier:'trusted',conf:86,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Free post-storm inspection scheduled within days and crews mobilized fast.'},
+  {id:'bf-roi',kind:'brand_fact',label:'Avg. $22k project value (proposed)',tier:'proposed',conf:58,source:'arc',by:'arc',ref:null,summary:'Arc-estimated $22k average single-home roof replacement value from recent jobs — not yet validated.'},
+  {id:'pp-acme-deploys',kind:'proof_point',label:'Maple Grove HOA reroofed in 5 days',tier:'trusted',conf:90,source:'performance-sync',by:'operator',ref:'outcomes',summary:'BSR reroofed the entire Maple Grove HOA in five days after the hailstorm.'},
+  {id:'pp-northwind-uptime',kind:'proof_point',label:'Cornerstone portfolio repaired on time',tier:'trusted',conf:87,source:'performance-sync',by:'operator',ref:'outcomes',summary:'Cornerstone Property Mgmt storm repairs completed on schedule across two buildings.'},
+  {id:'pp-g2-leader',kind:'proof_point',label:'4.8/5 from 312 local reviews',tier:'trusted',conf:83,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Rated 4.8 out of 5 across 312 verified local homeowner reviews.'},
+  {id:'pp-fedramp-prog',kind:'proof_point',label:'New before/after media in review',tier:'proposed',conf:54,source:'arc',by:'arc',ref:null,summary:'Arc found a fresh before/after storm-repair set; not yet approved, do not cite externally.'},
+  {id:'svc-platform',kind:'service',label:'Roof replacement',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Full roof replacement — the flagship BSR service after storm damage.'},
+  {id:'svc-enterprise',kind:'service',label:'Insurance-claim assistance',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Claim-ready documentation, adjuster meetings, and end-to-end claim coordination.'},
+  {id:'svc-onboarding',kind:'service',label:'Storm-damage repair',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Targeted hail and wind damage repair for homes not needing a full replacement.'},
+  {id:'svc-api',kind:'service',label:'Gutter & siding',tier:'trusted',conf:null,source:'brand_source_ingestion',by:'operator',ref:null,summary:'Gutter and siding repair and replacement, often bundled with roof work.'},
+  {id:'ma-ship-faster',kind:'messaging_angle',label:'Free inspection, no obligation',tier:'trusted',conf:85,source:'campaign-sync',by:'operator',ref:null,summary:'Low-pressure angle for the storm-damage homeowner: a free inspection with no commitment.'},
+  {id:'ma-compliance-built-in',kind:'messaging_angle',label:'We handle the whole claim',tier:'trusted',conf:80,source:'campaign-sync',by:'operator',ref:null,summary:'Claim-coordination angle aimed at homeowners and the adjusters reviewing damage.'},
+  {id:'ma-prove-roi',kind:'messaging_angle',label:'Protect your home before winter',tier:'proposed',conf:64,source:'arc',by:'arc',ref:null,summary:'Urgency angle for property managers; leans on the unverified avg-value figure, needs approval.'},
+  {id:'ma-champion-enablement',kind:'messaging_angle',label:'Refer a neighbor, both win',tier:'proposed',conf:59,source:'arc',by:'arc',ref:null,summary:'Referral angle giving past customers an easy reason to send neighbors to BSR.'},
+  {id:'cta-book-demo',kind:'cta',label:'Book a free inspection',tier:'trusted',conf:82,source:'campaign-sync',by:'operator',ref:null,summary:'Primary high-intent CTA driving storm-damage homeowners to a free roof inspection.'},
+  {id:'cta-roi-calculator',kind:'cta',label:'Get a claim-ready estimate',tier:'proposed',conf:56,source:'arc',by:'arc',ref:null,summary:'Estimate CTA for property managers; depends on the unverified avg-value claim.'},
+  {id:'cta-start-trial',kind:'cta',label:'See the storm-zone map',tier:'trusted',conf:77,source:'campaign-sync',by:'operator',ref:null,summary:'Low-friction CTA showing past customers where the Naperville hail hit hardest.'},
+  {id:'camp-q2-velocity',kind:'campaign_ref',label:'Storm Rapid Response',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Live outbound to storm-damage homeowners in the Naperville hail zone leading with a free inspection.'},
+  {id:'camp-security-nurture',kind:'campaign_ref',label:'Adjuster Referral',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Partner co-marketing nurture for insurance adjusters leading with claim coordination and warranty proof.'},
+  {id:'camp-roi-webinar',kind:'campaign_ref',label:'HOA Portfolio Outreach',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Outreach to property managers on multi-home storm repair and on-time turnaround.'},
+  {id:'camp-champion-plg',kind:'campaign_ref',label:'Autumn Boost',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'campaigns',summary:'Past-customer re-engagement campaign nudging prior BSR homeowners toward referrals and repeat work.'},
+  {id:'learn-vp-replies',kind:'learning',label:'Homeowners reply to free-inspection hook',tier:'observed',conf:76,source:'performance-sync',by:'arc',ref:null,summary:'Storm-damage homeowners reply 2.1x more when the opener leads with a free inspection over price.'},
+  {id:'learn-soc2-opens',kind:'learning',label:'"Storm damage" in subject lifts opens',tier:'observed',conf:71,source:'performance-sync',by:'arc',ref:null,summary:'Naming the Naperville storm in the subject line raised open rate ~14% in the adjuster nurture.'},
+  {id:'learn-roi-soft',kind:'learning',label:'HOA outreach underperformed',tier:'observed',conf:63,source:'performance-sync',by:'arc',ref:null,summary:'HOA portfolio outreach booked fewer inspections than the storm rapid response, signaling angle fatigue.'},
+  {id:'learn-trial-onboard',kind:'learning',label:'Fast inspection gates booked jobs',tier:'observed',conf:68,source:'performance-sync',by:'arc',ref:null,summary:'Inspection-to-job conversion correlates with scheduling the inspection within a few days of the storm.'},
+  {id:'sig-competitor-launch',kind:'signal',label:'ServPro running storm ads',tier:'observed',conf:70,source:'arc',by:'arc',ref:null,summary:'Competitor ServPro launched Naperville storm ads in the Meta Ad Library, pressuring share of voice.'},
+  {id:'sig-acme-expansion',kind:'signal',label:'Maple Grove HOA expanding repairs',tier:'observed',conf:66,source:'crm-sync',by:'arc',ref:null,summary:'Maple Grove HOA flagged 12 more homes needing inspection — an expansion signal on a live account.'},
+  {id:'sig-northwind-quiet',kind:'signal',label:'Cornerstone went quiet 45 days',tier:'observed',conf:62,source:'crm-sync',by:'arc',ref:null,summary:'No replies from Cornerstone Property Mgmt in 45 days — a gone-quiet re-engagement signal.'},
+  {id:'sig-g2-spike',kind:'signal',label:'Review volume up 30%',tier:'observed',conf:58,source:'performance-sync',by:'arc',ref:null,summary:'Inbound local reviews rose 30% month-over-month, a proof-point freshness signal.'},
+  {id:'seg-vp-eng-mid',kind:'segment',label:'Storm-zone homeowners, older roof',tier:'proposed',conf:67,source:'arc',by:'arc',ref:null,summary:'Arc-synthesized segment of Naperville storm-zone homeowners with aging roofs; awaiting operator approval.'},
+  {id:'seg-dormant-trials',kind:'segment',label:'Past customers gone quiet',tier:'proposed',conf:55,source:'arc',by:'arc',ref:null,summary:'Prior BSR homeowners with no contact in 12+ months; candidate re-engagement segment, unapproved.'},
+  {id:'asset-velocity-case',kind:'asset_ref',label:'Maple Grove before/after set',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'media_assets',summary:'Before/after storm-repair photo set from Maple Grove HOA used in the storm rapid response.'},
+  {id:'asset-security-onepager',kind:'asset_ref',label:'Insurance-claim one-pager',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'media_assets',summary:'Claim-coordination and warranty trust one-pager attached to the adjuster referral nurture.'},
+  {id:'asset-roi-deck',kind:'asset_ref',label:'HOA portfolio deck',tier:'trusted',conf:null,source:'campaign-sync',by:'operator',ref:'media_assets',summary:'Slide deck for property managers; embeds the proposed $22k avg-value figure pending approval.'},
+  {id:'co-acme',kind:'crm_company',label:'Maple Grove HOA',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'Storm-zone HOA, ~60 homes; active account reroofed in 5 days with more inspections pending.'},
+  {id:'co-northwind',kind:'crm_company',label:'Cornerstone Property Mgmt',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'Multi-unit property manager, ~220 units; active account currently gone quiet.'},
+  {id:'co-globex',kind:'crm_company',label:'Stonebridge HOA',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'Large storm-zone HOA, ~120 homes; open opportunity in late-stage estimate review.'},
+  {id:'co-initech',kind:'crm_company',label:'Naperville Realty Group',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'companies',summary:'Local realty group, handful of listings; early inquiry with no opportunity yet.'},
+  {id:'ct-acme-vp',kind:'crm_contact',label:'Daniel Whitfield, Property Mgr @ Maple Grove HOA',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'contacts',summary:'Property manager at Maple Grove HOA; primary sponsor of the portfolio reroof.'},
+  {id:'ct-northwind-staff',kind:'crm_contact',label:'Patricia Nolan, Property Mgr @ Cornerstone',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'contacts',summary:'Property manager at Cornerstone Property Mgmt who approved the original storm repairs.'},
+  {id:'ct-globex-sec',kind:'crm_contact',label:'Karen Sandoval, Adjuster @ State Farm',tier:'trusted',conf:null,source:'crm-sync',by:'arc',ref:'contacts',summary:'State Farm adjuster coordinating claims that gate several storm-zone jobs.'}
 ];
 var EDGES=[
   {from:'arc',to:'persona-decision-maker',rel:'relates_to'},{from:'arc',to:'persona-champion',rel:'relates_to'},{from:'arc',to:'persona-evaluator',rel:'relates_to'},{from:'arc',to:'persona-economic-buyer',rel:'relates_to'},
@@ -429,17 +431,17 @@ var EDGES=[
 ];
 var RECALL=[{id:'persona-decision-maker',match:'0.94'},{id:'ma-ship-faster',match:'0.89'},{id:'learn-vp-replies',match:'0.84'},{id:'camp-q2-velocity',match:'0.81'},{id:'pp-acme-deploys',match:'0.77'},{id:'bf-uptime',match:'0.72'}];
 var HEALTH={score:84,
-  orphans:[{label:'Influencer (Security Lead)',kind:'persona'},{label:'Initech Cloud',kind:'crm_company'},{label:'Developer API & SDKs',kind:'service'}],
-  stale:[{label:'FedRAMP audit in progress',detail:'203d since learned'},{label:'Northwind hit 99.99% in prod',detail:'167d since learned'},{label:'ROI webinar underperformed',detail:'118d since learned'},{label:'Competitor shipped audit logs',detail:'94d since learned'}],
-  lowConfidence:[{label:'3.2x first-year ROI',detail:'58% confidence'},{label:'FedRAMP audit in progress',detail:'54% confidence'},{label:'Dormant trial accounts',detail:'55% confidence'},{label:'Run the ROI calculator',detail:'56% confidence'}],
-  coverageGaps:[{label:'Economic Buyer (CFO)',detail:'Only 2 connections'},{label:'Influencer (Security Lead)',detail:'Only 1 connection'},{label:'Technical Evaluator',detail:'Only 1 inbound proof'}]};
+  orphans:[{label:'Comparison shopper',kind:'persona'},{label:'Naperville Realty Group',kind:'crm_company'},{label:'Gutter & siding',kind:'service'}],
+  stale:[{label:'New before/after media in review',detail:'203d since learned'},{label:'Cornerstone portfolio repaired on time',detail:'167d since learned'},{label:'HOA outreach underperformed',detail:'118d since learned'},{label:'ServPro running storm ads',detail:'94d since learned'}],
+  lowConfidence:[{label:'Avg. $22k project value',detail:'58% confidence'},{label:'New before/after media in review',detail:'54% confidence'},{label:'Past customers gone quiet',detail:'55% confidence'},{label:'Get a claim-ready estimate',detail:'56% confidence'}],
+  coverageGaps:[{label:'Property manager',detail:'Only 2 connections'},{label:'Comparison shopper',detail:'Only 1 connection'},{label:'Insurance adjuster',detail:'Only 1 inbound proof'}]};
 var QUEUE=[
-  {kind:'brand_fact',label:'3.2x first-year ROI',conf:58,source:'arc',summary:'Arc-estimated 3.2x first-year ROI from aggregate time savings; unverified — must not appear in outbound until finance confirms.'},
-  {kind:'proof_point',label:'FedRAMP audit in progress',conf:54,source:'arc',summary:'Heard secondhand that FedRAMP authorization is underway; timeline unconfirmed — do not cite to prospects until legal approves.'},
-  {kind:'messaging_angle',label:'Prove ROI in the first quarter',conf:64,source:'arc',summary:'ROI-led angle for the Economic Buyer that leans on the unverified 3.2x figure; hold until the underlying claim is approved.'},
-  {kind:'messaging_angle',label:'Arm your champion to sell up',conf:59,source:'arc',summary:'Enablement angle giving Champions a leadership pitch; needs operator review before it ships in any sequence.'},
-  {kind:'cta',label:'Run the ROI calculator',conf:56,source:'arc',summary:'Self-serve ROI calculator CTA whose output depends on the unapproved 3.2x ROI claim; gate until verified.'},
-  {kind:'segment',label:'VP Eng, 200-1000 employees',conf:67,source:'arc',summary:'Arc-synthesized mid-market Decision Maker segment; review fit and exclusions before targeting any campaign at it.'}
+  {kind:'brand_fact',label:'Avg. $22k project value',conf:58,source:'arc',summary:'Arc-estimated $22k average single-home roof replacement value; unverified — must not appear in outbound until ops confirms.'},
+  {kind:'proof_point',label:'New before/after media in review',conf:54,source:'arc',summary:'Found a fresh before/after storm-repair set; not yet approved — do not use with homeowners until the operator signs off.'},
+  {kind:'messaging_angle',label:'Protect your home before winter',conf:64,source:'arc',summary:'Urgency angle for property managers that leans on the unverified $22k figure; hold until the underlying claim is approved.'},
+  {kind:'messaging_angle',label:'Refer a neighbor, both win',conf:59,source:'arc',summary:'Referral angle for past customers; needs operator review before it ships in any sequence.'},
+  {kind:'cta',label:'Get a claim-ready estimate',conf:56,source:'arc',summary:'Estimate CTA whose value depends on the unapproved $22k avg-project claim; gate until verified.'},
+  {kind:'segment',label:'Storm-zone homeowners, older roof',conf:67,source:'arc',summary:'Arc-synthesized Naperville storm-zone homeowner segment; review fit and exclusions before targeting any campaign at it.'}
 ];
 var TIMELINE=[
   {id:'sig-acme-expansion',via:'crm-sync',ago:'12m ago'},{id:'learn-vp-replies',via:'performance-sync',ago:'48m ago'},{id:'sig-g2-spike',via:'performance-sync',ago:'3h ago'},{id:'seg-vp-eng-mid',via:'audience synthesis',ago:'7h ago'},{id:'learn-soc2-opens',via:'performance-sync',ago:'14h ago'},{id:'sig-northwind-quiet',via:'crm-sync',ago:'1d ago'},{id:'ma-prove-roi',via:'arc',ago:'2d ago'},{id:'bf-roi',via:'arc',ago:'3d ago'}
@@ -547,7 +549,7 @@ function renderInspector(id){
     +'<div class="inactions">'+inspectorActions(n)+'</div>';
   document.getElementById('inspector').innerHTML=html;
   document.querySelectorAll('#inspector .conn').forEach(function(el){el.addEventListener('click',function(){selectNode(el.getAttribute('data-id'));});});
-  document.querySelectorAll('#inspector .ina[data-nav]').forEach(function(el){var nv=el.getAttribute('data-nav');if(nv)el.addEventListener('click',function(){location.href=nv;});});
+  document.querySelectorAll('#inspector .ina[data-nav]').forEach(function(el){var nv=el.getAttribute('data-nav');if(nv)el.addEventListener('click',function(){if(window.__arcOpen&&nv.indexOf('build-arc')!==-1){window.__arcOpen();return;}location.href=nv;});});
   var dl=document.querySelector('#inspector .deeplink');if(dl){dl.addEventListener('click',function(){var r=dl.getAttribute('data-deep');location.href=(r==='campaigns')?'build-campaign-builder.html':(r==='media_assets')?'build-studio.html':'build-crm-record.html';});}
 }
 function inspectorActions(n){
@@ -558,7 +560,7 @@ function inspectorActions(n){
   if(n.kind==='persona'){a+=btn('Open persona',n.tier!=='proposed','build-personas.html')+btn('Build campaign',false,'build-campaign-builder.html');}
   else if(n.kind==='campaign_ref'){a+=btn('Open campaign',true,'build-campaign-builder.html');}
   else if(n.kind==='crm_company'||n.kind==='crm_contact'){a+=btn('Open record',true,'build-crm-record.html');}
-  else if((n.kind==='messaging_angle'||n.kind==='cta'||n.kind==='brand_fact'||n.kind==='proof_point')&&n.tier!=='proposed'){a+=btn('Draft with Arc',true,'build-arc.html');}
+  else if((n.kind==='messaging_angle'||n.kind==='cta'||n.kind==='brand_fact'||n.kind==='proof_point')&&n.tier!=='proposed'){a+=btn('Draft with Arc',true,'build-arc-v2.html');}
   if(!a)a=btn('Link a node',false,'');
   return a;
 }
@@ -663,5 +665,10 @@ renderRecall();renderHealth();renderQueue();renderTimeline();renderFacts();
 <script>
   if(document.visibilityState==='visible')document.body.classList.add('mo');
 </script>
+<link rel="stylesheet" href="/gallery-fix.css">
+<script src="/gallery-panes.js" defer></script>
+<script src="/gallery-cmdk.js" defer></script>
+<script src="/gallery-keys.js" defer></script>
+<script src="/gallery-nav.js" defer></script>
 </body>
 </html>

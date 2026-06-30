@@ -194,14 +194,16 @@
   .pillrow{display:inline-flex;align-items:center;gap:9px}
   .pillrow .ptxt{font-size:12.5px;color:var(--text-2)}
 </style>
+<script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
 </head>
 <body>
 <div class="app">
   <aside class="rail">
-    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">B2B SaaS · Premium</div></div><span class="cv">▾</span></div>
-    <div class="indtag"><i></i>B2B SAAS workspace</div>
+    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">Restoration · Premium</div></div><span class="cv">▾</span></div>
+    <div class="indtag"><i></i>RESTORATION workspace</div>
     <div class="navwrap">
       <div class="grp">WORKSPACE</div>
+      <a class="nav" href="/build-arc-v2.html"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
@@ -288,15 +290,15 @@ SEC.overview=function(){return head('Overview','Your workspace at a glance — h
     +attn('ok','Outbound is locked','— Arc can’t send, post, or spend without you.','behavior'))
   +panel('Workspace',TGOK,
      row('Plan','','<span class="pillrow"><span class="spill ok"><span class="pd"></span>Premium</span><button class="btn sm" data-fb>Manage plan</button></span>')
-    +row('Business type','','<span class="pillrow"><span class="ptxt">Company · B2B SaaS</span><button class="btn sm" data-goto="general">Change</button></span>')
+    +row('Business type','','<span class="pillrow"><span class="ptxt">Company · Restoration &amp; home services</span><button class="btn sm" data-goto="general">Change</button></span>')
     +row('Team','','<span class="pillrow"><span class="ptxt">4 members · 1 pending</span><button class="btn sm" data-goto="team">Manage</button></span>'));
 };
 SEC.general=function(){return head('General','Your workspace identity. Saved instantly to app_settings.')
   +panel('Workspace',TGOK,
      row('Workspace name','Shown across the app and in Arc’s outbound from-name.','<input class="inp" value="Arc Marketing"/>')
     +row('Account type','Changes which signal detectors and templates Arc runs.',seg('wtype',['Individual','Company','Agency'],'Company'))
-    +row('Industry','Configures personas + opportunity templates.','<select class="sel"><option>B2B SaaS — Developer tools</option><option>Restoration & home services</option><option>E-commerce</option></select>')
-    +row('Support email','Used as reply-to on transactional email.','<input class="inp" value="support@stride.dev"/>'),
+    +row('Industry','Configures personas + opportunity templates.','<select class="sel"><option selected>Restoration & home services</option><option>Roofing & exteriors</option><option>General contracting</option></select>')
+    +row('Support email','Used as reply-to on transactional email.','<input class="inp" value="support@bigshoulders.co"/>'),
     'Instant-save · saveGeneralSettingsAction → app_settings');
 };
 SEC.appearance=function(){return head('Appearance','How the console looks. Accent + density + motion persist per workspace.')
@@ -307,12 +309,12 @@ SEC.appearance=function(){return head('Appearance','How the console looks. Accen
     'business_profiles.accent / density / motion + app_settings');
 };
 SEC.team=function(){
-  var members=[['EW','Evan Walsh','evan@stride.dev','Owner'],['DK','Dana Kim','dana@stride.dev','Admin'],['PR','Priya Rao','priya@stride.dev','Marketer'],['SM','Sam Ortiz','sam@stride.dev','Reviewer']];
+  var members=[['EW','Evan Walsh','evan@bigshoulders.co','Owner'],['DK','Dana Kim','dana@bigshoulders.co','Admin'],['PR','Priya Rao','priya@bigshoulders.co','Marketer'],['SM','Sam Ortiz','sam@bigshoulders.co','Reviewer']];
   var roleSel=function(r){return '<select class="sel" style="min-width:120px"'+(r==='Owner'?' disabled':'')+'>'+['Owner','Admin','Marketer','Reviewer','Member','Viewer'].map(function(o){return '<option'+(o===r?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';};
   var roster=members.map(function(m){return '<div class="mem"><span class="ma">'+m[0]+'</span><div class="mi"><div class="mn">'+m[1]+'</div><div class="me">'+m[2]+'</div></div>'+roleSel(m[3])+(m[3]==='Owner'?'':'<button class="btn sm danger" data-rm>Remove</button>')+'</div>';}).join('');
   return head('Team','Members, roles, and invites. Invites send a branded email via Resend.')
    +panel('Members <span class="ph-d" style="margin-left:6px">4</span>',TGOK,roster)
-   +panel('Pending invites',TGOK,'<div class="mem"><span class="ma" style="color:var(--muted);background:var(--inset);border-color:var(--line-2)">?</span><div class="mi"><div class="mn">jordan@stride.dev</div><div class="me">Marketer · expires in 12 days</div></div><span class="spill warn"><span class="pd"></span>Pending</span><button class="btn sm" data-fb>Resend</button><button class="btn sm danger" data-rm>Revoke</button></div>')
+   +panel('Pending invites',TGOK,'<div class="mem"><span class="ma" style="color:var(--muted);background:var(--inset);border-color:var(--line-2)">?</span><div class="mi"><div class="mn">jordan@bigshoulders.co</div><div class="me">Marketer · expires in 12 days</div></div><span class="spill warn"><span class="pd"></span>Pending</span><button class="btn sm" data-fb>Resend</button><button class="btn sm danger" data-rm>Revoke</button></div>')
    +panel('Invite a teammate',TGOK,
       row('Email','They’ll get a branded invite with a single-use code.','<input class="inp" placeholder="name@company.com"/>')
      +row('Role','Roles map to capabilities (approve, draft, view).','<select class="sel"><option>Admin</option><option selected>Marketer</option><option>Reviewer</option><option>Member</option><option>Viewer</option></select>')
@@ -440,7 +442,7 @@ SEC.behavior=function(){return head('Behavior','What Arc may do on its own — a
 };
 SEC.account=function(){return head('Account & security','Your operator identity and how you sign in.')
   +panel('Operator',TGOK,
-     row('Signed in as','','<span class="pillrow"><span style="display:flex;align-items:center;gap:9px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-border)">E</span><span><span style="font-size:12.5px;font-weight:600;display:block">Evan Walsh</span><span style="font-size:11px;color:var(--muted)">evan@stride.dev</span></span></span><button class="btn sm" data-fb>Edit</button></span>')
+     row('Signed in as','','<span class="pillrow"><span style="display:flex;align-items:center;gap:9px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-border)">E</span><span><span style="font-size:12.5px;font-weight:600;display:block">Evan Walsh</span><span style="font-size:11px;color:var(--muted)">evan@bigshoulders.co</span></span></span><button class="btn sm" data-fb>Edit</button></span>')
     +row('Access gate','OPERATOR_ACCESS_TOKEN protects the console.','<span class="pillrow"><span class="spill ok"><span class="pd"></span>Protected</span><button class="btn sm" data-fb>Configure</button></span>'))
   +panel('Sign-in methods',TGOK,
      row('Password','Email + password operator sign-in.','<span class="pillrow"><span class="spill ok"><span class="pd"></span>Configured</span><button class="btn sm" data-fb>Change</button></span>')
@@ -465,7 +467,7 @@ SEC.workspaces=function(){
   var w=function(letter,name,role,active){return '<div class="mem"><span class="ma">'+letter+'</span><div class="mi"><div class="mn">'+name+'</div><div class="me">'+role+'</div></div>'+(active?'<span class="spill ok"><span class="pd"></span>Active</span>':'<button class="btn sm" data-switch>Switch</button>')+'</div>';};
   return head('Workspaces','Each workspace is its own brand, CRM, and Arc. Switching re-tailors the whole app.')
    +panel('Your workspaces',TGOK,
-      w('A','Arc Marketing','Owner · B2B SaaS',true)+w('S','Summit Restoration','Admin · Home services',false)+w('P','Personal','Owner · Sandbox',false))
+      w('A','Arc Marketing','Owner · Restoration & home services',true)+w('S','Summit Restoration','Admin · Home services',false)+w('P','Personal','Owner · Sandbox',false))
    +'<div><button class="btn" data-fb>'+s('<path d="M12 5v14M5 12h14"/>')+'New workspace</button></div>';
 };
 SEC.system=function(){
@@ -528,5 +530,10 @@ renderNav(''); renderMain();
 }
 </style>
 <script>if(document.visibilityState==='visible')document.body.classList.add('mo');</script>
+<link rel="stylesheet" href="/gallery-fix.css">
+<script src="/gallery-panes.js" defer></script>
+<script src="/gallery-cmdk.js" defer></script>
+<script src="/gallery-keys.js" defer></script>
+<script src="/gallery-nav.js" defer></script>
 </body>
 </html>

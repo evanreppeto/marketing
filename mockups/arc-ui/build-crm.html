@@ -171,14 +171,16 @@
   .pager .pgbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
   .pager .pgnum{font-family:var(--mono);font-size:11.5px;color:var(--text-2)}
 </style>
+<script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
 </head>
 <body>
 <div class="app">
   <aside class="rail">
-    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">B2B SaaS · Premium</div></div><span class="cv">▾</span></div>
-    <div class="indtag"><i></i>B2B SAAS workspace</div>
+    <div class="ws"><img src="brand/arc-mark.png" alt="Arc" style="height:30px;width:auto;object-fit:contain;flex-shrink:0"><div><div class="nm">Arc Marketing</div><div class="pl">Restoration · Premium</div></div><span class="cv">▾</span></div>
+    <div class="indtag"><i></i>RESTORATION workspace</div>
     <div class="navwrap">
       <div class="grp">WORKSPACE</div>
+      <a class="nav" href="/build-arc-v2.html"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav on"><span class="tick"></span><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
@@ -267,7 +269,7 @@ var CK='<span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></s
 function initials(n){return n.split(' ').map(function(p){return p[0];}).slice(0,2).join('');}
 function scoreColor(s){return s>=80?'var(--ok)':s>=60?'var(--accent)':'var(--warn)';}
 // persona group colors
-var PGD={Decision:'#7fb89a',Champion:'#c8a24a',Influencer:'#88b6d8',Evaluator:'#9678c8',Gatekeeper:'#cc6a6a'};
+var PGD={'Storm-damage':'#7fb89a','Property manager':'#c8a24a','Insurance adjuster':'#88b6d8','Past customer':'#9678c8','Insurance-ready':'#cc6a6a'};
 function personaCell(label,grp){return '<span class="chip persona"><span class="pgd" style="background:'+(PGD[grp]||'#c8a24a')+'"></span>'+label+'</span>';}
 function statusCell(s){var m={active:['active','Active'],inactive:['inactive','Inactive'],dnc:['dnc','Do not contact'],qualified:['qualified','Qualified'],new:['new','New'],review:['review','Needs review'],won:['won','Won'],lost:['lost','Lost'],sched:['sched','Scheduled'],completed:['won','Completed']};var v=m[s]||['inactive',s];return '<span class="pill '+v[0]+'"><span class="pd"></span>'+v[1]+'</span>';}
 function scoreCell(n){return '<span class="scorecell"><b style="color:'+scoreColor(n)+'">'+n+'</b><span class="sbar"><i style="width:'+n+'%;background:'+scoreColor(n)+'"></i></span></span>';}
@@ -281,54 +283,54 @@ var OBJ={
   contacts:{title:'Contacts',count:248,filterPh:'Filter contacts…',
     cols:[{k:'sel'},{k:'primary',t:'Contact',w:''},{k:'company',t:'Company'},{k:'persona',t:'Persona'},{k:'status',t:'Status'},{k:'last',t:'Last activity'},{k:'tasks',t:'Tasks'},{k:'act'}],
     rows:[
-      {nm:'Sarah Chen',sub:'VP Engineering',co:'Acme Corp',per:['Decision maker','Decision'],st:'active',last:['1h ago','10:42 AM'],tasks:2},
-      {nm:"Michael O'Connell",sub:'Head of Platform',co:'Globex Inc',per:['Champion','Champion'],st:'active',last:['2h ago','9:18 AM'],tasks:1},
-      {nm:'Priya Patel',sub:'Eng Manager',co:'Initech',per:['Influencer','Influencer'],st:'active',last:['1d ago','Jun 24'],tasks:0},
-      {nm:'David Kim',sub:'Staff Engineer',co:'Soylent Corp',per:['Evaluator','Evaluator'],st:'active',last:['2d ago','Jun 23'],tasks:1},
-      {nm:'Emily Davis',sub:'Procurement',co:'Umbrella Corp',per:['Gatekeeper','Gatekeeper'],st:'inactive',last:['4d ago','Jun 21'],tasks:0},
-      {nm:'Tom Nguyen',sub:'CTO',co:'Hooli',per:['Decision maker','Decision'],st:'active',last:['3h ago','8:30 AM'],tasks:3},
-      {nm:'Rachel Green',sub:'Director, Data',co:'Stark Industries',per:['Champion','Champion'],st:'active',last:['5h ago','6:05 AM'],tasks:1},
-      {nm:'Omar Farouk',sub:'Lead Architect',co:'Wayne Ent.',per:['Influencer','Influencer'],st:'active',last:['1d ago','Jun 24'],tasks:0},
-      {nm:'Lena Boyd',sub:'Security Lead',co:'Cyberdyne',per:['Evaluator','Evaluator'],st:'dnc',last:['3d ago','Jun 22'],tasks:0}
+      {nm:'Linda Powers',sub:'Homeowner · 12 Oak Ridge Ct',co:'Maple Grove HOA',per:['Storm-damage homeowner','Storm-damage'],st:'active',last:['1h ago','10:42 AM'],tasks:2},
+      {nm:"Daniel Whitfield",sub:'Property mgr · Maple Grove HOA',co:'Maple Grove HOA',per:['Property manager','Property manager'],st:'active',last:['2h ago','9:18 AM'],tasks:1},
+      {nm:'Karen Sandoval',sub:'Adjuster · State Farm',co:'State Farm',per:['Insurance adjuster','Insurance adjuster'],st:'active',last:['1d ago','Jun 24'],tasks:0},
+      {nm:'Marcus Bell',sub:'Homeowner · 88 Birchwood Dr',co:'Stonebridge HOA',per:['Storm-damage homeowner','Storm-damage'],st:'active',last:['2d ago','Jun 23'],tasks:1},
+      {nm:'Patricia Nolan',sub:'Property mgr · Stonebridge HOA',co:'Cornerstone Property Mgmt',per:['Property manager','Property manager'],st:'inactive',last:['4d ago','Jun 21'],tasks:0},
+      {nm:'Greg Hammond',sub:'Past customer · 204 Elm St',co:'',per:['Past customer','Past customer'],st:'active',last:['3h ago','8:30 AM'],tasks:3},
+      {nm:'Renee Castillo',sub:'Homeowner · 41 Cedar Glen',co:'Naperville Realty Group',per:['Insurance-ready','Insurance-ready'],st:'active',last:['5h ago','6:05 AM'],tasks:1},
+      {nm:'Omar Farouk',sub:'Homeowner · 9 Willow Bend',co:'',per:['Storm-damage homeowner','Storm-damage'],st:'active',last:['1d ago','Jun 24'],tasks:0},
+      {nm:'Helen Brooks',sub:'Adjuster · Allstate',co:'Allstate',per:['Insurance adjuster','Insurance adjuster'],st:'dnc',last:['3d ago','Jun 22'],tasks:0}
     ]},
   companies:{title:'Companies',count:86,filterPh:'Filter companies…',
     cols:[{k:'sel'},{k:'primaryco',t:'Company'},{k:'persona',t:'Persona'},{k:'status',t:'Status'},{k:'tier',t:'Tier'},{k:'last',t:'Last activity'},{k:'act'}],
     rows:[
-      {nm:'Acme Corp',sub:'acme.com · 1,200 employees',per:['Enterprise','Decision'],st:'active',tier:'A',last:['1h ago','10:42 AM']},
-      {nm:'Globex Inc',sub:'globex.io · 540 employees',per:['Mid-market','Champion'],st:'active',tier:'A',last:['2h ago','9:18 AM']},
-      {nm:'Initech',sub:'initech.com · 320 employees',per:['Mid-market','Influencer'],st:'active',tier:'B',last:['1d ago','Jun 24']},
-      {nm:'Umbrella Corp',sub:'umbrella.co · 4,000 employees',per:['Enterprise','Gatekeeper'],st:'inactive',tier:'B',last:['4d ago','Jun 21']},
-      {nm:'Hooli',sub:'hooli.xyz · 2,100 employees',per:['Enterprise','Decision'],st:'active',tier:'A',last:['3h ago','8:30 AM']},
-      {nm:'Cyberdyne',sub:'cyberdyne.net · 880 employees',per:['Mid-market','Evaluator'],st:'active',tier:'C',last:['3d ago','Jun 22']}
+      {nm:'Maple Grove HOA',sub:'Naperville · 240 units',per:['Property manager','Property manager'],st:'active',tier:'A',last:['1h ago','10:42 AM']},
+      {nm:'Cornerstone Property Mgmt',sub:'Naperville · 410 units',per:['Property manager','Property manager'],st:'active',tier:'A',last:['2h ago','9:18 AM']},
+      {nm:'Stonebridge HOA',sub:'Naperville · 180 units',per:['Property manager','Property manager'],st:'active',tier:'B',last:['1d ago','Jun 24']},
+      {nm:'Naperville Realty Group',sub:'Naperville · 320 units',per:['Property manager','Property manager'],st:'inactive',tier:'B',last:['4d ago','Jun 21']},
+      {nm:'State Farm',sub:'· Naperville',per:['Insurance adjuster','Insurance adjuster'],st:'active',tier:'A',last:['3h ago','8:30 AM']},
+      {nm:'Allstate',sub:'· Naperville',per:['Insurance adjuster','Insurance adjuster'],st:'active',tier:'C',last:['3d ago','Jun 22']}
     ]},
   properties:{title:'Properties',count:154,filterPh:'Filter properties…',
     cols:[{k:'sel'},{k:'primaryco',t:'Property'},{k:'persona',t:'Persona'},{k:'score',t:'Score'},{k:'status',t:'Status'},{k:'last',t:'Last activity'},{k:'act'}],
     rows:[
-      {nm:'480 Market St',sub:'San Francisco, CA · Commercial',per:['Property manager','Influencer'],sc:84,st:'active',last:['1d ago','Jun 24']},
-      {nm:'12 Oak Lane',sub:'Austin, TX · Single family',per:['Homeowner','Decision'],sc:72,st:'active',last:['2d ago','Jun 23']},
-      {nm:'900 Pine Tower',sub:'Seattle, WA · Multi-family',per:['HOA board','Gatekeeper'],sc:58,st:'inactive',last:['5d ago','Jun 20']}
+      {nm:'12 Oak Ridge Ct',sub:'Naperville, IL · Single family',per:['Storm-damage homeowner','Storm-damage'],sc:84,st:'active',last:['1d ago','Jun 24']},
+      {nm:'Maple Grove HOA',sub:'Naperville, IL · 240 units',per:['Property manager','Property manager'],sc:72,st:'active',last:['2d ago','Jun 23']},
+      {nm:'88 Birchwood Dr',sub:'Naperville, IL · Single family',per:['Insurance-ready','Insurance-ready'],sc:58,st:'inactive',last:['5d ago','Jun 20']}
     ]},
   leads:{title:'Leads',count:63,filterPh:'Filter leads…',
     cols:[{k:'sel'},{k:'primary',t:'Lead'},{k:'persona',t:'Persona'},{k:'score',t:'Lead score'},{k:'status',t:'Status'},{k:'routing',t:'Routing'},{k:'last',t:'Received'},{k:'act'}],
     rows:[
-      {nm:'Sarah Chen',sub:'Inbound · pricing page',per:['Decision maker','Decision'],sc:92,st:'qualified',route:'target',last:['1h ago','10:42 AM']},
-      {nm:'Acme Corp',sub:'Demo request · website',per:['Enterprise','Champion'],sc:88,st:'qualified',route:'elevated',last:['3h ago','8:30 AM']},
-      {nm:'Priya Patel',sub:'Content download',per:['Influencer','Influencer'],sc:64,st:'new',route:'target',last:['1d ago','Jun 24']},
-      {nm:'Emily Davis',sub:'Cold list import',per:['Gatekeeper','Gatekeeper'],sc:38,st:'review',route:'downgraded',last:['4d ago','Jun 21']}
+      {nm:'Linda Powers',sub:'Inbound · free-inspection form',per:['Storm-damage homeowner','Storm-damage'],sc:92,st:'qualified',route:'target',last:['1h ago','10:42 AM']},
+      {nm:'Marcus Bell',sub:'Storm form · website',per:['Storm-damage homeowner','Storm-damage'],sc:88,st:'qualified',route:'elevated',last:['3h ago','8:30 AM']},
+      {nm:'Renee Castillo',sub:'Content download',per:['Insurance-ready','Insurance-ready'],sc:64,st:'new',route:'target',last:['1d ago','Jun 24']},
+      {nm:'Omar Farouk',sub:'Cold list import',per:['Past customer','Past customer'],sc:38,st:'review',route:'downgraded',last:['4d ago','Jun 21']}
     ]},
   jobs:{title:'Jobs',count:41,filterPh:'Filter jobs…',
     cols:[{k:'sel'},{k:'primary',t:'Job'},{k:'status',t:'Status'},{k:'value',t:'Est. value'},{k:'last',t:'Scheduled'},{k:'act'}],
     rows:[
-      {nm:'JOB-2041',sub:'Acme Corp · onboarding',st:'sched',val:48000,last:['in 3d','Jun 28']},
-      {nm:'JOB-2038',sub:'Globex Inc · migration',st:'active',val:120000,last:['ongoing','Jun 20']},
-      {nm:'JOB-2033',sub:'Initech · pilot',st:'completed',val:24000,last:['done','Jun 18']}
+      {nm:'JOB-2041',sub:'Maple Grove HOA · roof replacement',st:'sched',val:48000,last:['in 3d','Jun 28']},
+      {nm:'JOB-2038',sub:'Cornerstone Property Mgmt · reroof',st:'active',val:120000,last:['ongoing','Jun 20']},
+      {nm:'JOB-2033',sub:'Stonebridge HOA · roof repair',st:'completed',val:24000,last:['done','Jun 18']}
     ]},
   outcomes:{title:'Outcomes',count:37,filterPh:'Filter outcomes…',
     cols:[{k:'sel'},{k:'primary',t:'Outcome'},{k:'status',t:'Status'},{k:'value',t:'Revenue'},{k:'last',t:'Closed'},{k:'act'}],
     rows:[
-      {nm:'Acme Corp — Annual',sub:'Closed by Sarah Chen',st:'won',val:144000,last:['Jun 22','Jun 22']},
-      {nm:'Initech — Pilot→Paid',sub:'Expansion',st:'won',val:36000,last:['Jun 19','Jun 19']},
-      {nm:'Umbrella — Renewal',sub:'Churned',st:'lost',val:0,last:['Jun 15','Jun 15']}
+      {nm:'Maple Grove HOA — Roof Replacement',sub:'Won',st:'won',val:144000,last:['Jun 22','Jun 22']},
+      {nm:'Stonebridge HOA — Roof Repair',sub:'Expansion',st:'won',val:36000,last:['Jun 19','Jun 19']},
+      {nm:'Naperville Realty — Reroof bid',sub:'Lost to competitor',st:'lost',val:0,last:['Jun 15','Jun 15']}
     ]}
 };
 
@@ -466,5 +468,10 @@ document.getElementById('pgnum').textContent='1–9 of 248';
 }
 </style>
 <script>if(document.visibilityState==='visible')document.body.classList.add('mo');</script>
+<link rel="stylesheet" href="/gallery-fix.css">
+<script src="/gallery-panes.js" defer></script>
+<script src="/gallery-cmdk.js" defer></script>
+<script src="/gallery-keys.js" defer></script>
+<script src="/gallery-nav.js" defer></script>
 </body>
 </html>
