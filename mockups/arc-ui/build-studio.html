@@ -276,6 +276,7 @@
   .clock{font-size:9.5px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center}
   .clock svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2}
 </style>
+<script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
 </head>
 <body>
 <div class="app">
@@ -284,6 +285,7 @@
     <div class="indtag"><i></i>RESTORATION workspace</div>
     <div class="navwrap">
       <div class="grp">WORKSPACE</div>
+      <a class="nav" href="/build-arc-v2.html"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
@@ -757,5 +759,10 @@ document.querySelector('#srcgrid .mtile').classList.add('on');
   var cx=document.getElementById('cxt');if(cx)cx.addEventListener('click',function(){location.href='build-campaign-builder.html';});
   document.querySelectorAll('.gbtn.gold').forEach(function(b){if(/Add to campaign/.test(b.textContent))b.addEventListener('click',function(){location.href='build-campaign-builder.html';});});
 </script>
+<link rel="stylesheet" href="/gallery-fix.css">
+<script src="/gallery-panes.js" defer></script>
+<script src="/gallery-cmdk.js" defer></script>
+<script src="/gallery-keys.js" defer></script>
+<script src="/gallery-nav.js" defer></script>
 </body>
 </html>

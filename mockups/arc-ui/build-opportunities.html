@@ -153,6 +153,7 @@
   .fade{animation:fade .3s var(--ease)}
   @keyframes fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 </style>
+<script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
 </head>
 <body>
 <div class="app">
@@ -161,6 +162,7 @@
     <div class="indtag"><i></i>RESTORATION workspace</div>
     <div class="navwrap">
       <div class="grp">WORKSPACE</div>
+      <a class="nav" href="/build-arc-v2.html"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
@@ -171,6 +173,7 @@
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M12 4a4 4 0 00-4 4 3 3 0 00-1 6 3 3 0 003 3 3 3 0 006 0 3 3 0 003-3 3 3 0 00-1-6 4 4 0 00-4-4z"/></svg>Brain</a>
       <a class="nav"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="2.5"/><circle cx="16" cy="9" r="2.5"/><path d="M3 19c0-3 2-4.5 5-4.5M21 19c0-3-2-4.5-5-4.5M9 19c0-2 1.5-3 3-3s3 1 3 3"/></svg>Personas</a>
       <div class="grp">ASSETS</div>
+      <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 14l5-4 4 3 3-2 4 3"/><circle cx="9" cy="9" r="1.4"/></svg>Studio</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z"/></svg>Library</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 4-3.5 7-8 8-4.5-1-8-4-8-8V7z"/></svg>Brand</a>
       <a class="nav"><svg viewBox="0 0 24 24"><path d="M3 12l18-8-8 18-2-7z"/></svg>Outbox</a>
@@ -211,33 +214,33 @@ var OPP=[
    impact:[["Est. reach","1,200"],["Proj. reply","22%"],["Est. jobs","34"],["Pipeline","$128k"]],
    draft:["Free roof inspection after last night's storm","Hi [First name] — last night's hailstorm hit Naperville hard. We're offering free, no-obligation roof inspections this week for homeowners in your area, with same-week scheduling and direct insurance-claim support…","Email · SMS"],
    plays:[["Aug hailstorm response","2 months ago","1,100 sent · 26% reply · 31 jobs"],["Spring wind-damage push","6 months ago","940 sent · 19% reply · 22 jobs"]]},
-  {icon:'comp',name:"Competitor X pricing drop",conf:87,src:"TechCrunch",type:"Competitor move",detected:"5h ago",urg:["Medium","amber"],
-   title:"Competitor X cut prices 15% — 340 at-risk accounts nearby",
-   ev:[["TechCrunch (Oct 26)","Competitor X cut list price 15% and removed its free tier"],["Competitor pricing page","New pricing confirmed live this morning"],["Support tickets","3 accounts referenced the price gap this week"]],
-   rec:"Run a value-reinforcement campaign to at-risk accounts ahead of renewal. Lead with outcomes and proof points, not price matching.",
-   types:["Retention","Value Reinforcement","ABM"],path:["Marketing Lead","VP Marketing"],
-   aud:["340","At-risk renewal accounts","$1.1M ARR at risk · renew < 90d"],
-   impact:[["Accounts","340"],["Proj. save","68%"],["ARR held","$760k"],["Reply rate","19%"]],
-   draft:["Why teams like yours stay (it isn't the price)","Hi [First name] — you may have seen recent pricing changes in the market. Here's what teams like yours are weighing beyond price: the three outcomes our customers cite most when they renew…","Email · LinkedIn"],
-   plays:[["Q2 competitor-switch defense","4 months ago","312 reached · 71% retained · $690k ARR held"]]},
-  {icon:'clock',name:"Client ‘Apex’ dormant 3 months",conf:78,src:"Internal",type:"Lifecycle",detected:"1d ago",urg:["Medium","amber"],
-   title:"Apex Co. has gone quiet for 3 months — re-engage before churn",
-   ev:[["Product usage","No logins in 92 days across the account"],["Support","Open ticket unresolved for 14 days"],["Renewal","Contract renews in 45 days"]],
-   rec:"Send a personalized win-back sequence with a success story tailored to Apex's original use case and stated goals.",
-   types:["Win-back","Personalized","Lifecycle"],path:["Marketing Lead","Account Owner"],
-   aud:["1","Apex Co. · Enterprise","$84k ARR · renews in 45d"],
-   impact:[["Renewal risk","High"],["Win-back odds","61%"],["ARR at stake","$84k"],["Touchpoints","4"]],
-   draft:["We built something for teams like Apex","Hi [First name] — it's been a while. Since you last logged in we've shipped two things teams with your setup asked for. Here's a 3-minute look at the quickest win we've seen accounts like yours get…","Email"],
-   plays:[["Q1 dormant win-back","7 months ago","48 accounts · 58% reactivated · $410k ARR"]]},
-  {icon:'user',name:"Acme Corp. viewed pricing",conf:65,src:"Website",type:"Buyer intent",detected:"3h ago",urg:["Low","info"],
-   title:"Acme Corp. viewed pricing 4× this week — warm intent",
-   ev:[["Website analytics","4 pricing-page visits this week"],["Page views","Also viewed the demo + ROI calculator"],["CRM","No active opportunity recorded yet"]],
-   rec:"Trigger an ABM outreach from the account owner with a tailored demo offer while interest is high and unclaimed.",
-   types:["ABM","Intent-Based","Sales Assist"],path:["Marketing Lead","Account Owner"],
-   aud:["1","Acme Corp. · Mid-market","Est. $40k ACV · VP Growth"],
-   impact:[["Intent","Warm"],["Demo odds","54%"],["Est. ACV","$40k"],["Best contact","VP Growth"]],
-   draft:["Saw your team exploring — want a tailored demo?","Hi [First name] — noticed your team has been digging into our pricing and ROI calculator. Happy to put together a 20-minute walkthrough tailored to how Acme would actually use this — no slides, just your use case…","Email"],
-   plays:[["Pricing-intent ABM","3 months ago","60 accounts · 54% booked demo · 12 opps"]]}
+  {icon:'comp',name:"ServPro running storm ads",conf:87,src:"Meta Ad Library",type:"Competitor move",detected:"5h ago",urg:["Medium","amber"],
+   title:"ServPro launched Naperville storm ads — 340 storm-zone homes contested",
+   ev:[["Meta Ad Library (Oct 26)","ServPro launched 6 new storm-damage ads geo-targeted to Naperville"],["Competitor landing page","'Free storm inspection' offer confirmed live this morning"],["CRM","3 storm-zone homeowners mentioned a ServPro knock this week"]],
+   rec:"Run a value-reinforcement campaign to storm-zone homeowners before ServPro reaches them. Lead with proof and claim coordination, not price matching.",
+   types:["Rapid Response","Value Reinforcement","Geo-Targeted"],path:["Marketing Lead","Regional Sales Mgr"],
+   aud:["340","Storm-zone homeowners","$2.6M pipeline contested · storm zone"],
+   impact:[["Homes","340"],["Proj. win","68%"],["Pipeline held","$1.8M"],["Reply rate","19%"]],
+   draft:["Before you take another bid — see our storm-repair work","Hi [First name] — you may be hearing from a few roofers after last week's hail. Here's what sets us apart: licensed local crews, full insurance-claim coordination, and a workmanship warranty. We reroofed Maple Grove HOA in 5 days…","Email · SMS"],
+   plays:[["Q2 competitor-defense push","4 months ago","312 reached · 71% booked inspection · $1.6M pipeline held"]]},
+  {icon:'clock',name:"Marcus Bell quiet 3 months",conf:78,src:"Internal",type:"Lifecycle",detected:"1d ago",urg:["Medium","amber"],
+   title:"Marcus Bell — past customer gone quiet for 3 months — re-engage for repeat work",
+   ev:[["CRM history","No contact in 92 days since his roof replacement closed"],["Service record","Gutter & siding quote left open, never followed up"],["Storm zone","88 Birchwood Dr sits inside the Naperville hail zone"]],
+   rec:"Send a personalized re-engagement to Marcus with before/after proof from his own job and a free post-storm inspection offer.",
+   types:["Past Customer","Personalized","Lifecycle"],path:["Marketing Lead","Account Owner"],
+   aud:["1","Marcus Bell · Past customer","Est. project value $18k · 88 Birchwood Dr"],
+   impact:[["Repeat odds","High"],["Re-engage odds","61%"],["Est. project value","$18k"],["Touchpoints","4"]],
+   draft:["Marcus — your roof held up. Did the rest of the house?","Hi Marcus — it's been a few months since we replaced your roof. After last week's hail, we're offering past customers a free post-storm inspection — gutters, siding, and the roof we installed. Same local crew, no obligation…","Email"],
+   plays:[["Past-customer re-engagement","7 months ago","48 homeowners · 58% re-booked · $410k pipeline"]]},
+  {icon:'user',name:"Linda Powers comparing bids",conf:65,src:"Website",type:"Buyer intent",detected:"3h ago",urg:["Low","info"],
+   title:"Linda Powers requested an estimate 4× this week — warm intent",
+   ev:[["Website analytics","4 visits to the estimate request page this week"],["Page views","Also viewed the storm-zone map + before/after gallery"],["CRM","Comparison shopper — getting multiple bids, no inspection booked yet"]],
+   rec:"Trigger personal outreach from the local crew lead with a free inspection offer while interest is high and the claim window is open.",
+   types:["Comparison Shopper","Intent-Based","Sales Assist"],path:["Marketing Lead","Account Owner"],
+   aud:["1","Linda Powers · Comparison shopper","Est. project value $16k · 12 Oak Ridge Ct"],
+   impact:[["Intent","Warm"],["Inspection odds","54%"],["Est. project value","$16k"],["Best contact","Crew Lead"]],
+   draft:["Linda — saw you comparing roofers. Here's a free inspection.","Hi Linda — noticed you've been looking at the storm-zone map and our before/after work. Happy to send a local crew out for a free, no-obligation inspection and a claim-ready estimate — no pressure, just an honest look at your roof…","Email"],
+   plays:[["Comparison-shopper outreach","3 months ago","60 homeowners · 54% booked inspection · 12 jobs"]]}
 ];
 var CUR=0;
 function renderList(){
@@ -284,5 +287,10 @@ function renderDetail(){
 }
 renderList();renderDetail();
 </script>
+<link rel="stylesheet" href="/gallery-fix.css">
+<script src="/gallery-panes.js" defer></script>
+<script src="/gallery-cmdk.js" defer></script>
+<script src="/gallery-keys.js" defer></script>
+<script src="/gallery-nav.js" defer></script>
 </body>
 </html>
