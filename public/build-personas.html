@@ -270,7 +270,7 @@
       <span class="segpill" data-seg="engagement">Engagement <span class="sc">2</span></span>
       <span class="segpill" data-seg="retention">Retention <span class="sc">1</span></span>
       <span class="segspacer"></span>
-      <span class="ssearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="Filter personas…" /></span>
+      <span class="ssearch" data-inline><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="pfilter" placeholder="Filter personas…" /></span>
     </div>
 
     <div class="pbody" id="pbody">
@@ -367,7 +367,7 @@ var P=[
 ];
 P.forEach(function(p){p.revNum=parseInt(p.perf.rev.replace(/[^0-9]/g,''))||0;p.convNum=parseInt(p.perf.conv)||0;});
 var SEGLABEL={acquisition:'Acquisition',engagement:'Engagement',retention:'Retention'};
-var curSeg='all', curSlug='storm-damage-homeowner', curView='roster';
+var curSeg='all', curSlug='storm-damage-homeowner', curView='roster', curQuery='';
 
 /* radar */
 function radar(sig){
@@ -384,7 +384,7 @@ function radar(sig){
 function renderRoster(){
   var groups=['acquisition','engagement','retention'];var html='';
   groups.forEach(function(g){
-    var rows=P.filter(function(p){return p.seg===g && (curSeg==='all'||curSeg===g);});
+    var rows=P.filter(function(p){return p.seg===g && (curSeg==='all'||curSeg===g) && (curQuery===''||p.name.toLowerCase().indexOf(curQuery)>=0);});
     if(!rows.length)return;
     html+='<div class="seglabel">'+SEGLABEL[g]+'</div>';
     rows.forEach(function(p){
@@ -396,6 +396,7 @@ function renderRoster(){
         +'</div>';
     });
   });
+  if(!html)html='<div class="seglabel" style="color:var(--muted)">No personas match “'+curQuery+'”</div>';
   document.getElementById('roster').innerHTML=html;
   document.querySelectorAll('.prow').forEach(function(r){r.addEventListener('click',function(){curSlug=r.getAttribute('data-slug');renderRoster();renderDetail();pRep();});});
 }
@@ -500,6 +501,8 @@ function setView(v){curView=v;
   if(v==='compare')renderCompare();
 }
 document.querySelectorAll('.vtog span').forEach(function(s){s.addEventListener('click',function(){setView(s.getAttribute('data-v'));});});
+var pfilter=document.getElementById('pfilter');
+if(pfilter)pfilter.addEventListener('input',function(){curQuery=this.value.trim().toLowerCase();renderRoster();});
 document.querySelectorAll('.segpill').forEach(function(s){s.addEventListener('click',function(){
   document.querySelectorAll('.segpill').forEach(function(x){x.classList.toggle('on',x===s);});
   curSeg=s.getAttribute('data-seg');

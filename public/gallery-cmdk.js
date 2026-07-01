@@ -193,6 +193,9 @@
   function wireSearch() {
     document.querySelectorAll(".search, .tsearch, .gsearch, .lsearch, .setsearch, .ssearch").forEach(function (el) {
       if (el.__cmdk) return;
+      // Opt-out: boxes marked data-inline filter their own list in-page and must
+      // NOT hijack focus into the command palette.
+      if (el.hasAttribute("data-inline")) return;
       el.__cmdk = true;
       el.style.cursor = "text";
       el.setAttribute("role", "button");

@@ -4,8 +4,9 @@
   const MAP = {
     "home": "/build-home.html",
     "arc": "/build-arc-v2.html",
-    "campaigns": "/build-campaign-builder.html",
+    "campaigns": "/build-campaigns.html",
     "campaign builder": "/build-campaign-builder.html",
+    "campaign package": "/build-campaign-builder.html",
     "crm": "/build-crm.html",
     "opportunities": "/build-opportunities.html",
     "analytics": "/build-analytics.html",
