@@ -60,8 +60,25 @@ function redirectToOnboarding(request: NextRequest) {
   return NextResponse.redirect(url);
 }
 
+// Static Arc mockup gallery served from `public/` (the current "main app").
+// These screens carry no real data and intentionally sit outside the auth
+// gate, so they stay reachable regardless of auth mode — no sign-in required.
+function isPublicMockupPath(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/builds.html" ||
+    pathname === "/compare-home.html" ||
+    pathname.startsWith("/build-") ||
+    pathname.startsWith("/gallery-")
+  );
+}
+
 export async function proxy(request: NextRequest) {
   const authMode = getAuthMode();
+
+  if (isPublicMockupPath(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
 
   // Gate disabled (no token configured): let everything through.
   if (authMode === "open") {
