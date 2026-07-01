@@ -13,6 +13,17 @@ const nextConfig: NextConfig = {
       { source: "/persona-intelligence/:personaKey", destination: "/personas/:personaKey", permanent: true },
     ];
   },
+  async rewrites() {
+    return {
+      // `beforeFiles` runs ahead of the filesystem routes, so this shadows the
+      // real root page and serves the static Arc mockup gallery at the domain
+      // root. The gallery's own links are absolute (`/build-*.html`), so every
+      // other screen is reached as a plain static asset from `public/`.
+      beforeFiles: [{ source: "/", destination: "/build-home.html" }],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
 };
 
 export default nextConfig;

@@ -1,0 +1,467 @@
+/* gallery-fix.css — applied across every Arc redesign mockup.
+   Loaded via <link rel="stylesheet" href="/gallery-fix.css"> just before </body>
+   alongside /gallery-nav.js.
+
+   Philosophy: let the layouts resize NORMALLY (the native CSS grid/flex does
+   its job). This file only does two things:
+     1. Smooth, consistent cross-screen navigation (view transitions + chip).
+     2. An overflow-containment safety net so that as the window resizes,
+        content shrinks/wraps within its box instead of spilling over
+        neighbors or past the viewport edge.
+*/
+
+/* ---------- Cross-document soft fades ---------- */
+@view-transition { navigation: auto; }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* ---------- Smooth scrolling, crisp text ---------- */
+html {
+  scroll-behavior: smooth;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Universal keyboard focus ring ----------
+   Body-scoped (not .app-scoped) so it also reaches the auth/onboarding
+   screens. Gives keyboard users a visible focus indicator on every
+   interactive element — ~8 screens had no focus styling at all. */
+:where(a, button, [role="button"], input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-border, var(--accent, #c8a24a));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Inputs that already paint their own focus border shouldn't double up. */
+.ipw:focus-within, .box:focus-within { outline: none; }
+
+/* =====================================================================
+   OVERFLOW CONTAINMENT — the actual resize fix.
+
+   The #1 reason content "leaves its box" in CSS grid/flex layouts is that
+   grid/flex items default to min-width:auto (≈ their content's intrinsic
+   width), so a wide child refuses to shrink and instead overflows its track,
+   painting over the neighbouring column. Forcing min-width:0 lets every
+   region shrink to its track and the content wraps/ellipsises inside.
+   ===================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Allow every structural region inside the app shell to shrink within its
+   grid/flex track instead of overflowing it. */
+.app :where(main, section, article, aside, header, footer, nav, div, ul, ol, li) {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Media and embeds never exceed their container. */
+.app :where(img, svg, video, canvas, picture) {
+  max-width: 100%;
+}
+
+/* Long unbroken strings (URLs, IDs, tokens) wrap rather than forcing width. */
+.app :where(p, span, a, h1, h2, h3, h4, h5, li, td, th, dd, dt, label, button) {
+  overflow-wrap: break-word;
+}
+
+/* Dense horizontal strips (Studio session filmstrip, Personas sample header)
+   are designed for full width. Below it, they scroll WITHIN their own box
+   instead of spilling over the next pane. Harmless where they already fit
+   (no scrollbar appears unless content actually overflows). */
+.app :where(.strip, .sh, .subtabs) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+/* =====================================================================
+   RESPONSIVE STACKING — the real resize fix.
+
+   These screens place the main content next to a fixed-width rail/list
+   (e.g. main 1fr + 312px Signals rail). As the window narrows, the flexible
+   main column gets crushed to an unreadable sliver while the fixed rail keeps
+   its width ("Good mornin g, Evan" wrapping one word per line).
+
+   Standard responsive behavior: once there isn't room for both side by side,
+   collapse the inner content grid to a single column so the main content keeps
+   its full readable width and the secondary pane flows BELOW it. Nothing is
+   hidden — everything stays visible, it just stacks vertically and scrolls.
+   ===================================================================== */
+@media (max-width: 1080px) {
+  /* Collapse the inner multi-column content area to normal block flow so the
+     panes stack vertically at their natural content height (a single-column
+     grid would force the locked container height to split between rows, making
+     content spill and overlap). The container itself becomes the scroller. */
+  .scroll, .pkggrid, .recbody, .bbody, .oppgrid, .pbody, .setbody, .lib,
+  .lib.detail, .web, .studio, .dgrid {
+    display: block !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Each pane spans the full width and grows to fit its content instead of
+     being height-locked / internally scrolling. */
+  .scroll > *, .pkggrid > *, .recbody > *, .bbody > *, .oppgrid > *,
+  .pbody > *, .setbody > *, .lib > *, .web > *, .studio > *, .dgrid > * {
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* -------------------------------------------------------------------
+     Header / label rows that pair a heading or long text with fixed-width
+     siblings (buttons, pills, counts). At narrow widths they WRAP — the text
+     keeps a readable width and the fixed sibling drops to its own line below —
+     instead of crushing the text to one-word/letter-per-line. All scoped to
+     this breakpoint, so the wide desktop design is untouched.
+     ------------------------------------------------------------------- */
+
+  /* Home */
+  .focal .row1 { flex-wrap: wrap !important; }
+  .focal .row1 h2 { flex: 1 1 100% !important; min-width: 0 !important; }
+  .focal .row1 .conf { margin-left: 0 !important; }
+  .sech { flex-wrap: wrap !important; gap: 4px 10px !important; }
+  .sech h3 { flex: 1 1 auto !important; min-width: 0 !important; }
+
+  /* Arc chat */
+  .trayhdr { flex-wrap: wrap !important; }
+  .trayhdr .approveall { margin-left: auto !important; }
+  .reslink { flex-wrap: wrap !important; gap: 12px !important; }
+  .reslink .meta { flex: 1 1 100% !important; min-width: 0 !important; }
+  .approve .ah { flex-wrap: wrap !important; }
+  .approve .ah .kind { flex: 1 1 60% !important; min-width: 0 !important; }
+  .cvhdr { flex-wrap: wrap !important; }
+  .cvhdr > div { flex: 1 !important; min-width: 0 !important; }
+
+  /* Campaign builder */
+  .backrow { flex-wrap: wrap !important; }
+  .backrow .ctitle { flex: 1 1 100% !important; min-width: 0 !important; }
+  .papprove { flex-wrap: wrap !important; }
+  .papprove .pinfo { flex: 1 1 60% !important; min-width: 0 !important; }
+  .pa-acts { margin-left: auto !important; }
+  .srccall { flex-wrap: wrap !important; }
+  .srccall .st { flex: 1 1 60% !important; min-width: 0 !important; }
+  .pfhead { flex-wrap: wrap !important; }
+  .pfhead > div { flex: 1 !important; min-width: 0 !important; }
+  .rhh { flex-wrap: wrap !important; gap: 6px !important; }
+
+  /* CRM list */
+  .chrow { flex-wrap: wrap !important; }
+  .chrow > div:first-child { flex: 1 1 260px !important; min-width: 0 !important; }
+  .gfoot { flex-wrap: wrap !important; }
+  .gfoot .arcnote { flex: 1 1 260px !important; min-width: 0 !important; }
+
+  /* CRM record */
+  .idrow { flex-wrap: wrap !important; }
+  .idmain { flex: 1 1 240px !important; }
+  .idactions { flex-basis: 100% !important; margin-top: 12px !important; }
+  .connrow { flex-wrap: wrap !important; }
+  .connrow > div { flex: 1 1 160px !important; min-width: 0 !important; }
+
+  /* Opportunities */
+  .olisthd { flex-wrap: wrap !important; }
+  .olisthd .h { flex: 1 1 100% !important; }
+  .orow .ot { flex-wrap: wrap !important; }
+  .orow .ot .pct { margin-left: 0 !important; }
+  .draftcard .dh { flex-wrap: wrap !important; }
+  .draftcard .dh .dmeta { flex: 1 1 auto !important; min-width: 0 !important; }
+  .play { grid-template-columns: 1fr !important; }
+  .play .po { text-align: left !important; margin-top: 6px !important; }
+
+  /* Analytics */
+  .drillh { flex-wrap: wrap !important; }
+  .drillh > div:first-child { flex: 1 1 100% !important; min-width: 0 !important; }
+  .vhead > div:first-child { flex: 1 1 320px !important; min-width: 0 !important; }
+
+  /* Brain */
+  .covbanner { flex-wrap: wrap !important; }
+  .covbanner .ct { flex: 1 1 200px !important; min-width: 0 !important; }
+  .bh1row > div:first-child { flex: 1 1 320px !important; min-width: 0 !important; }
+  .ritem .rh { flex-wrap: wrap !important; }
+  .ritem .rl { flex: 1 1 auto !important; min-width: 0 !important; }
+  .qitem .qh { flex-wrap: wrap !important; }
+  .qitem .ql { flex: 1 1 auto !important; min-width: 0 !important; }
+  .sh { flex-wrap: wrap !important; }
+
+  /* Personas */
+  .arcalert { flex-wrap: wrap !important; }
+  .arcalert .at { flex: 1 1 220px !important; min-width: 0 !important; }
+  .arcalert .ab { margin-left: auto !important; }
+  .dhead { flex-wrap: wrap !important; }
+  .dhead .dh-main { flex: 1 1 260px !important; min-width: 0 !important; }
+
+  /* Library */
+  .lhead { flex-wrap: wrap !important; }
+  .lhead > div:first-child { flex: 1 1 100% !important; min-width: 0 !important; }
+  .lhead .acts { flex-basis: 100% !important; justify-content: flex-start !important; }
+  .arcsugg { flex-wrap: wrap !important; }
+  .arcsugg .at { flex: 1 1 220px !important; min-width: 0 !important; }
+  .arcsugg .ab { margin-left: auto !important; }
+
+  /* Brand */
+  .brandhero { flex-wrap: wrap !important; }
+  .brandhero .bid { flex: 1 1 320px !important; min-width: 0 !important; }
+  .intakehead { flex-wrap: wrap !important; }
+  .intakehead > div:first-child { flex: 1 1 320px !important; min-width: 0 !important; }
+  .bsh { flex-wrap: wrap !important; }
+  .bsh h3 { flex: 1 1 auto !important; min-width: 0 !important; }
+  .bsh .tg { white-space: normal !important; }
+  .pvhead { flex-wrap: wrap !important; }
+  .pvhead h3 { flex: 1 1 auto !important; min-width: 0 !important; }
+  .vp-head { flex-wrap: wrap !important; }
+  .foundh { flex-wrap: wrap !important; }
+  /* Intake source-card status tags are absolutely positioned top-right and
+     overlap longer titles when the card narrows — let them flow instead. */
+  .isrc .tg { position: static !important; align-self: flex-start !important; margin: 0 0 2px !important; }
+
+  /* Outbox */
+  .otitle { flex-wrap: wrap !important; }
+  .otitle > div:first-child { flex: 1 1 320px !important; min-width: 0 !important; }
+  .lp-top { flex-wrap: wrap !important; }
+  .lp-top .lt { flex: 1 1 200px !important; min-width: 0 !important; }
+
+  /* Studio (the .strip filmstrip already scrolls; these are label rows) */
+  .exrow { flex-wrap: wrap !important; }
+  .srchead { flex-wrap: wrap !important; gap: 2px !important; }
+  .tracehd { flex-wrap: wrap !important; }
+
+  /* Arc composer footer (model/mode pills) wraps instead of overflowing. */
+  .footer { flex-wrap: wrap !important; row-gap: 10px !important; }
+  .fleft { flex-wrap: wrap !important; }
+
+  /* Settings */
+  .srow { flex-wrap: wrap !important; }
+  .srow .sc { flex-basis: 100% !important; margin-top: 8px !important; }
+  .panel-h { flex-wrap: wrap !important; }
+  .panel-h h3 { flex: 1 1 auto !important; min-width: 0 !important; }
+  .mem { flex-wrap: wrap !important; }
+  .mem .mi { flex: 1 1 160px !important; }
+  .tok { flex-wrap: wrap !important; }
+  .tok .tki { flex: 1 1 180px !important; }
+  .mrow { flex-wrap: wrap !important; }
+  .mrow .mi { flex: 1 1 150px !important; }
+}
+
+/* ---------- Shell normalization (keeps nav visually stable) ---------- */
+.rail, .sidebar, .navwrap, aside.rail { box-sizing: border-box; }
+.top { box-sizing: border-box; }
+
+/* ---------- Named view-transitions ---------- */
+.rail, .sidebar, .navwrap, aside.rail { view-transition-name: nav-rail; }
+.top { view-transition-name: top-bar; }
+
+/* The workspace chip + indicator pill animate as discrete elements so their
+   text doesn't crossfade awkwardly inside the larger rail morph. */
+.ws { view-transition-name: workspace-chip; contain: layout paint; }
+.indtag { view-transition-name: workspace-indtag; contain: layout paint; }
+
+.nav a, a.nav, .nav .row { view-transition-name: auto; }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(nav-rail),
+  ::view-transition-new(nav-rail),
+  ::view-transition-old(top-bar),
+  ::view-transition-new(top-bar) {
+    animation: none !important;
+  }
+}
+
+/* ---------- Font-weight stability ---------- */
+body, .nav, .top, .crumb, h1, h2, h3 { font-synthesis: none; }
+
+/* ---------- Never render prefetch hints ---------- */
+link[rel="prefetch"] { display: none !important; }
+
+/* ---------- Resizable pane handles (gallery-panes.js) ---------- */
+.gp-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 30;
+  cursor: col-resize;
+  touch-action: none;
+}
+.gp-handle.gp-right { right: -5px; }
+.gp-handle.gp-left { left: -5px; }
+.gp-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: transparent;
+  border-radius: 2px;
+  transition: background 140ms ease;
+}
+.gp-handle:hover::after,
+.gp-handle.gp-dragging::after {
+  background: var(--accent, #c8a24a);
+}
+body.gp-resizing,
+body.gp-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* ---------- Smooth resize: animate the double-click reset, not the live drag.
+   The column change eases when you double-click to reset; during an active drag
+   the transition is suppressed so the pane tracks the cursor 1:1. */
+.gp-grid { transition: grid-template-columns 220ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+body.gp-resizing .gp-grid { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-grid { transition: none !important; }
+}
+
+/* ---------- Command palette (gallery-cmdk.js) ---------- */
+.cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+}
+.cmdk-overlay[hidden] { display: none; }
+.cmdk-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 8, 10, 0.6);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: cmdk-fade 140ms ease both;
+}
+.cmdk-panel {
+  position: relative;
+  width: min(620px, 94vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel, #1c1c21);
+  border: 1px solid var(--line-2, rgba(232, 224, 205, 0.12));
+  border-radius: 14px;
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.85), 0 2px 8px -4px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: cmdk-rise 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.cmdk-inputrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--line, rgba(232, 224, 205, 0.08));
+}
+.cmdk-ic { width: 18px; height: 18px; color: var(--muted, #777c80); flex-shrink: 0; }
+.cmdk-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text, #f2eee4);
+  font-family: var(--sans, inherit);
+  font-size: 15px;
+  outline: none;
+}
+.cmdk-input::placeholder { color: var(--muted, #777c80); }
+.cmdk-esc {
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  color: var(--muted, #777c80);
+  border: 1px solid var(--line-2, rgba(232, 224, 205, 0.12));
+  border-radius: 5px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+.cmdk-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-2, #b8b4aa);
+}
+.cmdk-item.is-active {
+  background: var(--accent-soft, rgba(200, 162, 74, 0.12));
+  color: var(--text, #f2eee4);
+}
+.cmdk-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--inset, #202027);
+  border: 1px solid var(--line-2, rgba(232, 224, 205, 0.12));
+  color: var(--text-2, #b8b4aa);
+  transition: color 130ms ease, border-color 130ms ease, background 130ms ease;
+}
+.cmdk-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cmdk-item.is-active .cmdk-icon {
+  color: var(--accent, #c8a24a);
+  border-color: var(--accent-border, rgba(200, 162, 74, 0.28));
+  background: color-mix(in srgb, var(--accent, #c8a24a) 14%, var(--inset, #202027));
+}
+.cmdk-item.is-active .cmdk-icon.is-action {
+  color: var(--ok, #7fb89a);
+  border-color: var(--ok-border, rgba(127, 184, 154, 0.55));
+  background: color-mix(in srgb, var(--ok, #7fb89a) 14%, var(--inset, #202027));
+}
+.cmdk-lbl { font-size: 13.5px; font-weight: 600; }
+.cmdk-sub {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--muted, #777c80);
+  flex-shrink: 0;
+}
+.cmdk-empty {
+  padding: 22px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted, #777c80);
+}
+/* ---------- Keyboard list cursor (gallery-keys.js) ---------- */
+.kbd-cursor {
+  outline: 2px solid var(--accent, #c8a24a) !important;
+  outline-offset: 1px;
+  border-radius: 10px;
+}
+
+@keyframes cmdk-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cmdk-rise { from { opacity: 0; transform: translateY(-8px) scale(0.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cmdk-backdrop, .cmdk-panel { animation: none; }
+}
