@@ -66,8 +66,6 @@ function redirectToOnboarding(request: NextRequest) {
 function isPublicMockupPath(pathname: string) {
   return (
     pathname === "/" ||
-    pathname === "/builds.html" ||
-    pathname === "/compare-home.html" ||
     pathname.startsWith("/build-") ||
     pathname.startsWith("/gallery-")
   );
