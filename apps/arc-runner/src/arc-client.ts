@@ -30,7 +30,7 @@ function toQuery(params: QueryParams | undefined): string {
 export function createArcClient(config: Config) {
   const headers = {
     "content-type": "application/json",
-    authorization: `Bearer ${config.hermesAgentApiToken}`,
+    authorization: `Bearer ${config.arcAgentApiToken}`,
   };
 
   /** Authenticated GET against the Operations API. Throws on non-2xx or { ok:false }. */
