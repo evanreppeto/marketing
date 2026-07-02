@@ -11,6 +11,7 @@ import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getRecentActivity } from "@/lib/activity/read-model";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { getOperatorProfile, operatorFirstName } from "@/lib/auth/operator-profile";
 import { getDashboardCounts } from "@/lib/dashboard/read-model";
 import { listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
 import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
@@ -54,12 +55,16 @@ export default async function HomePage() {
         }))
         .catch(() => null)
     : null;
-  const [counts, campaignList, activity, opportunities] = await Promise.all([
+  const [counts, campaignList, activity, opportunities, operator] = await Promise.all([
     getDashboardCounts(),
     getCampaignWorkspaceList(undefined, agentName, orgId),
     getRecentActivity({ limit: 5 }),
     listOpenOpportunities().catch(() => [] as OpportunityRecord[]),
+    getOperatorProfile().catch(() => null),
   ]);
+  // Personalize the greeting only when we actually know who's signed in — a real
+  // operator identity (Supabase user or configured operator), never a placeholder.
+  const firstName = operator?.email ? operatorFirstName(operator) : null;
 
   const campaigns = campaignList.status === "live" ? campaignList.campaigns : [];
   const readyCampaign = campaigns.find((campaign) => campaign.lifecycle === "Ready") ?? null;
@@ -120,7 +125,7 @@ export default async function HomePage() {
     <>
       <header className="rise-in rise-d1 mb-9 pt-1">
         <h1 className="font-editorial text-[clamp(2.1rem,3.4vw,2.95rem)] font-medium leading-[1] tracking-[-0.022em] text-[var(--text-primary)]">
-          {greeting}
+          {firstName ? `${greeting}, ${firstName}` : greeting}
         </h1>
         <p className="mt-3 text-sm text-[var(--text-muted)]">
           {dateStr}
