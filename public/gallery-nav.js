@@ -7,7 +7,7 @@
     "campaigns": "/campaigns",
     "campaign builder": "/build-campaign-builder.html",
     "campaign package": "/build-campaign-builder.html",
-    "crm": "/build-crm.html",
+    "crm": "/crm",
     "opportunities": "/build-opportunities.html",
     "analytics": "/build-analytics.html",
     "brain": "/build-brain.html",
