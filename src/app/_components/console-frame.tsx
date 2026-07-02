@@ -93,14 +93,17 @@ export function ConsoleFrame({
   const pathname = usePathname() ?? "/";
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [sidebarFocusWithin, setSidebarFocusWithin] = useState(false);
+  // Rail is pinned always-open to match the arc-studio.ai mockup (the always-open
+  // 236px labeled rail with groups + user row). Hover/focus no longer changes the
+  // width, so the rail reserves its width in the grid rather than floating over
+  // content.
   const sidebarExpanded = isSidebarExpanded({
     focusWithin: sidebarFocusWithin,
     hovered: sidebarHovered,
-    pinned: false,
+    pinned: true,
   });
   const sidebarCollapsed = !sidebarExpanded;
-  // Expanded by hover/focus floats over content instead of reflowing the page.
-  const overlayExpanded = sidebarExpanded;
+  const overlayExpanded = false;
 
   const homeNavItems: ShellNavItem[] = [
     { label: "Home", href: "/", icon: "home", matches: ["/"], exact: true },
@@ -159,9 +162,9 @@ export function ConsoleFrame({
         <div
           className={cx(
             "flex min-h-[100dvh] flex-col lg:grid lg:h-screen lg:min-h-0 lg:ease-out",
-            // Rail always reserves the collapsed width; hover/focus expands as an
-            // overlay (below) so page content never shifts.
-            "lg:grid-cols-[76px_minmax(0,1fr)]",
+            // Always-open rail: reserve its full width so content sits beside it
+            // (matches the mockup's pinned 236px labeled rail).
+            "lg:grid-cols-[236px_minmax(0,1fr)]",
           )}
         >
           <header className="sticky top-0 z-40 flex flex-col gap-2 border-b border-[var(--border-panel)] bg-[color-mix(in_srgb,var(--canvas-deep)_94%,transparent)] px-3 pb-2 pt-2 backdrop-blur lg:hidden">
@@ -211,7 +214,7 @@ export function ConsoleFrame({
             className={cx(
               theme.shell.sidebar,
               "hidden lg:flex lg:flex-col lg:transition-[width,padding] lg:duration-200 lg:ease-out",
-              sidebarExpanded ? "lg:w-[244px]" : "lg:w-[76px]",
+              "lg:w-[236px]",
               sidebarCollapsed ? "lg:overflow-visible lg:px-3" : "",
               // Float over content when expanded by hover/focus (not pinned).
               overlayExpanded ? "lg:z-30 lg:shadow-[10px_0_44px_-16px_rgba(0,0,0,0.7)]" : "lg:shadow-none",
