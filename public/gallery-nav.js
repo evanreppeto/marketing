@@ -243,6 +243,11 @@
     if (!a) return;
     var href = a.getAttribute('href');
     if (!href || href.charAt(0) === '#') return; // not a wired destination
+    // On phones the sidebar is an off-canvas drawer (see gallery-fix.css +
+    // the drawer module below). The iframe overlay would cover the top bar's
+    // hamburger, so on mobile we skip the shell entirely and let the anchor
+    // navigate as a normal full page load — each page shows its own drawer.
+    if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) return;
     e.preventDefault();
     e.stopImmediatePropagation();
     shellNav(href, a);
@@ -300,5 +305,75 @@
     document.addEventListener('DOMContentLoaded', wireCogs);
   } else {
     wireCogs();
+  }
+})();
+
+
+/* =====================================================================
+   Mobile navigation drawer. On phones the fixed sidebar is pulled off-canvas
+   (see the MOBILE block in gallery-fix.css). This injects the hamburger
+   toggle into the top bar plus a dim scrim, and wires open/close: tap the
+   toggle, tap the scrim, choose a nav item, press Escape, or resize back to
+   desktop. Idempotent, dependency-free. Skipped inside the persistent-shell
+   iframe (its rail is hidden via html.is-embedded, so there's nothing to
+   toggle).
+   ===================================================================== */
+(function () {
+  if (window.__galleryDrawer) return;
+  window.__galleryDrawer = true;
+  if (document.documentElement.classList.contains('is-embedded')) return;
+
+  var MENU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>';
+
+  function setExpanded(v) {
+    var b = document.querySelector('.navtoggle');
+    if (b) b.setAttribute('aria-expanded', v ? 'true' : 'false');
+  }
+  function open() { document.body.classList.add('nav-open'); setExpanded(true); }
+  function close() { document.body.classList.remove('nav-open'); setExpanded(false); }
+  function toggle() { document.body.classList.contains('nav-open') ? close() : open(); }
+
+  function build() {
+    var top = document.querySelector('.main > .top') || document.querySelector('.top');
+    var rail = document.querySelector('.rail, aside.rail, .sidebar');
+    if (!top || !rail || document.querySelector('.navtoggle')) return;
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'navtoggle';
+    btn.setAttribute('aria-label', 'Open navigation');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = MENU;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    });
+    top.insertBefore(btn, top.firstChild);
+
+    var scrim = document.createElement('div');
+    scrim.className = 'navscrim';
+    scrim.setAttribute('aria-hidden', 'true');
+    scrim.addEventListener('click', close);
+    document.body.appendChild(scrim);
+
+    // Choosing a destination closes the drawer. On mobile the shell is
+    // bypassed so this is followed by a normal full-page navigation.
+    rail.addEventListener('click', function (e) {
+      if (e.target.closest('a.nav, a[href]')) close();
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.body.classList.contains('nav-open')) close();
+  });
+  window.addEventListener('resize', function () {
+    if (window.innerWidth > 760 && document.body.classList.contains('nav-open')) close();
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', build);
+  } else {
+    build();
   }
 })();
