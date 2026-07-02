@@ -19,6 +19,91 @@
   animation-timing-function: cubic-bezier(0.2, 0, 0.2, 1);
 }
 
+/* ---------- Seamless in-app screen transitions ----------
+   The persistent shell (gallery-nav.js) swaps screens inside two stacked
+   iframes. These rules turn that swap into a calm crossfade: the incoming
+   screen fades and settles up a few px while the previous one fades away. Two
+   frames mean the current screen stays visible until the next has loaded — no
+   blank flash, no glimpse of the page underneath. A quiet fade + small lift is
+   the ONE motion on the swap; kept short and reduced-motion safe below. */
+#arcFrame, #arcFrame2 {
+  transition:
+    opacity .34s var(--ease, cubic-bezier(.16, 1, .3, 1)),
+    transform .42s var(--ease, cubic-bezier(.16, 1, .3, 1));
+  will-change: opacity, transform;
+}
+.gm-frame {                    /* pre-reveal / faded-out state */
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+.gm-frame.gm-ready {           /* fully settled, interactive */
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* ---------- Per-screen "assemble" ----------
+   Every screen builds in section-by-section — the header holds still (it's
+   chrome) while the content blocks rise/settle in sequence, the way the Home
+   screen always did. This is what stops the other screens arriving as one flat
+   plane. Two flavours so it layers cleanly with the crossfade:
+     • standalone / host  → a full rise (opacity + lift); the crossfade isn't
+       involved, so this IS the entrance.
+     • embedded (in shell) → opacity-only; the crossfade already lifts the whole
+       plane, so the sections just brighten into place — no second transform to
+       compound with, which keeps it calm.
+   The frames (#arcFrame/#arcFrame2) and the header are excluded. */
+@keyframes gm-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes gm-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Longhands (not the `animation` shorthand) so the per-child delay below is a
+   separate property and never gets reset by these higher-specificity rules. */
+html:not(.is-embedded) .main > *:not(header):not(.top):not(.gm-frame):not(#arcFrame):not(#arcFrame2) {
+  animation-name: gm-rise;
+  animation-duration: .5s;
+  animation-timing-function: var(--ease, cubic-bezier(.16, 1, .3, 1));
+  animation-fill-mode: both;
+}
+html.is-embedded .main > *:not(header):not(.top) {
+  animation-name: gm-fade;
+  animation-duration: .5s;
+  animation-timing-function: var(--ease, cubic-bezier(.16, 1, .3, 1));
+  animation-fill-mode: both;
+}
+/* Shared cascade (header counts as child 1, so content leads at ~.04s). */
+.main > *:nth-child(2) { animation-delay: .04s; }
+.main > *:nth-child(3) { animation-delay: .09s; }
+.main > *:nth-child(4) { animation-delay: .14s; }
+.main > *:nth-child(5) { animation-delay: .19s; }
+.main > *:nth-child(6) { animation-delay: .24s; }
+.main > *:nth-child(7) { animation-delay: .29s; }
+
+@media (prefers-reduced-motion: reduce) {
+  #arcFrame, #arcFrame2 { transition: none !important; }
+  .main > * { animation: none !important; }
+}
+
+/* ---------- Consistent row hover ----------
+   Actionable list rows across screens disagreed today: some nudged sideways
+   (the DESIGN.md-correct cue), others levitated (translateY, which DESIGN.md §6
+   bans) and a few had no feedback at all. Unify them on one calm response — a
+   small sideways nudge + a border/background warm — so every list behaves the
+   same. Loaded after each page's own <style>, so at equal specificity these win
+   and retire the stray levitation. Table rows keep their own background warm
+   (a horizontal nudge would fight the columns) and are intentionally excluded. */
+.orow, .prow, .evrow, .ritem, .connrow, .trow, .qitem, .crow, .thread, .tev {
+  transition:
+    transform .18s var(--ease, cubic-bezier(.16, 1, .3, 1)),
+    border-color .18s var(--ease, cubic-bezier(.16, 1, .3, 1)),
+    background-color .18s var(--ease, cubic-bezier(.16, 1, .3, 1));
+}
+.orow:hover, .prow:hover, .evrow:hover, .ritem:hover,
+.connrow:hover, .trow:hover, .qitem:hover, .crow:hover, .thread:hover, .tev:hover {
+  transform: translateX(2px);
+  border-color: var(--accent-border, var(--accent, #c8a24a));
+}
+
 /* ---------- Smooth scrolling, crisp text ---------- */
 html {
   scroll-behavior: smooth;

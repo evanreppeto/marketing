@@ -154,10 +154,32 @@
   function base(href) { return (href || '').split('?')[0].split('#')[0].split('/').pop(); }
   function currentFile() { return base(location.pathname) || 'build-home.html'; }
 
+  // The served document never changes under us, so capture it once. Every "is
+  // this the host's own screen?" decision keys off HOST_FILE — NOT the live URL,
+  // which we now rewrite as the operator navigates (see history sync below).
+  var HOST_FILE = currentFile();
+  var HOST_URL = location.pathname + location.search;
+  var HOST_TITLE = document.title;
+
   // The document to load in the iframe for a destination. The Arc chat needs
   // its rail-less embed; every other page hides its rail via is-embedded.
   function frameSrcFor(file) {
     return file === 'build-arc-v2.html' ? 'build-arc-embed.html' : file;
+  }
+
+  // Move keyboard/screen-reader focus onto a freshly shown screen so navigating
+  // doesn't strand focus on the sidebar. We focus the CONTENT region (.main),
+  // not a visible header, and hard-suppress its outline — a route-change focus
+  // target must never draw a ring (after keyboard/palette nav, programmatic
+  // focus can otherwise match :focus-visible and box the header in gold).
+  function focusInto(win, doc) {
+    try {
+      var t = doc && (doc.querySelector('.main') || doc.body);
+      if (!t) { if (win && win.focus) win.focus(); return; }
+      if (!t.hasAttribute('tabindex')) t.setAttribute('tabindex', '-1');
+      t.style.outline = 'none';
+      t.focus({ preventScroll: true });
+    } catch (_) {}
   }
 
   function setActive(target) {
@@ -183,57 +205,155 @@
     });
     return hit;
   }
-  function naturalActive() { return anchorForFile(currentFile()); }
+  function naturalActive() { return anchorForFile(HOST_FILE); }
 
-  function ensureFrame() {
-    var f = document.getElementById('arcFrame');
-    if (f) return f;
+  // Two stacked iframes let the current screen stay visible while the next one
+  // loads hidden, then crossfade between them — no blank flash, no glimpse of
+  // the page underneath. Both live inside the host's .main and, being
+  // position:absolute, never affect its layout. The fade + lift is driven by
+  // the `.gm-frame` / `.gm-ready` classes in gallery-fix.css.
+  var activeFrame = null;
+
+  function ensureFrames() {
     var main = document.querySelector('.main');
     if (!main) return null;
     if (getComputedStyle(main).position === 'static') main.style.position = 'relative';
-    f = document.createElement('iframe');
-    f.id = 'arcFrame';
-    f.title = 'Workspace';
-    f.style.cssText = 'display:none;position:absolute;inset:0;width:100%;height:100%;border:0;z-index:30;background:var(--canvas,#16161a)';
-    main.appendChild(f);
-    return f;
+    return ['arcFrame', 'arcFrame2'].map(function (id) {
+      var f = document.getElementById(id);
+      if (!f) {
+        f = document.createElement('iframe');
+        f.id = id;
+        f.title = 'Workspace';
+        main.appendChild(f);
+      }
+      // Normalise every time: the home page ships a hardcoded #arcFrame (the
+      // old Arc-embed overlay) with its own inline display:none / z-index. Adopt
+      // it into the crossfade system instead of fighting those inline styles —
+      // give both frames the gm-frame class and one canonical style so they
+      // hide via opacity (transitionable) rather than display (not).
+      if (!f.classList.contains('gm-frame')) f.classList.add('gm-frame');
+      f.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;z-index:30;background:var(--canvas,#16161a)';
+      return f;
+    });
   }
 
-  var overlaySrc = null;
+  // Reveal the host page underneath by fading BOTH frames out.
   function hideOverlay() {
-    var f = document.getElementById('arcFrame');
-    if (f) f.style.display = 'none';
+    ['arcFrame', 'arcFrame2'].forEach(function (id) {
+      var f = document.getElementById(id);
+      if (f) f.classList.remove('gm-ready');
+    });
+    activeFrame = null;
     document.body.classList.remove('shell-open', 'arc-open');
-    overlaySrc = null;
   }
+
   function showOverlay(src) {
-    var f = ensureFrame();
-    if (!f) return;
-    if (overlaySrc !== src) { f.src = src; overlaySrc = src; }
-    f.style.display = 'block';
+    var frames = ensureFrames();
+    if (!frames) return;
     document.body.classList.add('shell-open');
+
+    // Already the active document — just make sure it is the one showing.
+    if (activeFrame && activeFrame.__src === src) {
+      activeFrame.style.zIndex = '31';
+      activeFrame.classList.add('gm-ready');
+      return;
+    }
+
+    var incoming = (frames[0] === activeFrame) ? frames[1] : frames[0];
+    var outgoing = activeFrame;
+
+    incoming.style.zIndex = '31';           // incoming rides above the outgoing
+    incoming.classList.remove('gm-ready');  // hidden + lifted until loaded
+
+    var done = false;
+    function crossfade() {
+      if (done) return;
+      done = true;
+      // Force a reflow so the pre-reveal state is committed before we flip to
+      // `.gm-ready` — that's what makes the transition actually play. (A
+      // requestAnimationFrame would be cleaner but gets paused in a hidden or
+      // backgrounded tab, which would leave the incoming screen stuck hidden.)
+      void incoming.offsetWidth;
+      incoming.classList.add('gm-ready');
+      if (outgoing && outgoing !== incoming) {
+        outgoing.classList.remove('gm-ready');
+        outgoing.style.zIndex = '30';
+      }
+      activeFrame = incoming;
+      // Reflect the shown screen to the tab title + assistive tech.
+      try {
+        var idoc = incoming.contentDocument;
+        if (idoc && idoc.title) document.title = idoc.title;
+        focusInto(incoming.contentWindow, idoc);
+      } catch (_) {}
+    }
+
+    if (incoming.__src === src) {
+      crossfade(); // this frame already holds the document — reuse, no reload
+    } else {
+      incoming.__src = src;
+      incoming.onload = crossfade;
+      loadFrame(incoming, src);
+      setTimeout(crossfade, 650); // safety net if a load stalls or is blocked
+    }
+  }
+
+  // Point a frame at `src` WITHOUT adding a browser-history entry once it already
+  // holds a document — a plain `iframe.src =` pushes onto the session history,
+  // which would double every nav and break Back/Forward (our pushState is the
+  // single source of truth). The very first load uses `.src` (initial frame
+  // loads add no entry); every load after that uses location.replace().
+  function loadFrame(frame, src) {
+    var w = frame.contentWindow, hasDoc = false;
+    try { hasDoc = !!(w && w.location && w.location.href && w.location.href !== 'about:blank'); } catch (_) { hasDoc = false; }
+    if (hasDoc) {
+      try { w.location.replace(src); return; } catch (_) {}
+    }
+    frame.src = src;
   }
 
   // Navigate the shell to a destination page (e.g. "build-crm.html"), keeping
   // the host sidebar in place. If the destination IS the host's own page, the
   // overlay just hides to reveal it underneath — no reload either way.
-  function shellNav(file, anchor) {
+  function shellNav(file, anchor, opts) {
+    opts = opts || {};
     file = base(file);
     if (!file) return;
     anchor = anchor || anchorForFile(file);
-    if (file === currentFile()) {
+    var isHost = (file === HOST_FILE);
+
+    if (isHost) {
       hideOverlay();
       setActive(anchor || naturalActive());
-      return;
+      document.title = HOST_TITLE;
+      focusInto(window, document);
+    } else {
+      showOverlay(frameSrcFor(file)); // crossfade() syncs title + focus on load
+      if (file === 'build-arc-v2.html') document.body.classList.add('arc-open');
+      else document.body.classList.remove('arc-open');
+      setActive(anchor);
     }
-    showOverlay(frameSrcFor(file));
-    if (file === 'build-arc-v2.html') document.body.classList.add('arc-open');
-    else document.body.classList.remove('arc-open');
-    setActive(anchor);
+
+    // Keep the address bar, Back/Forward and deep-links honest: each screen has
+    // a real URL (its own static file, or the host's URL for the home screen).
+    // popstate replays a nav with push:false so we don't re-stack history.
+    if (opts.push !== false) {
+      var url = isHost ? HOST_URL : ('/' + file);
+      if ((location.pathname + location.search) !== url) {
+        try { history.pushState({ shellFile: file }, '', url); } catch (_) {}
+      }
+    }
   }
   window.__shellNav = shellNav;
   window.__arcOpen = function () { shellNav('build-arc-v2.html'); };
-  window.__arcClose = function () { hideOverlay(); setActive(naturalActive()); };
+  window.__arcClose = function () { shellNav(HOST_FILE); };
+
+  // Tag the initial entry so a Back to it carries the host file in its state.
+  try { history.replaceState({ shellFile: HOST_FILE }, '', HOST_URL); } catch (_) {}
+  window.addEventListener('popstate', function (e) {
+    var file = (e.state && e.state.shellFile) || base(location.pathname) || HOST_FILE;
+    shellNav(file, null, { push: false });
+  });
 
   // One capture-phase delegate fires BEFORE any per-page bubble handlers, and
   // stopImmediatePropagation prevents their full-page location.href reloads.
@@ -250,8 +370,7 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && document.body.classList.contains('shell-open')) {
-      hideOverlay();
-      setActive(naturalActive());
+      shellNav(HOST_FILE);
     }
   });
 })();
