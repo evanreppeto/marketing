@@ -15,10 +15,11 @@ const ACTIVE_CAMPAIGN_STATUSES = ["draft", "briefing", "generating", "pending_ap
  * Recency = the lead's latest `events` row, falling back to its received_at.
  */
 export async function runColdLeadDetection(
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
   now: string = new Date().toISOString(),
 ): Promise<PersistResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
+  const db = client ?? getSupabaseAdminClient();
 
   // Org-scope at the source: listLeads() (no client) applies the org filter, so the
   // lead ids — and the events/campaigns queries bounded by them — stay org-scoped.
@@ -27,7 +28,7 @@ export async function runColdLeadDetection(
   const leadIds = leads.map((l) => l.id);
 
   // Latest activity per lead from the events log (one query, newest first).
-  const { data: events } = await client
+  const { data: events } = await db
     .from("events")
     .select("subject_id, occurred_at")
     .eq("subject_type", "lead")
@@ -39,7 +40,7 @@ export async function runColdLeadDetection(
   }
 
   // Leads that already have a non-terminal campaign.
-  const { data: camps } = await client
+  const { data: camps } = await db
     .from("campaigns")
     .select("lead_id, status")
     .in("lead_id", leadIds)
@@ -57,5 +58,5 @@ export async function runColdLeadDetection(
   }));
 
   const candidates = detectColdLeadOpportunities(inputs, { now });
-  return upsertOpportunities(candidates, client);
+  return upsertOpportunities(candidates, db);
 }

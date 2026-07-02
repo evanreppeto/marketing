@@ -11,13 +11,14 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabas
  */
 export async function hasRecentOpportunityScan(
   withinHours: number,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<boolean> {
   if (!isSupabaseAdminConfigured()) return false;
+  const db = client ?? getSupabaseAdminClient();
   try {
     const tenant = await getCurrentAgentTaskTenantFields();
     const since = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
-    const { data, error } = await client
+    const { data, error } = await db
       .from("agent_tasks")
       .select("id")
       .eq("org_id", tenant.org_id)
