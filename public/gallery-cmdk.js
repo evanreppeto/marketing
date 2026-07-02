@@ -28,8 +28,8 @@
   var PAGES = [
     { label: "Home", sub: "Command center", href: "/build-home.html", keys: "dashboard overview today", icon: ICON.home },
     { label: "Arc", sub: "Chat with Arc", href: "/build-arc-v2.html", keys: "agent assistant chat ai", icon: ICON.arc },
-    { label: "Campaigns", sub: "Campaign package builder", href: "/build-campaign-builder.html", keys: "campaign builder email sms ads landing", icon: ICON.campaigns },
-    { label: "CRM", sub: "Contacts & records", href: "/build-crm.html", keys: "contacts companies leads accounts", icon: ICON.crm },
+    { label: "Campaigns", sub: "Campaign operations", href: "/campaigns", keys: "campaign builder email sms ads landing", icon: ICON.campaigns },
+    { label: "CRM", sub: "Contacts & records", href: "/crm", keys: "contacts companies leads accounts", icon: ICON.crm },
     { label: "Opportunities", sub: "Opportunity inbox", href: "/build-opportunities.html", keys: "opps signals leads inbox", icon: ICON.opportunities },
     { label: "Analytics", sub: "Performance & reporting", href: "/build-analytics.html", keys: "reports metrics performance charts", icon: ICON.analytics },
     { label: "Brain", sub: "Arc's knowledge graph", href: "/build-brain.html", keys: "memory knowledge graph facts recall", icon: ICON.brain },
@@ -41,8 +41,8 @@
     { label: "Settings", sub: "Workspace settings", href: "/build-settings.html", keys: "preferences account config models tokens", icon: ICON.settings },
   ];
   var ACTIONS = [
-    { label: "New campaign", sub: "Action", href: "/build-campaign-builder.html", keys: "create draft package", action: true, icon: ICON.plus },
-    { label: "Add a lead", sub: "Action", href: "/build-crm.html", keys: "new contact lead", action: true, icon: ICON.lead },
+    { label: "New campaign", sub: "Action", href: "/campaigns", keys: "create draft package", action: true, icon: ICON.plus },
+    { label: "Add a lead", sub: "Action", href: "/crm", keys: "new contact lead", action: true, icon: ICON.lead },
     { label: "Ask Arc", sub: "Action", href: "/build-arc-v2.html", keys: "chat agent question prompt", action: true, icon: ICON.spark },
   ];
   var ALL = PAGES.concat(ACTIONS);
@@ -153,8 +153,10 @@
     if (i < 0 || !items[i]) return;
     var href = items[i].dataset.href;
     close();
-    // Navigate in-shell (overlay on .main) like the rail — no page load, no
-    // sidebar flicker. Falls back to a normal load when the shell isn't present.
+    // Ported real Next.js screens (no .html) are full pages with their own shell —
+    // full-navigate into the real app. Not-yet-ported gallery screens navigate
+    // in-shell (overlay on .main) like the rail — no page load, no sidebar flicker.
+    if (!/\.html($|[?#])/.test(href)) { location.href = href; return; }
     if (window.__shellNav) { window.__shellNav(href); return; }
     location.href = href;
   }
