@@ -4,7 +4,7 @@
   const MAP = {
     "home": "/build-home.html",
     "arc": "/build-arc-v2.html",
-    "campaigns": "/build-campaigns.html",
+    "campaigns": "/campaigns",
     "campaign builder": "/build-campaign-builder.html",
     "campaign package": "/build-campaign-builder.html",
     "crm": "/build-crm.html",
@@ -245,6 +245,10 @@
     if (!href || href.charAt(0) === '#') return; // not a wired destination
     e.preventDefault();
     e.stopImmediatePropagation();
+    // Ported real Next.js screens (no .html) are full pages with their own shell —
+    // navigate the whole document into the real app. Not-yet-ported gallery
+    // screens (build-*.html) keep the smooth in-shell iframe swap.
+    if (!/\.html($|[?#])/.test(href)) { window.location.href = href; return; }
     shellNav(href, a);
   }, true);
 
