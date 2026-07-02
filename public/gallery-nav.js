@@ -8,16 +8,16 @@
     "campaign builder": "/build-campaign-builder.html",
     "campaign package": "/build-campaign-builder.html",
     "crm": "/crm",
-    "opportunities": "/build-opportunities.html",
-    "analytics": "/build-analytics.html",
-    "brain": "/build-brain.html",
-    "personas": "/build-personas.html",
+    "opportunities": "/opportunities",
+    "analytics": "/analytics",
+    "brain": "/brain",
+    "personas": "/personas",
     "studio": "/build-studio.html",
     "creative studio": "/build-studio.html",
-    "library": "/build-library.html",
-    "brand": "/build-brand.html",
+    "library": "/library",
+    "brand": "/library/brand",
     "outbox": "/build-outbox.html",
-    "settings": "/build-settings.html",
+    "settings": "/settings",
   };
 
   function wire() {
@@ -400,8 +400,8 @@
 
   function go(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    if (typeof window.__shellNav === 'function') window.__shellNav('/build-settings.html');
-    else location.href = '/build-settings.html';
+    // Settings is a ported real screen — full-page navigate into the app.
+    location.href = '/settings';
   }
 
   function wireCogs() {
