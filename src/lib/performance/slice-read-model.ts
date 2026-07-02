@@ -17,15 +17,16 @@ function embedOne<T>(value: unknown): T | null {
  */
 export async function getPerformanceBySlice(
   filter: SliceFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<{ dimension: SliceDimension; slices: SliceStat[] }> {
   const dimension: SliceDimension = filter.dimension ?? "persona";
   if (!isSupabaseAdminConfigured()) return { dimension, slices: [] };
+  const db = client ?? getSupabaseAdminClient();
 
   const days = filter.days ?? 90;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-  let query = client
+  let query = db
     .from("campaign_results")
     .select(
       "channel, impressions, clicks, leads, jobs, won_revenue_cents, spend_cents, period_end, campaigns(persona), campaign_assets(asset_type, channel)",

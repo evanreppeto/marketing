@@ -18,18 +18,21 @@ const OPEN_STATUSES = ["pending", "drafting", "drafted"];
  */
 export async function upsertOpportunities(
   candidates: OpportunityCandidate[],
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
   scope?: OpportunityScope,
 ): Promise<PersistResult> {
+  // Guard BEFORE resolving the admin client — a `= getSupabaseAdminClient()`
+  // default arg would throw during arg evaluation, defeating this guard.
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
   if (candidates.length === 0) return { ok: true, count: 0 };
+  const db = client ?? getSupabaseAdminClient();
   // Prefer the caller's explicit (token-resolved) org. getCurrentOrgId() falls
   // back to the cookie/default workspace, which is wrong for a headless runner
   // token — see the Arc propose route which now passes its arcGuard scope.
   const orgId = scope?.orgId ?? (await getCurrentOrgId());
   const kind = candidates[0].kind;
 
-  const { data: open, error: readErr } = await client
+  const { data: open, error: readErr } = await db
     .from("opportunities")
     .select("subject_id")
     .eq("org_id", orgId)
@@ -56,7 +59,7 @@ export async function upsertOpportunities(
     status: "pending",
     detected_by: "arc",
   }));
-  const { error: insErr } = await client.from("opportunities").insert(rows);
+  const { error: insErr } = await db.from("opportunities").insert(rows);
   if (insErr) return { ok: false, error: insErr.message };
   return { ok: true, count: rows.length };
 }
@@ -64,28 +67,29 @@ export async function upsertOpportunities(
 async function setStatus(
   id: string,
   patch: Record<string, unknown>,
-  client: SupabaseClient,
+  client?: SupabaseClient,
   scope?: OpportunityScope,
 ): Promise<MutateResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
+  const db = client ?? getSupabaseAdminClient();
   const orgId = scope?.orgId ?? await getCurrentOrgId();
-  const { error } = await client.from("opportunities").update(patch).eq("org_id", orgId).eq("id", id);
+  const { error } = await db.from("opportunities").update(patch).eq("org_id", orgId).eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
-export function dismissOpportunity(id: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+export function dismissOpportunity(id: string, client?: SupabaseClient, scope?: OpportunityScope) {
   return setStatus(id, { status: "dismissed", dismissed_at: new Date().toISOString() }, client, scope);
 }
 
-export function snoozeOpportunity(id: string, untilIso: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+export function snoozeOpportunity(id: string, untilIso: string, client?: SupabaseClient, scope?: OpportunityScope) {
   return setStatus(id, { status: "snoozed", snoozed_until: untilIso }, client, scope);
 }
 
-export function markOpportunityDrafting(id: string, agentTaskId: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+export function markOpportunityDrafting(id: string, agentTaskId: string, client?: SupabaseClient, scope?: OpportunityScope) {
   return setStatus(id, { status: "drafting", agent_task_id: agentTaskId }, client, scope);
 }
 
-export function markOpportunityDrafted(id: string, campaignId: string, client: SupabaseClient = getSupabaseAdminClient(), scope?: OpportunityScope) {
+export function markOpportunityDrafted(id: string, campaignId: string, client?: SupabaseClient, scope?: OpportunityScope) {
   return setStatus(id, { status: "drafted", campaign_id: campaignId }, client, scope);
 }

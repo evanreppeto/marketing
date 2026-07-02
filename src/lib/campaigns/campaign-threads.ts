@@ -55,10 +55,11 @@ export type CampaignThread = {
 /** I/O: every board task linked to this campaign, newest first. */
 export async function getCampaignTasks(
   campaignId: string,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<CampaignTask[]> {
   if (!isSupabaseAdminConfigured()) return [];
-  const { data, error } = await client
+  const db = client ?? getSupabaseAdminClient();
+  const { data, error } = await db
     .from("agent_tasks")
     .select("id, status, priority, objective, task_type, scheduled_for, due_at, metadata, updated_at")
     .eq("campaign_id", campaignId)
@@ -72,10 +73,11 @@ export async function getCampaignTasks(
  *  The /arc page opens a conversation via the `?c=` query param. */
 export async function getCampaignThreads(
   campaignId: string,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<CampaignThread[]> {
   if (!isSupabaseAdminConfigured()) return [];
-  const { data, error } = await client
+  const db = client ?? getSupabaseAdminClient();
+  const { data, error } = await db
     .from("arc_conversations")
     .select("id, title, updated_at")
     .eq("campaign_id", campaignId)
