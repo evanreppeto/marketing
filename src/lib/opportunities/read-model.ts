@@ -32,12 +32,16 @@ export type { OpportunityRecord, OpportunityEvidence };
 
 /** Open opportunities (pending/drafting/drafted) for the inbox. Empty when unconfigured. */
 export async function listOpenOpportunities(
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
   orgId?: string,
 ): Promise<OpportunityRecord[]> {
+  // Guard BEFORE touching the admin client — a default arg of
+  // `getSupabaseAdminClient()` would throw during arg evaluation, before this
+  // guard could run, crashing the page in demo/unconfigured mode.
   if (!isSupabaseAdminConfigured()) return [];
+  const db = client ?? getSupabaseAdminClient();
   const resolvedOrgId = orgId ?? (await getCurrentOrgId());
-  const { data, error } = await client
+  const { data, error } = await db
     .from("opportunities")
     .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, evidence")
     .eq("org_id", resolvedOrgId)
@@ -48,10 +52,11 @@ export async function listOpenOpportunities(
 }
 
 /** Count of pending (un-triaged) opportunities, for the /arc chip. */
-export async function countPendingOpportunities(client: SupabaseClient = getSupabaseAdminClient()): Promise<number> {
+export async function countPendingOpportunities(client?: SupabaseClient): Promise<number> {
   if (!isSupabaseAdminConfigured()) return 0;
+  const db = client ?? getSupabaseAdminClient();
   const orgId = await getCurrentOrgId();
-  const { count } = await client
+  const { count } = await db
     .from("opportunities")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
@@ -87,11 +92,12 @@ export type OpportunityForDraft = {
 /** Load one opportunity (+ its persona from evidence) for the Draft-with-Arc flow. */
 export async function getOpportunityForDraft(
   id: string,
-  client: SupabaseClient = getSupabaseAdminClient(),
+  client?: SupabaseClient,
 ): Promise<OpportunityForDraft | null> {
   if (!isSupabaseAdminConfigured()) return null;
+  const db = client ?? getSupabaseAdminClient();
   const orgId = await getCurrentOrgId();
-  const { data, error } = await client
+  const { data, error } = await db
     .from("opportunities")
     .select("id, subject_id, title, summary, urgency, confidence, recommended_action, evidence")
     .eq("org_id", orgId)
