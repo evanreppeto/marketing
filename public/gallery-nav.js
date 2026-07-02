@@ -12,11 +12,11 @@
     "analytics": "/analytics",
     "brain": "/brain",
     "personas": "/personas",
-    "studio": "/build-studio.html",
-    "creative studio": "/build-studio.html",
+    "studio": "/gallery",
+    "creative studio": "/gallery",
     "library": "/library",
     "brand": "/library/brand",
-    "outbox": "/build-outbox.html",
+    "outbox": "/board",
     "settings": "/settings",
   };
 

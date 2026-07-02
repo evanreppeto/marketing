@@ -34,10 +34,10 @@
     { label: "Analytics", sub: "Performance & reporting", href: "/analytics", keys: "reports metrics performance charts", icon: ICON.analytics },
     { label: "Brain", sub: "Arc's knowledge graph", href: "/brain", keys: "memory knowledge graph facts recall", icon: ICON.brain },
     { label: "Personas", sub: "Revenue intelligence", href: "/personas", keys: "segments audience playbooks", icon: ICON.personas },
-    { label: "Studio", sub: "Creative studio", href: "/build-studio.html", keys: "creative ads media generate images video", icon: ICON.studio },
+    { label: "Studio", sub: "Creative studio", href: "/gallery", keys: "creative ads media generate images video", icon: ICON.studio },
     { label: "Library", sub: "Media & files", href: "/library", keys: "media assets files photos documents", icon: ICON.library },
     { label: "Brand", sub: "Brand profile", href: "/library/brand", keys: "identity palette voice logo", icon: ICON.brand },
-    { label: "Outbox", sub: "Board & dispatch", href: "/build-outbox.html", keys: "board dispatch sends queue kanban", icon: ICON.outbox },
+    { label: "Outbox", sub: "Board & dispatch", href: "/board", keys: "board dispatch sends queue kanban", icon: ICON.outbox },
     { label: "Settings", sub: "Workspace settings", href: "/settings", keys: "preferences account config models tokens", icon: ICON.settings },
   ];
   var ACTIONS = [
