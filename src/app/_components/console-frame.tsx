@@ -240,8 +240,15 @@ export function ConsoleFrame({
                 >
                   <BrandMark />
                   {!sidebarCollapsed ? (
-                    <span className="min-w-0">
-                      <BrandWordmark />
+                    // Tenant identity (workspace + product label), not a fixed
+                    // wordmark image — so the shell reads as *this* workspace's
+                    // branded product (e.g. "Summit Restoration"), matching the
+                    // gallery's brand treatment instead of a generic "Arc" mark.
+                    <span className="flex min-w-0 flex-col leading-tight">
+                      <span className="truncate text-[13.5px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
+                        {brand.workspaceName}
+                      </span>
+                      <span className="truncate text-[10.5px] text-[var(--text-muted)]">{brand.productLabel}</span>
                     </span>
                   ) : null}
                 </Link>

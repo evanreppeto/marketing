@@ -8,6 +8,7 @@ import { ConsoleFrame } from "./_components/console-frame";
 import { getAgentDisplayName } from "@/lib/arc-chat/agent-config";
 import { getAppSettings } from "@/lib/settings/store";
 import { resolveBrandIdentity } from "@/lib/brand-kit/identity";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { listWorkspacesForUser } from "@/lib/auth/workspace-admin";
 import { roleLabel } from "@/lib/auth/workspace-roles";
@@ -91,6 +92,19 @@ export default async function RootLayout({
   ]);
   const activeWorkspaceId =
     userWorkspaces.length > 0 ? (await getCurrentWorkspaceContext().catch(() => null))?.workspaceId ?? undefined : undefined;
+
+  // Brand identity for the shell. A real configured identity (Supabase brand kit
+  // or saved settings) always wins. But in demo mode with nothing configured,
+  // present the canonical demo tenant (Summit Restoration) instead of the generic
+  // "Arc" default — so the app reads as a branded product in sales/preview demos,
+  // not a bare template. Never overrides a real workspace's brand.
+  const brandDemoFallback = isDemoDataEnabled() && !identity.displayName;
+  const brand = {
+    workspaceName: identity.displayName ?? (brandDemoFallback ? "Summit Restoration" : settings.workspaceName),
+    productLabel: brandDemoFallback ? "Growth Engine" : settings.productLabel,
+    shortName: identity.shortMark ?? (brandDemoFallback ? "SR" : settings.brandShortName),
+    logoUrl: identity.logoUrl ?? settings.brandLogoUrl,
+  };
   const switcherWorkspaces = userWorkspaces.map((workspace) => ({
     id: workspace.workspaceId,
     name: workspace.workspaceName,
@@ -108,12 +122,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <ConsoleFrame
           agentName={getAgentDisplayName(settings.assistantName)}
-          brand={{
-            workspaceName: identity.displayName ?? settings.workspaceName,
-            productLabel: settings.productLabel,
-            shortName: identity.shortMark ?? settings.brandShortName,
-            logoUrl: identity.logoUrl ?? settings.brandLogoUrl,
-          }}
+          brand={brand}
           operator={operator}
           workspaces={switcherWorkspaces}
           activeWorkspaceId={activeWorkspaceId}
