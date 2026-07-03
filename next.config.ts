@@ -13,9 +13,17 @@ const nextConfig: NextConfig = {
       { source: "/persona-intelligence/:personaKey", destination: "/personas/:personaKey", permanent: true },
     ];
   },
-  // The static Arc mockup gallery has been fully ported into the real app, so the
-  // `/`→/build-home.html rewrite that shadowed the root page is retired — `/` now
-  // serves the real React home and every screen is a real Next.js route.
+  async rewrites() {
+    return {
+      // `beforeFiles` runs ahead of the filesystem routes, so this shadows the
+      // real root page and serves the static Arc mockup gallery at the domain
+      // root. The gallery's own links are absolute (`/build-*.html`), so every
+      // other screen is reached as a plain static asset from `public/`.
+      beforeFiles: [{ source: "/", destination: "/build-home.html" }],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
 };
 
 export default nextConfig;
