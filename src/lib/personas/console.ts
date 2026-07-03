@@ -7,7 +7,7 @@ import {
   type PersonaSegmentKey,
   type PersonaStage,
   type ScoreSignalKey,
-} from "@/app/personas/_data/demo-personas";
+} from "./demo-personas";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";

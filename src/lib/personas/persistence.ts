@@ -1,6 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { type PersonaSegmentKey, type PersonaStage } from "@/app/personas/_data/demo-personas";
+import { type PersonaSegmentKey, type PersonaStage } from "./demo-personas";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
