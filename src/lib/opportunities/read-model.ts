@@ -1,7 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import type { OpportunityBucket, OpportunityRow } from "@/app/_components/opportunity-command-center";
-import type { ThemeTone } from "@/app/_components/theme";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -24,9 +22,6 @@ type OpportunityRecord = {
   recommended_action: string;
   evidence?: OpportunityEvidence | null;
 };
-
-const URGENCY_TONE: Record<OpportunityRecord["urgency"], ThemeTone> = { high: "red", medium: "amber", low: "blue" };
-const URGENCY_RANK: Record<OpportunityRecord["urgency"], number> = { high: 0, medium: 1, low: 2 };
 
 export type { OpportunityRecord, OpportunityEvidence };
 
@@ -62,20 +57,6 @@ export async function countPendingOpportunities(client?: SupabaseClient): Promis
     .eq("org_id", orgId)
     .eq("status", "pending");
   return count ?? 0;
-}
-
-function toRow(r: OpportunityRecord): OpportunityRow {
-  return {
-    id: r.id,
-    href: `/crm/leads/${r.subject_id}`,
-    record: r.title,
-    account: r.summary,
-    nextStep: r.recommended_action,
-    stage: r.status,
-    tone: URGENCY_TONE[r.urgency],
-    value: String(r.confidence),
-    urgencyTag: r.urgency,
-  };
 }
 
 export type OpportunityForDraft = {
@@ -115,21 +96,4 @@ export async function getOpportunityForDraft(
     recommendedAction: data.recommended_action,
     persona: typeof evidence.persona === "string" ? evidence.persona : "",
   };
-}
-
-/** Bucket open opportunities by urgency for OpportunityCommandCenter. */
-export function buildOpportunityBuckets(records: OpportunityRecord[]): OpportunityBucket[] {
-  const sorted = [...records].sort((a, b) => URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]);
-  return [
-    {
-      key: "all",
-      title: "All opportunities",
-      detail: `${sorted.length} open`,
-      href: "/opportunities",
-      tone: "amber",
-      rows: sorted.map(toRow),
-      emptyTitle: "No opportunities yet",
-      emptyDetail: "Run a scan to surface cold leads worth re-engaging.",
-    },
-  ];
 }

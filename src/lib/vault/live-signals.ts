@@ -1,4 +1,4 @@
-import { personaDisplay } from "@/app/_data/growth-engine";
+import { personaDisplay } from "@/lib/growth-engine";
 import { OFFICIAL_PERSONA_MAPPINGS, type OfficialPersonaMapping } from "@/domain";
 
 import { seedVaultNotes } from "./seed-notes";
