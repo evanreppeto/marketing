@@ -48,7 +48,7 @@ Two features are now fully wired and serve as reference implementations of the s
 
 Follow this shape when wiring other features. The remaining `src/lib/<feature>/` dirs (e.g. `activity`, `approvals`, `partners`, `performance`, `persona-intelligence`, `loss-routing`, `agent-operations`) are mostly read-models feeding still-scaffold pages.
 
-**Other pages are still scaffold-mode (preview-only).** Most are async server components that destructure `searchParams.action` and pair two primitives:
+**A few pages remain scaffold-mode for writes (preview-only).** Most pages now render real read-model data (dashboards, lists, detail views); the remaining gap is write-wiring — a shrinking set of pages still only *preview* actions rather than persisting them. Those are async server components that destructure `searchParams.action` and pair two primitives:
 - `<OperatorBar primary={<Link href="?action=foo" />} />` — page-level task with action buttons that just set a query param.
 - `<ActionFeedback action={action} messages={{ foo: "Preview: ..." }} />` — inline preview banner keyed by the active `action`.
 
@@ -102,7 +102,7 @@ The durable architecture is a shared **Persona Revenue Intelligence Layer** that
 
 ## Design System
 
-UI work must follow `DESIGN.md` (Command Charcoal / Canvas White / Restoration Red palette; no emojis, no purple/neon AI aesthetic, no equal 3-column dashboard rows).
+UI work must follow `DESIGN.md` (Obsidian & Gold palette — deep obsidian surfaces stepping up in lightness, a single antique-gold accent, warm ivory text; no emojis, no purple/neon AI aesthetic, no equal 3-column dashboard rows).
 
 ## Env
 
