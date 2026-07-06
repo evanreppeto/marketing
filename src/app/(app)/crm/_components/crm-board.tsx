@@ -112,6 +112,10 @@ export function CrmBoard({
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></svg>
           Status <span className="cv">▾</span>
         </span>
+        <span className="fbtn">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>
+          Owner <span className="cv">▾</span>
+        </span>
         <span className="fbtn dashed">
           <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
           Add filter
@@ -121,6 +125,24 @@ export function CrmBoard({
           <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
           All {active.noun} <span className="cv">▾</span>
         </span>
+        <span className="iconf" title="Sort">
+          <svg viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l3 3M17 20l-3-3" /></svg>
+        </span>
+        <span className="iconf" title="Columns">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg>
+        </span>
+        <span className="iconf" title="Density">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+        </span>
+      </div>
+
+      <div className="selbar">
+        <span className="sc">0 selected</span>
+        <span className="sa"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
+        <span className="sa"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona</span>
+        <span className="sa"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg>Add task</span>
+        <span className="sa"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>Ask Arc to enrich</span>
+        <span className="clr">Clear</span>
       </div>
 
       <div className="tablewrap">
@@ -197,9 +219,23 @@ export function CrmBoard({
           Arc keeps {active.noun} enriched and lead scores current
         </span>
         <div className="pager">
+          <span className="rpp">
+            Rows{" "}
+            <select defaultValue="25">
+              <option>25</option>
+              <option>50</option>
+              <option>100</option>
+            </select>
+          </span>
           <span className="pgnum">
             {visible.length === 0 ? "0" : `1–${visible.length}`} of {active.count.toLocaleString()}
           </span>
+          <button className="pgbtn" type="button" aria-label="Previous page">
+            <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>
+          </button>
+          <button className="pgbtn" type="button" aria-label="Next page">
+            <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
         </div>
       </div>
     </div>
