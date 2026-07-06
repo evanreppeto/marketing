@@ -97,6 +97,13 @@ Users own their identity, membership, role, and personal preferences.
   approval items / decisions / recommendations, agent outputs, events, dispatches,
   results. The campaigns read-model reroute is deferred — it threads `org_id` from
   its callers, so that reroute lands at the call sites, not the read-model.
+- Slice 4 completes write-side isolation for the wired human-editable surfaces
+  (`20260706120000_human_surface_write_policies.sql`): the vault notebook
+  (vault_notes), CRM interactions (crm_notes, crm_tasks, crm_activities), and the
+  media library (media_assets, media_folders). Every wired human-editable surface
+  is now write-isolated at the DB. System-owned / derived tables (guardrails,
+  routing, integrity, persona intelligence) intentionally stay admin-write pending
+  role-gating.
 - Proof: `supabase/tests/rls_crm_isolation.sql` asserts cross-tenant read /
   insert / update / delete denial for `companies` (representative — every migrated
   table uses the same `is_org_member(org_id)` predicate);

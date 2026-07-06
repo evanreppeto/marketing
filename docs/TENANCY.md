@@ -40,10 +40,15 @@ client stays for system actors that legitimately act across the whole tenant set
   approval surface (campaigns, campaign_assets, approval_items,
   approval_decisions, approval_recommendations, agent_outputs, campaign_events,
   campaign_dispatches, campaign_results) —
-  `20260705140000_campaign_surface_write_policies.sql`. The remaining tables still
-  rely on the admin client for writes (safe today, because only system actors
-  write them). Every one uses the identical `is_org_member(org_id)` predicate, so
-  the `companies` isolation test below is representative of them all.
+  `20260705140000_campaign_surface_write_policies.sql`; and on the wired
+  human-editable surfaces — vault_notes, crm_notes, crm_tasks, crm_activities,
+  media_assets, media_folders — `20260706120000_human_surface_write_policies.sql`.
+  With that, **every wired human-editable surface is write-isolated at the DB.**
+  The tables still on admin-only writes are system-owned / derived (guardrail
+  rules, routing decisions, integrity findings, persona intelligence) and want
+  role-gating before member-write. Every policy uses the identical
+  `is_org_member(org_id)` predicate, so the `companies` isolation test below is
+  representative of them all.
 - Credential-bearing tables (connectors, API tokens) intentionally stay
   **service-role-only** — never granted to `authenticated`.
 
