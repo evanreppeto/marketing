@@ -237,12 +237,39 @@
     });
   }
 
-  // Reveal the host page underneath by fading BOTH frames out.
+  // An opaque canvas layer behind the crossfade frames (z-index 29, under the
+  // frames' 30/31) and above the host page's own .main content. While an overlay
+  // screen shows it hides the host content, so the host page — usually Home, when
+  // you enter at `/` — never bleeds through the frames' opacity crossfade. It
+  // snaps on/off with no transition: it is the flat canvas colour, so there's
+  // nothing to animate and no home-ghost to glimpse mid-fade.
+  function ensureBackdrop() {
+    var main = document.querySelector('.main');
+    if (!main) return null;
+    var b = document.getElementById('gmBackdrop');
+    if (!b) {
+      b = document.createElement('div');
+      b.id = 'gmBackdrop';
+      b.setAttribute('aria-hidden', 'true');
+      main.appendChild(b);
+    }
+    // `animation:none` opts the backdrop out of the `.main > *` gm-rise entrance
+    // animation (gallery-fix.css) — otherwise that keyframe drives opacity and
+    // overrides the inline value we toggle here (CSS animations beat inline
+    // styles). It's a flat colour layer; it just snaps on/off via opacity.
+    b.style.cssText = 'position:absolute;inset:0;z-index:29;background:var(--canvas,#16161a);opacity:0;pointer-events:none;animation:none';
+    return b;
+  }
+
+  // Reveal the host page underneath by fading BOTH frames out and dropping the
+  // backdrop so the host content shows again.
   function hideOverlay() {
     ['arcFrame', 'arcFrame2'].forEach(function (id) {
       var f = document.getElementById(id);
       if (f) f.classList.remove('gm-ready');
     });
+    var bd = document.getElementById('gmBackdrop');
+    if (bd) bd.style.opacity = '0';
     activeFrame = null;
     document.body.classList.remove('shell-open', 'arc-open');
   }
@@ -251,6 +278,9 @@
     var frames = ensureFrames();
     if (!frames) return;
     document.body.classList.add('shell-open');
+    // Cover the host page (e.g. Home) so it can't ghost through the crossfade.
+    var backdrop = ensureBackdrop();
+    if (backdrop) backdrop.style.opacity = '1';
 
     // Already the active document — just make sure it is the one showing.
     if (activeFrame && activeFrame.__src === src) {
