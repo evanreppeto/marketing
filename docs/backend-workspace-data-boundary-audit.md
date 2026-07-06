@@ -92,6 +92,11 @@ Users own their identity, membership, role, and personal preferences.
   `20260705130000_opportunities_write_policies.sql` adds the write policies and
   `src/lib/opportunities/read-model.ts` now resolves reads through
   `resolveTenantReadHandle()`.
+- Slice 3 adds write-side RLS across the campaign / approval surface
+  (`20260705140000_campaign_surface_write_policies.sql`): campaigns, assets,
+  approval items / decisions / recommendations, agent outputs, events, dispatches,
+  results. The campaigns read-model reroute is deferred — it threads `org_id` from
+  its callers, so that reroute lands at the call sites, not the read-model.
 - Proof: `supabase/tests/rls_crm_isolation.sql` asserts cross-tenant read /
   insert / update / delete denial for `companies` (representative — every migrated
   table uses the same `is_org_member(org_id)` predicate);
