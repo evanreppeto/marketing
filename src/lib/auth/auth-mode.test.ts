@@ -21,18 +21,30 @@ afterEach(() => {
 });
 
 describe("Supabase auth configuration", () => {
-  it("detects the canonical Supabase URL and anon key without enabling the login gate", () => {
+  it("requires sign-in by default once Supabase Auth is configured", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
 
     expect(getSupabaseAuthUrl()).toBe("https://project.supabase.co");
     expect(getSupabaseAnonKey()).toBe("anon-key");
     expect(isSupabaseAuthConfigured()).toBe(true);
+    // Secure by default: wiring up a real auth backend turns on the login gate
+    // even without an explicit ARC_AUTH_MODE.
+    expect(getAuthMode()).toBe("supabase");
+    expect(isInteractiveAuthEnabled()).toBe(true);
+  });
+
+  it("stays open when ARC_AUTH_MODE=open even if Supabase is configured", () => {
+    process.env.ARC_AUTH_MODE = "open";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+
+    // Explicit escape hatch for the public demo / preview (and the instant unlock).
     expect(getAuthMode()).toBe("open");
     expect(isInteractiveAuthEnabled()).toBe(false);
   });
 
-  it("uses Supabase Auth only when explicitly requested", () => {
+  it("uses Supabase Auth when explicitly requested", () => {
     process.env.ARC_AUTH_MODE = "supabase";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
@@ -41,8 +53,16 @@ describe("Supabase auth configuration", () => {
     expect(isInteractiveAuthEnabled()).toBe(true);
   });
 
-  it("falls back to MARKETING-prefixed Supabase env vars", () => {
+  it("falls back to open when supabase is requested but its config is missing", () => {
     process.env.ARC_AUTH_MODE = "supabase";
+
+    // A misconfigured deploy degrades to open rather than locking everyone out.
+    expect(isSupabaseAuthConfigured()).toBe(false);
+    expect(getAuthMode()).toBe("open");
+    expect(isInteractiveAuthEnabled()).toBe(false);
+  });
+
+  it("falls back to MARKETING-prefixed Supabase env vars", () => {
     process.env.NEXT_PUBLIC_MARKETING_SUPABASE_URL = "https://marketing.supabase.co";
     process.env.NEXT_PUBLIC_MARKETING_SUPABASE_ANON_KEY = "marketing-anon";
 

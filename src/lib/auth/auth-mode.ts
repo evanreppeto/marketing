@@ -48,14 +48,26 @@ function warnFallbackOnce(requestedMode: "supabase" | "operator", reason: string
 export function getAuthMode(): AuthMode {
   const requestedMode = getRequestedAuthMode();
 
-  if (requestedMode === "supabase") {
-    if (isSupabaseAuthConfigured()) return "supabase";
-    warnFallbackOnce("supabase", "Supabase URL/anon key are missing");
-  }
+  // Explicit opt-out. The public demo / preview keeps every page open by setting
+  // ARC_AUTH_MODE=open. This is also the instant "unlock" if a deploy's auth
+  // backend ever misbehaves.
+  if (requestedMode === "open") return "open";
 
+  // Explicit legacy operator gate (shared OPERATOR_* credentials).
   if (requestedMode === "operator") {
     if (isOperatorGateEnabled()) return "operator";
     warnFallbackOnce("operator", "OPERATOR_ACCESS_TOKEN is missing");
+    return "open";
+  }
+
+  // Secure by default: require Supabase sign-in whenever Supabase Auth is
+  // configured — whether requested explicitly (ARC_AUTH_MODE=supabase) or left
+  // unset. Wiring up a real auth backend shouldn't leave the app publicly open by
+  // accident. When Supabase isn't configured we fall back to "open" so local dev
+  // and CI stay usable and a misconfigured deploy can't lock everyone out.
+  if (isSupabaseAuthConfigured()) return "supabase";
+  if (requestedMode === "supabase") {
+    warnFallbackOnce("supabase", "Supabase URL/anon key are missing");
   }
 
   return "open";
