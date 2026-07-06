@@ -603,3 +603,95 @@
   .arc-app .arc-personas .pbody { grid-template-columns: 1fr; }
   .arc-app .arc-personas .roster { display: none; }
 }
+
+/* ============================================================
+   Brain — ported from build-brain.html. Arc's memory: stat header
+   + fact browser (All facts / Needs review / Recently learned).
+   The force-graph is deferred; these are the wired listNodes views.
+   Scoped under `.arc-app .arc-brain`.
+   ============================================================ */
+.arc-app .arc-brain { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
+.arc-app .arc-brain .bhead { padding: 18px clamp(22px, 3vw, 38px) 0; flex-shrink: 0; }
+.arc-app .arc-brain .bh1row { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.arc-app .arc-brain .pt { font-family: var(--serif); font-weight: 500; font-size: 27px; letter-spacing: -.02em; margin: 0; color: var(--text); }
+.arc-app .arc-brain .psub { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.arc-app .arc-brain .gbtn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12.5px; cursor: pointer; transition: .15s; }
+.arc-app .arc-brain .gbtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-app .arc-brain .gbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .arc-brain .bstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line-2); border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; margin-top: 16px; }
+.arc-app .arc-brain .bstat { background: var(--panel); padding: 13px 16px; }
+.arc-app .arc-brain .bstat .sl { font-size: 10.5px; color: var(--muted); }
+.arc-app .arc-brain .bstat .sv { font-family: var(--serif); font-weight: 500; font-size: 23px; letter-spacing: -.02em; margin-top: 5px; color: var(--text); }
+.arc-app .arc-brain .bstat .sd { font-family: var(--mono); font-size: 9.5px; color: var(--muted); margin-top: 3px; }
+.arc-app .arc-brain .covbanner { display: flex; align-items: center; gap: 11px; margin-top: 14px; border: 1px solid var(--accent-border); border-radius: 11px; background: var(--accent-soft); padding: 11px 14px; }
+.arc-app .arc-brain .covbanner svg { width: 16px; height: 16px; stroke: var(--accent); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+.arc-app .arc-brain .covbanner .ct { font-size: 12.5px; color: var(--text-2); }
+.arc-app .arc-brain .covbanner .ct b { color: var(--text); font-weight: 600; }
+
+.arc-app .arc-brain .btabs { display: flex; gap: 2px; padding: 0 clamp(22px, 3vw, 38px); border-bottom: 1px solid var(--line-2); margin-top: 16px; flex-shrink: 0; overflow-x: auto; }
+.arc-app .arc-brain .btab { position: relative; display: flex; align-items: center; gap: 8px; padding: 11px 13px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; transition: color .15s; white-space: nowrap; background: none; border: none; font-family: inherit; }
+.arc-app .arc-brain .btab svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; opacity: .8; }
+.arc-app .arc-brain .btab:hover { color: var(--text); }
+.arc-app .arc-brain .btab.on { color: var(--text); }
+.arc-app .arc-brain .btab.on svg { color: var(--accent); opacity: 1; }
+.arc-app .arc-brain .btab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+.arc-app .arc-brain .btab .cnt { font-family: var(--mono); font-size: 9px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 5px; padding: 0 5px; line-height: 15px; }
+
+.arc-app .arc-brain .bbody { flex: 1; min-height: 0; overflow: hidden; }
+.arc-app .arc-brain .scroll { height: 100%; overflow: auto; padding: 22px clamp(22px, 3vw, 38px) 44px; }
+.arc-app .arc-brain .inner { max-width: 1080px; }
+.arc-app .arc-brain .sh { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin: 0 0 14px; display: flex; align-items: center; gap: 9px; }
+.arc-app .arc-brain .tg { font-family: var(--mono); font-size: 8.5px; letter-spacing: .02em; border-radius: 4px; padding: 1px 6px; font-weight: 600; color: var(--ok-text); background: var(--ok-soft); border: 1px solid var(--ok-border); text-transform: none; letter-spacing: 0; }
+.arc-app .arc-brain .lead { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; line-height: 1.6; }
+.arc-app .arc-brain .lead b { color: var(--text-2); }
+
+.arc-app .arc-brain .factbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+.arc-app .arc-brain .fchip { font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--line-2); border-radius: 99px; padding: 4px 11px; cursor: pointer; transition: .14s; background: none; font-family: inherit; }
+.arc-app .arc-brain .fchip:hover { color: var(--text-2); }
+.arc-app .arc-brain .fchip.on { color: var(--text); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-app .arc-brain .ftwrap { border: 1px solid var(--line-2); border-radius: 12px; overflow: auto; background: var(--panel); }
+.arc-app .arc-brain .ft { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+.arc-app .arc-brain .ft thead th { text-align: left; font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.arc-app .arc-brain .ft tbody td { padding: 11px 12px; border-bottom: 1px solid var(--line); color: var(--text-2); vertical-align: middle; }
+.arc-app .arc-brain .ft tbody tr:last-child td { border-bottom: none; }
+.arc-app .arc-brain .ft tbody tr:hover { background: rgba(255, 255, 255, .025); }
+.arc-app .arc-brain .fact-label { color: var(--text); font-weight: 500; }
+.arc-app .arc-brain .fact-sum { color: var(--muted); font-size: 11px; margin-top: 2px; max-width: 52ch; }
+.arc-app .arc-brain .kindchip { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.arc-app .arc-brain .kindchip .d { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.arc-app .arc-brain .tier { display: inline-flex; align-items: center; gap: 6px; height: 21px; padding: 0 9px; border-radius: 6px; font-size: 10px; font-weight: 600; border: 1px solid transparent; white-space: nowrap; }
+.arc-app .arc-brain .tier .td { width: 5px; height: 5px; border-radius: 50%; }
+.arc-app .arc-brain .tier.trusted { color: var(--ok-text); background: var(--ok-soft); border-color: var(--ok-border); }
+.arc-app .arc-brain .tier.trusted .td { background: var(--ok); }
+.arc-app .arc-brain .tier.proposed { color: var(--warn-text); background: var(--warn-soft); border-color: var(--warn-border); }
+.arc-app .arc-brain .tier.proposed .td { background: var(--warn); }
+.arc-app .arc-brain .tier.observed { color: var(--text-2); background: var(--inset); border-color: var(--line-2); }
+.arc-app .arc-brain .tier.observed .td { background: var(--muted); }
+.arc-app .arc-brain .tier.core { color: var(--accent-contrast); background: var(--accent-soft); border-color: var(--accent-border); }
+.arc-app .arc-brain .tier.core .td { background: var(--accent); }
+.arc-app .arc-brain .conf { display: inline-flex; align-items: center; gap: 7px; }
+.arc-app .arc-brain .conf .cbar { width: 54px; height: 5px; border-radius: 99px; background: var(--inset); overflow: hidden; }
+.arc-app .arc-brain .conf .cbar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
+.arc-app .arc-brain .conf .cn { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+.arc-app .arc-brain .src { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+
+/* Needs-review cards */
+.arc-app .arc-brain .qcard { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); padding: 14px 16px; margin-bottom: 10px; }
+.arc-app .arc-brain .qcard .qtop { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.arc-app .arc-brain .qcard .qlabel { font-size: 13.5px; font-weight: 600; color: var(--text); margin-top: 9px; }
+.arc-app .arc-brain .qcard .qbody { font-size: 12px; color: var(--text-2); margin-top: 5px; line-height: 1.55; }
+.arc-app .arc-brain .qcard .qmeta { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 10.5px; color: var(--muted); flex-wrap: wrap; }
+
+/* Recently-learned timeline */
+.arc-app .arc-brain .tline { display: flex; flex-direction: column; }
+.arc-app .arc-brain .tlrow { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.arc-app .arc-brain .tlrow:last-child { border-bottom: none; }
+.arc-app .arc-brain .tlrow .tld { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; }
+.arc-app .arc-brain .tlrow .tll { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.arc-app .arc-brain .tlrow .tlk { font-size: 11px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.arc-app .arc-brain .tlrow .tlt { font-family: var(--mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.arc-app .arc-brain .empty { color: var(--muted); font-size: 13px; padding: 30px 4px; }
+
+@media (max-width: 900px) {
+  .arc-app .arc-brain .bstats { grid-template-columns: repeat(2, 1fr); }
+}
