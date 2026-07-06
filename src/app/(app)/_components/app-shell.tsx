@@ -41,7 +41,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
       { label: "Home", href: "/home", icon: IconHome },
       { label: "Campaigns", href: "/campaigns", icon: IconCampaigns },
       { label: "CRM", href: "/crm", icon: IconCrm },
-      { label: "Opportunities", href: "/build-opportunities.html", icon: IconOpp },
+      { label: "Opportunities", href: "/opportunities", icon: IconOpp },
     ],
   },
   { group: "Growth", items: [{ label: "Analytics", href: "/build-analytics.html", icon: IconAnalytics }] },
@@ -63,7 +63,12 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   },
 ];
 
-const CRUMBS: Record<string, string> = { "/home": "Home", "/campaigns": "Campaigns", "/crm": "CRM" };
+const CRUMBS: Record<string, string> = {
+  "/home": "Home",
+  "/campaigns": "Campaigns",
+  "/crm": "CRM",
+  "/opportunities": "Opportunities",
+};
 
 export function AppShell({
   workspaceName,
