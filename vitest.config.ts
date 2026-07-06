@@ -5,7 +5,8 @@ export default defineConfig({
   test: {
     environment: "node",
     // Arc runner is a standalone service with its own dependency stack.
-    exclude: [...configDefaults.exclude, "apps/arc-runner/**", "arc-runner/**", "mark-runner/**", ".worktrees/**", ".claude/worktrees/**"],
+    // e2e/** holds the Playwright suite (`pnpm test:e2e`); keep it out of vitest.
+    exclude: [...configDefaults.exclude, "e2e/**", "apps/arc-runner/**", "arc-runner/**", "mark-runner/**", ".worktrees/**", ".claude/worktrees/**"],
   },
   resolve: {
     alias: {
