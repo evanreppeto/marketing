@@ -249,7 +249,7 @@
       <div class="lp-top">
         <span class="lk-ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span>
         <div class="lt"><b>Outbound is locked.</b> Arc never sends, posts, or spends on its own — every send is your call.</div>
-        <span class="tg ok">approval-gated · executeResendDispatch</span>
+        <span class="tg ok">approval-gated</span>
       </div>
       <div class="lp-flow">
         <span class="gf"><b>Arc</b> drafts</span><span class="ar">→</span>
@@ -317,7 +317,7 @@ var TASKS=[
   {id:'t4',lane:'needs_approval',title:'New persona segment proposed',owner:'human',rel:'Personas',when:'waiting on you',desc:'“Comparison shoppers” — 318 contacts clustered by behavior. Review before Arc targets them.',go:'build-personas.html'},
   {id:'t5',lane:'blocked',title:'Render launch video',owner:'system',rel:'Studio',when:'blocked',desc:'Higgsfield connector is OFF for this workspace. Enable it with a stored Vault credential to unblock video.'},
   {id:'t6',lane:'completed',title:'Enriched 42 leads from Apollo',owner:'agent',rel:'CRM',when:'1h ago',desc:'Added firmographics + persona mapping to 42 newly discovered leads.'},
-  {id:'t7',lane:'completed',title:'Learned brand from bigshoulders.co',owner:'agent',rel:'Brand',when:'6d ago',desc:'Crawled 6 pages, extracted 18 brand facts into the review queue.'}
+  {id:'t7',lane:'completed',title:'Learned brand from summitrestoration.com',owner:'agent',rel:'Brand',when:'6d ago',desc:'Crawled 6 pages, extracted 18 brand facts into the review queue.'}
 ];
 
 var view='outbox', sel=null, chFilter='all';
@@ -398,7 +398,7 @@ function openConfirm(ids){
   var checks=[
     'Approved'+(single?' by '+single.appr+' · '+single.appd:' — every item human-approved'),
     'Guardrails passed · 0 banned phrases, claims verified',
-    'From hello@bigshoulders.co · domain verified (Resend)',
+    'From hello@summitrestoration.com · domain verified (Resend)',
     'Unsubscribe link present · suppression list applied'
   ];
   var pf=checks.map(function(c){return '<div class="pf"><span class="pc">'+svg('<path d="M5 12l4 4L19 6"/>')+'</span><span>'+c+'</span></div>';}).join('');

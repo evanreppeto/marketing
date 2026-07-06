@@ -225,7 +225,7 @@
       </div>
 
       <div class="gtoolbar">
-        <span class="tsearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="filter" placeholder="Filter contacts…" /></span>
+        <span class="tsearch" data-inline><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="filter" placeholder="Filter contacts…" /></span>
         <span class="fbtn" data-f="persona"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/></svg>Persona <span class="cv">▾</span></span>
         <span class="fbtn" data-f="status"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>Status <span class="cv">▾</span></span>
         <span class="fbtn" data-f="owner"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>Owner <span class="cv">▾</span></span>
@@ -334,7 +334,7 @@ var OBJ={
     ]}
 };
 
-var curObj='contacts', sortKey=null, sortDir=1, dense=false;
+var curObj='contacts', sortKey=null, sortDir=1, dense=false, filterQ='';
 function renderTable(){
   var o=OBJ[curObj];
   document.getElementById('ctitle').textContent=o.title;
@@ -352,11 +352,13 @@ function renderTable(){
   document.getElementById('thead').innerHTML=th;
   // rows (sort)
   var rows=o.rows.slice();
+  if(filterQ){rows=rows.filter(function(r){return JSON.stringify(r).toLowerCase().indexOf(filterQ)>=0;});}
   if(sortKey){rows.sort(function(a,b){var av=cellSortVal(a,sortKey),bv=cellSortVal(b,sortKey);return (av>bv?1:av<bv?-1:0)*sortDir;});}
-  document.getElementById('tbody').innerHTML=rows.map(function(r,i){
+  var pg=document.getElementById('pgnum');if(pg)pg.textContent='1–'+rows.length+' of '+o.count;
+  document.getElementById('tbody').innerHTML=rows.length?rows.map(function(r,i){
     var tds=o.cols.map(function(c){return '<td'+(c.k==='value'?' class="cnum"':'')+(c.k==='sel'?' class="cselect"':'')+'>'+cellHtml(c.k,r)+'</td>';}).join('');
     return '<tr data-i="'+i+'">'+tds+'</tr>';
-  }).join('');
+  }).join(''):'<tr><td colspan="'+o.cols.length+'" style="padding:34px 14px;text-align:center;color:var(--muted);font-size:12.5px">No '+o.title.toLowerCase()+' match “'+filterQ+'”</td></tr>';
   bindRows();
   syncSel();
 }
@@ -398,7 +400,7 @@ function bindRows(){
       document.querySelectorAll('#tbody tr').forEach(function(x){x.classList.remove('sel')});
       tr.classList.add('sel');
     });
-    tr.querySelector('.rk').addEventListener('click',function(e){e.stopPropagation();this.classList.toggle('on');tr.classList.toggle('sel',this.classList.contains('on'));syncSel();});
+    var rk=tr.querySelector('.rk');if(rk)rk.addEventListener('click',function(e){e.stopPropagation();this.classList.toggle('on');tr.classList.toggle('sel',this.classList.contains('on'));syncSel();});
   });
 }
 function syncSel(){
@@ -429,7 +431,7 @@ document.getElementById('clrsel').addEventListener('click',function(){
 // subtabs
 document.querySelectorAll('.subtab').forEach(function(t){t.addEventListener('click',function(){
   document.querySelectorAll('.subtab').forEach(function(x){x.classList.remove('on')});t.classList.add('on');
-  curObj=t.getAttribute('data-o');sortKey=null;sortDir=1;
+  curObj=t.getAttribute('data-o');sortKey=null;sortDir=1;filterQ='';var fi0=document.getElementById('filter');if(fi0)fi0.value='';
   document.getElementById('ckall').classList.remove('on');
   renderTable();
   document.getElementById('pgnum').textContent='1–'+OBJ[curObj].rows.length+' of '+OBJ[curObj].count;
@@ -441,7 +443,7 @@ document.querySelectorAll('.fbtn[data-f]').forEach(function(b){if(b.getAttribute
 ['sortbtn','colbtn','viewbtn'].forEach(function(id){document.getElementById(id).addEventListener('click',function(){this.classList.toggle('on');});});
 
 renderTable();
-document.getElementById('pgnum').textContent='1–9 of 248';
+document.getElementById('filter').addEventListener('input',function(){filterQ=this.value.trim().toLowerCase();renderTable();});
 </script>
 <style>:focus-visible{outline:2px solid var(--accent-border);outline-offset:2px;border-radius:6px}.rail .nav{cursor:pointer}</style>
 <script>
