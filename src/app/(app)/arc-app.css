@@ -1,4 +1,4 @@
-/* Ported verbatim from the build-home.html mockup, scoped under `.arc-home` so
+/* Ported verbatim from the build-home.html mockup, scoped under `.arc-app` so
    it can't leak into the rest of the app. The mockup's local var names
    (--text, --line-2, --panel, --serif …) are aliased here to the app's design
    tokens (globals.css) + next/font vars, so the look matches exactly. */
@@ -12,7 +12,7 @@
   to { opacity: 1; transform: none; }
 }
 
-.arc-home {
+.arc-app {
   /* mockup var names → app tokens / fonts */
   --canvas: #16161a; --canvas-deep: #101013; --panel: #1c1c21; --inset: #202027; --raised: #26262d; --sidebar: #121316;
   --line: rgba(232, 224, 205, 0.08); --line-2: rgba(232, 224, 205, 0.12); --line-3: rgba(232, 224, 205, 0.20);
@@ -162,4 +162,108 @@
     & .opps { grid-template-columns: 1fr; }
     & .metrics { grid-template-columns: 1fr; }
   }
+}
+
+/* ============================================================
+   Campaigns list — ported from build-campaigns.html.
+   Scoped under `.arc-app .arc-campaigns` (3-level) so these win
+   over the home rules (`.arc-app X`) inside a campaigns page and
+   never leak to other screens.
+   ============================================================ */
+.arc-app .arc-campaigns {
+  --blue: #88b6d8;
+  --blue-text: #9cc1e0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 22px clamp(20px, 2.6vw, 32px) 0;
+  min-width: 0;
+}
+.arc-app .arc-campaigns .chrow { display: flex; align-items: flex-end; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.arc-app .arc-campaigns h1.ct { font-family: var(--serif); font-weight: 500; font-size: 29px; letter-spacing: -.02em; margin: 0; color: var(--text); }
+.arc-app .arc-campaigns .csub { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.arc-app .arc-campaigns .chrow .sp { margin-left: auto; display: flex; gap: 9px; align-items: center; }
+.arc-app .arc-campaigns .gbtn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12.5px; cursor: pointer; transition: .15s; text-decoration: none; }
+.arc-app .arc-campaigns .gbtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-app .arc-campaigns .gbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .arc-campaigns .gbtn.gold { border: 1px solid #b8974a; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); color: #201808; }
+.arc-app .arc-campaigns .gbtn.gold:hover { transform: translateY(-1px); filter: brightness(1.04); }
+
+.arc-app .arc-campaigns .subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+.arc-app .arc-campaigns .subtab { position: relative; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; transition: color .15s; white-space: nowrap; background: none; border: none; font-family: inherit; }
+.arc-app .arc-campaigns .subtab:hover { color: var(--text); }
+.arc-app .arc-campaigns .subtab.on { color: var(--text); }
+.arc-app .arc-campaigns .subtab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+.arc-app .arc-campaigns .subtab .cnt { font-family: var(--mono); font-size: 10px; color: var(--muted); background: var(--inset); border: 1px solid var(--line-2); border-radius: 5px; padding: 0 6px; line-height: 16px; }
+.arc-app .arc-campaigns .subtab.on .cnt { color: var(--accent); border-color: var(--accent-border); background: var(--accent-soft); }
+
+.arc-app .arc-campaigns .gtoolbar { display: flex; align-items: center; gap: 9px; padding: 12px 0; flex-wrap: wrap; }
+.arc-app .arc-campaigns .tsearch { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); min-width: 210px; }
+.arc-app .arc-campaigns .tsearch svg { width: 14px; height: 14px; stroke: var(--muted); fill: none; stroke-width: 1.7; }
+.arc-app .arc-campaigns .tsearch input { border: none; background: transparent; color: var(--text); font-family: inherit; font-size: 12.5px; outline: none; width: 100%; }
+.arc-app .arc-campaigns .tsearch input::placeholder { color: var(--muted); }
+.arc-app .arc-campaigns .fbtn { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 8px; background: transparent; color: var(--text-2); font-size: 12px; font-weight: 500; cursor: pointer; transition: .14s; }
+.arc-app .arc-campaigns .fbtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-app .arc-campaigns .fbtn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; opacity: .85; }
+.arc-app .arc-campaigns .fbtn .cv { color: var(--muted); font-size: 10px; }
+.arc-app .arc-campaigns .gspacer { margin-left: auto; }
+
+.arc-app .arc-campaigns .tablewrap { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); }
+.arc-app .arc-campaigns .dt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.arc-app .arc-campaigns .dt thead th { position: sticky; top: 0; z-index: 2; background: color-mix(in srgb, var(--panel) 96%, #000); text-align: left; font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 11px 14px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.arc-app .arc-campaigns .dt tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; color: var(--text-2); }
+.arc-app .arc-campaigns .dt tbody tr { cursor: pointer; transition: background .12s; }
+.arc-app .arc-campaigns .dt tbody tr:last-child td { border-bottom: none; }
+.arc-app .arc-campaigns .dt tbody tr:hover { background: rgba(255, 255, 255, .025); }
+.arc-app .arc-campaigns .emptyrow td { text-align: center; color: var(--muted); padding: 34px 14px; cursor: default; }
+.arc-app .arc-campaigns .emptyrow:hover { background: transparent; }
+.arc-app .arc-campaigns .pcell { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.arc-app .arc-campaigns .pav { width: 32px; height: 32px; border-radius: 8px; background: var(--inset); border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; }
+.arc-app .arc-campaigns .pav svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-app .arc-campaigns .pnm { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; max-width: 260px; }
+.arc-app .arc-campaigns .psub { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; max-width: 260px; }
+.arc-app .arc-campaigns .dt td:first-child { width: 34%; }
+.arc-app .arc-campaigns .chip { display: inline-flex; align-items: center; gap: 6px; height: 23px; padding: 0 9px; border-radius: 6px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.arc-app .arc-campaigns .chip.persona { color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); }
+.arc-app .arc-campaigns .chip.persona .pgd { width: 5px; height: 5px; border-radius: 50%; }
+.arc-app .arc-campaigns .chan { font-family: var(--mono); font-size: 11px; color: var(--text-2); white-space: nowrap; }
+.arc-app .arc-campaigns .pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 6px; font-size: 10.5px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+.arc-app .arc-campaigns .pill .pd { width: 5px; height: 5px; border-radius: 50%; }
+.arc-app .arc-campaigns .pill.live { color: var(--ok-text); background: var(--ok-soft); border-color: var(--ok-border); }
+.arc-app .arc-campaigns .pill.live .pd { background: var(--ok); }
+.arc-app .arc-campaigns .pill.review { color: var(--warn-text); background: var(--warn-soft); border-color: rgba(216, 162, 74, .4); }
+.arc-app .arc-campaigns .pill.review .pd { background: var(--warn); }
+.arc-app .arc-campaigns .pill.revise { color: var(--red-text); background: var(--red-soft); border-color: rgba(204, 106, 106, .4); }
+.arc-app .arc-campaigns .pill.revise .pd { background: var(--red); }
+.arc-app .arc-campaigns .pill.approved { color: var(--blue-text); background: rgba(136, 182, 216, .13); border-color: rgba(136, 182, 216, .4); }
+.arc-app .arc-campaigns .pill.approved .pd { background: var(--blue); }
+.arc-app .arc-campaigns .pill.draft { color: var(--text-2); background: var(--inset); border-color: var(--line-2); }
+.arc-app .arc-campaigns .pill.draft .pd { background: var(--muted); }
+.arc-app .arc-campaigns .pill.archived { color: var(--muted); background: var(--inset); border-color: var(--line-2); }
+.arc-app .arc-campaigns .pill.archived .pd { background: var(--muted); }
+.arc-app .arc-campaigns .nx { font-size: 12px; color: var(--text-2); }
+.arc-app .arc-campaigns .nx.go { color: var(--accent-contrast); font-weight: 500; }
+.arc-app .arc-campaigns .nx.warn { color: var(--red-text); }
+.arc-app .arc-campaigns .last b { color: var(--text-2); font-weight: 500; font-size: 12px; }
+.arc-app .arc-campaigns .last span { font-family: var(--mono); font-size: 10px; color: var(--muted); display: block; margin-top: 1px; }
+
+.arc-app .arc-campaigns .gfoot { display: flex; align-items: center; gap: 14px; padding: 12px 4px 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.arc-app .arc-campaigns .gfoot .arcnote { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); }
+.arc-app .arc-campaigns .gfoot .arcnote i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: arcBreathe 3s var(--ease) infinite; }
+.arc-app .arc-campaigns .pager { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.arc-app .arc-campaigns .pager .pgnum { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .arc-app .arc-campaigns .chrow { animation: arcRise .5s var(--ease) both; }
+  .arc-app .arc-campaigns .subtabs { animation: arcRise .5s var(--ease) .05s both; }
+  .arc-app .arc-campaigns .gtoolbar { animation: arcRise .5s var(--ease) .1s both; }
+  .arc-app .arc-campaigns .tablewrap { animation: arcRise .55s var(--ease) .14s both; }
+  .arc-app .arc-campaigns .gfoot { animation: arcRise .5s var(--ease) .2s both; }
+}
+
+@media (max-width: 900px) {
+  .arc-app .arc-campaigns { padding: 18px 16px 0; }
+  .arc-app .arc-campaigns .dt td:nth-child(5),
+  .arc-app .arc-campaigns .dt th:nth-child(5) { display: none; }
 }
