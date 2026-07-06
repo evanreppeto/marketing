@@ -1,0 +1,82 @@
+import Link from "next/link";
+
+import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
+import { FormValidityMessages } from "@/components/ui/form-validity";
+
+export const metadata = { title: "Reset your password — Arc" };
+
+const FORGOT_ERRORS: Record<string, string> = {
+  config: "Password reset isn't available right now. Try again shortly.",
+};
+
+const labelClass = "block text-[0.8125rem] font-medium text-[var(--text-secondary)] mb-1.5";
+const inputClass =
+  "w-full min-h-[44px] rounded-lg bg-[var(--surface-inset)] border border-[color:var(--border-panel)] px-3.5 text-[0.9375rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-colors focus:border-[color:var(--accent)] focus:bg-[var(--surface-panel)]";
+
+export default async function ForgotPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ success?: string; error?: string }>;
+}) {
+  const params = await searchParams;
+  const sent = params.success === "sent";
+  const error = params.error ? FORGOT_ERRORS[params.error] ?? "Something went wrong. Try again." : null;
+
+  return (
+    <main className="min-h-screen w-full bg-[var(--canvas)] text-[var(--text-primary)] lg:grid lg:grid-cols-[1fr_1.05fr]">
+      <AuthBrandPanel
+        headline="Forgot your password?"
+        subline="It happens. Enter your email and we'll send a link to set a new one."
+      />
+
+      <section className="flex items-center justify-center px-6 py-12 sm:px-10">
+        <div className="w-full max-w-[27rem]">
+          <div className="mb-9 lg:hidden">
+            <img src="/icon.png" alt="Arc" className="h-8 w-auto" />
+          </div>
+
+          <h2 className="font-[family-name:var(--font-display)] text-[1.6rem] font-semibold leading-tight text-[var(--text-primary)]">
+            Reset your password
+          </h2>
+          <p className="mt-2 text-[0.925rem] text-[var(--text-secondary)]">
+            We'll email you a secure link to choose a new one.
+          </p>
+
+          {error ? (
+            <p role="alert" className="mt-6 rounded-lg border border-[color:color-mix(in_srgb,var(--priority)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--priority)_12%,transparent)] px-3.5 py-2.5 text-[0.85rem]">
+              {error}
+            </p>
+          ) : null}
+
+          {sent ? (
+            <div className="mt-7 rounded-lg border border-[color:color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--accent)_10%,transparent)] px-4 py-3.5 text-[0.9rem] text-[var(--text-primary)]">
+              Check your email — if an account exists for that address, a reset link is on its way.
+            </div>
+          ) : (
+            <form action="/api/auth/forgot-password" method="post" className="mt-7 space-y-4">
+              <FormValidityMessages />
+              <div>
+                <label htmlFor="email" className={labelClass}>
+                  Work email
+                </label>
+                <input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" className={inputClass} />
+              </div>
+              <button
+                type="submit"
+                className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-[0.9375rem] font-semibold text-[var(--on-accent)] transition-[background-color,transform] hover:bg-[color:color-mix(in_srgb,var(--accent)_92%,white)] active:translate-y-px"
+              >
+                Send reset link
+              </button>
+            </form>
+          )}
+
+          <p className="mt-6 text-[0.875rem] text-[var(--text-secondary)]">
+            <Link href="/login" className="font-medium text-[var(--accent)] underline-offset-4 hover:underline">
+              Back to sign in
+            </Link>
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -107,5 +107,5 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Protect page routes only. Skip API routes (own bearer auth), Next internals,
   // auth pages themselves, and static/brand assets.
-  matcher: ["/((?!api|auth/callback|_next/static|_next/image|login|sign-in|sign-up|forgot-password|favicon.ico|brand).*)"],
+  matcher: ["/((?!api|auth/callback|_next/static|_next/image|login|sign-in|sign-up|forgot-password|reset-password|favicon.ico|icon.png|brand|effects).*)"],
 };
