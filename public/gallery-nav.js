@@ -1,5 +1,8 @@
-// Wires the mockup sidebar nav items together so the gallery feels like a real app.
-// Each <a class="nav"> gets an href based on its visible text label.
+// Wires the mockup links together so the gallery feels like a real app.
+// Each <a class="nav"> gets an href from its visible text label — and the
+// in-content call-to-action links ("All opportunities →", "New campaign",
+// "Draft with Arc →", …) that shipped with NO href (dead-but-clickable, the same
+// on every screen) are wired the same way, so every link actually goes somewhere.
 (function () {
   const MAP = {
     "home": "/build-home.html",
@@ -20,23 +23,54 @@
     "settings": "/build-settings.html",
   };
 
+  // Bottom-of-page / in-content CTAs, keyed by their cleaned label (trailing
+  // arrow + keyboard-hint chips stripped). Anything not listed is left untouched.
+  const CONTENT_MAP = {
+    "all opportunities": "/build-opportunities.html",
+    "all campaigns": "/build-campaigns.html",
+    "new campaign": "/build-campaign-builder.html",
+    "add a lead": "/build-crm.html",
+    "ask arc": "/build-arc-v2.html",
+    "ask arc to draft it": "/build-arc-v2.html",
+    "draft with arc": "/build-arc-v2.html",
+    "review": "/build-opportunities.html",
+  };
+
+  // Visible label minus icons and keyboard-hint chips (.kk / kbd), lowercased.
+  function cleanLabel(a) {
+    const clone = a.cloneNode(true);
+    clone.querySelectorAll("svg, .kk, .keys, .key, kbd").forEach((n) => n.remove());
+    return (clone.textContent || "").replace(/[→↗›»]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
   function wire() {
-    const anchors = document.querySelectorAll("a.nav");
-    anchors.forEach((a) => {
-      if (a.getAttribute("href")) return;
-      const label = (a.textContent || "").trim().toLowerCase();
-      const url = MAP[label];
-      if (url) {
-        a.setAttribute("href", url);
-        a.style.cursor = "pointer";
-      }
+    document.querySelectorAll("a.nav:not([href])").forEach((a) => {
+      const url = MAP[(a.textContent || "").trim().toLowerCase()];
+      if (url) { a.setAttribute("href", url); a.style.cursor = "pointer"; }
+    });
+    document.querySelectorAll("a:not(.nav):not([href])").forEach((a) => {
+      const url = CONTENT_MAP[cleanLabel(a)];
+      if (url) { a.setAttribute("href", url); a.style.cursor = "pointer"; }
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", wire);
-  } else {
+  function start() {
     wire();
+    // Some screens (e.g. Home) build their opportunity/campaign cards — and the
+    // CTAs inside them — client-side and again on workspace switch, so re-wire
+    // when the content changes. childList-only, so setting href never re-triggers us.
+    try {
+      new MutationObserver(wire).observe(document.querySelector(".main") || document.body, {
+        childList: true,
+        subtree: true,
+      });
+    } catch (_) {}
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
   }
 })();
 
