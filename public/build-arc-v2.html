@@ -381,7 +381,7 @@
   .popitem.sel svg{opacity:1}
 
   /* ───────── CINEMATIC CANVAS (the stage) ───────── */
-  .canvas{min-width:0;min-height:0;display:flex;flex-direction:column;background:
+  .canvas{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column;background:
       radial-gradient(620px 360px at 80% -6%,rgba(200,162,74,.10),transparent 58%),
       linear-gradient(180deg,var(--stage-2),var(--stage));overflow:hidden;opacity:1;
       transition:opacity var(--dur-base) var(--ease-out)}
@@ -589,6 +589,12 @@
     .msgs{padding-left:16px;padding-right:16px}
     .dock{padding-left:16px;padding-right:16px}
     .jobs{grid-template-columns:1fr}
+  }
+  /* wide screens: room for all three — pin the conversation list beside the canvas
+     instead of swapping it out when the canvas is open (threads | chat | canvas) */
+  @media (min-width:1360px){
+    .workspace{grid-template-columns:248px minmax(0,1fr) var(--canvas-w,clamp(440px,38vw,560px))}
+    .threads{opacity:1}
   }
 
   /* ── live composer (contenteditable) + streamed reply ── */
@@ -1123,7 +1129,7 @@
 
   /* ── resizable canvas: drag the left edge (also arrow keys + double-click reset) ── */
   var cvResize = $('cvResize'), CANVAS_W_KEY = 'arcCanvasW';
-  function wsBounds(){ var r = workspace.getBoundingClientRect(); return { r: r, min: 360, max: Math.min(r.width - 420, r.width * 0.72) }; }
+  function wsBounds(){ var r = workspace.getBoundingClientRect(); var threadsW = document.querySelector('.threads').getBoundingClientRect().width; return { r: r, min: 360, max: Math.min(r.width - threadsW - 400, r.width * 0.72) }; }
   function applyCanvasW(px){ var b = wsBounds(); if (b.max < b.min) return; px = Math.max(b.min, Math.min(b.max, px)); workspace.style.setProperty('--canvas-w', Math.round(px) + 'px'); }
   function saveCanvasW(){ var v = workspace.style.getPropertyValue('--canvas-w'); if (v){ try { localStorage.setItem(CANVAS_W_KEY, parseFloat(v)); } catch (e) {} } }
   function resetCanvasW(){ workspace.style.removeProperty('--canvas-w'); try { localStorage.removeItem(CANVAS_W_KEY); } catch (e) {} showToast('Panel width reset'); }
