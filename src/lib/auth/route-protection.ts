@@ -6,11 +6,22 @@ type WorkspaceAccessDecisionInput = {
   pathname: string;
 };
 
-export type WorkspaceAccessDecision = { action: "allow" | "login" | "onboarding" };
+export type WorkspaceAccessDecision = { action: "allow" | "login" | "onboarding" | "app" };
+
+// The domain root serves the static mockup "home" (`/` rewrites to
+// build-home.html in next.config). A signed-in member should land on the real
+// app instead, so these front-door paths redirect to /home rather than
+// rendering the mockup. Deep mockup screens (e.g. /build-crm.html) stay
+// reachable — the real app still links to them until each is ported.
+const MOCKUP_FRONT_DOORS = new Set(["/", "/build-home.html"]);
 
 export function getWorkspaceAccessDecision(input: WorkspaceAccessDecisionInput): WorkspaceAccessDecision {
   if (!input.isSignedIn) return { action: "login" };
-  if (input.hasWorkspace) return { action: "allow" };
+  if (input.hasWorkspace) {
+    // Signed-in member hitting the static front door → send them into the app.
+    if (MOCKUP_FRONT_DOORS.has(input.pathname)) return { action: "app" };
+    return { action: "allow" };
+  }
   if (input.pathname === "/onboarding" || input.pathname.startsWith("/onboarding/")) return { action: "allow" };
   return { action: "onboarding" };
 }

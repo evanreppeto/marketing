@@ -32,6 +32,28 @@ describe("getWorkspaceAccessDecision", () => {
       }),
     ).toEqual({ action: "login" });
   });
+
+  it("sends a signed-in member off the mockup front door into the real app", () => {
+    for (const pathname of ["/", "/build-home.html"]) {
+      expect(
+        getWorkspaceAccessDecision({ hasWorkspace: true, isSignedIn: true, pathname }),
+      ).toEqual({ action: "app" });
+    }
+  });
+
+  it("allows a signed-in member into real routes and still-mockup deep screens", () => {
+    for (const pathname of ["/home", "/campaigns", "/settings/team", "/build-crm.html"]) {
+      expect(
+        getWorkspaceAccessDecision({ hasWorkspace: true, isSignedIn: true, pathname }),
+      ).toEqual({ action: "allow" });
+    }
+  });
+
+  it("still sends a logged-out visitor on the front door to login (no app redirect)", () => {
+    expect(
+      getWorkspaceAccessDecision({ hasWorkspace: false, isSignedIn: false, pathname: "/" }),
+    ).toEqual({ action: "login" });
+  });
 });
 
 describe("isPublicMockupPath", () => {

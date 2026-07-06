@@ -11,6 +11,10 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
+@keyframes acctIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 .arc-app {
   /* mockup var names → app tokens / fonts */
@@ -47,11 +51,32 @@
   & .nav.on { color: var(--text); background: linear-gradient(90deg, var(--accent-soft), transparent 80%); }
   & .nav.on svg { color: var(--accent); opacity: 1; }
   & .nav .tick { position: absolute; left: -12px; top: 50%; transform: translateY(-50%); width: 2px; height: 18px; border-radius: 2px; background: var(--accent); }
-  & .user { display: flex; align-items: center; gap: 10px; padding: 10px 8px 2px; margin-top: 8px; border-top: 1px solid var(--line); cursor: pointer; }
+  /* account control — pinned to the bottom of the rail; toggles the menu below */
+  & .acct { position: relative; margin-top: 8px; border-top: 1px solid var(--line); }
+  & .user { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 8px; transition: background 0.15s var(--ease); }
+  & .user:hover { background: rgba(255, 255, 255, 0.035); }
   & .user .av { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--inset); display: grid; place-items: center; font-family: var(--serif); font-weight: 600; color: var(--accent); font-size: 13px; }
   & .user .nm { font-size: 12.5px; font-weight: 600; }
-  & .user .cog { margin-left: auto; color: var(--muted); transition: color 0.15s, transform 0.25s var(--ease); background: none; border: 0; cursor: pointer; }
-  & .user:hover .cog { color: var(--text); transform: rotate(35deg); }
+  & .user .cog { margin-left: auto; display: grid; place-items: center; color: var(--muted); transition: color 0.15s, transform 0.25s var(--ease); }
+  & .user .cog svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  & .user:hover .cog { color: var(--text-2); }
+  & .acct[data-open="true"] .user { background: rgba(255, 255, 255, 0.035); }
+  & .acct[data-open="true"] .user .cog { color: var(--text); transform: rotate(180deg); }
+
+  /* account menu popover — opens upward from the avatar */
+  & .acct-menu { position: absolute; left: 4px; right: 4px; bottom: calc(100% + 8px); z-index: 40; background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; padding: 6px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); animation: acctIn 0.16s var(--ease); transform-origin: bottom center; }
+  & .acct-id { display: flex; align-items: center; gap: 10px; padding: 8px 8px 10px; min-width: 0; }
+  & .acct-id .av { width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--line-2); background: var(--inset); display: grid; place-items: center; font-family: var(--serif); font-weight: 600; color: var(--accent); font-size: 13px; }
+  & .acct-id-t { min-width: 0; }
+  & .acct-id-t .nm { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  & .acct-id-t .em { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  & .acct-sep { height: 1px; background: var(--line); margin: 2px 4px 4px; }
+  & .acct-menu form { margin: 0; }
+  & .acct-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 500; text-align: left; border-radius: 8px; cursor: pointer; transition: background 0.15s var(--ease), color 0.15s var(--ease); }
+  & .acct-item svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.6; opacity: 0.9; }
+  & .acct-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+  & .acct-item.danger { color: var(--red-text); }
+  & .acct-item.danger:hover { background: var(--red-soft); color: var(--red-text); }
 
   /* body */
   & .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
