@@ -85,9 +85,22 @@ async function upsertAgent(supabase) {
 
 async function seedArcDemo() {
   const supabase = getSupabase();
-  const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+  const runId = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
   const sourceSystem = "arc_demo_seed";
   const persona = "persona_plumbing_partner";
+
+  // Light variety so repeated runs build a realistic pipeline (pass SEED_INDEX to pick one).
+  const SCENARIOS = [
+    { company: "Rapid Response Plumbing", first: "Jordan", last: "Vega", title: "Operations Manager", score: 91, phone: "312-555-0142" },
+    { company: "Lakeside Mechanical", first: "Priya", last: "Nasser", title: "Dispatch Lead", score: 78, phone: "312-555-0177" },
+    { company: "Halsted Drain & Sewer", first: "Marcus", last: "Ellison", title: "Owner", score: 88, phone: "312-555-0119" },
+    { company: "North Shore Pipeworks", first: "Dana", last: "Okafor", title: "General Manager", score: 73, phone: "312-555-0164" },
+    { company: "Windy City Plumbing Co", first: "Sam", last: "Reyes", title: "Service Manager", score: 84, phone: "312-555-0188" },
+    { company: "Ravenswood Rooter", first: "Alex", last: "Chen", title: "Partner", score: 94, phone: "312-555-0133" },
+    { company: "Southside Water & Gas", first: "Tasha", last: "Boyd", title: "Operations", score: 69, phone: "312-555-0155" },
+    { company: "Cicero Plumbing Partners", first: "Diego", last: "Marin", title: "Owner", score: 82, phone: "312-555-0146" },
+  ];
+  const s = SCENARIOS[Number(process.env.SEED_INDEX ?? 0) % SCENARIOS.length];
 
   const { data: org, error: orgError } = await supabase
     .from("organizations")
@@ -97,10 +110,19 @@ async function seedArcDemo() {
   if (orgError || !org) throw new Error("Seed requires the big-shoulders-restoration organization (run the tenancy migration first).");
   const orgId = org.id;
 
+  const { data: ws, error: wsError } = await supabase
+    .from("workspaces")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("key", "default")
+    .single();
+  if (wsError || !ws) throw new Error("Seed requires the default workspace for big-shoulders-restoration.");
+  const workspaceId = ws.id;
+
   const agentId = await upsertAgent(supabase);
 
   const companyId = await insertOne(supabase, "companies", {
-    name: `Demo Plumbing Partner ${runId}`,
+    name: s.company,
     persona,
     org_id: orgId,
     status: "active",
@@ -121,11 +143,11 @@ async function seedArcDemo() {
     persona,
     org_id: orgId,
     status: "active",
-    first_name: "Jordan",
-    last_name: "Demo",
-    email: "jordan.demo@example-plumbing.local",
-    phone: "312-555-0198",
-    title: "Operations Manager",
+    first_name: s.first,
+    last_name: s.last,
+    email: `${s.first.toLowerCase()}.${s.last.toLowerCase()}.${runId}@example-plumbing.local`,
+    phone: s.phone,
+    title: s.title,
     metadata: {
       demo_seed: true,
       run_id: runId,
@@ -148,7 +170,7 @@ async function seedArcDemo() {
     loss_signals: ["water_backup", "burst_pipe", "emergency_service"],
     matched_target_keywords: ["plumber", "water damage", "emergency repair"],
     matched_non_target_keywords: [],
-    lead_score: 88,
+    lead_score: s.score,
     metadata: {
       demo_seed: true,
       run_id: runId,
@@ -161,7 +183,7 @@ async function seedArcDemo() {
   });
 
   const campaignId = await insertOne(supabase, "campaigns", {
-    name: `Plumbing Partner Outreach Demo ${runId}`,
+    name: `${s.company} — Referral Outreach`,
     persona,
     restoration_focus: "water_backup",
     status: "pending_approval",
@@ -285,6 +307,8 @@ async function seedArcDemo() {
 
   const agentTaskId = await insertOne(supabase, "agent_tasks", {
     agent_id: agentId,
+    org_id: orgId,
+    workspace_id: workspaceId,
     status: "needs_approval",
     priority: "high",
     objective: "Prepare a plumbing partner lead and first-touch campaign draft for human review.",
