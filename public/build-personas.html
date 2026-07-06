@@ -209,6 +209,24 @@
   .hidden{display:none}
 </style>
 <script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
+<style>
+/* BSR-309 responsive: collapse content grids on tablet/phone (rail is a drawer <=1024). */
+@media (max-width:820px){
+  .pstats{grid-template-columns:repeat(2,1fr)}
+  /* roster over detail: single column that scrolls as a whole */
+  .pbody{grid-template-columns:1fr;overflow-y:auto}
+  .roster{border-right:0;border-bottom:1px solid var(--line);max-height:46vh}
+  .detail{overflow:visible}
+  .dduo{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .perfgrid{grid-template-columns:1fr}
+  .pbk{grid-template-columns:1fr}
+  .pbi.full{grid-column:auto}
+  /* wide compare table scrolls inside its panel instead of overflowing the page */
+  .cmptable{overflow-x:auto}
+}
+</style>
 </head>
 <body>
 <div class="app">

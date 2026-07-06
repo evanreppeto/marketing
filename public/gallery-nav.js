@@ -521,7 +521,7 @@
     if (e.key === 'Escape' && document.body.classList.contains('nav-open')) close();
   });
   window.addEventListener('resize', function () {
-    if (window.innerWidth > 760 && document.body.classList.contains('nav-open')) close();
+    if (window.innerWidth > 1024 && document.body.classList.contains('nav-open')) close();
   });
 
   if (document.readyState === 'loading') {
