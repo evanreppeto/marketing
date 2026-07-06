@@ -28,8 +28,8 @@
   var PAGES = [
     { label: "Home", sub: "Command center", href: "/build-home.html", keys: "dashboard overview today", icon: ICON.home },
     { label: "Arc", sub: "Chat with Arc", href: "/build-arc-v2.html", keys: "agent assistant chat ai", icon: ICON.arc },
-    { label: "Campaigns", sub: "Campaign operations", href: "/campaigns", keys: "campaign builder email sms ads landing", icon: ICON.campaigns },
-    { label: "CRM", sub: "Contacts & records", href: "/crm", keys: "contacts companies leads accounts", icon: ICON.crm },
+    { label: "Campaigns", sub: "Campaign operations", href: "/build-campaigns.html", keys: "campaign builder email sms ads landing", icon: ICON.campaigns },
+    { label: "CRM", sub: "Contacts & records", href: "/build-crm.html", keys: "contacts companies leads accounts", icon: ICON.crm },
     { label: "Opportunities", sub: "Opportunity inbox", href: "/build-opportunities.html", keys: "opps signals leads inbox", icon: ICON.opportunities },
     { label: "Analytics", sub: "Performance & reporting", href: "/build-analytics.html", keys: "reports metrics performance charts", icon: ICON.analytics },
     { label: "Brain", sub: "Arc's knowledge graph", href: "/build-brain.html", keys: "memory knowledge graph facts recall", icon: ICON.brain },
@@ -41,8 +41,8 @@
     { label: "Settings", sub: "Workspace settings", href: "/build-settings.html", keys: "preferences account config models tokens", icon: ICON.settings },
   ];
   var ACTIONS = [
-    { label: "New campaign", sub: "Action", href: "/campaigns", keys: "create draft package", action: true, icon: ICON.plus },
-    { label: "Add a lead", sub: "Action", href: "/crm", keys: "new contact lead", action: true, icon: ICON.lead },
+    { label: "New campaign", sub: "Action", href: "/build-campaigns.html", keys: "create draft package", action: true, icon: ICON.plus },
+    { label: "Add a lead", sub: "Action", href: "/build-crm.html", keys: "new contact lead", action: true, icon: ICON.lead },
     { label: "Ask Arc", sub: "Action", href: "/build-arc-v2.html", keys: "chat agent question prompt", action: true, icon: ICON.spark },
   ];
   var ALL = PAGES.concat(ACTIONS);

@@ -293,28 +293,28 @@ SEC.overview=function(){return head('Overview','Your workspace at a glance — h
     +row('Business type','','<span class="pillrow"><span class="ptxt">Company · Restoration &amp; home services</span><button class="btn sm" data-goto="general">Change</button></span>')
     +row('Team','','<span class="pillrow"><span class="ptxt">4 members · 1 pending</span><button class="btn sm" data-goto="team">Manage</button></span>'));
 };
-SEC.general=function(){return head('General','Your workspace identity. Saved instantly to app_settings.')
+SEC.general=function(){return head('General','Your workspace identity. Saved instantly.')
   +panel('Workspace',TGOK,
      row('Workspace name','Shown across the app and in Arc’s outbound from-name.','<input class="inp" value="Arc Marketing"/>')
     +row('Account type','Changes which signal detectors and templates Arc runs.',seg('wtype',['Individual','Company','Agency'],'Company'))
     +row('Industry','Configures personas + opportunity templates.','<select class="sel"><option selected>Restoration & home services</option><option>Roofing & exteriors</option><option>General contracting</option></select>')
-    +row('Support email','Used as reply-to on transactional email.','<input class="inp" value="support@bigshoulders.co"/>'),
-    'Instant-save · saveGeneralSettingsAction → app_settings');
+    +row('Support email','Used as reply-to on transactional email.','<input class="inp" value="support@summitrestoration.com"/>'),
+    'Instant-save · changes apply immediately');
 };
 SEC.appearance=function(){return head('Appearance','How the console looks. Accent + density + motion persist per workspace.')
   +panel('Theme',TGOK,
      row('Accent','Used sparingly — buttons, focus, key numbers.','<div class="accsw" data-accent><span class="accopt on" style="background:#c8a24a"></span><span class="accopt" style="background:#7fb89a"></span><span class="accopt" style="background:#88b6d8"></span><span class="accopt" style="background:#c47055"></span><span class="accopt" style="background:#9678c8"></span></div>')
     +row('Density','Comfortable for review, compact for power use.',seg('density',['Comfortable','Compact'],'Comfortable'))
     +row('Motion','Reduce if you prefer fewer animations.',seg('motion',['Standard','Reduced'],'Standard')),
-    'business_profiles.accent / density / motion + app_settings');
+    'Saved per workspace');
 };
 SEC.team=function(){
-  var members=[['EW','Evan Walsh','evan@bigshoulders.co','Owner'],['DK','Dana Kim','dana@bigshoulders.co','Admin'],['PR','Priya Rao','priya@bigshoulders.co','Marketer'],['SM','Sam Ortiz','sam@bigshoulders.co','Reviewer']];
+  var members=[['EW','Evan Walsh','evan@summitrestoration.com','Owner'],['DK','Dana Kim','dana@summitrestoration.com','Admin'],['PR','Priya Rao','priya@summitrestoration.com','Marketer'],['SM','Sam Ortiz','sam@summitrestoration.com','Reviewer']];
   var roleSel=function(r){return '<select class="sel" style="min-width:120px"'+(r==='Owner'?' disabled':'')+'>'+['Owner','Admin','Marketer','Reviewer','Member','Viewer'].map(function(o){return '<option'+(o===r?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';};
   var roster=members.map(function(m){return '<div class="mem"><span class="ma">'+m[0]+'</span><div class="mi"><div class="mn">'+m[1]+'</div><div class="me">'+m[2]+'</div></div>'+roleSel(m[3])+(m[3]==='Owner'?'':'<button class="btn sm danger" data-rm>Remove</button>')+'</div>';}).join('');
   return head('Team','Members, roles, and invites. Invites send a branded email via Resend.')
    +panel('Members <span class="ph-d" style="margin-left:6px">4</span>',TGOK,roster)
-   +panel('Pending invites',TGOK,'<div class="mem"><span class="ma" style="color:var(--muted);background:var(--inset);border-color:var(--line-2)">?</span><div class="mi"><div class="mn">jordan@bigshoulders.co</div><div class="me">Marketer · expires in 12 days</div></div><span class="spill warn"><span class="pd"></span>Pending</span><button class="btn sm" data-fb>Resend</button><button class="btn sm danger" data-rm>Revoke</button></div>')
+   +panel('Pending invites',TGOK,'<div class="mem"><span class="ma" style="color:var(--muted);background:var(--inset);border-color:var(--line-2)">?</span><div class="mi"><div class="mn">jordan@summitrestoration.com</div><div class="me">Marketer · expires in 12 days</div></div><span class="spill warn"><span class="pd"></span>Pending</span><button class="btn sm" data-fb>Resend</button><button class="btn sm danger" data-rm>Revoke</button></div>')
    +panel('Invite a teammate',TGOK,
       row('Email','They’ll get a branded invite with a single-use code.','<input class="inp" placeholder="name@company.com"/>')
      +row('Role','Roles map to capabilities (approve, draft, view).','<select class="sel"><option>Admin</option><option selected>Marketer</option><option>Reviewer</option><option>Member</option><option>Viewer</option></select>')
@@ -438,11 +438,11 @@ SEC.behavior=function(){return head('Behavior','What Arc may do on its own — a
     +row('Write to the Brain','Proposed facts land review-gated, never auto-trusted.',sw(true))
     +row('Send / publish / spend','<b style="color:var(--text)">Locked.</b> Always requires explicit human approval — not configurable.','<span class="locklbl"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg><span class="sw locked" data-locked><i></i></span></span>')
     +row('Recall window','How far back Arc reads context for a task.',seg('recall',['Tight','Standard','Wide'],'Standard')),
-    'reasoning-core config; outbound gate enforced in executeResendDispatch');
+    'Outbound gate enforced — every send stays human-approved');
 };
 SEC.account=function(){return head('Account & security','Your operator identity and how you sign in.')
   +panel('Operator',TGOK,
-     row('Signed in as','','<span class="pillrow"><span style="display:flex;align-items:center;gap:9px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-border)">E</span><span><span style="font-size:12.5px;font-weight:600;display:block">Evan Walsh</span><span style="font-size:11px;color:var(--muted)">evan@bigshoulders.co</span></span></span><button class="btn sm" data-fb>Edit</button></span>')
+     row('Signed in as','','<span class="pillrow"><span style="display:flex;align-items:center;gap:9px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-border)">E</span><span><span style="font-size:12.5px;font-weight:600;display:block">Evan Walsh</span><span style="font-size:11px;color:var(--muted)">evan@summitrestoration.com</span></span></span><button class="btn sm" data-fb>Edit</button></span>')
     +row('Access gate','OPERATOR_ACCESS_TOKEN protects the console.','<span class="pillrow"><span class="spill ok"><span class="pd"></span>Protected</span><button class="btn sm" data-fb>Configure</button></span>'))
   +panel('Sign-in methods',TGOK,
      row('Password','Email + password operator sign-in.','<span class="pillrow"><span class="spill ok"><span class="pd"></span>Configured</span><button class="btn sm" data-fb>Change</button></span>')

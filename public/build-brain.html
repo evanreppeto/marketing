@@ -287,7 +287,7 @@
       <div class="pane web" data-pane="web">
         <div class="graphwrap">
           <div class="graphtools">
-            <span class="gsearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="Find a node…" /></span>
+            <span class="gsearch" data-inline><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="Find a node…" /></span>
             <span class="gchip on" data-k="all">All</span>
             <span class="gchip" data-k="persona">Personas</span>
             <span class="gchip" data-k="brand_fact">Brand</span>
@@ -361,7 +361,7 @@ var KINDC={arc:'#c8a24a',brand_fact:'#c47055',service:'#5a90b8',persona:'#9a8fc4
 var KINDLBL={arc:'Arc',brand_fact:'Brand fact',service:'Service',persona:'Persona',proof_point:'Proof point',messaging_angle:'Messaging angle',cta:'CTA',campaign_ref:'Campaign',learning:'Learning',signal:'Signal',segment:'Segment',asset_ref:'Asset',crm_company:'CRM company',crm_contact:'CRM contact'};
 
 var NODES=[
-  {id:'arc',kind:'arc',label:'Arc',tier:'trusted',conf:null,source:'arc',by:'system',ref:null,summary:'Central memory hub for Arc, the AI marketing operator for Big Shoulders Restoration.'},
+  {id:'arc',kind:'arc',label:'Arc',tier:'trusted',conf:null,source:'arc',by:'system',ref:null,summary:'Central memory hub for Arc, the AI marketing operator for Summit Restoration.'},
   {id:'persona-decision-maker',kind:'persona',label:'Storm-damage homeowner',tier:'trusted',conf:88,source:'persona-sync',by:'operator',ref:null,summary:'Homeowner with fresh hail or wind damage and an insurance claim in progress — the primary persona.'},
   {id:'persona-champion',kind:'persona',label:'Past customer',tier:'trusted',conf:84,source:'persona-sync',by:'operator',ref:null,summary:'Prior BSR job; strong referral and repeat-work potential.'},
   {id:'persona-evaluator',kind:'persona',label:'Insurance adjuster',tier:'trusted',conf:79,source:'persona-sync',by:'operator',ref:null,summary:'Claim coordinator who validates storm damage and feeds the referral network.'},
@@ -474,6 +474,7 @@ function setupGraph(){
   for(var s=0;s<820;s++)tick(0.5);
   fitLayout();markMajors();
   render();attachGraph();buildLegend();
+  var gsIn=document.querySelector('.gsearch input');if(gsIn)gsIn.addEventListener('input',function(){graphSearch(this.value);});
 }
 function fitLayout(){
   var xs=NODES.map(function(n){return n.x;}),ys=NODES.map(function(n){return n.y;});
@@ -526,7 +527,9 @@ function spotlight(id){var nb=neighbors(id);nb.add(id);
   NODES.forEach(function(n){var on=nb.has(n.id);n._el.classList.toggle('dim',!on);n._el.classList.toggle('lit',on);});
   edgeEls.forEach(function(l,i){var e=EDGES[i];var hot=e.from===id||e.to===id;l.classList.toggle('hot',hot);l.classList.toggle('dim',!hot);});
 }
-function clearSpotlight(){NODES.forEach(function(n){n._el.classList.remove('dim');n._el.classList.remove('lit');});edgeEls.forEach(function(l){l.classList.remove('hot');l.classList.remove('dim');});}
+function clearGraphHighlight(){NODES.forEach(function(n){n._el.classList.remove('dim');n._el.classList.remove('lit');});edgeEls.forEach(function(l){l.classList.remove('hot');l.classList.remove('dim');});}
+function clearSpotlight(){var gq=((document.querySelector('.gsearch input')||{}).value||'').trim();if(gq){graphSearch(gq);return;}clearGraphHighlight();}
+function graphSearch(q){q=(q||'').trim().toLowerCase();if(!q){clearGraphHighlight();return;}var hit={};NODES.forEach(function(n){var m=(n.label+' '+(n.summary||'')+' '+(KINDLBL[n.kind]||n.kind||'')).toLowerCase().indexOf(q)>=0;hit[n.id]=m;n._el.classList.toggle('dim',!m);n._el.classList.toggle('lit',m);});edgeEls.forEach(function(l,i){var e=EDGES[i];var on=hit[e.from]||hit[e.to];l.classList.remove('hot');l.classList.toggle('dim',!on);});}
 function selectNode(id){selId=id;NODES.forEach(function(n){n._el.classList.toggle('sel',n.id===id);});renderInspector(id);}
 function buildLegend(){var kinds=['persona','brand_fact','proof_point','service','messaging_angle','cta','campaign_ref','segment','learning','signal','crm_company','asset_ref'];
   document.getElementById('glegend').innerHTML=kinds.map(function(k){return '<span class="lg"><i style="background:'+KINDC[k]+'"></i>'+KINDLBL[k]+'</span>';}).join('');}

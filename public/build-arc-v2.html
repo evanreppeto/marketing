@@ -797,7 +797,7 @@
       <div class="grp">WORKSPACE</div>
       <a class="nav on" href="/build-arc-v2.html" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/></svg>Arc</a>
       <a class="nav" href="/build-home.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a>
-      <a class="nav" href="/build-campaign-builder.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
+      <a class="nav" href="/build-campaigns.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v6H4z"/><path d="M4 15h10v4H4z"/></svg>Campaigns</a>
       <a class="nav" href="/build-crm.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><path d="M16 6h5M16 10h5"/></svg>CRM</a>
       <a class="nav" href="/build-opportunities.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12 21l-5-2.7 1-5.5-4-4 5.5-.8z"/></svg>Opportunities</a>
       <div class="grp">GROWTH</div>
@@ -1278,12 +1278,12 @@
   var ASSETS=[
     { id:'email', name:'Email', status:'ready', kind:'email',
       subject:'Free post-storm roof inspection for Naperville homeowners',
-      preview:'Hi {first} — the June 24 hailstorm hit your neighborhood hard. Big Shoulders Restoration is offering Naperville homeowners a free, no-obligation roof inspection, and we coordinate your entire insurance claim. Most inspections take about 30 minutes.',
+      preview:'Hi {first} — the June 24 hailstorm hit your neighborhood hard. Summit Restoration is offering Naperville homeowners a free, no-obligation roof inspection, and we coordinate your entire insurance claim. Most inspections take about 30 minutes.',
       prov:[['Source','AI draft'],['Model','Opus 4.8'],['Format','Subject + body'],['Reviewer','You · pending']],
       guards:[['Claim risk checked',1],['Brand voice',1],['Spam triggers',1],['Personalization tokens',1]],
       versions:[{v:'v2',t:'9:41 AM',note:'Free-inspection angle (current)'},{v:'v1',t:'9:30 AM',note:'Discount angle'}] },
     { id:'sms', name:'SMS', status:'ready', kind:'sms',
-      preview:'Hi {first} — Big Shoulders Restoration here. After the Naperville hailstorm we’re offering free roof inspections this week. Want us to take a look? — {sender}',
+      preview:'Hi {first} — Summit Restoration here. After the Naperville hailstorm we’re offering free roof inspections this week. Want us to take a look? — {sender}',
       prov:[['Source','AI draft'],['Model','Opus 4.8'],['Length','152 chars'],['Opt-in','Verified']],
       guards:[['Claim risk checked',1],['Character limit',1],['Opt-in safe',1]],
       versions:[{v:'v2',t:'9:42 AM',note:'Warmer register (current)'},{v:'v1',t:'9:38 AM',note:'Neutral tone'}] },
@@ -1344,7 +1344,7 @@
       h+='<div class="stagemedia'+(a.status==='gen'?' gen':'')+'"><div class="adcreative" aria-label="Paid-social ad preview"><div class="scene"></div><div class="horizon"></div><div class="scrim"></div><span class="adlogo"><b></b>BSR</span><span class="adhl">Storm hit Naperville? Free roof inspection — we handle the insurance claim.</span><span class="adcta">Book free inspection</span></div><span class="prov"><i aria-hidden="true"></i>Composite · BSR proof + AI layout</span></div>';
       if(a.status==='gen') h+='<div class="stagebar" aria-hidden="true"><i id="stageBar" style="width:'+(a.pct||0)+'%"></i></div>';
     } else if(a.kind==='email'){
-      h+='<div class="emailframe"><div class="emhead"><div class="emrow"><span class="eml">From</span>Arc · BSR Growth &lt;growth@bigshoulders.co&gt;</div><div class="emrow"><span class="eml">To</span>{first} · Naperville storm zone</div><div class="emrow"><span class="eml">Subject</span><b>'+a.subject+'</b></div></div><div class="embody">'+a.preview+'</div></div>';
+      h+='<div class="emailframe"><div class="emhead"><div class="emrow"><span class="eml">From</span>Arc · BSR Growth &lt;growth@summitrestoration.com&gt;</div><div class="emrow"><span class="eml">To</span>{first} · Naperville storm zone</div><div class="emrow"><span class="eml">Subject</span><b>'+a.subject+'</b></div></div><div class="embody">'+a.preview+'</div></div>';
     } else if(a.kind==='sms'){
       h+='<div class="smsframe"><div class="smsbubble">'+a.preview+'</div><div class="smsmeta">152 characters · opt-in verified</div></div>';
     } else if(a.kind==='landing'){
@@ -1451,7 +1451,7 @@
   var REPLIES = [
     { match:/\b(sms|text)\b/i,
       steps:['Pulled the opt-in SMS audience and recent reply rates.','Matched the tone to the warmer register you asked for.','Kept it under 160 characters with one clear CTA.'],
-      body:'Here’s a warmer SMS variant — “Hi {first} — Big Shoulders Restoration here. After the Naperville hailstorm we’re offering free roof inspections this week. Want us to take a look? — {sender}”. It’s 152 characters, opt-in safe, and stays locked until you approve it in the canvas.' },
+      body:'Here’s a warmer SMS variant — “Hi {first} — Summit Restoration here. After the Naperville hailstorm we’re offering free roof inspections this week. Want us to take a look? — {sender}”. It’s 152 characters, opt-in safe, and stays locked until you approve it in the canvas.' },
     { match:/\bemail\b/i,
       steps:['Grouped the 142 storm-zone homes by insurance-claim readiness.','Pulled last spring’s finding where inspection-first beat discount offers 2.4×.','Drafted a subject and body around a free-inspection angle.'],
       body:'Drafted an email on a free-inspection angle, no discount gimmick: subject “Free post-storm roof inspection for Naperville homeowners,” with insurance-claim help and a soft “want us to take a look?” close. It passed 4/4 guardrails and is waiting in the canvas for your approval.' },
@@ -1544,7 +1544,7 @@
   function selectNav(name){ var ns=document.querySelectorAll('.nav'); for(var i=0;i<ns.length;i++){ if(ns[i].textContent.trim()===name){ ns[i].click(); return; } } }
   function selectThread(name){ var ts=document.querySelectorAll('.thread'); for(var i=0;i<ts.length;i++){ var tt=ts[i].querySelector('.tt'); if(tt && tt.textContent.trim()===name){ ts[i].click(); return; } } }
   var ICO={ act:'<svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>', go:'<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>', th:'<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' };
-  var NAVNAMES=['Home','Campaigns','CRM','Opportunities','Analytics','Brain','Personas','Library','Brand','Outbox'];
+  var NAVNAMES=['Home','Campaigns','CRM','Opportunities','Analytics','Brain','Personas','Studio','Library','Brand','Outbox'];
   var PAL=[
     {g:'Actions',ic:ICO.act,items:[
       {n:'New chat',d:'Start a fresh thread',run:function(){ showEmptyState(); }},
@@ -1688,7 +1688,7 @@
   function obRender(){
     var body;
     if(obStep===0){
-      body='<div class="obstepwrap"><div class="obic"><img src="brand/arc-mark.png" alt="Arc"></div><h2 class="obh">Welcome to Arc</h2><p class="obp">Arc is your marketing operator for Big Shoulders. It finds source-backed opportunities, drafts approval-gated campaigns, and learns what works — you stay in control of everything that goes out.</p><div class="obfeat">'+
+      body='<div class="obstepwrap"><div class="obic"><img src="brand/arc-mark.png" alt="Arc"></div><h2 class="obh">Welcome to Arc</h2><p class="obp">Arc is your marketing operator for Summit Restoration. It finds source-backed opportunities, drafts approval-gated campaigns, and learns what works — you stay in control of everything that goes out.</p><div class="obfeat">'+
         obfeat('star','Finds opportunities','Storm events, competitor moves, quiet leads — always with the evidence.')+
         obfeat('draft','Drafts the work','Email, SMS, ads, landing pages — packaged and ready for your approval.')+
         obfeat('lock','Never goes rogue','Nothing reaches the outside world without your explicit approval.')+
