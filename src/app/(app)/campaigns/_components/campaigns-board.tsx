@@ -76,7 +76,7 @@ export function CampaignsBoard({
   }, [rows, tab, q]);
 
   return (
-    <div className="arc-campaigns">
+    <div className="arc-grid arc-campaigns">
       <div className="chrow">
         <div>
           <h1 className="ct">Campaigns</h1>
