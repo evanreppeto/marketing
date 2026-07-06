@@ -32,6 +32,14 @@ export const metadata: Metadata = {
   title: "Arc — Marketing operations, with your approval",
   description:
     "Arc finds source-backed opportunities, drafts approval-gated campaigns, and prepares creative — and never sends without your sign-off.",
+  // Tab image — the gold "A" mark (public/icon.png), reused as the favicon so
+  // every app-rendered page (login, home, the console) is branded in the
+  // browser tab. The static gallery pages get the same icon via gallery-nav.js.
+  icons: {
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
