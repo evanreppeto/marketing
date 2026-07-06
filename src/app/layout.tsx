@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
@@ -32,14 +32,22 @@ export const metadata: Metadata = {
   title: "Arc — Marketing operations, with your approval",
   description:
     "Arc finds source-backed opportunities, drafts approval-gated campaigns, and prepares creative — and never sends without your sign-off.",
-  // Tab image — the gold "A" mark (public/icon.png), reused as the favicon so
-  // every app-rendered page (login, home, the console) is branded in the
-  // browser tab. The static gallery pages get the same icon via gallery-nav.js.
+  // Browser-tab + bookmark/home-screen icon: the gold "A" mark on the brand's
+  // dark ground. A full set (favicon.ico, PNG favicon, apple-touch-icon, web
+  // manifest) so every surface is branded — not just the tab. The static gallery
+  // pages carry the same <link>s directly in their <head>.
   icons: {
-    icon: [{ url: "/icon.png", type: "image/png" }],
-    shortcut: "/icon.png",
-    apple: "/icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
+  manifest: "/site.webmanifest",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#15151a",
 };
 
 export default function RootLayout({

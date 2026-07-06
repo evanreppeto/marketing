@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AccountMenu } from "./account-menu";
+
 function initials(name: string): string {
   return (
     (name || "")
@@ -39,7 +41,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
       { label: "Home", href: "/home", icon: IconHome },
       { label: "Campaigns", href: "/campaigns", icon: IconCampaigns },
       { label: "CRM", href: "/crm", icon: IconCrm },
-      { label: "Opportunities", href: "/build-opportunities.html", icon: IconOpp },
+      { label: "Opportunities", href: "/opportunities", icon: IconOpp },
     ],
   },
   { group: "Growth", items: [{ label: "Analytics", href: "/build-analytics.html", icon: IconAnalytics }] },
@@ -67,11 +69,13 @@ export function AppShell({
   workspaceName,
   orgName,
   userName,
+  userEmail,
   children,
 }: {
   workspaceName: string;
   orgName: string;
   userName: string;
+  userEmail: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -111,11 +115,13 @@ export function AppShell({
               </div>
             ))}
           </div>
-          <Link href="/settings/team" className="user">
-            <span className="av">{initials(displayName)}</span>
-            <div className="nm">{firstName}</div>
-            <span className="cog">⚙</span>
-          </Link>
+          <AccountMenu
+            firstName={firstName}
+            displayName={displayName}
+            email={userEmail}
+            initials={initials(displayName)}
+            settingsHref="/settings/team"
+          />
         </aside>
 
         <div className="main">

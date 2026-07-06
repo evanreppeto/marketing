@@ -60,6 +60,12 @@ function redirectToOnboarding(request: NextRequest) {
   return NextResponse.redirect(url);
 }
 
+// A signed-in member landed on the static mockup front door → send them into
+// the real app (/home) instead of rendering the mockup.
+function redirectToApp(request: NextRequest) {
+  return NextResponse.redirect(new URL("/home", request.url));
+}
+
 export async function proxy(request: NextRequest) {
   const authMode = getAuthMode();
 
@@ -85,6 +91,7 @@ export async function proxy(request: NextRequest) {
     });
 
     if (decision.action === "allow") return response;
+    if (decision.action === "app") return redirectToApp(request);
     if (decision.action === "onboarding") return redirectToOnboarding(request);
     return redirectToLogin(request);
   }

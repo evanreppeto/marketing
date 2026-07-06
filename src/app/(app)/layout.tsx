@@ -22,7 +22,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userName = String(user?.user_metadata?.full_name ?? "").trim();
 
   return (
-    <AppShell workspaceName={ctx.workspaceName} orgName={ctx.orgName} userName={userName}>
+    <AppShell
+      workspaceName={ctx.workspaceName}
+      orgName={ctx.orgName}
+      userName={userName}
+      userEmail={user?.email ?? ""}
+    >
       {children}
     </AppShell>
   );
