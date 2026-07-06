@@ -57,7 +57,7 @@ export default async function OnboardingPage({
             Name your workspace
           </h2>
           <p className="mt-2 text-[0.925rem] text-[var(--text-secondary)]">
-            One step to go. You can invite your team once you're in.
+            One step to go. You can invite your team once you&apos;re in.
           </p>
 
           {error ? (
