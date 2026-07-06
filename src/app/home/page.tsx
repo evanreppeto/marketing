@@ -2,24 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { listApprovalCards } from "@/lib/approvals/read-model";
-import { listWorkspaceTeamAccess } from "@/lib/auth/workspace-invites";
 import { getCurrentWorkspaceContext, type WorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
+import { listOpenOpportunities } from "@/lib/opportunities/read-model";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
+import "./arc-home.css";
+
 export const metadata = { title: "Home — Arc" };
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  marketer: "Marketer",
-  reviewer: "Reviewer",
-  member: "Member",
-  viewer: "Viewer",
-};
-
-/** "persona_storm_damage_homeowner" or "Persona Plumbing Partner" → "Storm damage homeowner". */
 function humanizePersona(persona: string): string {
   const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
@@ -29,11 +21,28 @@ function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   if (!Number.isFinite(then)) return "";
   const min = Math.round((Date.now() - then) / 60000);
-  if (min < 1) return "just now";
+  if (min < 1) return "now";
   if (min < 60) return `${min}m ago`;
   const hr = Math.round(min / 60);
   if (hr < 24) return `${hr}h ago`;
   return `${Math.round(hr / 24)}d ago`;
+}
+
+function initials(name: string): string {
+  return (name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("") || "A";
+}
+
+/** amber for a pending decision, red when a risk/block flag is set. */
+function pillTone(a: { status: string; statusLabel: string; riskLevel: string }): "warn" | "red" | "ok" {
+  const s = `${a.status} ${a.statusLabel}`.toLowerCase();
+  if (s.includes("block") || a.riskLevel === "high") return "red";
+  if (s.includes("approv") || s.includes("review") || s.includes("pending")) return "warn";
+  return "ok";
 }
 
 async function workspaceCounts(orgId: string) {
@@ -52,8 +61,52 @@ async function workspaceCounts(orgId: string) {
   return { campaigns, leads, companies, contacts, approvals };
 }
 
-const PANEL = "rounded-2xl border border-[color:var(--border-panel)] bg-[var(--surface-panel)]";
-const KICKER = "text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]";
+const IconArc = (
+  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 9h8M8 12.5h5" /></svg>
+);
+const IconHome = <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>;
+const IconCampaigns = <svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>;
+const IconCrm = <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /><path d="M16 6h5M16 10h5" /></svg>;
+const IconOpp = <svg viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12 21l-5-2.7 1-5.5-4-4 5.5-.8z" /></svg>;
+const IconAnalytics = <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-8" /></svg>;
+const IconBrain = <svg viewBox="0 0 24 24"><path d="M12 4a4 4 0 00-4 4 3 3 0 00-1 6 3 3 0 003 3 3 3 0 006 0 3 3 0 003-3 3 3 0 00-1-6 4 4 0 00-4-4z" /></svg>;
+const IconPersonas = <svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="2.5" /><circle cx="16" cy="9" r="2.5" /><path d="M3 19c0-3 2-4.5 5-4.5M21 19c0-3-2-4.5-5-4.5M9 19c0-2 1.5-3 3-3s3 1 3 3" /></svg>;
+const IconStudio = <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z" /><path d="M4 14l5-4 4 3 3-2 4 3" /><circle cx="9" cy="9" r="1.4" /></svg>;
+const IconLibrary = <svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>;
+const IconBrand = <svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 4-3.5 7-8 8-4.5-1-8-4-8-8V7z" /></svg>;
+const IconOutbox = <svg viewBox="0 0 24 24"><path d="M3 12l18-8-8 18-2-7z" /></svg>;
+
+// Home + Campaigns are real routes; the rest still point at the mockup screens
+// until each is ported.
+const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: React.ReactNode; active?: boolean }[] }[] = [
+  {
+    group: "Workspace",
+    items: [
+      { label: "Arc", href: "/build-arc-v2.html", icon: IconArc },
+      { label: "Home", href: "/home", icon: IconHome, active: true },
+      { label: "Campaigns", href: "/campaigns", icon: IconCampaigns },
+      { label: "CRM", href: "/build-crm.html", icon: IconCrm },
+      { label: "Opportunities", href: "/build-opportunities.html", icon: IconOpp },
+    ],
+  },
+  { group: "Growth", items: [{ label: "Analytics", href: "/build-analytics.html", icon: IconAnalytics }] },
+  {
+    group: "Intelligence",
+    items: [
+      { label: "Brain", href: "/build-brain.html", icon: IconBrain },
+      { label: "Personas", href: "/build-personas.html", icon: IconPersonas },
+    ],
+  },
+  {
+    group: "Assets",
+    items: [
+      { label: "Studio", href: "/build-studio.html", icon: IconStudio },
+      { label: "Library", href: "/build-library.html", icon: IconLibrary },
+      { label: "Brand", href: "/build-brand.html", icon: IconBrand },
+      { label: "Outbox", href: "/build-outbox.html", icon: IconOutbox },
+    ],
+  },
+];
 
 export default async function HomePage() {
   let ctx: WorkspaceContext;
@@ -65,187 +118,237 @@ export default async function HomePage() {
   if (!ctx.workspaceId) redirect("/onboarding");
 
   const user = await getSupabaseAuthenticatedUser();
-  const firstName = String(user?.user_metadata?.full_name ?? "").trim().split(/\s+/)[0] || "there";
-  const access = await listWorkspaceTeamAccess(ctx.workspaceId);
-  const memberCount = access.ok ? access.members.length : 1;
-  const c = await workspaceCounts(ctx.orgId);
+  const userName = String(user?.user_metadata?.full_name ?? "").trim();
+  const displayName = userName || ctx.orgName;
+  const firstName = userName.split(/\s+/)[0] || "there";
 
-  // Live, org-scoped workspace data for the dashboard. Both fail soft so a read
-  // error degrades to an empty section rather than a broken page.
-  const [approvals, campaignList] = await Promise.all([
-    listApprovalCards({ orgId: ctx.orgId, limit: 4 }).catch(() => []),
+  const [c, approvals, campaignList, opportunities] = await Promise.all([
+    workspaceCounts(ctx.orgId),
+    listApprovalCards({ orgId: ctx.orgId, limit: 5 }).catch(() => []),
     getCampaignWorkspaceList(undefined, "Arc", ctx.orgId).catch(() => ({ status: "unavailable" as const })),
+    listOpenOpportunities(undefined, ctx.orgId).catch(() => []),
   ]);
-  const campaigns = campaignList.status === "live" ? campaignList.campaigns.slice(0, 4) : [];
+  const campaigns = campaignList.status === "live" ? campaignList.campaigns.slice(0, 5) : [];
+  const opps = opportunities.slice(0, 4);
+  const focal = opps[0] ?? null;
 
-  const isEmpty = c.campaigns + c.leads + c.companies + c.contacts + c.approvals === 0;
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const dateLabel = now
+    .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    .toUpperCase();
+  const liveCampaigns = campaigns.filter((camp) => /live|active|sending/i.test(camp.status)).length;
 
   const metrics = [
     { label: "Campaigns", value: c.campaigns },
     { label: "Leads", value: c.leads },
     { label: "Companies", value: c.companies },
-    { label: "Contacts", value: c.contacts },
   ];
 
   return (
-    <main className="min-h-screen w-full bg-[var(--canvas)] text-[var(--text-primary)]">
-      <header className="border-b border-[color:var(--border-panel)]">
-        <div className="mx-auto flex max-w-[64rem] items-center justify-between px-6 py-4 sm:px-8">
-          <div className="flex items-center gap-2.5">
-            <img src="/icon.png" alt="Arc" className="h-7 w-auto" />
-            <span className="text-[0.9rem] font-medium text-[var(--text-primary)]">{ctx.workspaceName}</span>
+    <div className="arc-home">
+      <div className="app">
+        <aside className="rail">
+          <div className="ws">
+            <span className="mk">{initials(ctx.orgName)}</span>
+            <div>
+              <div className="nm">{ctx.workspaceName}</div>
+              <div className="pl">{ctx.orgName}</div>
+            </div>
           </div>
-          <nav className="flex items-center gap-5 text-[0.85rem]">
-            <Link href="/campaigns" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
-              Campaigns
-            </Link>
-            <Link href="/settings/team" className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
-              Team
-            </Link>
-            <form action="/api/auth/sign-out" method="post">
-              <button type="submit" className="text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]">
-                Sign out
-              </button>
-            </form>
-          </nav>
-        </div>
-      </header>
+          <div className="indtag">
+            <i />
+            {ctx.orgName.split(/\s+/)[0]?.toUpperCase()} workspace
+          </div>
+          <div className="navwrap">
+            {NAV_GROUPS.map((g) => (
+              <div key={g.group}>
+                <div className="grp">{g.group.toUpperCase()}</div>
+                {g.items.map((it) => (
+                  <Link key={it.label} href={it.href} className={`nav${it.active ? " on" : ""}`}>
+                    {it.active && <span className="tick" />}
+                    {it.icon}
+                    {it.label}
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
+          <Link href="/settings/team" className="user">
+            <span className="av">{initials(displayName)}</span>
+            <div className="nm">{firstName}</div>
+            <span className="cog">⚙</span>
+          </Link>
+        </aside>
 
-      <div className="mx-auto max-w-[64rem] px-6 py-14 sm:px-8">
-        <p className="font-[family-name:var(--font-mono)] text-[0.72rem] uppercase tracking-[0.14em] text-[var(--accent)]">
-          {ROLE_LABEL[ctx.role ?? "owner"] ?? "Member"} · {ctx.orgName}
-        </p>
-        <h1 className="mt-3 font-serif text-[2.6rem] font-normal leading-[1.05] text-[var(--text-primary)]">
-          Welcome, {firstName}.
-        </h1>
-
-        {isEmpty ? (
-          <>
-            <p className="mt-4 max-w-[54ch] text-[1rem] leading-relaxed text-[var(--text-secondary)]">
-              Your workspace is ready. Invite your team, and Arc will start finding opportunities and drafting
-              campaigns for {ctx.orgName} — nothing reaches a customer until you approve it.
-            </p>
-            <div className={`mt-8 ${PANEL} p-6`}>
-              <h2 className={KICKER}>Get started</h2>
-              <p className="mt-3 text-[0.95rem] text-[var(--text-secondary)]">Bring your team in — then Arc gets to work.</p>
-              <Link
-                href="/settings/team"
-                className="mt-4 inline-flex min-h-[44px] items-center rounded-lg bg-[var(--accent)] px-5 text-[0.9375rem] font-semibold text-[var(--on-accent)] transition-[background-color,transform] hover:bg-[color:color-mix(in_srgb,var(--accent)_92%,white)] active:translate-y-px"
-              >
-                Invite your team
-              </Link>
+        <div className="main">
+          <header className="top">
+            <span className="crumb">Home</span>
+            <div className="search">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+              Search or jump to…
+              <span className="k">⌘K</span>
             </div>
-          </>
-        ) : (
-          <>
-            <p className="mt-4 max-w-[54ch] text-[1rem] leading-relaxed text-[var(--text-secondary)]">
-              Here&apos;s where {ctx.orgName} stands. Everything Arc prepares waits for your approval.
-            </p>
+            <span className="topav">{initials(displayName)}</span>
+          </header>
 
-            <div className="mt-9 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-              {/* Waiting on you — live pending approvals */}
-              <section className={`${PANEL} p-6`}>
-                <div className="flex items-baseline justify-between">
-                  <h2 className={KICKER}>Waiting on you</h2>
-                  <span className="text-[0.8rem] text-[var(--text-muted)]">
-                    {c.approvals} {c.approvals === 1 ? "to decide" : "to decide"}
-                  </span>
-                </div>
-
-                {approvals.length === 0 ? (
-                  <p className="mt-4 text-[0.9rem] leading-relaxed text-[var(--text-secondary)]">
-                    Nothing needs your approval right now. Arc will surface drafts here as it prepares them.
-                  </p>
-                ) : (
-                  <ul className="mt-4 divide-y divide-[color:var(--border-panel)]">
-                    {approvals.map((a) => (
-                      <li key={a.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                        <div className="min-w-0">
-                          <p className="truncate text-[0.95rem] font-medium text-[var(--text-primary)]">{a.title}</p>
-                          <p className="mt-0.5 text-[0.8rem] text-[var(--text-secondary)]">
-                            {[humanizePersona(a.persona), relativeTime(a.submittedAt)].filter(Boolean).join(" · ")}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-full border border-[color:var(--border-panel)] bg-[var(--surface-soft)] px-2.5 py-0.5 text-[0.72rem] font-medium text-[var(--text-secondary)]">
-                          {a.statusLabel}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                <Link href="/campaigns" className="mt-4 inline-block text-[0.875rem] font-medium text-[var(--accent)] underline-offset-4 hover:underline">
-                  Review in Campaigns →
-                </Link>
-              </section>
-
-              {/* Team */}
-              <section className={`${PANEL} p-6`}>
-                <h2 className={KICKER}>Team</h2>
-                <p className="mt-3 text-[1.6rem] font-semibold text-[var(--text-primary)]">
-                  {memberCount}
-                  <span className="ml-2 text-[0.9rem] font-normal text-[var(--text-secondary)]">
-                    {memberCount === 1 ? "member" : "members"}
-                  </span>
-                </p>
-                <Link href="/settings/team" className="mt-4 inline-block text-[0.875rem] font-medium text-[var(--accent)] underline-offset-4 hover:underline">
-                  Manage team →
-                </Link>
-              </section>
-            </div>
-
-            {/* Campaigns in flight — live campaigns */}
-            <section className={`mt-4 ${PANEL} p-6`}>
-              <div className="flex items-baseline justify-between">
-                <h2 className={KICKER}>Campaigns in flight</h2>
-                <Link href="/campaigns" className="text-[0.8rem] font-medium text-[var(--accent)] underline-offset-4 hover:underline">
-                  All campaigns →
-                </Link>
+          <div className="scroll">
+            <section className="content">
+              <div className="date">{dateLabel}</div>
+              <h1 className="greet">
+                {greeting}, {firstName}
+              </h1>
+              <div className="subline">
+                {c.approvals} {c.approvals === 1 ? "package" : "packages"} waiting
+                <span className="dot">·</span>
+                {opps.length} open {opps.length === 1 ? "opportunity" : "opportunities"}
+                <span className="dot">·</span>
+                {liveCampaigns} live
               </div>
 
-              {campaigns.length === 0 ? (
-                <p className="mt-4 text-[0.9rem] leading-relaxed text-[var(--text-secondary)]">
-                  No campaigns yet. Arc drafts approval-gated packages here as opportunities come in.
-                </p>
-              ) : (
-                <ul className="mt-4 divide-y divide-[color:var(--border-panel)]">
-                  {campaigns.map((camp) => (
-                    <li key={camp.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="min-w-0">
-                        <p className="truncate text-[0.95rem] font-medium text-[var(--text-primary)]">{camp.name}</p>
-                        <p className="mt-0.5 text-[0.8rem] text-[var(--text-secondary)]">
-                          {[humanizePersona(camp.persona), camp.pendingCount > 0 ? `${camp.pendingCount} to approve` : null]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded-full border border-[color:var(--border-panel)] bg-[var(--surface-soft)] px-2.5 py-0.5 text-[0.72rem] font-medium text-[var(--text-secondary)] capitalize">
-                        {camp.status}
+              {focal && (
+                <div className="focal">
+                  <div className="lab">Top opportunity</div>
+                  <div className="row1">
+                    <h2>{focal.title}</h2>
+                    <div className="conf">
+                      <span className="cl">Confidence</span>
+                      <span className="track">
+                        <span className="fill" style={{ width: `${focal.confidence}%` }} />
                       </span>
-                    </li>
+                      <span className="val">{focal.confidence}%</span>
+                    </div>
+                  </div>
+                  <p className="d">{focal.summary}</p>
+                  <div className="fcta">
+                    <Link className="btn" href="/build-opportunities.html">Review&nbsp;→</Link>
+                    <Link className="btn ghost" href="/build-arc-v2.html">Ask Arc to draft it</Link>
+                  </div>
+                </div>
+              )}
+
+              <div className="sech">
+                <h3>Waiting on you</h3>
+                <span className="ct">{c.approvals} to decide</span>
+              </div>
+              <div className="rule" />
+              {approvals.length === 0 ? (
+                <p className="empty-note">Nothing needs your approval right now. Arc surfaces drafts here as it prepares them.</p>
+              ) : (
+                approvals.map((a) => (
+                  <Link key={a.id} href="/campaigns" className="task">
+                    <span className={`pill ${pillTone(a)}`}>{a.statusLabel}</span>
+                    <span className="tt">{a.title}</span>
+                    <span className="meta">
+                      {humanizePersona(a.persona) && <span className="chip">{humanizePersona(a.persona)}</span>}
+                      <span className="ago">{relativeTime(a.submittedAt)}</span>
+                    </span>
+                  </Link>
+                ))
+              )}
+
+              <div className="metrics">
+                {metrics.map((m) => (
+                  <div className="metric" key={m.label}>
+                    <div className="ml">{m.label}</div>
+                    <div className="mrow">
+                      <span className="mv">{m.value}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="sech">
+                <h3>Open opportunities</h3>
+                <Link className="more" href="/build-opportunities.html">All opportunities →</Link>
+              </div>
+              {opps.length === 0 ? (
+                <p className="empty-note">No open opportunities yet. Arc watches your signals and surfaces source-backed ones here.</p>
+              ) : (
+                <div className="opps">
+                  {opps.map((o) => (
+                    <Link key={o.id} href="/build-opportunities.html" className="opp">
+                      <div className="ot">{o.title}</div>
+                      <div className="od">{o.summary}</div>
+                      <div className="miniconf">
+                        <b style={{ width: `${o.confidence}%` }} />
+                      </div>
+                      <div className="orow">
+                        <span className="otype">{o.recommended_action || "Opportunity"}</span>
+                        <span className="oconf">{o.confidence}% confidence</span>
+                      </div>
+                      <div className="oact">
+                        <span className="oaud">{humanizePersona(o.evidence?.persona ?? "")}</span>
+                        <span className="odraft">Draft with Arc →</span>
+                      </div>
+                    </Link>
                   ))}
-                </ul>
+                </div>
+              )}
+
+              <div className="sech">
+                <h3>Campaigns in flight</h3>
+                <Link className="more" href="/campaigns">All campaigns →</Link>
+              </div>
+              {campaigns.length === 0 ? (
+                <p className="empty-note">No campaigns yet. Arc drafts approval-gated packages here as opportunities come in.</p>
+              ) : (
+                <div className="ctable">
+                  <div className="ch">
+                    <span>Campaign</span>
+                    <span>Persona</span>
+                    <span>Status</span>
+                  </div>
+                  {campaigns.map((camp) => (
+                    <Link key={camp.id} href="/campaigns" className="cr">
+                      <div>
+                        <div className="cn">{camp.name}</div>
+                        {camp.pendingCount > 0 && <div className="csub">{camp.pendingCount} to approve</div>}
+                      </div>
+                      <span>{humanizePersona(camp.persona)}</span>
+                      <span className="cn" style={{ textTransform: "capitalize", fontWeight: 500 }}>{camp.status}</span>
+                    </Link>
+                  ))}
+                </div>
               )}
             </section>
 
-            {/* Metrics */}
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {metrics.map((m) => (
-                <div key={m.label} className="rounded-xl border border-[color:var(--border-panel)] bg-[var(--surface-soft)] p-5">
-                  <p className="font-[family-name:var(--font-display)] text-[1.9rem] font-semibold leading-none text-[var(--text-primary)]">
-                    {m.value}
-                  </p>
-                  <p className="mt-1.5 text-[0.8rem] text-[var(--text-muted)]">{m.label}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+            <aside className="col-r">
+              <h3 className="rh">Quick actions</h3>
+              <div className="rsub">Start something with Arc</div>
+              <div className="qa">
+                <Link className="qbtn" href="/build-campaign-builder.html">
+                  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                  New campaign
+                  <span className="kk">C</span>
+                </Link>
+                <Link className="qbtn" href="/build-crm.html">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>
+                  Add a lead
+                  <span className="kk">L</span>
+                </Link>
+                <Link className="qbtn" href="/build-arc-v2.html">
+                  <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9L21 4v5h-5" /></svg>
+                  Ask Arc
+                  <span className="kk">⌘K</span>
+                </Link>
+              </div>
 
-        <p className="mt-8 font-[family-name:var(--font-mono)] text-[0.75rem] tracking-[0.02em] text-[var(--text-muted)]">
-          Outbound stays locked until you approve.
-        </p>
+              <div className="rsec">
+                <h3 className="rh">Team</h3>
+                <div className="rsub">{ctx.orgName}</div>
+                <Link className="qbtn" href="/settings/team">
+                  <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>
+                  Manage team
+                </Link>
+              </div>
+
+              <p className="empty-note" style={{ marginTop: 26 }}>Outbound stays locked until you approve.</p>
+            </aside>
+          </div>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
