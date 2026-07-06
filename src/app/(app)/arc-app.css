@@ -422,6 +422,86 @@
 }
 
 /* ============================================================
+   Analytics — ported from build-analytics.html. Overview
+   (real CRM funnel + KPIs) + Activity feed. Scoped under
+   `.arc-app .arc-analytics`.
+   ============================================================ */
+.arc-app .arc-analytics { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
+.arc-app .arc-analytics .ctrlbar { display: flex; align-items: center; gap: 10px; padding: 13px clamp(22px, 3vw, 38px); border-bottom: 1px solid var(--line-2); flex-wrap: wrap; flex-shrink: 0; }
+.arc-app .arc-analytics .vtabs { display: flex; gap: 2px; }
+.arc-app .arc-analytics .vtab { position: relative; padding: 7px 12px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; border-radius: 8px; transition: .14s; background: none; border: 1px solid transparent; font-family: inherit; }
+.arc-app .arc-analytics .vtab:hover { color: var(--text); background: rgba(255, 255, 255, .035); }
+.arc-app .arc-analytics .vtab.on { color: var(--text); background: var(--accent-soft); border-color: var(--accent-border); }
+.arc-app .arc-analytics .cspacer { margin-left: auto; }
+.arc-app .arc-analytics .ctl { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); color: var(--text-2); font-size: 12px; font-weight: 500; }
+.arc-app .arc-analytics .ctl svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; opacity: .85; }
+.arc-app .arc-analytics .ctl .cv { color: var(--muted); font-size: 10px; }
+
+.arc-app .arc-analytics .body { flex: 1; min-height: 0; overflow: auto; padding: 22px clamp(22px, 3vw, 38px) 46px; }
+.arc-app .arc-analytics .inner { max-width: 1200px; }
+.arc-app .arc-analytics .vhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.arc-app .arc-analytics .pt { font-family: var(--serif); font-weight: 500; font-size: 27px; letter-spacing: -.02em; margin: 0; color: var(--text); }
+.arc-app .arc-analytics .psub { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.arc-app .arc-analytics .tg { font-family: var(--mono); font-size: 8.5px; letter-spacing: .02em; border-radius: 4px; padding: 1px 6px; font-weight: 600; white-space: nowrap; }
+.arc-app .arc-analytics .tg.wired { color: var(--ok-text); background: var(--ok-soft); border: 1px solid var(--ok-border); }
+.arc-app .arc-analytics .tg.sync { color: var(--warn-text); background: var(--warn-soft); border: 1px solid var(--warn-border); }
+
+.arc-app .arc-analytics .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--line-2); border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; }
+.arc-app .arc-analytics .kpi { background: var(--panel); padding: 14px 16px; }
+.arc-app .arc-analytics .kpi .kl { font-size: 10.5px; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.arc-app .arc-analytics .kpi .kv { font-family: var(--serif); font-weight: 500; font-size: 25px; letter-spacing: -.02em; margin-top: 6px; color: var(--text); }
+.arc-app .arc-analytics .kpi .kp { font-family: var(--mono); font-size: 9px; color: var(--muted); margin-top: 4px; }
+
+.arc-app .arc-analytics .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; margin-top: 20px; align-items: start; }
+.arc-app .arc-analytics .col { display: flex; flex-direction: column; gap: 18px; }
+.arc-app .arc-analytics .blk { border: 1px solid var(--line-2); border-radius: 13px; background: var(--panel); padding: 16px 18px; }
+.arc-app .arc-analytics .blk h2 { font-size: 13px; font-weight: 600; margin: 0 0 14px; display: flex; align-items: center; gap: 9px; color: var(--text); }
+
+.arc-app .arc-analytics .funnel { display: flex; flex-direction: column; gap: 9px; }
+.arc-app .arc-analytics .fstage { display: grid; grid-template-columns: 116px 1fr auto; gap: 12px; align-items: center; }
+.arc-app .arc-analytics .fstage .fl { font-size: 12px; color: var(--text-2); }
+.arc-app .arc-analytics .ftrack { height: 30px; border-radius: 8px; background: var(--inset); overflow: hidden; position: relative; }
+.arc-app .arc-analytics .ftrack i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); min-width: 3px; }
+.arc-app .arc-analytics .fstage .fv { font-family: var(--mono); font-size: 13px; color: var(--text); min-width: 92px; text-align: right; }
+.arc-app .arc-analytics .fstage .fv span { color: var(--muted); font-size: 10px; }
+
+.arc-app .arc-analytics .bd { display: flex; flex-direction: column; }
+.arc-app .arc-analytics .bdrow { display: grid; grid-template-columns: minmax(0, 1.4fr) 1fr 64px; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.arc-app .arc-analytics .bdrow:last-child { border-bottom: 0; }
+.arc-app .arc-analytics .bdrow .bn { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+.arc-app .arc-analytics .bdrow .bn .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.arc-app .arc-analytics .bb { height: 6px; border-radius: 99px; background: var(--inset); overflow: hidden; }
+.arc-app .arc-analytics .bb i { display: block; height: 100%; border-radius: 99px; }
+.arc-app .arc-analytics .bdrow .bv { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); text-align: right; }
+
+.arc-app .arc-analytics .airead { border: 1px solid var(--accent-border); border-radius: 13px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 42%, var(--panel)), var(--panel)); padding: 17px 19px; position: sticky; top: 0; }
+.arc-app .arc-analytics .airead .al { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+.arc-app .arc-analytics .airead .am { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; font-family: var(--serif); font-weight: 600; color: var(--accent); font-size: 13px; }
+.arc-app .arc-analytics .airead .at { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--accent); text-transform: uppercase; }
+.arc-app .arc-analytics .airead p { font-size: 12.5px; color: var(--text-2); line-height: 1.6; margin: 0 0 11px; }
+.arc-app .arc-analytics .airead p b { color: var(--text); font-weight: 600; }
+.arc-app .arc-analytics .cited { display: flex; flex-wrap: wrap; gap: 6px; }
+.arc-app .arc-analytics .cit { font-family: var(--mono); font-size: 9.5px; color: var(--text-2); background: var(--inset); border: 1px solid var(--line-2); border-radius: 5px; padding: 2px 7px; }
+.arc-app .arc-analytics .cit b { color: var(--accent-contrast); }
+
+/* activity feed */
+.arc-app .arc-analytics .asum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line-2); border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+.arc-app .arc-analytics .asum .kpi { background: var(--panel); padding: 13px 15px; }
+.arc-app .arc-analytics .aday { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; padding: 16px 2px 8px; }
+.arc-app .arc-analytics .arow { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 11px 14px; border: 1px solid var(--line-2); border-radius: 11px; background: var(--panel); margin-bottom: 8px; }
+.arc-app .arc-analytics .arow .adot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.arc-app .arc-analytics .arow .atitle { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.arc-app .arc-analytics .arow .adetail { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+.arc-app .arc-analytics .arow .ameta { font-size: 10.5px; color: var(--text-2); margin-top: 5px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.arc-app .arc-analytics .arow .achip { border: 1px solid var(--line-2); background: var(--inset); border-radius: 5px; padding: 1px 6px; font-size: 9.5px; }
+.arc-app .arc-analytics .arow .atime { font-family: var(--mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .arc-app .arc-analytics .kpis, .arc-app .arc-analytics .asum { grid-template-columns: repeat(2, 1fr); }
+  .arc-app .arc-analytics .grid2 { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
    Personas — ported from build-personas.html. Roster + detail
    with a Compare table. Its own two-pane layout; scoped under
    `.arc-app .arc-personas`. Segment/stage colors are set inline
