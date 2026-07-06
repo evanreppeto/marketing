@@ -58,17 +58,12 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
       { label: "Studio", href: "/build-studio.html", icon: IconStudio },
       { label: "Library", href: "/build-library.html", icon: IconLibrary },
       { label: "Brand", href: "/build-brand.html", icon: IconBrand },
-      { label: "Outbox", href: "/build-outbox.html", icon: IconOutbox },
+      { label: "Outbox", href: "/outbox", icon: IconOutbox },
     ],
   },
 ];
 
-const CRUMBS: Record<string, string> = {
-  "/home": "Home",
-  "/campaigns": "Campaigns",
-  "/crm": "CRM",
-  "/opportunities": "Opportunities",
-};
+const CRUMBS: Record<string, string> = { "/home": "Home", "/campaigns": "Campaigns", "/crm": "CRM", "/outbox": "Outbox" };
 
 export function AppShell({
   workspaceName,
