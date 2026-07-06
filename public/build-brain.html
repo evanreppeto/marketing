@@ -480,6 +480,11 @@ function kindGroup(k){return k.indexOf('crm_')===0?'crm':k;}
 /* ---- force-directed, draggable graph (Obsidian-like) ---- */
 var svgEl,gview,edgeEls=[],pan={x:0,y:0,z:1},dragNode=null,isPanning=false,lastView=null,alpha=0,rafId=null,selId=null;
 var CX=430,CY=300;
+/* motion feel — weighty drag, springy settle, eases to rest (tune these) */
+var DAMP=0.9, COOL=0.96, FREEZE=0.01;   // node damping (higher = jigglier) · cooling · stop threshold
+var CENTER_PULL=0.0022;                 // gentle homing — stays composed, but no snap back to origin
+var THROW=0.85, THROW_MAX=22;           // drag momentum carried on release (glide, not dead-stop), capped
+var ANCHOR=0.14;                        // a moved node remembers where you dropped it (higher = stays put · lower = springs back)
 function setupGraph(){
   svgEl=document.getElementById('gsvg');
   svgEl.innerHTML='<g id="gview"></g>';
@@ -511,23 +516,24 @@ function fitLayout(){
   NODES.forEach(function(n){n.x=n.x*s+ox;n.y=n.y*s+oy;n.vx=0;n.vy=0;});
 }
 function markMajors(){NODES.forEach(function(n){if(n.kind==='arc'||(DEG[n.id]||0)>=5)n._el.classList.add('major');});}
-function tick(k){k=k||1;
+function tick(k,cool){k=k||1;if(cool==null)cool=1;   // cool (0..1) fades the forces so motion eases to rest — no hard freeze
   NODES.forEach(function(a){a._fx=0;a._fy=0;});
   for(var i=0;i<NODES.length;i++)for(var j=i+1;j<NODES.length;j++){var a=NODES[i],b=NODES[j];var dx=a.x-b.x,dy=a.y-b.y;var d2=dx*dx+dy*dy;if(d2<144)d2=144;var d=Math.sqrt(d2);var f=5200/d2;a._fx+=dx/d*f;a._fy+=dy/d*f;b._fx-=dx/d*f;b._fy-=dy/d*f;}
   EDGES.forEach(function(e){var a=NMAP[e.from],b=NMAP[e.to];var dx=b.x-a.x,dy=b.y-a.y;var d=Math.sqrt(dx*dx+dy*dy)||1;var diff=(d-84)/d*0.03;a._fx+=dx*diff;a._fy+=dy*diff;b._fx-=dx*diff;b._fy-=dy*diff;});
-  NODES.forEach(function(a){var w=a.kind==='arc'?0.025:0.006;a._fx+=(CX-a.x)*w;a._fy+=(CY-a.y)*w;});
-  NODES.forEach(function(a){if(a===dragNode)return;a.vx=(a.vx+a._fx)*0.86;a.vy=(a.vy+a._fy)*0.86;a.x+=a.vx*k;a.y+=a.vy*k;if(!isFinite(a.x)||!isFinite(a.y)){a.x=CX;a.y=CY;a.vx=0;a.vy=0;}a.x=Math.max(28,Math.min(832,a.x));a.y=Math.max(26,Math.min(574,a.y));});
+  NODES.forEach(function(a){var w=a.kind==='arc'?0.02:CENTER_PULL;a._fx+=(CX-a.x)*w;a._fy+=(CY-a.y)*w;});
+  NODES.forEach(function(a){if(a.anchored){a._fx+=(a.ax-a.x)*ANCHOR;a._fy+=(a.ay-a.y)*ANCHOR;}}); // home-memory pull toward where you dropped it
+  NODES.forEach(function(a){if(a===dragNode)return;a.vx=(a.vx+a._fx*cool)*DAMP;a.vy=(a.vy+a._fy*cool)*DAMP;a.x+=a.vx*k;a.y+=a.vy*k;if(!isFinite(a.x)||!isFinite(a.y)){a.x=CX;a.y=CY;a.vx=0;a.vy=0;}a.x=Math.max(28,Math.min(832,a.x));a.y=Math.max(26,Math.min(574,a.y));});
 }
 function render(){
   gview.setAttribute('transform','translate('+pan.x.toFixed(2)+','+pan.y.toFixed(2)+') scale('+pan.z.toFixed(3)+')');
   edgeEls.forEach(function(l,i){var e=EDGES[i],a=NMAP[e.from],b=NMAP[e.to];l.setAttribute('x1',a.x.toFixed(1));l.setAttribute('y1',a.y.toFixed(1));l.setAttribute('x2',b.x.toFixed(1));l.setAttribute('y2',b.y.toFixed(1));});
   NODES.forEach(function(n){n._el.setAttribute('transform','translate('+n.x.toFixed(1)+','+n.y.toFixed(1)+')');});
 }
-function reheat(){if(alpha<0.5)alpha=0.5;if(rafId===null)rafId=requestAnimationFrame(loop);}
+function reheat(){if(alpha<0.6)alpha=0.6;if(rafId===null)rafId=requestAnimationFrame(loop);}
 function loop(){
-  try{ if(dragNode&&alpha<0.35)alpha=0.35; tick(0.65); render(); }catch(err){ /* never let one bad frame kill the sim */ }
-  alpha*=0.94;
-  if(alpha>0.02||dragNode){ rafId=requestAnimationFrame(loop); } else { rafId=null; }
+  try{ if(dragNode&&alpha<0.55)alpha=0.55; tick(0.65, alpha); render(); }catch(err){ /* never let one bad frame kill the sim */ }
+  alpha*=COOL;
+  if(alpha>FREEZE||dragNode){ rafId=requestAnimationFrame(loop); } else { rafId=null; }
 }
 function clientToView(e){var p=svgEl.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svgEl.getScreenCTM().inverse());}
 function clientToGraph(e){var m=gview.getScreenCTM();if(!m)return null;var p=svgEl.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(m.inverse());}
@@ -540,10 +546,17 @@ function attachGraph(){
   });
   svgEl.addEventListener('mousedown',function(ev){if(ev.target.closest('.gnode'))return;isPanning=true;svgEl.classList.add('panning');lastView=clientToView(ev);});
   window.addEventListener('mousemove',function(ev){
-    if(dragNode){var p=clientToGraph(ev);if(p){dragNode.x=p.x;dragNode.y=p.y;dragNode.vx=0;dragNode.vy=0;reheat();render();}}
+    if(dragNode){var p=clientToGraph(ev);if(p){dragNode.vx=p.x-dragNode.x;dragNode.vy=p.y-dragNode.y;dragNode.x=p.x;dragNode.y=p.y;reheat();render();}}
     else if(isPanning){var v=clientToView(ev);pan.x+=v.x-lastView.x;pan.y+=v.y-lastView.y;lastView=v;render();}
   });
-  window.addEventListener('mouseup',function(){dragNode=null;isPanning=false;if(svgEl)svgEl.classList.remove('panning');});
+  window.addEventListener('mouseup',function(){
+    if(dragNode){ // remember where you left it, and carry a little momentum so it glides in (no dead-stop)
+      dragNode.anchored=true; dragNode.ax=dragNode.x; dragNode.ay=dragNode.y;
+      var m=Math.hypot(dragNode.vx,dragNode.vy)||1, s=Math.min(THROW, THROW_MAX/m);
+      dragNode.vx*=s; dragNode.vy*=s; reheat();
+    }
+    dragNode=null;isPanning=false;if(svgEl)svgEl.classList.remove('panning');
+  });
   svgEl.addEventListener('wheel',function(ev){ev.preventDefault();var v=clientToView(ev);zoomAround(v.x,v.y,ev.deltaY<0?1.12:0.89);},{passive:false});
   document.querySelectorAll('.gzoom button').forEach(function(b){b.addEventListener('click',function(){var z=b.getAttribute('data-z');if(z==='fit'){pan={x:0,y:0,z:1};render();}else{zoomAround(360,270,z==='in'?1.2:0.83);}});});
 }
