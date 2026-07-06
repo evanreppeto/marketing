@@ -43,11 +43,15 @@ describe("isPublicMockupPath", () => {
     }
   });
 
-  it("keeps the landing public in every mode", () => {
-    for (const mode of ["open", "operator", "supabase"] as const) {
+  it("keeps the landing public in open/operator mode but gates it in supabase mode", () => {
+    for (const mode of ["open", "operator"] as const) {
       expect(isPublicMockupPath("/", mode)).toBe(true);
       expect(isPublicMockupPath("/build-home.html", mode)).toBe(true);
     }
+    // Supabase mode: the landing is gated so an unauthenticated visitor is sent
+    // to the standalone /login screen instead of the mockup home.
+    expect(isPublicMockupPath("/", "supabase")).toBe(false);
+    expect(isPublicMockupPath("/build-home.html", "supabase")).toBe(false);
   });
 
   it("leaves the whole gallery public in open/operator mode (current demo)", () => {
