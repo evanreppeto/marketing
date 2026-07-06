@@ -108,7 +108,7 @@ export default async function HomePage() {
         ) : (
           <>
             <p className="mt-4 max-w-[54ch] text-[1rem] leading-relaxed text-[var(--text-secondary)]">
-              Here's where {ctx.orgName} stands. Everything Arc prepares waits for your approval.
+              Here&apos;s where {ctx.orgName} stands. Everything Arc prepares waits for your approval.
             </p>
 
             <div className="mt-9 grid gap-4 lg:grid-cols-[1.4fr_1fr]">

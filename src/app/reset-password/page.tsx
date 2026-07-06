@@ -38,7 +38,7 @@ export default async function ResetPasswordPage({
           <h2 className="font-[family-name:var(--font-display)] text-[1.6rem] font-semibold leading-tight text-[var(--text-primary)]">
             Set a new password
           </h2>
-          <p className="mt-2 text-[0.925rem] text-[var(--text-secondary)]">Pick something you'll remember.</p>
+          <p className="mt-2 text-[0.925rem] text-[var(--text-secondary)]">Pick something you&apos;ll remember.</p>
 
           {error ? (
             <p role="alert" className="mt-6 rounded-lg border border-[color:color-mix(in_srgb,var(--priority)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--priority)_12%,transparent)] px-3.5 py-2.5 text-[0.85rem]">

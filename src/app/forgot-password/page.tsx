@@ -39,7 +39,7 @@ export default async function ForgotPasswordPage({
             Reset your password
           </h2>
           <p className="mt-2 text-[0.925rem] text-[var(--text-secondary)]">
-            We'll email you a secure link to choose a new one.
+            We&apos;ll email you a secure link to choose a new one.
           </p>
 
           {error ? (
