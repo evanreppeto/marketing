@@ -198,6 +198,27 @@
   .content>*:nth-child(6){animation-delay:.15s}.content>*:nth-child(7){animation-delay:.18s}.content>*:nth-child(n+8){animation-delay:.2s}
 </style>
 <script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
+<style>
+/* BSR-309 responsive: collapse content grids on tablet/phone (rail is a drawer <=1024). */
+@media (max-width:820px){
+  .scroll{grid-template-columns:1fr}
+  .col-r{border-left:0;border-top:1px solid var(--line)}
+  .opps{grid-template-columns:1fr}
+  /* campaigns worklist: drop Next action + Reply, keep Campaign / Persona / Status */
+  .ctable .ch,.ctable .cr{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr) auto}
+  .ctable .ch>*:nth-child(4),.ctable .ch>*:nth-child(5),.ctable .cr>*:nth-child(4),.ctable .cr>*:nth-child(5){display:none}
+}
+@media (max-width:560px){
+  .metrics{grid-template-columns:1fr}
+  /* keep only Campaign + Status so nothing crushes (hide Persona/Next/Reply) */
+  .ctable .ch,.ctable .cr{grid-template-columns:minmax(0,1fr) auto}
+  .ctable .ch>*:nth-child(2),.ctable .cr>*:nth-child(2){display:none}
+  /* let the "Waiting on you" row wrap so the persona chip shows in full, not "Sto…" */
+  .task{flex-wrap:wrap}
+  .task .meta{margin-left:0;flex-basis:100%;padding-left:34px;gap:8px}
+  .task .meta .chip{max-width:none}
+}
+</style>
 </head>
 <body>
 <div class="app">

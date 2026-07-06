@@ -304,6 +304,18 @@
   .vp-meta i{width:5px;height:5px;border-radius:50%;background:var(--ok);display:inline-block;flex-shrink:0}
 </style>
 <script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
+<style>
+/* BSR-309 responsive: collapse intake/palette/preview grids on tablet/phone (rail is a drawer <=1024). */
+@media (max-width:820px){
+  /* Intake sources (Website/Documents/Logo/Manual) already 2-col <=1080; palette row from 5 -> 2. */
+  .swrow{grid-template-columns:repeat(2,1fr)}
+  /* .bbody (main + 354px live-preview) already stacks to 1fr at <=1080. */
+}
+@media (max-width:560px){
+  .sources{grid-template-columns:1fr}
+  .phr{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
 <div class="app">

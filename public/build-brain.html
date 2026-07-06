@@ -225,6 +225,31 @@
   .fconf{font-family:var(--mono);font-size:11px}
 </style>
 <script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
+<style>
+/* BSR-309 responsive: collapse content grids on tablet/phone (rail is a drawer <=1024). */
+@media (max-width:820px){
+  .bstats{grid-template-columns:repeat(2,1fr)}
+  /* stack inspector below the graph; give the graph a definite height so the
+     SVG's height:100% resolves and it can't collapse to zero */
+  .bbody{overflow:auto}
+  .web{grid-template-columns:1fr;grid-template-rows:auto auto;height:auto;min-height:100%}
+  .graphwrap{height:60vh;min-height:340px}
+  .inspector{border-left:0;border-top:1px solid var(--line)}
+  .healthgrid{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .issuegrid{grid-template-columns:1fr}
+  /* tab strip scrolls instead of clipping — tabs must keep their width (no shrink) or nowrap labels overlap */
+  .btabs{scrollbar-width:none}
+  .btabs::-webkit-scrollbar{display:none}
+  .btab{flex-shrink:0}
+  /* filter chips: one scrollable row over the graph instead of a stacked pile */
+  .graphtools{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;pointer-events:auto;scrollbar-width:none}
+  .graphtools::-webkit-scrollbar{display:none}
+  .graphtools>*{flex-shrink:0}
+  .glegend{max-width:none;right:clamp(18px,2.4vw,28px)}
+}
+</style>
 </head>
 <body>
 <div class="app">

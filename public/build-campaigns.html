@@ -128,6 +128,16 @@
   .pager .pgnum{font-family:var(--mono);font-size:11.5px;color:var(--text-2)}
 </style>
 <script>try{if(window.top!==window.self)document.documentElement.classList.add("is-embedded")}catch(e){document.documentElement.classList.add("is-embedded")}</script><style>html.is-embedded .rail,html.is-embedded .sidebar,html.is-embedded aside.rail{display:none!important}html.is-embedded .app{grid-template-columns:minmax(0,1fr)!important}</style>
+<style>
+/* BSR-309 responsive: collapse content grids on tablet/phone (rail is a drawer <=1024). */
+/* This screen is a single full-width data table (.tablewrap already overflow:auto,
+   so the wide table scrolls horizontally). No multi-column content grids exist. */
+@media (max-width:560px){
+  /* Sub-tab strip: scroll horizontally rather than wrap/clip on phone. */
+  .subtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .subtabs::-webkit-scrollbar{display:none}
+}
+</style>
 </head>
 <body>
 <div class="app">

@@ -376,6 +376,11 @@ body {
 
 /* ---------- Shell normalization (keeps nav visually stable) ---------- */
 .rail, .sidebar, .navwrap, aside.rail { box-sizing: border-box; }
+
+/* Horizontally-scrollable tab strips: items must keep their width so the
+   nowrap labels never overlap when the strip is narrower than its content
+   (BSR-309). Their containers already scroll via overflow-x:auto. */
+.vtab, .subtab, .stab, .chtab, .btab { flex-shrink: 0; }
 .top { box-sizing: border-box; }
 
 /* ---------- Named view-transitions ---------- */
@@ -604,7 +609,7 @@ body.gp-resizing .gp-grid { transition: none; }
    block) hides it, and the media block re-shows it with !important. */
 .navtoggle { display: none; }
 
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   /* Single-column shell. dvh (not vh) so the mobile browser's collapsing
      address bar doesn't clip the bottom of the content. Height stays fixed
      with overflow hidden, so the page's own flex:1 body keeps scrolling
@@ -678,6 +683,14 @@ body.gp-resizing .gp-grid { transition: none; }
     padding-left: 14px !important;
     padding-right: 14px !important;
     gap: 10px !important;
+    /* Safety net: if a busy top bar can't fit a phone width, let it wrap to a
+       second row instead of forcing horizontal page overflow / clipping. */
+    flex-wrap: wrap !important;
+    row-gap: 8px !important;
   }
   .top .search { display: none !important; }
+  /* Studio's campaign-context pill + autosave label are non-essential on a phone
+     top bar (the campaign picker still lives in the canvas) — hide so it doesn't overflow. */
+  .top .cxt,
+  .top .proj { display: none !important; }
 }
