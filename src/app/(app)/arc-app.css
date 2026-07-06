@@ -33,6 +33,13 @@
 
   & .app { display: grid; grid-template-columns: 236px minmax(0, 1fr); height: 100vh; overflow: hidden; }
 
+  /* Embedded in the mockup gallery's crossfade iframe: the host already renders
+     the sidebar, so drop ours (otherwise the two rails stack — the double
+     sidebar bug). Content fills the frame as a single column; the top bar stays
+     (it's the one the frame actually shows). */
+  &.is-embedded .app { grid-template-columns: minmax(0, 1fr); }
+  &.is-embedded .rail { display: none; }
+
   /* sidebar */
   & .rail { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--sidebar); border-right: 1px solid var(--line-2); padding: 14px 12px; }
   & .ws { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 9px; }
