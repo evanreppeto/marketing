@@ -1,6 +1,6 @@
 # Backend Workspace Data Boundary Audit
 
-Last updated: 2026-06-19
+Last updated: 2026-07-05
 
 ## Product Boundary
 
@@ -77,6 +77,26 @@ Users own their identity, membership, role, and personal preferences.
   workspace resolution.
 - Campaign results persistence is tenant-aware for scoped callers and applies
   `org_id` to lookup/update/insert paths.
+- **DB-enforced isolation (first slice).** The CRM read-model
+  (`src/lib/crm/read-model.ts`) now resolves reads through
+  `resolveTenantReadHandle()` (`src/lib/supabase/tenant-client.ts`): in
+  `supabase` auth mode with a live session it queries via the user's RLS-scoped
+  client, so the *database* — not just the app filter — enforces org isolation.
+  Open / operator / no-session paths degrade to the admin client with an
+  explicit `org_id` filter, unchanged.
+- Write-side RLS landed for the six CRM object tables (companies, contacts,
+  properties, leads, jobs, outcomes) in
+  `20260705120000_crm_object_write_policies.sql` — the first table group where a
+  user-scoped client is isolated for INSERT/UPDATE/DELETE, not just SELECT.
+- Slice 2 extends the same shape to the opportunities inbox:
+  `20260705130000_opportunities_write_policies.sql` adds the write policies and
+  `src/lib/opportunities/read-model.ts` now resolves reads through
+  `resolveTenantReadHandle()`.
+- Proof: `supabase/tests/rls_crm_isolation.sql` asserts cross-tenant read /
+  insert / update / delete denial for `companies` (representative — every migrated
+  table uses the same `is_org_member(org_id)` predicate);
+  `src/lib/supabase/tenant-client.test.ts` covers the client selector. The
+  pattern and rollout checklist live in [TENANCY.md](./TENANCY.md).
 
 ## Current Gaps
 
@@ -86,9 +106,11 @@ Users own their identity, membership, role, and personal preferences.
 - Local migration history and generated Supabase types need reconciliation for
   campaign-adjacent `org_id` columns such as `approval_recommendations` and any
   campaign tables that were patched live.
-- Some service-role read models remain from the internal-tool era. They must
-  either use authenticated/RLS-safe clients or require a central workspace/org
-  context before querying.
+- Most service-role read models still bypass RLS. The CRM read-model is the
+  first migrated onto the user-scoped client via `resolveTenantReadHandle()`
+  (see [TENANCY.md](./TENANCY.md)); campaigns, opportunities, vault, personas,
+  performance, and the agent-operations reads still need the same reroute, and
+  their tables still need write-side policies.
 - Legacy env-token Arc API mode is not workspace-specific. It should eventually
   be replaced by DB-issued workspace tokens only.
 
@@ -97,10 +119,12 @@ Users own their identity, membership, role, and personal preferences.
 1. Verify the user-applied `20260618193000_agent_tasks_workspace_scope.sql`
    migration live: columns, indexes, policies, and no null task workspace
    backfill. Current Codex Supabase MCP access cannot query the project.
-2. Add cross-workspace tests that prove an Arc token for Workspace A cannot read
-   or mutate Workspace B tasks, approvals, brain nodes, campaigns, CRM records,
-   or media.
+2. Cross-tenant isolation is now proven at the DB layer for CRM `companies`
+   (`supabase/tests/rls_crm_isolation.sql`). Extend the same proof to tasks,
+   approvals, brain nodes, campaigns, and media as each table group moves onto
+   write-side RLS.
 3. Decide whether `ping` and `health` should stay global diagnostics or require
    a resolved workspace scope like the data-bearing Arc routes.
-4. Move remaining service-role UI read paths behind a shared
-   `requireWorkspaceContext()` or authenticated Supabase client boundary.
+4. In progress: `resolveTenantReadHandle()` is the shared authenticated-client
+   boundary, and the CRM read-model now uses it. Roll it out to the remaining
+   service-role UI read models per [TENANCY.md](./TENANCY.md).

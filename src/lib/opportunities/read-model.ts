@@ -1,7 +1,8 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCurrentOrgId } from "@/lib/auth/org";
-import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import { resolveTenantReadHandle } from "@/lib/supabase/tenant-client";
 
 type OpportunityEvidence = {
   persona?: string;
@@ -34,8 +35,8 @@ export async function listOpenOpportunities(
   // `getSupabaseAdminClient()` would throw during arg evaluation, before this
   // guard could run, crashing the page in demo/unconfigured mode.
   if (!isSupabaseAdminConfigured()) return [];
-  const db = client ?? getSupabaseAdminClient();
-  const resolvedOrgId = orgId ?? (await getCurrentOrgId());
+  const { client: db, orgId: handleOrgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
+  const resolvedOrgId = orgId ?? handleOrgId ?? (await getCurrentOrgId());
   const { data, error } = await db
     .from("opportunities")
     .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, evidence")
@@ -49,8 +50,7 @@ export async function listOpenOpportunities(
 /** Count of pending (un-triaged) opportunities, for the /arc chip. */
 export async function countPendingOpportunities(client?: SupabaseClient): Promise<number> {
   if (!isSupabaseAdminConfigured()) return 0;
-  const db = client ?? getSupabaseAdminClient();
-  const orgId = await getCurrentOrgId();
+  const { client: db, orgId } = client ? { client, orgId: await getCurrentOrgId() } : await resolveTenantReadHandle();
   const { count } = await db
     .from("opportunities")
     .select("id", { count: "exact", head: true })
@@ -76,8 +76,7 @@ export async function getOpportunityForDraft(
   client?: SupabaseClient,
 ): Promise<OpportunityForDraft | null> {
   if (!isSupabaseAdminConfigured()) return null;
-  const db = client ?? getSupabaseAdminClient();
-  const orgId = await getCurrentOrgId();
+  const { client: db, orgId } = client ? { client, orgId: await getCurrentOrgId() } : await resolveTenantReadHandle();
   const { data, error } = await db
     .from("opportunities")
     .select("id, subject_id, title, summary, urgency, confidence, recommended_action, evidence")
