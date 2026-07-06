@@ -1,8 +1,8 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { getCurrentOrgId } from "@/lib/auth/org";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
+import { resolveTenantReadHandle } from "../supabase/tenant-client";
 
 export type CrmTone = "amber" | "green" | "red" | "blue";
 
@@ -1036,8 +1036,8 @@ export async function getCrmOverviewData(client?: SupabaseClient): Promise<CrmOv
   }
 
   try {
-    const orgId = client ? null : await getCurrentOrgId();
-    const data = await getCrmTableBundle(client, orgId);
+    const { client: supabase, orgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
+    const data = await getCrmTableBundle(supabase, orgId);
     if (isDemoBundleEmpty(data)) {
       if (isDemoDataEnabled()) return buildOverviewFromBundle(buildDemoCrmBundle());
     }
@@ -1078,8 +1078,8 @@ export async function getCrmObjectData(key: CrmObjectKey, client?: SupabaseClien
   }
 
   try {
-    const orgId = client ? null : await getCurrentOrgId();
-    const data = await getCrmTableBundle(client, orgId);
+    const { client: supabase, orgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
+    const data = await getCrmTableBundle(supabase, orgId);
     if (isDemoBundleEmpty(data)) {
       if (isDemoDataEnabled()) return buildObjectDataFromBundle(key, buildDemoCrmBundle());
     }
@@ -1110,8 +1110,8 @@ export async function getCrmMentionSamples(
   client?: SupabaseClient,
 ): Promise<Partial<Record<CrmObjectKey, CrmObjectRow[]>>> {
   if (!client && !isSupabaseAdminConfigured()) return {};
-  const orgId = client ? null : await getCurrentOrgId();
-  const data = await getCrmTableBundle(client, orgId);
+  const { client: supabase, orgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
+  const data = await getCrmTableBundle(supabase, orgId);
   const out: Partial<Record<CrmObjectKey, CrmObjectRow[]>> = {};
   for (const key of CRM_OBJECT_KEYS) {
     out[key] = mapObjectRows(key, data);
@@ -1127,8 +1127,7 @@ export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCo
   }
 
   try {
-    const supabase = client ?? getSupabaseAdminClient();
-    const orgId = client ? null : await getCurrentOrgId();
+    const { client: supabase, orgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
     const [companies, contacts, properties, leads, jobs, outcomes] = await Promise.all([
       countRows(supabase, "companies", orgId),
       countRows(supabase, "contacts", orgId),
@@ -1217,8 +1216,8 @@ export async function getCrmRecordData(key: CrmObjectKey, recordId: string, clie
   }
 
   try {
-    const orgId = client ? null : await getCurrentOrgId();
-    const data = await getCrmTableBundle(client, orgId);
+    const { client: supabase, orgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
+    const data = await getCrmTableBundle(supabase, orgId);
     if (isDemoBundleEmpty(data)) {
       if (isDemoDataEnabled()) return buildRecordDataFromBundle(key, recordId, buildDemoCrmBundle(), agentName);
     }
