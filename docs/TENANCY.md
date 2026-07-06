@@ -113,6 +113,31 @@ Do this per feature (campaigns, opportunities, vault, personas, …):
   the shared project — via `psql`, the SQL editor, or the Supabase MCP. Expected
   final row: `result = 'PASS: rls_crm_isolation'`.
 
+## Going live: turning RLS on
+
+RLS only *enforces* once the app runs in `supabase` auth mode against a migrated
+DB. Status + remaining steps:
+
+1. **DB migrated + RLS applied** — ✅ done on the go-forward DB (`askvisible`):
+   the write policies are live and cross-tenant isolation is proven end-to-end
+   against real Postgres (the `rls_crm_isolation.sql` checks pass).
+2. **Auth screens** — `/login`, `/sign-up`, `/onboarding` pages post to
+   `/api/auth/sign-in`, `/api/auth/sign-up`, and `/api/auth/onboarding`
+   (create/join a workspace). The routes 303-redirect; error codes are in each
+   route's header comment.
+3. **Front-door gate** — in `supabase` mode `proxy.ts` keeps the landing (`/`)
+   and static assets public but gates the `/build-*` app screens
+   (`isPublicMockupPath` in `route-protection.ts`). Dormant in open/operator mode.
+4. **Deployed env** (set in the host, not committed): `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (the go-forward
+   DB), and `ARC_AUTH_MODE=supabase`.
+5. **Supabase Auth config** — add redirect URLs for the deployed origin:
+   `/auth/callback` (OAuth) and `/auth/confirm` (email confirmation links); enable
+   the Google provider if wiring "Continue with Google".
+
+Until step 4 flips `ARC_AUTH_MODE`, the app stays in open mode and RLS sits
+dormant beneath the service-role admin path — zero behavior change.
+
 ## Known follow-ups
 
 - **Campaigns read reroute is caller-layer.** The campaign-surface write policies
