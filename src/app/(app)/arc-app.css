@@ -420,3 +420,106 @@
 @media (max-width: 900px) {
   .arc-app .arc-outbox .okpis { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============================================================
+   Personas — ported from build-personas.html. Roster + detail
+   with a Compare table. Its own two-pane layout; scoped under
+   `.arc-app .arc-personas`. Segment/stage colors are set inline
+   from the data.
+   ============================================================ */
+.arc-app .arc-personas { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
+.arc-app .arc-personas .segbar { display: flex; align-items: center; gap: 12px; padding: 14px clamp(20px, 2.6vw, 30px); border-bottom: 1px solid var(--line-2); flex-shrink: 0; flex-wrap: wrap; }
+.arc-app .arc-personas .vtog { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); }
+.arc-app .arc-personas .vtog button { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--muted); background: none; border: none; border-radius: 7px; cursor: pointer; transition: .14s; font-family: inherit; }
+.arc-app .arc-personas .vtog button:hover { color: var(--text-2); }
+.arc-app .arc-personas .vtog button.on { color: var(--text); background: var(--panel); box-shadow: 0 1px 0 rgba(0, 0, 0, .3); }
+.arc-app .arc-personas .vtog svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .arc-personas .barsep { width: 1px; height: 22px; background: var(--line-2); }
+.arc-app .arc-personas .segpill { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text-2); padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: .14s; border: 1px solid transparent; background: none; font-family: inherit; }
+.arc-app .arc-personas .segpill:hover { color: var(--text); background: rgba(255, 255, 255, .035); }
+.arc-app .arc-personas .segpill.on { color: var(--text); background: var(--accent-soft); border-color: var(--accent-border); }
+.arc-app .arc-personas .segpill .sc { font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+.arc-app .arc-personas .segpill.on .sc { color: var(--accent); }
+.arc-app .arc-personas .segspacer { margin-left: auto; }
+.arc-app .arc-personas .ssearch { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); min-width: 170px; }
+.arc-app .arc-personas .ssearch svg { width: 14px; height: 14px; stroke: var(--muted); fill: none; stroke-width: 1.7; }
+.arc-app .arc-personas .ssearch input { border: none; background: transparent; color: var(--text); font-family: inherit; font-size: 12px; outline: none; width: 100%; }
+.arc-app .arc-personas .ssearch input::placeholder { color: var(--muted); }
+
+.arc-app .arc-personas .pbody { flex: 1; min-height: 0; display: grid; grid-template-columns: 336px minmax(0, 1fr); overflow: hidden; }
+.arc-app .arc-personas .pbody.cmp { grid-template-columns: 1fr; }
+.arc-app .arc-personas .roster { border-right: 1px solid var(--line); min-width: 0; overflow: auto; padding: 6px 14px 30px; }
+.arc-app .arc-personas .seglabel { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; padding: 14px 6px 8px; }
+.arc-app .arc-personas .prow { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); margin-bottom: 9px; cursor: pointer; transition: border-color .15s, transform .15s var(--ease); width: 100%; text-align: left; font-family: inherit; }
+.arc-app .arc-personas .prow:hover { border-color: var(--accent-border); transform: translateY(-1px); }
+.arc-app .arc-personas .prow.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft), 0 16px 40px -30px rgba(0, 0, 0, .9); }
+.arc-app .arc-personas .pav { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; font-family: var(--serif); font-weight: 600; font-size: 15px; flex-shrink: 0; }
+.arc-app .arc-personas .pmid { min-width: 0; flex: 1; }
+.arc-app .arc-personas .pn { font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.arc-app .arc-personas .pmeta { display: flex; align-items: center; gap: 7px; margin-top: 3px; }
+.arc-app .arc-personas .stagep { font-size: 9.5px; font-weight: 600; padding: 1px 7px; border-radius: 5px; white-space: nowrap; }
+.arc-app .arc-personas .pshare { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.arc-app .arc-personas .pright { text-align: right; flex-shrink: 0; }
+.arc-app .arc-personas .pscore { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+.arc-app .arc-personas .pbar { width: 46px; height: 4px; border-radius: 99px; background: var(--inset); overflow: hidden; margin-top: 5px; margin-left: auto; }
+.arc-app .arc-personas .pbar i { display: block; height: 100%; border-radius: 99px; }
+
+.arc-app .arc-personas .detail { min-width: 0; overflow: auto; padding: 24px clamp(20px, 2.4vw, 32px) 46px; }
+.arc-app .arc-personas .dhead { display: flex; align-items: flex-start; gap: 16px; }
+.arc-app .arc-personas .dav { width: 58px; height: 58px; border-radius: 14px; display: grid; place-items: center; font-family: var(--serif); font-weight: 600; font-size: 23px; flex-shrink: 0; }
+.arc-app .arc-personas .dh-main { min-width: 0; flex: 1; }
+.arc-app .arc-personas .dname { font-family: var(--serif); font-weight: 500; font-size: clamp(1.5rem, 2.3vw, 1.95rem); line-height: 1.05; letter-spacing: -.02em; margin: 0; color: var(--text); }
+.arc-app .arc-personas .dmeta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.arc-app .arc-personas .chip { display: inline-flex; align-items: center; gap: 6px; height: 23px; padding: 0 10px; border-radius: 7px; font-size: 10.5px; font-weight: 600; }
+.arc-app .arc-personas .chip.seg { color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); }
+.arc-app .arc-personas .chip.org { color: var(--text-2); background: var(--inset); border: 1px solid var(--line-2); }
+.arc-app .arc-personas .dprofile { font-size: 13px; color: var(--text-2); margin-top: 11px; line-height: 1.55; max-width: 70ch; }
+.arc-app .arc-personas .dprofile .q { font-family: var(--serif); font-style: italic; color: var(--text); font-size: 14.5px; }
+.arc-app .arc-personas .dconf { flex-shrink: 0; text-align: right; }
+.arc-app .arc-personas .dconf .cl { font-size: 10px; color: var(--muted); }
+.arc-app .arc-personas .dconf .cv { font-family: var(--serif); font-weight: 500; font-size: 30px; letter-spacing: -.02em; line-height: 1; margin-top: 4px; }
+.arc-app .arc-personas .dconf .ct { display: flex; align-items: center; gap: 7px; justify-content: flex-end; margin-top: 8px; }
+.arc-app .arc-personas .dconf .ctl { font-size: 9.5px; color: var(--muted); }
+.arc-app .arc-personas .sparkwrap svg { display: block; }
+.arc-app .arc-personas .sh { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin: 0 0 12px; }
+.arc-app .arc-personas .sec { margin-top: 24px; }
+.arc-app .arc-personas .pbk { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; border: 1px solid var(--line-2); border-radius: 13px; overflow: hidden; background: var(--line-2); }
+.arc-app .arc-personas .pbi { background: var(--panel); padding: 14px 16px; }
+.arc-app .arc-personas .pbi.full { grid-column: 1 / -1; }
+.arc-app .arc-personas .pbi .pl { font-size: 10px; font-weight: 600; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+.arc-app .arc-personas .pbi .pv { font-size: 13px; color: var(--text); margin-top: 7px; line-height: 1.55; }
+.arc-app .arc-personas .pbi .pv.angle { font-family: var(--serif); font-size: 14.5px; }
+.arc-app .arc-personas .ppchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.arc-app .arc-personas .ppchip { font-size: 11px; font-weight: 500; color: var(--text-2); background: var(--inset); border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 9px; }
+.arc-app .arc-personas .ctaval { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--accent-contrast); }
+.arc-app .arc-personas .msg { border: 1px solid var(--line-2); border-radius: 12px; background: var(--inset); overflow: hidden; }
+.arc-app .arc-personas .msg .mh { display: flex; align-items: center; gap: 9px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+.arc-app .arc-personas .msg .mfrom { width: 26px; height: 26px; border-radius: 7px; background: var(--accent-soft); border: 1px solid var(--accent-border); display: grid; place-items: center; font-family: var(--serif); color: var(--accent); font-size: 12px; }
+.arc-app .arc-personas .msg .msub { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.arc-app .arc-personas .msg .mfl { font-size: 10px; color: var(--muted); }
+.arc-app .arc-personas .msg .mpv { padding: 12px 14px; font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+
+.arc-app .arc-personas .compare { min-width: 0; overflow: auto; padding: 22px clamp(22px, 3vw, 38px) 44px; }
+.arc-app .arc-personas .cmpinner { max-width: 1180px; }
+.arc-app .arc-personas .cmphead { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.arc-app .arc-personas .cmphead h2 { font-family: var(--serif); font-weight: 500; font-size: 21px; letter-spacing: -.02em; margin: 0; color: var(--text); }
+.arc-app .arc-personas .cmphead .csb { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.arc-app .arc-personas .cmptable { border: 1px solid var(--line-2); border-radius: 13px; overflow: auto; background: var(--panel); }
+.arc-app .arc-personas .ctbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+.arc-app .arc-personas .ctbl thead th { text-align: right; font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 11px 14px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.arc-app .arc-personas .ctbl thead th:first-child, .arc-app .arc-personas .ctbl tbody td:first-child { text-align: left; }
+.arc-app .arc-personas .ctbl tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--mono); font-size: 12px; color: var(--text-2); vertical-align: middle; }
+.arc-app .arc-personas .ctbl tbody tr:last-child td { border-bottom: none; }
+.arc-app .arc-personas .cpn { display: flex; align-items: center; gap: 10px; text-align: left; font-family: var(--sans); }
+.arc-app .arc-personas .cpn .cav { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-family: var(--serif); font-weight: 600; font-size: 12px; flex-shrink: 0; }
+.arc-app .arc-personas .cpn .cnm { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.arc-app .arc-personas .cpn .cseg { font-size: 10px; color: var(--muted); }
+.arc-app .arc-personas .scellbar { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.arc-app .arc-personas .scellbar .mb { width: 40px; height: 5px; border-radius: 99px; background: var(--inset); overflow: hidden; }
+.arc-app .arc-personas .scellbar .mb i { display: block; height: 100%; border-radius: 99px; }
+.arc-app .arc-personas .empty { display: grid; place-items: center; height: 100%; padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 900px) {
+  .arc-app .arc-personas .pbody { grid-template-columns: 1fr; }
+  .arc-app .arc-personas .roster { display: none; }
+}
