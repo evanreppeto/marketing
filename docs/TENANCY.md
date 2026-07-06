@@ -35,12 +35,15 @@ client stays for system actors that legitimately act across the whole tenant set
 - **SELECT** policies on ~45 product tables — `20260618185612_org_member_read_policies.sql`.
 - **INSERT / UPDATE / DELETE** policies on the six CRM object tables (companies,
   contacts, properties, leads, jobs, outcomes) —
-  `20260705120000_crm_object_write_policies.sql` — and on `opportunities` —
-  `20260705130000_opportunities_write_policies.sql`. These are the first table
-  groups with full write-side isolation; the rest still rely on the admin client
-  for writes (safe today, because only system actors write them). Every one of
-  these uses the identical `is_org_member(org_id)` predicate, so the `companies`
-  isolation test below is representative of them all.
+  `20260705120000_crm_object_write_policies.sql`; on `opportunities` —
+  `20260705130000_opportunities_write_policies.sql`; and across the campaign /
+  approval surface (campaigns, campaign_assets, approval_items,
+  approval_decisions, approval_recommendations, agent_outputs, campaign_events,
+  campaign_dispatches, campaign_results) —
+  `20260705140000_campaign_surface_write_policies.sql`. The remaining tables still
+  rely on the admin client for writes (safe today, because only system actors
+  write them). Every one uses the identical `is_org_member(org_id)` predicate, so
+  the `companies` isolation test below is representative of them all.
 - Credential-bearing tables (connectors, API tokens) intentionally stay
   **service-role-only** — never granted to `authenticated`.
 
@@ -107,6 +110,15 @@ Do this per feature (campaigns, opportunities, vault, personas, …):
 
 ## Known follow-ups
 
+- **Campaigns read reroute is caller-layer.** The campaign-surface write policies
+  are in place, but the campaigns read-model takes `org_id` as a parameter from
+  its callers (via `applyOrgScope`), so moving its reads onto the user client is a
+  change at the call sites, not the read-model — a separate follow-up from the
+  DB-truth migration.
+- **Stale generated types.** `database.types.ts` does not list `org_id` for the
+  campaign-adjacent tables even though the columns exist (added in
+  `20260619113000` / `20260615161347`). A `supabase gen types` refresh is overdue;
+  it doesn't affect the SQL migrations, which run against the real columns.
 - **Live migration lag.** The shared project is only migrated through mid-June;
   the tenancy foundation, read policies, and this write-policy migration must be
   applied there before RLS is live in production. Validate on a branch first.
