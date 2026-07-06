@@ -294,3 +294,104 @@
   .arc-app .arc-grid .dt td:nth-child(5),
   .arc-app .arc-grid .dt th:nth-child(5) { display: none; }
 }
+
+/* ============================================================
+   Outbox — ported from build-outbox.html. Approval-gated dispatch
+   queue + agent-task board (kanban lanes, its own layout). Scoped
+   under `.arc-app .arc-outbox`.
+   ============================================================ */
+.arc-app .arc-outbox {
+  --blue-soft: rgba(136, 182, 216, .14);
+  --vio-text: #cdbbe6;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.arc-app .arc-outbox .ohead { padding: 18px clamp(20px, 2.6vw, 30px) 0; flex-shrink: 0; }
+.arc-app .arc-outbox .otitle { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.arc-app .arc-outbox .pt { font-family: var(--serif); font-weight: 500; font-size: 27px; letter-spacing: -.02em; margin: 0; color: var(--text); }
+.arc-app .arc-outbox .psub { font-size: 12.5px; color: var(--muted); margin-top: 4px; max-width: 60ch; }
+.arc-app .arc-outbox .gbtn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12.5px; cursor: pointer; transition: .15s; }
+.arc-app .arc-outbox .gbtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-app .arc-outbox .gbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+/* lock panel — the approval-gated flow */
+.arc-app .arc-outbox .lockpanel { margin: 15px clamp(20px, 2.6vw, 30px) 0; border: 1px solid var(--line-2); border-radius: 12px; background: color-mix(in srgb, var(--panel) 82%, transparent); padding: 14px 16px; flex-shrink: 0; }
+.arc-app .arc-outbox .lp-top { display: flex; align-items: center; gap: 11px; }
+.arc-app .arc-outbox .lk-ic { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; }
+.arc-app .arc-outbox .lk-ic svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .arc-outbox .lt { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+.arc-app .arc-outbox .lt b { color: var(--text); }
+.arc-app .arc-outbox .tg { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 6px; padding: 3px 8px; white-space: nowrap; }
+.arc-app .arc-outbox .tg.ok { color: var(--ok-text); background: var(--ok-soft); border: 1px solid var(--ok-border); }
+.arc-app .arc-outbox .lp-flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.arc-app .arc-outbox .lp-flow .gf { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.arc-app .arc-outbox .lp-flow .gf b { color: var(--text-2); font-weight: 600; }
+.arc-app .arc-outbox .lp-flow .gf.lit b { color: var(--ok-text); }
+.arc-app .arc-outbox .lp-flow .ar { color: var(--line-3); font-size: 12px; }
+
+/* KPI strip */
+.arc-app .arc-outbox .okpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; margin: 12px clamp(20px, 2.6vw, 30px) 0; flex-shrink: 0; }
+.arc-app .arc-outbox .kpi { border: 1px solid var(--line-2); border-radius: 11px; background: var(--panel); padding: 11px 13px; }
+.arc-app .arc-outbox .kpi .kv { font-family: var(--serif); font-weight: 500; font-size: 22px; letter-spacing: -.02em; line-height: 1; color: var(--text); }
+.arc-app .arc-outbox .kpi .kl { font-size: 11px; color: var(--text-2); margin-top: 5px; font-weight: 500; }
+.arc-app .arc-outbox .kpi .ks { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.arc-app .arc-outbox .kpi.alert { border-color: var(--accent-border); background: linear-gradient(180deg, var(--accent-soft), transparent); }
+.arc-app .arc-outbox .kpi.alert .kv { color: var(--accent-contrast); }
+
+/* tabbar: view tabs + channel filters */
+.arc-app .arc-outbox .tabbar { display: flex; align-items: center; gap: 12px; margin: 14px clamp(20px, 2.6vw, 30px) 0; border-bottom: 1px solid var(--line-2); flex-shrink: 0; flex-wrap: wrap; }
+.arc-app .arc-outbox .vtabs { display: flex; gap: 4px; }
+.arc-app .arc-outbox .vtab { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: .14s; font-family: inherit; }
+.arc-app .arc-outbox .vtab:hover { color: var(--text-2); }
+.arc-app .arc-outbox .vtab.on { color: var(--text); border-bottom-color: var(--accent); }
+.arc-app .arc-outbox .vtab svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .arc-outbox .vtab .ct { font-family: var(--mono); font-size: 10px; color: var(--muted); background: var(--inset); border-radius: 5px; padding: 1px 6px; }
+.arc-app .arc-outbox .vtab.on .ct { color: var(--accent-contrast); }
+.arc-app .arc-outbox .ofilters { display: flex; align-items: center; gap: 7px; margin-left: auto; padding-bottom: 7px; flex-wrap: wrap; }
+.arc-app .arc-outbox .fchip { font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--line-2); border-radius: 99px; padding: 4px 11px; cursor: pointer; transition: .14s; display: inline-flex; align-items: center; gap: 6px; background: none; font-family: inherit; }
+.arc-app .arc-outbox .fchip:hover { color: var(--text-2); }
+.arc-app .arc-outbox .fchip.on { color: var(--text); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-app .arc-outbox .fchip .fct { font-family: var(--mono); font-size: 9.5px; opacity: .75; }
+
+/* lanes */
+.arc-app .arc-outbox .lanes { flex: 1; min-height: 0; display: flex; gap: 13px; padding: 16px clamp(20px, 2.6vw, 30px); overflow-x: auto; overflow-y: hidden; align-items: flex-start; }
+.arc-app .arc-outbox .lane { flex: 1 0 216px; min-width: 216px; max-width: 320px; display: flex; flex-direction: column; min-height: 0; max-height: 100%; }
+.arc-app .arc-outbox .laneh { display: flex; align-items: center; gap: 8px; padding: 2px 4px 10px; flex-shrink: 0; }
+.arc-app .arc-outbox .laneh .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.arc-app .arc-outbox .laneh .ln { font-size: 12px; font-weight: 600; letter-spacing: .01em; color: var(--text); }
+.arc-app .arc-outbox .laneh .lc { font-family: var(--mono); font-size: 10.5px; color: var(--muted); background: var(--inset); border-radius: 6px; padding: 1px 7px; margin-left: auto; }
+.arc-app .arc-outbox .lanecards { display: flex; flex-direction: column; gap: 9px; overflow-y: auto; padding: 2px; min-height: 40px; }
+.arc-app .arc-outbox .lane.empty .lanecards { border: 1px dashed var(--line-2); border-radius: 11px; align-items: center; justify-content: center; padding: 18px 10px; }
+.arc-app .arc-outbox .lane.empty .lanecards .en { font-size: 10.5px; color: var(--muted); text-align: center; }
+
+/* cards */
+.arc-app .arc-outbox .card { border: 1px solid var(--line-2); border-radius: 11px; background: var(--panel); padding: 11px 12px; transition: .15s var(--ease); }
+.arc-app .arc-outbox .card.link { cursor: pointer; text-decoration: none; display: block; }
+.arc-app .arc-outbox .card.link:hover { border-color: var(--accent-border); transform: translateY(-2px); box-shadow: 0 14px 30px -22px rgba(0, 0, 0, .85); }
+.arc-app .arc-outbox .card .crow { display: flex; align-items: center; gap: 8px; }
+.arc-app .arc-outbox .chip-ch { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; }
+.arc-app .arc-outbox .chip-ch svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-app .arc-outbox .ch-email { background: var(--accent-soft); color: var(--accent); }
+.arc-app .arc-outbox .ch-sms { background: var(--blue-soft); color: var(--blue-text); }
+.arc-app .arc-outbox .ch-social { background: rgba(150, 120, 200, .16); color: var(--vio-text); }
+.arc-app .arc-outbox .own-agent { background: var(--accent-soft); color: var(--accent); }
+.arc-app .arc-outbox .own-human { background: var(--blue-soft); color: var(--blue-text); }
+.arc-app .arc-outbox .own-system { background: var(--inset); color: var(--muted); }
+.arc-app .arc-outbox .card .cdel { font-size: 12.5px; font-weight: 600; letter-spacing: -.01em; min-width: 0; line-height: 1.25; color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.arc-app .arc-outbox .card .ccamp { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+.arc-app .arc-outbox .card .cmeta { display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 10.5px; color: var(--text-2); flex-wrap: wrap; }
+.arc-app .arc-outbox .card .cmeta .mi { display: inline-flex; align-items: center; gap: 4px; }
+.arc-app .arc-outbox .card .cnote { font-size: 10.5px; margin-top: 8px; padding: 6px 8px; border-radius: 7px; background: var(--inset); color: var(--text-2); line-height: 1.4; }
+.arc-app .arc-outbox .card .cnote.warn { background: var(--warn-soft); color: var(--warn-text); }
+.arc-app .arc-outbox .card .cnote.red { background: var(--red-soft); color: var(--red-text); }
+.arc-app .arc-outbox .ownb { font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 5px; padding: 2px 6px; margin-left: auto; flex-shrink: 0; }
+.arc-app .arc-outbox .ownb.agent { color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); }
+.arc-app .arc-outbox .ownb.human { color: var(--blue-text); background: var(--blue-soft); border: 1px solid rgba(136, 182, 216, .4); }
+.arc-app .arc-outbox .ownb.system { color: var(--muted); background: var(--inset); border: 1px solid var(--line-2); }
+
+@media (max-width: 900px) {
+  .arc-app .arc-outbox .okpis { grid-template-columns: repeat(2, 1fr); }
+}
