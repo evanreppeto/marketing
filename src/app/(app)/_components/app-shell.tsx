@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
 
@@ -92,8 +93,20 @@ export function AppShell({
   const firstName = userName.split(/\s+/)[0] || "there";
   const crumb = CRUMBS[pathname] ?? "Home";
 
+  // The static mockup gallery can load a ported real screen inside its crossfade
+  // iframe. When that happens the gallery host already provides the sidebar, so
+  // this shell must drop its own rail (the two would stack — the double-sidebar
+  // bug). Mirrors the mockup pages' own `is-embedded` contract. Read via
+  // useSyncExternalStore so the server renders "not embedded" and the client
+  // corrects after hydration without a mismatch (the value never changes).
+  const embedded = useSyncExternalStore(
+    () => () => {},
+    () => window.self !== window.top,
+    () => false,
+  );
+
   return (
-    <div className="arc-app">
+    <div className={embedded ? "arc-app is-embedded" : "arc-app"}>
       <div className="app">
         <aside className="rail">
           <div className="ws">
