@@ -23,18 +23,23 @@ const STATIC_ASSET_RE = /\.(?:js|mjs|css|png|jpe?g|gif|svg|webp|avif|ico|woff2?|
  * reached directly as `/build-*.html`, and their scripts/styles are `/gallery-*`.
  *
  * - Static assets (`/gallery-*` and anything with an asset extension) are ALWAYS
- *   public, so pages — including the sign-in screen and the landing — can render.
- * - The landing (`/` and build-home.html) is always public: a front door that
- *   exists before sign-in.
- * - In open / operator mode the whole gallery stays public (the current demo).
- * - In supabase mode the inner app screens (`/build-*.html`, plus real hydrated
- *   routes as they ship) sit behind the gate and require a signed-in member.
+ *   public, so the login screen and the mockup can render their styles/scripts.
+ * - In open / operator mode the whole gallery — including `/` and the app screens
+ *   — stays public (the current no-login demo).
+ * - In supabase mode NOTHING here is public: `/`, build-home, every `/build-*`
+ *   screen and the real app routes all require a signed-in member. An
+ *   unauthenticated visitor is therefore sent to the standalone `/login` page
+ *   (the auth pages themselves — /login, /sign-up, /forgot-password,
+ *   /reset-password — are exempted by the proxy matcher, not here). This is what
+ *   makes the app "start on the login screen" rather than showing the mockup with
+ *   login awkwardly embedded in the shell's crossfade iframe.
  *
  * Pure + edge-safe so `proxy.ts` can call it and it can be unit-tested.
  */
 export function isPublicMockupPath(pathname: string, authMode: AuthMode): boolean {
   if (pathname.startsWith("/gallery-") || STATIC_ASSET_RE.test(pathname)) return true;
-  if (pathname === "/" || pathname === "/build-home.html") return true;
-  if (authMode !== "supabase") return pathname.startsWith("/build-");
+  if (authMode !== "supabase") {
+    return pathname === "/" || pathname === "/build-home.html" || pathname.startsWith("/build-");
+  }
   return false;
 }
