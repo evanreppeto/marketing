@@ -702,3 +702,18 @@
 @media (max-width: 900px) {
   .arc-app .arc-brain .bstats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Home right-column: Signals + Arc activity feed (ported verbatim from build-home.html). */
+.arc-app .sig { padding: 12px 8px; margin: 0 -8px; border-top: 1px solid var(--line); border-radius: 8px; transition: background 0.15s var(--ease); }
+.arc-app .sig:first-of-type { border-top: 0; }
+.arc-app .sig:hover { background: rgba(255, 255, 255, 0.025); }
+.arc-app .sig .st { font-size: 12.5px; font-weight: 500; line-height: 1.4; }
+.arc-app .sig .sm { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.arc-app .sig .src { font-size: 10.5px; color: var(--text-2); }
+.arc-app .sig .src b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+.arc-app .sig .sa { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: auto; }
+.arc-app .act { display: grid; grid-template-columns: 54px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.arc-app .act:first-of-type { border-top: 0; }
+.arc-app .act .at { font-family: var(--mono); font-size: 10px; color: var(--muted); padding-top: 1px; }
+.arc-app .act .ad { font-size: 12px; color: var(--text-2); line-height: 1.45; }
+.arc-app .act .ad b { color: var(--text); font-weight: 500; }
