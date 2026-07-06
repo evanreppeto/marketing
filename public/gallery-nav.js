@@ -4,18 +4,6 @@
 // "Draft with Arc →", …) that shipped with NO href (dead-but-clickable, the same
 // on every screen) are wired the same way, so every link actually goes somewhere.
 (function () {
-  // Brand the browser tab: the static build-*.html pages ship no <link rel="icon">,
-  // so give every gallery screen the gold "A" mark (/icon.png) — the same favicon
-  // the real app pages use (see src/app/layout.tsx metadata.icons). Skip if a page
-  // already declares its own icon (build-arc-v2 / build-arc-embed carry an inline SVG).
-  if (!document.querySelector('link[rel~="icon"]')) {
-    const favicon = document.createElement("link");
-    favicon.rel = "icon";
-    favicon.type = "image/png";
-    favicon.href = "/icon.png";
-    document.head.appendChild(favicon);
-  }
-
   const MAP = {
     "home": "/build-home.html",
     "arc": "/build-arc-v2.html",
