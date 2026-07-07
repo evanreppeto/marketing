@@ -51,6 +51,8 @@ export type CrmObjectRow = {
   nextStep: string;
   relationships: CrmRecordRelationship[];
   missingFields: string[];
+  /** Open follow-up tasks (crm_tasks) attached to this record. Decorated post-build; optional so the row builds without it. */
+  openTasks?: number;
 };
 
 export type CrmObjectData = {
@@ -1116,7 +1118,38 @@ export async function getCrmMentionSamples(
   for (const key of CRM_OBJECT_KEYS) {
     out[key] = mapObjectRows(key, data);
   }
+  await applyOpenTaskCounts(supabase, orgId, out).catch(() => {});
   return out;
+}
+
+/**
+ * Best-effort: tag each row with its count of open follow-up tasks (crm_tasks,
+ * status open/in_progress), matched by entity_id → row id. Purely additive and
+ * wrapped in a catch by the caller — if the table is missing or the read is
+ * blocked, rows keep `openTasks` undefined and the Tasks column stays empty.
+ */
+async function applyOpenTaskCounts(
+  supabase: SupabaseClient,
+  orgId: string | null,
+  out: Partial<Record<CrmObjectKey, CrmObjectRow[]>>,
+): Promise<void> {
+  let query = supabase.from("crm_tasks").select("entity_id").in("status", ["open", "in_progress"]);
+  if (orgId) query = query.eq("org_id", orgId);
+  const { data, error } = await query;
+  if (error || !data) return;
+  const counts = new Map<string, number>();
+  for (const task of data as { entity_id: string | null }[]) {
+    if (!task.entity_id) continue;
+    counts.set(task.entity_id, (counts.get(task.entity_id) ?? 0) + 1);
+  }
+  if (counts.size === 0) return;
+  for (const rows of Object.values(out)) {
+    if (!rows) continue;
+    for (const row of rows) {
+      const n = counts.get(row.id);
+      if (n) row.openTasks = n;
+    }
+  }
 }
 
 export async function getCrmNavCounts(client?: SupabaseClient): Promise<CrmNavCounts> {

@@ -115,7 +115,7 @@ function toRow(row: CrmObjectRow): CrmRowVM {
     value: row.valueLabel || "",
     tier: "",
     routing: "",
-    tasks: "",
+    tasks: row.openTasks ? `${row.openTasks} open` : "",
   };
 }
 
