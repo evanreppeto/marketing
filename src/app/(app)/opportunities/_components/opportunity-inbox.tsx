@@ -25,9 +25,9 @@ export type OpportunityVM = {
   routing: OppRouting[];
 };
 
-// Create / draft flows still open the mockups until those screens are ported.
-const CREATE_HREF = "/build-campaign-builder.html";
-const DRAFT_HREF = "/build-arc-v2.html";
+// Create / draft flows open the real ported screens.
+const CREATE_HREF = "/campaigns/new";
+const DRAFT_HREF = "/arc";
 
 const ICONS: Record<OpportunityVM["icon"], React.ReactNode> = {
   weather: (
