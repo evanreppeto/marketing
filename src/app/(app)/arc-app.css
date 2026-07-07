@@ -527,6 +527,31 @@
    from the data.
    ============================================================ */
 .arc-app .arc-personas { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
+/* persona command header — title, stat cards, Arc-drafts banner (ported from build-personas.html) */
+.arc-app .arc-personas .phead { padding: 20px clamp(22px, 3vw, 38px) 0; flex-shrink: 0; }
+.arc-app .arc-personas .ph1row { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.arc-app .arc-personas h1.pt { font-family: var(--serif); font-weight: 500; font-size: 27px; letter-spacing: -.02em; margin: 0; color: var(--text); }
+.arc-app .arc-personas .psub { font-size: 12.5px; color: var(--muted); margin-top: 3px; max-width: 60ch; white-space: normal; }
+.arc-app .arc-personas .gbtn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12.5px; cursor: pointer; transition: .15s; }
+.arc-app .arc-personas .gbtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-app .arc-personas .gbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-app .arc-personas .phead .tg { font-family: var(--mono); font-size: 8.5px; letter-spacing: .02em; border-radius: 4px; padding: 1px 6px; font-weight: 600; white-space: nowrap; color: var(--muted); background: var(--inset); border: 1px solid var(--line-2); }
+.arc-app .arc-personas .pstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line-2); border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; margin-top: 16px; animation: personasHeaderIn .5s cubic-bezier(.16, 1, .3, 1) both; }
+.arc-app .arc-personas .pstat { background: var(--panel); padding: 13px 16px; }
+.arc-app .arc-personas .pstat .sl { font-size: 10.5px; color: var(--muted); }
+.arc-app .arc-personas .pstat .sv { font-family: var(--serif); font-weight: 500; font-size: 23px; letter-spacing: -.02em; margin-top: 5px; color: var(--text); }
+.arc-app .arc-personas .pstat .sd { font-family: var(--mono); font-size: 9.5px; color: var(--muted); margin-top: 3px; }
+.arc-app .arc-personas .arcalert { display: flex; align-items: center; gap: 11px; margin-top: 14px; border: 1px solid var(--accent-border); border-radius: 11px; background: linear-gradient(90deg, var(--accent-soft), transparent 70%); padding: 11px 14px; animation: personasHeaderIn .5s cubic-bezier(.16, 1, .3, 1) .08s both; }
+.arc-app .arc-personas .arcalert .am { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; font-family: var(--serif); color: var(--accent); font-size: 13px; flex-shrink: 0; }
+.arc-app .arc-personas .arcalert .at { font-size: 12.5px; color: var(--text-2); }
+.arc-app .arc-personas .arcalert .at b { color: var(--text); font-weight: 600; }
+.arc-app .arc-personas .arcalert .ab { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
+.arc-app .arc-personas .miniabtn { font-size: 11.5px; font-weight: 600; color: var(--accent-contrast); border: 1px solid var(--accent-border); background: var(--accent-soft); border-radius: 7px; padding: 6px 11px; cursor: pointer; transition: .14s; font-family: inherit; }
+.arc-app .arc-personas .miniabtn:hover { background: rgba(200, 162, 74, .2); }
+.arc-app .arc-personas .miniabtn.ghost { color: var(--muted); border-color: var(--line-2); background: transparent; }
+.arc-app .arc-personas .miniabtn.ghost:hover { color: var(--text-2); }
+@keyframes personasHeaderIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (max-width: 720px) { .arc-app .arc-personas .pstats { grid-template-columns: repeat(2, 1fr); } }
 .arc-app .arc-personas .segbar { display: flex; align-items: center; gap: 12px; padding: 14px clamp(20px, 2.6vw, 30px); border-bottom: 1px solid var(--line-2); flex-shrink: 0; flex-wrap: wrap; }
 .arc-app .arc-personas .vtog { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); }
 .arc-app .arc-personas .vtog button { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--muted); background: none; border: none; border-radius: 7px; cursor: pointer; transition: .14s; font-family: inherit; }
