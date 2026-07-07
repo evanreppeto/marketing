@@ -4,7 +4,7 @@ import { listApprovalCards } from "@/lib/approvals/read-model";
 import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
-import { listOpenOpportunities } from "@/lib/opportunities/read-model";
+import { listOpenOpportunities, type OpportunityEvidence } from "@/lib/opportunities/read-model";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -31,6 +31,22 @@ function pillTone(a: { status: string; statusLabel: string; riskLevel: string })
   if (s.includes("block") || a.riskLevel === "high") return "red";
   if (s.includes("approv") || s.includes("review") || s.includes("pending")) return "warn";
   return "ok";
+}
+
+// Friendlier task-pill labels than the raw approval status (mockup: "Needs you" / "Blocked").
+const PILL_LABEL: Record<"warn" | "red" | "ok", string> = { warn: "Needs you", red: "Blocked", ok: "Ready" };
+
+// Cite chips for the top opportunity — each references a REAL evidence field on
+// the record, so the [1][2] badges are honest source pointers, not decoration.
+function evidenceFacts(ev?: OpportunityEvidence | null): string[] {
+  if (!ev) return [];
+  const facts: string[] = [];
+  for (const url of ev.evidence_urls ?? []) facts.push(`Source · ${url.replace(/^https?:\/\//, "")}`);
+  if (typeof ev.leadScore === "number") facts.push(`Lead score ${ev.leadScore}`);
+  if (typeof ev.daysCold === "number") facts.push(`${ev.daysCold} days since last activity`);
+  if (ev.lastActivityAt) facts.push(`Last activity ${relativeTime(ev.lastActivityAt)}`);
+  if (!facts.length && ev.persona) facts.push(`Persona · ${humanizePersona(ev.persona)}`);
+  return facts.slice(0, 3);
 }
 
 async function workspaceCounts(orgId: string) {
@@ -119,6 +135,9 @@ export default async function HomePage() {
             <div className="lab">Top opportunity</div>
             <div className="row1">
               <h2>{focal.title}</h2>
+              {evidenceFacts(focal.evidence).map((f, i) => (
+                <span className="cite" key={i} title={`From signal — ${f}`}>{i + 1}</span>
+              ))}
               <div className="conf">
                 <span className="cl">Confidence</span>
                 <span className="track">
@@ -143,16 +162,19 @@ export default async function HomePage() {
         {approvals.length === 0 ? (
           <p className="empty-note">Nothing needs your approval right now. Arc surfaces drafts here as it prepares them.</p>
         ) : (
-          approvals.map((a) => (
-            <Link key={a.id} href="/campaigns" className="task">
-              <span className={`pill ${pillTone(a)}`}>{a.statusLabel}</span>
-              <span className="tt">{a.title}</span>
-              <span className="meta">
-                {humanizePersona(a.persona) && <span className="chip">{humanizePersona(a.persona)}</span>}
-                <span className="ago">{relativeTime(a.submittedAt)}</span>
-              </span>
-            </Link>
-          ))
+          approvals.map((a) => {
+            const tone = pillTone(a);
+            return (
+              <Link key={a.id} href="/campaigns" className="task">
+                <span className={`pill ${tone}`}>{PILL_LABEL[tone]}</span>
+                <span className="tt">{a.title}</span>
+                <span className="meta">
+                  {humanizePersona(a.persona) && <span className="chip">{humanizePersona(a.persona)}</span>}
+                  <span className="ago">{relativeTime(a.submittedAt)}</span>
+                </span>
+              </Link>
+            );
+          })
         )}
 
         <div className="metrics">

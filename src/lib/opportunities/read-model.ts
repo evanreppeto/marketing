@@ -9,6 +9,7 @@ type OpportunityEvidence = {
   daysCold?: number;
   leadScore?: number;
   lastActivityAt?: string;
+  evidence_urls?: string[];
 };
 
 type OpportunityRecord = {
