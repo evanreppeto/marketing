@@ -1111,7 +1111,16 @@ const CRM_OBJECT_KEYS: readonly CrmObjectKey[] = [
 export async function getCrmMentionSamples(
   client?: SupabaseClient,
 ): Promise<Partial<Record<CrmObjectKey, CrmObjectRow[]>>> {
-  if (!client && !isSupabaseAdminConfigured()) return {};
+  // Offline/demo: mirror the demo bundle so the board is populated (and its rows
+  // open real records) instead of showing empty tabs while the nav counts and
+  // record pages are full. Same source the counts and record detail read from.
+  if (!client && !isSupabaseAdminConfigured()) {
+    if (!isDemoDataEnabled()) return {};
+    const bundle = buildDemoCrmBundle();
+    const demoOut: Partial<Record<CrmObjectKey, CrmObjectRow[]>> = {};
+    for (const key of CRM_OBJECT_KEYS) demoOut[key] = mapObjectRows(key, bundle);
+    return demoOut;
+  }
   const { client: supabase, orgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
   const data = await getCrmTableBundle(supabase, orgId);
   const out: Partial<Record<CrmObjectKey, CrmObjectRow[]>> = {};

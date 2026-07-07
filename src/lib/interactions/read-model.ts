@@ -9,7 +9,10 @@ import {
   type TaskStatus,
   type TaskUrgency,
 } from "@/domain";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+import { buildDemoNotes, buildDemoTasks, buildDemoTimeline } from "./demo";
 
 export type ActivityTone = "green" | "red" | "amber" | "blue" | "gray";
 
@@ -97,7 +100,9 @@ export async function getRecordTimeline(
   orgId: string,
   injected?: SupabaseClient,
 ): Promise<TimelineResult> {
-  if (!injected && !isSupabaseAdminConfigured()) return unavailable("Supabase is not configured.");
+  if (!injected && !isSupabaseAdminConfigured()) {
+    return isDemoDataEnabled() ? { status: "live", entries: buildDemoTimeline(entityType, entityId) } : unavailable("Supabase is not configured.");
+  }
   const { data, error } = await client(injected)
     .from("crm_activities")
     .select("id,activity_type,summary,detail,actor_kind,actor_name,occurred_at")
@@ -137,7 +142,9 @@ export async function getRecordNotes(
   orgId: string,
   injected?: SupabaseClient,
 ): Promise<NotesResult> {
-  if (!injected && !isSupabaseAdminConfigured()) return unavailable("Supabase is not configured.");
+  if (!injected && !isSupabaseAdminConfigured()) {
+    return isDemoDataEnabled() ? { status: "live", notes: buildDemoNotes(entityType, entityId) } : unavailable("Supabase is not configured.");
+  }
   const { data, error } = await client(injected)
     .from("crm_notes")
     .select("id,body,is_pinned,is_internal,author_kind,author_name,created_at")
@@ -177,7 +184,9 @@ export async function getRecordTasks(
   injected?: SupabaseClient,
   now: Date = new Date(),
 ): Promise<TasksResult> {
-  if (!injected && !isSupabaseAdminConfigured()) return unavailable("Supabase is not configured.");
+  if (!injected && !isSupabaseAdminConfigured()) {
+    return isDemoDataEnabled() ? { status: "live", tasks: buildDemoTasks(entityType, entityId, now) } : unavailable("Supabase is not configured.");
+  }
   const { data, error } = await client(injected)
     .from("crm_tasks")
     .select(

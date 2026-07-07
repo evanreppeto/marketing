@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-import { getSupabaseAnonKey, getSupabaseAuthUrl } from "@/lib/auth/auth-mode";
+import { getSupabaseAnonKey, getSupabaseAuthUrl, isSupabaseAuthConfigured } from "@/lib/auth/auth-mode";
 
 import { type Database } from "./database.types";
 
@@ -58,6 +58,10 @@ export async function createSupabaseAuthServerClient(options?: { rememberMe?: bo
 }
 
 export async function getSupabaseAuthenticatedUser() {
+  // No Supabase Auth configured (local/offline preview) → no authenticated user.
+  // Callers already treat null as "signed out", so degrade instead of throwing.
+  if (!isSupabaseAuthConfigured()) return null;
+
   const supabase = await createSupabaseAuthServerClient();
   const { data, error } = await supabase.auth.getUser();
 

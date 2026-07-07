@@ -87,17 +87,21 @@ export function AppShell({
   orgName,
   userName,
   userEmail,
+  navBadges = {},
   children,
 }: {
   workspaceName: string;
   orgName: string;
   userName: string;
   userEmail: string;
+  navBadges?: Record<string, number>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const displayName = userName || orgName;
-  const firstName = userName.split(/\s+/)[0] || "there";
+  // No signed-in user (local/demo, open mode) → a neutral label instead of a
+  // bare "there". Prod shows the real viewer's first name.
+  const firstName = userName.split(/\s+/)[0] || "Account";
   const crumb = CRUMBS[pathname] ?? CRUMBS[`/${pathname.split("/")[1] ?? ""}`] ?? "Home";
 
   // The static mockup gallery can load a ported real screen inside its crossfade
@@ -134,6 +138,7 @@ export function AppShell({
                 <div className="grp">{g.group.toUpperCase()}</div>
                 {g.items.map((it) => {
                   const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(`${it.href}/`));
+                  const badge = navBadges[it.href] ?? 0;
                   return (
                     // Default prefetch is ON: with (app)/loading.tsx each route has a
                     // loading boundary, so prefetch only fetches the cheap skeleton shell
@@ -142,6 +147,11 @@ export function AppShell({
                       {active && <span className="tick" />}
                       {it.icon}
                       {it.label}
+                      {badge > 0 && (
+                        <span className="navbadge" aria-label={`${badge} needing attention`}>
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

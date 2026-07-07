@@ -1,6 +1,8 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { getSupabaseAdminClient } from "../supabase/server";
+import { buildDemoCampaignWorkspaceList } from "../campaigns/read-model";
+import { isDemoDataEnabled } from "../demo/demo-mode";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 const ACTIVE_APPROVAL_STATUSES = [
   "needs_compliance",
@@ -212,10 +214,73 @@ export async function countActiveApprovals(
   return count ?? 0;
 }
 
+/**
+ * Demo approval queue derived from the same demo campaigns the Campaigns screen
+ * renders — one card per pending deliverable — so the home "waiting on you"
+ * count, the campaign rows' "N to approve", and this list all describe the same
+ * work. Demo-only; the live path below is untouched.
+ */
+function buildDemoApprovalCards(filter: ApprovalQueueFilter = {}): ApprovalCard[] {
+  const agentName = filter.agentName ?? "Arc";
+  const list = buildDemoCampaignWorkspaceList(agentName);
+  const campaigns = list.status === "live" ? list.campaigns : [];
+  const cards: ApprovalCard[] = [];
+  const HOUR = 3_600_000;
+  for (const campaign of campaigns) {
+    for (const deliverable of campaign.pendingDeliverables) {
+      // Stagger recent submit times (2h, 9h, 16h…) so freshly-drafted approvals
+      // read as just-in from Arc rather than inheriting the demo campaign's date.
+      const submittedAt = new Date(Date.now() - (2 + cards.length * 7) * HOUR).toISOString();
+      cards.push({
+        id: `demo-approval-${campaign.id}-${deliverable.assetId}`,
+        type: deliverable.kind,
+        title: deliverable.title,
+        previewText: campaign.previewText ?? deliverable.title,
+        status: "pending_approval",
+        statusLabel: "Pending approval",
+        riskLevel: "low",
+        persona: campaign.persona,
+        channel: campaign.previewLabel ?? deliverable.kind,
+        sourceAgent: agentName,
+        submittedAt,
+        campaign: {
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+          objective: campaign.objective,
+        },
+        asset: {
+          id: deliverable.assetId,
+          type: deliverable.kind,
+          title: deliverable.title,
+          status: "pending_approval",
+        },
+        relatedRecords: { company: null, contact: null, lead: null },
+        promptInput: "",
+        draftOutput: campaign.previewText ?? "",
+        structuredDraft: null,
+        complianceFlags: [],
+        riskFlags: [],
+        recommendedAction: "Approve to unlock send",
+        evidence: [],
+        creativeAssets: [],
+      });
+    }
+  }
+  return cards.slice(0, filter.limit ?? 50);
+}
+
 export async function listApprovalCards(
   filter: ApprovalQueueFilter = {},
-  client: SupabaseClient = getSupabaseAdminClient(),
+  providedClient?: SupabaseClient,
 ): Promise<ApprovalCard[]> {
+  // Offline/demo: no admin client to query (resolving one would throw), so serve
+  // the demo queue. Prod/tests pass a client or have Supabase configured.
+  if (!providedClient && !isSupabaseAdminConfigured()) {
+    return isDemoDataEnabled() ? buildDemoApprovalCards(filter) : [];
+  }
+  const client = providedClient ?? getSupabaseAdminClient();
+
   const statuses = filter.statuses ?? [...ACTIVE_APPROVAL_STATUSES];
   const limit = filter.limit ?? 50;
   const agentName = filter.agentName ?? "Agent";
