@@ -1,0 +1,284 @@
+/* Studio — ported from public/build-studio.html, scoped under .arc-studio.
+   Rail/topbar/global-reset omitted (provided by the app shell). */
+.arc-studio { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* studio context sub-bar (campaign selector + actions; the mockup's .top minus crumb/search/avatar) */
+.arc-studio .studiobar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--line-2); background: color-mix(in srgb, var(--canvas-deep) 40%, transparent); flex-shrink: 0; }
+.arc-studio .cdivr { width: 1px; height: 22px; background: var(--line-2); margin: 0 2px; }
+.arc-studio .cxt { display: flex; align-items: center; gap: 9px; padding: 6px 11px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); cursor: pointer; transition: 0.14s; }
+.arc-studio .cxt:hover { border-color: var(--accent-border); }
+.arc-studio .cxt .ci { width: 24px; height: 24px; border-radius: 6px; background: var(--accent-soft); border: 1px solid var(--accent-border); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; }
+.arc-studio .cxt .ci svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-studio .cxt .cl { font-size: 9px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; line-height: 1; }
+.arc-studio .cxt .cn { font-size: 12.5px; font-weight: 600; line-height: 1.25; margin-top: 2px; white-space: nowrap; }
+.arc-studio .cxt .cmeta { font-family: var(--mono); font-size: 9.5px; color: var(--accent); margin-top: 1px; }
+.arc-studio .cxt .cv { color: var(--muted); font-size: 11px; margin-left: 3px; }
+.arc-studio .proj { font-size: 12px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.arc-studio .proj .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
+.arc-studio .studiobar .right { margin-left: auto; display: flex; align-items: center; gap: 9px; }
+.arc-studio .iconbtn { width: 32px; height: 32px; border: 1px solid var(--line-2); border-radius: 8px; background: transparent; color: var(--text-2); cursor: pointer; display: grid; place-items: center; transition: 0.14s; }
+.arc-studio .iconbtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-studio .iconbtn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-studio .gbtn { height: 32px; padding: 0 13px; border: 1px solid var(--line-2); border-radius: 8px; background: transparent; color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; transition: 0.14s; }
+.arc-studio .gbtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-studio .gbtn.gold { border: 1px solid #b8974a; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); color: #201808; }
+.arc-studio .gbtn.gold:hover { filter: brightness(1.05); }
+.arc-studio .gbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+.arc-studio .studio { flex: 1; min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr) 320px; }
+@media (max-width: 820px) { .arc-studio .studio { display: block; grid-template-columns: 1fr; overflow-y: auto; } }
+
+/* sources */
+.arc-studio .sources { border-right: 1px solid var(--line); min-height: 0; overflow: auto; padding: 14px 13px; background: color-mix(in srgb, var(--canvas-deep) 14%, transparent); }
+.arc-studio .seyl { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin: 0 2px 9px; }
+.arc-studio .stabs { display: flex; gap: 3px; margin-bottom: 12px; background: var(--inset); border: 1px solid var(--line-2); border-radius: 9px; padding: 3px; }
+.arc-studio .stab { flex: 1; text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); padding: 6px 3px; border-radius: 7px; cursor: pointer; transition: 0.14s; }
+.arc-studio .stab:hover { color: var(--text-2); }
+.arc-studio .stab.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+.arc-studio .drop { border: 1px dashed var(--line-3); border-radius: 10px; padding: 14px 12px; text-align: center; margin-bottom: 12px; cursor: pointer; transition: 0.14s; }
+.arc-studio .drop:hover { border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-studio .drop svg { width: 19px; height: 19px; stroke: var(--accent); fill: none; stroke-width: 1.6; margin-bottom: 5px; }
+.arc-studio .drop .dt { font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.arc-studio .drop .dd { font-size: 10px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+.arc-studio .srchead { display: flex; align-items: center; justify-content: space-between; margin: 2px 2px 9px; }
+.arc-studio .srchead .st { font-size: 11px; font-weight: 600; color: var(--text-2); }
+.arc-studio .srchead .sc { font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+.arc-studio .mgrid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.arc-studio .mtile { border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; cursor: pointer; background: var(--panel); transition: border-color 0.15s, transform 0.15s var(--ease); }
+.arc-studio .mtile:hover { border-color: var(--accent-border); transform: translateY(-2px); }
+.arc-studio .mtile.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.arc-studio .mtile .mt { position: relative; height: 70px; background: #222a30; }
+.arc-studio .mtile .mt > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.arc-studio .mtile .mt .pv { position: absolute; top: 5px; left: 5px; font-size: 8px; font-weight: 600; padding: 1px 5px; border-radius: 4px; backdrop-filter: blur(3px); }
+.arc-studio .pv.real { color: var(--ok-text); background: rgba(127, 184, 154, 0.22); }
+.arc-studio .pv.ai { color: var(--accent-contrast); background: rgba(200, 162, 74, 0.22); }
+.arc-studio .pv.comp { color: var(--vio-text); background: rgba(150, 120, 200, 0.22); }
+.arc-studio .pv.upload { color: var(--blue-text); background: rgba(136, 182, 216, 0.22); }
+.arc-studio .pv.stock { color: var(--text-2); background: rgba(120, 120, 130, 0.28); }
+.arc-studio .mtile .ml { font-size: 10px; color: var(--text-2); padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-studio .enginenote { margin-top: 13px; border: 1px solid var(--line-2); border-radius: 9px; padding: 10px 11px; background: var(--panel); font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+.arc-studio .enginenote b { color: var(--text-2); font-weight: 600; }
+.arc-studio .enginenote .ed { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--warn-text); }
+.arc-studio .enginenote .ed i { width: 5px; height: 5px; border-radius: 50%; background: var(--warn); }
+.arc-studio .legend { margin-top: 13px; display: flex; flex-wrap: wrap; gap: 5px; }
+.arc-studio .lg { font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+
+/* stage */
+.arc-studio .stage { min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--canvas); }
+.arc-studio .toolbar { display: flex; align-items: center; gap: 5px; padding: 9px 14px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
+.arc-studio .tgrp { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.arc-studio .tglabel { font-size: 8.5px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; padding: 0 5px 0 2px; flex-shrink: 0; }
+.arc-studio .tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 54px; height: 46px; padding: 0 8px; border: 1px solid transparent; border-radius: 9px; color: var(--text-2); cursor: pointer; transition: 0.13s; flex-shrink: 0; position: relative; }
+.arc-studio .tool:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
+.arc-studio .tool.on { background: var(--accent-soft); border-color: var(--accent-border); color: var(--text); }
+.arc-studio .tool svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-studio .tool .tlbl { font-size: 9.5px; font-weight: 600; white-space: nowrap; }
+.arc-studio .tool.ai .tdot { position: absolute; top: 5px; right: 7px; width: 4px; height: 4px; border-radius: 50%; background: var(--warn); }
+.arc-studio .tdiv { width: 1px; height: 30px; background: var(--line-2); margin: 0 5px; flex-shrink: 0; }
+.arc-studio .formats { display: flex; align-items: center; gap: 7px; padding: 11px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.arc-studio .modeseg { display: flex; gap: 2px; background: var(--inset); border: 1px solid var(--line-2); border-radius: 8px; padding: 2px; }
+.arc-studio .modeseg span { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--muted); padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: 0.14s; }
+.arc-studio .modeseg span:hover { color: var(--text-2); }
+.arc-studio .modeseg span.on { background: var(--panel); color: var(--text); }
+.arc-studio .modeseg span svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-studio .fmdiv { width: 1px; height: 22px; background: var(--line-2); margin: 0 6px; }
+.arc-studio .formats .fl { font-size: 10.5px; color: var(--muted); margin-right: 1px; font-weight: 600; letter-spacing: 0.04em; }
+.arc-studio .fchip { font-size: 11px; color: var(--text-2); border: 1px solid var(--line-2); background: var(--inset); border-radius: 7px; padding: 5px 10px; cursor: pointer; transition: 0.14s; display: flex; align-items: center; gap: 6px; }
+.arc-studio .fchip:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-studio .fchip.on { background: var(--accent-soft); border-color: var(--accent-border); color: var(--text); }
+.arc-studio .fchip .fr { font-family: var(--mono); font-size: 9px; color: var(--muted); }
+.arc-studio .fchip.on .fr { color: var(--accent); }
+.arc-studio .fspacer { margin-left: auto; }
+.arc-studio .szbtn { font-size: 10.5px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 7px; padding: 5px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.14s; }
+.arc-studio .szbtn:hover { color: var(--text-2); border-color: var(--accent-border); }
+.arc-studio .szbtn.on { color: var(--accent-contrast); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-studio .szbtn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-studio .zoom { font-family: var(--mono); font-size: 10px; color: var(--muted); padding: 0 4px; }
+.arc-studio .stagewrap { flex: 1; min-height: 0; display: grid; place-items: center; padding: 22px; overflow: auto; background: radial-gradient(120% 90% at 50% 0, rgba(200, 162, 74, 0.05), transparent 60%); }
+.arc-studio .artboard { display: flex; flex-direction: column; align-items: center; gap: 13px; max-width: 100%; }
+.arc-studio .cspec { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: center; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.arc-studio .cspec b { color: var(--text-2); font-weight: 600; }
+.arc-studio .cspec .dotsep { width: 3px; height: 3px; border-radius: 50%; background: var(--line-3); }
+.arc-studio .cspec .draftpill { color: var(--warn-text); background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: 5px; padding: 1px 7px; font-weight: 600; letter-spacing: 0.02em; }
+.arc-studio .canvas { position: relative; aspect-ratio: 1 / 1; width: min(100%, 440px); height: auto; border-radius: 13px; overflow: hidden; box-shadow: 0 30px 80px -36px rgba(0, 0, 0, 0.95); background: #222a30; border: 1px solid var(--line-2); transition: aspect-ratio 0.3s var(--ease); }
+.arc-studio .canvas .cbg { position: absolute; inset: 0; }
+.arc-studio .canvas .cbg > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.arc-studio .canvas .cveil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 10, 12, 0.15), rgba(10, 10, 12, 0.78)); }
+.arc-studio .cplay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(16, 16, 19, 0.5); border: 1px solid rgba(255, 255, 255, 0.32); backdrop-filter: blur(4px); display: none; place-items: center; cursor: pointer; transition: 0.15s; z-index: 3; }
+.arc-studio .canvas.video .cplay { display: grid; }
+.arc-studio .cplay svg { width: 22px; height: 22px; fill: #fff; margin-left: 3px; }
+.arc-studio .canvas .clogo { position: absolute; top: 16px; left: 16px; display: flex; align-items: center; gap: 7px; font-family: var(--serif); font-weight: 600; font-size: 14px; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
+.arc-studio .canvas .clogo .lm { width: 20px; height: 20px; border-radius: 5px; background: var(--accent); display: grid; place-items: center; color: #1a1505; font-size: 11px; transition: background 0.2s; }
+.arc-studio .canvas .cprov { position: absolute; top: 16px; right: 16px; font-size: 9.5px; font-weight: 600; color: var(--ok-text); background: rgba(16, 16, 19, 0.7); border: 1px solid var(--ok-border); border-radius: 6px; padding: 3px 8px; backdrop-filter: blur(4px); }
+.arc-studio .canvas .ctext { position: absolute; left: 24px; right: 24px; bottom: 22px; }
+.arc-studio .canvas .ckick { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-contrast); margin-bottom: 8px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+.arc-studio .canvas .chead { font-family: var(--serif); font-weight: 600; font-size: clamp(20px, 3.2vh, 29px); line-height: 1.05; color: #fff; letter-spacing: -0.01em; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.arc-studio .canvas .csub { font-size: 13px; color: rgba(255, 255, 255, 0.82); margin-top: 8px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.arc-studio .canvas .ccta { display: inline-flex; margin-top: 14px; height: 34px; align-items: center; padding: 0 16px; border-radius: 8px; background: var(--accent); color: #1a1505; font-weight: 600; font-size: 12.5px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); transition: background 0.2s; }
+.arc-studio .canvas .safez { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+.arc-studio .canvas.szon .safez { opacity: 1; }
+.arc-studio .canvas .safez .szb { position: absolute; left: 0; right: 0; height: 13%; background: repeating-linear-gradient(45deg, rgba(216, 162, 74, 0.1) 0 6px, transparent 6px 12px); }
+.arc-studio .canvas .safez .szt { top: 0; border-bottom: 1px dashed rgba(216, 162, 74, 0.5); }
+.arc-studio .canvas .safez .szbo { bottom: 0; border-top: 1px dashed rgba(216, 162, 74, 0.5); }
+.arc-studio .canvas .safez .szl { position: absolute; top: 7px; left: 8px; font-family: var(--mono); font-size: 8px; color: var(--warn-text); letter-spacing: 0.05em; }
+.arc-studio .vidtl { display: none; align-items: center; gap: 11px; padding: 10px 18px; border-top: 1px solid var(--line); }
+.arc-studio .vidtl.show { display: flex; }
+.arc-studio .vidtl .pp { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--inset); color: var(--text-2); display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
+.arc-studio .vidtl .pp svg { width: 12px; height: 12px; fill: currentColor; }
+.arc-studio .vidtl .tk { flex: 1; height: 6px; border-radius: 99px; background: var(--inset); position: relative; cursor: pointer; }
+.arc-studio .vidtl .tk .pl { position: absolute; left: 0; top: 0; bottom: 0; width: 34%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
+.arc-studio .vidtl .tk .ph { position: absolute; left: 34%; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; border-radius: 50%; background: var(--accent-contrast); box-shadow: 0 0 0 3px rgba(200, 162, 74, 0.25); }
+.arc-studio .vidtl .tm { font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.arc-studio .strip { display: flex; align-items: center; gap: 9px; padding: 11px 18px; border-top: 1px solid var(--line); min-height: 78px; }
+.arc-studio .strip .sl { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.arc-studio .vthumb { width: 52px; height: 52px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line-2); position: relative; cursor: pointer; flex-shrink: 0; transition: border-color 0.15s, transform 0.15s var(--ease); }
+.arc-studio .vthumb:hover { border-color: var(--accent-border); transform: translateY(-2px); }
+.arc-studio .vthumb.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.arc-studio .vthumb > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.arc-studio .vthumb .vtag { position: absolute; bottom: 0; left: 0; right: 0; font-size: 7.5px; font-weight: 600; text-align: center; padding: 1px 0; background: rgba(16, 16, 19, 0.74); color: var(--text-2); }
+.arc-studio .vsdiv { width: 1px; height: 38px; background: var(--line-2); }
+.arc-studio .vgen { margin-left: auto; height: 32px; padding: 0 13px; border-radius: 8px; border: 1px solid var(--accent-border); background: var(--accent-soft); color: var(--accent-contrast); font-size: 11.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; transition: 0.14s; }
+.arc-studio .vgen:hover { background: rgba(200, 162, 74, 0.2); }
+.arc-studio .vgen svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+/* inspector */
+.arc-studio .insp { border-left: 1px solid var(--line); min-height: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--canvas-deep) 18%, transparent); }
+.arc-studio .itabs { display: flex; gap: 4px; padding: 11px 14px 0; flex-shrink: 0; }
+.arc-studio .itab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--muted); padding: 9px 6px; border-radius: 9px 9px 0 0; cursor: pointer; transition: 0.14s; border-bottom: 2px solid transparent; }
+.arc-studio .itab svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-studio .itab:hover { color: var(--text-2); }
+.arc-studio .itab.on { color: var(--text); border-bottom-color: var(--accent); }
+.arc-studio .itab .ibadge { font-family: var(--mono); font-size: 9px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 5px; padding: 0 5px; line-height: 15px; }
+.arc-studio .ipane { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
+.arc-studio .dwrap { padding: 16px 16px 38px; }
+.arc-studio .psec { margin-bottom: 20px; }
+.arc-studio .ph2 { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin: 0 0 11px; display: flex; align-items: center; gap: 8px; }
+.arc-studio .ph2 .tagv { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.04em; color: var(--warn-text); background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: 4px; padding: 1px 5px; text-transform: none; }
+.arc-studio .brief { border: 1px solid var(--accent-border); border-radius: 11px; background: linear-gradient(180deg, var(--accent-soft), transparent 70%); padding: 13px; margin-bottom: 20px; }
+.arc-studio .brief .bh { display: flex; align-items: center; gap: 8px; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent-contrast); text-transform: uppercase; }
+.arc-studio .brief .bn { font-family: var(--serif); font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin: 7px 0 3px; }
+.arc-studio .brief .bmeta { font-family: var(--mono); font-size: 9.5px; color: var(--accent); }
+.arc-studio .brief .brow { margin-top: 10px; font-size: 11px; color: var(--text-2); line-height: 1.5; }
+.arc-studio .brief .brow b { color: var(--text); font-weight: 600; }
+.arc-studio .bchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.arc-studio .bchip { font-size: 10px; font-weight: 600; color: var(--text-2); background: var(--inset); border: 1px solid var(--line-2); border-radius: 5px; padding: 3px 8px; }
+.arc-studio .bchip.per { color: var(--accent-contrast); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-studio .layer { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); margin-bottom: 7px; cursor: pointer; transition: border-color 0.14s; }
+.arc-studio .layer:hover { border-color: var(--accent-border); }
+.arc-studio .layer.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+.arc-studio .layer .li { width: 26px; height: 26px; border-radius: 7px; background: var(--inset); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; }
+.arc-studio .layer .li svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-studio .layer .lt { font-size: 12px; font-weight: 600; min-width: 0; }
+.arc-studio .layer .ld { font-size: 10px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-studio .layer .eye { margin-left: auto; color: var(--muted); font-size: 13px; }
+.arc-studio .swatches { display: flex; gap: 8px; align-items: center; }
+.arc-studio .swatches .sw { width: 30px; height: 30px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: 0.14s; }
+.arc-studio .swatches .sw:hover { transform: scale(1.06); }
+.arc-studio .swatches .sw.on { border-color: #fff; }
+.arc-studio .swnote { font-size: 10px; color: var(--muted); margin-top: 8px; }
+.arc-studio .field { margin-top: 9px; }
+.arc-studio .fieldl { font-size: 10px; color: var(--muted); margin-bottom: 5px; display: flex; justify-content: space-between; }
+.arc-studio .input { width: 100%; border: 1px solid var(--line-2); background: var(--inset); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--text); font-family: inherit; }
+.arc-studio .input:focus { outline: none; border-color: var(--accent-border); }
+.arc-studio .tmpl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.arc-studio .tmplc { border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); padding: 8px; cursor: pointer; text-align: center; transition: 0.14s; }
+.arc-studio .tmplc:hover { border-color: var(--accent-border); }
+.arc-studio .tmplc.on { border-color: var(--accent); background: var(--accent-soft); }
+.arc-studio .tmplc .tmi { height: 30px; border-radius: 5px; margin-bottom: 7px; display: grid; place-items: center; overflow: hidden; }
+.arc-studio .tmplc .tmn { font-size: 10.5px; font-weight: 600; color: var(--text-2); }
+.arc-studio .tmplc.on .tmn { color: var(--accent-contrast); }
+.arc-studio .audrow { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); margin-bottom: 8px; cursor: pointer; transition: border-color 0.14s; }
+.arc-studio .audrow:hover { border-color: var(--accent-border); }
+.arc-studio .audrow .ai { width: 26px; height: 26px; border-radius: 7px; background: var(--inset); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; }
+.arc-studio .audrow .ai svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-studio .audrow .an { font-size: 12px; font-weight: 600; }
+.arc-studio .audrow .ad { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.arc-studio .audrow .ax { margin-left: auto; font-size: 10px; color: var(--accent-contrast); font-weight: 600; }
+.arc-studio .grow { display: flex; align-items: flex-start; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.arc-studio .grow:last-child { border-bottom: none; }
+.arc-studio .gic { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; flex-shrink: 0; margin-top: 1px; }
+.arc-studio .gic.ok { background: var(--ok-soft); color: var(--ok-text); }
+.arc-studio .gic.warn { background: var(--warn-soft); color: var(--warn-text); }
+.arc-studio .gic svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+.arc-studio .gt { font-size: 11.5px; font-weight: 600; }
+.arc-studio .gd { font-size: 10px; color: var(--muted); margin-top: 1px; line-height: 1.4; }
+.arc-studio .gd .fix { color: var(--accent-contrast); cursor: pointer; font-weight: 600; }
+.arc-studio .score { border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); padding: 12px; }
+.arc-studio .srow { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.arc-studio .srow:last-child { margin-bottom: 0; }
+.arc-studio .srow .sn { font-size: 10.5px; color: var(--text-2); width: 64px; flex-shrink: 0; }
+.arc-studio .sbar { flex: 1; height: 6px; border-radius: 4px; background: var(--inset); overflow: hidden; }
+.arc-studio .sfill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
+.arc-studio .srow .sv { font-family: var(--mono); font-size: 10px; color: var(--accent-contrast); width: 24px; text-align: right; }
+.arc-studio .scapt { font-size: 10px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+.arc-studio .scapt b { color: var(--text-2); font-weight: 600; }
+.arc-studio .imgproxy { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 5px; }
+.arc-studio .pxchip { font-size: 9.5px; color: var(--ok-text); background: var(--ok-soft); border: 1px solid var(--ok-border); border-radius: 5px; padding: 2px 7px; font-weight: 600; }
+.arc-studio .exrow { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid var(--line-2); border-radius: 9px; margin-bottom: 7px; font-size: 12px; cursor: pointer; transition: border-color 0.14s; font-weight: 500; }
+.arc-studio .exrow:hover { border-color: var(--accent-border); }
+.arc-studio .exrow svg { width: 15px; height: 15px; stroke: var(--accent); fill: none; stroke-width: 1.7; flex-shrink: 0; }
+.arc-studio .exrow.gold { border-color: #b8974a; background: linear-gradient(180deg, rgba(220, 189, 110, 0.16), rgba(173, 136, 56, 0.08)); color: var(--accent-contrast); }
+.arc-studio .exrow.gold svg { stroke: var(--accent-contrast); }
+
+/* arc pane */
+.arc-studio .arc { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.arc-studio .archead { display: flex; align-items: center; gap: 9px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.arc-studio .archead .am { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; font-family: var(--serif); font-weight: 600; color: var(--accent); font-size: 13px; }
+.arc-studio .archead .at { font-size: 12.5px; font-weight: 600; }
+.arc-studio .archead .ad { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.arc-studio .archead .ad i { width: 4px; height: 4px; border-radius: 50%; background: var(--ok); animation: studioBreathe 3s var(--ease) infinite; }
+.arc-studio .arcscroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; }
+.arc-studio .amsg { margin-bottom: 14px; }
+.arc-studio .amsg.op { display: flex; justify-content: flex-end; }
+.arc-studio .amsg.op .bub { background: var(--inset); border: 1px solid var(--line-2); border-radius: 12px 12px 4px 12px; padding: 9px 12px; font-size: 12px; max-width: 88%; color: var(--text); }
+.arc-studio .amsg.ar .who { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+.arc-studio .amsg.ar .who b { color: var(--accent); font-weight: 600; }
+.arc-studio .trace { border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); margin-bottom: 9px; overflow: hidden; }
+.arc-studio .tracehd { display: flex; align-items: center; gap: 8px; padding: 8px 11px; font-size: 11px; color: var(--text-2); cursor: pointer; }
+.arc-studio .tracehd .tk { font-family: var(--mono); font-size: 9.5px; color: var(--accent-contrast); }
+.arc-studio .tracehd .tcv { margin-left: auto; color: var(--muted); transition: transform 0.2s; }
+.arc-studio .trace.open .tcv { transform: rotate(180deg); }
+.arc-studio .tracebd { display: none; padding: 0 11px 10px 11px; font-size: 10.5px; color: var(--muted); line-height: 1.6; }
+.arc-studio .trace.open .tracebd { display: block; }
+.arc-studio .tracebd .tl { display: flex; gap: 7px; padding: 2px 0; }
+.arc-studio .tracebd .tl i { color: var(--ok); margin-top: 1px; }
+.arc-studio .arbody { font-size: 12px; color: var(--text); line-height: 1.55; }
+.arc-studio .arbody b { font-weight: 600; }
+.arc-studio .arbody .lock { display: inline-flex; align-items: center; gap: 5px; margin-top: 7px; font-size: 10px; color: var(--warn-text); font-weight: 600; }
+.arc-studio .arbody .lock svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-studio .acard { border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); overflow: hidden; margin-top: 9px; }
+.arc-studio .acard .atop { display: flex; gap: 10px; padding: 9px; }
+.arc-studio .acard .ath { width: 46px; height: 58px; border-radius: 7px; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid var(--line-2); }
+.arc-studio .acard .ath > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.arc-studio .acard .ainfo { min-width: 0; flex: 1; }
+.arc-studio .acard .an { font-size: 11.5px; font-weight: 600; line-height: 1.2; }
+.arc-studio .acard .apv { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+.arc-studio .acard .ameta { font-family: var(--mono); font-size: 9px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+.arc-studio .actl { display: flex; gap: 6px; padding: 0 9px 9px; }
+.arc-studio .abtn { flex: 1; height: 28px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: 0.14s; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); }
+.arc-studio .abtn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-studio .abtn.ap { border-color: #b8974a; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); color: #201808; }
+.arc-studio .abtn.ap:hover { filter: brightness(1.05); }
+.arc-studio .abtn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-studio .achips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.arc-studio .achip { font-size: 11px; font-weight: 600; color: var(--text-2); border: 1px solid var(--line-2); background: var(--inset); border-radius: 16px; padding: 6px 11px; cursor: pointer; transition: 0.14s; display: inline-flex; align-items: center; gap: 6px; }
+.arc-studio .achip:hover { border-color: var(--accent-border); color: var(--text); background: var(--accent-soft); }
+.arc-studio .achip svg { width: 12px; height: 12px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
+.arc-studio .composer { border-top: 1px solid var(--line); padding: 11px 14px 13px; flex-shrink: 0; background: color-mix(in srgb, var(--canvas-deep) 30%, transparent); }
+.arc-studio .modes { display: flex; gap: 5px; margin-bottom: 9px; }
+.arc-studio .mode { font-size: 10.5px; font-weight: 600; color: var(--muted); border: 1px solid var(--line-2); border-radius: 7px; padding: 4px 11px; cursor: pointer; transition: 0.14s; }
+.arc-studio .mode:hover { color: var(--text-2); }
+.arc-studio .mode.on { color: var(--accent-contrast); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-studio .cbox { border: 1px solid var(--line-2); border-radius: 10px; background: var(--inset); padding: 9px 11px; display: flex; align-items: flex-end; gap: 9px; transition: border-color 0.14s; }
+.arc-studio .cbox:focus-within { border-color: var(--accent-border); }
+.arc-studio .cbox textarea { flex: 1; border: none; background: transparent; color: var(--text); font-family: inherit; font-size: 12px; resize: none; outline: none; line-height: 1.5; max-height: 80px; }
+.arc-studio .csend { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #b8974a; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); color: #201808; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; }
+.arc-studio .csend svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+.arc-studio .clock { font-size: 9.5px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; justify-content: center; }
+.arc-studio .clock svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+@keyframes studioBreathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .arc-studio .studio { animation: studioRise 0.5s var(--ease) both; }
+}
+@keyframes studioRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

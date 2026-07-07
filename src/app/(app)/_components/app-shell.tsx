@@ -56,7 +56,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   {
     group: "Assets",
     items: [
-      { label: "Studio", href: "/build-studio.html", icon: IconStudio },
+      { label: "Studio", href: "/studio", icon: IconStudio },
       { label: "Library", href: "/library", icon: IconLibrary },
       { label: "Brand", href: "/brand", icon: IconBrand },
       { label: "Outbox", href: "/outbox", icon: IconOutbox },
@@ -75,6 +75,7 @@ const CRUMBS: Record<string, string> = {
   "/outbox": "Outbox",
   "/library": "Library",
   "/brand": "Brand",
+  "/studio": "Studio",
 };
 
 export function AppShell({
