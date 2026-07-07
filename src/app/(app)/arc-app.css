@@ -256,8 +256,8 @@
 .arc-app .arc-grid .pav { width: 32px; height: 32px; border-radius: 8px; background: var(--inset); border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--accent); flex-shrink: 0; font-family: var(--serif); font-weight: 600; font-size: 12.5px; }
 .arc-app .arc-grid .pav svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; }
 .arc-app .arc-grid .pav.co { font-size: 11px; color: var(--text-2); }
-.arc-app .arc-grid .pnm { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; max-width: 260px; }
-.arc-app .arc-grid .psub { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; max-width: 260px; }
+.arc-app .arc-grid .pnm { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; max-width: 210px; }
+.arc-app .arc-grid .psub { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; max-width: 210px; }
 .arc-app .arc-grid .dt td:first-child { width: 34%; }
 .arc-app .arc-grid .chip { display: inline-flex; align-items: center; gap: 6px; height: 23px; padding: 0 9px; border-radius: 6px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
 .arc-app .arc-grid .chip.persona { color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); }
@@ -749,7 +749,7 @@
 .arc-app .pager .pgbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
 .arc-app .arc-grid .dt thead th.cselect, .arc-app .arc-grid .dt tbody td.cselect { width: 40px; padding-left: 16px; cursor: default; }
 .arc-app .arc-grid .dt thead th.cnum, .arc-app .arc-grid .dt tbody td.cnum { text-align: right; }
-.arc-app .arc-grid .dt tbody td.ccompany { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.arc-app .arc-grid .dt tbody td.ccompany { white-space: normal; overflow: hidden; max-width: 170px; line-height: 1.25; }
 .arc-app .arc-grid .rowact { color: var(--muted); font-size: 15px; }
 /* Selection checkbox — verbatim from build-crm.html .ck */
 .arc-app .arc-grid .ck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--line-3); display: inline-grid; place-items: center; cursor: pointer; transition: 0.12s; flex-shrink: 0; }
