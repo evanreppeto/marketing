@@ -16,6 +16,47 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Top navigation progress bar (see nav-progress.tsx). A thin gold line pinned to
+   the top edge of the viewport, shown only for navigations slow enough to warrant
+   a cue. Feedback for slow pages without a content skeleton or flash. */
+.arc-app .navprogress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2.5px;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0;
+  z-index: 2000;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(200, 162, 74, 0.45), var(--accent) 55%, #ecd596);
+  box-shadow: 0 0 10px rgba(200, 162, 74, 0.5);
+}
+/* Invisible for the first 180ms (so fast navigations show nothing), then reveal
+   and trickle toward 92% width. Uses transform (compositor-accelerated) so a
+   heavy destination render on the main thread can't starve it. */
+.arc-app .navprogress.run {
+  animation: navprogressRun 9s cubic-bezier(0.06, 0.75, 0.2, 1) 180ms both;
+}
+@keyframes navprogressRun {
+  0% { transform: scaleX(0); opacity: 0; }
+  1.5% { opacity: 1; }
+  100% { transform: scaleX(0.92); opacity: 1; }
+}
+/* Removing .run reverts the animated transform/opacity; this transition catches
+   that revert so the bar fills to 100% and fades out. A fast nav was still
+   invisible, so it simply fades from 0 — no flash. */
+.arc-app .navprogress.end {
+  transform: scaleX(1);
+  opacity: 0;
+  transition: transform 0.2s ease-out, opacity 0.3s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arc-app .navprogress.run { animation: none; opacity: 1; transform: scaleX(0.5); }
+  .arc-app .navprogress.end { transition: opacity 0.2s; }
+}
+
 .arc-app {
   /* mockup var names → app tokens / fonts */
   --canvas: #16161a; --canvas-deep: #101013; --panel: #1c1c21; --inset: #202027; --raised: #26262d; --sidebar: #121316;
