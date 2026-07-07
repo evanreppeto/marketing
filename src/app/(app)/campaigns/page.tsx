@@ -27,7 +27,7 @@ function relativeTime(iso: string): string {
 function toneFor(status: string): CampaignTone {
   const s = (status || "").toLowerCase();
   if (/archiv/.test(s)) return "archived";
-  if (/revis/.test(s)) return "revise";
+  if (/revis|blocked/.test(s)) return "revise";
   if (/review|pending|await|submitted/.test(s)) return "review";
   if (/live|active|send|running/.test(s)) return "live";
   if (/approv|scheduled|ready/.test(s)) return "approved";

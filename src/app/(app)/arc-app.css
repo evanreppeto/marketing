@@ -319,6 +319,18 @@
   .arc-app .arc-grid .gtoolbar { animation: arcRise .5s var(--ease) .1s both; }
   .arc-app .arc-grid .tablewrap { animation: arcRise .55s var(--ease) .14s both; }
   .arc-app .arc-grid .gfoot { animation: arcRise .5s var(--ease) .2s both; }
+  /* Row rise-in stagger — only newly-mounted rows animate, so it fires on load /
+     tab-change but not on every filter keystroke (matches the mockup intent). */
+  .arc-app .arc-grid .dt tbody tr { animation: arcRise .4s var(--ease) both; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(1) { animation-delay: .16s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(2) { animation-delay: .19s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(3) { animation-delay: .22s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(4) { animation-delay: .25s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(5) { animation-delay: .28s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(6) { animation-delay: .31s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(7) { animation-delay: .34s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(8) { animation-delay: .37s; }
+  .arc-app .arc-grid .dt tbody tr:nth-child(n+9) { animation-delay: .4s; }
 }
 
 @media (max-width: 900px) {
