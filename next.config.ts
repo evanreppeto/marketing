@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
+  // Enables React's View Transitions integration so route navigations animate.
+  // Used for a restrained content crossfade between screens (see the
+  // ::view-transition rules in arc-app.css); the rail/top bar stay anchored.
+  experimental: {
+    viewTransition: true,
+  },
   // Move the dev-only on-screen indicator off the left rail (its default
   // 'bottom-left' overlaps the sidebar's operator avatar). Set to `false` to hide.
   devIndicators: {
