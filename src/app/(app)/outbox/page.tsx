@@ -1,6 +1,6 @@
 import { getAgentOperationsDashboard, type AgentOperationsTask } from "@/lib/agent-operations/read-model";
-import { listApprovalCards, type ApprovalCard } from "@/lib/approvals/read-model";
-import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getOutboxList } from "@/lib/dispatch/read-model";
+import { type DispatchStatus, type DispatchView } from "@/lib/dispatch/status";
 
 import {
   OutboxBoard,
@@ -21,52 +21,43 @@ function normChannel(channel: string): OutboxChannel {
   return "other";
 }
 
-function humanizePersona(persona: string): string {
-  const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  if (!s || /^unassigned/i.test(s)) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-type OutboxLaneKey = "awaiting" | "queued" | "held";
-
-function statusLane(status: string): OutboxLaneKey {
-  const s = (status || "").toLowerCase();
-  if (/^approved/.test(s)) return "queued";
-  if (/revision|declin|reject|block|revert|hold|fail/.test(s)) return "held";
-  return "awaiting";
-}
-
-const OUTBOX_LANE_META: { key: OutboxLaneKey; label: string; color: string }[] = [
-  { key: "awaiting", label: "Awaiting approval", color: "#c8a24a" },
-  { key: "queued", label: "Queued to send", color: "#88b6d8" },
-  { key: "held", label: "Held", color: "#cc6a6a" },
+// The dispatch lifecycle the mockup shows (canceled is dropped unless present).
+const LANE_META: { key: DispatchStatus; label: string; color: string }[] = [
+  { key: "queued", label: "Queued", color: "#c8a24a" },
+  { key: "scheduled", label: "Scheduled", color: "#88b6d8" },
+  { key: "sent", label: "Sent", color: "#9678c8" },
+  { key: "delivered", label: "Delivered", color: "#7fb89a" },
+  { key: "failed", label: "Failed", color: "#cc6a6a" },
 ];
 
-function toOutboxCard(card: ApprovalCard): OutboxCardVM & { lane: OutboxLaneKey } {
-  const lane = statusLane(card.status);
-  const channel = normChannel(card.channel);
-  const persona = humanizePersona(card.persona);
-  const campaign = [card.campaign?.name, persona].filter(Boolean).join(" · ") || "Campaign package";
+const ACTION: Partial<Record<DispatchStatus, string>> = {
+  queued: "Confirm send",
+  scheduled: "Send now",
+  sent: "Mark delivered",
+  failed: "Retry",
+};
 
-  let note: string | null = null;
-  let noteTone: OutboxCardVM["noteTone"] = "";
-  if (lane === "held") {
-    note = `${card.statusLabel} — sent back before it can queue.`;
-    noteTone = /declin|reject/.test(card.status.toLowerCase()) ? "red" : "warn";
-  } else if (channel === "sms" || channel === "social") {
-    note = `${channel === "sms" ? "SMS" : "Social"} transport isn't wired yet — stays in the Outbox.`;
-    noteTone = "warn";
-  }
+function noteTone(status: DispatchStatus): OutboxCardVM["noteTone"] {
+  if (status === "failed") return "red";
+  if (status === "sent" || status === "scheduled") return "warn";
+  return "";
+}
 
+function toOutboxCard(d: DispatchView): OutboxCardVM & { status: DispatchStatus } {
+  const recipients = typeof d.audienceCount === "number" ? d.audienceCount.toLocaleString() : null;
+  const when = d.dispatchedAt || d.scheduledFor;
+  const meta = [recipients ? `${recipients} recipients` : null, when].filter(Boolean).join(" · ") || null;
   return {
-    id: card.id,
-    channel,
-    title: card.title,
-    campaign,
-    note,
-    noteTone,
+    id: d.id,
+    status: d.status,
+    channel: normChannel(d.channel),
+    title: d.recipientSummary || d.deliverable,
+    campaign: d.campaignName,
+    note: d.resultNote,
+    noteTone: noteTone(d.status),
     href: "/campaigns",
-    lane,
+    meta,
+    action: ACTION[d.status] ?? null,
   };
 }
 
@@ -82,32 +73,24 @@ function toBoardCard(task: AgentOperationsTask): BoardCardVM {
   const kind = task.owner?.kind === "agent" ? "agent" : task.owner?.kind === "human" ? "human" : "system";
   const ownerLabel = kind === "agent" ? "Arc" : kind === "human" ? "You" : "System";
   const relation = task.campaignLabel || task.linkedObject || task.personaLabel || "";
-  return {
-    id: task.id,
-    ownerKind: kind,
-    ownerLabel,
-    title: task.task,
-    relation,
-    href: task.approvalHref || task.href || null,
-  };
+  return { id: task.id, ownerKind: kind, ownerLabel, title: task.task, relation, href: task.approvalHref || task.href || null };
 }
 
 export default async function OutboxPage() {
-  const ctx = await getCurrentWorkspaceContext();
-  const [cards, dashboard] = await Promise.all([
-    listApprovalCards({ orgId: ctx.orgId }).catch(() => [] as ApprovalCard[]),
+  const [outbox, dashboard] = await Promise.all([
+    getOutboxList().catch(() => ({ status: "unavailable" }) as const),
     getAgentOperationsDashboard(undefined, "Arc").catch(() => ({ status: "unavailable" }) as const),
   ]);
 
-  const outboxCards = cards.map(toOutboxCard);
-  const outboxLanes: LaneVM<OutboxCardVM>[] = OUTBOX_LANE_META.map((meta) => ({
+  const dispatches = outbox.status === "live" ? outbox.dispatches.map(toOutboxCard) : [];
+  const outboxLanes: LaneVM<OutboxCardVM>[] = LANE_META.map((meta) => ({
     key: meta.key,
     label: meta.label,
     color: meta.color,
-    cards: outboxCards.filter((c) => c.lane === meta.key),
+    cards: dispatches.filter((d) => d.status === meta.key),
   }));
 
-  const channelCounts = outboxCards.reduce<Record<string, number>>((acc, c) => {
+  const channelCounts = dispatches.reduce<Record<string, number>>((acc, c) => {
     acc[c.channel] = (acc[c.channel] ?? 0) + 1;
     return acc;
   }, {});
@@ -121,16 +104,18 @@ export default async function OutboxPage() {
     cards: tasks.filter((t) => meta.match((t.status || "").toLowerCase())).map(toBoardCard),
   }));
 
-  const awaiting = outboxLanes[0].cards.length;
-  const queued = outboxLanes[1].cards.length;
-  const held = outboxLanes[2].cards.length;
-  const arcActive = tasks.filter((t) => ["queued", "running", "in_progress"].includes((t.status || "").toLowerCase())).length;
+  const raw = outbox.status === "live" ? outbox.dispatches : [];
+  const sumRecipients = (statuses: DispatchStatus[]) =>
+    raw.filter((d) => statuses.includes(d.status)).reduce((n, d) => n + (d.audienceCount ?? 0), 0);
+  const count = (statuses: DispatchStatus[]) => raw.filter((d) => statuses.includes(d.status)).length;
 
+  const queuedRecipients = sumRecipients(["queued"]);
+  const sentRecipients = sumRecipients(["sent", "delivered"]);
   const kpis: KpiVM[] = [
-    { value: `${awaiting}`, label: "Awaiting your approval", sub: "in the approval queue", alert: awaiting > 0 },
-    { value: `${queued}`, label: "Queued to send", sub: "locked until you confirm", alert: false },
-    { value: `${held}`, label: "Held", sub: held > 0 ? "needs attention" : "all clear", alert: false },
-    { value: `${arcActive}`, label: "Arc tasks active", sub: `${boardCards.length} on the board`, alert: false },
+    { value: `${count(["queued"])}`, label: "Awaiting your confirm", sub: queuedRecipients ? `${queuedRecipients.toLocaleString()} recipients` : "in the send queue", alert: count(["queued"]) > 0 },
+    { value: `${count(["scheduled"])}`, label: "Scheduled", sub: count(["scheduled"]) ? "in the send window" : "none scheduled", alert: false },
+    { value: sentRecipients ? sentRecipients.toLocaleString() : "0", label: "Sent", sub: "recorded dispatches", alert: false },
+    { value: `${count(["delivered"])}`, label: "Delivered", sub: count(["failed"]) ? `${count(["failed"])} failed` : "no failures", alert: count(["failed"]) > 0 },
   ];
 
   return <OutboxBoard outboxLanes={outboxLanes} boardLanes={boardLanes} kpis={kpis} channelCounts={channelCounts} />;

@@ -12,6 +12,8 @@ export type OutboxCardVM = {
   note: string | null;
   noteTone: "" | "warn" | "red";
   href: string;
+  meta: string | null;
+  action: string | null;
 };
 
 export type BoardCardVM = {
@@ -154,7 +156,9 @@ export function OutboxBoard({
                           <div className="ccamp">{c.campaign}</div>
                         </div>
                       </div>
+                      {c.meta && <div className="cmeta">{c.meta}</div>}
                       {c.note && <div className={`cnote${c.noteTone ? ` ${c.noteTone}` : ""}`}>{c.note}</div>}
+                      {c.action && <span className="caction">{c.action}</span>}
                     </a>
                   ))
                 )}
