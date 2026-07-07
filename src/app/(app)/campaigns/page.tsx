@@ -5,8 +5,7 @@ import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_componen
 
 export const metadata = { title: "Campaigns — Arc" };
 
-// New-campaign still opens the builder mockup until that screen is ported.
-const NEW_CAMPAIGN_HREF = "/build-campaign-builder.html";
+const NEW_CAMPAIGN_HREF = "/campaigns/new";
 
 function humanizePersona(persona: string): string {
   const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
@@ -27,7 +26,7 @@ function relativeTime(iso: string): string {
 function toneFor(status: string): CampaignTone {
   const s = (status || "").toLowerCase();
   if (/archiv/.test(s)) return "archived";
-  if (/revis/.test(s)) return "revise";
+  if (/revis|blocked/.test(s)) return "revise";
   if (/review|pending|await|submitted/.test(s)) return "review";
   if (/live|active|send|running/.test(s)) return "live";
   if (/approv|scheduled|ready/.test(s)) return "approved";

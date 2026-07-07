@@ -38,7 +38,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   {
     group: "Workspace",
     items: [
-      { label: "Arc", href: "/build-arc-v2.html", icon: IconArc },
+      { label: "Arc", href: "/arc", icon: IconArc },
       { label: "Home", href: "/home", icon: IconHome },
       { label: "Campaigns", href: "/campaigns", icon: IconCampaigns },
       { label: "CRM", href: "/crm", icon: IconCrm },
@@ -56,23 +56,29 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   {
     group: "Assets",
     items: [
-      { label: "Studio", href: "/build-studio.html", icon: IconStudio },
-      { label: "Library", href: "/build-library.html", icon: IconLibrary },
-      { label: "Brand", href: "/build-brand.html", icon: IconBrand },
+      { label: "Studio", href: "/studio", icon: IconStudio },
+      { label: "Library", href: "/library", icon: IconLibrary },
+      { label: "Brand", href: "/brand", icon: IconBrand },
       { label: "Outbox", href: "/outbox", icon: IconOutbox },
     ],
   },
 ];
 
 const CRUMBS: Record<string, string> = {
+  "/arc": "Arc",
   "/home": "Home",
   "/campaigns": "Campaigns",
+  "/campaigns/new": "New campaign",
   "/crm": "CRM",
   "/analytics": "Analytics",
   "/brain": "Brain",
   "/opportunities": "Opportunities",
   "/personas": "Personas",
   "/outbox": "Outbox",
+  "/library": "Library",
+  "/brand": "Brand",
+  "/studio": "Studio",
+  "/settings": "Settings",
 };
 
 export function AppShell({
@@ -91,7 +97,7 @@ export function AppShell({
   const pathname = usePathname();
   const displayName = userName || orgName;
   const firstName = userName.split(/\s+/)[0] || "there";
-  const crumb = CRUMBS[pathname] ?? "Home";
+  const crumb = CRUMBS[pathname] ?? CRUMBS[`/${pathname.split("/")[1] ?? ""}`] ?? "Home";
 
   // The static mockup gallery can load a ported real screen inside its crossfade
   // iframe. When that happens the gallery host already provides the sidebar, so
@@ -125,7 +131,7 @@ export function AppShell({
               <div key={g.group}>
                 <div className="grp">{g.group.toUpperCase()}</div>
                 {g.items.map((it) => {
-                  const active = pathname === it.href;
+                  const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(`${it.href}/`));
                   return (
                     <Link key={it.label} href={it.href} className={`nav${active ? " on" : ""}`}>
                       {active && <span className="tick" />}
@@ -142,7 +148,7 @@ export function AppShell({
             displayName={displayName}
             email={userEmail}
             initials={initials(displayName)}
-            settingsHref="/settings/team"
+            settingsHref="/settings"
           />
         </aside>
 

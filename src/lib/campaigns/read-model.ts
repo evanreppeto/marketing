@@ -535,7 +535,7 @@ export async function getCampaignWorkspaceList(client?: SupabaseClient, agentNam
         thumbnailUrl: pickThumbnail(mediaByCampaign.get(campaign.id) ?? []),
         assetTypes,
         driver: campaignDriver({ sourceSystem: campaign.source_system ?? null, lifecycle: launch.lifecycle }),
-        channels: Array.from(new Set(assetTypes.map(humanizeChannel))).slice(0, 3),
+        channels: orderedChannels(campaignAssetRows.map((asset) => humanizeChannel(asset.asset_type ?? asset.channel ?? ""))),
         previewText: preview?.text ?? null,
         previewLabel: preview?.label ?? null,
         contentPieces: buildListContentPieces(campaignAssets),
@@ -2852,15 +2852,38 @@ export function uniqueMedia(items: CampaignMediaAsset[]) {
   return [...byUrl.values()];
 }
 
+// Map an asset_type / channel enum value to the marketing-channel label the
+// Campaigns table shows (matches the mockup: Email · SMS · Paid · Landing · One-pager).
+// Creative-prompt asset types (image/video) collapse to their delivery channel (Paid).
 function humanizeChannel(raw: string): string {
   const map: Record<string, string> = {
-    social_ad: "Meta",
     email: "Email",
     sms: "SMS",
     landing_page: "Landing",
-    one_pager: "Print",
+    web: "Landing",
+    one_pager: "One-pager",
+    doc: "One-pager",
+    search_ad: "Paid",
+    google_ads: "Paid",
+    social_ad: "Paid",
+    meta_ad: "Paid",
+    image_prompt: "Paid",
+    video_prompt: "Paid",
+    media: "Paid",
   };
   return map[raw] ?? raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Stable channel order for the table subline.
+const CHANNEL_ORDER = ["Email", "SMS", "Paid", "Landing", "One-pager"];
+function orderedChannels(values: string[]): string[] {
+  return [...new Set(values)]
+    .sort((a, b) => {
+      const ia = CHANNEL_ORDER.indexOf(a);
+      const ib = CHANNEL_ORDER.indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    })
+    .slice(0, 3);
 }
 
 function uniqueStrings(values: Array<string | null | undefined>) {

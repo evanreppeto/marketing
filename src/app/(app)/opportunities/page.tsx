@@ -18,10 +18,12 @@ function humanizePersona(persona: string): string {
 
 function classify(text: string, subjectType: string): { icon: OpportunityVM["icon"]; typeLabel: string } {
   const t = text.toLowerCase();
-  if (/storm|hail|weather|wind|snow|flood|rain|freeze/.test(t)) return { icon: "weather", typeLabel: "Weather event" };
-  if (/competitor|servpro|rival|ad library|running ads|contested/.test(t)) return { icon: "comp", typeLabel: "Competitor move" };
-  if (/quiet|cold|lapsed|re-?engage|dormant|inactive|past customer|reactivat|referral/.test(t)) return { icon: "clock", typeLabel: "Lifecycle" };
-  if (/intent|comparing|estimate|visit|brows|inquir|quote request|warm/.test(t)) return { icon: "user", typeLabel: "Buyer intent" };
+  // Word-boundaried so company names like "Windy City" don't match "wind".
+  if (/\b(partner|referral|co-?marketing)\b/.test(t)) return { icon: "comp", typeLabel: "Partner referral" };
+  if (/\b(storm|hail|hailstorm|weather|wind|snow|flood|rain|freeze)\b/.test(t)) return { icon: "weather", typeLabel: "Weather event" };
+  if (/\b(competitor|servpro|rival|ad library|running ads|contested)\b/.test(t)) return { icon: "comp", typeLabel: "Competitor move" };
+  if (/\b(quiet|cold|lapsed|re-?engage|dormant|inactive|past customer|reactivat)\b/.test(t)) return { icon: "clock", typeLabel: "Lifecycle" };
+  if (/\b(intent|comparing|estimate|visit|brows|inquir|quote request|warm)\b/.test(t)) return { icon: "user", typeLabel: "Buyer intent" };
   const st = (subjectType || "").toLowerCase();
   if (/lead/.test(st)) return { icon: "user", typeLabel: "Lead signal" };
   if (/compan|partner/.test(st)) return { icon: "comp", typeLabel: "Company signal" };

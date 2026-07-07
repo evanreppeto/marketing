@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 
@@ -19,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!ctx.workspaceId) redirect("/onboarding");
 
   const user = await getSupabaseAuthenticatedUser();
-  const userName = String(user?.user_metadata?.full_name ?? "").trim();
+  const userName = await resolveViewerName(ctx.orgId, user);
 
   return (
     <AppShell

@@ -32,11 +32,15 @@ function humanizePersona(persona: string): string {
 
 function personaDot(persona: string): string {
   const p = (persona || "").toLowerCase();
-  if (/storm|hail|weather|damage/.test(p)) return "#7fb89a";
-  if (/property|manager|realtor|hoa|commercial/.test(p)) return "#c8a24a";
-  if (/insurance|adjuster/.test(p)) return "#88b6d8";
-  if (/past|repeat|existing|customer|reactivation/.test(p)) return "#9678c8";
-  return "#c8a24a";
+  if (/emergency|urgent|storm|hail|flood|fire|burst|water\s*damage/.test(p)) return "#cc6a6a"; // red — urgent
+  if (/insurance|adjuster|agent/.test(p)) return "#88b6d8"; // blue
+  if (/plumb|partner|contractor|referral|vendor|trade|sub/.test(p)) return "#7fb89a"; // green
+  if (/preventative|preventive|maintenance|monitor|inspection/.test(p)) return "#6fae9e"; // teal
+  if (/rebuild|restoration|reconstruct|remodel|renov/.test(p)) return "#d8a24a"; // amber
+  if (/hoa|board|association|landlord|tenant/.test(p)) return "#9678c8"; // purple
+  if (/past|repeat|existing|customer|reactivat/.test(p)) return "#b58fd0"; // light purple
+  if (/property|manager|realtor|commercial|reit/.test(p)) return "#c8a24a"; // gold
+  return "#c8a24a"; // gold default
 }
 
 function statusTone(status: string): string {
@@ -71,12 +75,30 @@ function relativeTime(value: string): string {
   return new Date(then).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Absolute time for the second line of the "Last activity" cell (mockup: "10:42 AM" / "Jun 24").
+function timeLabel(value: string): string {
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+  const today = new Date().toDateString() === d.toDateString();
+  return today
+    ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 function toRow(row: CrmObjectRow): CrmRowVM {
   const persona = humanizePersona(row.personaTag);
+  // Mockup subtitle is "role · location" (dot-separated, no email). Drop email
+  // segments and the slash separators the read-model emits.
+  const detailText = (row.detail || row.sourceLabel || "")
+    .split(/\s*[/·]\s*/)
+    .map((s) => s.trim())
+    .filter((s) => s && !s.includes("@"))
+    .slice(0, 2)
+    .join(" · ");
   return {
     id: row.id,
     name: row.name,
-    detail: row.detail || row.sourceLabel || "",
+    detail: detailText,
     initials: initials(row.name),
     isCompany: row.objectKey === "companies",
     statusLabel: row.status || "—",
@@ -87,7 +109,13 @@ function toRow(row: CrmObjectRow): CrmRowVM {
     scoreColor: typeof row.score === "number" ? scoreColor(row.score) : "var(--muted)",
     owner: row.owner || "—",
     updatedRel: relativeTime(row.updated),
+    updatedTime: timeLabel(row.updated),
     href: row.href,
+    company: (row.relationships.find((r) => /compan/i.test(r.label))?.value ?? "").replace(/\s+\d{8,}$/, "").trim(),
+    value: row.valueLabel || "",
+    tier: "",
+    routing: "",
+    tasks: "",
   };
 }
 

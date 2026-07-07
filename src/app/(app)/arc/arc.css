@@ -1,0 +1,347 @@
+/* Arc — ported from public/build-arc-v2.html, scoped under .arc-chat.
+   Rail/topbar/global-reset come from the app shell and are omitted here. */
+.arc-chat {
+  --accent-hi: color-mix(in oklab, var(--accent), #fff 55%); --accent-lo: color-mix(in oklab, var(--accent), #000 34%);
+  --glow: color-mix(in srgb, var(--accent), transparent 55%);
+  --stage: #0d0d11; --stage-2: #131319;
+  --r-sm: 8px; --r-md: 10px; --r-lg: 13px; --r-xl: 20px;
+  --ease-out: cubic-bezier(.16, 1, .3, 1); --ease-emph: cubic-bezier(.22, .61, .18, 1); --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 320ms; --dur-cine: 520ms;
+  --t: var(--dur-base) var(--ease-out); --t-fast: var(--dur-fast) var(--ease-out);
+  --red: #cc6666; --red-text: #e0a3a3; --red-soft: rgba(204, 102, 102, .12); --red-border: rgba(204, 102, 102, .42);
+  flex: 1; min-height: 0; position: relative; display: grid; grid-template-columns: 248px minmax(0, 1fr) clamp(420px, 34vw, 540px);
+}
+@media (max-width: 1200px) { .arc-chat { grid-template-columns: 220px minmax(0, 1fr); } .arc-chat .canvas { display: none; } }
+
+/* thread rail */
+.arc-chat .threads { min-width: 0; border-right: 1px solid var(--line); min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 14px 10px; background: color-mix(in srgb, var(--canvas-deep) 16%, transparent); }
+.arc-chat .newchat { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r-md); color: var(--text-2); background: transparent; font-size: 12.5px; font-weight: 500; cursor: pointer; margin-bottom: 11px; width: 100%; text-align: left; transition: 0.15s; }
+.arc-chat .newchat:hover { border-color: var(--accent-border); color: var(--text); background: var(--accent-soft); }
+.arc-chat .newchat svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-chat .tsearch { display: flex; align-items: center; gap: 8px; height: 33px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); color: var(--muted); font-size: 12px; cursor: text; width: 100%; text-align: left; }
+.arc-chat .tsearch svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-chat .tsearch .k { margin-left: auto; font-family: var(--mono); font-size: 9.5px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 4px; padding: 1px 5px; }
+.arc-chat .tscroll { flex: 1; min-height: 0; overflow: auto; margin: 8px -4px 0; padding: 0 4px; }
+.arc-chat .tgrp { font-size: 11px; font-weight: 600; color: var(--muted); padding: 14px 10px 6px; }
+.arc-chat .tgrp:first-child { padding-top: 2px; }
+.arc-chat .thread { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 9px; color: var(--text-2); cursor: pointer; position: relative; width: 100%; text-align: left; background: transparent; border: 0; transition: 0.2s; }
+.arc-chat .thread .tt { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-chat .thread:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+.arc-chat .thread .pin { flex-shrink: 0; color: var(--muted); display: inline-flex; }
+.arc-chat .thread .pin svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.arc-chat .thread.cur .pin { color: var(--accent); }
+.arc-chat .thread.two { flex-direction: column; align-items: stretch; gap: 5px; padding: 10px 11px; }
+.arc-chat .thread.two .trow { display: flex; align-items: center; gap: 8px; }
+.arc-chat .thread.two .tmeta { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-chat .thread.two .tmeta b { color: var(--accent-contrast); font-weight: 500; }
+.arc-chat .thread.cur { background: var(--inset); color: var(--text); }
+.arc-chat .thread.cur::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 2.5px; border-radius: 2px; background: var(--accent); }
+.arc-chat .donep { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: arcLivepulse 2s var(--ease-out) infinite; }
+@keyframes arcLivepulse { 0% { box-shadow: 0 0 0 0 rgba(200, 162, 74, .5); } 70% { box-shadow: 0 0 0 5px rgba(200, 162, 74, 0); } 100% { box-shadow: 0 0 0 0 rgba(200, 162, 74, 0); } }
+
+/* conversation */
+.arc-chat .convo { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line-2); }
+.arc-chat .msgs { flex: 1; min-height: 0; overflow: auto; padding: 30px clamp(22px, 4vw, 56px) 10px; scroll-behavior: smooth; }
+.arc-chat .inner { max-width: 720px; margin: 0 auto; }
+.arc-chat .daydiv { display: flex; align-items: center; gap: 14px; margin: 2px 0 26px; color: var(--muted); font-size: 11px; }
+.arc-chat .daydiv::before, .arc-chat .daydiv::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.arc-chat .op { display: flex; align-items: flex-start; justify-content: flex-end; gap: 8px; margin: 10px 0 30px; }
+.arc-chat .op .editbtn { opacity: 0; width: 27px; height: 27px; margin-top: 3px; border-radius: var(--r-sm); display: grid; place-items: center; color: var(--muted); cursor: pointer; border: 0; background: transparent; transition: 0.2s; }
+.arc-chat .op:hover .editbtn { opacity: 1; }
+.arc-chat .op .editbtn:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+.arc-chat .op .editbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-chat .op .bub { max-width: 72%; background: linear-gradient(180deg, var(--raised), var(--inset)); border: 1px solid var(--line-2); color: var(--text); padding: 11px 15px; border-radius: 15px 15px 5px 15px; font-size: 13.5px; line-height: 1.55; box-shadow: 0 10px 30px -22px rgba(0, 0, 0, .9); }
+.arc-chat .arc { display: flex; gap: 14px; margin-bottom: 34px; position: relative; }
+.arc-chat .arc .a { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; margin-top: 1px; border-radius: 7px; border: 1px solid var(--accent-border); background: var(--accent-soft); color: var(--accent); font-family: var(--serif); font-weight: 600; font-size: 13px; }
+.arc-chat .arc .col { min-width: 0; flex: 1; }
+.arc-chat .arc .who { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; height: 15px; }
+.arc-chat .arc .who .t { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.arc-chat .who .mb { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 20px; padding: 1px 8px; }
+.arc-chat .who .mb i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.arc-chat .arc .body { font-size: 14px; color: var(--text-2); line-height: 1.72; max-width: 64ch; }
+.arc-chat .arc .body b { color: var(--text); font-weight: 600; }
+.arc-chat .arc .body .hero { display: block; font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.018em; line-height: 1.32; color: var(--text); margin-bottom: 9px; }
+.arc-chat .md { margin: 13px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; max-width: 64ch; }
+.arc-chat .md li { position: relative; padding-left: 19px; font-size: 13px; color: var(--text-2); line-height: 1.55; }
+.arc-chat .md li::before { content: ""; position: absolute; left: 4px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .6; }
+.arc-chat .md li b { color: var(--text); font-weight: 600; }
+.arc-chat .ic { font-family: var(--mono); font-size: 11px; background: var(--inset); border: 1px solid var(--line-2); border-radius: 5px; padding: 1px 6px; color: var(--text-2); }
+.arc-chat .recall { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 15px 0 2px; }
+.arc-chat .recall .lbl { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--muted); }
+.arc-chat .recall .lbl svg { width: 13px; height: 13px; stroke: var(--muted); fill: none; stroke-width: 1.6; }
+.arc-chat .mchip { display: inline-flex; align-items: center; gap: 7px; height: 24px; padding: 0 10px; border: 1px solid var(--line-2); background: color-mix(in srgb, var(--inset) 55%, transparent); border-radius: 30px; font-size: 11px; color: var(--text-2); cursor: pointer; transition: 0.2s; }
+.arc-chat .mchip:hover { border-color: var(--accent-border); color: var(--text); transform: translateY(-1px); }
+.arc-chat .mchip .conf { font-family: var(--mono); font-size: 9px; color: var(--muted); }
+.arc-chat .reslink { margin-top: 16px; display: flex; align-items: center; gap: 18px; border: 1px solid var(--line-2); border-radius: var(--r-lg); background: linear-gradient(180deg, var(--panel), color-mix(in srgb, var(--panel) 70%, var(--canvas-deep))); padding: 15px 17px; cursor: pointer; width: 100%; text-align: left; transition: 0.2s; }
+.arc-chat .reslink:hover { border-color: var(--accent-border); transform: translateY(-2px); box-shadow: 0 18px 40px -28px rgba(0, 0, 0, .9); }
+.arc-chat .reslink .meta { min-width: 0; flex: 1; }
+.arc-chat .reslink .meta .h { font-size: 14px; font-weight: 600; color: var(--text); }
+.arc-chat .reslink .meta .s { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.arc-chat .reslink .stat { display: flex; gap: 22px; text-align: right; }
+.arc-chat .reslink .stat .v { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--text); line-height: 1; }
+.arc-chat .reslink .stat .v.gold { color: var(--accent-contrast); }
+.arc-chat .reslink .stat .k { font-size: 10px; color: var(--muted); margin-top: 5px; }
+.arc-chat .reslink .go { color: var(--text-2); display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.arc-chat .reslink:hover .go { color: var(--accent-contrast); }
+.arc-chat .reslink .go svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-chat .trace { margin: 15px 0 0; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; background: color-mix(in srgb, var(--inset) 38%, transparent); }
+.arc-chat .trace summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 10px 13px; font-size: 11.5px; color: var(--muted); user-select: none; }
+.arc-chat .trace summary::-webkit-details-marker { display: none; }
+.arc-chat .trace summary:hover { color: var(--text-2); }
+.arc-chat .trace summary .cx { display: inline-flex; transition: transform var(--dur-base) var(--ease-out); }
+.arc-chat .trace summary .cx svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-chat .trace[open] summary .cx { transform: rotate(90deg); }
+.arc-chat .trace summary .lead { display: inline-flex; align-items: center; gap: 8px; }
+.arc-chat .trace summary .tk { margin-left: auto; font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+.arc-chat .trace .steps { padding: 4px 14px 13px 32px; border-top: 1px solid var(--line); }
+.arc-chat .trace .step { font-size: 12px; color: var(--text-2); line-height: 1.6; padding: 6px 0; position: relative; }
+.arc-chat .trace .step .src { font-family: var(--mono); font-size: 9px; color: var(--accent-contrast); margin-left: 6px; cursor: pointer; }
+.arc-chat .trace .step::before { content: ""; position: absolute; left: -16px; top: 12px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .55; }
+.arc-chat .msgactions { display: flex; align-items: center; gap: 2px; margin-top: 15px; opacity: 0; transform: translateY(3px); transition: 0.2s; }
+.arc-chat .arc:hover .msgactions { opacity: 1; transform: none; }
+.arc-chat .ma { width: 29px; height: 29px; border-radius: var(--r-sm); display: grid; place-items: center; color: var(--muted); cursor: pointer; border: 0; background: transparent; transition: 0.2s; }
+.arc-chat .ma:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+.arc-chat .ma svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-chat .canvaslink { margin-top: 16px; display: flex; align-items: center; gap: 13px; border: 1px solid var(--accent-border); border-radius: var(--r-lg); background: linear-gradient(110deg, var(--accent-soft), transparent 70%); padding: 13px 15px; cursor: pointer; width: 100%; text-align: left; transition: 0.2s; position: relative; overflow: hidden; }
+.arc-chat .canvaslink::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(200, 162, 74, .10) 50%, transparent 70%); background-size: 240% 100%; animation: arcSweep 3.2s linear infinite; pointer-events: none; }
+@keyframes arcSweep { to { background-position: -240% 0; } }
+.arc-chat .canvaslink:hover { transform: translateY(-2px); box-shadow: 0 18px 44px -28px rgba(200, 162, 74, .5); }
+.arc-chat .canvaslink .cli { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; color: var(--accent-contrast); flex-shrink: 0; }
+.arc-chat .canvaslink .cli svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-chat .canvaslink .clt { flex: 1; min-width: 0; }
+.arc-chat .canvaslink .clt .clh { font-size: 13px; font-weight: 600; color: var(--text); }
+.arc-chat .canvaslink .clt .cls { font-size: 11px; color: var(--text-2); margin-top: 2px; display: flex; align-items: center; gap: 7px; }
+.arc-chat .canvaslink .clt .cls .live { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-contrast); }
+.arc-chat .canvaslink .go { color: var(--accent-contrast); display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.arc-chat .canvaslink .go svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* streaming dot ring */
+.arc-chat .pending { display: flex; align-items: center; gap: 13px; padding: 3px 0; }
+.arc-chat .dotring { position: relative; width: 24px; height: 24px; flex-shrink: 0; filter: drop-shadow(0 0 5px var(--glow)); }
+.arc-chat .dotring.sm { width: 15px; height: 15px; filter: none; }
+.arc-chat .dotring span { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; }
+.arc-chat .dotring.sm span { width: 3.4px; height: 3.4px; margin: -1.7px 0 0 -1.7px; }
+.arc-chat .dotring span::before { content: ""; display: block; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 34% 28%, var(--accent-hi), var(--accent) 54%, var(--accent-lo)); animation: arcDotpulse 1.1s ease-in-out infinite; }
+.arc-chat .dotring span:nth-child(1) { transform: rotate(0deg) translateY(-9px); } .arc-chat .dotring span:nth-child(2) { transform: rotate(45deg) translateY(-9px); } .arc-chat .dotring span:nth-child(3) { transform: rotate(90deg) translateY(-9px); } .arc-chat .dotring span:nth-child(4) { transform: rotate(135deg) translateY(-9px); } .arc-chat .dotring span:nth-child(5) { transform: rotate(180deg) translateY(-9px); } .arc-chat .dotring span:nth-child(6) { transform: rotate(225deg) translateY(-9px); } .arc-chat .dotring span:nth-child(7) { transform: rotate(270deg) translateY(-9px); } .arc-chat .dotring span:nth-child(8) { transform: rotate(315deg) translateY(-9px); }
+.arc-chat .dotring.sm span:nth-child(1) { transform: rotate(0deg) translateY(-5.5px); } .arc-chat .dotring.sm span:nth-child(2) { transform: rotate(45deg) translateY(-5.5px); } .arc-chat .dotring.sm span:nth-child(3) { transform: rotate(90deg) translateY(-5.5px); } .arc-chat .dotring.sm span:nth-child(4) { transform: rotate(135deg) translateY(-5.5px); } .arc-chat .dotring.sm span:nth-child(5) { transform: rotate(180deg) translateY(-5.5px); } .arc-chat .dotring.sm span:nth-child(6) { transform: rotate(225deg) translateY(-5.5px); } .arc-chat .dotring.sm span:nth-child(7) { transform: rotate(270deg) translateY(-5.5px); } .arc-chat .dotring.sm span:nth-child(8) { transform: rotate(315deg) translateY(-5.5px); }
+.arc-chat .dotring span:nth-child(2)::before { animation-delay: .14s; } .arc-chat .dotring span:nth-child(3)::before { animation-delay: .28s; } .arc-chat .dotring span:nth-child(4)::before { animation-delay: .42s; } .arc-chat .dotring span:nth-child(5)::before { animation-delay: .56s; } .arc-chat .dotring span:nth-child(6)::before { animation-delay: .7s; } .arc-chat .dotring span:nth-child(7)::before { animation-delay: .84s; } .arc-chat .dotring span:nth-child(8)::before { animation-delay: .98s; }
+@keyframes arcDotpulse { 0%, 100% { transform: scale(.38); opacity: .35; } 50% { transform: scale(1); opacity: 1; } }
+.arc-chat .pmeta { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.arc-chat .pverb { font-family: var(--serif); font-style: italic; font-size: 15px; background: linear-gradient(90deg, var(--muted) 0%, var(--text) 50%, var(--muted) 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: arcShimmer 2.1s linear infinite; }
+@keyframes arcShimmer { to { background-position: -200% 0; } }
+.arc-chat .ptimer { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.arc-chat .stopb { display: inline-flex; align-items: center; gap: 6px; height: 27px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: transparent; color: var(--text-2); font-size: 11px; font-weight: 500; cursor: pointer; }
+.arc-chat .stopb:hover { border-color: var(--line-3); color: var(--text); }
+.arc-chat .stopb svg { width: 11px; height: 11px; fill: currentColor; stroke: none; }
+
+/* composer */
+.arc-chat .dock { padding: 6px clamp(22px, 4vw, 56px) 16px; }
+.arc-chat .dock .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.arc-chat .qpanel { border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--panel); padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; }
+.arc-chat .qpanel .qa { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--accent-border); background: var(--accent-soft); color: var(--accent); font-family: var(--serif); font-weight: 600; font-size: 11px; }
+.arc-chat .arc .a img { width: 28px; height: 28px; object-fit: contain; }
+.arc-chat .qpanel .qa img { width: 22px; height: 22px; object-fit: contain; }
+.arc-chat .qpanel .qc { min-width: 0; flex: 1; }
+.arc-chat .qpanel .qq { font-size: 13px; color: var(--text); font-weight: 500; }
+.arc-chat .qpanel .qopts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.arc-chat .qopt { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 30px; background: transparent; color: var(--text-2); font-size: 11.5px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+.arc-chat .qopt:hover { border-color: var(--accent-border); color: var(--text); background: var(--accent-soft); transform: translateY(-1px); }
+.arc-chat .qopt.txt { color: var(--muted); }
+.arc-chat .qpanel .qx { width: 24px; height: 24px; flex-shrink: 0; border-radius: 7px; display: grid; place-items: center; color: var(--muted); cursor: pointer; border: 0; background: transparent; }
+.arc-chat .qpanel .qx:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+.arc-chat .qpanel .qx svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-chat .box { position: relative; border: 1px solid var(--line-2); border-radius: var(--r-xl); background: var(--panel); padding: 13px 15px 11px; box-shadow: 0 20px 50px -34px rgba(0, 0, 0, .95); transition: 0.2s; }
+.arc-chat .box:focus-within { border-color: var(--accent-border); box-shadow: 0 20px 50px -30px rgba(200, 162, 74, .32); }
+.arc-chat .ctxrow { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.arc-chat .ctxchip { display: inline-flex; align-items: center; gap: 7px; height: 25px; padding: 0 6px 0 10px; border: 1px solid var(--line-2); background: var(--inset); border-radius: var(--r-sm); font-size: 11.5px; color: var(--text-2); }
+.arc-chat .ctxchip .thumb { width: 18px; height: 18px; border-radius: 5px; background: linear-gradient(135deg, #3a3320, #23201a); border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--accent); font-size: 8px; }
+.arc-chat .ctxchip .at { color: var(--text); font-family: var(--mono); font-size: 11px; }
+.arc-chat .ctxchip .x { width: 15px; height: 15px; border-radius: 5px; display: grid; place-items: center; color: var(--muted); cursor: pointer; border: 0; background: transparent; }
+.arc-chat .ctxchip .x:hover { background: rgba(255, 255, 255, .08); color: var(--text); }
+.arc-chat .ctxchip .x svg { width: 9px; height: 9px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+.arc-chat .ta { font-size: 14.5px; color: var(--text-2); line-height: 1.5; min-height: 24px; padding: 2px 2px 4px; outline: none; white-space: pre-wrap; word-break: break-word; }
+.arc-chat .ta:empty:before { content: attr(data-ph); color: var(--muted); pointer-events: none; }
+.arc-chat .footer { display: flex; align-items: center; gap: 8px; margin-top: 9px; padding-top: 10px; border-top: 1px solid var(--line); }
+.arc-chat .fleft { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.arc-chat .fleft::-webkit-scrollbar { display: none; }
+.arc-chat .cbtn { width: 31px; height: 31px; border-radius: 50%; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); cursor: pointer; display: grid; place-items: center; flex-shrink: 0; transition: 0.2s; }
+.arc-chat .cbtn:hover { border-color: var(--line-3); color: var(--text); }
+.arc-chat .cbtn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.9; }
+.arc-chat .cdiv { width: 1px; height: 18px; background: var(--line-2); margin: 0 2px; flex-shrink: 0; }
+.arc-chat .pill { display: inline-flex; align-items: center; gap: 6px; height: 29px; padding: 0 10px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-2); font-size: 11.5px; font-weight: 500; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: 0.2s; }
+.arc-chat .pill:hover { background: var(--inset); color: var(--text); }
+.arc-chat .pill .pic { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; opacity: .85; }
+.arc-chat .pill .cv { display: inline-flex; color: var(--muted); }
+.arc-chat .pill .cv svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-chat .pill .mlab { color: var(--muted); }
+.arc-chat .pill.mode { border-color: var(--accent-border); color: var(--accent-contrast); background: var(--accent-soft); }
+.arc-chat .fright { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.arc-chat .sendb { width: 35px; height: 35px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--accent) 66%, #fff 8%); background: linear-gradient(180deg, var(--accent-hi), var(--accent) 58%, var(--accent-lo)); display: grid; place-items: center; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 6px 18px -8px var(--glow); transition: 0.12s var(--ease-spring); }
+.arc-chat .sendb:hover { transform: translateY(-1px) scale(1.04); filter: brightness(1.06); }
+.arc-chat .sendb svg { width: 16px; height: 16px; stroke: #1a1505; fill: none; stroke-width: 2.4; }
+.arc-chat .khint { display: flex; justify-content: flex-end; gap: 14px; margin: 8px 8px 0; font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+.arc-chat .khint b { color: var(--text-2); font-weight: 500; }
+
+/* canvas */
+.arc-chat .canvas { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: radial-gradient(620px 360px at 80% -6%, rgba(200, 162, 74, .10), transparent 58%), linear-gradient(180deg, var(--stage-2), var(--stage)); overflow: hidden; }
+.arc-chat .cvhdr { display: flex; align-items: center; gap: 12px; padding: 16px 18px 14px; border-bottom: 1px solid var(--line-2); }
+.arc-chat .cvhdr .ci { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; color: var(--accent-contrast); flex-shrink: 0; }
+.arc-chat .cvhdr .ci svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.arc-chat .cvhdr .ctt { flex: 1; min-width: 0; }
+.arc-chat .cvhdr .ct { font-family: var(--serif); font-size: 17px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+.arc-chat .cvhdr .cs { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
+.arc-chat .cvhdr .cs .lock { display: inline-flex; align-items: center; gap: 5px; }
+.arc-chat .cvhdr .cs .lock svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.arc-chat .cvviews { display: inline-flex; gap: 3px; background: var(--inset); border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: 2px; }
+.arc-chat .cvview { font: inherit; font-size: 11px; font-weight: 600; color: var(--muted); background: transparent; border: 0; border-radius: 6px; padding: 5px 11px; cursor: pointer; transition: 0.14s; }
+.arc-chat .cvview.active { background: var(--panel); color: var(--text); }
+.arc-chat .orchestra { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.arc-chat .orchhdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+.arc-chat .orchhdr .ol { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.arc-chat .orchhdr .ol b { color: var(--text-2); font-weight: 600; }
+.arc-chat .orchhdr .opct { font-family: var(--mono); font-size: 10px; color: var(--accent-contrast); }
+.arc-chat .obar { height: 5px; border-radius: 4px; background: var(--inset); overflow: hidden; position: relative; }
+.arc-chat .obar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-lo), var(--accent), var(--accent-hi)); border-radius: 4px; box-shadow: 0 0 10px var(--glow); }
+.arc-chat .cvtabs { display: flex; gap: 4px; padding: 10px 14px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.arc-chat .cvtabs::-webkit-scrollbar { display: none; }
+.arc-chat .cvtab { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: var(--r-sm); border: 1px solid transparent; background: transparent; color: var(--text-2); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: 0.2s; }
+.arc-chat .cvtab:hover { background: var(--inset); color: var(--text); }
+.arc-chat .cvtab.active { background: var(--inset); color: var(--text); border-color: var(--line-2); }
+.arc-chat .cvtab .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--muted); }
+.arc-chat .cvtab .dot.ready, .arc-chat .cvtab .dot.approved { background: var(--ok); }
+.arc-chat .cvtab .dot.gen { background: var(--accent); animation: arcLivepulse 1.6s var(--ease-out) infinite; }
+.arc-chat .stage { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; animation: arcFade var(--dur-base) var(--ease-out); }
+@keyframes arcFade { from { opacity: 0; } to { opacity: 1; } }
+.arc-chat .stagehd { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.arc-chat .stagehd .sn { font-size: 15px; font-weight: 600; color: var(--text); }
+.arc-chat .stagehd .sright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.arc-chat .jstat { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 62px; height: 21px; padding: 0 9px; border-radius: 30px; font-size: 10px; font-weight: 600; border: 1px solid var(--line-2); color: var(--muted); }
+.arc-chat .jstat.done, .arc-chat .jstat.appr { color: var(--ok-text); border-color: var(--ok-border); background: var(--ok-soft); }
+.arc-chat .jstat.pend { color: var(--accent-contrast); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-chat .jstat svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2.4; }
+.arc-chat .stagemedia { height: 172px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: linear-gradient(135deg, #26221544, #16141055); position: relative; overflow: hidden; display: grid; place-items: center; margin-bottom: 14px; }
+.arc-chat .stagemedia .adcreative { position: relative; aspect-ratio: 4/5; height: 152px; border-radius: 9px; overflow: hidden; border: 1px solid rgba(0, 0, 0, .45); box-shadow: 0 16px 38px -18px rgba(0, 0, 0, .95); background: linear-gradient(168deg, #4a3f24 0%, #2c2616 46%, #14120d 100%); }
+.arc-chat .stagemedia .adcreative .scene { position: absolute; inset: 0; background: radial-gradient(130% 76% at 50% 12%, rgba(236, 213, 150, .36), transparent 58%), repeating-linear-gradient(116deg, rgba(255, 255, 255, 0) 0 13px, rgba(255, 255, 255, .045) 13px 14px); }
+.arc-chat .stagemedia .adcreative .scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 64%; background: linear-gradient(180deg, transparent, rgba(9, 8, 5, .88)); }
+.arc-chat .stagemedia .adcreative .adlogo { position: absolute; top: 9px; left: 10px; display: inline-flex; align-items: center; gap: 5px; font-family: var(--serif); font-weight: 600; font-size: 10.5px; letter-spacing: .06em; color: var(--accent-contrast); }
+.arc-chat .stagemedia .adcreative .adlogo b { width: 5px; height: 5px; border-radius: 1px; background: var(--accent); transform: rotate(45deg); display: inline-block; }
+.arc-chat .stagemedia .adcreative .adhl { position: absolute; left: 11px; right: 11px; bottom: 33px; font-family: var(--serif); font-weight: 500; font-size: 12.5px; line-height: 1.2; color: #fbf7ec; text-shadow: 0 1px 10px rgba(0, 0, 0, .6); }
+.arc-chat .stagemedia .adcreative .adcta { position: absolute; left: 11px; bottom: 11px; font-size: 8px; font-weight: 700; letter-spacing: .02em; color: #1a1505; background: linear-gradient(180deg, var(--accent-hi), var(--accent)); border-radius: 5px; padding: 4px 8px; }
+.arc-chat .stagemedia .prov { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 9.5px; color: var(--text-2); background: color-mix(in srgb, var(--canvas-deep) 80%, transparent); border: 1px solid var(--line-2); border-radius: 20px; padding: 3px 9px; }
+.arc-chat .stagemedia .prov i { width: 4px; height: 4px; border-radius: 50%; background: var(--ok); }
+.arc-chat .stagesubj { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 7px; }
+.arc-chat .stagesubj .lab { color: var(--muted); font-size: 11px; font-weight: 400; margin-right: 7px; }
+.arc-chat .stagebody { font-size: 12.5px; color: var(--text-2); line-height: 1.65; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 13px; margin-bottom: 16px; }
+.arc-chat .insp { margin-bottom: 16px; }
+.arc-chat .insp .ih { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 9px; }
+.arc-chat .provgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; }
+.arc-chat .provgrid .pr { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.arc-chat .provgrid .pk { font-size: 10px; color: var(--muted); }
+.arc-chat .provgrid .pv { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-chat .guards { display: flex; flex-direction: column; gap: 8px; }
+.arc-chat .guard { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--text-2); }
+.arc-chat .guard .gi { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; border: 1px solid var(--line-2); }
+.arc-chat .guard .gi svg { width: 10px; height: 10px; stroke: currentColor; stroke-width: 2.6; fill: none; }
+.arc-chat .guard.ok .gi { border-color: var(--ok-border); background: var(--ok-soft); color: var(--ok-text); }
+.arc-chat .cvfoot { margin-top: auto; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--line-2); background: color-mix(in srgb, var(--canvas-deep) 40%, transparent); }
+.arc-chat .btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 15px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 12px; border: 0; transition: 0.12s var(--ease-spring); }
+.arc-chat .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-chat .btn.app { border: 1px solid color-mix(in srgb, var(--accent) 66%, #fff 8%); background: linear-gradient(180deg, var(--accent-hi), var(--accent) 58%, var(--accent-lo)); color: #1a1505; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 8px 22px -10px var(--glow); }
+.arc-chat .btn.app:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.arc-chat .btn.app svg { stroke: #1a1505; }
+.arc-chat .btn.ghost { border: 1px solid var(--line-2); background: transparent; color: var(--text-2); }
+.arc-chat .btn.ghost:hover { border-color: var(--line-3); color: var(--text); }
+.arc-chat .btn.dec { border: 1px solid transparent; background: transparent; color: var(--muted); }
+.arc-chat .btn.dec:hover { border-color: var(--red-border); color: var(--red-text); }
+.arc-chat .cvfoot .lock { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.arc-chat .cvfoot .lock svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+/* jump to latest */
+.arc-chat .jumplatest { position: absolute; left: 50%; transform: translateX(-50%) translateY(6px); bottom: 92px; z-index: 5; display: inline-flex; align-items: center; gap: 7px; height: 31px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 30px; background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(10px); color: var(--text-2); font-size: 11.5px; font-weight: 500; cursor: pointer; box-shadow: 0 12px 32px -16px rgba(0, 0, 0, .9); opacity: 0; pointer-events: none; transition: 0.2s; }
+.arc-chat .jumplatest.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+.arc-chat .jumplatest:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-chat .jumplatest svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* assets-view wrapper + generating states */
+.arc-chat .cvassets { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.arc-chat .stagemedia .glyph svg { width: 42px; height: 42px; stroke: var(--accent); fill: none; stroke-width: 1.2; opacity: .4; }
+.arc-chat .stagemedia.gen::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(200, 162, 74, .16) 50%, transparent 70%); background-size: 220% 100%; animation: arcSweep 1.5s linear infinite; }
+.arc-chat .stagemedia .adcreative .horizon { position: absolute; left: 0; right: 0; top: 54%; height: 1px; background: linear-gradient(90deg, transparent, rgba(236, 213, 150, .4), transparent); }
+.arc-chat .stagebar { height: 4px; border-radius: 3px; background: var(--inset); overflow: hidden; margin: -6px 0 14px; }
+.arc-chat .stagebar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-hi)); border-radius: 3px; transition: width var(--dur-base) linear; }
+.arc-chat .jstat.gen { color: var(--accent-contrast); border-color: var(--accent-border); }
+.arc-chat .jstat.err { color: var(--red-text); border-color: var(--red-border); background: var(--red-soft); }
+.arc-chat .jstat .dotring { filter: none; }
+.arc-chat .cvtab .dot.blocked { background: transparent; border: 1.5px solid var(--accent-contrast); }
+.arc-chat .cvtab .dot.err { background: var(--red); }
+.arc-chat .stagehd .jstat { position: static; right: auto; top: auto; }
+.arc-chat .btn.sm { height: 29px; padding: 0 12px; font-size: 11.5px; }
+.arc-chat .cvfoot .lock.ok { color: var(--ok-text); }
+
+/* live activity log */
+.arc-chat .activity { border-top: 1px solid var(--line-2); background: color-mix(in srgb, var(--canvas-deep) 30%, transparent); padding: 13px 18px; max-height: 170px; display: flex; flex-direction: column; }
+.arc-chat .acthdr { display: flex; align-items: center; gap: 8px; font-size: 10.5px; color: var(--muted); margin-bottom: 9px; }
+.arc-chat .acthdr .dotring.sm { margin-right: 1px; }
+.arc-chat .acthdr b { color: var(--text-2); font-weight: 600; }
+.arc-chat .actlog { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 7px; }
+.arc-chat .logline { display: flex; align-items: flex-start; gap: 9px; font-size: 11.5px; color: var(--text-2); line-height: 1.5; animation: arcLogIn var(--dur-base) var(--ease-out) both; }
+.arc-chat .logline .lt { font-family: var(--mono); font-size: 9px; color: var(--muted); flex-shrink: 0; margin-top: 2px; width: 46px; }
+.arc-chat .logline .lx { min-width: 0; }
+.arc-chat .logline .lx .src { font-family: var(--mono); font-size: 9px; color: var(--accent-contrast); margin-left: 5px; }
+.arc-chat .logline.done .lc { color: var(--ok-text); }
+@keyframes arcLogIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+/* audience view */
+.arc-chat .audpanel { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; animation: arcFade var(--dur-base) var(--ease-out); }
+.arc-chat .audstat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; margin-bottom: 20px; }
+.arc-chat .audstat .as { border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--panel); padding: 12px 13px; }
+.arc-chat .audstat .as .v { font-family: var(--serif); font-size: 21px; font-weight: 600; color: var(--text); line-height: 1; }
+.arc-chat .audstat .as .v.gold { color: var(--accent-contrast); }
+.arc-chat .audstat .as .k { font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+.arc-chat .audsec { margin-bottom: 22px; }
+.arc-chat .audsec .ah { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 12px; }
+.arc-chat .audrow { margin-bottom: 13px; }
+.arc-chat .audrow:last-child { margin-bottom: 0; }
+.arc-chat .audrow .arh { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.arc-chat .audrow .arh .nm { font-size: 12.5px; color: var(--text); }
+.arc-chat .audrow .arh .ct { font-family: var(--mono); font-size: 10.5px; color: var(--muted); flex-shrink: 0; }
+.arc-chat .audbar { height: 7px; border-radius: 4px; background: var(--inset); overflow: hidden; }
+.arc-chat .audbar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent-lo), var(--accent)); box-shadow: 0 0 8px var(--glow); }
+.arc-chat .audbar i.soft { background: var(--line-3); box-shadow: none; }
+.arc-chat .audrow .ang { font-size: 11px; color: var(--text-2); margin-top: 6px; }
+.arc-chat .audrow .ang b { color: var(--accent-contrast); font-weight: 500; }
+
+/* stage header verchip + richer asset frames (email / sms / landing) */
+.arc-chat .verchip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: transparent; color: var(--text-2); font-size: 11px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+.arc-chat .verchip:hover { border-color: var(--line-3); color: var(--text); }
+.arc-chat .verchip svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-chat .emailframe { border: 1px solid var(--line-2); border-radius: var(--r-md); overflow: hidden; background: var(--panel); margin-bottom: 16px; }
+.arc-chat .emailframe .emhead { padding: 11px 13px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--canvas-deep) 25%, transparent); }
+.arc-chat .emailframe .emrow { display: flex; gap: 9px; font-size: 11.5px; color: var(--text-2); padding: 2px 0; }
+.arc-chat .emailframe .emrow .eml { width: 46px; color: var(--muted); font-size: 10px; font-family: var(--mono); flex-shrink: 0; padding-top: 1px; }
+.arc-chat .emailframe .emrow b { color: var(--text); font-weight: 600; }
+.arc-chat .emailframe .embody { padding: 13px; font-size: 12.5px; color: var(--text-2); line-height: 1.65; }
+.arc-chat .smsframe { margin-bottom: 16px; display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
+.arc-chat .smsbubble { max-width: 80%; background: var(--inset); border: 1px solid var(--line-2); border-radius: 14px 14px 14px 5px; padding: 11px 14px; font-size: 12.5px; color: var(--text); line-height: 1.5; }
+.arc-chat .smsmeta { font-size: 10.5px; color: var(--muted); }
+.arc-chat .lpframe { border: 1px solid var(--line-2); border-radius: var(--r-md); overflow: hidden; margin-bottom: 16px; background: var(--panel); }
+.arc-chat .lphero { padding: 22px 18px; display: flex; flex-direction: column; gap: 9px; background: radial-gradient(120% 92% at 50% 0%, rgba(200, 162, 74, .15), transparent 60%); }
+.arc-chat .lpkick { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-contrast); }
+.arc-chat .lph { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; color: var(--text); line-height: 1.2; }
+.arc-chat .lpsub { font-size: 12px; color: var(--text-2); line-height: 1.5; max-width: 38ch; }
+.arc-chat .lpcta { align-self: flex-start; margin-top: 5px; font-size: 11px; font-weight: 700; color: #1a1505; background: linear-gradient(180deg, var(--accent-hi), var(--accent)); border-radius: 7px; padding: 8px 14px; }
+.arc-chat .lprows { padding: 14px 18px; display: flex; flex-direction: column; gap: 9px; border-top: 1px solid var(--line); }
+.arc-chat .lprows span { height: 8px; border-radius: 4px; background: var(--inset); display: block; }
+.arc-chat .lprows span.short { width: 58%; }
+.arc-chat .lpblock { font-size: 12.5px; color: var(--muted); background: var(--panel); border: 1px dashed var(--line-3); border-radius: var(--r-md); padding: 18px; margin-bottom: 16px; text-align: center; }
+
+@keyframes arcRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes arcRiseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .arc-chat .op .bub { animation: arcRise var(--dur-cine) var(--ease-out) both; }
+  .arc-chat .arc .col > * { animation: arcRiseIn var(--dur-cine) var(--ease-out) both; }
+  .arc-chat .arc .col > *:nth-child(3) { animation-delay: .05s; }
+  .arc-chat .arc .col > *:nth-child(4) { animation-delay: .1s; }
+  .arc-chat .arc .col > *:nth-child(5) { animation-delay: .15s; }
+  .arc-chat .arc .col > *:nth-child(6) { animation-delay: .2s; }
+}

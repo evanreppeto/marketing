@@ -1,6 +1,7 @@
 import { getCrmMentionSamples, getCrmNavCounts, type CrmObjectRow } from "@/lib/crm/read-model";
 import { getRecentActivity, type ActivityEntry, type ActivityTone } from "@/lib/activity/read-model";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 import {
   AnalyticsView,
@@ -42,12 +43,19 @@ function toActivityRow(e: ActivityEntry) {
   return { id: e.id, dot: TONE_DOT[e.tone] ?? "var(--muted)", title: e.title, detail: e.detail, meta, time: timeLabel(e.occurredAt) };
 }
 
+async function wonRevenueCents(orgId: string) {
+  const admin = getSupabaseAdminClient();
+  const { data } = await admin.from("outcomes").select("gross_revenue_cents").eq("org_id", orgId).in("status", ["won", "paid"]);
+  return (data ?? []).reduce((sum: number, r: { gross_revenue_cents: number | null }) => sum + (r.gross_revenue_cents ?? 0), 0);
+}
+
 export default async function AnalyticsPage() {
   const ctx = await getCurrentWorkspaceContext();
-  const [navCounts, samples, activity] = await Promise.all([
+  const [navCounts, samples, activity, revenueCents] = await Promise.all([
     getCrmNavCounts().catch(() => ({ status: "unavailable" }) as const),
     getCrmMentionSamples().catch(() => ({}) as Partial<Record<string, CrmObjectRow[]>>),
     getRecentActivity({}, undefined, ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
+    wonRevenueCents(ctx.orgId).catch(() => 0),
   ]);
 
   const counts = navCounts.status === "live" ? navCounts.counts : { companies: 0, contacts: 0, properties: 0, leads: 0, jobs: 0, outcomes: 0 };
@@ -57,7 +65,12 @@ export default async function AnalyticsPage() {
     { label: "Leads", value: counts.leads.toLocaleString(), sub: "in CRM", wired: true },
     { label: "Companies", value: counts.companies.toLocaleString(), sub: "tracked", wired: true },
     { label: "Booked jobs", value: counts.jobs.toLocaleString(), sub: counts.jobs === 0 ? "none scheduled yet" : "scheduled", wired: true },
-    { label: "Won revenue", value: "$0", sub: "needs outcome data", wired: false },
+    {
+      label: "Won revenue",
+      value: revenueCents > 0 ? `$${Math.round(revenueCents / 100).toLocaleString()}` : "$0",
+      sub: revenueCents > 0 ? "from won jobs" : "needs outcome data",
+      wired: revenueCents > 0,
+    },
     { label: "Reply rate", value: "—", sub: "needs send data", wired: false },
   ];
 

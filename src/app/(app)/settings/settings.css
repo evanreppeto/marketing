@@ -1,0 +1,156 @@
+/* Settings — ported from public/build-settings.html, scoped under .arc-settings.
+   Rail/topbar/global-reset omitted (provided by the app shell). */
+.arc-settings { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px minmax(0, 1fr); overflow: hidden; }
+@media (max-width: 820px) { .arc-settings { display: block; grid-template-columns: 1fr; overflow-y: auto; } }
+
+.arc-settings .setnav { border-right: 1px solid var(--line); overflow: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 1px; }
+.arc-settings .setsearch { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--inset); margin-bottom: 8px; }
+.arc-settings .setsearch svg { width: 13px; height: 13px; stroke: var(--muted); fill: none; stroke-width: 1.8; }
+.arc-settings .setsearch input { flex: 1; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 12px; outline: none; }
+.arc-settings .setgrp { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; padding: 13px 10px 5px; }
+.arc-settings .setitem { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: var(--text-2); font-size: 12.5px; font-weight: 500; cursor: pointer; transition: 0.14s; }
+.arc-settings .setitem:hover { background: rgba(255, 255, 255, 0.035); color: var(--text); }
+.arc-settings .setitem.on { background: var(--accent-soft); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+.arc-settings .setitem svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.7; opacity: 0.85; }
+.arc-settings .setitem.on svg { color: var(--accent); opacity: 1; }
+.arc-settings .setitem .sd { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.arc-settings .setmain { overflow: auto; padding: 22px clamp(20px, 3vw, 34px) 56px; }
+.arc-settings .setmain-in { max-width: 760px; }
+.arc-settings .sechead { margin-bottom: 18px; }
+.arc-settings .sechead h2 { font-family: var(--serif); font-weight: 500; font-size: 22px; letter-spacing: -0.02em; margin: 0; }
+.arc-settings .sechead p { font-size: 12.5px; color: var(--muted); margin: 5px 0 0; max-width: 66ch; line-height: 1.5; }
+
+.arc-settings .panel { border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); margin-bottom: 16px; overflow: hidden; }
+.arc-settings .panel-h { display: flex; align-items: center; gap: 9px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+.arc-settings .panel-h h3 { font-size: 13.5px; font-weight: 600; margin: 0; }
+.arc-settings .panel-h .ph-d { font-size: 11px; color: var(--muted); }
+.arc-settings .panel-b { padding: 2px 16px; }
+.arc-settings .panel-f { padding: 11px 16px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--canvas-deep) 22%, transparent); }
+.arc-settings .panel-f svg { width: 12px; height: 12px; stroke: var(--ok-text); fill: none; stroke-width: 2; flex-shrink: 0; }
+
+.arc-settings .srow { display: flex; align-items: center; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.arc-settings .srow:last-child { border-bottom: 0; }
+.arc-settings .srow .sl { flex: 1; min-width: 0; }
+.arc-settings .srow .slt { font-size: 13px; font-weight: 500; }
+.arc-settings .srow .sld { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.arc-settings .srow .sc { flex-shrink: 0; }
+
+.arc-settings .tg { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.02em; border-radius: 4px; padding: 1px 6px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.arc-settings .tg.ok { color: var(--ok-text); background: var(--ok-soft); border: 1px solid var(--ok-border); }
+.arc-settings .tg.est { color: var(--warn-text); background: var(--warn-soft); border: 1px solid var(--warn-border); }
+
+.arc-settings .inp, .arc-settings .sel { background: var(--inset); border: 1px solid var(--line-2); border-radius: 8px; color: var(--text); font: inherit; font-size: 12.5px; padding: 8px 11px; outline: none; }
+.arc-settings .inp:focus, .arc-settings .sel:focus { border-color: var(--accent-border); }
+.arc-settings .inp { min-width: 230px; }
+.arc-settings .sel { cursor: pointer; min-width: 150px; }
+.arc-settings .seg { display: inline-flex; background: var(--inset); border: 1px solid var(--line-2); border-radius: 9px; padding: 3px; }
+.arc-settings .seg button { font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: transparent; border: 0; border-radius: 6px; padding: 6px 13px; cursor: pointer; transition: 0.14s; }
+.arc-settings .seg button.on { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent-border); }
+.arc-settings .sw { display: inline-block; vertical-align: middle; width: 38px; height: 22px; border-radius: 99px; background: var(--inset); border: 1px solid var(--line-2); position: relative; cursor: pointer; transition: 0.16s; flex-shrink: 0; }
+.arc-settings .sw i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: 0.16s; }
+.arc-settings .sw.on { background: var(--accent-soft); border-color: var(--accent-border); }
+.arc-settings .sw.on i { left: 18px; background: var(--accent); }
+.arc-settings .sw.locked { cursor: not-allowed; opacity: 0.85; }
+.arc-settings .sw.locked i { background: var(--muted); }
+.arc-settings .locklbl { display: inline-flex; align-items: center; gap: 8px; }
+.arc-settings .locklbl svg { width: 13px; height: 13px; stroke: var(--muted); fill: none; stroke-width: 2; }
+.arc-settings .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+.arc-settings .btn:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-settings .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-settings .btn.gold { border: 1px solid #b8974a; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); color: #201808; }
+.arc-settings .btn.gold:hover { filter: brightness(1.04); }
+.arc-settings .btn.gold svg { stroke: #201808; }
+.arc-settings .btn.sm { height: 28px; padding: 0 11px; font-size: 11.5px; }
+.arc-settings .btn.danger:hover { border-color: var(--red-border); color: var(--red-text); }
+.arc-settings .spill { font-size: 10px; font-weight: 600; border-radius: 6px; padding: 3px 9px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.arc-settings .spill .pd { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.arc-settings .spill.ok { color: var(--ok-text); background: var(--ok-soft); }
+.arc-settings .spill.off { color: var(--muted); background: var(--inset); }
+.arc-settings .spill.err { color: var(--red-text); background: var(--red-soft); }
+.arc-settings .spill.warn { color: var(--warn-text); background: var(--warn-soft); }
+.arc-settings .pillrow { display: inline-flex; align-items: center; gap: 9px; }
+.arc-settings .pillrow .ptxt { font-size: 12.5px; color: var(--text-2); }
+.arc-settings .accsw { display: flex; gap: 9px; }
+.arc-settings .accopt { width: 28px; height: 28px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: 0.14s; }
+.arc-settings .accopt:hover { transform: scale(1.08); }
+.arc-settings .accopt.on { border-color: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(255, 255, 255, 0.25); }
+
+.arc-settings .mem, .arc-settings .tok { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.arc-settings .mem:last-child, .arc-settings .tok:last-child { border-bottom: 0; }
+.arc-settings .mem .ma { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-family: var(--serif); font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); flex-shrink: 0; font-size: 13px; }
+.arc-settings .mem .mi { flex: 1; min-width: 0; }
+.arc-settings .mem .mn { font-size: 13px; font-weight: 600; }
+.arc-settings .mem .me { font-size: 11px; color: var(--muted); }
+.arc-settings .tok .tki { flex: 1; min-width: 0; font-size: 12.5px; }
+.arc-settings .tok .tkn { font-weight: 600; }
+.arc-settings .tok .tkp { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.arc-settings .ukpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; margin-bottom: 6px; }
+.arc-settings .ukpi { border: 1px solid var(--line-2); border-radius: 11px; background: var(--inset); padding: 13px 14px; }
+.arc-settings .ukpi .uv { font-family: var(--serif); font-size: 23px; font-weight: 500; letter-spacing: -0.02em; }
+.arc-settings .ukpi .ul { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.arc-settings .ubar { height: 6px; border-radius: 99px; background: var(--inset); overflow: hidden; margin-top: 10px; }
+.arc-settings .ubar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
+
+.arc-settings .cnote { font-size: 11.5px; color: var(--muted); line-height: 1.55; margin-bottom: 13px; display: flex; gap: 9px; align-items: flex-start; border: 1px solid var(--ok-border); border-radius: 11px; padding: 11px 13px; background: linear-gradient(180deg, var(--ok-soft), transparent); }
+.arc-settings .cnote svg { width: 15px; height: 15px; stroke: var(--ok-text); fill: none; stroke-width: 1.8; flex-shrink: 0; margin-top: 1px; }
+.arc-settings .cnote b { color: var(--text); font-weight: 600; }
+.arc-settings .connhub-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); margin-bottom: 11px; max-width: 340px; }
+.arc-settings .connhub-search svg { width: 14px; height: 14px; stroke: var(--muted); fill: none; stroke-width: 1.8; }
+.arc-settings .connhub-search input { flex: 1; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 12.5px; outline: none; }
+.arc-settings .catchips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.arc-settings .catchip { font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--line-2); border-radius: 99px; padding: 5px 12px; cursor: pointer; transition: 0.14s; }
+.arc-settings .catchip:hover { color: var(--text-2); }
+.arc-settings .catchip.on { color: var(--text); border-color: var(--accent-border); background: var(--accent-soft); }
+.arc-settings .conngrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(214px, 1fr)); gap: 11px; }
+.arc-settings .ccard { border: 1px solid var(--line-2); border-radius: 13px; background: var(--panel); padding: 13px; display: flex; flex-direction: column; gap: 9px; transition: 0.16s var(--ease); min-height: 132px; }
+.arc-settings .ccard:hover { border-color: var(--accent-border); transform: translateY(-2px); box-shadow: 0 16px 36px -26px rgba(0, 0, 0, 0.85); }
+.arc-settings .ccard .ct { display: flex; align-items: flex-start; gap: 10px; }
+.arc-settings .clogo { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-family: var(--serif); font-weight: 600; font-size: 14px; flex-shrink: 0; line-height: 1; }
+.arc-settings .ccard .cnm { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.arc-settings .ccard .ccat { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.arc-settings .ccard .cdsc { font-size: 11px; color: var(--muted); line-height: 1.45; flex: 1; }
+.arc-settings .ccard .cfoot { display: flex; align-items: center; gap: 8px; }
+.arc-settings .ccard .cfoot .grow { flex: 1; }
+.arc-settings .badge { font-size: 9px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; border-radius: 5px; padding: 2px 7px; border: 1px solid var(--line-2); color: var(--muted); }
+.arc-settings .cb-add { font-size: 11.5px; font-weight: 600; color: #201808; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); border: 1px solid #b8974a; border-radius: 7px; padding: 5px 13px; cursor: pointer; }
+.arc-settings .cb-add:hover { filter: brightness(1.05); }
+.arc-settings .cb-mng { font-size: 11.5px; font-weight: 600; color: var(--text-2); background: transparent; border: 1px solid var(--line-2); border-radius: 7px; padding: 5px 11px; cursor: pointer; }
+.arc-settings .cb-mng:hover { border-color: var(--accent-border); color: var(--text); }
+
+.arc-settings .ovgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(166px, 1fr)); gap: 11px; margin-bottom: 16px; }
+.arc-settings .ovcard { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); padding: 13px 14px; cursor: pointer; transition: 0.15s var(--ease); }
+.arc-settings .ovcard:hover { border-color: var(--accent-border); transform: translateY(-2px); }
+.arc-settings .ovcard .ovi { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); margin-bottom: 9px; }
+.arc-settings .ovcard .ovi svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-settings .ovcard .ovv { font-family: var(--serif); font-size: 20px; font-weight: 500; letter-spacing: -0.02em; line-height: 1; }
+.arc-settings .ovcard .ovl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.arc-settings .attn { display: flex; align-items: center; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.arc-settings .attn:last-child { border-bottom: 0; }
+.arc-settings .attn .ai { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; }
+.arc-settings .attn .ai svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-settings .attn .at { flex: 1; font-size: 12.5px; color: var(--text-2); }
+.arc-settings .attn .at b { color: var(--text); font-weight: 600; }
+.arc-settings .ai.warn { background: var(--warn-soft); color: var(--warn-text); }
+.arc-settings .ai.ok { background: var(--ok-soft); color: var(--ok-text); }
+.arc-settings .attn .ago { color: var(--muted); font-size: 13px; }
+
+.arc-settings .msub { display: flex; gap: 4px; margin-bottom: 11px; border-bottom: 1px solid var(--line-2); }
+.arc-settings .msub button { font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); background: transparent; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 12px; cursor: pointer; transition: 0.14s; }
+.arc-settings .msub button:hover { color: var(--text-2); }
+.arc-settings .msub button.on { color: var(--text); border-bottom-color: var(--accent); }
+.arc-settings .msub .mct { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: 5px; }
+.arc-settings .modellist { display: flex; flex-direction: column; max-height: 360px; overflow: auto; margin: 0 -4px; padding: 0 4px; }
+.arc-settings .mrow { display: flex; align-items: center; gap: 11px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+.arc-settings .mrow:last-child { border-bottom: 0; }
+.arc-settings .mlogo { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-family: var(--mono); font-weight: 600; font-size: 10px; flex-shrink: 0; line-height: 1; }
+.arc-settings .mrow .mi { flex: 1; min-width: 0; }
+.arc-settings .mrow .mn { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.arc-settings .mrow .mp { font-size: 10.5px; color: var(--muted); }
+.arc-settings .mbadge { font-size: 8px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 4px; padding: 1px 5px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .arc-settings .setmain-in > .sechead { animation: setRise 0.45s var(--ease) both; }
+  .arc-settings .setmain-in > .panel { animation: setRise 0.45s var(--ease) both; }
+}
+@keyframes setRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
