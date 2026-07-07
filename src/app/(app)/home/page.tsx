@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { listApprovalCards } from "@/lib/approvals/read-model";
+import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
 import { listOpenOpportunities } from "@/lib/opportunities/read-model";
@@ -59,7 +60,7 @@ export default async function HomePage() {
   // read is free.
   const ctx = await getCurrentWorkspaceContext();
   const user = await getSupabaseAuthenticatedUser();
-  const firstName = String(user?.user_metadata?.full_name ?? "").trim().split(/\s+/)[0] || "there";
+  const firstName = (await resolveViewerName(ctx.orgId, user)).split(/\s+/)[0] || "there";
 
   const [c, approvals, campaignList, opportunities, activity] = await Promise.all([
     workspaceCounts(ctx.orgId),
