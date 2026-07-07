@@ -5,8 +5,7 @@ import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_componen
 
 export const metadata = { title: "Campaigns — Arc" };
 
-// New-campaign still opens the builder mockup until that screen is ported.
-const NEW_CAMPAIGN_HREF = "/build-campaign-builder.html";
+const NEW_CAMPAIGN_HREF = "/campaigns/new";
 
 function humanizePersona(persona: string): string {
   const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();

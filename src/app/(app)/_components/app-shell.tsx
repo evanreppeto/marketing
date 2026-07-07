@@ -67,6 +67,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
 const CRUMBS: Record<string, string> = {
   "/home": "Home",
   "/campaigns": "Campaigns",
+  "/campaigns/new": "New campaign",
   "/crm": "CRM",
   "/analytics": "Analytics",
   "/brain": "Brain",
