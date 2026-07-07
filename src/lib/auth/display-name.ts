@@ -1,14 +1,20 @@
+import { cache } from "react";
+
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 /**
  * Full display name for the current viewer. Prefers the signed-in user's name;
  * in open/demo mode (no session) it falls back to the workspace owner's name so
  * the shell and greeting show a real person instead of a bare "there".
+ *
+ * Memoized per request with `cache()`: the layout and home page both resolve the
+ * viewer name from the same (cached) user + orgId, so the owner lookups run once
+ * per navigation instead of twice.
  */
-export async function resolveViewerName(
+export const resolveViewerName = cache(async (
   orgId: string,
   user: { user_metadata?: { full_name?: string } } | null,
-): Promise<string> {
+): Promise<string> => {
   const metaName = String(user?.user_metadata?.full_name ?? "").trim();
   if (metaName) return metaName;
   try {
@@ -32,4 +38,4 @@ export async function resolveViewerName(
     // fall through to the empty default
   }
   return "";
-}
+});

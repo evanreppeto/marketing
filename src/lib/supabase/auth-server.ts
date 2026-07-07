@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { getSupabaseAnonKey, getSupabaseAuthUrl, isSupabaseAuthConfigured } from "@/lib/auth/auth-mode";
 
@@ -57,7 +58,10 @@ export async function createSupabaseAuthServerClient(options?: { rememberMe?: bo
   });
 }
 
-export async function getSupabaseAuthenticatedUser() {
+// Memoized per request with React `cache()`: the shell layout and each page both
+// resolve the current user, so without this the auth round-trip ran twice on
+// every navigation. `cache()` collapses that to one call per request.
+export const getSupabaseAuthenticatedUser = cache(async () => {
   // No Supabase Auth configured (local/offline preview) → no authenticated user.
   // Callers already treat null as "signed out", so degrade instead of throwing.
   if (!isSupabaseAuthConfigured()) return null;
@@ -70,4 +74,4 @@ export async function getSupabaseAuthenticatedUser() {
   }
 
   return data.user ?? null;
-}
+});

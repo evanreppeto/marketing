@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 const HOUSE = '<svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4654"/><stop offset="1" stop-color="#27303a"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><path d="M0 210 L150 120 L300 200 L450 110 L600 190 V300 H0 Z" fill="#2b343d"/><path d="M120 230 L300 130 L480 230 Z" fill="#4a5663"/><path d="M120 230 L300 130 L300 250 L120 250 Z" fill="#3d4854"/><rect x="180" y="230" width="240" height="70" fill="#323b45"/><rect x="210" y="248" width="34" height="34" fill="#566270"/><rect x="356" y="248" width="34" height="34" fill="#566270"/><rect x="288" y="248" width="24" height="52" fill="#475360"/></svg>';
@@ -86,7 +87,7 @@ export function BuilderView({ brandName }: { brandName: string }) {
     <div className="arc-builder">
       <section className="center">
         <div className="chead">
-          <div className="backrow"><a className="back" href="/campaigns"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg></a><h1 className="ctitle">Roof Restoration — Spring Reactivation</h1><span className="spill">In review</span></div>
+          <div className="backrow"><Link className="back" href="/campaigns"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg></Link><h1 className="ctitle">Roof Restoration — Spring Reactivation</h1><span className="spill">In review</span></div>
           <div className="csub">Drafted by Arc from the Naperville hailstorm opportunity · review each piece, then deploy</div>
           <div className="tabs">
             {TABLIST.map((t) => (
