@@ -7,6 +7,15 @@ import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { AppShell } from "./_components/app-shell";
 import "./arc-app.css";
 
+// Every signed-in screen requires per-request auth + live per-workspace data, so
+// this segment is always dynamic — it must never be statically prerendered. This
+// is also load-bearing for the build: (app)/loading.tsx makes Next try to
+// prerender each route's shell, which runs this auth layout; at build time (CI,
+// no Supabase env) that throws WorkspaceUnavailableError. Forcing dynamic skips
+// the build-time prerender while the loading boundary still streams instantly at
+// runtime.
+export const dynamic = "force-dynamic";
+
 // Shared shell for the signed-in app screens (Home, Campaigns, … as they are
 // ported). Resolves the workspace once here — a screen inside can re-read it via
 // the cached getCurrentWorkspaceContext() without another round trip.

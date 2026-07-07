@@ -249,20 +249,36 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   );
 }
 
-// Signals radar (Engage / Fit / Intent triangle) — ported from build-personas.html.
+// Signals radar (Engage / Fit / Intent triangle). Clearer than the source mockup:
+// a visible reference grid, bold near-white axis labels, and the actual 0–100
+// signal value called out in gold at each vertex so the shape reads as a number,
+// not just an abstract blob.
 function Radar({ sig }: { sig: { engagement: number; fit: number; intent: number } }) {
-  const cx = 85, cy = 72, R = 52;
+  const cx = 85, cy = 76, R = 50;
   const ax: [keyof typeof sig, number, string][] = [["engagement", -90, "Engage"], ["fit", 30, "Fit"], ["intent", 150, "Intent"]];
   const pt = (ang: number, r: number): [number, number] => { const a = (ang * Math.PI) / 180; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; };
   const rings = [0.4, 0.7, 1].map((f) => ax.map((a) => pt(a[1], R * f).map((n) => n.toFixed(1)).join(",")).join(" "));
   const vpts = ax.map((a) => pt(a[1], (R * sig[a[0]]) / 100).map((n) => n.toFixed(1)).join(",")).join(" ");
   return (
-    <svg viewBox="0 0 170 138" width="172" height="140" aria-hidden="true">
-      {rings.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="rgba(232,224,205,.18)" />)}
-      {ax.map((a) => { const p = pt(a[1], R); return <line key={a[0]} x1={cx} y1={cy} x2={p[0].toFixed(1)} y2={p[1].toFixed(1)} stroke="rgba(232,224,205,.22)" />; })}
-      <polygon points={vpts} fill="rgba(200,162,74,.2)" stroke="#c8a24a" strokeWidth={1.8} strokeLinejoin="round" />
-      {ax.map((a) => { const p = pt(a[1], (R * sig[a[0]]) / 100); return <circle key={a[0]} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r={2.6} fill="#c8a24a" />; })}
-      {ax.map((a) => { const lp = pt(a[1], R + 14); return <text key={a[0]} x={lp[0].toFixed(1)} y={(lp[1] + 3).toFixed(1)} textAnchor="middle" fontSize="11" fontWeight="700" fill="#ece7db">{a[2]}</text>; })}
+    <svg viewBox="0 0 170 158" width="176" height="164" aria-hidden="true">
+      {rings.map((pts, i) => (
+        <polygon key={i} points={pts} fill="none" stroke="rgba(232,224,205,.15)" strokeWidth={i === rings.length - 1 ? 1.1 : 0.9} />
+      ))}
+      {ax.map((a) => { const p = pt(a[1], R); return <line key={a[0]} x1={cx} y1={cy} x2={p[0].toFixed(1)} y2={p[1].toFixed(1)} stroke="rgba(232,224,205,.16)" strokeWidth={0.9} />; })}
+      <polygon points={vpts} fill="rgba(200,162,74,.22)" stroke="#c8a24a" strokeWidth={2} strokeLinejoin="round" />
+      {ax.map((a) => { const p = pt(a[1], (R * sig[a[0]]) / 100); return <circle key={a[0]} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r={3} fill="#c8a24a" stroke="var(--panel)" strokeWidth={1.2} />; })}
+      {ax.map((a) => {
+        const top = a[1] === -90;
+        const lp = pt(a[1], R + 15);
+        const ly = top ? lp[1] - 4 : lp[1] + 1;
+        const vy = top ? lp[1] + 9 : lp[1] + 14;
+        return (
+          <g key={a[0]}>
+            <text x={lp[0].toFixed(1)} y={ly.toFixed(1)} textAnchor="middle" fontSize="9.5" fontWeight={700} letterSpacing="0.05em" fill="#ece7db">{a[2].toUpperCase()}</text>
+            <text x={lp[0].toFixed(1)} y={vy.toFixed(1)} textAnchor="middle" fontSize="13" fontWeight={800} fill="#c8a24a">{Math.round(sig[a[0]])}</text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

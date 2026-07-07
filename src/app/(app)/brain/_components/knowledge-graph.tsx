@@ -73,7 +73,6 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
     const ANCHOR = 0.14;                            // a dropped node remembers where you left it
     const CX = 430, CY = 300;
 
-    let gview: SVGGElement;
     let edgeEls: SVGLineElement[] = [];
     const pan = { x: 0, y: 0, z: 1 };
     let dragNode: SimNode | null = null;
@@ -95,14 +94,14 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
         + `<text class="nlbl" y="${(r + 10).toFixed(1)}" text-anchor="middle">${esc(n.label)}</text></g>`;
     }).join("");
     svgEl.innerHTML = `<g class="gview">${eh}${nh}</g>`;
-    gview = svgEl.querySelector(".gview") as SVGGElement;
+    const gview = svgEl.querySelector(".gview") as SVGGElement;
     edgeEls = E.map((_, i) => gview.querySelector(`.gedge[data-i="${i}"]`) as SVGLineElement);
     N.forEach((n) => { n.el = gview.querySelector(`.gnode[data-id="${CSS.escape(n.id)}"]`) as SVGGElement; });
 
     const tick = (k = 1, cool = 1) => {
       const F = N.map(() => ({ fx: 0, fy: 0 }));
       for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
-        const a = N[i], b = N[j]; let dx = a.x - b.x, dy = a.y - b.y; let d2 = dx * dx + dy * dy; if (d2 < 144) d2 = 144;
+        const a = N[i], b = N[j]; const dx = a.x - b.x, dy = a.y - b.y; let d2 = dx * dx + dy * dy; if (d2 < 144) d2 = 144;
         const d = Math.sqrt(d2), f = 5200 / d2; F[i].fx += dx / d * f; F[i].fy += dy / d * f; F[j].fx -= dx / d * f; F[j].fy -= dy / d * f;
       }
       E.forEach((e) => { const a = M.get(e.from)!, b = M.get(e.to)!; const ia = N.indexOf(a), ib = N.indexOf(b); const dx = b.x - a.x, dy = b.y - a.y; const d = Math.hypot(dx, dy) || 1; const diff = (d - 84) / d * 0.03; F[ia].fx += dx * diff; F[ia].fy += dy * diff; F[ib].fx -= dx * diff; F[ib].fy -= dy * diff; });
