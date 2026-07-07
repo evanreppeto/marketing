@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { sendWorkspaceInviteEmail } from "@/lib/auth/send-invite-email";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import {
   cancelWorkspaceInvite,
@@ -35,9 +37,25 @@ export async function inviteMemberAction(formData: FormData) {
   }
 
   revalidatePath(TEAM_PATH);
-  // Surface the code so the owner can share it (invitee enters it on /onboarding).
-  const forParam = invitedEmail ? `&for=${encodeURIComponent(invitedEmail)}` : "";
-  redirect(`${TEAM_PATH}?code=${encodeURIComponent(result.code)}${forParam}`);
+
+  // Email the invitee a branded link to the accept-invite screen (Resend). The
+  // code + link still work if delivery fails — we just flag whether it sent.
+  let emailed = false;
+  if (invitedEmail) {
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("host") ?? "";
+    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+    if (host) {
+      const sent = await sendWorkspaceInviteEmail({ code: result.code, invitedEmail, origin: `${proto}://${host}` });
+      emailed = sent.emailed;
+    }
+  }
+
+  // Surface the code + shareable link so the owner can share it directly too.
+  const parts = [`code=${encodeURIComponent(result.code)}`];
+  if (invitedEmail) parts.push(`for=${encodeURIComponent(invitedEmail)}`);
+  if (emailed) parts.push("emailed=1");
+  redirect(`${TEAM_PATH}?${parts.join("&")}`);
 }
 
 export async function revokeInviteAction(formData: FormData) {

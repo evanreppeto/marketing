@@ -1,9 +1,11 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getCurrentWorkspaceContext, type WorkspaceContext } from "@/lib/auth/workspace";
 import { listWorkspaceTeamAccess } from "@/lib/auth/workspace-invites";
 
 import { changeRoleAction, inviteMemberAction, removeMemberAction, revokeInviteAction } from "./actions";
+import { CopyInviteLink } from "./_components/copy-invite-link";
 
 export const metadata = { title: "Team — Arc" };
 
@@ -47,9 +49,13 @@ function expiryLabel(iso: string | null) {
 export default async function TeamPage({
   searchParams,
 }: {
-  searchParams: Promise<{ code?: string; for?: string; error?: string }>;
+  searchParams: Promise<{ code?: string; for?: string; error?: string; emailed?: string }>;
 }) {
   const params = await searchParams;
+  const requestHeaders = await headers();
+  const inviteHost = requestHeaders.get("host") ?? "";
+  const inviteProto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const inviteUrl = params.code ? `${inviteProto}://${inviteHost}/accept-invite/${encodeURIComponent(params.code)}` : "";
 
   let ctx: WorkspaceContext;
   try {
@@ -94,12 +100,7 @@ export default async function TeamPage({
         ) : null}
 
         {params.code ? (
-          <div className="mt-6 rounded-lg border border-[color:color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--accent)_10%,transparent)] px-4 py-3.5">
-            <p className="text-[0.85rem] text-[var(--text-primary)]">
-              Invite created{params.for ? ` for ${params.for}` : ""}. Share this code — they enter it during sign-up:
-            </p>
-            <p className="mt-2 font-[family-name:var(--font-mono)] text-[1.15rem] tracking-[0.12em] text-[var(--accent)]">{params.code}</p>
-          </div>
+          <CopyInviteLink url={inviteUrl} code={params.code} forEmail={params.for} emailed={params.emailed === "1"} />
         ) : null}
 
         {/* Invite */}
