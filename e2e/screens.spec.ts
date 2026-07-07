@@ -56,11 +56,15 @@ test.describe("gallery screens smoke", () => {
   }
 });
 
-// The domain root rewrites to the home screen (next.config.ts beforeFiles).
-test("/ rewrites to the home screen", async ({ page }) => {
+// The front door enters the real app (src/app/page.tsx redirects to /home).
+// An authenticated session lands on the home screen ("waiting on you"); without
+// one — as in CI, where there is no Supabase env — it redirects on to the
+// sign-in screen. Either way root resolves cleanly into the app, not the old
+// static mockup gallery.
+test("/ enters the real app", async ({ page }) => {
   const errors = watchForErrors(page);
   const resp = await page.goto("/", { waitUntil: "load" });
   expect(resp?.status(), "HTTP status for /").toBeLessThan(400);
-  await expect(page.locator("body")).toContainText(/waiting on you/i);
+  await expect(page.locator("body")).toContainText(/waiting on you|sign in/i);
   expect(errors, `/ had errors:\n${errors.join("\n")}`).toEqual([]);
 });
