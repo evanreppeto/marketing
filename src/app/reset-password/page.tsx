@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
 import { FormValidityMessages } from "@/components/ui/form-validity";
+import { PasswordField } from "@/components/ui/password-field";
 
 export const metadata = { title: "Set a new password — Arc" };
 
@@ -61,10 +62,9 @@ export default async function ResetPasswordPage({
               <label htmlFor="password" className={labelClass}>
                 New password
               </label>
-              <input
+              <PasswordField
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}
