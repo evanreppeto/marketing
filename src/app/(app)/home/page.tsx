@@ -1,12 +1,10 @@
 import Link from "next/link";
 
-import { listApprovalCards } from "@/lib/approvals/read-model";
 import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
-import { getCampaignWorkspaceList } from "@/lib/campaigns/read-model";
-import { listOpenOpportunities, type OpportunityEvidence } from "@/lib/opportunities/read-model";
+import { type OpportunityEvidence } from "@/lib/opportunities/read-model";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
 export const metadata = { title: "Home — Arc" };
 
@@ -49,70 +47,47 @@ function evidenceFacts(ev?: OpportunityEvidence | null): string[] {
   return facts.slice(0, 3);
 }
 
-async function workspaceCounts(orgId: string) {
-  const admin = getSupabaseAdminClient();
-  const countOf = async (table: string) => {
-    const { count } = await admin.from(table).select("id", { count: "exact", head: true }).eq("org_id", orgId);
-    return count ?? 0;
-  };
-  const [campaigns, leads, companies] = await Promise.all([countOf("campaigns"), countOf("leads"), countOf("companies")]);
-  return { campaigns, leads, companies };
-}
-
-// Recent Arc/system/user activity for the right-column feed (mockup: "Arc activity").
-async function recentActivity(orgId: string) {
-  const admin = getSupabaseAdminClient();
-  const { data } = await admin
-    .from("audit_events")
-    .select("summary,action,actor_kind,created_at")
-    .eq("org_id", orgId)
-    .order("created_at", { ascending: false })
-    .limit(4);
-  return (data ?? []) as { summary: string | null; action: string; actor_kind: string | null; created_at: string }[];
-}
-
 export default async function HomePage() {
   // The (app) layout has already resolved + guarded the workspace; this cached
   // read is free.
   const ctx = await getCurrentWorkspaceContext();
   const user = await getSupabaseAuthenticatedUser();
-  const firstName = (await resolveViewerName(ctx.orgId, user)).split(/\s+/)[0] || "there";
+  const firstName = (await resolveViewerName(ctx.orgId, user)).trim().split(/\s+/)[0] ?? "";
 
-  const [c, approvals, campaignList, opportunities, activity] = await Promise.all([
-    workspaceCounts(ctx.orgId),
-    listApprovalCards({ orgId: ctx.orgId, limit: 5 }).catch(() => []),
-    getCampaignWorkspaceList(undefined, "Arc", ctx.orgId).catch(() => ({ status: "unavailable" as const })),
-    listOpenOpportunities(undefined, ctx.orgId).catch(() => []),
-    recentActivity(ctx.orgId).catch(() => []),
-  ]);
-  const campaigns = campaignList.status === "live" ? campaignList.campaigns.slice(0, 5) : [];
-  const opps = opportunities.slice(0, 4);
+  // One consistent snapshot for the whole screen: the hero line, the "waiting on
+  // you" queue, the metrics, and the campaign rows all read from the same summary
+  // so they can't disagree with each other.
+  const summary = await getWorkspaceSummary(ctx.orgId);
+  const approvals = summary.approvals;
+  const campaigns = summary.campaigns.slice(0, 5);
+  const openOppCount = summary.opportunities.length;
+  const opps = summary.opportunities.slice(0, 4);
   const focal = opps[0] ?? null;
-  const approvalCount = campaigns.reduce((sum, camp) => sum + camp.pendingCount, 0) || approvals.length;
+  const approvalCount = approvals.length;
 
   // Right column: source-backed signals (top opportunities) + Arc activity feed.
   const signalLabel: Record<string, string> = { high: "Urgent · watched by Arc", medium: "Watched by Arc", low: "Background signal" };
   const signals = opps.slice(0, 3).map((o) => ({
     title: o.title,
     source: signalLabel[o.urgency] ?? "Source-backed signal",
-    time: relativeTime((o as { created_at?: string }).created_at ?? ""),
+    time: relativeTime(o.evidence?.lastActivityAt ?? ""),
   }));
-  const activityItems = activity.map((a) => ({
-    at: relativeTime(a.created_at),
-    actor: a.actor_kind === "agent" ? "Arc" : a.actor_kind === "system" ? "System" : "You",
-    text: a.summary || a.action.replace(/[._]/g, " "),
+  const activityItems = summary.activity.map((a) => ({
+    at: relativeTime(a.occurredAt),
+    actor: a.actorType === "arc" || a.actorType === "sub_agent" ? "Arc" : a.actorType === "human" ? "You" : "System",
+    text: a.title || a.detail,
   }));
 
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const dateLabel = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase();
-  const liveCampaigns = campaigns.filter((camp) => /live|active|sending/i.test(camp.status)).length;
+  const liveCampaigns = summary.campaignTotals.live;
 
   const metrics = [
-    { label: "Campaigns", value: c.campaigns },
-    { label: "Leads", value: c.leads },
-    { label: "Companies", value: c.companies },
+    { label: "Campaigns", value: summary.campaignTotals.total },
+    { label: "Leads", value: summary.crm.leads },
+    { label: "Companies", value: summary.crm.companies },
   ];
 
   return (
@@ -120,12 +95,13 @@ export default async function HomePage() {
       <section className="content">
         <div className="date">{dateLabel}</div>
         <h1 className="greet">
-          {greeting}, {firstName}
+          {greeting}
+          {firstName ? `, ${firstName}` : ""}
         </h1>
         <div className="subline">
           {approvals.length} {approvals.length === 1 ? "package" : "packages"} waiting
           <span className="dot">·</span>
-          {opps.length} open {opps.length === 1 ? "opportunity" : "opportunities"}
+          {openOppCount} open {openOppCount === 1 ? "opportunity" : "opportunities"}
           <span className="dot">·</span>
           {liveCampaigns} live
         </div>

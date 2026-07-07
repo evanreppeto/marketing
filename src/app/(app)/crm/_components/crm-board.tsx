@@ -121,8 +121,9 @@ export type CrmObjectVM = {
   count: number;
 };
 
-// Record detail still opens the mockup until that screen is ported.
-const recordHref = (r: CrmRowVM) => `/crm/${encodeURIComponent(r.id)}?name=${encodeURIComponent(r.name)}`;
+// The read-model already builds the real record route (/crm/{objectKey}/{id});
+// use it so a row opens the live record graph rather than the old name-only mock.
+const recordHref = (r: CrmRowVM) => r.href;
 
 export function CrmBoard({
   objects,

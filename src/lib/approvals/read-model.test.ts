@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
@@ -430,5 +430,46 @@ describe("listApprovalHistory", () => {
     await listApprovalHistory({}, supabase);
 
     expect(supabase.calls.some((call) => call[0] === "eq" && call[1] === "org_id")).toBe(false);
+  });
+});
+
+describe("listApprovalCards demo fallback", () => {
+  const SUPABASE_ENV = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_MARKETING_SUPABASE_URL",
+    "MARKETING_SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "MARKETING_SUPABASE_SERVICE_ROLE_KEY",
+  ];
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  function unconfigureSupabase() {
+    for (const key of SUPABASE_ENV) vi.stubEnv(key, "");
+  }
+
+  it("serves demo approval cards derived from demo campaigns when Supabase is unconfigured and demo mode is on", async () => {
+    unconfigureSupabase();
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+
+    const cards = await listApprovalCards({ limit: 5 });
+
+    // A populated, consistent queue — this is what keeps the home hero count, the
+    // "waiting on you" header, and the campaign rows all describing the same work.
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.length).toBeLessThanOrEqual(5);
+    for (const card of cards) {
+      expect(card.title).toBeTruthy();
+      expect(card.status).toBe("pending_approval");
+      expect(card.campaign.name).toBeTruthy();
+      expect(card.persona).toBeTruthy();
+    }
+  });
+
+  it("returns an empty queue (no crash) when Supabase is unconfigured and demo mode is off", async () => {
+    unconfigureSupabase();
+    vi.stubEnv("ARC_DEMO_DATA", "0");
+
+    await expect(listApprovalCards({ limit: 5 })).resolves.toEqual([]);
   });
 });

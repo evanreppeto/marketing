@@ -1,8 +1,11 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 import { resolveTenantReadHandle } from "@/lib/supabase/tenant-client";
+
+import { buildDemoOpportunities } from "./demo";
 
 type OpportunityEvidence = {
   persona?: string;
@@ -35,7 +38,9 @@ export async function listOpenOpportunities(
   // Guard BEFORE touching the admin client — a default arg of
   // `getSupabaseAdminClient()` would throw during arg evaluation, before this
   // guard could run, crashing the page in demo/unconfigured mode.
-  if (!isSupabaseAdminConfigured()) return [];
+  if (!client && !isSupabaseAdminConfigured()) {
+    return isDemoDataEnabled() ? buildDemoOpportunities() : [];
+  }
   const { client: db, orgId: handleOrgId } = client ? { client, orgId: null } : await resolveTenantReadHandle();
   const resolvedOrgId = orgId ?? handleOrgId ?? (await getCurrentOrgId());
   const { data, error } = await db
@@ -50,7 +55,9 @@ export async function listOpenOpportunities(
 
 /** Count of pending (un-triaged) opportunities, for the /arc chip. */
 export async function countPendingOpportunities(client?: SupabaseClient): Promise<number> {
-  if (!isSupabaseAdminConfigured()) return 0;
+  if (!client && !isSupabaseAdminConfigured()) {
+    return isDemoDataEnabled() ? buildDemoOpportunities().filter((o) => o.status === "pending").length : 0;
+  }
   const { client: db, orgId } = client ? { client, orgId: await getCurrentOrgId() } : await resolveTenantReadHandle();
   const { count } = await db
     .from("opportunities")
@@ -76,7 +83,22 @@ export async function getOpportunityForDraft(
   id: string,
   client?: SupabaseClient,
 ): Promise<OpportunityForDraft | null> {
-  if (!isSupabaseAdminConfigured()) return null;
+  if (!client && !isSupabaseAdminConfigured()) {
+    if (!isDemoDataEnabled()) return null;
+    const match = buildDemoOpportunities().find((o) => o.id === id);
+    if (!match) return null;
+    const persona = typeof match.evidence?.persona === "string" ? match.evidence.persona : "";
+    return {
+      id: match.id,
+      subjectId: match.subject_id,
+      title: match.title,
+      summary: match.summary,
+      urgency: match.urgency,
+      confidence: match.confidence,
+      recommendedAction: match.recommended_action,
+      persona,
+    };
+  }
   const { client: db, orgId } = client ? { client, orgId: await getCurrentOrgId() } : await resolveTenantReadHandle();
   const { data, error } = await db
     .from("opportunities")

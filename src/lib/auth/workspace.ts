@@ -5,6 +5,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 import { getAuthMode, getSupabaseAnonKey, getSupabaseAuthUrl } from "./auth-mode";
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 type QueryClient = SupabaseClient;
@@ -229,8 +230,44 @@ async function getPreferredWorkspaceId(userId: string | null): Promise<string | 
   }
 }
 
+function titleCaseSlug(slug: string): string {
+  return slug
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * Synthetic workspace for offline/local preview. When Supabase isn't configured
+ * there's no membership to resolve, but the read-models already fall back to
+ * ARC_DEMO_DATA bundles — this lets the signed-in shell render on top of them
+ * instead of bouncing every page to /login. The synthetic ids never reach a
+ * real query (no admin client exists to run one), so their exact value is inert.
+ */
+function buildDemoWorkspaceContext(): WorkspaceContext {
+  const name = titleCaseSlug(DEFAULT_ORG_SLUG);
+  return {
+    orgId: "demo-org",
+    orgSlug: DEFAULT_ORG_SLUG,
+    orgName: name,
+    workspaceId: "demo-workspace",
+    workspaceKey: DEFAULT_WORKSPACE_KEY,
+    workspaceSlug: DEFAULT_ORG_SLUG,
+    workspaceName: name,
+    role: "owner",
+    userId: null,
+    source: "default-org",
+  };
+}
+
 export const getCurrentWorkspaceContext = cache(async (): Promise<WorkspaceContext> => {
   if (!isSupabaseAdminConfigured()) {
+    // Offline/local preview: no Supabase means no real membership to resolve, so
+    // fall back to a synthetic demo workspace and let the app render against the
+    // ARC_DEMO_DATA read-model fallbacks. Doubly gated (unconfigured + demo flag)
+    // — this never fires in any deploy that has Supabase configured.
+    if (isDemoDataEnabled()) return buildDemoWorkspaceContext();
     throw new WorkspaceUnavailableError("Supabase is not configured, so no workspace is available.");
   }
 
