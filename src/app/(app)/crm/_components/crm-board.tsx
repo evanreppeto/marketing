@@ -122,7 +122,7 @@ export type CrmObjectVM = {
 };
 
 // Record detail still opens the mockup until that screen is ported.
-const RECORD_HREF = "/build-crm-record.html";
+const recordHref = (r: CrmRowVM) => `/crm/${encodeURIComponent(r.id)}?name=${encodeURIComponent(r.name)}`;
 
 export function CrmBoard({
   objects,
@@ -288,7 +288,7 @@ export function CrmBoard({
               </tr>
             ) : (
               visible.map((r) => (
-                <tr key={r.id} onClick={() => { window.location.href = RECORD_HREF; }}>
+                <tr key={r.id} onClick={() => { window.location.href = recordHref(r); }}>
                   {cols.map((c) => (
                     <td key={c.k} className={cellClass(c.k)}>
                       {c.k === "sel" ? (

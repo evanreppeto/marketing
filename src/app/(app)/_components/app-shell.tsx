@@ -96,7 +96,7 @@ export function AppShell({
   const pathname = usePathname();
   const displayName = userName || orgName;
   const firstName = userName.split(/\s+/)[0] || "there";
-  const crumb = CRUMBS[pathname] ?? "Home";
+  const crumb = CRUMBS[pathname] ?? CRUMBS[`/${pathname.split("/")[1] ?? ""}`] ?? "Home";
 
   // The static mockup gallery can load a ported real screen inside its crossfade
   // iframe. When that happens the gallery host already provides the sidebar, so
@@ -130,7 +130,7 @@ export function AppShell({
               <div key={g.group}>
                 <div className="grp">{g.group.toUpperCase()}</div>
                 {g.items.map((it) => {
-                  const active = pathname === it.href;
+                  const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(`${it.href}/`));
                   return (
                     <Link key={it.label} href={it.href} className={`nav${active ? " on" : ""}`}>
                       {active && <span className="tick" />}
