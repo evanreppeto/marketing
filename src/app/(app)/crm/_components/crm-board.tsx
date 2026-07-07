@@ -16,6 +16,7 @@ export type CrmRowVM = {
   scoreColor: string;
   owner: string;
   updatedRel: string;
+  updatedTime: string;
   href: string;
   company: string;
   value: string;
@@ -40,7 +41,7 @@ function nx(v: string) {
 }
 
 function cellClass(k: string) {
-  return k === "sel" ? "cselect" : k === "act" ? "cact" : k === "score" ? "cnum" : "";
+  return k === "sel" ? "cselect" : k === "act" ? "cact" : k === "score" ? "cnum" : k === "company" ? "ccompany" : "";
 }
 
 function cellContent(k: string, r: CrmRowVM) {
@@ -88,6 +89,7 @@ function cellContent(k: string, r: CrmRowVM) {
       return (
         <span className="last">
           <b>{r.updatedRel}</b>
+          {r.updatedTime && <span>{r.updatedTime}</span>}
         </span>
       );
     case "tasks":

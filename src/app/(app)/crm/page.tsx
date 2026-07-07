@@ -71,12 +71,30 @@ function relativeTime(value: string): string {
   return new Date(then).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Absolute time for the second line of the "Last activity" cell (mockup: "10:42 AM" / "Jun 24").
+function timeLabel(value: string): string {
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+  const today = new Date().toDateString() === d.toDateString();
+  return today
+    ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 function toRow(row: CrmObjectRow): CrmRowVM {
   const persona = humanizePersona(row.personaTag);
+  // Mockup subtitle is "role · location" (dot-separated, no email). Drop email
+  // segments and the slash separators the read-model emits.
+  const detailText = (row.detail || row.sourceLabel || "")
+    .split(/\s*[/·]\s*/)
+    .map((s) => s.trim())
+    .filter((s) => s && !s.includes("@"))
+    .slice(0, 2)
+    .join(" · ");
   return {
     id: row.id,
     name: row.name,
-    detail: row.detail || row.sourceLabel || "",
+    detail: detailText,
     initials: initials(row.name),
     isCompany: row.objectKey === "companies",
     statusLabel: row.status || "—",
@@ -87,8 +105,9 @@ function toRow(row: CrmObjectRow): CrmRowVM {
     scoreColor: typeof row.score === "number" ? scoreColor(row.score) : "var(--muted)",
     owner: row.owner || "—",
     updatedRel: relativeTime(row.updated),
+    updatedTime: timeLabel(row.updated),
     href: row.href,
-    company: row.relationships.find((r) => /compan/i.test(r.label))?.value ?? "",
+    company: (row.relationships.find((r) => /compan/i.test(r.label))?.value ?? "").replace(/\s+\d{8,}$/, "").trim(),
     value: row.valueLabel || "",
     tier: "",
     routing: "",
