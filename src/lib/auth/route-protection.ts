@@ -16,6 +16,12 @@ export type WorkspaceAccessDecision = { action: "allow" | "login" | "onboarding"
 const MOCKUP_FRONT_DOORS = new Set(["/", "/build-home.html"]);
 
 export function getWorkspaceAccessDecision(input: WorkspaceAccessDecisionInput): WorkspaceAccessDecision {
+  // Accepting an invite is public: reachable signed-out (create an account that
+  // joins the workspace) and signed-in without a workspace (accept to get one).
+  // The page itself branches on the session, so allow every state here.
+  if (input.pathname === "/accept-invite" || input.pathname.startsWith("/accept-invite/")) {
+    return { action: "allow" };
+  }
   if (!input.isSignedIn) return { action: "login" };
   if (input.hasWorkspace) {
     // Signed-in member hitting the static front door → send them into the app.

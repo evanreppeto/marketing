@@ -189,6 +189,81 @@ export async function issueWorkspaceInviteCode(input: IssueWorkspaceInviteInput)
   }
 }
 
+export type WorkspaceInviteLookup =
+  | {
+      ok: true;
+      workspaceName: string;
+      orgName: string;
+      role: string;
+      invitedEmail: string | null;
+      inviterName: string | null;
+      expiresAt: string | null;
+    }
+  | { ok: false; reason: "not_found" | "expired" | "used" | "revoked" | "not_configured" };
+
+/**
+ * Public-facing lookup for the accept-invite screen: given a raw invite code,
+ * return enough to render "join {workspace} as {role}" WITHOUT redeeming it or
+ * requiring the visitor to be signed in. Never exposes the code hash or ids.
+ */
+export async function lookupWorkspaceInviteByCode(rawCode: string): Promise<WorkspaceInviteLookup> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, reason: "not_configured" };
+  const code = normalizeInviteCode(rawCode);
+  if (!code) return { ok: false, reason: "not_found" };
+
+  try {
+    const client = getSupabaseAdminClient();
+    const { data: invite, error } = await client
+      .from("workspace_invites")
+      .select("org_id,workspace_id,invited_email,role,status,expires_at,invited_by")
+      .eq("code_hash", hashInviteCode(code))
+      .maybeSingle<{
+        org_id: string;
+        workspace_id: string;
+        invited_email: string | null;
+        role: string;
+        status: string;
+        expires_at: string | null;
+        invited_by: string | null;
+      }>();
+    if (error) throw error;
+    if (!invite) return { ok: false, reason: "not_found" };
+    if (invite.status === "used") return { ok: false, reason: "used" };
+    if (invite.status === "revoked") return { ok: false, reason: "revoked" };
+    if (invite.status !== "active") return { ok: false, reason: "not_found" };
+    if (invite.expires_at && new Date(invite.expires_at).getTime() < Date.now()) {
+      return { ok: false, reason: "expired" };
+    }
+
+    const [{ data: workspace }, { data: organization }] = await Promise.all([
+      client.from("workspaces").select("name").eq("id", invite.workspace_id).maybeSingle<{ name: string | null }>(),
+      client.from("organizations").select("name").eq("id", invite.org_id).maybeSingle<{ name: string | null }>(),
+    ]);
+
+    let inviterName: string | null = null;
+    if (invite.invited_by) {
+      const { data: profile } = await client
+        .from("profiles")
+        .select("full_name")
+        .eq("id", invite.invited_by)
+        .maybeSingle<{ full_name: string | null }>();
+      inviterName = profile?.full_name?.trim() || null;
+    }
+
+    return {
+      ok: true,
+      workspaceName: workspace?.name?.trim() || organization?.name?.trim() || "the workspace",
+      orgName: organization?.name?.trim() || "",
+      role: invite.role,
+      invitedEmail: invite.invited_email,
+      inviterName,
+      expiresAt: invite.expires_at,
+    };
+  } catch {
+    return { ok: false, reason: "not_found" };
+  }
+}
+
 export async function listWorkspaceTeamAccess(workspaceIdInput: string): Promise<WorkspaceTeamAccessResult> {
   const workspaceId = workspaceIdInput.trim();
   if (!workspaceId) return { ok: false, status: "invalid_input", message: "Workspace id is required." };
