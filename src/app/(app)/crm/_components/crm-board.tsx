@@ -44,10 +44,14 @@ function cellClass(k: string) {
   return k === "sel" ? "cselect" : k === "act" ? "cact" : k === "score" ? "cnum" : k === "company" ? "ccompany" : "";
 }
 
+const CHECK = (
+  <svg viewBox="0 0 24 24">
+    <path d="M5 12l4 4 10-10" />
+  </svg>
+);
+
 function cellContent(k: string, r: CrmRowVM) {
   switch (k) {
-    case "sel":
-      return <input type="checkbox" aria-label={`Select ${r.name}`} onClick={(e) => e.stopPropagation()} />;
     case "primary":
       return (
         <div className="pcell">
@@ -62,7 +66,7 @@ function cellContent(k: string, r: CrmRowVM) {
       return <span className="nx">{nx(r.company)}</span>;
     case "persona":
       return r.persona ? (
-        <span className="chip persona">
+        <span className="chip persona" style={{ color: r.dot, background: `${r.dot}1e`, borderColor: `${r.dot}59` }}>
           <span className="pgd" style={{ background: r.dot }} />
           {r.persona}
         </span>
@@ -131,6 +135,7 @@ export function CrmBoard({
 }) {
   const [activeKey, setActiveKey] = useState(defaultKey);
   const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const active = objects.find((o) => o.key === activeKey) ?? objects[0];
   const totalRows = (rowsByKey[active.key] ?? []).length;
@@ -144,6 +149,25 @@ export function CrmBoard({
       : rows;
     return filtered.slice(0, 100);
   }, [rowsByKey, active.key, q]);
+
+  const toggleRow = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allVisibleSelected = visible.length > 0 && visible.every((r) => selected.has(r.id));
+  const toggleAll = () =>
+    setSelected((prev) => {
+      if (visible.every((r) => prev.has(r.id))) return new Set();
+      return new Set(visible.map((r) => r.id));
+    });
+  const switchObject = (key: string) => {
+    setActiveKey(key);
+    setQ("");
+    setSelected(new Set());
+  };
 
   return (
     <div className="arc-grid arc-crm">
@@ -176,7 +200,7 @@ export function CrmBoard({
             key={o.key}
             type="button"
             className={`subtab${o.key === activeKey ? " on" : ""}`}
-            onClick={() => { setActiveKey(o.key); setQ(""); }}
+            onClick={() => switchObject(o.key)}
           >
             {o.label} <span className="cnt">{o.count.toLocaleString()}</span>
           </button>
@@ -225,13 +249,13 @@ export function CrmBoard({
         </span>
       </div>
 
-      <div className="selbar">
-        <span className="sc">0 selected</span>
+      <div className={`selbar${selected.size ? " show" : ""}`}>
+        <span className="sc">{selected.size} selected</span>
         <span className="sa"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
         <span className="sa"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona</span>
         <span className="sa"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg>Add task</span>
         <span className="sa"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>Ask Arc to enrich</span>
-        <span className="clr">Clear</span>
+        <span className="clr" onClick={() => setSelected(new Set())}>Clear</span>
       </div>
 
       <div className="tablewrap">
@@ -240,7 +264,19 @@ export function CrmBoard({
             <tr>
               {cols.map((c) => (
                 <th key={c.k} className={cellClass(c.k)}>
-                  {c.k === "sel" ? <input type="checkbox" aria-label="Select all" /> : c.t ?? ""}
+                  {c.k === "sel" ? (
+                    <span
+                      className={`ck${allVisibleSelected ? " on" : ""}`}
+                      role="checkbox"
+                      aria-checked={allVisibleSelected}
+                      aria-label="Select all"
+                      onClick={toggleAll}
+                    >
+                      {CHECK}
+                    </span>
+                  ) : (
+                    c.t ?? ""
+                  )}
                 </th>
               ))}
             </tr>
@@ -255,7 +291,19 @@ export function CrmBoard({
                 <tr key={r.id} onClick={() => { window.location.href = RECORD_HREF; }}>
                   {cols.map((c) => (
                     <td key={c.k} className={cellClass(c.k)}>
-                      {cellContent(c.k, r)}
+                      {c.k === "sel" ? (
+                        <span
+                          className={`ck${selected.has(r.id) ? " on" : ""}`}
+                          role="checkbox"
+                          aria-checked={selected.has(r.id)}
+                          aria-label={`Select ${r.name}`}
+                          onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}
+                        >
+                          {CHECK}
+                        </span>
+                      ) : (
+                        cellContent(c.k, r)
+                      )}
                     </td>
                   ))}
                 </tr>

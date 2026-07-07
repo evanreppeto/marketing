@@ -32,11 +32,15 @@ function humanizePersona(persona: string): string {
 
 function personaDot(persona: string): string {
   const p = (persona || "").toLowerCase();
-  if (/storm|hail|weather|damage/.test(p)) return "#7fb89a";
-  if (/property|manager|realtor|hoa|commercial/.test(p)) return "#c8a24a";
-  if (/insurance|adjuster/.test(p)) return "#88b6d8";
-  if (/past|repeat|existing|customer|reactivation/.test(p)) return "#9678c8";
-  return "#c8a24a";
+  if (/emergency|urgent|storm|hail|flood|fire|burst|water\s*damage/.test(p)) return "#cc6a6a"; // red — urgent
+  if (/insurance|adjuster|agent/.test(p)) return "#88b6d8"; // blue
+  if (/plumb|partner|contractor|referral|vendor|trade|sub/.test(p)) return "#7fb89a"; // green
+  if (/preventative|preventive|maintenance|monitor|inspection/.test(p)) return "#6fae9e"; // teal
+  if (/rebuild|restoration|reconstruct|remodel|renov/.test(p)) return "#d8a24a"; // amber
+  if (/hoa|board|association|landlord|tenant/.test(p)) return "#9678c8"; // purple
+  if (/past|repeat|existing|customer|reactivat/.test(p)) return "#b58fd0"; // light purple
+  if (/property|manager|realtor|commercial|reit/.test(p)) return "#c8a24a"; // gold
+  return "#c8a24a"; // gold default
 }
 
 function statusTone(status: string): string {
