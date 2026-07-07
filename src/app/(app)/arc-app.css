@@ -57,6 +57,26 @@
   .arc-app .navprogress.end { transition: opacity 0.2s; }
 }
 
+/* Consistent page entrance (see (app)/template.tsx). A transparent flex
+   passthrough — matches how page roots sit as flex children of .main — so it
+   never changes a page's layout, plus a subtle fade-and-rise that replays on
+   every navigation because template.tsx re-mounts. */
+.arc-app .page-enter {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  animation: pageEnter 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arc-app .page-enter { animation: none; }
+}
+
 .arc-app {
   /* mockup var names → app tokens / fonts */
   --canvas: #16161a; --canvas-deep: #101013; --panel: #1c1c21; --inset: #202027; --raised: #26262d; --sidebar: #121316;
