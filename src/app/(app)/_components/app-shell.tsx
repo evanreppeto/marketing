@@ -76,6 +76,7 @@ const CRUMBS: Record<string, string> = {
   "/library": "Library",
   "/brand": "Brand",
   "/studio": "Studio",
+  "/settings": "Settings",
 };
 
 export function AppShell({
@@ -145,7 +146,7 @@ export function AppShell({
             displayName={displayName}
             email={userEmail}
             initials={initials(displayName)}
-            settingsHref="/settings/team"
+            settingsHref="/settings"
           />
         </aside>
 
