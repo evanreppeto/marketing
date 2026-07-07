@@ -13,17 +13,10 @@ const nextConfig: NextConfig = {
       { source: "/persona-intelligence/:personaKey", destination: "/personas/:personaKey", permanent: true },
     ];
   },
-  async rewrites() {
-    return {
-      // `beforeFiles` runs ahead of the filesystem routes, so this shadows the
-      // real root page and serves the static Arc mockup gallery at the domain
-      // root. The gallery's own links are absolute (`/build-*.html`), so every
-      // other screen is reached as a plain static asset from `public/`.
-      beforeFiles: [{ source: "/", destination: "/build-home.html" }],
-      afterFiles: [],
-      fallback: [],
-    };
-  },
+  // Front door flipped to the real app: the root `/` is no longer rewritten to
+  // the static mockup gallery — it resolves to src/app/page.tsx, which sends
+  // callers into the app (/home). The mockup files remain in public/ but nothing
+  // links to them anymore.
 };
 
 export default nextConfig;
