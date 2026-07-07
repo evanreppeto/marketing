@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getAuthMode } from "@/lib/auth/auth-mode";
 import { getSafeOperatorReturnPath } from "@/lib/auth/operator-shared";
+import { authedRedirectLocation } from "@/lib/auth/post-auth-redirect";
 import { buildSignUpIntent } from "@/lib/auth/sign-up-intent";
 import { provisionAuthenticatedUser } from "@/lib/auth/user-provisioning";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
@@ -77,18 +78,15 @@ export async function POST(request: Request) {
         { status: 303 },
       );
     }
-
-    if (provisioned.status === "profile_only") {
-      return NextResponse.redirect(
-        new URL(`/onboarding?from=${encodeURIComponent(from)}`, origin),
-        { status: 303 },
-      );
-    }
+    // Session established (email confirmation off) → route straight into the app:
+    // invited_member → /welcome, created_owner → `from`, profile_only → /onboarding.
+    return NextResponse.redirect(authedRedirectLocation(provisioned, from, origin), { status: 303 });
   }
 
-  const success = data.session ? "created" : "check_email";
+  // No session → email confirmation required; the confirmation link finishes
+  // provisioning through /auth/confirm.
   return NextResponse.redirect(
-    new URL(`/sign-up?success=${success}&from=${encodeURIComponent(from)}`, origin),
+    new URL(`/sign-up?success=check_email&from=${encodeURIComponent(from)}`, origin),
     { status: 303 },
   );
 }
