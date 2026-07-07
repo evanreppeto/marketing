@@ -88,6 +88,11 @@ function toRow(row: CrmObjectRow): CrmRowVM {
     owner: row.owner || "—",
     updatedRel: relativeTime(row.updated),
     href: row.href,
+    company: row.relationships.find((r) => /compan/i.test(r.label))?.value ?? "",
+    value: row.valueLabel || "",
+    tier: "",
+    routing: "",
+    tasks: "",
   };
 }
 

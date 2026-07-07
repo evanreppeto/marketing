@@ -17,7 +17,93 @@ export type CrmRowVM = {
   owner: string;
   updatedRel: string;
   href: string;
+  company: string;
+  value: string;
+  tier: string;
+  routing: string;
+  tasks: string;
 };
+
+// Per-object columns, verbatim from build-crm.html's COLS config.
+type Col = { k: string; t?: string };
+const COLS: Record<string, Col[]> = {
+  contacts: [{ k: "sel" }, { k: "primary", t: "Contact" }, { k: "company", t: "Company" }, { k: "persona", t: "Persona" }, { k: "status", t: "Status" }, { k: "last", t: "Last activity" }, { k: "tasks", t: "Tasks" }, { k: "act" }],
+  companies: [{ k: "sel" }, { k: "primary", t: "Company" }, { k: "persona", t: "Persona" }, { k: "status", t: "Status" }, { k: "tier", t: "Tier" }, { k: "last", t: "Last activity" }, { k: "act" }],
+  properties: [{ k: "sel" }, { k: "primary", t: "Property" }, { k: "persona", t: "Persona" }, { k: "score", t: "Score" }, { k: "status", t: "Status" }, { k: "last", t: "Last activity" }, { k: "act" }],
+  leads: [{ k: "sel" }, { k: "primary", t: "Lead" }, { k: "persona", t: "Persona" }, { k: "score", t: "Lead score" }, { k: "status", t: "Status" }, { k: "routing", t: "Routing" }, { k: "last", t: "Received" }, { k: "act" }],
+  jobs: [{ k: "sel" }, { k: "primary", t: "Job" }, { k: "status", t: "Status" }, { k: "value", t: "Est. value" }, { k: "last", t: "Scheduled" }, { k: "act" }],
+  outcomes: [{ k: "sel" }, { k: "primary", t: "Outcome" }, { k: "status", t: "Status" }, { k: "value", t: "Revenue" }, { k: "last", t: "Closed" }, { k: "act" }],
+};
+
+function nx(v: string) {
+  return v ? v : "—";
+}
+
+function cellClass(k: string) {
+  return k === "sel" ? "cselect" : k === "act" ? "cact" : k === "score" ? "cnum" : "";
+}
+
+function cellContent(k: string, r: CrmRowVM) {
+  switch (k) {
+    case "sel":
+      return <input type="checkbox" aria-label={`Select ${r.name}`} onClick={(e) => e.stopPropagation()} />;
+    case "primary":
+      return (
+        <div className="pcell">
+          <span className={`pav${r.isCompany ? " co" : ""}`}>{r.initials}</span>
+          <div style={{ minWidth: 0 }}>
+            <div className="pnm">{r.name}</div>
+            {r.detail && <div className="psub">{r.detail}</div>}
+          </div>
+        </div>
+      );
+    case "company":
+      return <span className="nx">{nx(r.company)}</span>;
+    case "persona":
+      return r.persona ? (
+        <span className="chip persona">
+          <span className="pgd" style={{ background: r.dot }} />
+          {r.persona}
+        </span>
+      ) : (
+        <span className="nx">—</span>
+      );
+    case "status":
+      return (
+        <span className={`pill ${r.statusTone}`}>
+          <span className="pd" />
+          {r.statusLabel}
+        </span>
+      );
+    case "score":
+      return r.score === null ? (
+        <span className="nx">—</span>
+      ) : (
+        <span className="scorecell">
+          <b>{r.score}</b>
+          <span className="sbar"><i style={{ width: `${r.score}%`, background: r.scoreColor }} /></span>
+        </span>
+      );
+    case "last":
+      return (
+        <span className="last">
+          <b>{r.updatedRel}</b>
+        </span>
+      );
+    case "tasks":
+      return r.tasks ? <span className="chip">{r.tasks}</span> : <span className="nx">—</span>;
+    case "tier":
+      return <span className="nx">{nx(r.tier)}</span>;
+    case "routing":
+      return <span className="nx">{nx(r.routing)}</span>;
+    case "value":
+      return <span className="nx">{nx(r.value)}</span>;
+    case "act":
+      return <span className="rowact" aria-hidden>›</span>;
+    default:
+      return null;
+  }
+}
 
 export type CrmObjectVM = {
   key: string;
@@ -46,6 +132,7 @@ export function CrmBoard({
 
   const active = objects.find((o) => o.key === activeKey) ?? objects[0];
   const totalRows = (rowsByKey[active.key] ?? []).length;
+  const cols = COLS[active.key] ?? COLS.contacts;
 
   const visible = useMemo(() => {
     const rows = rowsByKey[active.key] ?? [];
@@ -149,63 +236,26 @@ export function CrmBoard({
         <table className="dt">
           <thead>
             <tr>
-              <th>{active.nameHeader}</th>
-              <th>Status</th>
-              <th>Persona</th>
-              <th>Score</th>
-              <th>Owner</th>
-              <th>Updated</th>
+              {cols.map((c) => (
+                <th key={c.k} className={cellClass(c.k)}>
+                  {c.k === "sel" ? <input type="checkbox" aria-label="Select all" /> : c.t ?? ""}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {visible.length === 0 ? (
               <tr className="emptyrow">
-                <td colSpan={6}>{totalRows === 0 ? `No ${active.noun} yet.` : "No matches for this filter."}</td>
+                <td colSpan={cols.length}>{totalRows === 0 ? `No ${active.noun} yet.` : "No matches for this filter."}</td>
               </tr>
             ) : (
               visible.map((r) => (
                 <tr key={r.id} onClick={() => { window.location.href = RECORD_HREF; }}>
-                  <td>
-                    <div className="pcell">
-                      <span className={`pav${r.isCompany ? " co" : ""}`}>{r.initials}</span>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="pnm">{r.name}</div>
-                        {r.detail && <div className="psub">{r.detail}</div>}
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`pill ${r.statusTone}`}>
-                      <span className="pd" />
-                      {r.statusLabel}
-                    </span>
-                  </td>
-                  <td>
-                    {r.persona ? (
-                      <span className="chip persona">
-                        <span className="pgd" style={{ background: r.dot }} />
-                        {r.persona}
-                      </span>
-                    ) : (
-                      <span className="nx">—</span>
-                    )}
-                  </td>
-                  <td>
-                    {r.score === null ? (
-                      <span className="nx">—</span>
-                    ) : (
-                      <span className="scorecell">
-                        <b>{r.score}</b>
-                        <span className="sbar"><i style={{ width: `${r.score}%`, background: r.scoreColor }} /></span>
-                      </span>
-                    )}
-                  </td>
-                  <td><span className="nx">{r.owner}</span></td>
-                  <td>
-                    <span className="last">
-                      <b>{r.updatedRel}</b>
-                    </span>
-                  </td>
+                  {cols.map((c) => (
+                    <td key={c.k} className={cellClass(c.k)}>
+                      {cellContent(c.k, r)}
+                    </td>
+                  ))}
                 </tr>
               ))
             )}
