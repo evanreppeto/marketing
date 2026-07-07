@@ -2,9 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import * as React from "react";
 import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
+
+// `ViewTransition` ships in react-experimental, which Next swaps in when
+// `experimental.viewTransition` is enabled (next.config). The stable react
+// types don't declare it, so read it off the namespace with a cast. Wrapping
+// the page content gives a restrained crossfade between screens; when the API
+// is unavailable it degrades to a plain wrapper.
+const ViewTransition =
+  (React as unknown as { ViewTransition?: React.FC<{ name?: string; children: React.ReactNode }> }).ViewTransition ??
+  (({ children }: { children: React.ReactNode }) => <>{children}</>);
 
 function initials(name: string): string {
   return (
@@ -133,7 +143,10 @@ export function AppShell({
                 {g.items.map((it) => {
                   const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(`${it.href}/`));
                   return (
-                    <Link key={it.label} href={it.href} className={`nav${active ? " on" : ""}`}>
+                    // prefetch off: every nav route is a server component with its own
+                    // DB reads; prefetching all ~13 on each page render floods the server
+                    // (a burst of RSC renders + queries) and makes real navigation wait.
+                    <Link key={it.label} href={it.href} prefetch={false} className={`nav${active ? " on" : ""}`}>
                       {active && <span className="tick" />}
                       {it.icon}
                       {it.label}
@@ -162,7 +175,7 @@ export function AppShell({
             </div>
             <span className="topav">{initials(displayName)}</span>
           </header>
-          {children}
+          <ViewTransition name="arc-page">{children}</ViewTransition>
         </div>
       </div>
     </div>

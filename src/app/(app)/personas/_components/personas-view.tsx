@@ -258,11 +258,11 @@ function Radar({ sig }: { sig: { engagement: number; fit: number; intent: number
   const vpts = ax.map((a) => pt(a[1], (R * sig[a[0]]) / 100).map((n) => n.toFixed(1)).join(",")).join(" ");
   return (
     <svg viewBox="0 0 170 138" width="172" height="140" aria-hidden="true">
-      {rings.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="rgba(232,224,205,.08)" />)}
-      {ax.map((a) => { const p = pt(a[1], R); return <line key={a[0]} x1={cx} y1={cy} x2={p[0].toFixed(1)} y2={p[1].toFixed(1)} stroke="rgba(232,224,205,.1)" />; })}
+      {rings.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="rgba(232,224,205,.18)" />)}
+      {ax.map((a) => { const p = pt(a[1], R); return <line key={a[0]} x1={cx} y1={cy} x2={p[0].toFixed(1)} y2={p[1].toFixed(1)} stroke="rgba(232,224,205,.22)" />; })}
       <polygon points={vpts} fill="rgba(200,162,74,.2)" stroke="#c8a24a" strokeWidth={1.8} strokeLinejoin="round" />
       {ax.map((a) => { const p = pt(a[1], (R * sig[a[0]]) / 100); return <circle key={a[0]} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r={2.6} fill="#c8a24a" />; })}
-      {ax.map((a) => { const lp = pt(a[1], R + 13); return <text key={a[0]} x={lp[0].toFixed(1)} y={(lp[1] + 3).toFixed(1)} textAnchor="middle" fontSize="8.5" fill="#83838c">{a[2]}</text>; })}
+      {ax.map((a) => { const lp = pt(a[1], R + 14); return <text key={a[0]} x={lp[0].toFixed(1)} y={(lp[1] + 3).toFixed(1)} textAnchor="middle" fontSize="11" fontWeight="700" fill="#ece7db">{a[2]}</text>; })}
     </svg>
   );
 }
