@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
+import { NavProgress } from "./nav-progress";
 
 function initials(name: string): string {
   return (
@@ -113,6 +114,7 @@ export function AppShell({
 
   return (
     <div className={embedded ? "arc-app is-embedded" : "arc-app"}>
+      <NavProgress />
       <div className="app">
         <aside className="rail">
           <div className="ws">
