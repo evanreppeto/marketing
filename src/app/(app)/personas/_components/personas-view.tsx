@@ -28,6 +28,9 @@ export type PersonaVM = {
   proofPoints: string[];
   sampleSubject: string;
   samplePreview: string;
+  radar: { engagement: number; fit: number; intent: number };
+  drivers: { engagement: string; fit: string; intent: string };
+  perf: { leads: number; jobs: number; revenue: string };
 };
 
 const SEGMENTS: { key: string; label: string }[] = [
@@ -246,6 +249,24 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   );
 }
 
+// Signals radar (Engage / Fit / Intent triangle) — ported from build-personas.html.
+function Radar({ sig }: { sig: { engagement: number; fit: number; intent: number } }) {
+  const cx = 85, cy = 72, R = 52;
+  const ax: [keyof typeof sig, number, string][] = [["engagement", -90, "Engage"], ["fit", 30, "Fit"], ["intent", 150, "Intent"]];
+  const pt = (ang: number, r: number): [number, number] => { const a = (ang * Math.PI) / 180; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; };
+  const rings = [0.4, 0.7, 1].map((f) => ax.map((a) => pt(a[1], R * f).map((n) => n.toFixed(1)).join(",")).join(" "));
+  const vpts = ax.map((a) => pt(a[1], (R * sig[a[0]]) / 100).map((n) => n.toFixed(1)).join(",")).join(" ");
+  return (
+    <svg viewBox="0 0 170 138" width="172" height="140" aria-hidden="true">
+      {rings.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="rgba(232,224,205,.08)" />)}
+      {ax.map((a) => { const p = pt(a[1], R); return <line key={a[0]} x1={cx} y1={cy} x2={p[0].toFixed(1)} y2={p[1].toFixed(1)} stroke="rgba(232,224,205,.1)" />; })}
+      <polygon points={vpts} fill="rgba(200,162,74,.2)" stroke="#c8a24a" strokeWidth={1.8} strokeLinejoin="round" />
+      {ax.map((a) => { const p = pt(a[1], (R * sig[a[0]]) / 100); return <circle key={a[0]} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r={2.6} fill="#c8a24a" />; })}
+      {ax.map((a) => { const lp = pt(a[1], R + 13); return <text key={a[0]} x={lp[0].toFixed(1)} y={(lp[1] + 3).toFixed(1)} textAnchor="middle" fontSize="8.5" fill="#83838c">{a[2]}</text>; })}
+    </svg>
+  );
+}
+
 function PersonaDetail({ p }: { p: PersonaVM }) {
   const up = p.scoreTrend.length >= 2 && p.scoreTrend[p.scoreTrend.length - 1] >= p.scoreTrend[0];
   return (
@@ -271,6 +292,27 @@ function PersonaDetail({ p }: { p: PersonaVM }) {
           <div className="ct">
             <span className="ctl">90-day</span>
             <span className="sparkwrap"><Sparkline points={p.scoreTrend} up={up} /></span>
+          </div>
+        </div>
+      </div>
+
+      <div className="sec dduo">
+        <div className="radarcard">
+          <h3 className="sh" style={{ alignSelf: "flex-start", marginBottom: 4 }}>Signals <span className="tg wired">snapshots</span></h3>
+          <Radar sig={p.radar} />
+          <div className="rdrivers">
+            <div className="rdr"><b>Engagement</b>{p.drivers.engagement}</div>
+            <div className="rdr"><b>Fit</b>{p.drivers.fit}</div>
+            <div className="rdr"><b>Intent</b>{p.drivers.intent}</div>
+          </div>
+        </div>
+        <div className="perfcard">
+          <h3 className="sh">Performance <span className="tg wired">wired · leads / outcomes</span></h3>
+          <div className="perfgrid">
+            <div className="pc"><div className="pl">Leads (30d)</div><div className="pv">{p.perf.leads}</div><div className="pd">attributed</div></div>
+            <div className="pc"><div className="pl">Booked jobs</div><div className="pv">{p.perf.jobs}</div><div className="pd">scheduled</div></div>
+            <div className="pc"><div className="pl">Won revenue</div><div className="pv">{p.perf.revenue}</div><div className="pd">outcomes</div></div>
+            <div className="pc"><div className="pl">Conversion</div><div className="pv">{p.perf.leads > 0 ? `${Math.round((p.perf.jobs / p.perf.leads) * 100)}%` : "—"}</div><div className="pd">lead → job</div></div>
           </div>
         </div>
       </div>

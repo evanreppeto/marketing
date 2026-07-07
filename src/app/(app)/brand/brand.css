@@ -49,7 +49,10 @@
 .arc-brand .sw { border: 1px solid var(--line-2); border-radius: 11px; overflow: hidden; cursor: pointer; transition: 0.16s var(--ease); background: var(--inset); }
 .arc-brand .sw:hover { transform: translateY(-2px); border-color: var(--line-3); }
 .arc-brand .sw.on { border-color: #fff; box-shadow: 0 0 0 1px #fff, 0 10px 26px -14px rgba(0, 0, 0, 0.8); }
-.arc-brand .sw .chip { height: 62px; position: relative; }
+/* display/width/padding are set explicitly to defeat the broadly-scoped
+   `.arc-app .chip` (Home task chip: inline-flex + padding) which otherwise
+   collapses this full-width color bar to ~18px and clips the role label. */
+.arc-brand .sw .chip { display: block; width: 100%; padding: 0; height: 62px; position: relative; }
 .arc-brand .sw .chip .role { position: absolute; left: 8px; bottom: 7px; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.92); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
 .arc-brand .sw .meta { padding: 7px 9px; }
 .arc-brand .sw .nm { font-size: 11.5px; font-weight: 600; line-height: 1.2; }
