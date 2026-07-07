@@ -133,7 +133,10 @@ export function AppShell({
                 {g.items.map((it) => {
                   const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(`${it.href}/`));
                   return (
-                    <Link key={it.label} href={it.href} className={`nav${active ? " on" : ""}`}>
+                    // prefetch off: every nav route is a server component with its own
+                    // DB reads; prefetching all ~13 on each page render floods the server
+                    // (a burst of RSC renders + queries) and makes real navigation wait.
+                    <Link key={it.label} href={it.href} prefetch={false} className={`nav${active ? " on" : ""}`}>
                       {active && <span className="tick" />}
                       {it.icon}
                       {it.label}

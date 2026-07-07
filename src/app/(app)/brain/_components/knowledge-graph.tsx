@@ -123,7 +123,7 @@ export function KnowledgeGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Gr
       const ox = (tx0 + tx1) / 2 - (minX + maxX) / 2 * s, oy = (ty0 + ty1) / 2 - (minY + maxY) / 2 * s;
       N.forEach((n) => { n.x = n.x * s + ox; n.y = n.y * s + oy; n.vx = 0; n.vy = 0; });
     };
-    for (let s = 0; s < 820; s++) tick(0.5);
+    for (let s = 0; s < 460; s++) tick(0.5); // pre-settle the layout (kept modest to avoid blocking mount)
     fitLayout();
     N.forEach((n) => { if (n.kind === "arc" || (degree.get(n.id) ?? 0) >= 5) n.el!.classList.add("major"); });
     render();
