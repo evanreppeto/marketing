@@ -181,6 +181,26 @@ export async function listNodes(
   }
 }
 
+/** All edges for the workspace graph (Knowledge Web). Empty when unconfigured. */
+export async function listGraphEdges(
+  client?: TypedSupabaseClient,
+  orgId?: string,
+): Promise<Live<{ edges: BrainEdge[] }> | Unavailable> {
+  const resolved = await resolveRead(client, orgId);
+  if (!resolved) return { status: "live", edges: [] };
+  try {
+    const { data, error } = await resolved.client
+      .from("knowledge_edges")
+      .select(EDGE_COLUMNS)
+      .eq("org_id", resolved.orgId)
+      .limit(600);
+    if (error) return { status: "unavailable", message: error.message };
+    return { status: "live", edges: ((data ?? []) as EdgeRow[]).map(mapEdge) };
+  } catch (error) {
+    return { status: "unavailable", message: error instanceof Error ? error.message : "Brain edges are unavailable." };
+  }
+}
+
 export async function listProposed(
   client?: TypedSupabaseClient,
   orgId?: string,

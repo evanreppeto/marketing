@@ -1,6 +1,7 @@
-import { listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
+import { listGraphEdges, listNodes, type BrainNode } from "@/lib/knowledge-graph/read-model";
 
 import { BrainView, type BrainData, type FactVM } from "./_components/brain-view";
+import type { GraphEdge, GraphNode } from "./_components/knowledge-graph";
 
 export const metadata = { title: "Brain — Arc" };
 
@@ -77,10 +78,43 @@ function toFact(n: BrainNode): FactVM {
   };
 }
 
+function learnedByLabel(by: string | null): string {
+  if (by === "arc") return "Arc";
+  if (by === "operator") return "You";
+  return "System";
+}
+
+function toGraphNode(n: BrainNode): GraphNode {
+  return {
+    id: n.id,
+    kind: n.kind,
+    kindLabel: KIND_LABEL[n.kind] ?? titleize(n.kind),
+    kindColor: KIND_COLOR[n.kind] ?? "#8d92a0",
+    label: n.label,
+    summary: n.summary ?? n.body ?? "",
+    tier: n.trustTier,
+    confidence: normalizeConfidence(n.confidence),
+    source: n.source ?? n.refTable ?? "",
+    learnedBy: learnedByLabel(n.createdBy),
+  };
+}
+
 export default async function BrainPage() {
-  const result = await listNodes({}).catch(() => ({ status: "unavailable" }) as const);
+  const [result, edgeResult] = await Promise.all([
+    listNodes({}).catch(() => ({ status: "unavailable" }) as const),
+    listGraphEdges().catch(() => ({ status: "unavailable" }) as const),
+  ]);
   const nodes: BrainNode[] = result.status === "live" ? result.nodes : [];
   const facts = nodes.map(toFact);
+
+  const graphNodes: GraphNode[] = nodes.map(toGraphNode);
+  const nodeIds = new Set(graphNodes.map((n) => n.id));
+  const graphEdges: GraphEdge[] =
+    edgeResult.status === "live"
+      ? edgeResult.edges
+          .filter((e) => nodeIds.has(e.fromNodeId) && nodeIds.has(e.toNodeId))
+          .map((e) => ({ from: e.fromNodeId, to: e.toNodeId, rel: e.relation }))
+      : [];
 
   const tier = (t: string) => facts.filter((f) => f.trustTier.toLowerCase() === t).length;
   const trusted = tier("trusted") + tier("core");
@@ -105,6 +139,6 @@ export default async function BrainPage() {
       ? `${proposed} proposed fact${proposed === 1 ? "" : "s"} stay out of all outbound copy until you approve them — Arc's trust gate.`
       : "";
 
-  const data: BrainData = { stats, coverageNote, facts, review, learned };
+  const data: BrainData = { stats, coverageNote, facts, review, learned, graphNodes, graphEdges };
   return <BrainView data={data} />;
 }
