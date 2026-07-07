@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
 import { FormValidityMessages } from "@/components/ui/form-validity";
+import { PasswordField } from "@/components/ui/password-field";
 
 export const metadata = {
   title: "Sign in — Arc",
@@ -98,10 +99,9 @@ export default async function LoginPage({
                   Forgot?
                 </Link>
               </div>
-              <input
+              <PasswordField
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="current-password"
                 required
                 className={inputClass}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 // sparkline path from points
@@ -55,7 +56,7 @@ export function RecordView({ name }: { name: string }) {
   return (
     <div className="arc-record">
       <div className="recband">
-        <a className="back" href="/crm">{svg('<path d="M15 5l-7 7 7 7"/>')}Back to Contacts</a>
+        <Link className="back" href="/crm">{svg('<path d="M15 5l-7 7 7 7"/>')}Back to Contacts</Link>
         <div className="idrow">
           <span className="bigav">{initials}</span>
           <div className="idmain">

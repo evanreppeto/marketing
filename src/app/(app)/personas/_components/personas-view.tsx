@@ -61,6 +61,15 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   const [segment, setSegment] = useState("all");
   const [q, setQ] = useState("");
   const [slug, setSlug] = useState(personas[0]?.slug ?? "");
+  const [alertOpen, setAlertOpen] = useState(true);
+
+  const headStats = useMemo(() => {
+    const segs = new Set(personas.map((p) => p.segment));
+    const scored = personas.filter((p) => Number.isFinite(p.score));
+    const avg = scored.length ? Math.round(scored.reduce((s, p) => s + p.score, 0) / scored.length) : 0;
+    const atRiskList = [...personas].filter((p) => p.score < 65).sort((a, b) => a.score - b.score);
+    return { segmentCount: segs.size, avgScore: avg, atRisk: atRiskList.length, lowestName: atRiskList[0]?.name ?? "" };
+  }, [personas]);
 
   const segCounts = useMemo(() => {
     const c: Record<string, number> = { all: personas.length };
@@ -96,6 +105,40 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
 
   return (
     <div className="arc-personas">
+      <div className="phead">
+        <div className="ph1row">
+          <div>
+            <h1 className="pt">Personas</h1>
+            <div className="psub">The revenue-intelligence layer — playbooks that power CRM, targeting &amp; campaigns</div>
+          </div>
+          <div style={{ display: "flex", gap: 9 }}>
+            <button type="button" className="gbtn">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+              New persona <span className="tg" style={{ marginLeft: 2 }}>org-config</span>
+            </button>
+          </div>
+        </div>
+        <div className="pstats">
+          <div className="pstat"><div className="sl">Personas</div><div className="sv">{personas.length}</div><div className="sd">org-defined</div></div>
+          <div className="pstat"><div className="sl">Segments</div><div className="sv">{headStats.segmentCount}</div><div className="sd">acq · eng · ret</div></div>
+          <div className="pstat"><div className="sl">Avg lead score</div><div className="sv">{headStats.avgScore}</div><div className="sd">across personas</div></div>
+          <div className="pstat"><div className="sl">Need attention</div><div className="sv" style={headStats.atRisk > 0 ? { color: "var(--warn-text)" } : undefined}>{headStats.atRisk}</div><div className="sd">below target score</div></div>
+        </div>
+        {alertOpen && headStats.atRisk > 0 && (
+          <div className="arcalert">
+            <span className="am">A</span>
+            <span className="at">
+              <b>{headStats.atRisk} persona{headStats.atRisk === 1 ? "" : "s"} scoring below target</b>
+              {headStats.lowestName ? <> — Arc can draft refreshed proof points and a new angle for {headStats.lowestName}. Approval-gated.</> : " — Arc can draft refreshed playbooks. Approval-gated."}
+            </span>
+            <span className="ab">
+              <button type="button" className="miniabtn">Draft updates</button>
+              <button type="button" className="miniabtn ghost" onClick={() => setAlertOpen(false)}>Dismiss</button>
+            </span>
+          </div>
+        )}
+      </div>
+
       <div className="segbar">
         <div className="vtog">
           <button type="button" className={view === "roster" ? "on" : ""} onClick={() => setView("roster")}>

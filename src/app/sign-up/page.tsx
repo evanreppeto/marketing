@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { EtherealShadow } from "@/components/ui/etheral-shadow";
 import { FormValidityMessages } from "@/components/ui/form-validity";
+import { PasswordField } from "@/components/ui/password-field";
 
 export const metadata = {
   title: "Create your workspace — Arc",
@@ -150,10 +151,9 @@ export default async function SignUpPage({
               <label htmlFor="password" className={labelClass}>
                 Password
               </label>
-              <input
+              <PasswordField
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}
