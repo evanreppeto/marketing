@@ -38,7 +38,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   {
     group: "Workspace",
     items: [
-      { label: "Arc", href: "/build-arc-v2.html", icon: IconArc },
+      { label: "Arc", href: "/arc", icon: IconArc },
       { label: "Home", href: "/home", icon: IconHome },
       { label: "Campaigns", href: "/campaigns", icon: IconCampaigns },
       { label: "CRM", href: "/crm", icon: IconCrm },
@@ -65,6 +65,7 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
 ];
 
 const CRUMBS: Record<string, string> = {
+  "/arc": "Arc",
   "/home": "Home",
   "/campaigns": "Campaigns",
   "/campaigns/new": "New campaign",
