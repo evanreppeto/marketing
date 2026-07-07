@@ -148,8 +148,8 @@ export default async function HomePage() {
             </div>
             <p className="d">{focal.summary}</p>
             <div className="fcta">
-              <Link className="btn" href="/build-opportunities.html">Review&nbsp;→</Link>
-              <Link className="btn ghost" href="/build-arc-v2.html">Ask Arc to draft it</Link>
+              <Link className="btn" href="/opportunities">Review&nbsp;→</Link>
+              <Link className="btn ghost" href="/arc">Ask Arc to draft it</Link>
             </div>
           </div>
         )}
@@ -190,14 +190,14 @@ export default async function HomePage() {
 
         <div className="sech">
           <h3>Open opportunities</h3>
-          <Link className="more" href="/build-opportunities.html">All opportunities →</Link>
+          <Link className="more" href="/opportunities">All opportunities →</Link>
         </div>
         {opps.length === 0 ? (
           <p className="empty-note">No open opportunities yet. Arc watches your signals and surfaces source-backed ones here.</p>
         ) : (
           <div className="opps">
             {opps.map((o) => (
-              <Link key={o.id} href="/build-opportunities.html" className="opp">
+              <Link key={o.id} href="/opportunities" className="opp">
                 <div className="ot">{o.title}</div>
                 <div className="od">{o.summary}</div>
                 <div className="miniconf">
@@ -297,7 +297,7 @@ export default async function HomePage() {
               Add a lead
               <span className="kk">L</span>
             </Link>
-            <Link className="qbtn" href="/build-arc-v2.html">
+            <Link className="qbtn" href="/arc">
               <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9L21 4v5h-5" /></svg>
               Ask Arc
               <span className="kk">⌘K</span>
