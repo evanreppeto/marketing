@@ -32,6 +32,31 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Route loading skeleton (see (app)/loading.tsx). Paints instantly on nav so the
+   shell never freezes waiting on a route's data; the View Transition crossfades
+   to this skeleton rather than the full render. Fades in on a 120ms delay so
+   fast routes never flash it; a calm opacity pulse signals "loading". */
+.arc-app .route-skel { padding: 30px 30px 48px; min-width: 0; opacity: 0; animation: rsFade 0.28s ease 0.12s forwards; }
+@keyframes rsFade { to { opacity: 1; } }
+.arc-app .rs-head { display: flex; flex-direction: column; gap: 11px; margin-bottom: 26px; }
+.arc-app .rs-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; }
+@media (max-width: 900px) { .arc-app .rs-body { grid-template-columns: minmax(0, 1fr); } }
+.arc-app .rs-main, .arc-app .rs-side { display: flex; flex-direction: column; gap: 16px; }
+.arc-app .rs-line { border-radius: 6px; background: var(--inset); }
+.arc-app .rs-eyebrow { width: 96px; height: 10px; }
+.arc-app .rs-title { width: 280px; height: 30px; border-radius: 9px; }
+.arc-app .rs-sub { width: 210px; height: 13px; }
+.arc-app .rs-panel { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.arc-app .rs-tall { height: 300px; }
+.arc-app .rs-med { height: 150px; }
+.arc-app .rs-panel:not(.rs-tall):not(.rs-med) { height: 160px; }
+.arc-app .rs-line, .arc-app .rs-panel { animation: rsPulse 1.7s ease-in-out infinite; }
+@keyframes rsPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) {
+  .arc-app .route-skel { animation: none; opacity: 1; }
+  .arc-app .rs-line, .arc-app .rs-panel { animation: none; }
+}
+
 .arc-app {
   /* mockup var names → app tokens / fonts */
   --canvas: #16161a; --canvas-deep: #101013; --panel: #1c1c21; --inset: #202027; --raised: #26262d; --sidebar: #121316;
