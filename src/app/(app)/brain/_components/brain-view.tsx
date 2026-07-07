@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { KnowledgeGraph, type GraphEdge, type GraphNode } from "./knowledge-graph";
+
 export type FactVM = {
   id: string;
   kind: string;
@@ -23,11 +25,14 @@ export type BrainData = {
   facts: FactVM[];
   review: FactVM[];
   learned: FactVM[];
+  graphNodes: GraphNode[];
+  graphEdges: GraphEdge[];
 };
 
 const IconResync = <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>;
 
 const TABS = [
+  { key: "web", label: "Knowledge Web", icon: <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4" /><circle cx="18" cy="7" r="2.4" /><circle cx="12" cy="17" r="2.4" /><path d="M8 7l8 1M7.5 8l3.5 7M16.5 9l-3.5 6" /></svg> },
   { key: "facts", label: "All facts", icon: <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg> },
   { key: "review", label: "Needs review", icon: <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg> },
   { key: "learned", label: "Recently learned", icon: <svg viewBox="0 0 24 24"><path d="M12 8v4l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
@@ -50,7 +55,7 @@ function Confidence({ value }: { value: number | null }) {
 }
 
 export function BrainView({ data }: { data: BrainData }) {
-  const [tab, setTab] = useState("facts");
+  const [tab, setTab] = useState("web");
   const [kind, setKind] = useState("all");
 
   const kinds = useMemo(() => {
@@ -100,7 +105,14 @@ export function BrainView({ data }: { data: BrainData }) {
       </div>
 
       <div className="bbody">
-        <div className="scroll">
+        {tab === "web" ? (
+          data.graphNodes.length === 0 ? (
+            <div className="scroll"><div className="inner"><div className="empty">No knowledge graph yet. Arc maps what it learns — facts and their connections — here.</div></div></div>
+          ) : (
+            <KnowledgeGraph nodes={data.graphNodes} edges={data.graphEdges} />
+          )
+        ) : (
+          <div className="scroll">
           <div className="inner">
             {tab === "facts" && (
               <>
@@ -193,6 +205,7 @@ export function BrainView({ data }: { data: BrainData }) {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
