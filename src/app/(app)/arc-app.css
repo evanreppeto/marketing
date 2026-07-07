@@ -651,6 +651,20 @@
 .arc-app .arc-personas .sparkwrap svg { display: block; }
 .arc-app .arc-personas .sh { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin: 0 0 12px; }
 .arc-app .arc-personas .sec { margin-top: 24px; }
+/* Signals radar + Performance duo (ported from build-personas.html) */
+.arc-app .arc-personas .dduo { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.arc-app .arc-personas .radarcard { border: 1px solid var(--line-2); border-radius: 13px; background: radial-gradient(120% 100% at 50% 30%, rgba(200, 162, 74, .05), transparent 60%), var(--panel); padding: 12px; display: flex; flex-direction: column; align-items: center; }
+.arc-app .arc-personas .radarcard svg { display: block; }
+.arc-app .arc-personas .rdrivers { width: 100%; margin-top: 4px; display: flex; flex-direction: column; gap: 5px; }
+.arc-app .arc-personas .rdr { display: flex; gap: 7px; font-size: 9.5px; color: var(--muted); line-height: 1.3; }
+.arc-app .arc-personas .rdr b { color: var(--text-2); font-weight: 600; width: 64px; flex-shrink: 0; }
+.arc-app .arc-personas .perfcard { border: 1px solid var(--line-2); border-radius: 13px; background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; }
+.arc-app .arc-personas .perfgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; flex: 1; margin-top: 2px; }
+.arc-app .arc-personas .pc { background: var(--panel); padding: 12px 14px; }
+.arc-app .arc-personas .pc .pl { font-size: 10.5px; color: var(--muted); }
+.arc-app .arc-personas .pc .pv { font-family: var(--serif); font-weight: 500; font-size: 21px; letter-spacing: -.02em; margin-top: 4px; color: var(--text); }
+.arc-app .arc-personas .pc .pd { font-family: var(--mono); font-size: 9px; color: var(--ok-text); margin-top: 2px; }
+@media (max-width: 900px) { .arc-app .arc-personas .dduo { grid-template-columns: 1fr; } }
 .arc-app .arc-personas .pbk { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; border: 1px solid var(--line-2); border-radius: 13px; overflow: hidden; background: var(--line-2); }
 .arc-app .arc-personas .pbi { background: var(--panel); padding: 14px 16px; }
 .arc-app .arc-personas .pbi.full { grid-column: 1 / -1; }

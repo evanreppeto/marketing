@@ -1,4 +1,6 @@
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { listPersonas, type Persona } from "@/lib/personas/console";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { PersonasView, type PersonaVM } from "./_components/personas-view";
 
@@ -26,10 +28,53 @@ function scoreColor(score: number): string {
   return "#d8a24a";
 }
 
-function toVM(p: Persona): PersonaVM {
+type PerfRow = { leads: number; jobs: number; revenueCents: number };
+
+// Driver line for a radar axis — the persona's own signal_drivers when present,
+// otherwise a short label keyed off the real signal value.
+function driverText(drivers: string[], value: number, kind: "engagement" | "fit" | "intent"): string {
+  if (drivers.length) return drivers[0];
+  const fallback = {
+    engagement: ["Opens & replies trending up", "Room to lift opens & replies"],
+    fit: ["Strong match to the ICP", "Partial ICP match"],
+    intent: ["Recent buying signals", "Few recent buying signals"],
+  }[kind];
+  return value >= 70 ? fallback[0] : fallback[1];
+}
+// Persona slug (homeowner-emergency) → lead/outcome persona enum (persona_homeowner_emergency).
+const personaEnum = (slug: string) => `persona_${slug.replace(/-/g, "_")}`;
+
+async function personaPerf(orgId: string): Promise<Map<string, PerfRow>> {
+  const out = new Map<string, PerfRow>();
+  if (!isSupabaseAdminConfigured()) return out;
+  const admin = getSupabaseAdminClient();
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const bump = (key: string, patch: Partial<PerfRow>) => {
+    const cur = out.get(key) ?? { leads: 0, jobs: 0, revenueCents: 0 };
+    out.set(key, { leads: cur.leads + (patch.leads ?? 0), jobs: cur.jobs + (patch.jobs ?? 0), revenueCents: cur.revenueCents + (patch.revenueCents ?? 0) });
+  };
+  const [leads, jobs, outcomes] = await Promise.all([
+    admin.from("leads").select("persona").eq("org_id", orgId).gte("created_at", since),
+    admin.from("jobs").select("persona").eq("org_id", orgId),
+    admin.from("outcomes").select("persona, gross_revenue_cents, status").eq("org_id", orgId).in("status", ["won", "paid"]),
+  ]);
+  for (const r of (leads.data ?? []) as { persona: string | null }[]) if (r.persona) bump(r.persona, { leads: 1 });
+  for (const r of (jobs.data ?? []) as { persona: string | null }[]) if (r.persona) bump(r.persona, { jobs: 1 });
+  for (const r of (outcomes.data ?? []) as { persona: string | null; gross_revenue_cents: number | null }[]) if (r.persona) bump(r.persona, { revenueCents: r.gross_revenue_cents ?? 0 });
+  return out;
+}
+
+function money(cents: number): string {
+  const d = Math.round(cents / 100);
+  return d >= 1000 ? `$${Math.round(d / 1000)}k` : `$${d}`;
+}
+
+function toVM(p: Persona, perf: Map<string, PerfRow>): PersonaVM {
   const segColor = SEG_COLOR[p.segment] ?? "#c8a24a";
   const stage = STAGE_COLOR[p.stage] ?? { color: "#b8b4aa", bg: "rgba(255,255,255,.04)" };
   const share = Math.round(p.audienceShare > 1 ? p.audienceShare : p.audienceShare * 100);
+  const radar = p.signals;
+  const pr = perf.get(personaEnum(p.slug)) ?? { leads: 0, jobs: 0, revenueCents: 0 };
   return {
     slug: p.slug,
     name: p.name,
@@ -56,10 +101,21 @@ function toVM(p: Persona): PersonaVM {
     proofPoints: p.proofPoints ?? [],
     sampleSubject: p.sampleMessage?.subject ?? "",
     samplePreview: p.sampleMessage?.preview ?? "",
+    radar,
+    drivers: {
+      engagement: driverText(p.signalDrivers.engagement, radar.engagement, "engagement"),
+      fit: driverText(p.signalDrivers.fit, radar.fit, "fit"),
+      intent: driverText(p.signalDrivers.intent, radar.intent, "intent"),
+    },
+    perf: { leads: pr.leads, jobs: pr.jobs, revenue: money(pr.revenueCents) },
   };
 }
 
 export default async function PersonasPage() {
-  const personas = await listPersonas().catch(() => [] as Persona[]);
-  return <PersonasView personas={personas.map(toVM)} />;
+  const ctx = await getCurrentWorkspaceContext().catch(() => null);
+  const [personas, perf] = await Promise.all([
+    listPersonas().catch(() => [] as Persona[]),
+    ctx ? personaPerf(ctx.orgId).catch(() => new Map<string, PerfRow>()) : Promise.resolve(new Map<string, PerfRow>()),
+  ]);
+  return <PersonasView personas={personas.map((p) => toVM(p, perf))} />;
 }
