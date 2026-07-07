@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
+
+import { scanForOpportunitiesAction } from "../actions";
 
 export type OppSignal = { label: string; value: string };
 export type OppRouting = { step: string; note: string; done: boolean };
@@ -51,13 +54,52 @@ function ConfidenceFill({ pct }: { pct: number }) {
   );
 }
 
+const scanBtnStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "7px",
+  height: "30px",
+  padding: "0 12px",
+  borderRadius: "8px",
+  border: "1px solid var(--accent-border)",
+  background: "var(--accent-soft)",
+  color: "var(--accent-contrast)",
+  fontSize: "11.5px",
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+// Runs cold-lead detection over the workspace CRM and refreshes the inbox with
+// any new source-backed opportunities. Read-only — surfaces signals, drafts nothing.
+function ScanButton({ subtle }: { subtle?: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      style={{ ...scanBtnStyle, opacity: pending ? 0.6 : 1, ...(subtle ? { height: "34px" } : {}) }}
+    >
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M21 21l-4-4" />
+      </svg>
+      {pending ? "Scanning CRM…" : "Scan for opportunities"}
+    </button>
+  );
+}
+
 export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
   const [cur, setCur] = useState(0);
 
   if (opps.length === 0) {
     return (
       <div className="arc-opps" style={{ display: "block" }}>
-        <div className="empty">No open opportunities right now. Arc surfaces source-backed ones here as it finds them.</div>
+        <div className="empty" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
+          <span>No open opportunities yet. Arc scans your CRM for source-backed signals — quiet leads worth re-engaging, and more.</span>
+          <form action={scanForOpportunitiesAction}>
+            <ScanButton subtle />
+          </form>
+        </div>
       </div>
     );
   }
@@ -71,6 +113,9 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
           <span className="h">OPEN OPPORTUNITIES</span>
           <span className="c">{opps.length} open</span>
         </div>
+        <form action={scanForOpportunitiesAction} style={{ padding: "2px 4px 12px" }}>
+          <ScanButton />
+        </form>
         <div>
           {opps.map((it, i) => (
             <button key={it.id} type="button" className={`orow${i === cur ? " on" : ""}`} onClick={() => setCur(i)}>
