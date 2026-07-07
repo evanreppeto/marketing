@@ -62,11 +62,12 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
     ? `<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#8a8a8f">${escapeHtml(footerNote)}</p>`
     : "";
 
-  // Footer: "Powered by <product>" co-branding (Arc's mark).
+  // Footer: "Powered by <product>" co-branding — always show the name as text
+  // (survives image-blocking clients / spam) with the logo mark beside it when
+  // images load. alt="" so a blocked image collapses instead of showing a broken
+  // placeholder next to the wordmark.
   const productMark = product
-    ? product.logoUrl
-      ? `<img src="${escapeHtml(product.logoUrl)}" alt="${escapeHtml(product.name)}" height="16" style="height:16px;display:block" />`
-      : `<strong style="font-size:13px;color:#0B0B0C;font-family:${sans}">${escapeHtml(product.name)}</strong>`
+    ? `${product.logoUrl ? `<img src="${escapeHtml(product.logoUrl)}" alt="" width="16" height="16" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px" />` : ""}<strong style="font-size:13px;color:#0B0B0C;font-family:${sans};vertical-align:middle">${escapeHtml(product.name)}</strong>`
     : "";
   const productFooter = product
     ? `<tr><td style="padding-top:24px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid #ececeb;padding-top:16px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="font-size:12px;color:#8a8a8f;padding-right:7px;font-family:${sans}">Powered by</td><td valign="middle">${productMark}</td></tr></table></td></tr></table></td></tr>`
