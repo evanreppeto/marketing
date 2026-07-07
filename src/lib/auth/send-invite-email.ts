@@ -26,17 +26,20 @@ export async function sendWorkspaceInviteEmail(params: {
     const details = await lookupWorkspaceInviteByCode(params.code);
     const workspaceName = details.ok ? details.workspaceName : undefined;
     const inviterName = details.ok ? details.inviterName : null;
+    // Workspace brand in the header (theme), Arc in the "powered by" footer.
     const theme = await resolveBrandEmailTheme();
+    const product = { name: "Arc", logoUrl: `${params.origin}/icon.png` };
     const sent = await sendBrandedEmail({
       to: params.invitedEmail,
-      subject: `You're invited to join ${workspaceName ?? theme.appName}`,
-      heading: `Join ${workspaceName ?? theme.appName}`,
+      subject: `You're invited to join ${workspaceName ?? product.name}`,
+      heading: `Join ${workspaceName ?? product.name}`,
       bodyBlocks: [
-        `${inviterName ? `${inviterName} invited you` : "You've been invited"} to collaborate in ${workspaceName ?? theme.appName} on ${theme.appName}.`,
+        `${inviterName ? `${inviterName} invited you` : "You've been invited"} to collaborate in ${workspaceName ?? "the workspace"} on ${product.name}.`,
         "Click below to accept your invitation and set up your account.",
       ],
       cta: { label: "Accept invitation", url: acceptUrl },
       theme,
+      product,
     });
     return { acceptUrl, emailed: sent.ok, emailError: sent.ok ? null : sent.error ?? null };
   } catch (error) {

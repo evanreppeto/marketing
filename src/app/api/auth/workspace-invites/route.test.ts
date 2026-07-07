@@ -65,13 +65,14 @@ describe("POST /api/auth/workspace-invites email send", () => {
     expect(await res.json()).toMatchObject({ ok: true, code: "ABC123" });
   });
 
-  it("still emails (falling back to the app name) when invite details can't be resolved", async () => {
+  it("still emails (falling back to the product name) when invite details can't be resolved", async () => {
     lookup.mockResolvedValue({ ok: false, reason: "not_found" } as never);
     const res = await POST(req({ workspaceId: "w1", role: "member", invitedEmail: "x@co.com" }));
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
-        subject: "You're invited to join Summit",
+        subject: "You're invited to join Arc",
         cta: { label: "Accept invitation", url: "https://app.example.com/accept-invite/ABC123" },
+        product: expect.objectContaining({ name: "Arc" }),
       }),
     );
     expect(await res.json()).toMatchObject({ ok: true, emailed: true });

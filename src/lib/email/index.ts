@@ -18,6 +18,7 @@ export async function resolveBrandEmailTheme(): Promise<BrandEmailTheme> {
     return {
       appName: identity.displayName || DEFAULT_THEME.appName,
       logoUrl: identity.logoUrl || undefined,
+      shortMark: identity.shortMark || undefined,
       accentColor: DEFAULT_THEME.accentColor,
     };
   } catch {
@@ -42,6 +43,7 @@ export async function sendBrandedEmail(
     cta?: EmailCta;
     theme: BrandEmailTheme;
     footerNote?: string;
+    product?: { name: string; logoUrl?: string | null };
   },
   deps: SendBrandedEmailDeps = {},
 ): Promise<SendBrandedEmailResult> {
@@ -58,6 +60,7 @@ export async function sendBrandedEmail(
     cta: input.cta,
     theme: input.theme,
     footerNote: input.footerNote,
+    product: input.product,
   });
 
   try {
