@@ -1,5 +1,5 @@
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
-import { listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
+import { crmRecordHref, listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
 
 import { OpportunityInbox, type OpportunityVM } from "./_components/opportunity-inbox";
 
@@ -59,6 +59,10 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
   const sourceLabel = humanize(rec.subject_type) || "Arc";
   const confidence = Math.round(rec.confidence);
 
+  const recordHref = crmRecordHref(rec.subject_type, rec.subject_id);
+  const recordNoun =
+    rec.subject_type === "lead" ? "lead" : rec.subject_type === "contact" ? "contact" : "company";
+
   const evidence: OpportunityVM["evidence"] = [];
   if (typeof ev.leadScore === "number") evidence.push({ label: "Lead score", value: `${Math.round(ev.leadScore)} / 100` });
   if (typeof ev.daysCold === "number") evidence.push({ label: "Inactivity", value: `${ev.daysCold} days since last touch` });
@@ -85,6 +89,9 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     summary: rec.summary,
     recommendedAction: rec.recommended_action,
     persona,
+    personaHref: persona ? "/personas" : null,
+    recordHref,
+    recordLabel: recordHref ? `Open the ${recordNoun} record` : null,
     audienceNote: persona ? "Primary persona Arc matched to this signal" : `Source: ${sourceLabel}`,
     campaignTypes: campaignTypes(rec.urgency),
     evidence,
