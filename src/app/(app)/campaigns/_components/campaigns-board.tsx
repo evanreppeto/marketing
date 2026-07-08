@@ -145,7 +145,7 @@ export function CampaignsBoard({
           </div>
         </div>
         <div className="sp">
-          <span className="gbtn">
+          <span className="gbtn" data-soon="Campaign templates are coming soon">
             <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z" /><path d="M4 9h16M9 5v14" /></svg>
             Templates
           </span>
@@ -189,7 +189,7 @@ export function CampaignsBoard({
           />
         </span>
         <span className="gspacer" />
-        <span className="fbtn">
+        <span className="fbtn" data-soon="Sorting is coming soon">
           <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
           Recently updated <span className="cv">▾</span>
         </span>
