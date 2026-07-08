@@ -17,8 +17,21 @@ export type CreateCrmInput = {
   city?: string;
   state?: string;
   postalCode?: string;
+  /** Parent record to link (leads → company/contact/property; outcomes → job/lead). */
+  parentType?: string;
+  parentId?: string;
   /** Audit label for metadata.owner. */
   owner?: string;
+};
+
+// Parent link type → the FK column it fills. Leads and outcomes carry a DB check
+// constraint requiring at least one of these.
+const PARENT_COLUMN: Record<string, string> = {
+  company: "company_id",
+  contact: "contact_id",
+  property: "property_id",
+  job: "job_id",
+  lead: "lead_id",
 };
 
 export type CreateCrmResult = { ok: true; id: string } | { ok: false; error: string };
@@ -68,6 +81,10 @@ function buildInsert(
   const base: Record<string, unknown> = { org_id: orgId, metadata };
   if (persona) base.persona = persona;
 
+  // Parent FK for leads/outcomes (satisfies the relationship check constraint).
+  const parentCol = input.parentType ? PARENT_COLUMN[input.parentType] : undefined;
+  const parentLink: Record<string, unknown> = parentCol && input.parentId ? { [parentCol]: input.parentId } : {};
+
   switch (input.objectKey) {
     case "companies":
       return {
@@ -107,6 +124,7 @@ function buildInsert(
         table: "leads",
         row: {
           ...base,
+          ...parentLink,
           loss_summary: name,
           source: detail || "manual",
           status: input.status || "new",
@@ -123,7 +141,7 @@ function buildInsert(
     case "outcomes":
       return {
         table: "outcomes",
-        row: { ...base, status: input.status || "won", metadata: { ...metadata, title: name } },
+        row: { ...base, ...parentLink, status: input.status || "won", metadata: { ...metadata, title: name } },
       };
   }
 }

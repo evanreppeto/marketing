@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 
 import { createCrmRecord } from "../actions";
-import { AddRecordModal, type AddRecordValue } from "./add-record-modal";
+import { AddRecordModal, type AddRecordValue, type LinkOption } from "./add-record-modal";
 
 type FilterOption = { value: string; label: string; count: number };
 
@@ -335,6 +335,16 @@ export function CrmBoard({
     [localByKey, rowsByKey, active.key],
   );
 
+  // Parent records a lead/outcome can link to, from the loaded rows. Leads link
+  // to a company/contact/property; outcomes link to a job/lead.
+  const linkOptions = useMemo<LinkOption[]>(() => {
+    const from = (key: string, type: string, typeLabel: string): LinkOption[] =>
+      (rowsByKey[key] ?? []).filter((r) => !r.id.startsWith("local-")).map((r) => ({ type, id: r.id, label: `${typeLabel} · ${r.name}` }));
+    if (active.key === "leads") return [...from("companies", "company", "Company"), ...from("contacts", "contact", "Contact"), ...from("properties", "property", "Property")];
+    if (active.key === "outcomes") return [...from("jobs", "job", "Job"), ...from("leads", "lead", "Lead")];
+    return [];
+  }, [rowsByKey, active.key]);
+
   // Distinct filter options (with counts) drawn from the current object's rows.
   const options = useMemo(() => {
     const build = (pick: (r: CrmRowVM) => string): FilterOption[] => {
@@ -375,15 +385,7 @@ export function CrmBoard({
     setError(null);
     setLocalByKey((prev) => ({ ...prev, [objectKey]: [buildOptimisticRow(objectKey, tempId, value), ...(prev[objectKey] ?? [])] }));
 
-    const res = await createCrmRecord({
-      objectKey,
-      name: value.name,
-      persona: value.persona,
-      status: value.status,
-      detail: value.detail,
-      city: value.city,
-      state: value.state,
-    });
+    const res = await createCrmRecord({ objectKey, ...value });
 
     if (!res.ok) {
       setLocalByKey((prev) => ({ ...prev, [objectKey]: (prev[objectKey] ?? []).filter((r) => r.id !== tempId) }));
@@ -615,6 +617,7 @@ export function CrmBoard({
         open={addOpen}
         objectKey={active.key as CrmObjectKey}
         singular={active.addLabel.replace(/^Add\s+/i, "")}
+        linkOptions={linkOptions}
         onClose={() => setAddOpen(false)}
         onSubmit={handleCreate}
       />
