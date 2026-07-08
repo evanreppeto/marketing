@@ -603,6 +603,55 @@
 .arc-app .arc-analytics .bb i { display: block; height: 100%; border-radius: 99px; }
 .arc-app .arc-analytics .bdrow .bv { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); text-align: right; }
 
+/* Campaign performance table — drill-down into each campaign's Performance tab */
+.arc-app .arc-analytics .camps h2 { justify-content: flex-start; }
+.arc-app .arc-analytics .camphint { font-family: inherit; font-size: 10.5px; font-weight: 400; color: var(--muted); margin-left: auto; }
+.arc-app .arc-analytics .ctbl { display: flex; flex-direction: column; }
+.arc-app .arc-analytics .cthead, .arc-app .arc-analytics .ctrow { display: grid; grid-template-columns: minmax(0, 2.4fr) 0.8fr 0.8fr 1.1fr 0.8fr 0.5fr; gap: 12px; align-items: center; }
+.arc-app .arc-analytics .cthead { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 0 6px 9px; border-bottom: 1px solid var(--line-2); }
+.arc-app .arc-analytics .cthead span:not(:first-child) { text-align: right; }
+.arc-app .arc-analytics .ctrow { padding: 11px 6px; border-bottom: 1px solid var(--line); border-radius: 8px; text-decoration: none; transition: background .14s; }
+.arc-app .arc-analytics .ctrow:last-child { border-bottom: 0; }
+.arc-app .arc-analytics .ctrow:hover { background: rgba(255, 255, 255, .035); }
+.arc-app .arc-analytics .ctname { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.arc-app .arc-analytics .ctname b { font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arc-app .arc-analytics .ctname i { font-size: 10.5px; color: var(--muted); font-style: normal; }
+.arc-app .arc-analytics .ctnum { font-family: var(--mono); font-size: 12px; color: var(--text-2); text-align: right; }
+.arc-app .arc-analytics .cttrend { font-size: 10px; text-align: right; }
+.arc-app .arc-analytics .cttrend.up { color: var(--ok-text); }
+.arc-app .arc-analytics .cttrend.down { color: var(--red-text); }
+.arc-app .arc-analytics .cttrend.flat { color: var(--muted); }
+
+/* Channel performance table (Channels tab) */
+.arc-app .arc-analytics .chtbl { display: flex; flex-direction: column; }
+.arc-app .arc-analytics .chhead, .arc-app .arc-analytics .chrow { display: grid; grid-template-columns: minmax(0, 2fr) 0.8fr 0.8fr 1.1fr 1fr 0.7fr; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.arc-app .arc-analytics .chhead { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-top: 0; }
+.arc-app .arc-analytics .chhead span:not(:first-child) { text-align: right; }
+.arc-app .arc-analytics .chrow:last-child { border-bottom: 0; }
+.arc-app .arc-analytics .chname { position: relative; font-size: 12.5px; font-weight: 600; color: var(--text); padding-bottom: 7px; }
+.arc-app .arc-analytics .chbar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); border-radius: 2px; opacity: .55; }
+.arc-app .arc-analytics .chnum { font-family: var(--mono); font-size: 12px; color: var(--text-2); text-align: right; }
+.arc-app .arc-analytics .chspend { color: var(--muted); }
+.arc-app .arc-analytics .chroas { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ok-text); text-align: right; }
+.arc-app .arc-analytics .chroas.organic { color: var(--muted); font-weight: 400; }
+
+/* Arc signals + recommended moves */
+.arc-app .arc-analytics .signals { display: flex; flex-direction: column; gap: 12px; }
+.arc-app .arc-analytics .sig { display: grid; grid-template-columns: 10px 1fr; gap: 11px; }
+.arc-app .arc-analytics .sig .sdot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; }
+.arc-app .arc-analytics .sig .sdot.ok { background: var(--ok); }
+.arc-app .arc-analytics .sig .sdot.amber { background: var(--warn); }
+.arc-app .arc-analytics .sig .sdot.red { background: var(--red); }
+.arc-app .arc-analytics .stitle { font-size: 12.5px; font-weight: 600; color: var(--text); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.arc-app .arc-analytics .smetric { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--ok-text); background: var(--ok-soft); border-radius: 5px; padding: 1px 6px; }
+.arc-app .arc-analytics .sdetail { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 4px; }
+.arc-app .arc-analytics .moves { display: flex; flex-direction: column; gap: 9px; }
+.arc-app .arc-analytics .move { display: block; border: 1px solid var(--line-2); border-radius: 10px; background: var(--inset); padding: 11px 13px; text-decoration: none; transition: border-color .14s; }
+.arc-app .arc-analytics .move:hover { border-color: var(--accent-border); }
+.arc-app .arc-analytics .mtitle { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.arc-app .arc-analytics .mdetail { font-size: 11px; color: var(--muted); line-height: 1.5; margin: 5px 0 7px; }
+.arc-app .arc-analytics .mcta { font-size: 11px; font-weight: 600; color: var(--accent-contrast); }
+
 .arc-app .arc-analytics .airead { border: 1px solid var(--accent-border); border-radius: 13px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 42%, var(--panel)), var(--panel)); padding: 17px 19px; position: sticky; top: 0; }
 .arc-app .arc-analytics .airead .al { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
 .arc-app .arc-analytics .airead .am { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--accent-border); background: var(--accent-soft); display: grid; place-items: center; font-family: var(--serif); font-weight: 600; color: var(--accent); font-size: 13px; }
