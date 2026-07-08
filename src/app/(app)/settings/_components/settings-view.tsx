@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView } from "@/lib/auth/team-view";
+import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
 
 import { cancelInvite, changeMemberRole, createInvite, createWorkspace, removeMember } from "../actions";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
@@ -95,10 +96,16 @@ const MEDIA_MODELS: Record<string, [string, string, string, number?][]> = {
 const PCOL: Record<string, string> = { Higgsfield: "#c8a24a", Google: "#5b8def", "Black Forest Labs": "#9678c8", OpenAI: "#7fb89a", xAI: "#aab2bd", Kling: "#E1306C", Bytedance: "#88b6d8", Recraft: "#c47055", "Tongyi-MAI": "#19c4cc", Inworld: "#9678c8", Mirelo: "#7fb89a", Sonilo: "#f3c64a", Hailuo: "#FF7A59", Wan: "#52BD94" };
 const pinit = (p: string) => { const w = p.split(/[\s-]+/); return (w.length > 1 ? w[0][0] + w[1][0] : p.slice(0, 2)).toUpperCase(); };
 
-export function SettingsView({ brandName, email, team }: { brandName: string; email: string; team: SettingsTeamView }) {
+const EMPTY_USAGE: SettingsUsageView = {
+  isDemo: false, configured: false, tokensLabel: "0", runsLabel: "0", costLabel: "$0.00",
+  capLabel: "$80", pctOfCap: 0, isNearCap: false, rangeLabel: "Last 30 days",
+};
+
+export function SettingsView({ brandName, email, team, usage }: { brandName: string; email: string; team: SettingsTeamView; usage: SettingsUsageView | null }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
+  const usageView = usage ?? EMPTY_USAGE;
   const [navQ, setNavQ] = useState("");
   const [connCat, setConnCat] = useState("All");
   const [connQ, setConnQ] = useState("");
@@ -112,7 +119,7 @@ export function SettingsView({ brandName, email, team }: { brandName: string; em
       <>
         <Head t="Overview" d="Your workspace at a glance — health, what needs you, and quick links." />
         <div className="ovgrid">
-          {[["connections", "3", "Connections active"], ["team", String(memberCount), "Team members"], ["agent", "OK", "Runner connected"], ["usage", "61%", "Of monthly cap"]].map(([ic, v, l]) => (
+          {[["connections", "3", "Connections active"], ["team", String(memberCount), "Team members"], ["agent", "OK", "Runner connected"], ["usage", `${usageView.pctOfCap}%`, "Of monthly cap"]].map(([ic, v, l]) => (
             <div className="ovcard" key={l} onClick={() => setCur(ic)}><div className="ovi"><Ic d={ICON[ic]} /></div><div className="ovv">{v}</div><div className="ovl">{l}</div></div>
           ))}
         </div>
@@ -262,13 +269,13 @@ export function SettingsView({ brandName, email, team }: { brandName: string; em
       <>
         <Head t="Usage & billing" d="What Arc has consumed this period. Full breakdown lives in the Usage report." />
         <div className="panel">
-          <div className="panel-h"><h3>This month</h3><span className="tg est" style={{ marginLeft: "auto" }}>summary · partial</span></div>
+          <div className="panel-h"><h3>This month</h3><span className="tg ok" style={{ marginLeft: "auto" }}>wired</span></div>
           <div className="panel-b" style={{ padding: 16 }}>
-            <div className="ukpis">{[["1.84M", "Tokens"], ["312", "Agent runs"], ["$48.20", "Est. cost"]].map(([v, l]) => <div className="ukpi" key={l}><div className="uv">{v}</div><div className="ul">{l}</div></div>)}</div>
-            <div className="ubar"><i style={{ width: "61%" }} /></div>
-            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>61% of your $80 soft cap · resets Jul 1</div>
+            <div className="ukpis">{[[usageView.tokensLabel, "Tokens"], [usageView.runsLabel, "Agent runs"], [usageView.costLabel, "Est. cost"]].map(([v, l]) => <div className="ukpi" key={l}><div className="uv">{v}</div><div className="ul">{l}</div></div>)}</div>
+            <div className="ubar"><i style={{ width: `${Math.min(usageView.pctOfCap, 100)}%`, ...(usageView.isNearCap ? { background: "var(--warn)" } : {}) }} /></div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>{usageView.pctOfCap}% of your {usageView.capLabel} soft cap · {usageView.rangeLabel}</div>
           </div>
-          <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage · /api/v1/arc/usage — inline summary is the build gap; full /usage page exists</div>
+          <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage → summarizeUsageForSettings · full breakdown on the Usage report</div>
         </div>
         <div style={{ display: "flex", gap: 9 }}><button className="btn gold"><Ic d='<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6"/>' />Open full usage report</button><button className="btn">Manage plan</button></div>
       </>
