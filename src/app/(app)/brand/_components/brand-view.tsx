@@ -51,9 +51,9 @@ export function BrandView({ brandName }: { brandName: string }) {
           </div>
         </div>
         <div className="bacts">
-          <span className="gbtn sm"><svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4-4 4 4M12 5v10" /></svg>Replace logo</span>
-          <span className="gbtn sm"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /><path d="M13 5l4 4" /></svg>Edit identity</span>
-          <span className="gbtn gold sm"><svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6" /></svg>Save</span>
+          <span className="gbtn sm" data-soon="Replacing your logo is coming soon"><svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4-4 4 4M12 5v10" /></svg>Replace logo</span>
+          <span className="gbtn sm" data-soon="Editing brand identity is coming soon"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /><path d="M13 5l4 4" /></svg>Edit identity</span>
+          <span className="gbtn gold sm" data-soon="Saving brand changes is coming soon"><svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6" /></svg>Save</span>
         </div>
       </div>
 
@@ -74,24 +74,24 @@ export function BrandView({ brandName }: { brandName: string }) {
         </div>
         <div className="sources">
           <div className="isrc">
-            <span className="tg ok">wired</span>
+            <span className="tg est">preview</span>
             <div className="si"><span className="ic bl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" /></svg></span><div><div className="nm">Website</div><div className="ds">Crawls up to 6 pages → logo, colors, fonts, voice, proof</div></div></div>
-            <div className="urow"><input defaultValue="https://bigshouldersrestoration.com" spellCheck={false} /><span className="ibtn">Analyze</span></div>
+            <div className="urow"><input defaultValue="https://bigshouldersrestoration.com" spellCheck={false} /><span className="ibtn" data-soon="Website analysis is coming soon">Analyze</span></div>
           </div>
           <div className="isrc">
-            <span className="tg ok">wired</span>
+            <span className="tg est">preview</span>
             <div className="si"><span className="ic gd">{DOC}</span><div><div className="nm">Documents</div><div className="ds">.docx · .pdf · .md · .csv · txt — up to 50&nbsp;MB</div></div></div>
-            <div className="ucta drop"><svg className="upi" viewBox="0 0 24 24"><path d="M12 16V6M8 10l4-4 4 4" /><path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" /></svg><span><b>Drop files</b> or browse</span></div>
+            <div className="ucta drop" data-soon="Document upload is coming soon"><svg className="upi" viewBox="0 0 24 24"><path d="M12 16V6M8 10l4-4 4 4" /><path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" /></svg><span><b>Drop files</b> or browse</span></div>
           </div>
           <div className="isrc">
             <span className="tg est">vision · partial</span>
             <div className="si"><span className="ic vi"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M3 17l5-4 4 3 3-2 6 4" /></svg></span><div><div className="nm">Logo &amp; images</div><div className="ds">Arc reads them with Gemini vision</div></div></div>
-            <div className="ucta drop"><svg className="upi" viewBox="0 0 24 24"><path d="M12 16V6M8 10l4-4 4 4" /><path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" /></svg><span><b>Drop logo / photos</b></span></div>
+            <div className="ucta drop" data-soon="Logo & image upload is coming soon"><svg className="upi" viewBox="0 0 24 24"><path d="M12 16V6M8 10l4-4 4 4" /><path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" /></svg><span><b>Drop logo / photos</b></span></div>
           </div>
           <div className="isrc">
-            <span className="tg ok">wired</span>
+            <span className="tg est">preview</span>
             <div className="si"><span className="ic mu"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /><path d="M13 5l4 4" /></svg></span><div><div className="nm">Manual</div><div className="ds">Type a note, or edit any field below</div></div></div>
-            <div className="ucta">Add a brand note</div>
+            <div className="ucta" data-soon="Brand notes are coming soon">Add a brand note</div>
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@ export function BrandView({ brandName }: { brandName: string }) {
         <div className="bcol">
           {/* PALETTE */}
           <div className="bsec">
-            <div className="bsh"><h3>Brand palette</h3><span className="tg ok">wired</span><div className="sx"><span className="editlink"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>Add color</span></div></div>
+            <div className="bsh"><h3>Brand palette</h3><span className="tg est">preview</span><div className="sx"><span className="editlink" data-soon="Editing the palette is coming soon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>Add color</span></div></div>
             <div className="bsb">
               <div className="swrow">
                 {PAL.map((p, i) => {
@@ -123,7 +123,7 @@ export function BrandView({ brandName }: { brandName: string }) {
 
           {/* TYPOGRAPHY */}
           <div className="bsec">
-            <div className="bsh"><h3>Typography</h3><span className="tg ok">wired</span><div className="sx"><span className="editlink"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /></svg>Change</span></div></div>
+            <div className="bsh"><h3>Typography</h3><span className="tg est">preview</span><div className="sx"><span className="editlink" data-soon="Editing typography is coming soon"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /></svg>Change</span></div></div>
             <div className="bsb"><div className="typ">
               <div className="tspec serif"><div className="glyph">Aa</div><div className="ti"><div className="role">Display</div><div className="fam">Fraunces</div><div className="sample">Storm-damage roofing &amp; exteriors, done right.</div></div></div>
               <div className="tspec"><div className="glyph">Aa</div><div className="ti"><div className="role">UI / Body</div><div className="fam">Geist</div><div className="sample">Licensed &amp; insured local crews. GAF-certified. Workmanship warranty.</div></div></div>
@@ -133,7 +133,7 @@ export function BrandView({ brandName }: { brandName: string }) {
 
           {/* VOICE */}
           <div className="bsec">
-            <div className="bsh"><h3>Voice &amp; tone</h3><span className="tg ok">wired · tone · voice_guidance</span><div className="sx"><span className="editlink"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /></svg>Edit</span></div></div>
+            <div className="bsh"><h3>Voice &amp; tone</h3><span className="tg est">preview · tone · voice_guidance</span><div className="sx"><span className="editlink" data-soon="Editing voice & tone is coming soon"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /></svg>Edit</span></div></div>
             <div className="bsb">
               <div className="tone"><span className="tchip">Warm</span><span className="tchip">Trustworthy</span><span className="tchip">Local</span><span className="tchip">No-pressure</span></div>
               <p className="guide">Speak neighbor-to-neighbor. Lead with help and proof, never pressure. Short sentences, active voice. Reassure a homeowner dealing with storm damage who hates being sold to.</p>
@@ -142,7 +142,7 @@ export function BrandView({ brandName }: { brandName: string }) {
                 <div><div className="pl ban">{BAN}Banned</div><div className="words"><span className="word ban">discount</span><span className="word ban">limited-time</span><span className="word ban">act now</span><span className="word ban">cheapest</span><span className="word ban">gimmick</span></div></div>
               </div>
               <div className="vpreview">
-                <div className="vp-head"><span className="vp-spark"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg></span>How Arc will write <span className="tg est">preview</span><span className="vp-regen">{RESYNC}Regenerate</span></div>
+                <div className="vp-head"><span className="vp-spark"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg></span>How Arc will write <span className="tg est">preview</span><span className="vp-regen" data-soon="Regenerating the preview is coming soon">{RESYNC}Regenerate</span></div>
                 <div className="vp-body">“Hail hit Naperville hard on June 24. We’ll inspect your roof for free, coordinate the whole insurance claim, and back the work with our workmanship warranty — licensed, insured, local crews.”</div>
                 <div className="vp-meta"><i />Email opener · in your voice · 2 proof points · 0 banned phrases</div>
               </div>
@@ -152,7 +152,7 @@ export function BrandView({ brandName }: { brandName: string }) {
 
           {/* PROOF / GUARDRAILS / SERVICES */}
           <div className="bsec">
-            <div className="bsh"><h3>Proof, guardrails &amp; offering</h3><span className="tg ok">wired · proof_points · guardrails · services</span></div>
+            <div className="bsh"><h3>Proof, guardrails &amp; offering</h3><span className="tg est">preview · proof_points · guardrails · services</span></div>
             <div className="bsb">
               <div className="twocol">
                 <div>
@@ -174,7 +174,7 @@ export function BrandView({ brandName }: { brandName: string }) {
         <div className="brail">
           {/* LIVE PREVIEW */}
           <div className="preview">
-            <div className="pvhead"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth={1.9}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg><h3>Live brand preview</h3><span className="tg ok" style={{ marginLeft: "auto" }}>wired</span></div>
+            <div className="pvhead"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth={1.9}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg><h3>Live brand preview</h3><span className="tg est" style={{ marginLeft: "auto" }}>preview</span></div>
             <div className="pvframe" style={{ aspectRatio: ASPECTS[aspect] }}>
               <img src={PREVIEW_IMG} alt="" />
               <div className="pvgrad" />
@@ -194,13 +194,13 @@ export function BrandView({ brandName }: { brandName: string }) {
 
           {/* BRAND SOURCES */}
           <div className="bsec">
-            <div className="bsh"><h3>Brand sources</h3><span className="tg ok">wired · media_assets</span><div className="sx"><span className="resyncall">{RESYNC}Re-sync all</span><span className="gbtn gold sm"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</span></div></div>
+            <div className="bsh"><h3>Brand sources</h3><span className="tg est">preview · media_assets</span><div className="sx"><span className="resyncall" data-soon="Re-syncing all sources is coming soon">{RESYNC}Re-sync all</span><span className="gbtn gold sm" data-soon="Uploading sources is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</span></div></div>
             <div className="bsb" style={{ paddingTop: 6 }}>
               {SOURCES.map((s) => (
                 <a key={s.nm} className="src" href={BRAIN}>
                   <span className="di">{DOC}<span className="ext" style={s.extColor ? { background: s.extColor } : undefined}>{s.ext}</span></span>
                   <div className="si"><div className="sn">{s.nm}</div><div className="sm"><b>{s.facts}</b> · {s.when}{s.stale && <span className="stale">stale</span>}</div></div>
-                  <span className="resync" title="Re-sync">{RESYNC}</span><span className="sgo">→</span>
+                  <span className="resync" title="Re-sync" data-soon="Re-syncing this source is coming soon">{RESYNC}</span><span className="sgo">→</span>
                 </a>
               ))}
             </div>

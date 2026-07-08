@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
+import { ComingSoonToasts } from "./coming-soon";
 import { NavProgress } from "./nav-progress";
 import { RoutePrewarm } from "./route-prewarm";
 
@@ -186,6 +187,7 @@ export function AppShell({
           {children}
         </div>
       </div>
+      <ComingSoonToasts />
     </div>
   );
 }

@@ -1,6 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+import type { ArcMessage } from "@/lib/arc-chat/persistence";
+import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
+
+import { sendArcMessageAction } from "../actions";
 
 /* ── icon set (ported verbatim from build-arc-v2.html) ── */
 const Ico = {
@@ -56,48 +65,103 @@ const ASSETS: Asset[] = [
   { id: "lp", name: "Landing page", tab: "Landing Page", dot: "blocked", status: ["err", "Blocked"] },
 ];
 
-export function ArcView({ brandName }: { brandName: string }) {
+export function ArcView({
+  brandName,
+  live = false,
+  threadGroups = [],
+  messages = [],
+  activeConversationId = null,
+}: {
+  brandName: string;
+  live?: boolean;
+  threadGroups?: ArcThreadGroupVM[];
+  messages?: ArcMessage[];
+  activeConversationId?: string | null;
+}) {
+  const router = useRouter();
+  const [sending, startSend] = useTransition();
+  const [draft, setDraft] = useState("");
   const [threadSel, setThreadSel] = useState("Storm-damage homeowners");
   const [view, setView] = useState<"assets" | "audience">("assets");
   const [asset, setAsset] = useState("ad");
   const active = ASSETS.find((a) => a.id === asset) ?? ASSETS[2];
 
+  const submitDraft = () => {
+    const body = draft.trim();
+    if (!body || sending) return;
+    startSend(async () => {
+      const result = await sendArcMessageAction({ conversationId: activeConversationId, body });
+      if (result.ok) {
+        setDraft("");
+        router.push(`/arc?c=${result.conversationId}`);
+        router.refresh();
+      }
+    });
+  };
+
   return (
     <div className="arc-chat">
       {/* ── thread rail ── */}
       <aside className="threads" aria-label="Conversations">
-        <button className="newchat"><span>{Ico.plus}</span>New chat</button>
-        <button className="tsearch">{Ico.search}Search &amp; commands<span className="k">⌘K</span></button>
+        {live ? (
+          <Link href="/arc?new=1" className="newchat"><span>{Ico.plus}</span>New chat</Link>
+        ) : (
+          <button className="newchat" data-soon="Starting a new Arc chat is coming soon"><span>{Ico.plus}</span>New chat</button>
+        )}
+        <button className="tsearch" data-soon="Search & commands is coming soon">{Ico.search}Search &amp; commands<span className="k">⌘K</span></button>
         <div className="tscroll">
-          {THREADS.map((g) => (
-            <div key={g.group}>
-              <div className="tgrp">{g.group}</div>
-              {g.items.map((t) => {
-                const on = threadSel === t.title;
-                return (
-                  <button
-                    key={t.title}
-                    className={`thread${t.two ? " two" : ""}${on ? " cur" : ""}`}
-                    aria-current={on ? "true" : undefined}
-                    onClick={() => setThreadSel(t.title)}
-                  >
-                    {t.two ? (
-                      <>
-                        <span className="trow"><span className="tt">{t.title}</span>{t.pin && <span className="pin" aria-hidden="true">{Ico.pin}</span>}</span>
-                        {t.meta && <span className="tmeta"><b>{t.meta.split(" · ")[0]}</b>{t.meta.includes(" · ") ? ` · ${t.meta.split(" · ").slice(1).join(" · ")}` : ""}</span>}
-                      </>
-                    ) : (
-                      <>
-                        <span className="tt">{t.title}</span>
-                        {t.pin && <span className="pin" aria-hidden="true">{Ico.pin}</span>}
-                        {t.done && <span className="donep" aria-hidden="true" />}
-                      </>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          {live ? (
+            threadGroups.length === 0 ? (
+              <div className="tgrp" style={{ opacity: 0.65 }}>No chats yet — start one below.</div>
+            ) : (
+              threadGroups.map((g) => (
+                <div key={g.group}>
+                  <div className="tgrp">{g.group}</div>
+                  {g.items.map((t) => (
+                    <Link
+                      key={t.id}
+                      href={`/arc?c=${t.id}`}
+                      className={`thread${t.active ? " cur" : ""}`}
+                      aria-current={t.active ? "true" : undefined}
+                    >
+                      <span className="tt">{t.title}</span>
+                      {t.pinned && <span className="pin" aria-hidden="true">{Ico.pin}</span>}
+                    </Link>
+                  ))}
+                </div>
+              ))
+            )
+          ) : (
+            THREADS.map((g) => (
+              <div key={g.group}>
+                <div className="tgrp">{g.group}</div>
+                {g.items.map((t) => {
+                  const on = threadSel === t.title;
+                  return (
+                    <button
+                      key={t.title}
+                      className={`thread${t.two ? " two" : ""}${on ? " cur" : ""}`}
+                      aria-current={on ? "true" : undefined}
+                      onClick={() => setThreadSel(t.title)}
+                    >
+                      {t.two ? (
+                        <>
+                          <span className="trow"><span className="tt">{t.title}</span>{t.pin && <span className="pin" aria-hidden="true">{Ico.pin}</span>}</span>
+                          {t.meta && <span className="tmeta"><b>{t.meta.split(" · ")[0]}</b>{t.meta.includes(" · ") ? ` · ${t.meta.split(" · ").slice(1).join(" · ")}` : ""}</span>}
+                        </>
+                      ) : (
+                        <>
+                          <span className="tt">{t.title}</span>
+                          {t.pin && <span className="pin" aria-hidden="true">{Ico.pin}</span>}
+                          {t.done && <span className="donep" aria-hidden="true" />}
+                        </>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          )}
         </div>
       </aside>
 
@@ -105,10 +169,14 @@ export function ArcView({ brandName }: { brandName: string }) {
       <section className="convo" aria-label="Conversation">
         <div className="msgs" id="arcMsgs">
           <div className="inner">
+            {live ? (
+              <LiveMessages messages={messages} brandName={brandName} />
+            ) : (
+              <>
             <div className="daydiv">Today</div>
 
             <div className="op">
-              <button className="editbtn" aria-label="Edit message">{Ico.pencil}</button>
+              <button className="editbtn" aria-label="Edit message" data-soon="Editing a message is coming soon">{Ico.pencil}</button>
               <div className="bub">Which homeowners should we reach first after the Naperville hailstorm?</div>
             </div>
 
@@ -124,24 +192,24 @@ export function ArcView({ brandName }: { brandName: string }) {
                 </ul>
                 <div className="recall">
                   <span className="lbl">{Ico.brain}Recalled from memory</span>
-                  <button className="mchip">Storm-response playbook <span className="conf">94%</span></button>
-                  <button className="mchip">Inspection-first beat discounts last spring <span className="conf">88%</span></button>
+                  <button className="mchip" data-soon="Memory recall is coming soon">Storm-response playbook <span className="conf">94%</span></button>
+                  <button className="mchip" data-soon="Memory recall is coming soon">Inspection-first beat discounts last spring <span className="conf">88%</span></button>
                 </div>
-                <button className="reslink">
+                <button className="reslink" data-soon="Opening this segment in CRM is coming soon">
                   <div className="meta"><div className="h">142 storm-zone homes</div><div className="s">Saved segment · CRM · refreshed 9:38 AM</div></div>
                   <div className="stat"><div><div className="v">142</div><div className="k">homes</div></div><div><div className="v gold">$1.4M</div><div className="k">est. project value</div></div></div>
                   <div className="go">Open in CRM {Ico.arrow}</div>
                 </button>
                 <div className="msgactions">
-                  <button className="ma" aria-label="Copy">{Ico.copy}</button>
-                  <button className="ma" aria-label="Regenerate">{Ico.regen}</button>
-                  <button className="ma" aria-label="Save to Brain">{Ico.save}</button>
+                  <button className="ma" aria-label="Copy" data-soon="Copying is coming soon">{Ico.copy}</button>
+                  <button className="ma" aria-label="Regenerate" data-soon="Regenerating is coming soon">{Ico.regen}</button>
+                  <button className="ma" aria-label="Save to Brain" data-soon="Saving to Brain is coming soon">{Ico.save}</button>
                 </div>
               </div>
             </div>
 
             <div className="op">
-              <button className="editbtn" aria-label="Edit message">{Ico.pencil}</button>
+              <button className="editbtn" aria-label="Edit message" data-soon="Editing a message is coming soon">{Ico.pencil}</button>
               <div className="bub">Draft a full storm-response package — email, SMS, a paid-social ad, and a landing page.</div>
             </div>
 
@@ -181,11 +249,13 @@ export function ArcView({ brandName }: { brandName: string }) {
                   <div className="pmeta" role="status" aria-live="polite">
                     <span className="pverb">Generating the paid-social ad…</span>
                     <span className="ptimer">0:06</span>
-                    <button className="stopb" aria-label="Stop generating">{Ico.stop}Stop</button>
+                    <button className="stopb" aria-label="Stop generating" data-soon="Stopping generation is coming soon">{Ico.stop}Stop</button>
                   </div>
                 </div>
               </div>
             </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -197,32 +267,55 @@ export function ArcView({ brandName }: { brandName: string }) {
               <div className="qc">
                 <div className="qq">Before I draft the landing page — which CTA should it push?</div>
                 <div className="qopts">
-                  <button className="qopt">Book a strategy call</button>
-                  <button className="qopt">Book a free inspection</button>
-                  <button className="qopt">See the storm-zone map</button>
-                  <button className="qopt txt">Type your own…</button>
+                  <button className="qopt" data-soon="Replying to Arc is coming soon">Book a strategy call</button>
+                  <button className="qopt" data-soon="Replying to Arc is coming soon">Book a free inspection</button>
+                  <button className="qopt" data-soon="Replying to Arc is coming soon">See the storm-zone map</button>
+                  <button className="qopt txt" data-soon="Replying to Arc is coming soon">Type your own…</button>
                 </div>
               </div>
-              <button className="qx" aria-label="Dismiss question">{Ico.x}</button>
+              <button className="qx" aria-label="Dismiss question" data-soon="Dismissing is coming soon">{Ico.x}</button>
             </div>
 
             <div className="box">
               <div className="ctxrow">
-                <span className="ctxchip"><span className="at">@Storm-damage homeowners</span><button className="x" aria-label="Remove">{Ico.x}</button></span>
-                <span className="ctxchip"><span className="thumb">IMG</span>brand-board.png<button className="x" aria-label="Remove">{Ico.x}</button></span>
+                <span className="ctxchip"><span className="at">@Storm-damage homeowners</span><button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
+                <span className="ctxchip"><span className="thumb">IMG</span>brand-board.png<button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
               </div>
-              <div className="ta" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="Message Arc" data-ph="Ask anything, or describe what to draft…" />
+              {live ? (
+                <textarea
+                  className="ta"
+                  aria-label="Message Arc"
+                  placeholder="Ask anything, or describe what to draft…"
+                  value={draft}
+                  rows={1}
+                  disabled={sending}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      submitDraft();
+                    }
+                  }}
+                  style={{ resize: "none", background: "transparent", border: "none", outline: "none", width: "100%", font: "inherit", color: "inherit" }}
+                />
+              ) : (
+                <div className="ta" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="Message Arc" data-ph="Ask anything, or describe what to draft…" />
+              )}
               <div className="footer">
                 <div className="fleft">
-                  <button className="cbtn" aria-label="Attach, commands and tools">{Ico.plus}</button>
+                  <button className="cbtn" aria-label="Attach, commands and tools" data-soon="Attachments, commands & tools are coming soon">{Ico.plus}</button>
                   <span className="cdiv" aria-hidden="true" />
-                  <button className="pill"><span className="pic">{Ico.star}</span><span className="mlab">Auto ·</span> <span className="pval">Opus 4.8</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
-                  <button className="pill mode"><span className="pic">{Ico.pencil}</span><span className="pval">Draft</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
-                  <button className="pill"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  <button className="pill" data-soon="Switching Arc's model is coming soon"><span className="pic">{Ico.star}</span><span className="mlab">Auto ·</span> <span className="pval">Opus 4.8</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  <button className="pill mode" data-soon="Switching Arc's mode is coming soon"><span className="pic">{Ico.pencil}</span><span className="pval">Draft</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  <button className="pill" data-soon="Choosing a project is coming soon"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
                 </div>
                 <div className="fright">
-                  <button className="cbtn" aria-label="Voice input">{Ico.mic}</button>
-                  <button className="sendb" aria-label="Send message">{Ico.send}</button>
+                  <button className="cbtn" aria-label="Voice input" data-soon="Voice input is coming soon">{Ico.mic}</button>
+                  {live ? (
+                    <button className="sendb" aria-label="Send message" onClick={submitDraft} disabled={sending || !draft.trim()}>{Ico.send}</button>
+                  ) : (
+                    <button className="sendb" aria-label="Send message" data-soon="Sending messages to Arc is coming soon">{Ico.send}</button>
+                  )}
                 </div>
               </div>
             </div>
@@ -270,7 +363,7 @@ export function ArcView({ brandName }: { brandName: string }) {
                   {active.id === "ad" ? (
                     <>
                       <span className="jstat pend">83%</span>
-                      <button className="verchip">v3 {Ico.chevD}</button>
+                      <button className="verchip" data-soon="Version history is coming soon">v3 {Ico.chevD}</button>
                     </>
                   ) : (
                     <span className={`jstat ${active.status[0]}`}>
@@ -324,7 +417,7 @@ export function ArcView({ brandName }: { brandName: string }) {
               <div className="audrow"><div className="arh"><span className="nm">Worried about out-of-pocket cost</span><span className="ct">71</span></div><div className="audbar"><i className="soft" style={{ width: "50%" }} /></div></div>
               <div className="audrow"><div className="arh"><span className="nm">Waiting on their insurance adjuster</span><span className="ct">34</span></div><div className="audbar"><i className="soft" style={{ width: "24%" }} /></div></div>
             </div>
-            <button className="canvaslink" style={{ marginTop: 4 }}>
+            <button className="canvaslink" style={{ marginTop: 4 }} data-soon="Reviewing lookalike homes is coming soon">
               <span className="cli">{Ico.people}</span>
               <span className="clt">
                 <span className="clh">58 lookalike homes found</span>
@@ -334,14 +427,14 @@ export function ArcView({ brandName }: { brandName: string }) {
             </button>
             <div className="recall" style={{ marginTop: 18 }}>
               <span className="lbl">{Ico.brain}Recalled from memory</span>
-              <button className="mchip">Storm-zone persona angles <span className="conf">91%</span></button>
+              <button className="mchip" data-soon="Memory recall is coming soon">Storm-zone persona angles <span className="conf">91%</span></button>
             </div>
           </div>
         )}
 
         <div className="cvfoot">
-          <button className="btn app">{Ico.check}Approve all ready</button>
-          <button className="btn ghost sm">{Ico.pencil}Revise</button>
+          <button className="btn app" data-soon="Approving assets is coming soon">{Ico.check}Approve all ready</button>
+          <button className="btn ghost sm" data-soon="Requesting a revision is coming soon">{Ico.pencil}Revise</button>
           <span className="lock">{Ico.lock}2 ready · 1 generating · 1 blocked</span>
         </div>
       </section>
@@ -461,5 +554,100 @@ function Guards({ ok, pend = 0 }: { ok: number; pend?: number }) {
         );
       })}
     </div>
+  );
+}
+
+function formatMsgTime(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+/**
+ * Renders a real Arc conversation from persisted `arc_messages`. Reuses the exact
+ * markup/classes the mock uses (`.op`, `.arc`, `.trace`, `.mchip`, `.pending`) so
+ * a live thread looks identical to the design. An empty thread shows a welcome.
+ */
+function LiveMessages({ messages, brandName }: { messages: ArcMessage[]; brandName: string }) {
+  if (messages.length === 0) {
+    return (
+      <div className="arc">
+        <div className="a"><img src="/brand/arc-mark.png" alt="Arc" /></div>
+        <div className="col">
+          <div className="body">
+            <span className="hero">How can I help, {brandName}?</span>
+            Ask me to find leads, draft a campaign, or check a signal — I&rsquo;ll show my work, and nothing goes
+            out until you approve it.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {messages.map((m) =>
+        m.role === "operator" ? (
+          <div className="op" key={m.id}>
+            <div className="bub" style={{ whiteSpace: "pre-wrap" }}>{m.body}</div>
+          </div>
+        ) : (
+          <div className="arc" key={m.id}>
+            <div className="a"><img src="/brand/arc-mark.png" alt="Arc" /></div>
+            <div className="col">
+              <div className="who"><span className="t">{formatMsgTime(m.createdAt)}</span></div>
+              {m.status === "pending" || (m.role === "arc" && !m.body.trim()) ? (
+                <div className="pending">
+                  <DotRing />
+                  <div className="pmeta" role="status" aria-live="polite">
+                    <span className="pverb">Arc is working…</span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {(m.reasoning || m.steps.length > 0) && (
+                    <details className="trace">
+                      <summary>
+                        <span className="lead">
+                          <span className="cx" aria-hidden="true">{Ico.chevR}</span> Thought
+                        </span>
+                        {m.steps.length > 0 && <span className="tk">{m.steps.length} steps</span>}
+                      </summary>
+                      <div className="steps">
+                        {m.reasoning && <div className="step">{m.reasoning}</div>}
+                        {m.steps.map((s, i) => (
+                          <div className="step" key={i}>{s.label}</div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                  <div className="body md-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.body}</ReactMarkdown>
+                  </div>
+                  {m.recall && m.recall.length > 0 && (
+                    <div className="recall">
+                      <span className="lbl">{Ico.brain}Recalled from memory</span>
+                      {m.recall.map((r, i) => (
+                        <span className="mchip" key={i}>
+                          {r.label}
+                          {r.confidence != null && <span className="conf">{Math.round(r.confidence)}%</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {m.suggestions.length > 0 && (
+                    <div className="msgactions">
+                      {m.suggestions.map((s, i) => (
+                        <button className="ma" key={i} data-soon="Follow-up suggestions are coming soon">{s}</button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        ),
+      )}
+    </>
   );
 }

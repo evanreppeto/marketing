@@ -424,7 +424,7 @@
 .arc-app .arc-outbox .otitle { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .arc-app .arc-outbox .pt { font-family: var(--serif); font-weight: 500; font-size: 27px; letter-spacing: -.02em; margin: 0; color: var(--text); }
 .arc-app .arc-outbox .psub { font-size: 12.5px; color: var(--muted); margin-top: 4px; max-width: 60ch; }
-.arc-app .arc-outbox .gbtn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12.5px; cursor: pointer; transition: .15s; }
+.arc-app .arc-outbox .gbtn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12.5px; font-family: inherit; cursor: pointer; transition: .15s; }
 .arc-app .arc-outbox .gbtn:hover { border-color: var(--accent-border); color: var(--text); }
 .arc-app .arc-outbox .gbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
 
@@ -1054,3 +1054,9 @@
 .arc-app .arc-opps .empty { padding: 60px 24px; color: var(--muted); font-size: 13px; }
 .arc-app .arc-opps .fade { animation: arcFade .3s var(--ease); }
 @keyframes arcFade { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+/* ── Coming-soon toasts — honest, quiet feedback for not-yet-wired controls ──── */
+.arc-app .soon-toasts { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.arc-app .soon-toast { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px 9px 13px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line-2); color: var(--text); font-size: 12.5px; font-weight: 500; box-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.7); animation: soonToastIn 0.34s var(--ease); }
+.arc-app .soon-toast svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
+@keyframes soonToastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
