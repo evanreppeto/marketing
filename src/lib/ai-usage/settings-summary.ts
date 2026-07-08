@@ -9,10 +9,14 @@
 import { summarizeUsageForSettings, type UsageSummaryCard } from "@/domain";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 
-import { loadWorkspaceUsage } from "./read-model";
+import { loadWorkspaceUsage, type RecentUsageRow } from "./read-model";
 
 // Default monthly soft cap ($80) until a per-workspace cap field is wired.
 const SOFT_CAP_CENTS = 8000;
+
+export type UsageDailyPoint = { date: string; costCents: number };
+export type UsageRecentRow = { occurredAt: string; actor: string; model: string; service: string; tokens: number; costCents: number };
+export type UsageModelRow = { model: string; costCents: number; count: number };
 
 export type SettingsUsageView = {
   isDemo: boolean;
@@ -24,6 +28,9 @@ export type SettingsUsageView = {
   pctOfCap: number;
   isNearCap: boolean;
   rangeLabel: string;
+  daily: UsageDailyPoint[];
+  recent: UsageRecentRow[];
+  byModel: UsageModelRow[];
 };
 
 const USD2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -36,8 +43,15 @@ function formatTokens(n: number): string {
   return NUM.format(n);
 }
 
-/** Pure: a usage card → the Settings Usage view-model. */
-export function toUsageView(card: UsageSummaryCard, isDemo: boolean, configured: boolean): SettingsUsageView {
+/** Pure: a usage card + breakdowns → the Settings Usage view-model. */
+export function toUsageView(
+  card: UsageSummaryCard,
+  isDemo: boolean,
+  configured: boolean,
+  daily: UsageDailyPoint[] = [],
+  recent: UsageRecentRow[] = [],
+  byModel: UsageModelRow[] = [],
+): SettingsUsageView {
   return {
     isDemo,
     configured,
@@ -48,24 +62,80 @@ export function toUsageView(card: UsageSummaryCard, isDemo: boolean, configured:
     pctOfCap: card.pctOfCap,
     isNearCap: card.isNearCap,
     rangeLabel: "Last 30 days",
+    daily,
+    recent,
+    byModel,
   };
 }
 
 const ZERO_CARD: UsageSummaryCard = { totalCostCents: 0, totalTokens: 0, totalRuns: 0, pctOfCap: 0, isNearCap: false };
 
-function demoUsageView(): SettingsUsageView {
+/** RecentUsageRow (read-model) → the flattened display row the Usage tab renders. */
+function toRecentRows(rows: RecentUsageRow[]): UsageRecentRow[] {
+  return rows.map((r) => ({
+    occurredAt: r.occurredAt,
+    actor: r.actorUser ?? "Arc",
+    model: r.model,
+    service: r.service,
+    tokens: (r.inputTokens ?? 0) + (r.outputTokens ?? 0),
+    costCents: r.costCents,
+  }));
+}
+
+// ---- demo fallback (offline preview): a believable BSR month ----
+function demoDaily(now: Date): UsageDailyPoint[] {
+  const out: UsageDailyPoint[] = [];
+  for (let i = 29; i >= 0; i -= 1) {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() - i);
+    const weekend = [0, 6].includes(d.getUTCDay());
+    const wave = 150 + Math.round(70 * Math.sin(i / 2.3));
+    out.push({ date: d.toISOString().slice(0, 10), costCents: Math.max(20, wave - (weekend ? 70 : 0)) });
+  }
+  return out;
+}
+function demoRecent(now: Date): UsageRecentRow[] {
+  const at = (mins: number) => new Date(now.getTime() - mins * 60_000).toISOString();
+  return [
+    { occurredAt: at(9), actor: "Arc", model: "claude-opus-4-8", service: "text", tokens: 18_420, costCents: 34 },
+    { occurredAt: at(41), actor: "Arc", model: "gemini-3-pro-image", service: "image", tokens: 0, costCents: 24 },
+    { occurredAt: at(96), actor: "priya@bigshouldersrestoration.com", model: "claude-opus-4-8", service: "text", tokens: 9_640, costCents: 18 },
+    { occurredAt: at(60 * 3), actor: "Arc", model: "veo-3.1-generate-preview", service: "video", tokens: 0, costCents: 120 },
+    { occurredAt: at(60 * 6), actor: "Arc", model: "claude-haiku-4-5", service: "text", tokens: 4_100, costCents: 3 },
+    { occurredAt: at(60 * 20), actor: "dana@bigshouldersrestoration.com", model: "gemini-3-pro-image", service: "image", tokens: 0, costCents: 24 },
+    { occurredAt: at(60 * 27), actor: "Arc", model: "claude-opus-4-8", service: "text", tokens: 22_800, costCents: 41 },
+    { occurredAt: at(60 * 44), actor: "Arc", model: "veo-3.1-fast-generate-preview", service: "video", tokens: 0, costCents: 60 },
+  ];
+}
+function demoByModel(): UsageModelRow[] {
+  return [
+    { model: "claude-opus-4-8", costCents: 2380, count: 176 },
+    { model: "gemini-3-pro-image", costCents: 1320, count: 55 },
+    { model: "veo-3.1-generate-preview", costCents: 840, count: 12 },
+    { model: "claude-haiku-4-5", costCents: 340, count: 69 },
+  ];
+}
+
+function demoUsageView(now: Date): SettingsUsageView {
   // Believable BSR month: ~1.84M tokens, 312 agent runs, $48.80 → 61% of the $80 cap.
   const card: UsageSummaryCard = { totalCostCents: 4880, totalTokens: 1_842_000, totalRuns: 312, pctOfCap: 61, isNearCap: false };
-  return toUsageView(card, true, true);
+  return toUsageView(card, true, true, demoDaily(now), demoRecent(now), demoByModel());
 }
 
 export async function getSettingsUsageView(): Promise<SettingsUsageView> {
   const usage = await loadWorkspaceUsage("30d").catch(() => null);
   if (usage?.configured) {
-    return toUsageView(summarizeUsageForSettings(usage.summary, SOFT_CAP_CENTS), false, true);
+    return toUsageView(
+      summarizeUsageForSettings(usage.summary, SOFT_CAP_CENTS),
+      false,
+      true,
+      usage.daily,
+      toRecentRows(usage.recent),
+      usage.summary.byModel,
+    );
   }
 
-  if (isDemoDataEnabled()) return demoUsageView();
+  if (isDemoDataEnabled()) return demoUsageView(new Date());
 
   return toUsageView(ZERO_CARD, false, false);
 }

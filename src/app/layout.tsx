@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 
+import { getCurrentOrgId } from "@/lib/auth/org";
+import { getAppSettings } from "@/lib/settings/store";
+
 import "./globals.css";
 
 // Editorial serif (Fraunces) — the signature display face used for hero/auth
@@ -50,15 +53,25 @@ export const viewport: Viewport = {
   themeColor: "#15151a",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Workspace-chosen theme, applied at the root so the signed-in app renders in
+  // the saved accent/density/motion with no flash. Org is resolved best-effort:
+  // pre-auth pages (no workspace) and env-less builds fall back to null → app
+  // defaults (gold/comfortable/standard). The Appearance panel writes these keys
+  // and revalidates the layout.
+  const orgId = await getCurrentOrgId().catch(() => null);
+  const { appearanceAccent, appearanceDensity, appearanceMotion } = await getAppSettings(orgId);
   return (
     <html
       lang="en"
       className={`${fraunces.variable} ${geist.variable} ${geistMono.variable}`}
+      data-accent={appearanceAccent}
+      data-density={appearanceDensity}
+      data-motion={appearanceMotion}
       // --ff-editorial aliases the serif; --ff-display falls back to body in globals.
       style={{ ["--ff-editorial" as string]: "var(--ff-serif)" }}
     >

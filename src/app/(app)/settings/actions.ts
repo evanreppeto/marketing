@@ -5,11 +5,23 @@ import { revalidatePath } from "next/cache";
 
 import { requireOperator } from "@/lib/auth/operator";
 import { sendWorkspaceInviteEmail } from "@/lib/auth/send-invite-email";
-import { changeWorkspaceMemberRole, removeWorkspaceMember } from "@/lib/auth/workspace-admin";
+import { changeWorkspaceMemberRole, listWorkspacesForUser, removeWorkspaceMember, renameWorkspace } from "@/lib/auth/workspace-admin";
 import { ACTIVE_WORKSPACE_COOKIE, getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { cancelWorkspaceInvite, issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
 import { createWorkspaceForAuthenticatedUser } from "@/lib/auth/workspace-onboarding";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
+import {
+  appAppearanceAccent,
+  appAppearanceDensity,
+  appAppearanceMotion,
+  appImageModel,
+  appVideoModel,
+  appWorkspaceProfile,
+  DEFAULT_APP_SETTINGS,
+  isValidSupportEmail,
+  normalizeDisplayLabel,
+  saveAppSettings,
+} from "@/lib/settings/store";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
  * Real operator writes for the Settings team/workspace surfaces. Both are
@@ -62,6 +74,36 @@ export async function createInvite(input: {
 
   revalidatePath("/settings");
   return { ok: true, persisted: true, message: `Invite sent to ${email}.` };
+}
+
+/**
+ * Switch the active workspace. Only workspaces the user actually belongs to are
+ * accepted (checked against listWorkspacesForUser), then the active-workspace
+ * cookie is repointed and the whole app re-tailors on the next render.
+ */
+export async function switchWorkspace(input: { workspaceId: string }): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const workspaceId = input.workspaceId?.trim();
+  if (!workspaceId) return { ok: false, error: "A workspace is required." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const mine = await listWorkspacesForUser();
+  if (!mine.some((w) => w.workspaceId === workspaceId)) {
+    return { ok: false, error: "You’re not a member of that workspace." };
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_WORKSPACE_COOKIE, workspaceId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true, persisted: true, message: "Switched workspace." };
 }
 
 function humanizeWorkspaceError(status: string, message?: string): string {
@@ -174,4 +216,133 @@ export async function cancelInvite(input: {
 
   revalidatePath("/settings");
   return { ok: true, persisted: true };
+}
+
+/**
+ * Real writes for the app_settings-backed Settings panels (General, Appearance,
+ * Runner display name). These are internal preferences — never secrets, never
+ * outbound — persisted through the settings store and re-read by the root layout
+ * (accent/density/motion) and by Arc (assistant name, support email). Offline
+ * returns `persisted: false` so the UI can reflect the change optimistically
+ * without claiming a real write. Layout revalidation lets the next render pick up
+ * theme + name changes app-wide.
+ */
+// Settings are per-workspace (app_settings PK is (org_id, key)), so every save
+// resolves the active workspace's org and scopes the write to it.
+async function resolveOrgForSave(): Promise<{ ok: true; orgId: string } | { ok: false; error: string }> {
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.orgId) return { ok: false, error: "No active workspace to save settings for." };
+  return { ok: true, orgId: ctx.orgId };
+}
+
+export async function saveAppearanceSettings(input: {
+  accent: string;
+  density: string;
+  motion: string;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const org = await resolveOrgForSave();
+  if (!org.ok) return org;
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), org.orgId, {
+      appearance_accent: appAppearanceAccent(input.accent),
+      appearance_density: appAppearanceDensity(input.density),
+      appearance_motion: appAppearanceMotion(input.motion),
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save appearance." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, persisted: true };
+}
+
+/**
+ * Built-in (Gemini/Veo) generation default. This is the only media-model default
+ * that's actually consumed — the /api/v1/arc/media/generate-* routes read
+ * settings.imageModel/videoModel. "" = Auto (inherit the level mapping / env
+ * default). The Higgsfield roster is auto-picked per task by the runner and has
+ * no persisted per-category default, so it isn't written here.
+ */
+export async function saveMediaDefaults(input: {
+  imageModel: string;
+  videoModel: string;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const org = await resolveOrgForSave();
+  if (!org.ok) return org;
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), org.orgId, {
+      image_model: appImageModel(input.imageModel),
+      video_model: appVideoModel(input.videoModel),
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save media defaults." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true, message: "Saved." };
+}
+
+export async function saveRunnerDisplayName(input: { assistantName: string }): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const name = normalizeDisplayLabel(input.assistantName ?? "", DEFAULT_APP_SETTINGS.assistantName, 32);
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const org = await resolveOrgForSave();
+  if (!org.ok) return org;
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), org.orgId, { assistant_name: name });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save the display name." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, persisted: true, message: `Arc will show as “${name}”.` };
+}
+
+export async function saveGeneralSettings(input: {
+  workspaceName?: string;
+  workspaceProfile: string;
+  industry: string;
+  supportEmail: string;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const supportEmail = (input.supportEmail ?? "").trim();
+  if (!isValidSupportEmail(supportEmail)) return { ok: false, error: "Enter a valid support email, or leave it blank." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.orgId) return { ok: false, error: "No active workspace to save settings for." };
+
+  // Renaming the workspace touches the org/workspace identity rows (owner/admin
+  // gated), so it runs first — if it fails we surface that before saving prefs.
+  const desiredName = input.workspaceName?.trim();
+  if (desiredName && ctx.workspaceId && desiredName !== ctx.orgName?.trim()) {
+    const renamed = await renameWorkspace({ workspaceId: ctx.workspaceId, name: desiredName });
+    if (!renamed.ok) return { ok: false, error: humanizeMemberError(renamed.status, renamed.message) };
+  }
+
+  try {
+    await saveAppSettings(getSupabaseAdminClient(), ctx.orgId, {
+      workspace_profile: appWorkspaceProfile(input.workspaceProfile),
+      industry: normalizeDisplayLabel(input.industry ?? "", DEFAULT_APP_SETTINGS.industry, 60),
+      support_email: supportEmail,
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save general settings." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, persisted: true, message: "Saved." };
 }

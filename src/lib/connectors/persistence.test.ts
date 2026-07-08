@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { recordConnectorTest, setConnectorCredentialRef, setConnectorEnabled } from "./persistence";
+import { disconnectConnector, recordConnectorTest, setConnectorCredentialRef, setConnectorEnabled } from "./persistence";
 
 /** Capture the upsert/update payload + the workspace filter applied. */
 function captureClient() {
@@ -49,6 +49,17 @@ describe("setConnectorCredentialRef", () => {
       connector_key: "gemini-research",
       credential_ref: "ref-9",
     });
+  });
+});
+
+describe("disconnectConnector", () => {
+  it("clears the credential ref, disables, and scopes to the workspace + connector", async () => {
+    const { client, calls } = captureClient();
+    await disconnectConnector(client, { workspaceId: "ws-1", connectorKey: "higgsfield" });
+    expect(calls.payload).toMatchObject({ credential_ref: null, enabled: false });
+    expect(calls.filters.workspace_id).toBe("ws-1");
+    expect(calls.filters.connector_key).toBe("higgsfield");
+    expect(Object.keys(calls.filters).length).toBe(2);
   });
 });
 

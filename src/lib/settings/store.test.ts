@@ -40,6 +40,7 @@ describe("settings store helpers", () => {
     const settings = mergeAppSettingsRows([
       { key: "workspace_name", value: "Floodlight Ops" },
       { key: "workspace_profile", value: "agency" },
+      { key: "industry", value: "Restoration & home services" },
       { key: "product_label", value: "Command Center" },
       { key: "assistant_name", value: "Scout" },
       { key: "assistant_tone", value: "friendly" },
@@ -61,6 +62,7 @@ describe("settings store helpers", () => {
     expect(settings).toEqual({
       workspaceName: "Floodlight Ops",
       workspaceProfile: "agency",
+      industry: "Restoration & home services",
       productLabel: "Command Center",
       assistantName: "Scout",
       assistantTone: "friendly",
@@ -127,13 +129,15 @@ describe("settings store helpers", () => {
   it("uses defaults when the app settings request throws", async () => {
     const client = {
       from: () => ({
-        select: async () => {
-          throw new Error("fetch failed");
-        },
+        select: () => ({
+          eq: async () => {
+            throw new Error("fetch failed");
+          },
+        }),
       }),
     };
 
-    await expect(getAppSettings(client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
+    await expect(getAppSettings("org-test", client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
   });
 
   it("keeps expected app settings fallbacks quiet in production", async () => {
@@ -142,9 +146,11 @@ describe("settings store helpers", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const client = {
       from: () => ({
-        select: async () => {
-          throw new Error("fetch failed");
-        },
+        select: () => ({
+          eq: async () => {
+            throw new Error("fetch failed");
+          },
+        }),
       }),
     };
 
@@ -152,7 +158,7 @@ describe("settings store helpers", () => {
       process.env.DEBUG_APP_SETTINGS = "1";
       process.env.VERCEL_ENV = "production";
 
-      await expect(getAppSettings(client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
+      await expect(getAppSettings("org-test", client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
       expect(warn).not.toHaveBeenCalled();
     } finally {
       if (originalDebug === undefined) {
@@ -167,5 +173,39 @@ describe("settings store helpers", () => {
       }
       warn.mockRestore();
     }
+  });
+
+  it("scopes the settings read to the given workspace org", async () => {
+    let filteredColumn: string | null = null;
+    let filteredValue: string | null = null;
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: async (column: string, value: string) => {
+            filteredColumn = column;
+            filteredValue = value;
+            return { data: [{ key: "assistant_name", value: "Scout" }], error: null };
+          },
+        }),
+      }),
+    };
+
+    const settings = await getAppSettings("org-42", client as never);
+    expect(filteredColumn).toBe("org_id");
+    expect(filteredValue).toBe("org-42");
+    expect(settings.assistantName).toBe("Scout");
+  });
+
+  it("returns app defaults without querying when there is no workspace org", async () => {
+    let queried = false;
+    const client = {
+      from: () => {
+        queried = true;
+        return { select: () => ({ eq: async () => ({ data: [], error: null }) }) };
+      },
+    };
+
+    await expect(getAppSettings(null, client as never)).resolves.toEqual(DEFAULT_APP_SETTINGS);
+    expect(queried).toBe(false);
   });
 });

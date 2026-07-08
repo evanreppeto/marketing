@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     typeof body.aspect_ratio === "string" && body.aspect_ratio.trim() ? body.aspect_ratio.trim() : "1:1";
   const style = typeof body.style === "string" && body.style.trim() ? body.style.trim() : undefined;
 
-  const settings = await getAppSettings();
+  const settings = await getAppSettings(allowed.scope.orgId);
   // Precedence: explicit Advanced override (settings.image/videoModel) beats the
   // turn's level mapping, which beats the workspace default level, which beats
   // env/built-in default. The turn's level rides on body.level.
