@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { decideBrainNode } from "../actions";
 import { KnowledgeGraph, type GraphEdge, type GraphNode } from "./knowledge-graph";
 
 export type FactVM = {
@@ -57,6 +58,11 @@ function Confidence({ value }: { value: number | null }) {
 export function BrainView({ data }: { data: BrainData }) {
   const [tab, setTab] = useState("web");
   const [kind, setKind] = useState("all");
+  // The review list is interactive (approve/reject the trust gate). Decided nodes
+  // drop out immediately; a real write revalidates, offline it stays session-only.
+  const [review, setReview] = useState(data.review);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const kinds = useMemo(() => {
     const seen = new Map<string, { label: string; color: string }>();
@@ -65,7 +71,24 @@ export function BrainView({ data }: { data: BrainData }) {
   }, [data.facts]);
 
   const visibleFacts = kind === "all" ? data.facts : data.facts.filter((f) => f.kind === kind);
-  const counts: Record<string, number> = { facts: data.facts.length, review: data.review.length, learned: data.learned.length };
+  const counts: Record<string, number> = { facts: data.facts.length, review: review.length, learned: data.learned.length };
+
+  async function decide(nodeId: string, decision: "approve" | "reject") {
+    setError(null);
+    setPendingId(nodeId);
+    const previous = review;
+    setReview((prev) => prev.filter((f) => f.id !== nodeId));
+    const res = await decideBrainNode(nodeId, decision);
+    setPendingId(null);
+    if (!res.ok) {
+      setReview(previous);
+      setError(res.error);
+    }
+  }
+
+  // Keep the header "Awaiting review" stat + coverage banner consistent with the
+  // live review list (they're derived server-side from the proposed count).
+  const stats = data.stats.map((s) => (s.label === "Awaiting review" ? { ...s, value: review.length } : s));
 
   return (
     <div className="arc-brain">
@@ -75,10 +98,10 @@ export function BrainView({ data }: { data: BrainData }) {
             <h1 className="pt">Brain</h1>
             <div className="psub">Arc&rsquo;s memory — everything it knows about your business, and how it&rsquo;s connected.</div>
           </div>
-          <span className="gbtn">{IconResync}Resync from CRM</span>
+          <span className="gbtn" data-soon="CRM resync is coming soon">{IconResync}Resync from CRM</span>
         </div>
         <div className="bstats">
-          {data.stats.map((s) => (
+          {stats.map((s) => (
             <div className="bstat" key={s.label}>
               <div className="sl">{s.label}</div>
               <div className="sv" style={s.color ? { color: s.color } : undefined}>{s.value.toLocaleString()}</div>
@@ -86,7 +109,7 @@ export function BrainView({ data }: { data: BrainData }) {
             </div>
           ))}
         </div>
-        {data.coverageNote && (
+        {data.coverageNote && review.length > 0 && (
           <div className="covbanner">
             {IconResync}
             <span className="ct">{data.coverageNote}</span>
@@ -157,10 +180,18 @@ export function BrainView({ data }: { data: BrainData }) {
               <>
                 <h3 className="sh">Awaiting your approval <span className="tg">wired · trust gate</span></h3>
                 <p className="lead">Arc proposes brand facts, messaging angles, CTAs, proof points, and audience segments — but they stay <b>proposed</b> and out of all outbound copy until you approve them.</p>
-                {data.review.length === 0 ? (
+                {error && (
+                  <div className="crm-error" role="alert">
+                    <span>{error}</span>
+                    <button type="button" aria-label="Dismiss" onClick={() => setError(null)}>
+                      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                    </button>
+                  </div>
+                )}
+                {review.length === 0 ? (
                   <div className="empty">Nothing waiting for review. Proposed facts appear here before they can be used.</div>
                 ) : (
-                  data.review.map((f) => (
+                  review.map((f) => (
                     <div className="qcard" key={f.id}>
                       <div className="qtop">
                         <span className="kindchip"><span className="d" style={{ background: f.kindColor }} />{f.kindLabel}</span>
@@ -171,7 +202,17 @@ export function BrainView({ data }: { data: BrainData }) {
                       {f.summary && <div className="qbody">{f.summary}</div>}
                       <div className="qmeta">
                         {f.source && <span>Source: {f.source}</span>}
-                        <span>Stays proposed until you approve</span>
+                        <span>Approving moves it to trusted — usable in outbound copy.</span>
+                      </div>
+                      <div className="qactions">
+                        <button type="button" className="qbtn approve" disabled={pendingId === f.id} onClick={() => decide(f.id, "approve")}>
+                          <svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6" /></svg>
+                          {pendingId === f.id ? "Saving…" : "Approve"}
+                        </button>
+                        <button type="button" className="qbtn reject" disabled={pendingId === f.id} onClick={() => decide(f.id, "reject")}>
+                          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                          Reject
+                        </button>
                       </div>
                     </div>
                   ))
