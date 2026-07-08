@@ -44,6 +44,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase CLI local stack (`pnpm sandbox`) — generated, machine-local
+supabase/.temp/
+supabase/.branches/
+.env.local.pre-sandbox
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
