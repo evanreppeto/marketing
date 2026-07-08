@@ -2,8 +2,12 @@
 
 import { useState, type ReactNode } from "react";
 
-import { createInvite, createWorkspace } from "../actions";
+import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView } from "@/lib/auth/team-view";
+
+import { cancelInvite, changeMemberRole, createInvite, createWorkspace, removeMember } from "../actions";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
+
+const ROLE_OPTIONS = ["Owner", "Admin", "Marketer", "Reviewer", "Member", "Viewer"];
 
 const ICON: Record<string, string> = {
   general: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.3 2.5h4l.3-2.5a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5a7 7 0 00.1-1z"/>',
@@ -91,8 +95,10 @@ const MEDIA_MODELS: Record<string, [string, string, string, number?][]> = {
 const PCOL: Record<string, string> = { Higgsfield: "#c8a24a", Google: "#5b8def", "Black Forest Labs": "#9678c8", OpenAI: "#7fb89a", xAI: "#aab2bd", Kling: "#E1306C", Bytedance: "#88b6d8", Recraft: "#c47055", "Tongyi-MAI": "#19c4cc", Inworld: "#9678c8", Mirelo: "#7fb89a", Sonilo: "#f3c64a", Hailuo: "#FF7A59", Wan: "#52BD94" };
 const pinit = (p: string) => { const w = p.split(/[\s-]+/); return (w.length > 1 ? w[0][0] + w[1][0] : p.slice(0, 2)).toUpperCase(); };
 
-export function SettingsView({ brandName, email }: { brandName: string; email: string }) {
+export function SettingsView({ brandName, email, team }: { brandName: string; email: string; team: SettingsTeamView }) {
   const [cur, setCur] = useState("overview");
+  const memberCount = team.members.length;
+  const pendingCount = team.invites.length;
   const [navQ, setNavQ] = useState("");
   const [connCat, setConnCat] = useState("All");
   const [connQ, setConnQ] = useState("");
@@ -106,7 +112,7 @@ export function SettingsView({ brandName, email }: { brandName: string; email: s
       <>
         <Head t="Overview" d="Your workspace at a glance — health, what needs you, and quick links." />
         <div className="ovgrid">
-          {[["connections", "3", "Connections active"], ["team", "4", "Team members"], ["agent", "OK", "Runner connected"], ["usage", "61%", "Of monthly cap"]].map(([ic, v, l]) => (
+          {[["connections", "3", "Connections active"], ["team", String(memberCount), "Team members"], ["agent", "OK", "Runner connected"], ["usage", "61%", "Of monthly cap"]].map(([ic, v, l]) => (
             <div className="ovcard" key={l} onClick={() => setCur(ic)}><div className="ovi"><Ic d={ICON[ic]} /></div><div className="ovv">{v}</div><div className="ovl">{l}</div></div>
           ))}
         </div>
@@ -118,7 +124,7 @@ export function SettingsView({ brandName, email }: { brandName: string; email: s
         <Panel title="Workspace" tag={TGOK}>
           <Row label="Plan"><span className="pillrow"><Pill kind="ok">Premium</Pill><button className="btn sm">Manage plan</button></span></Row>
           <Row label="Business type"><span className="pillrow"><span className="ptxt">Company · Restoration &amp; home services</span><button className="btn sm" onClick={() => setCur("general")}>Change</button></span></Row>
-          <Row label="Team"><span className="pillrow"><span className="ptxt">4 members · 1 pending</span><button className="btn sm" onClick={() => setCur("team")}>Manage</button></span></Row>
+          <Row label="Team"><span className="pillrow"><span className="ptxt">{memberCount} {memberCount === 1 ? "member" : "members"}{pendingCount > 0 ? ` · ${pendingCount} pending` : ""}</span><button className="btn sm" onClick={() => setCur("team")}>Manage</button></span></Row>
         </Panel>
       </>
     ),
@@ -146,15 +152,8 @@ export function SettingsView({ brandName, email }: { brandName: string; email: s
     team: (
       <>
         <Head t="Team" d="Members, roles, and invites. Invites send a branded email via Resend." />
-        <Panel title={<>Members <span className="ph-d" style={{ marginLeft: 6 }}>4</span></>} tag={TGOK}>
-          {[["EW", "Evan Walsh", `evan@${domain}`, "Owner"], ["DK", "Dana Kim", `dana@${domain}`, "Admin"], ["PR", "Priya Rao", `priya@${domain}`, "Marketer"], ["SM", "Sam Ortiz", `sam@${domain}`, "Reviewer"]].map((m) => (
-            <div className="mem" key={m[1]}><span className="ma">{m[0]}</span><div className="mi"><div className="mn">{m[1]}</div><div className="me">{m[2]}</div></div>
-              <select className="sel" style={{ minWidth: 120 }} defaultValue={m[3]} disabled={m[3] === "Owner"}>{["Owner", "Admin", "Marketer", "Reviewer", "Member", "Viewer"].map((o) => <option key={o}>{o}</option>)}</select>
-              {m[3] !== "Owner" && <button className="btn sm danger">Remove</button>}
-            </div>
-          ))}
-        </Panel>
-        <TeamInvites domain={domain} />
+        <TeamMembers team={team} />
+        <TeamInvites workspaceId={team.workspaceId} seedInvites={team.invites} />
       </>
     ),
     workspaces: (
@@ -323,20 +322,81 @@ export function SettingsView({ brandName, email }: { brandName: string; email: s
   );
 }
 
+// ---- Team members (wired) ----
+// Real member list from listWorkspaceTeamAccess (demo fallback offline). Role
+// changes + removal go through changeMemberRole / removeMember; offline they
+// resolve optimistically (persisted:false) without claiming a real write.
+function TeamMembers({ team }: { team: SettingsTeamView }) {
+  const [members, setMembers] = useState<SettingsTeamMember[]>(team.members);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const wsId = team.workspaceId ?? "";
+  const initial = (e: string) => (e.trim()[0] || "?").toUpperCase();
+
+  async function changeRole(m: SettingsTeamMember, label: string) {
+    const prev = members;
+    setMembers((ms) => ms.map((x) => (x.id === m.id ? { ...x, roleLabel: label, role: label.toLowerCase() } : x)));
+    setBusy(m.id);
+    setStatus(null);
+    const res = await changeMemberRole({ workspaceId: wsId, membershipId: m.id, role: label });
+    setBusy(null);
+    if (!res.ok) {
+      setMembers(prev);
+      setStatus({ tone: "err", text: res.error });
+    } else if (res.persisted) {
+      setStatus({ tone: "ok", text: `Updated ${m.email} to ${label}.` });
+    }
+  }
+
+  async function remove(m: SettingsTeamMember) {
+    const prev = members;
+    setMembers((ms) => ms.filter((x) => x.id !== m.id));
+    setBusy(m.id);
+    setStatus(null);
+    const res = await removeMember({ workspaceId: wsId, membershipId: m.id });
+    setBusy(null);
+    if (!res.ok) {
+      setMembers(prev);
+      setStatus({ tone: "err", text: res.error });
+    } else if (res.persisted) {
+      setStatus({ tone: "ok", text: `Removed ${m.email}.` });
+    }
+  }
+
+  return (
+    <Panel title={<>Members <span className="ph-d" style={{ marginLeft: 6 }}>{members.length}</span></>} tag={TGOK}>
+      {members.length === 0 ? (
+        <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No members yet.</div>
+      ) : (
+        members.map((m) => (
+          <div className="mem" key={m.id}>
+            <span className="ma">{initial(m.email)}</span>
+            <div className="mi"><div className="mn">{m.email}</div><div className="me">{m.roleLabel}{m.pending ? " · invited" : ""}</div></div>
+            <select className="sel" style={{ minWidth: 120 }} value={m.roleLabel} disabled={m.isOwner || busy === m.id} onChange={(e) => changeRole(m, e.target.value)}>
+              {ROLE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+            </select>
+            {!m.isOwner && <button className="btn sm danger" disabled={busy === m.id} onClick={() => remove(m)}>Remove</button>}
+          </div>
+        ))
+      )}
+      {status && <div style={{ fontSize: 12.5, padding: "8px 2px 0", color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</div>}
+    </Panel>
+  );
+}
+
 // ---- Team invites (wired) ----
-// Real invite creation via createInvite. Offline (persisted:false) the invite is
-// shown optimistically without claiming it sent. Revoke removes it locally.
+// Real invite creation via createInvite; the pending list is seeded from real
+// workspace invites. Offline (persisted:false) items resolve optimistically.
 type PendingInvite = { id: string; email: string; role: string; note: string };
 
-function TeamInvites({ domain }: { domain: string }) {
-  const [invites, setInvites] = useState<PendingInvite[]>([
-    { id: "seed", email: `jordan@${domain}`, role: "Marketer", note: "expires in 12 days" },
-  ]);
+function TeamInvites({ workspaceId, seedInvites }: { workspaceId: string | null; seedInvites: SettingsTeamInvite[] }) {
+  const [invites, setInvites] = useState<PendingInvite[]>(seedInvites);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Marketer");
   const [expires, setExpires] = useState("14 days");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const wsId = workspaceId ?? "";
 
   async function send() {
     const trimmed = email.trim();
@@ -366,6 +426,16 @@ function TeamInvites({ domain }: { domain: string }) {
     });
   }
 
+  async function revoke(inv: PendingInvite) {
+    const prev = invites;
+    setInvites((list) => list.filter((i) => i.id !== inv.id));
+    const res = await cancelInvite({ workspaceId: wsId, inviteId: inv.id });
+    if (!res.ok) {
+      setInvites(prev);
+      setStatus({ tone: "err", text: res.error });
+    }
+  }
+
   return (
     <>
       <Panel title="Pending invites" tag={TGOK}>
@@ -377,7 +447,7 @@ function TeamInvites({ domain }: { domain: string }) {
               <span className="ma" style={{ color: "var(--muted)", background: "var(--inset)", borderColor: "var(--line-2)" }}>?</span>
               <div className="mi"><div className="mn">{inv.email}</div><div className="me">{inv.note}</div></div>
               <Pill kind="warn">Pending</Pill>
-              <button className="btn sm danger" onClick={() => setInvites((prev) => prev.filter((i) => i.id !== inv.id))}>Revoke</button>
+              <button className="btn sm danger" onClick={() => revoke(inv)}>Revoke</button>
             </div>
           ))
         )}
