@@ -21,6 +21,9 @@ export type OpportunityVM = {
   summary: string;
   recommendedAction: string;
   persona: string;
+  personaHref: string | null;
+  recordHref: string | null;
+  recordLabel: string | null;
   audienceNote: string;
   campaignTypes: string[];
   evidence: OppSignal[];
@@ -179,6 +182,9 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
                 <div className="racts">
                   <a className="btn gold" href={CREATE_HREF}>Create campaign</a>
                   <a className="btn ghost" href={DRAFT_HREF}>Ask Arc to draft</a>
+                  {o.recordHref && (
+                    <a className="btn ghost" href={o.recordHref}>{o.recordLabel} →</a>
+                  )}
                 </div>
               </div>
             </div>
@@ -195,7 +201,13 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
                 <div className="card">
                   <div className="cl">Who it targets</div>
                   {o.persona && (
-                    <div className="audrow"><span className="ac">{o.persona}</span></div>
+                    <div className="audrow">
+                      {o.personaHref ? (
+                        <a className="ac" href={o.personaHref} title="View persona intelligence">{o.persona} ↗</a>
+                      ) : (
+                        <span className="ac">{o.persona}</span>
+                      )}
+                    </div>
                   )}
                   {o.audienceNote && <div className="audnote">{o.audienceNote}</div>}
                 </div>

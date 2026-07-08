@@ -30,6 +30,25 @@ type OpportunityRecord = {
 
 export type { OpportunityRecord, OpportunityEvidence };
 
+const SUBJECT_TO_OBJECT_KEY: Record<string, string> = {
+  company: "companies",
+  contact: "contacts",
+  property: "properties",
+  lead: "leads",
+  job: "jobs",
+  outcome: "outcomes",
+};
+
+/**
+ * The CRM record route for an opportunity's subject — when the subject is a CRM
+ * record (company/contact/lead/…). External signals (weather, competitor) have
+ * no record and return null, so the inbox only links what it can actually open.
+ */
+export function crmRecordHref(subjectType: string, subjectId: string): string | null {
+  const key = SUBJECT_TO_OBJECT_KEY[subjectType];
+  return key && subjectId ? `/crm/${key}/${encodeURIComponent(subjectId)}` : null;
+}
+
 /** Open opportunities (pending/drafting/drafted) for the inbox. Empty when unconfigured. */
 export async function listOpenOpportunities(
   client?: SupabaseClient,
