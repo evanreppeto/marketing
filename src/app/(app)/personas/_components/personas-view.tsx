@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 
+import { createPersona, type NewPersonaInput } from "../actions";
+import { NewPersonaModal } from "./new-persona-modal";
+
 export type PersonaVM = {
   slug: string;
   name: string;
@@ -59,37 +62,107 @@ function Sparkline({ points, up, w = 84, h = 26 }: { points: number[]; up: boole
   );
 }
 
+const SEG_DOT: Record<string, string> = {
+  acquisition: "#88b6d8",
+  engagement: "#c8a24a",
+  retention: "#7fb89a",
+};
+
+// Optimistic persona for a just-created record, shown until a real write
+// revalidates the roster. Mirrors the page.tsx toVM defaults for a new persona.
+function buildOptimisticPersona(slug: string, v: NewPersonaInput): PersonaVM {
+  const initials =
+    (v.name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "•";
+  const segColor = SEG_DOT[v.segment] ?? "#c8a24a";
+  return {
+    slug,
+    name: v.name,
+    initials,
+    segment: v.segment as PersonaVM["segment"],
+    segmentLabel: v.segment.charAt(0).toUpperCase() + v.segment.slice(1),
+    segColor,
+    stage: "New",
+    stageColor: "#9cc1e0",
+    stageBg: "rgba(136,182,216,.13)",
+    score: 60,
+    scoreColor: "#c8a24a",
+    audienceShare: 0,
+    scoreTrend: [60, 60],
+    live: false,
+    quote: "",
+    profile: "",
+    angle: v.angle ?? "",
+    cta: "",
+    nextAction: "",
+    channel: "Email",
+    bestTiming: "",
+    audience: v.audience ?? "",
+    proofPoints: [],
+    sampleSubject: "",
+    samplePreview: "",
+    radar: { engagement: 60, fit: 60, intent: 60 },
+    drivers: { engagement: "", fit: "", intent: "" },
+    perf: { leads: 0, jobs: 0, revenue: "$0" },
+  };
+}
+
 export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   const [view, setView] = useState<"roster" | "compare">("roster");
   const [segment, setSegment] = useState("all");
   const [q, setQ] = useState("");
   const [slug, setSlug] = useState(personas[0]?.slug ?? "");
   const [alertOpen, setAlertOpen] = useState(true);
+  // Personas created this session, shown until a real write revalidates.
+  const [localPersonas, setLocalPersonas] = useState<PersonaVM[]>([]);
+  const [newOpen, setNewOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const allPersonas = useMemo(() => [...localPersonas, ...personas], [localPersonas, personas]);
+
+  const handleCreate = async (value: NewPersonaInput): Promise<{ ok: boolean; error?: string }> => {
+    setError(null);
+    const tempSlug = `local-${crypto.randomUUID()}`;
+    setLocalPersonas((prev) => [buildOptimisticPersona(tempSlug, value), ...prev]);
+    setSlug(tempSlug);
+
+    const res = await createPersona(value);
+    if (!res.ok) {
+      setLocalPersonas((prev) => prev.filter((p) => p.slug !== tempSlug));
+      setError(res.error);
+      return { ok: false, error: res.error };
+    }
+    if (res.persisted) {
+      // The real row arrives via the revalidated render; drop the optimistic twin.
+      setLocalPersonas((prev) => prev.filter((p) => p.slug !== tempSlug));
+      if (res.slug) setSlug(res.slug);
+    }
+    return { ok: true };
+  };
 
   const headStats = useMemo(() => {
-    const segs = new Set(personas.map((p) => p.segment));
-    const scored = personas.filter((p) => Number.isFinite(p.score));
+    const segs = new Set(allPersonas.map((p) => p.segment));
+    const scored = allPersonas.filter((p) => Number.isFinite(p.score));
     const avg = scored.length ? Math.round(scored.reduce((s, p) => s + p.score, 0) / scored.length) : 0;
-    const atRiskList = [...personas].filter((p) => p.score < 65).sort((a, b) => a.score - b.score);
+    const atRiskList = [...allPersonas].filter((p) => p.score < 65).sort((a, b) => a.score - b.score);
     return { segmentCount: segs.size, avgScore: avg, atRisk: atRiskList.length, lowestName: atRiskList[0]?.name ?? "" };
-  }, [personas]);
+  }, [allPersonas]);
 
   const segCounts = useMemo(() => {
-    const c: Record<string, number> = { all: personas.length };
-    for (const p of personas) c[p.segment] = (c[p.segment] ?? 0) + 1;
+    const c: Record<string, number> = { all: allPersonas.length };
+    for (const p of allPersonas) c[p.segment] = (c[p.segment] ?? 0) + 1;
     return c;
-  }, [personas]);
+  }, [allPersonas]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return personas.filter((p) => {
+    return allPersonas.filter((p) => {
       if (segment !== "all" && p.segment !== segment) return false;
       if (needle && !`${p.name} ${p.audience} ${p.angle}`.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [personas, segment, q]);
+  }, [allPersonas, segment, q]);
 
-  const selected = personas.find((p) => p.slug === slug) ?? filtered[0] ?? personas[0] ?? null;
+  const selected = allPersonas.find((p) => p.slug === slug) ?? filtered[0] ?? allPersonas[0] ?? null;
 
   const grouped = useMemo(() => {
     const order = ["acquisition", "engagement", "retention"];
@@ -98,7 +171,7 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
       .filter((g) => g.items.length > 0);
   }, [filtered]);
 
-  if (personas.length === 0) {
+  if (allPersonas.length === 0) {
     return (
       <div className="arc-personas">
         <div className="empty">No personas yet. Arc builds persona intelligence here as it learns your audience.</div>
@@ -115,14 +188,14 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
             <div className="psub">The revenue-intelligence layer — playbooks that power CRM, targeting &amp; campaigns</div>
           </div>
           <div style={{ display: "flex", gap: 9 }}>
-            <button type="button" className="gbtn">
+            <button type="button" className="gbtn" onClick={() => setNewOpen(true)}>
               <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
               New persona <span className="tg" style={{ marginLeft: 2 }}>org-config</span>
             </button>
           </div>
         </div>
         <div className="pstats">
-          <div className="pstat"><div className="sl">Personas</div><div className="sv">{personas.length}</div><div className="sd">org-defined</div></div>
+          <div className="pstat"><div className="sl">Personas</div><div className="sv">{allPersonas.length}</div><div className="sd">org-defined</div></div>
           <div className="pstat"><div className="sl">Segments</div><div className="sv">{headStats.segmentCount}</div><div className="sd">acq · eng · ret</div></div>
           <div className="pstat"><div className="sl">Avg lead score</div><div className="sv">{headStats.avgScore}</div><div className="sd">across personas</div></div>
           <div className="pstat"><div className="sl">Need attention</div><div className="sv" style={headStats.atRisk > 0 ? { color: "var(--warn-text)" } : undefined}>{headStats.atRisk}</div><div className="sd">below target score</div></div>
@@ -245,6 +318,22 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
           </section>
         )}
       </div>
+
+      {error && (
+        <div className="crm-error" role="alert">
+          <span>{error}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setError(null)}>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+      )}
+
+      <NewPersonaModal
+        key={newOpen ? "open" : "closed"}
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onSubmit={handleCreate}
+      />
     </div>
   );
 }

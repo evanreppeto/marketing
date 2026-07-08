@@ -31,8 +31,10 @@ export type OpportunityVM = {
   routing: OppRouting[];
 };
 
-// Create / draft flows open the real ported screens.
-const CREATE_HREF = "/campaigns/new";
+// Create / draft flows open the real ported screens. "Create campaign" lands on
+// the campaigns board where the "New campaign" button opens the real create
+// modal — not the static /campaigns/new builder mockup.
+const CREATE_HREF = "/campaigns";
 const DRAFT_HREF = "/arc";
 
 const ICONS: Record<OpportunityVM["icon"], React.ReactNode> = {
