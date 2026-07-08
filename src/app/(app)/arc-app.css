@@ -1055,8 +1055,102 @@
 .arc-app .arc-opps .fade { animation: arcFade .3s var(--ease); }
 @keyframes arcFade { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 
-/* ── Coming-soon toasts — honest, quiet feedback for not-yet-wired controls ──── */
-.arc-app .soon-toasts { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
-.arc-app .soon-toast { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px 9px 13px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line-2); color: var(--text); font-size: 12.5px; font-weight: 500; box-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.7); animation: soonToastIn 0.34s var(--ease); }
-.arc-app .soon-toast svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
-@keyframes soonToastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* =========================================================================
+   Modal primitive (.modal-*), CRM add-record form, and ⌘K command palette.
+   Added with the "make the buttons work" pass — the app had no dialog/overlay
+   component before. Themed with the existing Command Charcoal tokens.
+   ========================================================================= */
+
+/* The top-bar search is now a real button that opens the command menu. */
+.arc-app .top .search { font-family: inherit; text-align: left; -webkit-appearance: none; appearance: none; white-space: nowrap; }
+
+@keyframes arc-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes arc-modal-in { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+.arc-app .modal-overlay {
+  position: fixed; inset: 0; z-index: 3000; display: flex; align-items: flex-start; justify-content: center;
+  padding: max(12vh, 60px) 20px 40px; overflow-y: auto;
+  background: color-mix(in srgb, var(--canvas-deep) 72%, rgba(0,0,0,0.6));
+  backdrop-filter: blur(3px); animation: arc-overlay-in 0.14s var(--ease);
+}
+.arc-app .modal-card {
+  width: 100%; max-width: 460px; background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.5); overflow: hidden;
+  animation: arc-modal-in 0.18s var(--ease); transform-origin: top center;
+}
+.arc-app .modal-head { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px 12px; }
+.arc-app .modal-title { font-family: var(--serif); font-size: 17px; font-weight: 600; color: var(--text); margin: 0; }
+.arc-app .modal-desc { margin: 5px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.arc-app .modal-x {
+  margin-left: auto; flex-shrink: 0; width: 30px; height: 30px; display: grid; place-items: center;
+  border: 1px solid var(--line-2); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; transition: .15s;
+}
+.arc-app .modal-x:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-app .modal-x svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.9; }
+.arc-app .modal-body { padding: 6px 20px 18px; }
+.arc-app .modal-foot { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 20px; border-top: 1px solid var(--line-2); background: color-mix(in srgb, var(--inset) 40%, transparent); }
+
+/* Form fields inside the modal */
+.arc-app .mform { display: flex; flex-direction: column; gap: 13px; }
+.arc-app .mrow { display: flex; gap: 11px; }
+.arc-app .mrow .mfield { flex: 1; min-width: 0; }
+.arc-app .mfield { display: flex; flex-direction: column; gap: 6px; }
+.arc-app .mlabel { font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--text-2); }
+.arc-app .mopt { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); font-size: 10.5px; }
+.arc-app .mfield input,
+.arc-app .mfield textarea,
+.arc-app .mfield select {
+  width: 100%; font: inherit; font-size: 13px; color: var(--text); background: color-mix(in srgb, var(--inset) 70%, transparent);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 11px; transition: border-color .15s, box-shadow .15s;
+}
+.arc-app .mfield textarea { resize: vertical; min-height: 62px; line-height: 1.5; }
+.arc-app .mfield input::placeholder, .arc-app .mfield textarea::placeholder { color: var(--muted); }
+.arc-app .mfield input:focus, .arc-app .mfield textarea:focus, .arc-app .mfield select:focus {
+  outline: none; border-color: var(--accent-border-strong); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.arc-app .mError { font-size: 12px; color: var(--red-text); background: var(--red-soft); border: 1px solid var(--red-border, var(--line-2)); border-radius: 8px; padding: 8px 11px; }
+
+/* Modal footer buttons */
+.arc-app .mbtn {
+  display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 15px; border-radius: 8px;
+  border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; transition: .15s;
+}
+.arc-app .mbtn:hover:not(:disabled) { border-color: var(--accent-border); color: var(--text); }
+.arc-app .mbtn.gold { border: 1px solid #b8974a; background: linear-gradient(180deg, #dcbd6e, #c8a24a 55%, #ad8838); color: #201808; }
+.arc-app .mbtn.gold:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.04); }
+.arc-app .mbtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Inline error bar on the CRM board */
+.arc-app .crm-error {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 12px; border-radius: 9px;
+  font-size: 12.5px; color: var(--red-text); background: var(--red-soft); border: 1px solid color-mix(in srgb, var(--red-text) 30%, transparent);
+}
+.arc-app .crm-error button { margin-left: auto; display: grid; place-items: center; width: 22px; height: 22px; border: none; background: transparent; color: currentColor; cursor: pointer; opacity: .7; }
+.arc-app .crm-error button:hover { opacity: 1; }
+.arc-app .crm-error svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* A just-added optimistic row gently announces itself */
+.arc-app .arc-crm .dt tbody tr.freshrow { cursor: default; animation: arc-modal-in 0.3s var(--ease) both; }
+.arc-app .arc-crm .dt tbody tr.freshrow td { background: color-mix(in srgb, var(--accent-soft) 60%, transparent); }
+
+/* ⌘K command palette */
+.arc-app .cmdk-overlay {
+  position: fixed; inset: 0; z-index: 3100; display: flex; align-items: flex-start; justify-content: center;
+  padding: max(14vh, 70px) 20px 40px; background: color-mix(in srgb, var(--canvas-deep) 68%, rgba(0,0,0,0.55));
+  backdrop-filter: blur(3px); animation: arc-overlay-in 0.12s var(--ease);
+}
+.arc-app .cmdk {
+  width: 100%; max-width: 540px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 13px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5); overflow: hidden; animation: arc-modal-in 0.16s var(--ease); transform-origin: top center;
+}
+.arc-app .cmdk-search { display: flex; align-items: center; gap: 10px; padding: 13px 15px; border-bottom: 1px solid var(--line-2); }
+.arc-app .cmdk-search svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+.arc-app .cmdk-search input { flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--text); background: transparent; border: none; outline: none; }
+.arc-app .cmdk-search input::placeholder { color: var(--muted); }
+.arc-app .cmdk-esc { font-family: var(--mono); font-size: 10px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 5px; padding: 2px 6px; }
+.arc-app .cmdk-list { max-height: 46vh; overflow-y: auto; padding: 6px; }
+.arc-app .cmdk-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; border: none; border-radius: 8px; background: transparent; color: var(--text-2); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.arc-app .cmdk-item.on { background: var(--surface-raised); color: var(--text); }
+.arc-app .cmdk-item .cmdk-l { font-weight: 600; }
+.arc-app .cmdk-item .cmdk-g { margin-left: auto; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.arc-app .cmdk-empty { padding: 22px 14px; text-align: center; font-size: 12.5px; color: var(--muted); }

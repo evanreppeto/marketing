@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
-import { ComingSoonToasts } from "./coming-soon";
+import { CommandPalette, type CommandItem } from "./command-palette";
 import { NavProgress } from "./nav-progress";
 import { RoutePrewarm } from "./route-prewarm";
 
@@ -70,6 +70,14 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
 // Every top-level route, warmed in the background after load (see RoutePrewarm)
 // so the first click on each tab is primed rather than a cold fetch.
 const PREWARM_HREFS = NAV_GROUPS.flatMap((g) => g.items.map((it) => it.href));
+
+// The ⌘K command menu jumps to every nav destination plus a few common actions.
+const COMMAND_ITEMS: CommandItem[] = [
+  ...NAV_GROUPS.flatMap((g) => g.items.map((it) => ({ label: it.label, href: it.href, group: g.group }))),
+  { label: "New campaign", href: "/campaigns/new", group: "Action", keywords: "create draft" },
+  { label: "Scan for opportunities", href: "/opportunities", group: "Action", keywords: "find leads" },
+  { label: "Settings", href: "/settings", group: "Workspace", keywords: "team account tokens" },
+];
 
 const CRUMBS: Record<string, string> = {
   "/arc": "Arc",
@@ -177,13 +185,18 @@ export function AppShell({
         <div className="main">
           <header className="top">
             <span className="crumb">{crumb}</span>
-            <div className="search">
+            <button
+              type="button"
+              className="search"
+              onClick={() => window.dispatchEvent(new Event("arc:open-command"))}
+            >
               <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
               Search or jump to…
               <span className="k">⌘K</span>
-            </div>
+            </button>
             <span className="topav">{initials(displayName)}</span>
           </header>
+          <CommandPalette items={COMMAND_ITEMS} />
           {children}
         </div>
       </div>

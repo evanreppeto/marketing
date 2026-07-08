@@ -2,6 +2,11 @@
 
 import { useMemo, useState } from "react";
 
+import { type CrmObjectKey } from "@/lib/crm/read-model";
+
+import { createCrmRecord } from "../actions";
+import { AddRecordModal, type AddRecordValue } from "./add-record-modal";
+
 export type CrmRowVM = {
   id: string;
   name: string;
@@ -125,6 +130,69 @@ export type CrmObjectVM = {
 // use it so a row opens the live record graph rather than the old name-only mock.
 const recordHref = (r: CrmRowVM) => r.href;
 
+// --- Optimistic row construction (mirrors the server page.tsx row derivations) ---
+// A just-created record is shown immediately as a client-only row until a real
+// DB write revalidates the server render. These are compact copies of the
+// personaDot / statusTone / initials helpers so a fresh row looks like a real one.
+function initialsOf(name: string): string {
+  return (name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "•";
+}
+function personaLabelOf(key: string): string {
+  const s = (key || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
+  if (!s || /^unassigned/i.test(s)) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function personaDotOf(persona: string): string {
+  const p = (persona || "").toLowerCase();
+  if (/emergency|urgent|storm|hail|flood|fire|burst|water\s*damage/.test(p)) return "#cc6a6a";
+  if (/insurance|adjuster|agent/.test(p)) return "#88b6d8";
+  if (/plumb|partner|contractor|referral|vendor|trade|sub/.test(p)) return "#7fb89a";
+  if (/preventative|preventive|maintenance|monitor|inspection/.test(p)) return "#6fae9e";
+  if (/rebuild|restoration|reconstruct|remodel|renov/.test(p)) return "#d8a24a";
+  if (/hoa|board|association|landlord|tenant/.test(p)) return "#9678c8";
+  if (/past|repeat|existing|customer|reactivat/.test(p)) return "#b58fd0";
+  return "#c8a24a";
+}
+function statusToneOf(status: string): string {
+  const t = (status || "").toLowerCase();
+  if (/lost|dead|cancel|churn/.test(t)) return "lost";
+  if (/won|complete|closed.?won|paid/.test(t)) return "won";
+  if (/qualified/.test(t)) return "qualified";
+  if (/schedul|booked|dispatch/.test(t)) return "sched";
+  if (/review|pending|needs|hold/.test(t)) return "review";
+  if (/new|open|fresh|inbound|prospect/.test(t)) return "new";
+  if (/active|live|engaged|in progress/.test(t)) return "active";
+  return "inactive";
+}
+function titleCase(value: string): string {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function buildOptimisticRow(objectKey: CrmObjectKey, id: string, v: AddRecordValue): CrmRowVM {
+  const detail = objectKey === "properties" ? [v.city, v.state].filter(Boolean).join(", ") : v.detail || "";
+  return {
+    id,
+    name: v.name,
+    detail,
+    initials: initialsOf(v.name),
+    isCompany: objectKey === "companies",
+    statusLabel: v.status ? titleCase(v.status) : "—",
+    statusTone: statusToneOf(v.status || ""),
+    persona: personaLabelOf(v.persona || ""),
+    dot: personaDotOf(v.persona || ""),
+    score: null,
+    scoreColor: "var(--muted)",
+    owner: "You",
+    updatedRel: "now",
+    updatedTime: "",
+    href: `/crm/${objectKey}/${id}`,
+    company: "",
+    value: "",
+    tier: "",
+    routing: "",
+    tasks: "",
+  };
+}
+
 export function CrmBoard({
   objects,
   rowsByKey,
@@ -137,19 +205,57 @@ export function CrmBoard({
   const [activeKey, setActiveKey] = useState(defaultKey);
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Client-only rows for records created this session, keyed by object. They sit
+  // on top of the server rows until a real DB write revalidates the page.
+  const [localByKey, setLocalByKey] = useState<Record<string, CrmRowVM[]>>({});
+  const [addOpen, setAddOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const active = objects.find((o) => o.key === activeKey) ?? objects[0];
-  const totalRows = (rowsByKey[active.key] ?? []).length;
+  const localRows = localByKey[active.key] ?? [];
+  const totalRows = localRows.length + (rowsByKey[active.key] ?? []).length;
   const cols = COLS[active.key] ?? COLS.contacts;
+  const countFor = (o: CrmObjectVM) => o.count + (localByKey[o.key]?.length ?? 0);
 
   const visible = useMemo(() => {
-    const rows = rowsByKey[active.key] ?? [];
+    const rows = [...(localByKey[active.key] ?? []), ...(rowsByKey[active.key] ?? [])];
     const needle = q.trim().toLowerCase();
     const filtered = needle
       ? rows.filter((r) => `${r.name} ${r.detail} ${r.persona} ${r.owner}`.toLowerCase().includes(needle))
       : rows;
     return filtered.slice(0, 100);
-  }, [rowsByKey, active.key, q]);
+  }, [rowsByKey, localByKey, active.key, q]);
+
+  // Add a record: show it instantly, then persist. Offline/demo returns
+  // persisted:false and the optimistic row stays (session-only). A real write
+  // revalidates the server render, so we drop the optimistic twin to avoid a
+  // duplicate. A failure reverts the row and surfaces the error.
+  const handleCreate = async (value: AddRecordValue): Promise<{ ok: boolean; error?: string }> => {
+    const objectKey = active.key as CrmObjectKey;
+    const tempId = `local-${crypto.randomUUID()}`;
+    setError(null);
+    setLocalByKey((prev) => ({ ...prev, [objectKey]: [buildOptimisticRow(objectKey, tempId, value), ...(prev[objectKey] ?? [])] }));
+
+    const res = await createCrmRecord({
+      objectKey,
+      name: value.name,
+      persona: value.persona,
+      status: value.status,
+      detail: value.detail,
+      city: value.city,
+      state: value.state,
+    });
+
+    if (!res.ok) {
+      setLocalByKey((prev) => ({ ...prev, [objectKey]: (prev[objectKey] ?? []).filter((r) => r.id !== tempId) }));
+      setError(res.error);
+      return { ok: false, error: res.error };
+    }
+    if (res.persisted) {
+      setLocalByKey((prev) => ({ ...prev, [objectKey]: (prev[objectKey] ?? []).filter((r) => r.id !== tempId) }));
+    }
+    return { ok: true };
+  };
 
   const toggleRow = (id: string) =>
     setSelected((prev) => {
@@ -176,7 +282,7 @@ export function CrmBoard({
         <div>
           <h1 className="ct">{active.label}</h1>
           <div className="csub">
-            {active.count.toLocaleString()} {active.noun} · org-scoped · synced with Arc
+            {countFor(active).toLocaleString()} {active.noun} · org-scoped · synced with Arc
           </div>
         </div>
         <div className="sp">
@@ -188,12 +294,21 @@ export function CrmBoard({
             <svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4 4 4-4M12 13V3" /></svg>
             Export
           </span>
-          <span className="gbtn gold">
+          <button type="button" className="gbtn gold" onClick={() => setAddOpen(true)}>
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
             {active.addLabel}
-          </span>
+          </button>
         </div>
       </div>
+
+      {error && (
+        <div className="crm-error" role="alert">
+          <span>{error}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setError(null)}>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+      )}
 
       <div className="subtabs">
         {objects.map((o) => (
@@ -203,7 +318,7 @@ export function CrmBoard({
             className={`subtab${o.key === activeKey ? " on" : ""}`}
             onClick={() => switchObject(o.key)}
           >
-            {o.label} <span className="cnt">{o.count.toLocaleString()}</span>
+            {o.label} <span className="cnt">{countFor(o).toLocaleString()}</span>
           </button>
         ))}
       </div>
@@ -289,7 +404,14 @@ export function CrmBoard({
               </tr>
             ) : (
               visible.map((r) => (
-                <tr key={r.id} onClick={() => { window.location.href = recordHref(r); }}>
+                <tr
+                  key={r.id}
+                  className={r.id.startsWith("local-") ? "freshrow" : undefined}
+                  onClick={() => {
+                    // Optimistic (unsaved) rows have no live record page yet.
+                    if (!r.id.startsWith("local-")) window.location.href = recordHref(r);
+                  }}
+                >
                   {cols.map((c) => (
                     <td key={c.k} className={cellClass(c.k)}>
                       {c.k === "sel" ? (
@@ -329,7 +451,7 @@ export function CrmBoard({
             </select>
           </span>
           <span className="pgnum">
-            {visible.length === 0 ? "0" : `1–${visible.length}`} of {active.count.toLocaleString()}
+            {visible.length === 0 ? "0" : `1–${visible.length}`} of {countFor(active).toLocaleString()}
           </span>
           <button className="pgbtn" type="button" aria-label="Previous page">
             <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>
@@ -339,6 +461,15 @@ export function CrmBoard({
           </button>
         </div>
       </div>
+
+      <AddRecordModal
+        key={`${active.key}:${addOpen ? "open" : "closed"}`}
+        open={addOpen}
+        objectKey={active.key as CrmObjectKey}
+        singular={active.addLabel.replace(/^Add\s+/i, "")}
+        onClose={() => setAddOpen(false)}
+        onSubmit={handleCreate}
+      />
     </div>
   );
 }
