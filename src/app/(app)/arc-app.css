@@ -1203,3 +1203,24 @@
 .arc-app .cmdk-item .cmdk-l { font-weight: 600; }
 .arc-app .cmdk-item .cmdk-g { margin-left: auto; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .arc-app .cmdk-empty { padding: 22px 14px; text-align: center; font-size: 12.5px; color: var(--muted); }
+
+/* Working CRM toolbar filters + sort (were dead <span>s) */
+.arc-app .arc-grid .fbtn { font: inherit; font-size: 12px; font-weight: 500; }
+.arc-app .arc-grid .fbtn.active { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent-contrast); }
+.arc-app .arc-grid .fbtn.active .cv { color: var(--accent-contrast); }
+.arc-app .iconf.active { border-color: var(--accent-border-strong); background: var(--accent-soft); color: var(--accent-contrast); }
+.arc-app .fbtn-wrap { position: relative; display: inline-flex; }
+.arc-app .fmenu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 190px; max-height: 320px; overflow-y: auto;
+  padding: 5px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5); animation: arc-modal-in 0.14s var(--ease); transform-origin: top left;
+}
+.arc-app .fmenu.fmenu-right { left: auto; right: 0; transform-origin: top right; min-width: 150px; }
+.arc-app .fmenu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: none; border-radius: 7px;
+  background: transparent; color: var(--text-2); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.arc-app .fmenu-item:hover { background: var(--surface-raised); color: var(--text); }
+.arc-app .fmenu-item.on { color: var(--accent-contrast); background: var(--accent-soft); }
+.arc-app .fmenu-item span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-app .fmenu-item .fmenu-c { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
