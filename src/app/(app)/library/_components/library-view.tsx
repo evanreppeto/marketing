@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 
 import { createLibraryFolder } from "../actions";
+import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
 type Kind = "image" | "video" | "logo" | "document";
@@ -183,6 +184,7 @@ export function LibraryView() {
   const [tree, setTree] = useState<Folder[]>(TREE);
   const [uploaded, setUploaded] = useState<Asset[]>([]);
   const [folderOpen, setFolderOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const uidRef = useRef(-1);
@@ -241,6 +243,41 @@ export function LibraryView() {
       return { ok: false, error: res.error };
     }
     setCurFolder(key);
+    return { ok: true };
+  }
+
+  async function handleImportUrl(value: { url: string; name?: string }): Promise<{ ok: boolean; error?: string }> {
+    const clean = value.url.trim();
+    try {
+      new URL(clean);
+    } catch {
+      return { ok: false, error: "Enter a valid URL (including https://)." };
+    }
+    const lower = clean.toLowerCase().split("?")[0];
+    const kind: Kind = /\.(mp4|mov|webm|m4v)$/.test(lower) ? "video" : /\.pdf$/.test(lower) ? "document" : "image";
+    const fileName = value.name?.trim() || decodeURIComponent(lower.split("/").pop() || "") || "Imported asset";
+    const asset: Asset = {
+      id: uidRef.current--,
+      nm: fileName,
+      kind,
+      pv: "upload",
+      sc: "photo",
+      folder: curFolder === "all" ? "upload" : curFolder,
+      dim: "—",
+      size: "—",
+      tags: ["imported", "url"],
+      arc: false,
+      used: [],
+      by: "You",
+      added: "just now",
+      recent: 1,
+      risk: "Imported from URL — provenance unverified before Arc may reuse.",
+      img: kind === "image" ? clean : undefined,
+      lineage: [["upload", "Imported from URL"]],
+      uses: 0,
+    };
+    setUploaded((prev) => [asset, ...prev]);
+    setNotice("Imported from URL — held for provenance review before Arc may reuse.");
     return { ok: true };
   }
 
@@ -330,7 +367,7 @@ export function LibraryView() {
         </div>
         <div className="acts">
           <a className="gbtn" href={STUDIO}><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg>Generate with Arc</a>
-          <span className="gbtn"><svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4-4 4 4M12 5v10" /></svg>Import URL <span className="tg est" style={{ marginLeft: 2 }}>build</span></span>
+          <button type="button" className="gbtn" onClick={() => setImportOpen(true)}><svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4-4 4 4M12 5v10" /></svg>Import URL</button>
           <button type="button" className="gbtn gold" onClick={() => fileRef.current?.click()}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</button>
           <input ref={fileRef} type="file" multiple accept="image/*,video/*,application/pdf" onChange={handleFiles} style={{ display: "none" }} />
         </div>
@@ -516,6 +553,13 @@ export function LibraryView() {
         open={folderOpen}
         onClose={() => setFolderOpen(false)}
         onSubmit={handleCreateFolder}
+      />
+
+      <ImportUrlModal
+        key={importOpen ? "import-open" : "import-closed"}
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSubmit={handleImportUrl}
       />
     </div>
   );
