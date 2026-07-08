@@ -8,6 +8,14 @@
       "port": 6001,
       "autoPort": false,
       "env": { "ARC_DEMO_DATA": "1" }
+    },
+    {
+      "name": "arc-dev-alt",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev", "--port", "6031"],
+      "port": 6031,
+      "autoPort": true,
+      "env": { "ARC_DEMO_DATA": "1" }
     }
   ]
 }
