@@ -7,6 +7,8 @@ import { OFFICIAL_PERSONA_MAPPINGS } from "@/domain";
 import { Modal } from "../../_components/modal";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 
+export type LinkOption = { type: string; id: string; label: string };
+
 export type AddRecordValue = {
   name: string;
   persona?: string;
@@ -15,6 +17,9 @@ export type AddRecordValue = {
   city?: string;
   state?: string;
   postalCode?: string;
+  /** Parent record link (leads → company/contact/property; outcomes → job/lead). */
+  parentType?: string;
+  parentId?: string;
 };
 
 type FieldConfig = {
@@ -26,6 +31,8 @@ type FieldConfig = {
   address?: boolean;
   /** Persona is a required DB column for this object (leads). */
   personaRequired?: boolean;
+  /** A parent-record link is required (a DB check constraint enforces it). */
+  link?: { label: string; empty: string };
   status: { label: string; options: string[] };
 };
 
@@ -54,6 +61,7 @@ const FORM: Record<CrmObjectKey, FieldConfig> = {
     multiline: true,
     detail: { label: "Source", placeholder: "web_form, partner_referral…" },
     personaRequired: true,
+    link: { label: "Linked record", empty: "Add a company, contact, or property first" },
     status: { label: "Status", options: ["new", "needs_review", "qualified"] },
   },
   jobs: {
@@ -64,6 +72,7 @@ const FORM: Record<CrmObjectKey, FieldConfig> = {
   outcomes: {
     nameLabel: "Outcome title",
     namePlaceholder: "Evanston fire rebuild",
+    link: { label: "Linked record", empty: "Add a job or lead first" },
     status: { label: "Status", options: ["won", "lost"] },
   },
 };
@@ -80,12 +89,15 @@ export function AddRecordModal({
   open,
   objectKey,
   singular,
+  linkOptions = [],
   onClose,
   onSubmit,
 }: {
   open: boolean;
   objectKey: CrmObjectKey;
   singular: string;
+  /** Parent records a lead/outcome can link to (built by the board from loaded rows). */
+  linkOptions?: LinkOption[];
   onClose: () => void;
   /** Returns the outcome so the modal can surface an error and stay open on failure. */
   onSubmit: (value: AddRecordValue) => Promise<{ ok: boolean; error?: string }>;
@@ -97,23 +109,27 @@ export function AddRecordModal({
   const [stateVal, setStateVal] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [persona, setPersona] = useState("");
+  const [link, setLink] = useState(""); // "type::id"
   const [status, setStatus] = useState(cfg.status.options[0]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // The board remounts this component (via `key`) on each open and object
   // change, so the fields above initialize fresh — no reset effect needed.
-  // Required fields mirror the DB's NOT-NULL columns: address parts for
-  // properties, a persona for leads.
+  // Required fields mirror the DB's NOT-NULL columns and check constraints:
+  // address parts for properties, a persona for leads, a parent link for
+  // leads/outcomes.
   const addressOk = !cfg.address || (city.trim() && stateVal.trim() && postalCode.trim());
   const personaOk = !cfg.personaRequired || !!persona;
-  const canSubmit = name.trim().length > 0 && !!addressOk && personaOk && !pending;
+  const linkOk = !cfg.link || !!link;
+  const canSubmit = name.trim().length > 0 && !!addressOk && personaOk && linkOk && !pending;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
     setPending(true);
     setError(null);
+    const [parentType, parentId] = link ? link.split("::") : [];
     const result = await onSubmit({
       name: name.trim(),
       persona: persona || undefined,
@@ -122,6 +138,8 @@ export function AddRecordModal({
       city: city.trim() || undefined,
       state: stateVal.trim() || undefined,
       postalCode: postalCode.trim() || undefined,
+      parentType: parentType || undefined,
+      parentId: parentId || undefined,
     });
     if (result.ok) {
       onClose();
@@ -175,6 +193,22 @@ export function AddRecordModal({
               onChange={(e) => setDetail(e.target.value)}
               placeholder={cfg.detail.placeholder}
             />
+          </label>
+        )}
+
+        {cfg.link && (
+          <label className="mfield">
+            <span className="mlabel">{cfg.link.label}</span>
+            <select value={link} onChange={(e) => setLink(e.target.value)} required disabled={linkOptions.length === 0}>
+              <option value="" disabled>
+                {linkOptions.length === 0 ? cfg.link.empty : "Choose a record…"}
+              </option>
+              {linkOptions.map((o) => (
+                <option key={`${o.type}::${o.id}`} value={`${o.type}::${o.id}`}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </label>
         )}
 

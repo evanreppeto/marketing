@@ -29,6 +29,9 @@ const VALID_KEYS = new Set<CrmObjectKey>([
   "outcomes",
 ]);
 
+const LEAD_PARENTS = new Set(["company", "contact", "property"]);
+const OUTCOME_PARENTS = new Set(["job", "lead"]);
+
 export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResult> {
   await requireOperator();
 
@@ -36,13 +39,23 @@ export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResu
   const name = input.name?.trim();
   if (!name) return { ok: false, error: "A name is required." };
 
-  // Enforce the object's DB-required columns up front (they're NOT NULL in
-  // Postgres, so a real insert would otherwise fail after the optimistic row).
+  // Enforce the object's DB-required columns / check constraints up front (they'd
+  // otherwise fail the real insert after the optimistic row).
   if (input.objectKey === "leads" && !isOfficialPersonaMapping(input.persona)) {
     return { ok: false, error: "A lead needs a persona." };
   }
   if (input.objectKey === "properties" && !(input.city?.trim() && input.state?.trim() && input.postalCode?.trim())) {
     return { ok: false, error: "A property needs a city, state, and ZIP." };
+  }
+  // Leads and outcomes carry a "must link a parent" check constraint.
+  if (input.objectKey === "leads" && !LEAD_PARENTS.has(input.parentType ?? "")) {
+    return { ok: false, error: "Link the lead to a company, contact, or property." };
+  }
+  if (input.objectKey === "outcomes" && !OUTCOME_PARENTS.has(input.parentType ?? "")) {
+    return { ok: false, error: "Link the outcome to a job or lead." };
+  }
+  if ((input.objectKey === "leads" || input.objectKey === "outcomes") && !input.parentId) {
+    return { ok: false, error: "Choose a record to link to." };
   }
 
   const actor = await getOperatorActor();
@@ -50,17 +63,6 @@ export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResu
   // Offline/demo: no DB to write to. Report success-but-unpersisted so the board
   // can show the record without claiming it was saved.
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
-
-  // Leads and outcomes carry a DB check constraint requiring a linked parent
-  // (a lead needs a company/contact/property; an outcome needs a job/lead), so
-  // they can't be created bare. Fail honestly until the link picker exists,
-  // rather than surface a raw Postgres constraint error.
-  if (input.objectKey === "leads") {
-    return { ok: false, error: "A lead must be linked to a company, contact, or property — add it from that record." };
-  }
-  if (input.objectKey === "outcomes") {
-    return { ok: false, error: "An outcome must be linked to a job or lead — add it from that record." };
-  }
 
   const ctx = await getCurrentWorkspaceContext();
   const result = await insertCrmRecord({ ...input, name, owner: actor }, ctx.orgId);
