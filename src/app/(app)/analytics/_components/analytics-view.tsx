@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import type { AnalyticsOverview, TrendKey, TrendSeries } from "@/lib/analytics/overview";
+import type { CampaignPerformanceRow, ChannelPerformance, PerformanceAnomaly, PerformanceNextMove } from "@/lib/performance/read-model";
 
 export type ActivityRowVM = { id: string; dot: string; title: string; detail: string; meta: string[]; time: string };
 export type ActivityDayVM = { label: string; rows: ActivityRowVM[] };
@@ -106,14 +108,121 @@ function Breakdown({ rows }: { rows: AnalyticsOverview["revenueByPersona"] }) {
   );
 }
 
+const USD0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+function CampaignTable({ rows }: { rows: CampaignPerformanceRow[] }) {
+  if (rows.length === 0) return null;
+  const trendMark = (t: CampaignPerformanceRow["trend"]) => (t === "up" ? "▲" : t === "down" ? "▼" : "—");
+  return (
+    <div className="blk camps" style={{ marginTop: 20 }}>
+      <h2>
+        Campaign performance <span className="tg wired">wired · attribution</span>
+        <span className="camphint">Open a campaign for its full performance breakdown</span>
+      </h2>
+      <div className="ctbl">
+        <div className="cthead">
+          <span>Campaign</span><span>Leads</span><span>Booked</span><span>Revenue</span><span>Conv.</span><span>Trend</span>
+        </div>
+        {rows.map((c) => (
+          <Link className="ctrow" key={c.id} href={`/campaigns/${encodeURIComponent(c.id)}`}>
+            <span className="ctname">
+              <b>{c.name}</b>
+              <i>{c.persona}</i>
+            </span>
+            <span className="ctnum">{c.leads.toLocaleString()}</span>
+            <span className="ctnum">{c.booked.toLocaleString()}</span>
+            <span className="ctnum">{USD0.format(c.revenueCents / 100)}</span>
+            <span className="ctnum">{c.conversion}%</span>
+            <span className={`cttrend ${c.trend}`}>{trendMark(c.trend)}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function roasLabel(revenueCents: number, spendCents: number): string {
+  if (spendCents <= 0) return "organic";
+  return `${(revenueCents / spendCents).toFixed(1)}×`;
+}
+
+function ChannelTable({ rows }: { rows: ChannelPerformance[] }) {
+  if (rows.length === 0) {
+    return <div className="psub">Channel performance fills in once campaigns send and CRM outcomes attribute back to a source.</div>;
+  }
+  const revMax = Math.max(1, ...rows.map((r) => r.revenueCents));
+  return (
+    <div className="chtbl">
+      <div className="chhead">
+        <span>Channel</span><span>Leads</span><span>Booked</span><span>Revenue</span><span>Spend</span><span>ROAS</span>
+      </div>
+      {rows.map((c) => (
+        <div className="chrow" key={c.channel}>
+          <span className="chname">
+            {c.channel}
+            <i className="chbar" style={{ width: `${Math.round((c.revenueCents / revMax) * 100)}%` }} />
+          </span>
+          <span className="chnum">{c.leads.toLocaleString()}</span>
+          <span className="chnum">{c.booked.toLocaleString()}</span>
+          <span className="chnum">{USD0.format(c.revenueCents / 100)}</span>
+          <span className="chnum chspend">{c.spendCents > 0 ? USD0.format(c.spendCents / 100) : "—"}</span>
+          <span className={`chroas ${c.spendCents > 0 ? "" : "organic"}`}>{roasLabel(c.revenueCents, c.spendCents)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SignalsBlock({ anomalies, nextMoves }: { anomalies: PerformanceAnomaly[]; nextMoves: PerformanceNextMove[] }) {
+  if (anomalies.length === 0 && nextMoves.length === 0) return null;
+  return (
+    <div className="grid2" style={{ marginTop: 20 }}>
+      <div className="blk">
+        <h2>Arc is watching <span className="tg wired">signals</span></h2>
+        <div className="signals">
+          {anomalies.map((a) => (
+            <div className="sig" key={a.id}>
+              <span className={`sdot ${a.tone}`} />
+              <div style={{ minWidth: 0 }}>
+                <div className="stitle">{a.title}{a.metric && <span className="smetric">{a.metric}</span>}</div>
+                <div className="sdetail">{a.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="blk">
+        <h2>Recommended next moves <span className="tg sync">Arc · approval-gated</span></h2>
+        <div className="moves">
+          {nextMoves.map((m) => (
+            <Link className="move" key={m.id} href={m.href}>
+              <div className="mtitle">{m.title}</div>
+              <div className="mdetail">{m.detail}</div>
+              <span className="mcta">{m.cta} →</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AnalyticsView({
   overview,
   activitySummary,
   activityDays,
+  campaignRows,
+  channels,
+  anomalies,
+  nextMoves,
 }: {
   overview: AnalyticsOverview;
   activitySummary: { label: string; value: number }[];
   activityDays: ActivityDayVM[];
+  campaignRows: CampaignPerformanceRow[];
+  channels: ChannelPerformance[];
+  anomalies: PerformanceAnomaly[];
+  nextMoves: PerformanceNextMove[];
 }) {
   const [view, setView] = useState<View>("overview");
   const [metric, setMetric] = useState<TrendKey>("revenue");
@@ -229,6 +338,10 @@ export function AnalyticsView({
                   </div>
                 </div>
               </div>
+
+              <CampaignTable rows={campaignRows} />
+
+              <SignalsBlock anomalies={anomalies} nextMoves={nextMoves} />
             </>
           )}
 
@@ -241,9 +354,9 @@ export function AnalyticsView({
 
           {view === "channels" && (
             <>
-              <div className="vhead"><div><h1 className="pt">By channel</h1><div className="psub">Lead source mix · spend / ROAS need an ad-platform sync</div></div></div>
-              <div className="blk"><h2>Leads by source <span className="tg wired">wired · CRM</span></h2><Breakdown rows={overview.leadsBySource} /></div>
-              <div className="blk" style={{ marginTop: 18 }}><h2>ROAS by channel <span className="tg sync">needs spend sync</span></h2><div className="psub">Return-on-ad-spend fills in once an ad-platform connector reports spend against these sources.</div></div>
+              <div className="vhead"><div><h1 className="pt">By channel</h1><div className="psub">Leads, booked work, revenue, spend, and ROAS per channel · attributed from CRM outcomes</div></div></div>
+              <div className="blk"><h2>Channel performance <span className="tg wired">wired · attribution</span></h2><ChannelTable rows={channels} /></div>
+              <div className="blk" style={{ marginTop: 18 }}><h2>Leads by source <span className="tg wired">wired · CRM</span></h2><Breakdown rows={overview.leadsBySource} /></div>
             </>
           )}
 

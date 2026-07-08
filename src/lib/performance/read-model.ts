@@ -401,7 +401,7 @@ function buildDemoPerformanceReadModel(rangeDays: number): PerformanceReadModel 
       title: "Tighten the Mold Awareness landing CTA",
       detail: "Arc proposes a qualifying question on the form to lift lead-to-booked. Approval-gated; nothing publishes until you sign off.",
       cta: "Open campaign",
-      href: "/analytics/demo-mold-remediation-awareness",
+      href: "/campaigns/demo-mold-remediation-awareness",
     },
     {
       id: "move-referral-expand",

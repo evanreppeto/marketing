@@ -3,6 +3,7 @@
 // lead→job→won funnel, and revenue-by-persona / leads-by-source breakdowns)
 // straight from real leads / jobs / outcomes rows. Everything is derived, so it
 // degrades gracefully when the tables are sparse or unconfigured.
+import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 const DAY = 86400000;
@@ -74,8 +75,122 @@ function emptyOverview(): AnalyticsOverview {
   };
 }
 
+/** Deterministic pseudo-random so the demo is stable across renders. */
+function seeded(seed: number): () => number {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// Illustrative overview for local preview / demos (no Supabase). Numbers are
+// synthetic but internally consistent and mirror the demo campaign portfolio
+// (see lib/performance/read-model demo dataset). Read-only display only.
+function demoAnalyticsOverview(): AnalyticsOverview {
+  const rng = seeded(20260708);
+  const series = (): TrendSeries => ({ cur: Array(WINDOW).fill(0), prev: Array(WINDOW).fill(0) });
+  const trend: Record<TrendKey, TrendSeries> = { revenue: series(), leads: series(), bookings: series() };
+
+  for (let i = 0; i < WINDOW; i++) {
+    const progress = i / (WINDOW - 1);
+    const stormSpike = i >= 14 && i <= 18 ? 7 : 0; // mid-window storm surge
+    const baseLeads = 18 + progress * 10 + stormSpike; // ramps ~18 → ~28
+    const lc = Math.max(0, Math.round(baseLeads + (rng() - 0.5) * 6));
+    const lp = Math.max(0, Math.round(baseLeads * 0.82 + (rng() - 0.5) * 6));
+    trend.leads.cur[i] = lc;
+    trend.leads.prev[i] = lp;
+
+    const rate = 0.1 + progress * 0.05; // lead→booked ramps 10% → 15%
+    const bc = Math.max(0, Math.round(lc * rate));
+    const bp = Math.max(0, Math.round(lp * (rate - 0.02)));
+    trend.bookings.cur[i] = bc;
+    trend.bookings.prev[i] = bp;
+
+    // ~$2,300 avg revenue per booked job, with variance, in cents.
+    trend.revenue.cur[i] = bc * Math.round(210_000 + rng() * 70_000);
+    trend.revenue.prev[i] = bp * Math.round(205_000 + rng() * 60_000);
+  }
+
+  const sum = (a: number[]) => a.reduce((s, n) => s + n, 0);
+  const curLeads = sum(trend.leads.cur);
+  const prevLeads = sum(trend.leads.prev);
+  const curJobs = sum(trend.bookings.cur);
+  const prevJobs = sum(trend.bookings.prev);
+  const curRev = sum(trend.revenue.cur);
+  const prevRev = sum(trend.revenue.prev);
+  const curWon = Math.round(curJobs * 0.84);
+
+  const kpis: OverviewKpi[] = [
+    { label: "Leads", value: curLeads.toLocaleString(), ...pct(curLeads, prevLeads), prevLabel: `${prevLeads} prev`, tag: "wired", tagLabel: "wired" },
+    { label: "Booked jobs", value: curJobs.toLocaleString(), ...pct(curJobs, prevJobs), prevLabel: `${prevJobs} prev`, tag: "wired", tagLabel: "wired" },
+    { label: "Won revenue", value: money(curRev), ...pct(curRev, prevRev), prevLabel: `${money(prevRev)} prev`, tag: "wired", tagLabel: "wired" },
+    { label: "Reply rate", value: "—", deltaLabel: "needs sends", dir: "flat", prevLabel: "no send denominator", tag: "partial", tagLabel: "partial" },
+    { label: "Cost / job", value: "—", deltaLabel: "— est.", dir: "flat", prevLabel: "needs spend feed", tag: "sync", tagLabel: "needs sync" },
+  ];
+
+  const funnelMax = Math.max(1, curLeads);
+  const funnel: FunnelStage[] = [
+    { label: "Leads", count: curLeads, width: 100, note: "" },
+    { label: "Booked jobs", count: curJobs, width: Math.round((curJobs / funnelMax) * 100), note: `${((curJobs / curLeads) * 100).toFixed(1)}%` },
+    { label: "Won", count: curWon, width: Math.round((curWon / funnelMax) * 100), note: `${((curWon / curLeads) * 100).toFixed(1)}%` },
+  ];
+
+  const personaRev: Array<[string, number]> = [
+    ["Distressed Homeowner", 8_930_000],
+    ["Property Manager", 5_120_000],
+    ["Proactive Homeowner", 3_960_000],
+    ["Health-Conscious Homeowner", 1_840_000],
+    ["Insurance Adjuster", 1_020_000],
+  ];
+  const revMax = Math.max(1, ...personaRev.map(([, v]) => v));
+  const revenueByPersona: BreakdownRow[] = personaRev.map(([label, v], i) => ({
+    label,
+    count: v,
+    width: Math.round((v / revMax) * 100),
+    dot: PERSONA_DOTS[i % PERSONA_DOTS.length],
+    valueLabel: money(v),
+  }));
+
+  const sources: Array<[string, number]> = [
+    ["Email", 214],
+    ["Meta Ads", 168],
+    ["Landing", 142],
+    ["SMS", 96],
+    ["Referral", 74],
+  ];
+  const srcMax = Math.max(1, ...sources.map(([, v]) => v));
+  const leadsBySource: BreakdownRow[] = sources.map(([label, v], i) => ({
+    label,
+    count: v,
+    width: Math.round((v / srcMax) * 100),
+    dot: PERSONA_DOTS[i % PERSONA_DOTS.length],
+  }));
+
+  const trendLabels = Array.from({ length: WINDOW }, (_, i) => {
+    const d = new Date(Math.floor(Date.now() / DAY) * DAY - (WINDOW - 1 - i) * DAY);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  });
+
+  return {
+    kpis,
+    trend,
+    trendLabels,
+    funnel,
+    revenueByPersona,
+    leadsBySource,
+    arcRead: {
+      text: `Won revenue is up ${pct(curRev, prevRev).deltaLabel} on ${curWon} closed jobs from ${curLeads.toLocaleString()} leads — you're converting better, not just sourcing more. Revenue is concentrated in the Distressed Homeowner persona, and Email is your top lead source. Reply and cost-per-job metrics fill in once campaigns send and an ad platform syncs.`,
+      cites: [`leads ${curLeads.toLocaleString()}`, `won ${curWon}`, `rev ${money(curRev)}`],
+      rec: "Double down on Distressed Homeowner — your highest-revenue persona this period. Arc can draft a lookalike campaign against it, approval-gated.",
+    },
+    hasHistory: true,
+  };
+}
+
 export async function getAnalyticsOverview(orgId: string): Promise<AnalyticsOverview> {
-  if (!isSupabaseAdminConfigured()) return emptyOverview();
+  if (!isSupabaseAdminConfigured()) return isDemoDataEnabled() ? demoAnalyticsOverview() : emptyOverview();
   const admin = getSupabaseAdminClient();
   const since = new Date(Date.now() - 2 * WINDOW * DAY).toISOString();
 
