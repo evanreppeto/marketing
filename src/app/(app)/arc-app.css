@@ -1214,3 +1214,15 @@
 .arc-app .lib-notice button { display: grid; place-items: center; width: 22px; height: 22px; border: none; background: transparent; color: var(--muted); cursor: pointer; flex-shrink: 0; }
 .arc-app .lib-notice button:hover { color: var(--text); }
 .arc-app .lib-notice svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* Brain trust-gate approve/reject actions on the "Needs review" cards */
+.arc-app .arc-brain .qcard .qactions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-2); }
+.arc-app .arc-brain .qbtn {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border-radius: 8px;
+  border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; transition: .15s;
+}
+.arc-app .arc-brain .qbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+.arc-app .arc-brain .qbtn.approve { border-color: var(--ok-border); background: var(--ok-soft); color: var(--ok-text); }
+.arc-app .arc-brain .qbtn.approve:hover:not(:disabled) { background: color-mix(in srgb, var(--ok-soft) 65%, var(--ok)); filter: brightness(1.05); }
+.arc-app .arc-brain .qbtn.reject:hover:not(:disabled) { border-color: var(--red-border); color: var(--red-text); background: var(--red-soft); }
+.arc-app .arc-brain .qbtn:disabled { opacity: .55; cursor: not-allowed; }
