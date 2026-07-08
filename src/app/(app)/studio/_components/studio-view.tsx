@@ -107,8 +107,8 @@ export function StudioView({ brandName }: { brandName: string }) {
         </div>
         <span className="proj"><span className="dot" />Untitled creative · autosaved</span>
         <div className="right">
-          <button className="iconbtn" title="Undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 010 10h-3" /></svg></button>
-          <button className="iconbtn" title="Redo"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5" /><path d="M20 9H9a5 5 0 000 10h3" /></svg></button>
+          <button className="iconbtn" title="Undo" data-soon="Undo is coming soon"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 010 10h-3" /></svg></button>
+          <button className="iconbtn" title="Redo" data-soon="Redo is coming soon"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5" /><path d="M20 9H9a5 5 0 000 10h3" /></svg></button>
           <span className="cdivr" />
           <a className="gbtn" href="/library"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Save to Library</a>
           <Link className="gbtn gold" href="/campaigns/new"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>Add to campaign</Link>
@@ -126,7 +126,7 @@ export function StudioView({ brandName }: { brandName: string }) {
               </span>
             ))}
           </div>
-          <div className="drop"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg><div className="dt">Upload or import a URL</div><div className="dd">Bring in art from Canva, Midjourney, DALL·E — anything</div></div>
+          <div className="drop" data-soon="Uploading & importing art is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg><div className="dt">Upload or import a URL</div><div className="dd">Bring in art from Canva, Midjourney, DALL·E — anything</div></div>
           <div className="srchead"><span className="st">{SRC[srcTab].title}</span><span className="sc">{SRC[srcTab].items.length} items</span></div>
           <div className="mgrid2">{SRC[srcTab].items.map((it, i) => <Tile key={i} item={it} i={i} />)}</div>
           {srcTab === "ai" && (
@@ -272,7 +272,7 @@ export function StudioView({ brandName }: { brandName: string }) {
                   <div className="psec">
                     <h3 className="ph2">Audio <span className="tagv">Higgsfield · video</span></h3>
                     {[["Voiceover", "Generate or dub a narration track", "Add →"], ["Music bed", "On-brand background track", "Add →"], ["Captions", "Auto-burned subtitles", "On"]].map(([an, ad, ax]) => (
-                      <div className="audrow" key={an}><span className="ai"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7v10M16 7v10M4 10v4M20 10v4" /></svg></span><div><div className="an">{an}</div><div className="ad">{ad}</div></div><span className="ax">{ax}</span></div>
+                      <div className="audrow" key={an} data-soon={`${an} is coming soon`}><span className="ai"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7v10M16 7v10M4 10v4M20 10v4" /></svg></span><div><div className="an">{an}</div><div className="ad">{ad}</div></div><span className="ax">{ax}</span></div>
                     ))}
                   </div>
                 )}
@@ -281,7 +281,7 @@ export function StudioView({ brandName }: { brandName: string }) {
                   <h3 className="ph2">Guardrails</h3>
                   <div className="grow"><span className="gic ok"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg></span><div><div className="gt">Brand logo present &amp; legible</div><div className="gd">{brandName} lockup detected, on-brand placement.</div></div></div>
                   <div className="grow"><span className="gic ok"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg></span><div><div className="gt">Real, approved media</div><div className="gd">Background is an approved Library photo — not stock or invented.</div></div></div>
-                  <div className="grow"><span className="gic warn"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 004 21h16a2 2 0 001.7-3l-8-14a2 2 0 00-3.4 0z" /></svg></span><div><div className="gt">Claim check: &ldquo;same-week scheduling&rdquo;</div><div className="gd">Needs a proof point on file before send. <span className="fix">Attach proof →</span></div></div></div>
+                  <div className="grow"><span className="gic warn"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 004 21h16a2 2 0 001.7-3l-8-14a2 2 0 00-3.4 0z" /></svg></span><div><div className="gt">Claim check: &ldquo;same-week scheduling&rdquo;</div><div className="gd">Needs a proof point on file before send. <span className="fix" data-soon="Attaching proof is coming soon">Attach proof →</span></div></div></div>
                   <div className="grow"><span className="gic ok"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg></span><div><div className="gt">No faces requiring redaction</div><div className="gd">Privacy scan clear.</div></div></div>
                 </div>
 
@@ -298,10 +298,10 @@ export function StudioView({ brandName }: { brandName: string }) {
 
                 <div className="psec">
                   <h3 className="ph2">Export</h3>
-                  <div className="exrow"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /></svg>Resize for all platforms <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>1:1 4:5 9:16 16:9</span></div>
+                  <div className="exrow" data-soon="Auto-resizing for all platforms is coming soon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /></svg>Resize for all platforms <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>1:1 4:5 9:16 16:9</span></div>
                   <a className="exrow" href="/library"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Save to Library</a>
                   <Link className="exrow gold" href="/campaigns/new"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to Storm-Season Reactivation</Link>
-                  <div className="exrow"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>Download (PNG / MP4)</div>
+                  <div className="exrow" data-soon="Download is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>Download (PNG / MP4)</div>
                 </div>
               </div>
             </div>
@@ -326,19 +326,19 @@ export function StudioView({ brandName }: { brandName: string }) {
                     {[["Before / After · 9:16", "comp", "Composite", SC.beforeafter], ["Before / After · 9:16 (bold)", "comp", "Composite", SC.beforeafter], ["Crew on site · 9:16", "real", "Real media", SC.roof]].map(([an, pv, pl, svg], i) => (
                       <div className="acard" key={i}>
                         <div className="atop"><div className="ath"><Raw html={svg as string} /></div><div className="ainfo"><div className="an">{an}</div><span className={`apv pv ${pv}`}>{pl}</span><div className="ameta">draft · social_ad · 1080×1920<br />via Arc</div></div></div>
-                        <div className="actl"><button className="abtn ap"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>Approve</button><button className="abtn">Revise</button><button className="abtn">Decline</button></div>
+                        <div className="actl"><button className="abtn ap" data-soon="Approving drafts is coming soon"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" /></svg>Approve</button><button className="abtn" data-soon="Requesting a revision is coming soon">Revise</button><button className="abtn" data-soon="Declining drafts is coming soon">Decline</button></div>
                       </div>
                     ))}
                     <div className="achips">
                       {[["Make 1:1 + 4:5 too", '<rect x="4" y="4" width="16" height="16" rx="2"/>'], ["Softer headline", '<path d="M4 7h16M4 12h10M4 17h7"/>'], ["Check virality", '<path d="M3 17l5-5 4 3 5-7 4 4"/>'], ["Swap proof point", '<path d="M12 4l2.5 5 5.5.8-4 4 1 5.5L12 17l-5 2.6 1-5.5-4-4 5.5-.8z"/>']].map(([label, d]) => (
-                        <span className="achip" key={label}><svg viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: d }} />{label}</span>
+                        <span className="achip" key={label} data-soon={`“${label}” is coming soon`}><svg viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: d }} />{label}</span>
                       ))}
                     </div>
                   </div>
                 </div>
                 <div className="composer">
                   <div className="modes">{["Ask", "Act", "Draft"].map((m) => <span key={m} className={`mode${cmode === m ? " on" : ""}`} onClick={() => setCmode(m)}>{m}</span>)}</div>
-                  <div className="cbox"><textarea rows={1} placeholder="Ask Arc to edit, generate, or repackage this creative…" /><button className="csend"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg></button></div>
+                  <div className="cbox"><textarea rows={1} placeholder="Ask Arc to edit, generate, or repackage this creative…" /><button className="csend" data-soon="Sending messages to Arc is coming soon"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg></button></div>
                   <div className="clock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></svg>Drafts only — nothing sends until you approve.</div>
                 </div>
               </div>

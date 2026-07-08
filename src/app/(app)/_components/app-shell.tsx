@@ -200,6 +200,7 @@ export function AppShell({
           {children}
         </div>
       </div>
+      <ComingSoonToasts />
     </div>
   );
 }

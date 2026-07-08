@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 export type OutboxChannel = "email" | "sms" | "social" | "other";
@@ -59,6 +60,7 @@ export function OutboxBoard({
   kpis: KpiVM[];
   channelCounts: Record<string, number>;
 }) {
+  const router = useRouter();
   const [view, setView] = useState<"outbox" | "board">("outbox");
   const [channel, setChannel] = useState("all");
 
@@ -79,10 +81,10 @@ export function OutboxBoard({
             <div className="psub">Approved deliverables in flight. The app records state and hands off — it never sends on its own.</div>
           </div>
           <div style={{ display: "flex", gap: 9 }}>
-            <span className="gbtn">
+            <button type="button" className="gbtn" onClick={() => router.refresh()}>
               <svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6" /><path d="M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3" /></svg>
               Refresh
-            </span>
+            </button>
           </div>
         </div>
       </div>

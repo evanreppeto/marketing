@@ -14,13 +14,14 @@ function exists(relativePath: string) {
 }
 
 describe("product app surface smoke checks", () => {
-  it("keeps the mockup gallery front door and the backend API surface present", () => {
+  it("keeps the app front door and the backend API surface present", () => {
     const expectedFiles = [
-      // Operator UI = the static Arc mockup gallery served from public/ (see the
-      // next.config.ts `/`→build-home rewrite). The React app is backend-only now.
-      "public/build-home.html",
-      "public/gallery-nav.js",
-      // The backend API surface the gallery is (being) wired to.
+      // The front door is the real app: `/` (src/app/page.tsx) redirects into the
+      // (app) route group, with Home as the landing screen. (The old static mockup
+      // gallery under public/build-*.html has been removed.)
+      "src/app/page.tsx",
+      "src/app/(app)/home/page.tsx",
+      // The backend API surface.
       "src/app/api/auth/sign-in/route.ts",
       "src/app/api/auth/sign-up/route.ts",
       "src/app/api/auth/workspace-invites/route.ts",
