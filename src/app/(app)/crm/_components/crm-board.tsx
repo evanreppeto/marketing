@@ -429,11 +429,11 @@ export function CrmBoard({
           </div>
         </div>
         <div className="sp">
-          <span className="gbtn">
+          <span className="gbtn" data-soon="CSV import is coming soon">
             <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>
             Import
           </span>
-          <span className="gbtn">
+          <span className="gbtn" data-soon="Export is coming soon">
             <svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4 4 4-4M12 13V3" /></svg>
             Export
           </span>
@@ -505,20 +505,20 @@ export function CrmBoard({
         )}
         <span className="gspacer" />
         <SortMenu value={sortBy} onChange={setSortBy} />
-        <span className="iconf" title="Columns">
+        <span className="iconf" title="Columns" data-soon="Column settings are coming soon">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg>
         </span>
-        <span className="iconf" title="Density">
+        <span className="iconf" title="Density" data-soon="Density settings are coming soon">
           <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
         </span>
       </div>
 
       <div className={`selbar${selected.size ? " show" : ""}`}>
         <span className="sc">{selected.size} selected</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg>Add task</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>Ask Arc to enrich</span>
+        <span className="sa" data-soon="Bulk add to campaign is coming soon"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
+        <span className="sa" data-soon="Bulk persona assignment is coming soon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona</span>
+        <span className="sa" data-soon="Bulk tasks are coming soon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg>Add task</span>
+        <span className="sa" data-soon="Arc enrichment is coming soon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>Ask Arc to enrich</span>
         <span className="clr" onClick={() => setSelected(new Set())}>Clear</span>
       </div>
 

@@ -208,7 +208,7 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
               {headStats.lowestName ? <> — Arc can draft refreshed proof points and a new angle for {headStats.lowestName}. Approval-gated.</> : " — Arc can draft refreshed playbooks. Approval-gated."}
             </span>
             <span className="ab">
-              <button type="button" className="miniabtn">Draft updates</button>
+              <button type="button" className="miniabtn" data-soon="Arc draft updates are coming soon">Draft updates</button>
               <button type="button" className="miniabtn ghost" onClick={() => setAlertOpen(false)}>Dismiss</button>
             </span>
           </div>

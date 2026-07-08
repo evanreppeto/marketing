@@ -162,7 +162,9 @@ function descKeys(key: string): string[] {
   return out;
 }
 
-const NEW_CAMPAIGN = "/campaigns/new";
+// The campaigns board is the real create surface (New campaign opens a modal);
+// the old /campaigns/new static builder is no longer linked.
+const NEW_CAMPAIGN = "/campaigns";
 const STUDIO = "/studio";
 
 export function LibraryView() {

@@ -330,8 +330,8 @@ export function AnalyticsView({
                     </div>
                   )}
                   <div className="abtns">
-                    <button type="button" className="gbtn gold"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Draft the iteration</button>
-                    <button type="button" className="gbtn"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-11.5 7.2L4 21l1.8-5.5A8 8 0 1121 12z" /></svg>Ask Arc</button>
+                    <button type="button" className="gbtn gold" data-soon="Arc iteration drafting is coming soon"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Draft the iteration</button>
+                    <Link className="gbtn" href="/arc"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-11.5 7.2L4 21l1.8-5.5A8 8 0 1121 12z" /></svg>Ask Arc</Link>
                   </div>
                   <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)", marginTop: 11, lineHeight: 1.5 }}>
                     Numbers from real leads / jobs / outcomes. The recommendation is Arc&apos;s interpretation — not an automated decision.
