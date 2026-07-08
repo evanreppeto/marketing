@@ -21,6 +21,18 @@ export type CreateCampaignResult =
 
 export type NewCampaignInput = { name: string; persona: string; restorationFocus: string };
 
+// The DB `restoration_focus` enum — a value outside this set is rejected by Postgres.
+const RESTORATION_FOCUS = new Set([
+  "burst_pipe",
+  "water_backup",
+  "standing_water",
+  "flood",
+  "storm_surge",
+  "sewage",
+  "mold",
+  "fire",
+]);
+
 export async function createCampaign(input: NewCampaignInput): Promise<CreateCampaignResult> {
   await requireOperator();
 
@@ -29,7 +41,7 @@ export async function createCampaign(input: NewCampaignInput): Promise<CreateCam
   const focus = input.restorationFocus?.trim();
   if (!name) return { ok: false, error: "A campaign name is required." };
   if (!persona || !isOfficialPersonaMapping(persona)) return { ok: false, error: "Choose a persona for this campaign." };
-  if (!focus) return { ok: false, error: "Add what this campaign is about." };
+  if (!focus || !RESTORATION_FOCUS.has(focus)) return { ok: false, error: "Choose a focus for this campaign." };
 
   const actor = await getOperatorActor();
 

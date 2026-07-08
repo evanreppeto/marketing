@@ -14,6 +14,7 @@ export type AddRecordValue = {
   detail?: string;
   city?: string;
   state?: string;
+  postalCode?: string;
 };
 
 type FieldConfig = {
@@ -21,7 +22,10 @@ type FieldConfig = {
   namePlaceholder: string;
   multiline?: boolean;
   detail?: { label: string; placeholder: string; type?: string };
+  /** Renders required City / State / ZIP fields (properties). */
   address?: boolean;
+  /** Persona is a required DB column for this object (leads). */
+  personaRequired?: boolean;
   status: { label: string; options: string[] };
 };
 
@@ -49,6 +53,7 @@ const FORM: Record<CrmObjectKey, FieldConfig> = {
     namePlaceholder: "Burst supply line flooded a finished basement overnight…",
     multiline: true,
     detail: { label: "Source", placeholder: "web_form, partner_referral…" },
+    personaRequired: true,
     status: { label: "Status", options: ["new", "needs_review", "qualified"] },
   },
   jobs: {
@@ -90,6 +95,7 @@ export function AddRecordModal({
   const [detail, setDetail] = useState("");
   const [city, setCity] = useState("");
   const [stateVal, setStateVal] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [persona, setPersona] = useState("");
   const [status, setStatus] = useState(cfg.status.options[0]);
   const [pending, setPending] = useState(false);
@@ -97,7 +103,11 @@ export function AddRecordModal({
 
   // The board remounts this component (via `key`) on each open and object
   // change, so the fields above initialize fresh — no reset effect needed.
-  const canSubmit = name.trim().length > 0 && !pending;
+  // Required fields mirror the DB's NOT-NULL columns: address parts for
+  // properties, a persona for leads.
+  const addressOk = !cfg.address || (city.trim() && stateVal.trim() && postalCode.trim());
+  const personaOk = !cfg.personaRequired || !!persona;
+  const canSubmit = name.trim().length > 0 && !!addressOk && personaOk && !pending;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -111,6 +121,7 @@ export function AddRecordModal({
       detail: detail.trim() || undefined,
       city: city.trim() || undefined,
       state: stateVal.trim() || undefined,
+      postalCode: postalCode.trim() || undefined,
     });
     if (result.ok) {
       onClose();
@@ -170,16 +181,16 @@ export function AddRecordModal({
         {cfg.address && (
           <div className="mrow">
             <label className="mfield">
-              <span className="mlabel">
-                City <span className="mopt">optional</span>
-              </span>
-              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Chicago" />
+              <span className="mlabel">City</span>
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Chicago" required />
+            </label>
+            <label className="mfield" style={{ maxWidth: 90 }}>
+              <span className="mlabel">State</span>
+              <input value={stateVal} onChange={(e) => setStateVal(e.target.value)} placeholder="IL" maxLength={2} required />
             </label>
             <label className="mfield" style={{ maxWidth: 120 }}>
-              <span className="mlabel">
-                State <span className="mopt">optional</span>
-              </span>
-              <input value={stateVal} onChange={(e) => setStateVal(e.target.value)} placeholder="IL" maxLength={2} />
+              <span className="mlabel">ZIP</span>
+              <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="60614" required />
             </label>
           </div>
         )}
@@ -187,10 +198,10 @@ export function AddRecordModal({
         <div className="mrow">
           <label className="mfield">
             <span className="mlabel">
-              Persona <span className="mopt">optional</span>
+              Persona {cfg.personaRequired ? null : <span className="mopt">optional</span>}
             </span>
-            <select value={persona} onChange={(e) => setPersona(e.target.value)}>
-              <option value="">No persona yet</option>
+            <select value={persona} onChange={(e) => setPersona(e.target.value)} required={cfg.personaRequired}>
+              <option value="">{cfg.personaRequired ? "Choose a persona…" : "No persona yet"}</option>
               {OFFICIAL_PERSONA_MAPPINGS.map((key) => (
                 <option key={key} value={key}>
                   {personaLabel(key)}
