@@ -1,11 +1,120 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 
 import { createCrmRecord } from "../actions";
 import { AddRecordModal, type AddRecordValue } from "./add-record-modal";
+
+type FilterOption = { value: string; label: string; count: number };
+
+// A working dropdown filter for the CRM toolbar. Previously the Persona/Status/
+// Owner buttons were dead <span>s; this makes each a real menu that filters the
+// table. Open/Escape/click-outside behavior mirrors account-menu.tsx.
+function FilterMenu({
+  icon,
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  options: FilterOption[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const active = value ? options.find((o) => o.value === value) : null;
+
+  return (
+    <span className="fbtn-wrap" ref={ref}>
+      <button type="button" className={`fbtn${value ? " active" : ""}`} onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
+        {icon}
+        {active ? active.label : label}
+        <span className="cv">▾</span>
+      </button>
+      {open && (
+        <div className="fmenu" role="menu">
+          <button type="button" className={`fmenu-item${value ? "" : " on"}`} role="menuitemradio" aria-checked={!value} onClick={() => { onChange(""); setOpen(false); }}>
+            <span>All {label.toLowerCase()}s</span>
+          </button>
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              className={`fmenu-item${o.value === value ? " on" : ""}`}
+              role="menuitemradio"
+              aria-checked={o.value === value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+            >
+              <span>{o.label}</span>
+              <span className="fmenu-c">{o.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+type SortKey = "recent" | "name" | "score";
+const SORT_LABELS: Record<SortKey, string> = { recent: "Recent", name: "Name", score: "Score" };
+
+function SortMenu({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <span className="fbtn-wrap" ref={ref}>
+      <button type="button" className={`iconf${value !== "recent" ? " active" : ""}`} title={`Sort: ${SORT_LABELS[value]}`} onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
+        <svg viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l3 3M17 20l-3-3" /></svg>
+      </button>
+      {open && (
+        <div className="fmenu fmenu-right" role="menu">
+          {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+            <button key={k} type="button" className={`fmenu-item${k === value ? " on" : ""}`} role="menuitemradio" aria-checked={k === value} onClick={() => { onChange(k); setOpen(false); }}>
+              <span>{SORT_LABELS[k]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
 
 export type CrmRowVM = {
   id: string;
@@ -210,6 +319,10 @@ export function CrmBoard({
   const [localByKey, setLocalByKey] = useState<Record<string, CrmRowVM[]>>({});
   const [addOpen, setAddOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [personaF, setPersonaF] = useState("");
+  const [statusF, setStatusF] = useState("");
+  const [ownerF, setOwnerF] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("recent");
 
   const active = objects.find((o) => o.key === activeKey) ?? objects[0];
   const localRows = localByKey[active.key] ?? [];
@@ -217,14 +330,40 @@ export function CrmBoard({
   const cols = COLS[active.key] ?? COLS.contacts;
   const countFor = (o: CrmObjectVM) => o.count + (localByKey[o.key]?.length ?? 0);
 
+  const allActiveRows = useMemo(
+    () => [...(localByKey[active.key] ?? []), ...(rowsByKey[active.key] ?? [])],
+    [localByKey, rowsByKey, active.key],
+  );
+
+  // Distinct filter options (with counts) drawn from the current object's rows.
+  const options = useMemo(() => {
+    const build = (pick: (r: CrmRowVM) => string): FilterOption[] => {
+      const counts = new Map<string, number>();
+      for (const r of allActiveRows) {
+        const v = pick(r).trim();
+        if (v && v !== "—") counts.set(v, (counts.get(v) ?? 0) + 1);
+      }
+      return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([value, count]) => ({ value, label: value, count }));
+    };
+    return { persona: build((r) => r.persona), status: build((r) => r.statusLabel), owner: build((r) => r.owner) };
+  }, [allActiveRows]);
+
+  const anyFilter = !!(personaF || statusF || ownerF);
+  const clearFilters = () => { setPersonaF(""); setStatusF(""); setOwnerF(""); };
+
   const visible = useMemo(() => {
-    const rows = [...(localByKey[active.key] ?? []), ...(rowsByKey[active.key] ?? [])];
     const needle = q.trim().toLowerCase();
-    const filtered = needle
-      ? rows.filter((r) => `${r.name} ${r.detail} ${r.persona} ${r.owner}`.toLowerCase().includes(needle))
-      : rows;
+    let filtered = allActiveRows.filter((r) => {
+      if (needle && !`${r.name} ${r.detail} ${r.persona} ${r.owner}`.toLowerCase().includes(needle)) return false;
+      if (personaF && r.persona !== personaF) return false;
+      if (statusF && r.statusLabel !== statusF) return false;
+      if (ownerF && r.owner !== ownerF) return false;
+      return true;
+    });
+    if (sortBy === "name") filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "score") filtered = [...filtered].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
     return filtered.slice(0, 100);
-  }, [rowsByKey, localByKey, active.key, q]);
+  }, [allActiveRows, q, personaF, statusF, ownerF, sortBy]);
 
   // Add a record: show it instantly, then persist. Offline/demo returns
   // persisted:false and the optimistic row stays (session-only). A real write
@@ -274,6 +413,10 @@ export function CrmBoard({
     setActiveKey(key);
     setQ("");
     setSelected(new Set());
+    setPersonaF("");
+    setStatusF("");
+    setOwnerF("");
+    setSortBy("recent");
   };
 
   return (
@@ -333,30 +476,35 @@ export function CrmBoard({
             aria-label={`Filter ${active.noun}`}
           />
         </span>
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>
-          Persona <span className="cv">▾</span>
-        </span>
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></svg>
-          Status <span className="cv">▾</span>
-        </span>
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>
-          Owner <span className="cv">▾</span>
-        </span>
-        <span className="fbtn dashed">
-          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-          Add filter
-        </span>
+        <FilterMenu
+          icon={<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>}
+          label="Persona"
+          options={options.persona}
+          value={personaF}
+          onChange={setPersonaF}
+        />
+        <FilterMenu
+          icon={<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></svg>}
+          label="Status"
+          options={options.status}
+          value={statusF}
+          onChange={setStatusF}
+        />
+        <FilterMenu
+          icon={<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>}
+          label="Owner"
+          options={options.owner}
+          value={ownerF}
+          onChange={setOwnerF}
+        />
+        {anyFilter && (
+          <button type="button" className="fbtn dashed" onClick={clearFilters}>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            Clear
+          </button>
+        )}
         <span className="gspacer" />
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
-          All {active.noun} <span className="cv">▾</span>
-        </span>
-        <span className="iconf" title="Sort">
-          <svg viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l3 3M17 20l-3-3" /></svg>
-        </span>
+        <SortMenu value={sortBy} onChange={setSortBy} />
         <span className="iconf" title="Columns">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg>
         </span>
