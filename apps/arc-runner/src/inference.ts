@@ -1,16 +1,22 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 
-/** The two work tiers the app routes to. Mirrors payload.route. */
-export type ArcRoute = "fast" | "standard";
+/**
+ * The work tiers the app routes to. Mirrors payload.route. Operator-facing these
+ * are the Arc Pulse / Drive / Deep tiers (see docs/MODEL-SELECTION.md):
+ *   fast → Arc Pulse (Instant) · standard → Arc Drive (Balanced) · deep → Arc Deep (Maximum)
+ * `deep` is defined but not yet routed — the app only emits fast/standard today.
+ */
+export type ArcRoute = "fast" | "standard" | "deep";
 
 /**
  * Per-turn inference settings for the Agent SDK query() call.
  *
- * Interactive chat (fast) rides Sonnet with a light thinking budget so it
- * reasons a beat without feeling slow; heavier work (standard: drafting, scans,
- * campaign tasks) rides Opus with a deep thinking budget. `fallbackModel` keeps
- * a turn alive if the primary is unavailable; `maxTurns` + `maxBudgetUsd` are
- * runaway rails that keep the Opus path safe to run multi-tenant.
+ * Arc Pulse (fast) rides Sonnet with a light thinking budget so it reasons a beat
+ * without feeling slow; Arc Drive (standard: drafting, scans, campaign tasks)
+ * rides Opus with a deep thinking budget; Arc Deep (max, dormant) reserves the
+ * frontier tier for the hardest long-horizon runs. `fallbackModel` keeps a turn
+ * alive if the primary is unavailable; `maxTurns` + `maxBudgetUsd` are runaway
+ * rails that keep every path safe to run multi-tenant.
  *
  * These are the smartness/cost dials — tune them HERE, in one place.
  */
@@ -22,25 +28,41 @@ export type InferenceSettings = {
   maxBudgetUsd: number;
 };
 
+// Arc Pulse — Instant. Sonnet 5 supersedes 4.6 (near-Opus quality at Sonnet cost,
+// adaptive thinking on by default). Its tokenizer is ~30% heavier than 4.6, so the
+// budget rail is bumped to keep the same effective headroom per turn.
 const FAST: InferenceSettings = {
-  // Deliberate upgrade from the old Haiku chat floor: extended thinking wants a
-  // Sonnet-class model. (This replaced context.ts's modelForRoute.)
-  model: "claude-sonnet-4-6",
+  model: "claude-sonnet-5",
   fallbackModel: "claude-haiku-4-5",
   maxThinkingTokens: 2_000,
   maxTurns: 12,
-  maxBudgetUsd: 0.75,
+  maxBudgetUsd: 1,
 };
 
+// Arc Drive — Balanced. The default workhorse tier.
 const STANDARD: InferenceSettings = {
   model: "claude-opus-4-8",
-  fallbackModel: "claude-sonnet-4-6",
+  fallbackModel: "claude-sonnet-5",
   maxThinkingTokens: 10_000,
   maxTurns: 24,
   maxBudgetUsd: 3,
 };
 
+// Arc Deep — Maximum. For right now the ceiling is Opus 4.8: Deep runs the same
+// model as Drive but at maximum deliberation — deeper thinking budget, more turns,
+// higher spend cap. Claude Fable 5 is the intended future occupant here once its
+// operational requirements (30-day data retention, refusal/fallback handling) are
+// cleared — swap the model string to enable. DORMANT: no route emits "deep" yet.
+const DEEP: InferenceSettings = {
+  model: "claude-opus-4-8",
+  fallbackModel: "claude-opus-4-7",
+  maxThinkingTokens: 24_000,
+  maxTurns: 36,
+  maxBudgetUsd: 8,
+};
+
 export function inferenceForRoute(route: ArcRoute): InferenceSettings {
+  if (route === "deep") return DEEP;
   return route === "standard" ? STANDARD : FAST;
 }
 

@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
+
+import { DEFAULT_MEDIA_CONFIG, MEDIA_AUTO, type MediaConfig, type MediaAspect } from "@/domain";
+
+import { saveMediaConfigAction } from "../actions";
 
 import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView } from "@/lib/auth/team-view";
 import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
@@ -36,13 +40,23 @@ const NAVGROUPS = [
 const DOTS: Record<string, string> = { connections: "var(--ok)", agent: "var(--ok)", system: "var(--ok)", notifications: "var(--warn)" };
 
 // ---- reusable controls ----
-function Sw({ on: init, locked }: { on?: boolean; locked?: boolean }) {
-  const [on, setOn] = useState(!!init);
-  return <span className={`sw${on ? " on" : ""}${locked ? " locked" : ""}`} onClick={() => !locked && setOn((v) => !v)}><i /></span>;
+// Sw/Seg support both an uncontrolled mode (self-state, for cosmetic mockup rows)
+// and a controlled mode (value + onChange, for persisted settings).
+function Sw({ on: init, locked, value, onChange }: { on?: boolean; locked?: boolean; value?: boolean; onChange?: (v: boolean) => void }) {
+  const [self, setSelf] = useState(!!init);
+  const on = onChange ? !!value : self;
+  const toggle = () => {
+    if (locked) return;
+    if (onChange) onChange(!on);
+    else setSelf((v) => !v);
+  };
+  return <span className={`sw${on ? " on" : ""}${locked ? " locked" : ""}`} onClick={toggle}><i /></span>;
 }
-function Seg({ opts, active }: { opts: string[]; active: string }) {
-  const [v, setV] = useState(active);
-  return <div className="seg">{opts.map((o) => <button key={o} className={o === v ? "on" : ""} onClick={() => setV(o)}>{o}</button>)}</div>;
+function Seg({ opts, active, value, onChange }: { opts: string[]; active: string; value?: string; onChange?: (v: string) => void }) {
+  const [self, setSelf] = useState(active);
+  const v = onChange ? (value ?? active) : self;
+  const pick = (o: string) => (onChange ? onChange(o) : setSelf(o));
+  return <div className="seg">{opts.map((o) => <button key={o} className={o === v ? "on" : ""} onClick={() => pick(o)}>{o}</button>)}</div>;
 }
 function Pill({ kind, children }: { kind: string; children: ReactNode }) {
   return <span className={`spill ${kind}`}><span className="pd" />{children}</span>;
@@ -96,12 +110,7 @@ const MEDIA_MODELS: Record<string, [string, string, string, number?][]> = {
 const PCOL: Record<string, string> = { Higgsfield: "#c8a24a", Google: "#5b8def", "Black Forest Labs": "#9678c8", OpenAI: "#7fb89a", xAI: "#aab2bd", Kling: "#E1306C", Bytedance: "#88b6d8", Recraft: "#c47055", "Tongyi-MAI": "#19c4cc", Inworld: "#9678c8", Mirelo: "#7fb89a", Sonilo: "#f3c64a", Hailuo: "#FF7A59", Wan: "#52BD94" };
 const pinit = (p: string) => { const w = p.split(/[\s-]+/); return (w.length > 1 ? w[0][0] + w[1][0] : p.slice(0, 2)).toUpperCase(); };
 
-const EMPTY_USAGE: SettingsUsageView = {
-  isDemo: false, configured: false, tokensLabel: "0", runsLabel: "0", costLabel: "$0.00",
-  capLabel: "$80", pctOfCap: 0, isNearCap: false, rangeLabel: "Last 30 days",
-};
-
-export function SettingsView({ brandName, email, team, usage }: { brandName: string; email: string; team: SettingsTeamView; usage: SettingsUsageView | null }) {
+export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_MEDIA_CONFIG }: { brandName: string; email: string; initialMediaConfig?: MediaConfig }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -110,7 +119,31 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
   const [connCat, setConnCat] = useState("All");
   const [connQ, setConnQ] = useState("");
   const [mediaCat, setMediaCat] = useState<"image" | "video" | "audio">("image");
-  const [mediaDef, setMediaDef] = useState<Record<string, string>>({ image: "auto", video: "auto", audio: "auto" });
+  // Layer 2 media config — persisted via saveMediaConfigAction. When autoPick is
+  // on, Arc picks the recommended model per task and the per-category overrides
+  // are ignored at runtime (see effectiveMediaModel); turn it off to lock in a
+  // specific model per category.
+  const [mediaDef, setMediaDef] = useState<Record<string, string>>({ ...initialMediaConfig.defaults });
+  const [mediaAutoPick, setMediaAutoPick] = useState(initialMediaConfig.autoPick);
+  const [mediaAspect, setMediaAspect] = useState<MediaAspect>(initialMediaConfig.defaultAspect);
+  const [preferRealMedia, setPreferRealMedia] = useState(initialMediaConfig.preferRealMedia);
+  const [allowVideo, setAllowVideo] = useState(initialMediaConfig.allowVideo);
+  const [mediaSaving, startMediaSave] = useTransition();
+  const [mediaSaved, setMediaSaved] = useState(false);
+  const saveMedia = () => {
+    setMediaSaved(false);
+    const config: MediaConfig = {
+      defaults: { image: mediaDef.image ?? MEDIA_AUTO, video: mediaDef.video ?? MEDIA_AUTO, audio: mediaDef.audio ?? MEDIA_AUTO },
+      autoPick: mediaAutoPick,
+      defaultAspect: mediaAspect,
+      preferRealMedia,
+      allowVideo,
+    };
+    startMediaSave(async () => {
+      await saveMediaConfigAction(config);
+      setMediaSaved(true);
+    });
+  };
   const [accent, setAccent] = useState(0);
   const domain = "bigshouldersrestoration.com";
 
@@ -210,11 +243,15 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
     media: (
       <>
         <Head t="Media models" d="The roster Arc generates with — 44 image, video & audio models from the live Higgsfield catalog. Arc auto-picks the best model per task; override the default per category. Every generation is a provenance-tagged, approval-gated draft." />
-        <Panel title="Generation defaults" tag={TGOK} foot="media config + higgsfield-models.ts roster">
-          <Row label="Auto-pick best model" desc="Let Arc choose the right model per task (recommended)."><Sw on /></Row>
-          <Row label="Default aspect" desc="Per-platform overrides still apply."><Seg opts={["1:1", "4:5", "9:16", "16:9"]} active="4:5" /></Row>
-          <Row label="Prefer real brand media" desc="AI enhances your approved photos & footage rather than replacing them."><Sw on /></Row>
-          <Row label="Allow video generation"><Sw on /></Row>
+        <Panel title="Generation defaults" tag={TGOK} foot="workspace_media_config · saveMediaConfigAction / getWorkspaceMediaConfig">
+          <Row label="Auto-pick best model" desc="Let Arc choose the right model per task (recommended). Turn off to lock in your per-category picks below."><Sw value={mediaAutoPick} onChange={setMediaAutoPick} /></Row>
+          <Row label="Default aspect" desc="Per-platform overrides still apply."><Seg opts={["1:1", "4:5", "9:16", "16:9"]} active="4:5" value={mediaAspect} onChange={(v) => setMediaAspect(v as MediaAspect)} /></Row>
+          <Row label="Prefer real brand media" desc="AI enhances your approved photos & footage rather than replacing them."><Sw value={preferRealMedia} onChange={setPreferRealMedia} /></Row>
+          <Row label="Allow video generation"><Sw value={allowVideo} onChange={setAllowVideo} /></Row>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 0 4px" }}>
+            <button className="btn gold" onClick={saveMedia} disabled={mediaSaving}><Ic d={CHECK} />{mediaSaving ? "Saving…" : "Save changes"}</button>
+            {mediaSaved && !mediaSaving ? <span className="tg ok">Saved</span> : null}
+          </div>
         </Panel>
         <div className="panel">
           <div className="panel-h"><h3>Model roster</h3><span className="ph-d" style={{ marginLeft: 6 }}>44 models</span><span className="tg ok" style={{ marginLeft: "auto" }}>wired</span></div>
