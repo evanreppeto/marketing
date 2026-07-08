@@ -2,6 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 
+import { createInvite, createWorkspace } from "../actions";
+import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
+
 const ICON: Record<string, string> = {
   general: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.3 2.5h4l.3-2.5a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5a7 7 0 00.1-1z"/>',
   appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 000 18 4 4 0 000-8 3 3 0 010-6 4 4 0 000-4z"/>',
@@ -151,26 +154,13 @@ export function SettingsView({ brandName, email }: { brandName: string; email: s
             </div>
           ))}
         </Panel>
-        <Panel title="Pending invites" tag={TGOK}>
-          <div className="mem"><span className="ma" style={{ color: "var(--muted)", background: "var(--inset)", borderColor: "var(--line-2)" }}>?</span><div className="mi"><div className="mn">jordan@{domain}</div><div className="me">Marketer · expires in 12 days</div></div><Pill kind="warn">Pending</Pill><button className="btn sm">Resend</button><button className="btn sm danger">Revoke</button></div>
-        </Panel>
-        <Panel title="Invite a teammate" tag={TGOK} foot="workspace_invites · issueWorkspaceInviteCode → sendBrandedEmail">
-          <Row label="Email" desc="They’ll get a branded invite with a single-use code."><input className="inp" placeholder="name@company.com" /></Row>
-          <Row label="Role" desc="Roles map to capabilities (approve, draft, view)."><select className="sel" defaultValue="Marketer"><option>Admin</option><option>Marketer</option><option>Reviewer</option><option>Member</option><option>Viewer</option></select></Row>
-          <Row label="Expires"><select className="sel" style={{ minWidth: 110 }} defaultValue="14 days"><option>7 days</option><option>14 days</option><option>30 days</option><option>60 days</option></select></Row>
-          <div style={{ padding: "13px 0 4px" }}><button className="btn gold"><Ic d='<path d="M3 12l18-8-8 18-2-7z"/>' />Send invite</button></div>
-        </Panel>
+        <TeamInvites domain={domain} />
       </>
     ),
     workspaces: (
       <>
         <Head t="Workspaces" d="Each workspace is its own brand, CRM, and Arc. Switching re-tailors the whole app." />
-        <Panel title="Your workspaces" tag={TGOK}>
-          {[["B", brandName, "Owner · Restoration & home services", true], ["S", "Summit Restoration", "Admin · Home services", false], ["P", "Personal", "Owner · Sandbox", false]].map((w) => (
-            <div className="mem" key={w[1] as string}><span className="ma">{w[0]}</span><div className="mi"><div className="mn">{w[1]}</div><div className="me">{w[2]}</div></div>{w[3] ? <Pill kind="ok">Active</Pill> : <button className="btn sm">Switch</button>}</div>
-          ))}
-        </Panel>
-        <div><button className="btn"><Ic d='<path d="M12 5v14M5 12h14"/>' />New workspace</button></div>
+        <WorkspacesSection brandName={brandName} />
       </>
     ),
     connections: (
@@ -330,5 +320,148 @@ export function SettingsView({ brandName, email }: { brandName: string; email: s
       </nav>
       <div className="setmain"><div className="setmain-in">{sections[cur]}</div></div>
     </div>
+  );
+}
+
+// ---- Team invites (wired) ----
+// Real invite creation via createInvite. Offline (persisted:false) the invite is
+// shown optimistically without claiming it sent. Revoke removes it locally.
+type PendingInvite = { id: string; email: string; role: string; note: string };
+
+function TeamInvites({ domain }: { domain: string }) {
+  const [invites, setInvites] = useState<PendingInvite[]>([
+    { id: "seed", email: `jordan@${domain}`, role: "Marketer", note: "expires in 12 days" },
+  ]);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Marketer");
+  const [expires, setExpires] = useState("14 days");
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+
+  async function send() {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setStatus({ tone: "err", text: "Enter an email address." });
+      return;
+    }
+    const days = parseInt(expires, 10) || 14;
+    const tempId = `local-${crypto.randomUUID()}`;
+    setInvites((prev) => [{ id: tempId, email: trimmed, role, note: `${role} · just now` }, ...prev]);
+    setStatus(null);
+    setPending(true);
+
+    const res = await createInvite({ email: trimmed, role, expiresInDays: days });
+    setPending(false);
+    if (!res.ok) {
+      setInvites((prev) => prev.filter((i) => i.id !== tempId));
+      setStatus({ tone: "err", text: res.error });
+      return;
+    }
+    setEmail("");
+    setStatus({
+      tone: "ok",
+      text: res.persisted
+        ? res.message ?? "Invite sent."
+        : "Invite added — connect your workspace (Supabase) to send it for real.",
+    });
+  }
+
+  return (
+    <>
+      <Panel title="Pending invites" tag={TGOK}>
+        {invites.length === 0 ? (
+          <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No pending invites.</div>
+        ) : (
+          invites.map((inv) => (
+            <div className="mem" key={inv.id}>
+              <span className="ma" style={{ color: "var(--muted)", background: "var(--inset)", borderColor: "var(--line-2)" }}>?</span>
+              <div className="mi"><div className="mn">{inv.email}</div><div className="me">{inv.note}</div></div>
+              <Pill kind="warn">Pending</Pill>
+              <button className="btn sm danger" onClick={() => setInvites((prev) => prev.filter((i) => i.id !== inv.id))}>Revoke</button>
+            </div>
+          ))
+        )}
+      </Panel>
+      <Panel title="Invite a teammate" tag={TGOK} foot="workspace_invites · issueWorkspaceInviteCode → sendBrandedEmail">
+        <Row label="Email" desc="They’ll get a branded invite with a single-use code.">
+          <input className="inp" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </Row>
+        <Row label="Role" desc="Roles map to capabilities (approve, draft, view).">
+          <select className="sel" value={role} onChange={(e) => setRole(e.target.value)}>
+            <option>Admin</option><option>Marketer</option><option>Reviewer</option><option>Member</option><option>Viewer</option>
+          </select>
+        </Row>
+        <Row label="Expires">
+          <select className="sel" style={{ minWidth: 110 }} value={expires} onChange={(e) => setExpires(e.target.value)}>
+            <option>7 days</option><option>14 days</option><option>30 days</option><option>60 days</option>
+          </select>
+        </Row>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0 4px" }}>
+          <button className="btn gold" onClick={send} disabled={pending}>
+            <Ic d='<path d="M3 12l18-8-8 18-2-7z"/>' />{pending ? "Sending…" : "Send invite"}
+          </button>
+          {status && (
+            <span style={{ fontSize: 12.5, color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</span>
+          )}
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+// ---- Workspaces (wired) ----
+type WorkspaceItem = { id: string; initial: string; name: string; meta: string; active: boolean };
+
+function WorkspacesSection({ brandName }: { brandName: string }) {
+  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([
+    { id: "b", initial: (brandName || "B").charAt(0).toUpperCase(), name: brandName, meta: "Owner · Restoration & home services", active: true },
+    { id: "s", initial: "S", name: "Summit Restoration", meta: "Admin · Home services", active: false },
+    { id: "p", initial: "P", name: "Personal", meta: "Owner · Sandbox", active: false },
+  ]);
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+
+  async function create(value: NewWorkspaceValue): Promise<{ ok: boolean; error?: string }> {
+    const tempId = `local-${crypto.randomUUID()}`;
+    setWorkspaces((prev) => [
+      { id: tempId, initial: value.workspaceName.charAt(0).toUpperCase() || "W", name: value.workspaceName, meta: "Owner · New workspace", active: false },
+      ...prev,
+    ]);
+    setStatus(null);
+
+    const res = await createWorkspace(value);
+    if (!res.ok) {
+      setWorkspaces((prev) => prev.filter((w) => w.id !== tempId));
+      setStatus({ tone: "err", text: res.error });
+      return { ok: false, error: res.error };
+    }
+    setStatus({
+      tone: "ok",
+      text: res.persisted
+        ? res.message ?? "Workspace created."
+        : "Workspace added — connect your account (Supabase) to provision it for real.",
+    });
+    return { ok: true };
+  }
+
+  return (
+    <>
+      <Panel title="Your workspaces" tag={TGOK}>
+        {workspaces.map((w) => (
+          <div className="mem" key={w.id}>
+            <span className="ma">{w.initial}</span>
+            <div className="mi"><div className="mn">{w.name}</div><div className="me">{w.meta}</div></div>
+            {w.active ? <Pill kind="ok">Active</Pill> : <button className="btn sm">Switch</button>}
+          </div>
+        ))}
+      </Panel>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button className="btn" onClick={() => setOpen(true)}><Ic d='<path d="M12 5v14M5 12h14"/>' />New workspace</button>
+        {status && (
+          <span style={{ fontSize: 12.5, color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</span>
+        )}
+      </div>
+      <NewWorkspaceModal key={open ? "open" : "closed"} open={open} onClose={() => setOpen(false)} onSubmit={create} />
+    </>
   );
 }

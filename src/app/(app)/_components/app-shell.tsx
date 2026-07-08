@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
+import { ComingSoonToasts } from "./coming-soon";
 import { CommandPalette, type CommandItem } from "./command-palette";
 import { NavProgress } from "./nav-progress";
 import { RoutePrewarm } from "./route-prewarm";
@@ -74,7 +75,7 @@ const PREWARM_HREFS = NAV_GROUPS.flatMap((g) => g.items.map((it) => it.href));
 // The ⌘K command menu jumps to every nav destination plus a few common actions.
 const COMMAND_ITEMS: CommandItem[] = [
   ...NAV_GROUPS.flatMap((g) => g.items.map((it) => ({ label: it.label, href: it.href, group: g.group }))),
-  { label: "New campaign", href: "/campaigns/new", group: "Action", keywords: "create draft" },
+  { label: "New campaign", href: "/campaigns", group: "Action", keywords: "create draft" },
   { label: "Scan for opportunities", href: "/opportunities", group: "Action", keywords: "find leads" },
   { label: "Settings", href: "/settings", group: "Workspace", keywords: "team account tokens" },
 ];
