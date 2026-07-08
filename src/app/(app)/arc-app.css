@@ -1226,3 +1226,6 @@
 .arc-app .arc-brain .qbtn.approve:hover:not(:disabled) { background: color-mix(in srgb, var(--ok-soft) 65%, var(--ok)); filter: brightness(1.05); }
 .arc-app .arc-brain .qbtn.reject:hover:not(:disabled) { border-color: var(--red-border); color: var(--red-text); background: var(--red-soft); }
 .arc-app .arc-brain .qbtn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Brand "Saved ✓" flash after an identity edit */
+.arc-app .arc-brand .bsaved { align-self: center; font-size: 12px; font-weight: 600; color: var(--ok-text); animation: arc-overlay-in 0.2s var(--ease); }
