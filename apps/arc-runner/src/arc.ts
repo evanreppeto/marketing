@@ -10,6 +10,10 @@ import type { ArcClient } from "./arc-client";
 import { ARC_SYSTEM_PROMPT } from "./prompt";
 import { allowedToolNames, toolsForMode, type ArcMode, type ToolContext } from "./tools";
 import { buildRemoteMcp, fetchRemoteConnectors, remoteConnectorsAllowedForMode } from "./connectors";
+import { fetchMediaConfig, mediaConfigAllowedForMode } from "./media-config";
+import { fetchConversationContext, persistConversationSummary, type HistoryOverflow } from "./conversation-context";
+import { summarizeConversation } from "./summarize";
+import { promoteConversationMemory } from "./extract-memory";
 import { resolveArcSkill, type ArcSkill } from "./skills";
 import type {
   ArcActionCard,
@@ -107,14 +111,18 @@ async function runArcQuery(opts: {
   const tools = toolsForMode(opts.mode, opts.client, opts.step, sink, { ...(opts.toolContext ?? {}), skill: opts.skill });
   const arcServer = createSdkMcpServer({ name: "arc", version: "1.0.0", tools });
 
-  // Remote MCP connectors (e.g. Higgsfield) load only in work modes, and only if
-  // the workspace has them enabled+credentialed. Best-effort: none on failure, so
-  // a connector outage never breaks a turn — Arc falls back to its built-in tools.
-  const remote = remoteConnectorsAllowedForMode(opts.mode) ? await fetchRemoteConnectors(opts.client) : [];
+  // Remote MCP connectors (e.g. Higgsfield) and the operator's media-model
+  // defaults both only matter in work modes; fetch them together, best-effort, so
+  // neither a connector outage nor a config miss ever breaks a turn.
+  const workModes = remoteConnectorsAllowedForMode(opts.mode);
+  const [remote, mediaConfig] = await Promise.all([
+    workModes ? fetchRemoteConnectors(opts.client) : Promise.resolve([]),
+    mediaConfigAllowedForMode(opts.mode) ? fetchMediaConfig(opts.client) : Promise.resolve(null),
+  ]);
   const { mcpServers: remoteServers, allowedTools: remoteAllowed } = buildRemoteMcp(remote);
 
   const workspaceState = await resolveWorkspaceSummary(opts.client);
-  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, { ...opts.ctx, workspaceState });
+  const system = buildSystemPrompt(ARC_SYSTEM_PROMPT, { ...opts.ctx, workspaceState, mediaConfig });
 
   let assistantText = "";
   let resultText = "";
@@ -195,11 +203,15 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     skill,
   };
 
-  const preamble = formatHistory(payload.history);
+  // Compaction-aware memory: the rolling summary of earlier turns + the recent
+  // turns verbatim, fetched per turn (the live wake doesn't carry history). This is
+  // what gives Arc chat memory; `overflow` is the older turns to compact after.
+  const memoryCtx = await fetchConversationContext(client, payload.conversationId, payload.messageId);
+  const preamble = formatHistory(memoryCtx.history, memoryCtx.summary);
   const text = preamble ? `${preamble}\n\nCurrent message:\n${payload.message}` : payload.message;
   const content = await buildTurnContentAsync(text, payload.attachments);
 
-  return runArcQuery({
+  const result = await runArcQuery({
     step,
     mode: payload.mode,
     ctx,
@@ -214,6 +226,37 @@ export async function runArcTurn(payload: MarkChatMessagePayload, client: ArcCli
     // Type the reply out live into the pending bubble as the model streams.
     onPartial: (text) => client.postChatChunk(payload.agentTaskId, text),
   });
+
+  // When the conversation has grown past the verbatim window, do two best-effort,
+  // fire-and-forget passes over the overflow turns (never delays/breaks the reply):
+  //   1. Auto-compaction — fold them into the rolling summary (working memory).
+  //   2. Memory promotion — distill durable facts into the Brain (cross-chat memory).
+  if (memoryCtx.overflow) {
+    void compactConversation(client, payload.conversationId, memoryCtx.summary, memoryCtx.overflow);
+    void promoteConversationMemory(client, memoryCtx.overflow.turns);
+  }
+  return result;
+}
+
+/** Summarize the overflow into the rolling summary and persist it. Best-effort —
+ *  any failure just leaves the prior summary in place to retry next turn. */
+async function compactConversation(
+  client: ArcClient,
+  conversationId: string,
+  priorSummary: string | null,
+  overflow: HistoryOverflow,
+): Promise<void> {
+  try {
+    const updated = await summarizeConversation(priorSummary, overflow.turns);
+    if (updated && updated.trim()) {
+      await persistConversationSummary(client, conversationId, {
+        summary: updated,
+        summaryThroughMessageId: overflow.throughMessageId,
+      });
+    }
+  } catch {
+    // swallow — compaction never breaks a turn
+  }
 }
 
 /**

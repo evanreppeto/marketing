@@ -2,14 +2,174 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type CSSProperties } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import type { SharePermission, ShareVisibility } from "@/domain";
+import { contextUsage } from "@/lib/arc-chat/context-usage";
 import type { ArcMessage } from "@/lib/arc-chat/persistence";
 import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
 
 import { sendArcMessageAction } from "../actions";
+import {
+  getChatSharingStateAction,
+  setChatSharingAction,
+  shareChatWithMemberAction,
+  unshareChatMemberAction,
+  type ChatSharingState,
+} from "../sharing-actions";
+
+/**
+ * Context meter — how full this chat's working window is (Claude-style). As it
+ * approaches the window, Arc keeps recent turns verbatim and compacts older ones
+ * into a rolling summary; the meter turns amber near the top, red once compaction
+ * engages. Estimate is client-side over message bodies (see context-usage.ts).
+ */
+function ContextMeter({ messages }: { messages: ArcMessage[] }) {
+  if (messages.length === 0) return null;
+  const { pct, level } = contextUsage(messages.map((m) => m.body ?? ""));
+  const color = level === "full" ? "var(--danger, #c0453b)" : level === "warn" ? "var(--warn)" : "var(--ok)";
+  const title =
+    level === "full"
+      ? "Context full — Arc summarizes earlier turns to keep the thread going"
+      : level === "warn"
+        ? `Context ${pct}% — Arc will soon summarize earlier turns`
+        : `Context ${pct}% of this chat's working window`;
+  return (
+    <span className="ctxmeter" title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+      <span
+        aria-hidden
+        style={{ width: 44, height: 4, borderRadius: 2, background: "var(--line, rgba(255,255,255,.14))", overflow: "hidden", display: "inline-block" }}
+      >
+        <span style={{ display: "block", height: "100%", width: `${Math.max(3, pct)}%`, background: color, transition: "width .3s ease" }} />
+      </span>
+      <span style={{ opacity: 0.75 }}>Context {pct}%</span>
+    </span>
+  );
+}
+
+/**
+ * Share dialog — chats are per-person (private by default). The owner can open a
+ * chat to the whole workspace (view or collaborate) or share it with specific
+ * members. Wraps the sharing server actions; loads current state on open. In
+ * offline/open mode it renders with defaults and the actions no-op (enforcement
+ * lives in supabase auth mode).
+ */
+function ShareDialog({ conversationId, onClose }: { conversationId: string | null; onClose: () => void }) {
+  const [state, setState] = useState<ChatSharingState | null>(null);
+  const [visibility, setVisibility] = useState<ShareVisibility>("private");
+  const [permission, setPermission] = useState<SharePermission>("view");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+
+  const reload = () => {
+    if (!conversationId) {
+      setState({ visibility: "private", workspacePermission: "view", shared: [], addable: [] });
+      return;
+    }
+    getChatSharingStateAction(conversationId).then((s) => {
+      setState(s);
+      setVisibility(s.visibility);
+      setPermission(s.workspacePermission);
+    });
+  };
+  useEffect(reload, [conversationId]);
+
+  const saveVisibility = () =>
+    conversationId &&
+    start(async () => {
+      const r = await setChatSharingAction({ conversationId, visibility, workspacePermission: permission });
+      setNotice(r.ok ? "Sharing updated" : r.error);
+    });
+  const add = (userId: string, perm: SharePermission) =>
+    conversationId &&
+    start(async () => {
+      await shareChatWithMemberAction({ conversationId, userId, permission: perm });
+      reload();
+    });
+  const remove = (userId: string) =>
+    conversationId &&
+    start(async () => {
+      await unshareChatMemberAction({ conversationId, userId });
+      reload();
+    });
+
+  const overlay: CSSProperties = {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", display: "flex",
+    alignItems: "center", justifyContent: "center", zIndex: 100,
+  };
+  const card: CSSProperties = {
+    width: "min(460px, 92vw)", maxHeight: "82vh", overflow: "auto", background: "var(--panel, #1a1c22)",
+    border: "1px solid var(--line, rgba(255,255,255,.12))", borderRadius: 14, padding: 18,
+    boxShadow: "0 20px 60px rgba(0,0,0,.5)",
+  };
+  const seg = (active: boolean): CSSProperties => ({
+    padding: "5px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13,
+    border: `1px solid ${active ? "var(--gold, #c8a24a)" : "var(--line, rgba(255,255,255,.14))"}`,
+    background: active ? "var(--gold, #c8a24a)22" : "transparent",
+    color: active ? "var(--gold, #c8a24a)" : "inherit",
+  });
+
+  return (
+    <div style={overlay} onClick={onClose} role="dialog" aria-label="Share chat" aria-modal="true">
+      <div className="sharecard" style={card} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Share chat</h3>
+          <button className="btn sm" style={{ marginLeft: "auto" }} onClick={onClose} aria-label="Close">Done</button>
+        </div>
+
+        {!conversationId ? (
+          <p style={{ opacity: 0.7, fontSize: 13 }}>Open or start a conversation to share it.</p>
+        ) : null}
+
+        <div style={{ marginBottom: 8, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", opacity: 0.6 }}>Who can access</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <button style={seg(visibility === "private")} onClick={() => setVisibility("private")}>Private (just you)</button>
+          <button style={seg(visibility === "workspace")} onClick={() => setVisibility("workspace")}>Everyone in workspace</button>
+        </div>
+        {visibility === "workspace" ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>They can</span>
+            <button style={seg(permission === "view")} onClick={() => setPermission("view")}>View</button>
+            <button style={seg(permission === "collaborate")} onClick={() => setPermission("collaborate")}>Collaborate</button>
+          </div>
+        ) : null}
+        <button className="btn gold" onClick={saveVisibility} disabled={busy || !conversationId} style={{ marginBottom: 16 }}>
+          {busy ? "Saving…" : "Save access"}
+        </button>
+
+        <div style={{ marginBottom: 8, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", opacity: 0.6 }}>Shared with specific people</div>
+        {state && state.shared.length > 0 ? (
+          state.shared.map((m) => (
+            <div key={m.userId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13 }}>
+              <span>{m.email ?? m.userId}</span>
+              <span style={{ opacity: 0.6 }}>· {m.permission}</span>
+              <button className="btn sm" style={{ marginLeft: "auto" }} onClick={() => remove(m.userId)} disabled={busy}>Remove</button>
+            </div>
+          ))
+        ) : (
+          <p style={{ opacity: 0.55, fontSize: 13, margin: "2px 0 8px" }}>Not shared with anyone specific yet.</p>
+        )}
+
+        {state && state.addable.length > 0 ? (
+          <>
+            <div style={{ marginTop: 10, marginBottom: 6, fontSize: 12, opacity: 0.6 }}>Add a member</div>
+            {state.addable.map((m) => (
+              <div key={m.userId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 13 }}>
+                <span>{m.email ?? m.userId}</span>
+                <button className="btn sm" style={{ marginLeft: "auto" }} onClick={() => add(m.userId, "view")} disabled={busy}>+ View</button>
+                <button className="btn sm" onClick={() => add(m.userId, "collaborate")} disabled={busy}>+ Collaborate</button>
+              </div>
+            ))}
+          </>
+        ) : null}
+
+        {notice ? <p style={{ marginTop: 12, fontSize: 12, opacity: 0.75 }}>{notice}</p> : null}
+      </div>
+    </div>
+  );
+}
 
 /* ── icon set (ported verbatim from build-arc-v2.html) ── */
 const Ico = {
@@ -28,6 +188,7 @@ const Ico = {
   save: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1z" /></svg>,
   star: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12 21l-5-2.7 1-5.5-4-4 5.5-.8z" /></svg>,
   folder: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z" /></svg>,
+  share: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>,
   mic: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
   send: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>,
   x: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>,
@@ -81,6 +242,7 @@ export function ArcView({
   const router = useRouter();
   const [sending, startSend] = useTransition();
   const [draft, setDraft] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
   const [threadSel, setThreadSel] = useState("Storm-damage homeowners");
   const [view, setView] = useState<"assets" | "audience">("assets");
   const [asset, setAsset] = useState("ad");
@@ -308,6 +470,7 @@ export function ArcView({
                   <button className="pill" data-soon="Switching Arc's model is coming soon"><span className="pic">{Ico.star}</span><span className="mlab">Auto ·</span> <span className="pval">Opus 4.8</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
                   <button className="pill mode" data-soon="Switching Arc's mode is coming soon"><span className="pic">{Ico.pencil}</span><span className="pval">Draft</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
                   <button className="pill" data-soon="Choosing a project is coming soon"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  <button className="pill" onClick={() => setShareOpen(true)} aria-label="Share this chat"><span className="pic">{Ico.share}</span><span className="pval">Share</span></button>
                 </div>
                 <div className="fright">
                   <button className="cbtn" aria-label="Voice input" data-soon="Voice input is coming soon">{Ico.mic}</button>
@@ -319,7 +482,7 @@ export function ArcView({
                 </div>
               </div>
             </div>
-            <div className="khint"><span><b>↵</b> send</span><span><b>⇧↵</b> new line</span><span><b>@</b> mention · <b>/</b> commands</span></div>
+            <div className="khint" style={{ display: "flex", alignItems: "center" }}><span><b>↵</b> send</span><span><b>⇧↵</b> new line</span><span><b>@</b> mention · <b>/</b> commands</span><ContextMeter messages={messages} /></div>
           </div>
         </div>
       </section>
@@ -438,6 +601,8 @@ export function ArcView({
           <span className="lock">{Ico.lock}2 ready · 1 generating · 1 blocked</span>
         </div>
       </section>
+
+      {shareOpen ? <ShareDialog conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
     </div>
   );
 }

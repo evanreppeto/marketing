@@ -26,6 +26,18 @@ describe("formatHistory", () => {
     expect(out).toContain("Operator:");
     expect(out).toContain("Arc:");
   });
+  it("prepends the compacted summary ahead of the verbatim turns", () => {
+    const out = formatHistory([{ role: "operator", body: "and the SMS?" }], "Operator is planning a storm campaign.");
+    expect(out).toContain("CONVERSATION SUMMARY (earlier turns");
+    expect(out).toContain("storm campaign");
+    // summary comes before the recent turns
+    expect(out.indexOf("CONVERSATION SUMMARY")).toBeLessThan(out.indexOf("Conversation so far"));
+  });
+  it("renders just the summary when there are no verbatim turns", () => {
+    const out = formatHistory([], "Prior context.");
+    expect(out).toContain("Prior context.");
+    expect(out).not.toContain("Conversation so far");
+  });
 });
 
 describe("buildSystemPrompt", () => {
@@ -89,5 +101,50 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("Return source-backed findings");
     expect(out).toContain("Allowed tools for this skill");
     expect(out).toContain("research_web");
+  });
+
+  it("injects an operator-locked media model as a firm default", () => {
+    const out = buildSystemPrompt("BASE", {
+      ...baseCtx,
+      mediaConfig: {
+        defaults: {
+          image: { id: "nano_banana_pro", label: "Nano Banana Pro", provider: "Google", explicit: true },
+          video: { id: "veo3_1", label: "Google Veo 3.1", provider: "Google", explicit: true },
+          audio: null,
+        },
+        autoPick: false,
+        allowVideo: true,
+        preferRealMedia: true,
+        defaultAspect: "9:16",
+      },
+    });
+    expect(out).toContain("MEDIA MODEL DEFAULTS");
+    expect(out).toContain('use "nano_banana_pro"');
+    expect(out).toContain("operator-locked default");
+    expect(out).toContain('use "veo3_1"');
+    expect(out).toContain("9:16");
+  });
+
+  it("tells Arc not to generate video when the operator disabled it", () => {
+    const out = buildSystemPrompt("BASE", {
+      ...baseCtx,
+      mediaConfig: {
+        defaults: {
+          image: { id: "marketing_studio_image", label: "Marketing Studio Image", provider: "Higgsfield", explicit: false },
+          video: null,
+          audio: null,
+        },
+        autoPick: true,
+        allowVideo: false,
+        preferRealMedia: true,
+        defaultAspect: "4:5",
+      },
+    });
+    expect(out).toContain("Video: DISABLED");
+    expect(out).toContain("Arc's pick");
+  });
+
+  it("omits the media block entirely when no media config is present", () => {
+    expect(buildSystemPrompt("BASE", baseCtx)).not.toContain("MEDIA MODEL DEFAULTS");
   });
 });

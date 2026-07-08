@@ -10,7 +10,14 @@ import {
   type LiveCampaignWorkspace,
 } from "@/lib/campaigns/read-model";
 
+import { ShareDialog } from "../../../_components/share-dialog";
 import { decideCampaignAsset, requestCampaignRevision } from "../actions";
+import {
+  getCampaignSharingStateAction,
+  setCampaignSharingAction,
+  shareCampaignWithMemberAction,
+  unshareCampaignMemberAction,
+} from "../../sharing-actions";
 
 const svg = (d: string, cls?: string) => <svg viewBox="0 0 24 24" className={cls} dangerouslySetInnerHTML={{ __html: d }} />;
 
@@ -79,6 +86,7 @@ export function CampaignDetailView({ detail }: { detail: LiveCampaignWorkspace }
   const [reviseFor, setReviseFor] = useState<string | null>(null);
   const [reviseText, setReviseText] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const persona = humanizePersona(campaign.persona);
@@ -132,10 +140,16 @@ export function CampaignDetailView({ detail }: { detail: LiveCampaignWorkspace }
   return (
     <div className="arc-campaign">
       <div className="cband">
-        <Link className="back" href="/campaigns">
-          {svg('<path d="M15 5l-7 7 7 7"/>')}
-          Back to Campaigns
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link className="back" href="/campaigns">
+            {svg('<path d="M15 5l-7 7 7 7"/>')}
+            Back to Campaigns
+          </Link>
+          <button className="cbtn" style={{ marginLeft: "auto" }} onClick={() => setShareOpen(true)} aria-label="Share this campaign">
+            {svg('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>')}
+            Share
+          </button>
+        </div>
         <div className="crow">
           <div className="cmain">
             <h1 className="cname">{campaign.name}</h1>
@@ -444,6 +458,18 @@ export function CampaignDetailView({ detail }: { detail: LiveCampaignWorkspace }
           </div>
         </aside>
       </div>
+
+      {shareOpen ? (
+        <ShareDialog
+          subjectId={campaign.id}
+          subjectNoun="campaign"
+          onClose={() => setShareOpen(false)}
+          load={getCampaignSharingStateAction}
+          onSetVisibility={(id, visibility, permission) => setCampaignSharingAction({ campaignId: id, visibility, workspacePermission: permission })}
+          onAdd={(id, userId, permission) => shareCampaignWithMemberAction({ campaignId: id, userId, permission }).then(() => {})}
+          onRemove={(id, userId) => unshareCampaignMemberAction({ campaignId: id, userId }).then(() => {})}
+        />
+      ) : null}
     </div>
   );
 }

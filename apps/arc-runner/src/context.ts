@@ -1,15 +1,26 @@
 import type { ArcBusinessContext } from "./business-context";
+import type { ArcMediaConfig } from "./media-config";
 import { ARC_PERSONAS } from "./personas";
 import type { ArcHistoryTurn, MarkMention } from "./types";
 import type { RecallItem } from "./recall";
 import type { ArcSkill } from "./skills";
 import type { WorkspaceSummary } from "./workspace-summary";
 
-/** Render bounded thread history as a prompt preamble. Empty string when none. */
-export function formatHistory(turns: ArcHistoryTurn[] | undefined): string {
-  if (!turns || turns.length === 0) return "";
-  const lines = turns.map((t) => `${t.role === "arc" ? "Arc" : "Operator"}: ${t.body}`);
-  return ["Conversation so far (most recent last):", ...lines].join("\n");
+/**
+ * Render thread memory as a prompt preamble: the rolling summary of earlier turns
+ * (compaction) followed by the recent turns verbatim. Either part may be absent;
+ * returns "" when there's no memory at all.
+ */
+export function formatHistory(turns: ArcHistoryTurn[] | undefined, summary?: string | null): string {
+  const parts: string[] = [];
+  if (summary && summary.trim()) {
+    parts.push(["CONVERSATION SUMMARY (earlier turns, compacted — treat as established context):", summary.trim()].join("\n"));
+  }
+  if (turns && turns.length > 0) {
+    const lines = turns.map((t) => `${t.role === "arc" ? "Arc" : "Operator"}: ${t.body}`);
+    parts.push(["Conversation so far (most recent last):", ...lines].join("\n"));
+  }
+  return parts.join("\n\n");
 }
 
 export type ArcTurnScope = {
@@ -28,6 +39,8 @@ export type ArcTurnContext = {
   memory?: RecallItem[];
   /** Live workspace snapshot injected as situational awareness (may be absent). */
   workspaceState?: WorkspaceSummary | null;
+  /** Operator media-model defaults (Layer 2) — steers Higgsfield model choice. */
+  mediaConfig?: ArcMediaConfig | null;
   assistantTone?: string;
   assistantResponseStyle?: string;
   approvalStrictness?: string;
@@ -145,6 +158,40 @@ function workspaceStateBlock(s: WorkspaceSummary | null | undefined): string | n
   ].join("\n");
 }
 
+/**
+ * Media-model defaults block (Layer 2). Tells Arc which Higgsfield model to reach
+ * for per category when generating, so the operator's per-workspace picks actually
+ * steer generation. An explicit pick is a firm default; an auto-pick is a
+ * recommendation Arc may override when a task calls for it. Only rendered in work
+ * modes (the caller passes mediaConfig only for act/draft).
+ */
+function mediaConfigBlock(config: ArcMediaConfig | null | undefined): string | null {
+  if (!config) return null;
+  const line = (label: string, d: ArcMediaConfig["defaults"]["image"]) => {
+    if (!d) return `- ${label}: no model available`;
+    return d.explicit
+      ? `- ${label}: use "${d.id}" (${d.label} · ${d.provider}) — operator-locked default; use it unless the task truly needs another model`
+      : `- ${label}: Arc's pick "${d.id}" (${d.label}) — recommended default, override when a task calls for it`;
+  };
+  const lines = [
+    "MEDIA MODEL DEFAULTS (operator settings — when generating via Higgsfield/mcp__higgsfield, use these models):",
+    line("Image", config.defaults.image),
+  ];
+  if (config.allowVideo) {
+    lines.push(line("Video", config.defaults.video));
+  } else {
+    lines.push("- Video: DISABLED by the operator — do not generate video; offer an image or storyboard instead");
+  }
+  lines.push(line("Audio", config.defaults.audio));
+  lines.push(`- Default aspect ratio: ${config.defaultAspect} (per-platform overrides still apply)`);
+  lines.push(
+    config.preferRealMedia
+      ? "- Prefer approved real brand media; use AI generation to enhance/package it, not to fabricate proof"
+      : "- AI-generated creative is acceptable where approved brand media isn't available",
+  );
+  return lines.join("\n");
+}
+
 /** Compose the full system prompt from the base prompt + per-turn context. */
 export function buildSystemPrompt(base: string, ctx: ArcTurnContext): string {
   const parts: (string | null)[] = [
@@ -154,6 +201,7 @@ export function buildSystemPrompt(base: string, ctx: ArcTurnContext): string {
     memoryBlock(ctx.memory),
     personasBlock(),
     modeBlock(ctx.mode),
+    mediaConfigBlock(ctx.mediaConfig),
     skillBlock(ctx.skill),
     styleBlock(ctx),
     scopeBlock(ctx.scope),

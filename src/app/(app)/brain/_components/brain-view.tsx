@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 
+import { rebuildBrainMemoryAction } from "../actions";
 import { KnowledgeGraph, type GraphEdge, type GraphNode } from "./knowledge-graph";
 
 export type FactVM = {
@@ -31,11 +32,14 @@ export type BrainData = {
 
 const IconResync = <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>;
 
+// Ordered to lead with what Arc knows + governance; the graph visualization is a
+// trust/debug view, so it's demoted to last (see docs — the Brain's value to a
+// human is reviewing what Arc learned, not the graph eye-candy).
 const TABS = [
-  { key: "web", label: "Knowledge Web", icon: <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4" /><circle cx="18" cy="7" r="2.4" /><circle cx="12" cy="17" r="2.4" /><path d="M8 7l8 1M7.5 8l3.5 7M16.5 9l-3.5 6" /></svg> },
-  { key: "facts", label: "All facts", icon: <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg> },
+  { key: "facts", label: "What Arc knows", icon: <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg> },
   { key: "review", label: "Needs review", icon: <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg> },
   { key: "learned", label: "Recently learned", icon: <svg viewBox="0 0 24 24"><path d="M12 8v4l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+  { key: "web", label: "Knowledge Web", icon: <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4" /><circle cx="18" cy="7" r="2.4" /><circle cx="12" cy="17" r="2.4" /><path d="M8 7l8 1M7.5 8l3.5 7M16.5 9l-3.5 6" /></svg> },
 ];
 
 function tierClass(t: string): string {
@@ -55,7 +59,15 @@ function Confidence({ value }: { value: number | null }) {
 }
 
 export function BrainView({ data }: { data: BrainData }) {
-  const [tab, setTab] = useState("web");
+  const [tab, setTab] = useState("facts");
+  const [rebuilding, startRebuild] = useTransition();
+  const [rebuildMsg, setRebuildMsg] = useState<string | null>(null);
+  const rebuild = () =>
+    startRebuild(async () => {
+      setRebuildMsg(null);
+      const r = await rebuildBrainMemoryAction();
+      setRebuildMsg(r.message);
+    });
   const [kind, setKind] = useState("all");
 
   const kinds = useMemo(() => {
@@ -75,7 +87,13 @@ export function BrainView({ data }: { data: BrainData }) {
             <h1 className="pt">Brain</h1>
             <div className="psub">Arc&rsquo;s memory — everything it knows about your business, and how it&rsquo;s connected.</div>
           </div>
-          <span className="gbtn">{IconResync}Resync from CRM</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+            {rebuildMsg ? <span style={{ fontSize: 12, opacity: 0.75 }}>{rebuildMsg}</span> : null}
+            <button type="button" className="gbtn" onClick={rebuild} disabled={rebuilding}>
+              {IconResync}
+              {rebuilding ? "Refreshing…" : "Refresh memory"}
+            </button>
+          </span>
         </div>
         <div className="bstats">
           {data.stats.map((s) => (
