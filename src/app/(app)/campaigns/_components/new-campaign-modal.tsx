@@ -14,14 +14,17 @@ function personaLabel(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Common restoration angles offered as quick suggestions (free text still wins).
-const FOCUS_SUGGESTIONS = [
-  "Water damage restoration",
-  "Fire & smoke restoration",
-  "Mold remediation",
-  "Storm & roof response",
-  "Basement flooding",
-  "Commercial water mitigation",
+// The DB `restoration_focus` enum — these are the only accepted values, so the
+// field is a select (free text would be rejected by Postgres).
+const FOCUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "burst_pipe", label: "Burst pipe" },
+  { value: "water_backup", label: "Water backup" },
+  { value: "standing_water", label: "Standing water" },
+  { value: "flood", label: "Flood" },
+  { value: "storm_surge", label: "Storm surge" },
+  { value: "sewage", label: "Sewage" },
+  { value: "mold", label: "Mold" },
+  { value: "fire", label: "Fire" },
 ];
 
 export function NewCampaignModal({
@@ -101,18 +104,16 @@ export function NewCampaignModal({
           </label>
           <label className="mfield">
             <span className="mlabel">Focus</span>
-            <input
-              value={focus}
-              onChange={(e) => setFocus(e.target.value)}
-              placeholder="Water damage restoration"
-              list="campaign-focus-suggestions"
-              required
-            />
-            <datalist id="campaign-focus-suggestions">
-              {FOCUS_SUGGESTIONS.map((s) => (
-                <option key={s} value={s} />
+            <select value={focus} onChange={(e) => setFocus(e.target.value)} required>
+              <option value="" disabled>
+                Choose a focus…
+              </option>
+              {FOCUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
-            </datalist>
+            </select>
           </label>
         </div>
 

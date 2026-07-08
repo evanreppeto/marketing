@@ -16,6 +16,7 @@ export type CreateCrmInput = {
   detail?: string;
   city?: string;
   state?: string;
+  postalCode?: string;
   /** Audit label for metadata.owner. */
   owner?: string;
 };
@@ -60,7 +61,12 @@ function buildInsert(
   detail: string | null,
 ): { table: string; row: Record<string, unknown> } {
   const name = input.name.trim();
-  const base = { org_id: orgId, persona, metadata };
+  // Only write `persona` when we actually have one. Some tables (companies,
+  // contacts) have persona NOT NULL WITH a default — explicitly inserting null
+  // violates the constraint, so omit the key and let the default apply. Leads
+  // require a real persona and the action guarantees one is present.
+  const base: Record<string, unknown> = { org_id: orgId, metadata };
+  if (persona) base.persona = persona;
 
   switch (input.objectKey) {
     case "companies":
@@ -69,12 +75,12 @@ function buildInsert(
         row: { ...base, name, status: input.status || "active", website_url: detail, origin: "operator" },
       };
     case "contacts": {
+      // full_name is a GENERATED column (first + last) — never insert it directly.
       const [first, ...rest] = name.split(/\s+/);
       return {
         table: "contacts",
         row: {
           ...base,
-          full_name: name,
           first_name: first ?? name,
           last_name: rest.join(" ") || null,
           email: detail,
@@ -84,13 +90,15 @@ function buildInsert(
       };
     }
     case "properties":
+      // city / state / postal_code are NOT NULL in the DB — the modal requires them.
       return {
         table: "properties",
         row: {
           ...base,
           street_line_1: name,
-          city: input.city?.trim() || null,
-          state: input.state?.trim() || null,
+          city: input.city?.trim() || "",
+          state: input.state?.trim() || "",
+          postal_code: input.postalCode?.trim() || "",
           origin: "operator",
         },
       };

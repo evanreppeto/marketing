@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { isOfficialPersonaMapping } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { type CreateCrmInput, insertCrmRecord } from "@/lib/crm/create";
@@ -35,11 +36,31 @@ export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResu
   const name = input.name?.trim();
   if (!name) return { ok: false, error: "A name is required." };
 
+  // Enforce the object's DB-required columns up front (they're NOT NULL in
+  // Postgres, so a real insert would otherwise fail after the optimistic row).
+  if (input.objectKey === "leads" && !isOfficialPersonaMapping(input.persona)) {
+    return { ok: false, error: "A lead needs a persona." };
+  }
+  if (input.objectKey === "properties" && !(input.city?.trim() && input.state?.trim() && input.postalCode?.trim())) {
+    return { ok: false, error: "A property needs a city, state, and ZIP." };
+  }
+
   const actor = await getOperatorActor();
 
   // Offline/demo: no DB to write to. Report success-but-unpersisted so the board
   // can show the record without claiming it was saved.
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  // Leads and outcomes carry a DB check constraint requiring a linked parent
+  // (a lead needs a company/contact/property; an outcome needs a job/lead), so
+  // they can't be created bare. Fail honestly until the link picker exists,
+  // rather than surface a raw Postgres constraint error.
+  if (input.objectKey === "leads") {
+    return { ok: false, error: "A lead must be linked to a company, contact, or property — add it from that record." };
+  }
+  if (input.objectKey === "outcomes") {
+    return { ok: false, error: "An outcome must be linked to a job or lead — add it from that record." };
+  }
 
   const ctx = await getCurrentWorkspaceContext();
   const result = await insertCrmRecord({ ...input, name, owner: actor }, ctx.orgId);
