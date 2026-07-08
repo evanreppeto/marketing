@@ -6,6 +6,14 @@ import { DEFAULT_MEDIA_CONFIG, MEDIA_AUTO, type MediaConfig, type MediaAspect } 
 
 import { saveMediaConfigAction } from "../actions";
 
+import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView } from "@/lib/auth/team-view";
+import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
+
+import { cancelInvite, changeMemberRole, createInvite, createWorkspace, removeMember } from "../actions";
+import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
+
+const ROLE_OPTIONS = ["Owner", "Admin", "Marketer", "Reviewer", "Member", "Viewer"];
+
 const ICON: Record<string, string> = {
   general: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.3 2.5h4l.3-2.5a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5a7 7 0 00.1-1z"/>',
   appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 000 18 4 4 0 000-8 3 3 0 010-6 4 4 0 000-4z"/>',
@@ -104,6 +112,9 @@ const pinit = (p: string) => { const w = p.split(/[\s-]+/); return (w.length > 1
 
 export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_MEDIA_CONFIG }: { brandName: string; email: string; initialMediaConfig?: MediaConfig }) {
   const [cur, setCur] = useState("overview");
+  const memberCount = team.members.length;
+  const pendingCount = team.invites.length;
+  const usageView = usage ?? EMPTY_USAGE;
   const [navQ, setNavQ] = useState("");
   const [connCat, setConnCat] = useState("All");
   const [connQ, setConnQ] = useState("");
@@ -141,7 +152,7 @@ export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_ME
       <>
         <Head t="Overview" d="Your workspace at a glance — health, what needs you, and quick links." />
         <div className="ovgrid">
-          {[["connections", "3", "Connections active"], ["team", "4", "Team members"], ["agent", "OK", "Runner connected"], ["usage", "61%", "Of monthly cap"]].map(([ic, v, l]) => (
+          {[["connections", "3", "Connections active"], ["team", String(memberCount), "Team members"], ["agent", "OK", "Runner connected"], ["usage", `${usageView.pctOfCap}%`, "Of monthly cap"]].map(([ic, v, l]) => (
             <div className="ovcard" key={l} onClick={() => setCur(ic)}><div className="ovi"><Ic d={ICON[ic]} /></div><div className="ovv">{v}</div><div className="ovl">{l}</div></div>
           ))}
         </div>
@@ -153,7 +164,7 @@ export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_ME
         <Panel title="Workspace" tag={TGOK}>
           <Row label="Plan"><span className="pillrow"><Pill kind="ok">Premium</Pill><button className="btn sm">Manage plan</button></span></Row>
           <Row label="Business type"><span className="pillrow"><span className="ptxt">Company · Restoration &amp; home services</span><button className="btn sm" onClick={() => setCur("general")}>Change</button></span></Row>
-          <Row label="Team"><span className="pillrow"><span className="ptxt">4 members · 1 pending</span><button className="btn sm" onClick={() => setCur("team")}>Manage</button></span></Row>
+          <Row label="Team"><span className="pillrow"><span className="ptxt">{memberCount} {memberCount === 1 ? "member" : "members"}{pendingCount > 0 ? ` · ${pendingCount} pending` : ""}</span><button className="btn sm" onClick={() => setCur("team")}>Manage</button></span></Row>
         </Panel>
       </>
     ),
@@ -181,34 +192,14 @@ export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_ME
     team: (
       <>
         <Head t="Team" d="Members, roles, and invites. Invites send a branded email via Resend." />
-        <Panel title={<>Members <span className="ph-d" style={{ marginLeft: 6 }}>4</span></>} tag={TGOK}>
-          {[["EW", "Evan Walsh", `evan@${domain}`, "Owner"], ["DK", "Dana Kim", `dana@${domain}`, "Admin"], ["PR", "Priya Rao", `priya@${domain}`, "Marketer"], ["SM", "Sam Ortiz", `sam@${domain}`, "Reviewer"]].map((m) => (
-            <div className="mem" key={m[1]}><span className="ma">{m[0]}</span><div className="mi"><div className="mn">{m[1]}</div><div className="me">{m[2]}</div></div>
-              <select className="sel" style={{ minWidth: 120 }} defaultValue={m[3]} disabled={m[3] === "Owner"}>{["Owner", "Admin", "Marketer", "Reviewer", "Member", "Viewer"].map((o) => <option key={o}>{o}</option>)}</select>
-              {m[3] !== "Owner" && <button className="btn sm danger">Remove</button>}
-            </div>
-          ))}
-        </Panel>
-        <Panel title="Pending invites" tag={TGOK}>
-          <div className="mem"><span className="ma" style={{ color: "var(--muted)", background: "var(--inset)", borderColor: "var(--line-2)" }}>?</span><div className="mi"><div className="mn">jordan@{domain}</div><div className="me">Marketer · expires in 12 days</div></div><Pill kind="warn">Pending</Pill><button className="btn sm">Resend</button><button className="btn sm danger">Revoke</button></div>
-        </Panel>
-        <Panel title="Invite a teammate" tag={TGOK} foot="workspace_invites · issueWorkspaceInviteCode → sendBrandedEmail">
-          <Row label="Email" desc="They’ll get a branded invite with a single-use code."><input className="inp" placeholder="name@company.com" /></Row>
-          <Row label="Role" desc="Roles map to capabilities (approve, draft, view)."><select className="sel" defaultValue="Marketer"><option>Admin</option><option>Marketer</option><option>Reviewer</option><option>Member</option><option>Viewer</option></select></Row>
-          <Row label="Expires"><select className="sel" style={{ minWidth: 110 }} defaultValue="14 days"><option>7 days</option><option>14 days</option><option>30 days</option><option>60 days</option></select></Row>
-          <div style={{ padding: "13px 0 4px" }}><button className="btn gold"><Ic d='<path d="M3 12l18-8-8 18-2-7z"/>' />Send invite</button></div>
-        </Panel>
+        <TeamMembers team={team} />
+        <TeamInvites workspaceId={team.workspaceId} seedInvites={team.invites} />
       </>
     ),
     workspaces: (
       <>
         <Head t="Workspaces" d="Each workspace is its own brand, CRM, and Arc. Switching re-tailors the whole app." />
-        <Panel title="Your workspaces" tag={TGOK}>
-          {[["B", brandName, "Owner · Restoration & home services", true], ["S", "Summit Restoration", "Admin · Home services", false], ["P", "Personal", "Owner · Sandbox", false]].map((w) => (
-            <div className="mem" key={w[1] as string}><span className="ma">{w[0]}</span><div className="mi"><div className="mn">{w[1]}</div><div className="me">{w[2]}</div></div>{w[3] ? <Pill kind="ok">Active</Pill> : <button className="btn sm">Switch</button>}</div>
-          ))}
-        </Panel>
-        <div><button className="btn"><Ic d='<path d="M12 5v14M5 12h14"/>' />New workspace</button></div>
+        <WorkspacesSection brandName={brandName} />
       </>
     ),
     connections: (
@@ -315,13 +306,13 @@ export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_ME
       <>
         <Head t="Usage & billing" d="What Arc has consumed this period. Full breakdown lives in the Usage report." />
         <div className="panel">
-          <div className="panel-h"><h3>This month</h3><span className="tg est" style={{ marginLeft: "auto" }}>summary · partial</span></div>
+          <div className="panel-h"><h3>This month</h3><span className="tg ok" style={{ marginLeft: "auto" }}>wired</span></div>
           <div className="panel-b" style={{ padding: 16 }}>
-            <div className="ukpis">{[["1.84M", "Tokens"], ["312", "Agent runs"], ["$48.20", "Est. cost"]].map(([v, l]) => <div className="ukpi" key={l}><div className="uv">{v}</div><div className="ul">{l}</div></div>)}</div>
-            <div className="ubar"><i style={{ width: "61%" }} /></div>
-            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>61% of your $80 soft cap · resets Jul 1</div>
+            <div className="ukpis">{[[usageView.tokensLabel, "Tokens"], [usageView.runsLabel, "Agent runs"], [usageView.costLabel, "Est. cost"]].map(([v, l]) => <div className="ukpi" key={l}><div className="uv">{v}</div><div className="ul">{l}</div></div>)}</div>
+            <div className="ubar"><i style={{ width: `${Math.min(usageView.pctOfCap, 100)}%`, ...(usageView.isNearCap ? { background: "var(--warn)" } : {}) }} /></div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>{usageView.pctOfCap}% of your {usageView.capLabel} soft cap · {usageView.rangeLabel}</div>
           </div>
-          <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage · /api/v1/arc/usage — inline summary is the build gap; full /usage page exists</div>
+          <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage → summarizeUsageForSettings · full breakdown on the Usage report</div>
         </div>
         <div style={{ display: "flex", gap: 9 }}><button className="btn gold"><Ic d='<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6"/>' />Open full usage report</button><button className="btn">Manage plan</button></div>
       </>
@@ -372,5 +363,219 @@ export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_ME
       </nav>
       <div className="setmain"><div className="setmain-in">{sections[cur]}</div></div>
     </div>
+  );
+}
+
+// ---- Team members (wired) ----
+// Real member list from listWorkspaceTeamAccess (demo fallback offline). Role
+// changes + removal go through changeMemberRole / removeMember; offline they
+// resolve optimistically (persisted:false) without claiming a real write.
+function TeamMembers({ team }: { team: SettingsTeamView }) {
+  const [members, setMembers] = useState<SettingsTeamMember[]>(team.members);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const wsId = team.workspaceId ?? "";
+  const initial = (e: string) => (e.trim()[0] || "?").toUpperCase();
+
+  async function changeRole(m: SettingsTeamMember, label: string) {
+    const prev = members;
+    setMembers((ms) => ms.map((x) => (x.id === m.id ? { ...x, roleLabel: label, role: label.toLowerCase() } : x)));
+    setBusy(m.id);
+    setStatus(null);
+    const res = await changeMemberRole({ workspaceId: wsId, membershipId: m.id, role: label });
+    setBusy(null);
+    if (!res.ok) {
+      setMembers(prev);
+      setStatus({ tone: "err", text: res.error });
+    } else if (res.persisted) {
+      setStatus({ tone: "ok", text: `Updated ${m.email} to ${label}.` });
+    }
+  }
+
+  async function remove(m: SettingsTeamMember) {
+    const prev = members;
+    setMembers((ms) => ms.filter((x) => x.id !== m.id));
+    setBusy(m.id);
+    setStatus(null);
+    const res = await removeMember({ workspaceId: wsId, membershipId: m.id });
+    setBusy(null);
+    if (!res.ok) {
+      setMembers(prev);
+      setStatus({ tone: "err", text: res.error });
+    } else if (res.persisted) {
+      setStatus({ tone: "ok", text: `Removed ${m.email}.` });
+    }
+  }
+
+  return (
+    <Panel title={<>Members <span className="ph-d" style={{ marginLeft: 6 }}>{members.length}</span></>} tag={TGOK}>
+      {members.length === 0 ? (
+        <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No members yet.</div>
+      ) : (
+        members.map((m) => (
+          <div className="mem" key={m.id}>
+            <span className="ma">{initial(m.email)}</span>
+            <div className="mi"><div className="mn">{m.email}</div><div className="me">{m.roleLabel}{m.pending ? " · invited" : ""}</div></div>
+            <select className="sel" style={{ minWidth: 120 }} value={m.roleLabel} disabled={m.isOwner || busy === m.id} onChange={(e) => changeRole(m, e.target.value)}>
+              {ROLE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+            </select>
+            {!m.isOwner && <button className="btn sm danger" disabled={busy === m.id} onClick={() => remove(m)}>Remove</button>}
+          </div>
+        ))
+      )}
+      {status && <div style={{ fontSize: 12.5, padding: "8px 2px 0", color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</div>}
+    </Panel>
+  );
+}
+
+// ---- Team invites (wired) ----
+// Real invite creation via createInvite; the pending list is seeded from real
+// workspace invites. Offline (persisted:false) items resolve optimistically.
+type PendingInvite = { id: string; email: string; role: string; note: string };
+
+function TeamInvites({ workspaceId, seedInvites }: { workspaceId: string | null; seedInvites: SettingsTeamInvite[] }) {
+  const [invites, setInvites] = useState<PendingInvite[]>(seedInvites);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Marketer");
+  const [expires, setExpires] = useState("14 days");
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const wsId = workspaceId ?? "";
+
+  async function send() {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setStatus({ tone: "err", text: "Enter an email address." });
+      return;
+    }
+    const days = parseInt(expires, 10) || 14;
+    const tempId = `local-${crypto.randomUUID()}`;
+    setInvites((prev) => [{ id: tempId, email: trimmed, role, note: `${role} · just now` }, ...prev]);
+    setStatus(null);
+    setPending(true);
+
+    const res = await createInvite({ email: trimmed, role, expiresInDays: days });
+    setPending(false);
+    if (!res.ok) {
+      setInvites((prev) => prev.filter((i) => i.id !== tempId));
+      setStatus({ tone: "err", text: res.error });
+      return;
+    }
+    setEmail("");
+    setStatus({
+      tone: "ok",
+      text: res.persisted
+        ? res.message ?? "Invite sent."
+        : "Invite added — connect your workspace (Supabase) to send it for real.",
+    });
+  }
+
+  async function revoke(inv: PendingInvite) {
+    const prev = invites;
+    setInvites((list) => list.filter((i) => i.id !== inv.id));
+    const res = await cancelInvite({ workspaceId: wsId, inviteId: inv.id });
+    if (!res.ok) {
+      setInvites(prev);
+      setStatus({ tone: "err", text: res.error });
+    }
+  }
+
+  return (
+    <>
+      <Panel title="Pending invites" tag={TGOK}>
+        {invites.length === 0 ? (
+          <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No pending invites.</div>
+        ) : (
+          invites.map((inv) => (
+            <div className="mem" key={inv.id}>
+              <span className="ma" style={{ color: "var(--muted)", background: "var(--inset)", borderColor: "var(--line-2)" }}>?</span>
+              <div className="mi"><div className="mn">{inv.email}</div><div className="me">{inv.note}</div></div>
+              <Pill kind="warn">Pending</Pill>
+              <button className="btn sm danger" onClick={() => revoke(inv)}>Revoke</button>
+            </div>
+          ))
+        )}
+      </Panel>
+      <Panel title="Invite a teammate" tag={TGOK} foot="workspace_invites · issueWorkspaceInviteCode → sendBrandedEmail">
+        <Row label="Email" desc="They’ll get a branded invite with a single-use code.">
+          <input className="inp" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </Row>
+        <Row label="Role" desc="Roles map to capabilities (approve, draft, view).">
+          <select className="sel" value={role} onChange={(e) => setRole(e.target.value)}>
+            <option>Admin</option><option>Marketer</option><option>Reviewer</option><option>Member</option><option>Viewer</option>
+          </select>
+        </Row>
+        <Row label="Expires">
+          <select className="sel" style={{ minWidth: 110 }} value={expires} onChange={(e) => setExpires(e.target.value)}>
+            <option>7 days</option><option>14 days</option><option>30 days</option><option>60 days</option>
+          </select>
+        </Row>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0 4px" }}>
+          <button className="btn gold" onClick={send} disabled={pending}>
+            <Ic d='<path d="M3 12l18-8-8 18-2-7z"/>' />{pending ? "Sending…" : "Send invite"}
+          </button>
+          {status && (
+            <span style={{ fontSize: 12.5, color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</span>
+          )}
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+// ---- Workspaces (wired) ----
+type WorkspaceItem = { id: string; initial: string; name: string; meta: string; active: boolean };
+
+function WorkspacesSection({ brandName }: { brandName: string }) {
+  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([
+    { id: "b", initial: (brandName || "B").charAt(0).toUpperCase(), name: brandName, meta: "Owner · Restoration & home services", active: true },
+    { id: "s", initial: "S", name: "Summit Restoration", meta: "Admin · Home services", active: false },
+    { id: "p", initial: "P", name: "Personal", meta: "Owner · Sandbox", active: false },
+  ]);
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+
+  async function create(value: NewWorkspaceValue): Promise<{ ok: boolean; error?: string }> {
+    const tempId = `local-${crypto.randomUUID()}`;
+    setWorkspaces((prev) => [
+      { id: tempId, initial: value.workspaceName.charAt(0).toUpperCase() || "W", name: value.workspaceName, meta: "Owner · New workspace", active: false },
+      ...prev,
+    ]);
+    setStatus(null);
+
+    const res = await createWorkspace(value);
+    if (!res.ok) {
+      setWorkspaces((prev) => prev.filter((w) => w.id !== tempId));
+      setStatus({ tone: "err", text: res.error });
+      return { ok: false, error: res.error };
+    }
+    setStatus({
+      tone: "ok",
+      text: res.persisted
+        ? res.message ?? "Workspace created."
+        : "Workspace added — connect your account (Supabase) to provision it for real.",
+    });
+    return { ok: true };
+  }
+
+  return (
+    <>
+      <Panel title="Your workspaces" tag={TGOK}>
+        {workspaces.map((w) => (
+          <div className="mem" key={w.id}>
+            <span className="ma">{w.initial}</span>
+            <div className="mi"><div className="mn">{w.name}</div><div className="me">{w.meta}</div></div>
+            {w.active ? <Pill kind="ok">Active</Pill> : <button className="btn sm">Switch</button>}
+          </div>
+        ))}
+      </Panel>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button className="btn" onClick={() => setOpen(true)}><Ic d='<path d="M12 5v14M5 12h14"/>' />New workspace</button>
+        {status && (
+          <span style={{ fontSize: 12.5, color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</span>
+        )}
+      </div>
+      <NewWorkspaceModal key={open ? "open" : "closed"} open={open} onClose={() => setOpen(false)} onSubmit={create} />
+    </>
   );
 }

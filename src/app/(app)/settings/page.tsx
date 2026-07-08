@@ -10,9 +10,11 @@ import "./settings.css";
 export const metadata = { title: "Settings — Arc" };
 
 export default async function SettingsPage() {
-  const [ctx, user] = await Promise.all([
+  const [ctx, user, team, usage] = await Promise.all([
     getCurrentWorkspaceContext().catch(() => null),
     getSupabaseAuthenticatedUser().catch(() => null),
+    getSettingsTeamView().catch(() => ({ workspaceId: null, isDemo: false, members: [], invites: [] })),
+    getSettingsUsageView().catch(() => null),
   ]);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
   const email = user?.email || "owner@bsr.test";

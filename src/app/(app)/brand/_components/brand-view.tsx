@@ -2,27 +2,14 @@
 
 import { useState } from "react";
 
-const PAL = [
-  { role: "Primary", nm: "Restoration Blue", hex: "#3b6ef5" },
-  { role: "Secondary", nm: "Trust Teal", hex: "#18b4a6" },
-  { role: "Accent", nm: "Amber", hex: "#f2a93b" },
-  { role: "Ink", nm: "Ink", hex: "#14181f" },
-  { role: "Paper", nm: "Paper", hex: "#f5f7fa" },
-];
+import type { BrandProfileView } from "@/lib/brand-kit/profile-view";
+
+import { updateBrandIdentity } from "../actions";
+import { EditIdentityModal } from "./edit-identity-modal";
 
 const PREVIEW_IMG = "https://d8j0ntlcm91z4.cloudfront.net/user_3FaOq1cCR2Izxa2haYxVnIrhIBK/hf_20260625_205928_16464999-955a-4ad8-9f7e-44da9947830a_min.webp";
 const STUDIO = "/studio";
 const BRAIN = "/brain";
-
-const PROOF = ["<b>GAF-certified</b> installer", "<b>Licensed &amp; insured</b> local crews", "Maple Grove HOA reroofed in <b>5 days</b>", "<b>Google</b> · 4.8/5 (1,200+)"];
-const OFFERING = ["Roof replacement", "Storm-damage repair", "Insurance-claim assistance", "Gutter &amp; siding"];
-const GUARDRAILS = ["Make unverified savings / % claims", "Name competitors in paid ads", "Guarantee claim approval before inspection", "Use customer photos without rights", "Outbound-send without human approval"];
-const SOURCES = [
-  { ext: "PDF", extColor: undefined as string | undefined, nm: "Brand guidelines.pdf", facts: "18 facts", when: "analyzed 30d ago", stale: true },
-  { ext: "DOCX", extColor: "#2b78c4", nm: "Tone of voice.docx", facts: "9 facts", when: "analyzed 30d ago", stale: true },
-  { ext: "MD", extColor: "#5a5f6b", nm: "messaging-v3.md", facts: "12 facts", when: "analyzed 6d ago", stale: false },
-  { ext: "PDF", extColor: undefined, nm: "product-onepager.pdf", facts: "7 facts", when: "analyzed 6d ago", stale: false },
-];
 
 const CHECK = <svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6" /></svg>;
 const BAN = <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M6 6l12 12" /></svg>;
@@ -32,10 +19,25 @@ const DOC = <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3
 const ASPECTS = ["1 / 1", "4 / 5", "16 / 9", "9 / 16"];
 const ASPECT_LABELS = ["1:1", "4:5", "16:9", "9:16"];
 
-export function BrandView({ brandName }: { brandName: string }) {
+/** Relative luminance test so swatch text stays legible on any palette color. */
+function isLight(hex: string): boolean {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150;
+}
+
+export function BrandView({ view }: { view: BrandProfileView }) {
+  const { identity, palette, tone, voiceGuidance, preferredPhrases, bannedPhrases, proofPoints, services, guardrails, sources } = view;
   const [active, setActive] = useState(0);
   const [aspect, setAspect] = useState(0);
-  const accent = PAL[active].hex;
+  const [editOpen, setEditOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const accent = palette[active]?.hex ?? palette[0]?.hex ?? "var(--accent)";
+  const tagline = identity.tagline ?? "";
+  const headingFont = view.headingFont ?? "Fraunces";
+  const bodyFont = view.bodyFont ?? "Geist";
 
   return (
     <div className="arc-brand" style={{ ["--bactive" as string]: accent }}>
@@ -43,11 +45,19 @@ export function BrandView({ brandName }: { brandName: string }) {
       <div className="brandhero">
         <div className="mk2"><svg viewBox="0 0 24 24"><path d="M5 8l5 4-5 4M11 16h8" /></svg></div>
         <div className="bid">
-          <div className="bname"><span>{brandName}</span> <span className="bstatus">Published</span></div>
-          <div className="btag">Storm-damage roofing &amp; exteriors, done right.</div>
+          <div className="bname"><span>{identity.name}</span> <span className="bstatus">{identity.published ? "Published" : "Draft"}</span></div>
+          {tagline && <div className="btag">{tagline}</div>}
           <div className="bmeta">
-            <span>Roofing &amp; exteriors</span><span className="dot">·</span><span>Storm restoration</span><span className="dot">·</span>
-            <a>bigshouldersrestoration.com ↗</a><span className="dot">·</span><span>Legal: Big Shoulders Restoration, LLC</span>
+            {identity.segments.map((s, i) => (
+              <span key={s}>{i > 0 && <span className="dot">·</span>}{s}</span>
+            ))}
+            {identity.website && (
+              <>
+                <span className="dot">·</span>
+                <a href={identity.website} target="_blank" rel="noreferrer">{identity.website.replace(/^https?:\/\//, "")} ↗</a>
+              </>
+            )}
+            {identity.legalName && <><span className="dot">·</span><span>Legal: {identity.legalName}</span></>}
           </div>
         </div>
         <div className="bacts">
@@ -64,13 +74,7 @@ export function BrandView({ brandName }: { brandName: string }) {
             <div className="ih-title"><span className="sp"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg></span>Teach Arc your brand</div>
             <div className="ih-sub">Add your website, documents, and logo — Arc parses, reads, and analyzes them with Gemini, then proposes brand details for you to approve. Extracted facts land in your <b>Brain</b> and your Brand profile, gated by review — <b>nothing is auto-applied</b>.</div>
           </div>
-          <div className="ih-prog">4 sources · 46 facts · <b style={{ color: "var(--accent-contrast)" }}>5 pending</b></div>
-        </div>
-        <div className="bcomplete">
-          <span className="bc-l"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 4-3.5 7-8 8-4.5-1-8-4-8-8V7z" /><path d="M9 12l2 2 4-4" /></svg>Brand profile</span>
-          <div className="bc-bar"><i style={{ width: "84%" }} /></div>
-          <span className="bc-pct">84%</span>
-          <span className="bc-miss">Still needed: <a>richer proof</a> · <a>secondary logo</a> · <a>per-persona voice</a></span>
+          <div className="ih-prog">{sources.length} {sources.length === 1 ? "source" : "sources"} connected</div>
         </div>
         <div className="sources">
           <div className="isrc">
@@ -103,31 +107,36 @@ export function BrandView({ brandName }: { brandName: string }) {
           <div className="bsec">
             <div className="bsh"><h3>Brand palette</h3><span className="tg est">preview</span><div className="sx"><span className="editlink" data-soon="Editing the palette is coming soon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>Add color</span></div></div>
             <div className="bsb">
-              <div className="swrow">
-                {PAL.map((p, i) => {
-                  const dark = p.hex.toLowerCase() === "#14181f";
-                  const paper = p.hex === "#f5f7fa";
-                  return (
-                    <div key={p.role} className={`sw${i === active ? " on" : ""}`} onClick={() => setActive(i)}>
-                      <div className="chip" style={{ background: p.hex, ...(dark ? { borderBottom: "1px solid var(--line-2)" } : {}) }}>
-                        <span className="role" style={paper ? { color: "#3a3f4a", textShadow: "none" } : undefined}>{p.role}</span>
+              {palette.length === 0 ? (
+                <div className="bsnote" style={{ margin: 0 }}>No palette yet — add colors, or let Arc extract them from your website and logo.</div>
+              ) : (
+                <div className="swrow">
+                  {palette.map((p, i) => {
+                    const light = isLight(p.hex);
+                    return (
+                      <div key={p.role} className={`sw${i === active ? " on" : ""}`} onClick={() => setActive(i)}>
+                        <div className="chip" style={{ background: p.hex, ...(light ? {} : { borderBottom: "1px solid var(--line-2)" }) }}>
+                          <span className="role" style={light ? { color: "#3a3f4a", textShadow: "none" } : undefined}>{p.role}</span>
+                        </div>
+                        <div className="meta"><div className="nm">{p.name}</div><div className="hx">{p.hex}</div></div>
                       </div>
-                      <div className="meta"><div className="nm">{p.nm}</div><div className="hx">{p.hex}</div></div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div className="bsnote">Click a color to preview it as the active accent on the generated ad → Arc uses these tokens across every generated ad, landing page, and email render.</div>
+            {palette.length > 0 && (
+              <div className="bsnote">Click a color to preview it as the active accent on the generated ad → Arc uses these tokens across every generated ad, landing page, and email render.</div>
+            )}
           </div>
 
           {/* TYPOGRAPHY */}
           <div className="bsec">
             <div className="bsh"><h3>Typography</h3><span className="tg est">preview</span><div className="sx"><span className="editlink" data-soon="Editing typography is coming soon"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /></svg>Change</span></div></div>
             <div className="bsb"><div className="typ">
-              <div className="tspec serif"><div className="glyph">Aa</div><div className="ti"><div className="role">Display</div><div className="fam">Fraunces</div><div className="sample">Storm-damage roofing &amp; exteriors, done right.</div></div></div>
-              <div className="tspec"><div className="glyph">Aa</div><div className="ti"><div className="role">UI / Body</div><div className="fam">Geist</div><div className="sample">Licensed &amp; insured local crews. GAF-certified. Workmanship warranty.</div></div></div>
-              <div className="tspec mono"><div className="glyph">Aa</div><div className="ti"><div className="role">Mono / Code</div><div className="fam">Geist Mono</div><div className="sample">Maple Grove HOA · reroofed in 5 days</div></div></div>
+              <div className="tspec serif"><div className="glyph">Aa</div><div className="ti"><div className="role">Display</div><div className="fam">{headingFont}</div><div className="sample">{tagline || "Your headline, set in the display face."}</div></div></div>
+              <div className="tspec"><div className="glyph">Aa</div><div className="ti"><div className="role">UI / Body</div><div className="fam">{bodyFont}</div><div className="sample">{proofPoints.slice(0, 2).join(". ") || "Body copy for everyday UI and paragraphs."}</div></div></div>
+              <div className="tspec mono"><div className="glyph">Aa</div><div className="ti"><div className="role">Mono / Code</div><div className="fam">{bodyFont} Mono</div><div className="sample">{services[0] ?? "Structured data & labels"}</div></div></div>
             </div></div>
           </div>
 
@@ -146,9 +155,11 @@ export function BrandView({ brandName }: { brandName: string }) {
                 <div className="vp-body">“Hail hit Naperville hard on June 24. We’ll inspect your roof for free, coordinate the whole insurance claim, and back the work with our workmanship warranty — licensed, insured, local crews.”</div>
                 <div className="vp-meta"><i />Email opener · in your voice · 2 proof points · 0 banned phrases</div>
               </div>
+              {bannedPhrases.length > 0 && (
+                <div className="bsnote">Arc enforces banned phrases as a <b>guardrail</b> — drafts using them are flagged before they reach approval.</div>
+              )}
             </div>
-            <div className="bsnote">Arc enforces banned phrases as a <b>guardrail</b> — drafts using them are flagged before they reach approval.</div>
-          </div>
+          )}
 
           {/* PROOF / GUARDRAILS / SERVICES */}
           <div className="bsec">
@@ -157,13 +168,13 @@ export function BrandView({ brandName }: { brandName: string }) {
               <div className="twocol">
                 <div>
                   <div className="pl" style={{ fontSize: "10px", fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--muted)", margin: "0 0 6px" }}>Proof points</div>
-                  <div className="flist">{PROOF.map((t, i) => <div key={i} className="fitem"><span className="fi ok">{CHECK}</span><span dangerouslySetInnerHTML={{ __html: t }} /></div>)}</div>
+                  <div className="flist">{proofPoints.map((t, i) => <div key={i} className="fitem"><span className="fi ok">{CHECK}</span><span>{t}</span></div>)}</div>
                   <div className="pl" style={{ fontSize: "10px", fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--muted)", margin: "16px 0 6px" }}>Offering</div>
-                  <div className="flist">{OFFERING.map((t, i) => <div key={i} className="fitem"><span className="fi sv"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /></svg></span><span dangerouslySetInnerHTML={{ __html: t }} /></div>)}</div>
+                  <div className="flist">{services.map((t, i) => <div key={i} className="fitem"><span className="fi sv"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /></svg></span><span>{t}</span></div>)}</div>
                 </div>
                 <div>
                   <div className="pl" style={{ fontSize: "10px", fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--red-text)", margin: "0 0 6px" }}>Guardrails — Arc will not</div>
-                  <div className="flist">{GUARDRAILS.map((t, i) => <div key={i} className="fitem"><span className="fi gd">{BAN}</span><span>{t}</span></div>)}</div>
+                  <div className="flist">{guardrails.map((t, i) => <div key={i} className="fitem"><span className="fi gd">{BAN}</span><span>{t}</span></div>)}</div>
                 </div>
               </div>
             </div>
@@ -179,9 +190,9 @@ export function BrandView({ brandName }: { brandName: string }) {
               <img src={PREVIEW_IMG} alt="" />
               <div className="pvgrad" />
               <div className="pvcontent">
-                <div className="pvlogo"><i><svg viewBox="0 0 24 24"><path d="M5 8l5 4-5 4M11 16h8" /></svg></i>{brandName}</div>
-                <div className="pvh">Storm-damage roofing &amp; exteriors, done right.</div>
-                <div className="pvs">GAF-certified · licensed &amp; insured · workmanship warranty</div>
+                <div className="pvlogo"><i><svg viewBox="0 0 24 24"><path d="M5 8l5 4-5 4M11 16h8" /></svg></i>{identity.name}</div>
+                {tagline && <div className="pvh">{tagline}</div>}
+                {proofPoints.length > 0 && <div className="pvs">{proofPoints.slice(0, 3).join(" · ")}</div>}
                 <div className="pvcta">Book a free inspection →</div>
               </div>
             </div>
@@ -214,6 +225,26 @@ export function BrandView({ brandName }: { brandName: string }) {
           </div>
         </div>
       </div>
+
+      <EditIdentityModal
+        key={editOpen ? "open" : "closed"}
+        open={editOpen}
+        initial={{
+          displayName: identity.name,
+          tagline: identity.tagline ?? "",
+          websiteUrl: identity.website ?? "",
+          voiceGuidance: voiceGuidance ?? "",
+        }}
+        onClose={() => setEditOpen(false)}
+        onSubmit={async (value) => {
+          const res = await updateBrandIdentity(value);
+          if (res.ok) {
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+          }
+          return res;
+        }}
+      />
     </div>
   );
 }

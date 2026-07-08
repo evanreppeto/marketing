@@ -5,8 +5,6 @@ import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_componen
 
 export const metadata = { title: "Campaigns — Arc" };
 
-const NEW_CAMPAIGN_HREF = "/campaigns/new";
-
 function humanizePersona(persona: string): string {
   const s = (persona || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
@@ -117,5 +115,5 @@ export default async function CampaignsPage() {
       ? `Arc has ${pendingTotal} package${pendingTotal === 1 ? "" : "s"} awaiting your approval`
       : "Arc drafts approval-gated packages here as opportunities come in";
 
-  return <CampaignsBoard rows={rows} newCampaignHref={NEW_CAMPAIGN_HREF} arcNote={arcNote} />;
+  return <CampaignsBoard rows={rows} arcNote={arcNote} />;
 }

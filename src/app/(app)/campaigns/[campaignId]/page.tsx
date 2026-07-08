@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
+import { getCampaignPerformancePanel } from "@/lib/performance/campaign-panel";
 
 import { CampaignDetailView } from "./_components/campaign-detail-view";
 import "./campaign.css";
@@ -29,5 +30,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     );
   }
 
-  return <CampaignDetailView detail={detail} />;
+  const performance = await getCampaignPerformancePanel(decodeURIComponent(campaignId));
+
+  return <CampaignDetailView detail={detail} performance={performance} />;
 }

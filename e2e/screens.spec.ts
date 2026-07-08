@@ -1,15 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
 
-// Auto-discover every static gallery screen so new screens are covered for free.
-const screens = readdirSync(join(process.cwd(), "public"))
-  .filter((f) => f.startsWith("build-") && f.endsWith(".html"))
-  .sort();
-
-// Noise we don't fail on for a static smoke test: the external font CDN and
-// favicon fetches don't affect a screen's own behavior. Anything else — our own
-// JS throwing, a missing gallery script, a bad asset path — is a real failure.
+// Noise we don't fail on: the external font CDN and favicon fetches don't affect
+// the page's own behavior. Anything else — our own JS throwing, a bad asset
+// path — is a real failure.
 const IGNORE = [
   /fonts\.googleapis\.com/,
   /fonts\.gstatic\.com/,
@@ -36,31 +29,11 @@ function watchForErrors(page: Page): string[] {
   return errors;
 }
 
-test.describe("gallery screens smoke", () => {
-  for (const file of screens) {
-    test(`${file} loads and renders cleanly`, async ({ page }) => {
-      const errors = watchForErrors(page);
-
-      const resp = await page.goto(`/${file}`, { waitUntil: "load" });
-      expect(resp?.status(), `HTTP status for /${file}`).toBeLessThan(400);
-
-      // Let deferred gallery scripts (nav/cmdk/panes) run — they'd throw here if broken.
-      await page.waitForTimeout(500);
-
-      // The screen rendered meaningful content (guards against a blank/error page).
-      const bodyText = (await page.locator("body").innerText()).trim();
-      expect(bodyText.length, `${file} should render visible text`).toBeGreaterThan(40);
-
-      expect(errors, `${file} had errors:\n${errors.join("\n")}`).toEqual([]);
-    });
-  }
-});
-
 // The front door enters the real app (src/app/page.tsx redirects to /home).
 // An authenticated session lands on the home screen ("waiting on you"); without
 // one — as in CI, where there is no Supabase env — it redirects on to the
-// sign-in screen. Either way root resolves cleanly into the app, not the old
-// static mockup gallery.
+// sign-in screen. Either way root resolves cleanly into the app (the old static
+// mockup gallery under public/build-*.html has been removed).
 test("/ enters the real app", async ({ page }) => {
   const errors = watchForErrors(page);
   const resp = await page.goto("/", { waitUntil: "load" });

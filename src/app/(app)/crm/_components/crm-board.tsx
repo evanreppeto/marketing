@@ -1,6 +1,120 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { type CrmObjectKey } from "@/lib/crm/read-model";
+
+import { createCrmRecord } from "../actions";
+import { AddRecordModal, type AddRecordValue, type LinkOption } from "./add-record-modal";
+
+type FilterOption = { value: string; label: string; count: number };
+
+// A working dropdown filter for the CRM toolbar. Previously the Persona/Status/
+// Owner buttons were dead <span>s; this makes each a real menu that filters the
+// table. Open/Escape/click-outside behavior mirrors account-menu.tsx.
+function FilterMenu({
+  icon,
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  options: FilterOption[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const active = value ? options.find((o) => o.value === value) : null;
+
+  return (
+    <span className="fbtn-wrap" ref={ref}>
+      <button type="button" className={`fbtn${value ? " active" : ""}`} onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
+        {icon}
+        {active ? active.label : label}
+        <span className="cv">▾</span>
+      </button>
+      {open && (
+        <div className="fmenu" role="menu">
+          <button type="button" className={`fmenu-item${value ? "" : " on"}`} role="menuitemradio" aria-checked={!value} onClick={() => { onChange(""); setOpen(false); }}>
+            <span>All {label.toLowerCase()}s</span>
+          </button>
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              className={`fmenu-item${o.value === value ? " on" : ""}`}
+              role="menuitemradio"
+              aria-checked={o.value === value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+            >
+              <span>{o.label}</span>
+              <span className="fmenu-c">{o.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+type SortKey = "recent" | "name" | "score";
+const SORT_LABELS: Record<SortKey, string> = { recent: "Recent", name: "Name", score: "Score" };
+
+function SortMenu({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <span className="fbtn-wrap" ref={ref}>
+      <button type="button" className={`iconf${value !== "recent" ? " active" : ""}`} title={`Sort: ${SORT_LABELS[value]}`} onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
+        <svg viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l3 3M17 20l-3-3" /></svg>
+      </button>
+      {open && (
+        <div className="fmenu fmenu-right" role="menu">
+          {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+            <button key={k} type="button" className={`fmenu-item${k === value ? " on" : ""}`} role="menuitemradio" aria-checked={k === value} onClick={() => { onChange(k); setOpen(false); }}>
+              <span>{SORT_LABELS[k]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
 
 export type CrmRowVM = {
   id: string;
@@ -125,6 +239,69 @@ export type CrmObjectVM = {
 // use it so a row opens the live record graph rather than the old name-only mock.
 const recordHref = (r: CrmRowVM) => r.href;
 
+// --- Optimistic row construction (mirrors the server page.tsx row derivations) ---
+// A just-created record is shown immediately as a client-only row until a real
+// DB write revalidates the server render. These are compact copies of the
+// personaDot / statusTone / initials helpers so a fresh row looks like a real one.
+function initialsOf(name: string): string {
+  return (name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "•";
+}
+function personaLabelOf(key: string): string {
+  const s = (key || "").replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
+  if (!s || /^unassigned/i.test(s)) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function personaDotOf(persona: string): string {
+  const p = (persona || "").toLowerCase();
+  if (/emergency|urgent|storm|hail|flood|fire|burst|water\s*damage/.test(p)) return "#cc6a6a";
+  if (/insurance|adjuster|agent/.test(p)) return "#88b6d8";
+  if (/plumb|partner|contractor|referral|vendor|trade|sub/.test(p)) return "#7fb89a";
+  if (/preventative|preventive|maintenance|monitor|inspection/.test(p)) return "#6fae9e";
+  if (/rebuild|restoration|reconstruct|remodel|renov/.test(p)) return "#d8a24a";
+  if (/hoa|board|association|landlord|tenant/.test(p)) return "#9678c8";
+  if (/past|repeat|existing|customer|reactivat/.test(p)) return "#b58fd0";
+  return "#c8a24a";
+}
+function statusToneOf(status: string): string {
+  const t = (status || "").toLowerCase();
+  if (/lost|dead|cancel|churn/.test(t)) return "lost";
+  if (/won|complete|closed.?won|paid/.test(t)) return "won";
+  if (/qualified/.test(t)) return "qualified";
+  if (/schedul|booked|dispatch/.test(t)) return "sched";
+  if (/review|pending|needs|hold/.test(t)) return "review";
+  if (/new|open|fresh|inbound|prospect/.test(t)) return "new";
+  if (/active|live|engaged|in progress/.test(t)) return "active";
+  return "inactive";
+}
+function titleCase(value: string): string {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function buildOptimisticRow(objectKey: CrmObjectKey, id: string, v: AddRecordValue): CrmRowVM {
+  const detail = objectKey === "properties" ? [v.city, v.state].filter(Boolean).join(", ") : v.detail || "";
+  return {
+    id,
+    name: v.name,
+    detail,
+    initials: initialsOf(v.name),
+    isCompany: objectKey === "companies",
+    statusLabel: v.status ? titleCase(v.status) : "—",
+    statusTone: statusToneOf(v.status || ""),
+    persona: personaLabelOf(v.persona || ""),
+    dot: personaDotOf(v.persona || ""),
+    score: null,
+    scoreColor: "var(--muted)",
+    owner: "You",
+    updatedRel: "now",
+    updatedTime: "",
+    href: `/crm/${objectKey}/${id}`,
+    company: "",
+    value: "",
+    tier: "",
+    routing: "",
+    tasks: "",
+  };
+}
+
 export function CrmBoard({
   objects,
   rowsByKey,
@@ -137,19 +314,89 @@ export function CrmBoard({
   const [activeKey, setActiveKey] = useState(defaultKey);
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Client-only rows for records created this session, keyed by object. They sit
+  // on top of the server rows until a real DB write revalidates the page.
+  const [localByKey, setLocalByKey] = useState<Record<string, CrmRowVM[]>>({});
+  const [addOpen, setAddOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [personaF, setPersonaF] = useState("");
+  const [statusF, setStatusF] = useState("");
+  const [ownerF, setOwnerF] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("recent");
 
   const active = objects.find((o) => o.key === activeKey) ?? objects[0];
-  const totalRows = (rowsByKey[active.key] ?? []).length;
+  const localRows = localByKey[active.key] ?? [];
+  const totalRows = localRows.length + (rowsByKey[active.key] ?? []).length;
   const cols = COLS[active.key] ?? COLS.contacts;
+  const countFor = (o: CrmObjectVM) => o.count + (localByKey[o.key]?.length ?? 0);
+
+  const allActiveRows = useMemo(
+    () => [...(localByKey[active.key] ?? []), ...(rowsByKey[active.key] ?? [])],
+    [localByKey, rowsByKey, active.key],
+  );
+
+  // Parent records a lead/outcome can link to, from the loaded rows. Leads link
+  // to a company/contact/property; outcomes link to a job/lead.
+  const linkOptions = useMemo<LinkOption[]>(() => {
+    const from = (key: string, type: string, typeLabel: string): LinkOption[] =>
+      (rowsByKey[key] ?? []).filter((r) => !r.id.startsWith("local-")).map((r) => ({ type, id: r.id, label: `${typeLabel} · ${r.name}` }));
+    if (active.key === "leads") return [...from("companies", "company", "Company"), ...from("contacts", "contact", "Contact"), ...from("properties", "property", "Property")];
+    if (active.key === "outcomes") return [...from("jobs", "job", "Job"), ...from("leads", "lead", "Lead")];
+    return [];
+  }, [rowsByKey, active.key]);
+
+  // Distinct filter options (with counts) drawn from the current object's rows.
+  const options = useMemo(() => {
+    const build = (pick: (r: CrmRowVM) => string): FilterOption[] => {
+      const counts = new Map<string, number>();
+      for (const r of allActiveRows) {
+        const v = pick(r).trim();
+        if (v && v !== "—") counts.set(v, (counts.get(v) ?? 0) + 1);
+      }
+      return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([value, count]) => ({ value, label: value, count }));
+    };
+    return { persona: build((r) => r.persona), status: build((r) => r.statusLabel), owner: build((r) => r.owner) };
+  }, [allActiveRows]);
+
+  const anyFilter = !!(personaF || statusF || ownerF);
+  const clearFilters = () => { setPersonaF(""); setStatusF(""); setOwnerF(""); };
 
   const visible = useMemo(() => {
-    const rows = rowsByKey[active.key] ?? [];
     const needle = q.trim().toLowerCase();
-    const filtered = needle
-      ? rows.filter((r) => `${r.name} ${r.detail} ${r.persona} ${r.owner}`.toLowerCase().includes(needle))
-      : rows;
+    let filtered = allActiveRows.filter((r) => {
+      if (needle && !`${r.name} ${r.detail} ${r.persona} ${r.owner}`.toLowerCase().includes(needle)) return false;
+      if (personaF && r.persona !== personaF) return false;
+      if (statusF && r.statusLabel !== statusF) return false;
+      if (ownerF && r.owner !== ownerF) return false;
+      return true;
+    });
+    if (sortBy === "name") filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "score") filtered = [...filtered].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
     return filtered.slice(0, 100);
-  }, [rowsByKey, active.key, q]);
+  }, [allActiveRows, q, personaF, statusF, ownerF, sortBy]);
+
+  // Add a record: show it instantly, then persist. Offline/demo returns
+  // persisted:false and the optimistic row stays (session-only). A real write
+  // revalidates the server render, so we drop the optimistic twin to avoid a
+  // duplicate. A failure reverts the row and surfaces the error.
+  const handleCreate = async (value: AddRecordValue): Promise<{ ok: boolean; error?: string }> => {
+    const objectKey = active.key as CrmObjectKey;
+    const tempId = `local-${crypto.randomUUID()}`;
+    setError(null);
+    setLocalByKey((prev) => ({ ...prev, [objectKey]: [buildOptimisticRow(objectKey, tempId, value), ...(prev[objectKey] ?? [])] }));
+
+    const res = await createCrmRecord({ objectKey, ...value });
+
+    if (!res.ok) {
+      setLocalByKey((prev) => ({ ...prev, [objectKey]: (prev[objectKey] ?? []).filter((r) => r.id !== tempId) }));
+      setError(res.error);
+      return { ok: false, error: res.error };
+    }
+    if (res.persisted) {
+      setLocalByKey((prev) => ({ ...prev, [objectKey]: (prev[objectKey] ?? []).filter((r) => r.id !== tempId) }));
+    }
+    return { ok: true };
+  };
 
   const toggleRow = (id: string) =>
     setSelected((prev) => {
@@ -168,6 +415,10 @@ export function CrmBoard({
     setActiveKey(key);
     setQ("");
     setSelected(new Set());
+    setPersonaF("");
+    setStatusF("");
+    setOwnerF("");
+    setSortBy("recent");
   };
 
   return (
@@ -176,24 +427,33 @@ export function CrmBoard({
         <div>
           <h1 className="ct">{active.label}</h1>
           <div className="csub">
-            {active.count.toLocaleString()} {active.noun} · org-scoped · synced with Arc
+            {countFor(active).toLocaleString()} {active.noun} · org-scoped · synced with Arc
           </div>
         </div>
         <div className="sp">
-          <span className="gbtn">
+          <span className="gbtn" data-soon="CSV import is coming soon">
             <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>
             Import
           </span>
-          <span className="gbtn">
+          <span className="gbtn" data-soon="Export is coming soon">
             <svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4 4 4-4M12 13V3" /></svg>
             Export
           </span>
-          <span className="gbtn gold">
+          <button type="button" className="gbtn gold" onClick={() => setAddOpen(true)}>
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
             {active.addLabel}
-          </span>
+          </button>
         </div>
       </div>
+
+      {error && (
+        <div className="crm-error" role="alert">
+          <span>{error}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setError(null)}>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+      )}
 
       <div className="subtabs">
         {objects.map((o) => (
@@ -203,7 +463,7 @@ export function CrmBoard({
             className={`subtab${o.key === activeKey ? " on" : ""}`}
             onClick={() => switchObject(o.key)}
           >
-            {o.label} <span className="cnt">{o.count.toLocaleString()}</span>
+            {o.label} <span className="cnt">{countFor(o).toLocaleString()}</span>
           </button>
         ))}
       </div>
@@ -218,44 +478,49 @@ export function CrmBoard({
             aria-label={`Filter ${active.noun}`}
           />
         </span>
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>
-          Persona <span className="cv">▾</span>
-        </span>
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></svg>
-          Status <span className="cv">▾</span>
-        </span>
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>
-          Owner <span className="cv">▾</span>
-        </span>
-        <span className="fbtn dashed">
-          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-          Add filter
-        </span>
+        <FilterMenu
+          icon={<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>}
+          label="Persona"
+          options={options.persona}
+          value={personaF}
+          onChange={setPersonaF}
+        />
+        <FilterMenu
+          icon={<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></svg>}
+          label="Status"
+          options={options.status}
+          value={statusF}
+          onChange={setStatusF}
+        />
+        <FilterMenu
+          icon={<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>}
+          label="Owner"
+          options={options.owner}
+          value={ownerF}
+          onChange={setOwnerF}
+        />
+        {anyFilter && (
+          <button type="button" className="fbtn dashed" onClick={clearFilters}>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            Clear
+          </button>
+        )}
         <span className="gspacer" />
-        <span className="fbtn">
-          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
-          All {active.noun} <span className="cv">▾</span>
-        </span>
-        <span className="iconf" title="Sort">
-          <svg viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l3 3M17 20l-3-3" /></svg>
-        </span>
-        <span className="iconf" title="Columns">
+        <SortMenu value={sortBy} onChange={setSortBy} />
+        <span className="iconf" title="Columns" data-soon="Column settings are coming soon">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg>
         </span>
-        <span className="iconf" title="Density">
+        <span className="iconf" title="Density" data-soon="Density settings are coming soon">
           <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
         </span>
       </div>
 
       <div className={`selbar${selected.size ? " show" : ""}`}>
         <span className="sc">{selected.size} selected</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg>Add task</span>
-        <span className="sa"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>Ask Arc to enrich</span>
+        <span className="sa" data-soon="Bulk add to campaign is coming soon"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to campaign</span>
+        <span className="sa" data-soon="Bulk persona assignment is coming soon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M4 20c0-3 2-5 5-5s5 2 5 5" /></svg>Assign persona</span>
+        <span className="sa" data-soon="Bulk tasks are coming soon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7a1 1 0 001 1h14" /></svg>Add task</span>
+        <span className="sa" data-soon="Arc enrichment is coming soon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.2-8.6" /><path d="M21 4v5h-5" /></svg>Ask Arc to enrich</span>
         <span className="clr" onClick={() => setSelected(new Set())}>Clear</span>
       </div>
 
@@ -289,7 +554,14 @@ export function CrmBoard({
               </tr>
             ) : (
               visible.map((r) => (
-                <tr key={r.id} onClick={() => { window.location.href = recordHref(r); }}>
+                <tr
+                  key={r.id}
+                  className={r.id.startsWith("local-") ? "freshrow" : undefined}
+                  onClick={() => {
+                    // Optimistic (unsaved) rows have no live record page yet.
+                    if (!r.id.startsWith("local-")) window.location.href = recordHref(r);
+                  }}
+                >
                   {cols.map((c) => (
                     <td key={c.k} className={cellClass(c.k)}>
                       {c.k === "sel" ? (
@@ -329,7 +601,7 @@ export function CrmBoard({
             </select>
           </span>
           <span className="pgnum">
-            {visible.length === 0 ? "0" : `1–${visible.length}`} of {active.count.toLocaleString()}
+            {visible.length === 0 ? "0" : `1–${visible.length}`} of {countFor(active).toLocaleString()}
           </span>
           <button className="pgbtn" type="button" aria-label="Previous page">
             <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>
@@ -339,6 +611,16 @@ export function CrmBoard({
           </button>
         </div>
       </div>
+
+      <AddRecordModal
+        key={`${active.key}:${addOpen ? "open" : "closed"}`}
+        open={addOpen}
+        objectKey={active.key as CrmObjectKey}
+        singular={active.addLabel.replace(/^Add\s+/i, "")}
+        linkOptions={linkOptions}
+        onClose={() => setAddOpen(false)}
+        onSubmit={handleCreate}
+      />
     </div>
   );
 }

@@ -9,6 +9,8 @@ import {
   type CampaignWorkspaceAssetCategory,
   type LiveCampaignWorkspace,
 } from "@/lib/campaigns/read-model";
+import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-copy";
+import { type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
 import { ShareDialog } from "../../../_components/share-dialog";
 import { decideCampaignAsset, requestCampaignRevision } from "../actions";
@@ -79,7 +81,202 @@ function MediaTile({ media }: { media: CampaignMediaAsset }) {
   );
 }
 
-export function CampaignDetailView({ detail }: { detail: LiveCampaignWorkspace }) {
+const NUM = new Intl.NumberFormat("en-US");
+const USD0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+// Compact revenue-over-time area chart. Static (no animation) per the restrained
+// motion posture; scales to its container via a non-uniform viewBox.
+function TrendChart({ points }: { points: PerformanceTrendPoint[] }) {
+  const W = 680;
+  const H = 132;
+  const PAD = 8;
+  const max = Math.max(1, ...points.map((p) => p.revenue));
+  const total = points.reduce((s, p) => s + p.revenue, 0);
+  const stepX = points.length > 1 ? (W - PAD * 2) / (points.length - 1) : 0;
+  const x = (i: number) => PAD + i * stepX;
+  const y = (v: number) => H - PAD - (v / max) * (H - PAD * 2);
+  const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.revenue).toFixed(1)}`).join(" ");
+  const area = `${line} L${x(points.length - 1).toFixed(1)} ${(H - PAD).toFixed(1)} L${x(0).toFixed(1)} ${(H - PAD).toFixed(1)} Z`;
+
+  return (
+    <div className="ptrend">
+      <div className="ptcap">
+        <span>Marketing-attributed revenue</span>
+        <b>{USD0.format(total)}</b>
+      </div>
+      <svg className="ptsvg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="ptfill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#ptfill)" />
+        <path d={line} fill="none" stroke="var(--accent)" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="ptaxis">
+        <span>{points[0]?.week}</span>
+        <span>{points[points.length - 1]?.week}</span>
+      </div>
+    </div>
+  );
+}
+
+function PerformancePanel({ panel, lifecycle }: { panel: CampaignPerformancePanel; lifecycle: string }) {
+  if (panel.status === "measuring") {
+    return (
+      <div>
+        <div className="csec">
+          <h3 className="csh">
+            Performance <span className="est">Measurement plan</span>
+          </h3>
+          <p className="empty-note" style={{ marginBottom: 4 }}>{panel.message}</p>
+          <div className="mplan">
+            {MEASUREMENT_PLAN.map((m) => (
+              <div className="mprow" key={m.area}>
+                <div className="mpk">
+                  <span className="mparea">{m.area}</span>
+                  <span className="pill amber"><span className="pd" />{m.currentSignal}</span>
+                </div>
+                <div className="mpq">{m.question}</div>
+                <div className="mpn">{m.nextStep}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="csec">
+          <h3 className="csh">What stays locked until data is attached</h3>
+          <div className="lockgrid">
+            {LOCKED_CLAIMS.map((c) => (
+              <div className="lockcard" key={c.title}>
+                <div className="lockt">
+                  {svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>')}
+                  {c.title}
+                </div>
+                <div className="lockd">{c.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const funnelMax = Math.max(1, ...panel.funnel.map((f) => f.count));
+
+  return (
+    <div>
+      <div className="csec">
+        <h3 className="csh">
+          Performance
+          <span className={`est ${panel.source === "demo" ? "" : "live"}`}>
+            {panel.source === "demo" ? "Illustrative" : "Attributed"} · {panel.windowLabel}
+          </span>
+        </h3>
+        <div className="perfkpis">
+          {panel.kpis.map((k) => (
+            <div className="pkpi" key={k.key}>
+              <div className="pkl">{k.label}</div>
+              <div className="pkv">{k.value}</div>
+              <div className="pkh">
+                {k.delta && <span className={`pkd ${k.deltaTone ?? "neutral"}`}>{k.delta}</span>}
+                {k.hint}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="perfnote">{panel.note}</p>
+      </div>
+
+      {panel.trend.length > 1 && (
+        <div className="csec">
+          <h3 className="csh">Revenue over time <span className="cgc">{panel.windowLabel}</span></h3>
+          <TrendChart points={panel.trend} />
+        </div>
+      )}
+
+      {panel.funnel.length > 0 && (
+        <div className="csec">
+          <h3 className="csh">Funnel</h3>
+          <div className="pfunnel">
+            {panel.funnel.map((f) => (
+              <div className="pfrow" key={f.label}>
+                <span className="pfl">{f.label}</span>
+                <div className="pfbar"><i style={{ width: `${Math.round((f.count / funnelMax) * 100)}%` }} /></div>
+                <span className="pfc">{NUM.format(f.count)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {panel.channels.length > 0 && (
+        <div className="csec">
+          <h3 className="csh">By channel</h3>
+          <div className="pchan">
+            <div className="pchead">
+              <span>Channel</span><span>Leads</span><span>Booked</span><span>Revenue</span><span>Spend</span>
+            </div>
+            {panel.channels.map((c) => (
+              <div className="pcrow" key={c.channel}>
+                <span className="pcname">{c.channel}<i className="pcshare" style={{ width: `${c.share}%` }} /></span>
+                <span>{NUM.format(c.leads)}</span>
+                <span>{NUM.format(c.booked)}</span>
+                <span>{c.revenue}</span>
+                <span className="pcspend">{c.spend}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {panel.assets.length > 0 && (
+        <div className="csec">
+          <h3 className="csh">Asset performance <span className="est">Provenance-tagged</span></h3>
+          <div className="passets">
+            <div className="pahead">
+              <span>Asset</span><span>Source</span><span>Status</span><span>Impr.</span><span>Clicks</span><span>Leads</span><span>CTR</span>
+            </div>
+            {panel.assets.map((a) => {
+              const meta = statusMeta(a.status);
+              return (
+                <div className="parow" key={a.id}>
+                  <span className="paname">
+                    <b>{a.title}</b>
+                    <i>{a.channel} · {a.format}</i>
+                  </span>
+                  <span><span className={`prov ${provTone(a.source)}`}>{a.source}</span></span>
+                  <span><span className={`pill ${meta.tone}`}><span className="pd" />{meta.label}</span></span>
+                  <span className="panum">{NUM.format(a.impressions)}</span>
+                  <span className="panum">{NUM.format(a.clicks)}</span>
+                  <span className="panum">{NUM.format(a.leads)}</span>
+                  <span className="panum">{a.ctr}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {lifecycle !== "Live" && (
+        <p className="empty-note">
+          This campaign isn&apos;t live yet — figures reflect attribution to date. No sending, spending, or publishing runs without explicit approval.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Provenance badge tone — mirrors the asset-review posture (real BSR media vs AI vs composite).
+function provTone(source: string): string {
+  const s = source.toLowerCase();
+  if (s.includes("real")) return "real";
+  if (s.includes("ai")) return "ai";
+  if (s.includes("composite")) return "composite";
+  return "stock";
+}
+
+export function CampaignDetailView({ detail, performance }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel }) {
   const { campaign, launchState, executiveOverview, reasoning, sources, approvalHistory, media } = detail;
   const [assets, setAssets] = useState<CampaignWorkspaceAsset[]>(detail.assets);
   const [tab, setTab] = useState("deliverables");
@@ -133,6 +330,7 @@ export function CampaignDetailView({ detail }: { detail: LiveCampaignWorkspace }
   const TABS: Array<[string, string]> = [
     ["deliverables", `Deliverables`],
     ["overview", "Overview"],
+    ["performance", "Performance"],
     ["sources", "Sources"],
     ["history", "History"],
   ];
@@ -343,6 +541,8 @@ export function CampaignDetailView({ detail }: { detail: LiveCampaignWorkspace }
               </div>
             </div>
           )}
+
+          {tab === "performance" && <PerformancePanel panel={performance} lifecycle={launchState.lifecycle} />}
 
           {tab === "sources" && (
             <div className="csec">

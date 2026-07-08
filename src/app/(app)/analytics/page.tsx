@@ -1,6 +1,7 @@
 import { getRecentActivity, type ActivityEntry, type ActivityTone } from "@/lib/activity/read-model";
 import { getAnalyticsOverview } from "@/lib/analytics/overview";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getPerformanceReadModel } from "@/lib/performance/read-model";
 
 import { AnalyticsView, type ActivityDayVM } from "./_components/analytics-view";
 
@@ -30,10 +31,16 @@ function toActivityRow(e: ActivityEntry) {
 
 export default async function AnalyticsPage() {
   const ctx = await getCurrentWorkspaceContext();
-  const [overview, activity] = await Promise.all([
+  const [overview, activity, performance] = await Promise.all([
     getAnalyticsOverview(ctx.orgId).catch(() => null),
     getRecentActivity({}, undefined, ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
+    getPerformanceReadModel().catch(() => ({ status: "unavailable" }) as const),
   ]);
+
+  const campaignRows = performance.status === "live" ? (performance.campaignRows ?? []) : [];
+  const channels = performance.status === "live" ? (performance.channelPerformance ?? []) : [];
+  const anomalies = performance.status === "live" ? (performance.anomalies ?? []) : [];
+  const nextMoves = performance.status === "live" ? (performance.nextMoves ?? []) : [];
 
   const activitySummary =
     activity.status === "live"
@@ -60,5 +67,15 @@ export default async function AnalyticsPage() {
     hasHistory: false,
   };
 
-  return <AnalyticsView overview={safeOverview} activitySummary={activitySummary} activityDays={activityDays} />;
+  return (
+    <AnalyticsView
+      overview={safeOverview}
+      activitySummary={activitySummary}
+      activityDays={activityDays}
+      campaignRows={campaignRows}
+      channels={channels}
+      anomalies={anomalies}
+      nextMoves={nextMoves}
+    />
+  );
 }
