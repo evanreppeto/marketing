@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 
 import { requireOperator } from "@/lib/auth/operator";
 import { sendWorkspaceInviteEmail } from "@/lib/auth/send-invite-email";
+import { changeWorkspaceMemberRole, removeWorkspaceMember } from "@/lib/auth/workspace-admin";
 import { ACTIVE_WORKSPACE_COOKIE, getCurrentWorkspaceContext } from "@/lib/auth/workspace";
-import { issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
+import { cancelWorkspaceInvite, issueWorkspaceInviteCode } from "@/lib/auth/workspace-invites";
 import { createWorkspaceForAuthenticatedUser } from "@/lib/auth/workspace-onboarding";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -106,4 +107,71 @@ export async function createWorkspace(input: {
 
   revalidatePath("/settings");
   return { ok: true, persisted: true, message: `Created ${workspace}.` };
+}
+
+function humanizeMemberError(status: string, message?: string): string {
+  switch (status) {
+    case "not_authenticated":
+      return "Sign in to manage the team.";
+    case "not_authorized":
+      return message ?? "Only workspace owners and admins can manage the team.";
+    case "invalid_input":
+      return message ?? "That member could not be found.";
+    default:
+      return message ?? "The change could not be saved.";
+  }
+}
+
+export async function changeMemberRole(input: {
+  workspaceId: string;
+  membershipId: string;
+  role: string;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+  if (!input.membershipId?.trim()) return { ok: false, error: "A member is required." };
+
+  // Offline/demo: no DB. Report success-but-unpersisted so the UI can update optimistically.
+  if (!isSupabaseAdminConfigured() || !input.workspaceId?.trim()) return { ok: true, persisted: false };
+
+  const result = await changeWorkspaceMemberRole({
+    workspaceId: input.workspaceId,
+    membershipId: input.membershipId,
+    role: input.role?.toLowerCase(),
+  });
+  if (!result.ok) return { ok: false, error: humanizeMemberError(result.status, result.message) };
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true };
+}
+
+export async function removeMember(input: {
+  workspaceId: string;
+  membershipId: string;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+  if (!input.membershipId?.trim()) return { ok: false, error: "A member is required." };
+
+  if (!isSupabaseAdminConfigured() || !input.workspaceId?.trim()) return { ok: true, persisted: false };
+
+  const result = await removeWorkspaceMember({ workspaceId: input.workspaceId, membershipId: input.membershipId });
+  if (!result.ok) return { ok: false, error: humanizeMemberError(result.status, result.message) };
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true };
+}
+
+export async function cancelInvite(input: {
+  workspaceId: string;
+  inviteId: string;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+  if (!input.inviteId?.trim()) return { ok: false, error: "An invite is required." };
+
+  if (!isSupabaseAdminConfigured() || !input.workspaceId?.trim()) return { ok: true, persisted: false };
+
+  const result = await cancelWorkspaceInvite({ workspaceId: input.workspaceId, inviteId: input.inviteId });
+  if (!result.ok) return { ok: false, error: humanizeMemberError(result.status, result.message) };
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true };
 }
