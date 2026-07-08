@@ -138,7 +138,7 @@ export function BrandView({ view }: { view: BrandProfileView }) {
           {/* VOICE */}
           {(tone.length > 0 || voiceGuidance || preferredPhrases.length > 0 || bannedPhrases.length > 0) && (
             <div className="bsec">
-              <div className="bsh"><h3>Voice &amp; tone</h3><span className="tg ok">wired · tone · voice_guidance</span><div className="sx"><span className="editlink" data-soon="Editing voice & tone is coming soon"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /></svg>Edit</span></div></div>
+              <div className="bsh"><h3>Voice &amp; tone</h3><span className="tg ok">wired</span><div className="sx"><span className="editlink" data-soon="Editing voice & tone is coming soon"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /></svg>Edit</span></div></div>
               <div className="bsb">
                 {tone.length > 0 && <div className="tone">{tone.map((t) => <span className="tchip" key={t}>{t}</span>)}</div>}
                 {voiceGuidance && <p className="guide">{voiceGuidance}</p>}
@@ -162,7 +162,7 @@ export function BrandView({ view }: { view: BrandProfileView }) {
 
           {/* PROOF / GUARDRAILS / SERVICES */}
           <div className="bsec">
-            <div className="bsh"><h3>Proof, guardrails &amp; offering</h3><span className="tg ok">wired · proof_points · guardrails · services</span></div>
+            <div className="bsh"><h3>Proof, guardrails &amp; offering</h3><span className="tg ok">wired</span></div>
             <div className="bsb">
               <div className="twocol">
                 <div>
@@ -204,7 +204,7 @@ export function BrandView({ view }: { view: BrandProfileView }) {
 
           {/* BRAND SOURCES */}
           <div className="bsec">
-            <div className="bsh"><h3>Brand sources</h3><span className="tg ok">wired · media_assets</span><div className="sx"><span className="resyncall" data-soon="Re-syncing all sources is coming soon">{RESYNC}Re-sync all</span><span className="gbtn gold sm" data-soon="Uploading sources is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</span></div></div>
+            <div className="bsh"><h3>Brand sources</h3><span className="tg ok">wired</span><div className="sx"><span className="resyncall" data-soon="Re-syncing all sources is coming soon">{RESYNC}Re-sync all</span><span className="gbtn gold sm" data-soon="Uploading sources is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</span></div></div>
             <div className="bsb" style={{ paddingTop: 6 }}>
               {sources.length === 0 ? (
                 <div className="bsnote" style={{ margin: 0 }}>No brand sources yet — upload a deck, brief, or guidelines and Arc will read them into your Brain.</div>

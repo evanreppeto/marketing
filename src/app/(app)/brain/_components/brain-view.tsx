@@ -139,7 +139,7 @@ export function BrainView({ data }: { data: BrainData }) {
           <div className="inner">
             {tab === "facts" && (
               <>
-                <h3 className="sh">All facts <span className="tg">wired · listNodes</span></h3>
+                <h3 className="sh">All facts <span className="tg">wired</span></h3>
                 {kinds.length > 1 && (
                   <div className="factbar">
                     <button type="button" className={`fchip${kind === "all" ? " on" : ""}`} onClick={() => setKind("all")}>All</button>
@@ -222,7 +222,7 @@ export function BrainView({ data }: { data: BrainData }) {
 
             {tab === "learned" && (
               <>
-                <h3 className="sh">Recently learned <span className="tg">wired · node created_at</span></h3>
+                <h3 className="sh">Recently learned <span className="tg">wired</span></h3>
                 {data.learned.length === 0 ? (
                   <div className="empty">Nothing learned yet. New facts show up here as Arc discovers them.</div>
                 ) : (

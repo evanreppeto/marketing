@@ -193,13 +193,13 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
     agent: (
       <>
         <Head t="Runner & tokens" d="How the headless Arc runner connects back to this workspace, and the API tokens it authenticates with." />
-        <Panel title="Runner connection" tag={TGOK} foot="agent_connections · resolveAgentConnection / recordAgentSeen">
+        <Panel title="Runner connection" tag={TGOK} foot="Live heartbeat + webhook connection to the runner">
           <Row label="Status" desc="Last heartbeat from the Cloud Run runner."><span className="pillrow"><Pill kind="ok">Connected · 2m ago</Pill><button className="btn sm">Test</button></span></Row>
           <Row label="Display name"><input className="inp" defaultValue="Arc" style={{ minWidth: 160 }} /></Row>
           <Row label="Webhook URL" desc="Where the app notifies the runner of new tasks."><input className="inp" defaultValue="https://arc-runner-…run.app/hook" /></Row>
           <Row label="Enabled" desc="Pause to stop dispatching tasks to the runner."><Sw on /></Row>
         </Panel>
-        <Panel title="API tokens" tag={TGOK} foot="agent_api_tokens · issueAgentToken (shown once) / checkAgentBearer">
+        <Panel title="API tokens" tag={TGOK} foot="Bearer tokens the runner authenticates with — shown once at creation">
           {[["production", "arc_live_8f2a…1c · last used 2m ago"], ["ci-pipeline", "arc_live_3b71…9d · last used 6d ago"]].map((t) => (
             <div className="tok" key={t[0]}><div className="tki"><div className="tkn">{t[0]}</div><div className="tkp">{t[1]}</div></div><Pill kind="ok">Active</Pill><button className="btn sm danger">Revoke</button></div>
           ))}
@@ -210,7 +210,7 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
     media: (
       <>
         <Head t="Media models" d="The roster Arc generates with — 44 image, video & audio models from the live Higgsfield catalog. Arc auto-picks the best model per task; override the default per category. Every generation is a provenance-tagged, approval-gated draft." />
-        <Panel title="Generation defaults" tag={TGOK} foot="media config + higgsfield-models.ts roster">
+        <Panel title="Generation defaults" tag={TGOK} foot="Higgsfield model roster + per-category defaults">
           <Row label="Auto-pick best model" desc="Let Arc choose the right model per task (recommended)."><Sw on /></Row>
           <Row label="Default aspect" desc="Per-platform overrides still apply."><Seg opts={["1:1", "4:5", "9:16", "16:9"]} active="4:5" /></Row>
           <Row label="Prefer real brand media" desc="AI enhances your approved photos & footage rather than replacing them."><Sw on /></Row>
@@ -234,7 +234,7 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
               })}
             </div>
           </div>
-          <div className="panel-f"><Ic d={CHECK} />HIGGSFIELD_MODELS (validated vs live MCP, 2026-06-24) + resolveHiggsfieldModel(category, override). “Arc’s pick” = the recommended default.</div>
+          <div className="panel-f"><Ic d={CHECK} />Validated against the live Higgsfield catalog (2026-06-24). “Arc’s pick” is the recommended default per category.</div>
         </div>
       </>
     ),
@@ -257,7 +257,7 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
           <Row label="Signed in as"><span className="pillrow"><span style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontFamily: "var(--serif)", fontWeight: 600, color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)" }}>{(brandName || "E").charAt(0)}</span><span><span style={{ fontSize: "12.5px", fontWeight: 600, display: "block" }}>Riley Chen</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{email}</span></span></span><button className="btn sm">Edit</button></span></Row>
           <Row label="Access gate" desc="OPERATOR_ACCESS_TOKEN protects the console."><span className="pillrow"><Pill kind="ok">Protected</Pill><button className="btn sm">Configure</button></span></Row>
         </Panel>
-        <Panel title="Sign-in methods" tag={TGOK} foot="operator gate + /api/auth · ARC_AUTH_MODE">
+        <Panel title="Sign-in methods" tag={TGOK} foot="How you sign in to the console">
           <Row label="Password" desc="Email + password operator sign-in."><span className="pillrow"><Pill kind="ok">Configured</Pill><button className="btn sm">Change</button></span></Row>
           <Row label="Passkey" desc="Hardware / biometric sign-in."><span className="pillrow"><Pill kind="off">Not configured</Pill><button className="btn sm gold">Set up</button></span></Row>
           <Row label="Google" desc="SSO via Google."><span className="pillrow"><Pill kind="warn">Available</Pill><button className="btn sm">Connect</button></span></Row>
@@ -275,7 +275,7 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
             <div className="ubar"><i style={{ width: `${Math.min(usageView.pctOfCap, 100)}%`, ...(usageView.isNearCap ? { background: "var(--warn)" } : {}) }} /></div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>{usageView.pctOfCap}% of your {usageView.capLabel} soft cap · {usageView.rangeLabel}</div>
           </div>
-          <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage → summarizeUsageForSettings · full breakdown on the Usage report</div>
+          <div className="panel-f"><Ic d={CHECK} />Rolled up from this workspace’s AI usage · full breakdown on the Usage report</div>
         </div>
         <div style={{ display: "flex", gap: 9 }}><button className="btn gold"><Ic d='<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6"/>' />Open full usage report</button><button className="btn">Manage plan</button></div>
       </>
@@ -294,7 +294,7 @@ export function SettingsView({ brandName, email, team, usage }: { brandName: str
     system: (
       <>
         <Head t="System status" d="Live configuration health for this deployment." />
-        <Panel title="Services" tag={TGOK} foot="getAppStatus · GET /api/auth/status">
+        <Panel title="Services" tag={TGOK} foot="Live configuration health, checked at load">
           {[["Supabase", "Configured", "Manage"], ["Resend (email)", "Configured", "Manage"], ["Gemini API key", "Present", "Rotate"], ["Arc runner", "Connected · 2m ago", "Test"], ["Higgsfield connector", "Enabled", "Manage"]].map((r) => (
             <Row key={r[0]} label={r[0]}><span className="pillrow"><Pill kind="ok">{r[1]}</Pill><button className="btn sm">{r[2]}</button></span></Row>
           ))}
@@ -459,7 +459,7 @@ function TeamInvites({ workspaceId, seedInvites }: { workspaceId: string | null;
           ))
         )}
       </Panel>
-      <Panel title="Invite a teammate" tag={TGOK} foot="workspace_invites · issueWorkspaceInviteCode → sendBrandedEmail">
+      <Panel title="Invite a teammate" tag={TGOK} foot="Sends a single-use invite code by branded email">
         <Row label="Email" desc="They’ll get a branded invite with a single-use code.">
           <input className="inp" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Row>
