@@ -1154,3 +1154,14 @@
 .arc-app .cmdk-item .cmdk-l { font-weight: 600; }
 .arc-app .cmdk-item .cmdk-g { margin-left: auto; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .arc-app .cmdk-empty { padding: 22px 14px; text-align: center; font-size: 12.5px; color: var(--muted); }
+
+/* Library "N files added" / folder notice toast */
+.arc-app .lib-notice {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2500;
+  display: flex; align-items: center; gap: 12px; max-width: 540px; padding: 11px 15px; border-radius: 10px;
+  font-size: 12.5px; color: var(--text-2); background: var(--panel); border: 1px solid var(--accent-border);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5); animation: arc-modal-in 0.2s var(--ease);
+}
+.arc-app .lib-notice button { display: grid; place-items: center; width: 22px; height: 22px; border: none; background: transparent; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+.arc-app .lib-notice button:hover { color: var(--text); }
+.arc-app .lib-notice svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }

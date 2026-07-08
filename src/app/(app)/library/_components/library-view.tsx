@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+
+import { createLibraryFolder } from "../actions";
+import { NewFolderModal } from "./new-folder-modal";
 
 type Kind = "image" | "video" | "logo" | "document";
 type Prov = "real" | "ai" | "comp" | "upload" | "logo" | "doc";
@@ -158,11 +161,6 @@ function descKeys(key: string): string[] {
   rec(node);
   return out;
 }
-function rcount(f: string): number {
-  if (f === "all") return ALL_ASSETS.length;
-  const ks = descKeys(f);
-  return ALL_ASSETS.filter((a) => ks.includes(a.folder)).length;
-}
 
 const NEW_CAMPAIGN = "/campaigns/new";
 const STUDIO = "/studio";
@@ -179,6 +177,72 @@ export function LibraryView() {
   const [detail, setDetail] = useState<Asset | null>(null);
   const [arcState, setArcState] = useState<Record<number, boolean>>({});
   const [suggDismissed, setSuggDismissed] = useState(false);
+  // Folders + uploads created this session. Folders persist via createLibraryFolder;
+  // uploads are held client-side (real media-store persistence lands with the
+  // real data feed). Both show instantly.
+  const [tree, setTree] = useState<Folder[]>(TREE);
+  const [uploaded, setUploaded] = useState<Asset[]>([]);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const uidRef = useRef(-1);
+
+  const allAssets = useMemo(() => [...uploaded, ...ALL_ASSETS], [uploaded]);
+
+  // Folder counts over the live asset set (base assets + this session's uploads).
+  const rcountLive = (f: string): number => {
+    if (f === "all") return allAssets.length;
+    const ks = descKeys(f);
+    return allAssets.filter((a) => ks.includes(a.folder) || a.folder === f).length;
+  };
+
+  const kindOfType = (type: string): Kind =>
+    type.startsWith("video") ? "video" : type === "application/pdf" ? "document" : "image";
+
+  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const targetFolder = curFolder === "all" ? "upload" : curFolder;
+    const newAssets: Asset[] = files.map((file) => ({
+      id: uidRef.current--,
+      nm: file.name,
+      kind: kindOfType(file.type),
+      pv: "upload",
+      sc: "photo",
+      folder: targetFolder,
+      dim: "—",
+      size: file.size >= 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`,
+      tags: ["imported"],
+      arc: false,
+      used: [],
+      by: "You",
+      added: "just now",
+      recent: 1,
+      risk: "Imported — provenance unverified before Arc may reuse.",
+      img: file.type.startsWith("image") ? URL.createObjectURL(file) : undefined,
+      lineage: [["upload", "Uploaded by you"]],
+      uses: 0,
+    }));
+    setUploaded((prev) => [...newAssets, ...prev]);
+    setNotice(
+      `${files.length} file${files.length === 1 ? "" : "s"} added — held for provenance review before Arc may reuse.`,
+    );
+    e.target.value = "";
+  }
+
+  async function handleCreateFolder(name: string): Promise<{ ok: boolean; error?: string }> {
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "folder";
+    const key = `${base}-${-(uidRef.current--)}`;
+    setTree((prev) => [...prev, { f: key, name, color: "#88b6d8", icon: "folder" }]);
+    setNotice(null);
+    const res = await createLibraryFolder(name);
+    if (!res.ok) {
+      setTree((prev) => prev.filter((t) => t.f !== key));
+      return { ok: false, error: res.error };
+    }
+    setCurFolder(key);
+    return { ok: true };
+  }
 
   const isArc = (a: Asset) => (a.id in arcState ? arcState[a.id] : a.arc);
   const needsReview = (a: Asset) => !!a.risk || (a.pv === "upload" && !isArc(a));
@@ -192,26 +256,26 @@ export function LibraryView() {
 
   const list = useMemo(() => {
     const dk = curFolder === "all" ? null : descKeys(curFolder);
-    let out = ALL_ASSETS.filter((a) => (curFolder === "all" || dk!.includes(a.folder)) && (curKind === "all" || a.kind === curKind) && inColl(a));
+    let out = allAssets.filter((a) => (curFolder === "all" || dk!.includes(a.folder) || a.folder === curFolder) && (curKind === "all" || a.kind === curKind) && inColl(a));
     out = [...out].sort((x, y) => (sortBy === "name" ? (x.nm < y.nm ? -1 : 1) : sortBy === "used" ? y.uses - x.uses : x.id - y.id));
     const needle = q.trim().toLowerCase();
     if (needle) out = out.filter((a) => `${a.nm} ${a.kind} ${a.pv} ${a.tags.join(" ")} ${a.folder}`.toLowerCase().includes(needle));
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [curFolder, curKind, curColl, sortBy, q, arcState]);
+  }, [curFolder, curKind, curColl, sortBy, q, arcState, allAssets]);
 
   const totals = useMemo(() => {
     const byk = { image: 0, video: 0, logo: 0, document: 0 };
-    ALL_ASSETS.forEach((a) => { byk[a.kind]++; });
+    allAssets.forEach((a) => { byk[a.kind]++; });
     return {
-      total: ALL_ASSETS.length,
-      arc: ALL_ASSETS.filter(isArc).length,
-      rev: ALL_ASSETS.filter(needsReview).length,
-      un: ALL_ASSETS.filter((a) => a.uses === 0).length,
+      total: allAssets.length,
+      arc: allAssets.filter(isArc).length,
+      rev: allAssets.filter(needsReview).length,
+      un: allAssets.filter((a) => a.uses === 0).length,
       byk,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arcState]);
+  }, [arcState, allAssets]);
 
   const toggleSel = (id: number) => setSel((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const selmode = sel.size > 0;
@@ -239,7 +303,7 @@ export function LibraryView() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} dangerouslySetInnerHTML={{ __html: ICONS[F.icon] }} />
         </span>
         <span className="fn">{F.name}</span>
-        <span className="fc">{rcount(F.f)}</span>
+        <span className="fc">{rcountLive(F.f)}</span>
       </div>,
     ];
     if (hasKids && open) rows.push(<div key={`${F.f}-kids`} className="tchildren">{F.children!.map((c) => renderFolder(c, true))}</div>);
@@ -267,7 +331,8 @@ export function LibraryView() {
         <div className="acts">
           <a className="gbtn" href={STUDIO}><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg>Generate with Arc</a>
           <span className="gbtn"><svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4-4 4 4M12 5v10" /></svg>Import URL <span className="tg est" style={{ marginLeft: 2 }}>build</span></span>
-          <span className="gbtn gold"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</span>
+          <button type="button" className="gbtn gold" onClick={() => fileRef.current?.click()}><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>Upload</button>
+          <input ref={fileRef} type="file" multiple accept="image/*,video/*,application/pdf" onChange={handleFiles} style={{ display: "none" }} />
         </div>
       </div>
 
@@ -288,12 +353,12 @@ export function LibraryView() {
 
       <div className={`lib${detail ? " detail" : ""}${selmode ? " selmode" : ""}`}>
         <aside className="tree">
-          <div className="treeh">Folders <span className="add" title="New folder">＋</span></div>
+          <div className="treeh">Folders <span className="add" title="New folder" onClick={() => setFolderOpen(true)}>＋</span></div>
           <div>
-            {renderFolder(TREE[0])}
+            {renderFolder(tree[0])}
             <div className="treesec" />
-            {TREE.slice(1).map((F) => renderFolder(F))}
-            <div className="newfolder"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>New folder</div>
+            {tree.slice(1).map((F) => renderFolder(F))}
+            <div className="newfolder" onClick={() => setFolderOpen(true)}><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>New folder</div>
           </div>
         </aside>
 
@@ -436,6 +501,22 @@ export function LibraryView() {
           )}
         </aside>
       </div>
+
+      {notice && (
+        <div className="lib-notice" role="status">
+          <span>{notice}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setNotice(null)}>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+      )}
+
+      <NewFolderModal
+        key={folderOpen ? "open" : "closed"}
+        open={folderOpen}
+        onClose={() => setFolderOpen(false)}
+        onSubmit={handleCreateFolder}
+      />
     </div>
   );
 }
