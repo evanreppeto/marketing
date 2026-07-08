@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
 import { NavProgress } from "./nav-progress";
+import { RoutePrewarm } from "./route-prewarm";
 
 function initials(name: string): string {
   return (
@@ -65,6 +66,10 @@ const NAV_GROUPS: { group: string; items: { label: string; href: string; icon: R
   },
 ];
 
+// Every top-level route, warmed in the background after load (see RoutePrewarm)
+// so the first click on each tab is primed rather than a cold fetch.
+const PREWARM_HREFS = NAV_GROUPS.flatMap((g) => g.items.map((it) => it.href));
+
 const CRUMBS: Record<string, string> = {
   "/arc": "Arc",
   "/home": "Home",
@@ -119,6 +124,7 @@ export function AppShell({
   return (
     <div className={embedded ? "arc-app is-embedded" : "arc-app"}>
       <NavProgress />
+      <RoutePrewarm hrefs={PREWARM_HREFS} />
       <div className="app">
         <aside className="rail">
           <div className="ws">
