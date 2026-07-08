@@ -22,6 +22,10 @@ export type ArcConversation = {
   createdAt: string;
   updatedAt: string;
   lastMessageAt: string;
+  /** Rolling summary of compacted-out earlier turns (null until compaction runs). */
+  summary: string | null;
+  /** Last message folded into `summary`, so folding stays incremental. */
+  summaryThroughMessageId: string | null;
 };
 
 export type ArcMessageRole = "operator" | "arc" | "system";
@@ -97,6 +101,8 @@ type ConversationRow = {
   created_at: string;
   updated_at: string;
   last_message_at: string;
+  summary: string | null;
+  summary_through_message_id: string | null;
 };
 
 type MessageRow = {
@@ -112,7 +118,7 @@ type MessageRow = {
 };
 
 const CONVERSATION_COLUMNS =
-  "id, operator, title, status, project_id, campaign_id, owner_id, workspace_id, pinned_at, visibility, workspace_permission, created_at, updated_at, last_message_at";
+  "id, operator, title, status, project_id, campaign_id, owner_id, workspace_id, pinned_at, visibility, workspace_permission, created_at, updated_at, last_message_at, summary, summary_through_message_id";
 const MESSAGE_COLUMNS = "id, conversation_id, role, body, status, agent_task_id, mentions, metadata, created_at";
 
 function toConversation(row: ConversationRow): ArcConversation {
@@ -131,6 +137,8 @@ function toConversation(row: ConversationRow): ArcConversation {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastMessageAt: row.last_message_at,
+    summary: row.summary ?? null,
+    summaryThroughMessageId: row.summary_through_message_id ?? null,
   };
 }
 
@@ -284,6 +292,22 @@ async function taskBelongsToScope(
   ).maybeSingle<{ id: string }>();
   assertOk("agent_tasks scope lookup", error);
   return Boolean(data);
+}
+
+/**
+ * Persist a conversation's rolling summary + the marker of the last message folded
+ * into it (compaction). Written by the runner via the bearer-gated summary route.
+ */
+export async function updateConversationSummary(
+  conversationId: string,
+  input: { summary: string; summaryThroughMessageId: string },
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<void> {
+  const { error } = await client
+    .from("arc_conversations")
+    .update({ summary: input.summary, summary_through_message_id: input.summaryThroughMessageId })
+    .eq("id", conversationId);
+  assertOk("arc_conversations summary update", error);
 }
 
 export async function listConversations(

@@ -14,6 +14,7 @@ import {
   type CrmIngestTable,
 } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { embedText } from "@/lib/embeddings/gemini-embeddings";
 import { upsertReferenceEdge, upsertReferenceNode, type WriteResult } from "@/lib/knowledge-graph/persistence";
 import { type TypedSupabaseClient, getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -453,6 +454,65 @@ export async function resyncPerformanceIntoBrain(deps: SyncDeps = {}): Promise<B
     linked += res.linked;
   }
   return { ok: true, synced, linked, errors, truncated };
+}
+
+export type EmbeddingBackfillResult = { ok: boolean; embedded: number; skipped: number; errors: number };
+
+/**
+ * Backfill semantic embeddings for existing Brain nodes that don't have one yet
+ * (org-scoped). Nodes written while GEMINI_API_KEY was unset land with a null
+ * embedding, so recall silently degrades to keyword-only; run this once the key is
+ * live to make the whole graph semantically searchable.
+ *
+ * Re-reads the "first page of null-embedding nodes" each pass (the null set shrinks
+ * as we embed), and STOPS if a pass makes zero progress — so with no key (embedText
+ * returns null every time) it exits after one pass instead of looping forever.
+ */
+export async function backfillMissingEmbeddings(deps: SyncDeps = {}): Promise<EmbeddingBackfillResult> {
+  let resolved;
+  try { resolved = await resolve(deps); }
+  catch { return { ok: false, embedded: 0, skipped: 0, errors: 0 }; }
+  if (!resolved) return { ok: false, embedded: 0, skipped: 0, errors: 0 };
+  const { client, orgId } = resolved;
+
+  let embedded = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  const maxPasses = Math.ceil(RESYNC_HARD_CAP / RESYNC_PAGE_SIZE);
+  for (let pass = 0; pass < maxPasses; pass++) {
+    const { data, error } = await (
+      client as unknown as {
+        from(t: string): {
+          select(s: string): { eq(c: string, v: string): { is(c: string, v: null): { limit(n: number): PromiseLike<LooseResult> } } };
+        };
+      }
+    ).from("knowledge_nodes").select("id,label,summary,body").eq("org_id", orgId).is("embedding", null).limit(RESYNC_PAGE_SIZE);
+    if (error) return { ok: false, embedded, skipped, errors };
+    const rows = (data ?? []) as Array<{ id: string; label: string | null; summary: string | null; body: string | null }>;
+    if (rows.length === 0) break;
+
+    let progressed = 0;
+    for (const row of rows) {
+      if (typeof row.id !== "string") { errors++; continue; }
+      const text = [row.label, row.summary, row.body].filter(Boolean).join("\n").trim();
+      if (!text) { skipped++; continue; }
+      let vec: number[] | null = null;
+      try { vec = await embedText(text); } catch { vec = null; }
+      if (!vec) { skipped++; continue; } // no key / embed failed — leave null (keyword recall)
+      const { error: upErr } = await (
+        client as unknown as {
+          from(t: string): { update(v: unknown): { eq(c: string, v: string): { eq(c: string, v: string): PromiseLike<{ error: { message: string } | null }> } } };
+        }
+      ).from("knowledge_nodes").update({ embedding: JSON.stringify(vec) }).eq("id", row.id).eq("org_id", orgId);
+      if (upErr) errors++;
+      else { embedded++; progressed++; }
+    }
+    // No node got embedded this pass (e.g. GEMINI_API_KEY missing) — stop, don't spin.
+    if (progressed === 0) break;
+  }
+
+  return { ok: true, embedded, skipped, errors };
 }
 
 /**

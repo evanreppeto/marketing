@@ -6,7 +6,6 @@ import { useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
 import { ComingSoonToasts } from "./coming-soon";
-import { CommandPalette, type CommandItem } from "./command-palette";
 import { NavProgress } from "./nav-progress";
 import { RoutePrewarm } from "./route-prewarm";
 

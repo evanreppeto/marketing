@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { requireOperator } from "@/lib/auth/operator";
@@ -24,41 +23,20 @@ import {
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
- * Real operator writes for the Settings team/workspace surfaces. Both are
- * internal account operations (an invite is a single-use code; a workspace is a
- * new org) — nothing outbound beyond the branded invite email, which only sends
- * when a workspace is actually connected. `persisted: false` is the honest
- * offline signal so the UI can show the item optimistically without claiming a
- * real invite/workspace was created.
+ * Persist the workspace's media generation config (Layer 2 model selection).
+ * Operator-gated through the authenticated workspace context; scoped to the
+ * caller's workspace. The payload is re-normalized via parseMediaConfig so an
+ * invalid model id from the client is dropped to "auto" before it lands. Nothing
+ * outbound — this only records how Arc should generate on the next run.
  */
-export type SettingsWriteResult =
-  | { ok: true; persisted: boolean; message?: string }
-  | { ok: false; error: string };
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export async function createInvite(input: {
-  email: string;
-  role: string;
-  expiresInDays?: number;
-}): Promise<SettingsWriteResult> {
-  await requireOperator();
-
-  const email = input.email?.trim();
-  if (!email || !EMAIL_RE.test(email)) return { ok: false, error: "Enter a valid email address." };
-
-  // Offline/demo: no DB. Report success-but-unpersisted so the pending list can
-  // show it without claiming a real invite was issued.
-  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
-
+export async function saveMediaConfigAction(config: MediaConfig): Promise<void> {
+  if (!isSupabaseAdminConfigured()) return;
   const ctx = await getCurrentWorkspaceContext();
-  if (!ctx.workspaceId) return { ok: false, error: "No active workspace to invite into yet." };
-
-  const result = await issueWorkspaceInviteCode({
+  if (!ctx.workspaceId) return; // no workspace yet — the (app) layout redirects to onboarding
+  await saveWorkspaceMediaConfig(getSupabaseAdminClient(), {
     workspaceId: ctx.workspaceId,
-    invitedEmail: email,
-    role: input.role?.toLowerCase(),
-    expiresInDays: input.expiresInDays,
+    orgId: ctx.orgId,
+    config: parseMediaConfig(config),
   });
   if (!result.ok) return { ok: false, error: result.message ?? "Could not create the invite." };
 
@@ -215,7 +193,6 @@ export async function cancelInvite(input: {
   if (!result.ok) return { ok: false, error: humanizeMemberError(result.status, result.message) };
 
   revalidatePath("/settings");
-  return { ok: true, persisted: true };
 }
 
 /**

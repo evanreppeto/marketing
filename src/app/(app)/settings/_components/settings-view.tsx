@@ -84,9 +84,17 @@ const SECTION_KEYWORDS: Record<string, string> = {
 };
 
 // ---- reusable controls ----
-function Sw({ on: init, locked }: { on?: boolean; locked?: boolean }) {
-  const [on, setOn] = useState(!!init);
-  return <span className={`sw${on ? " on" : ""}${locked ? " locked" : ""}`} onClick={() => !locked && setOn((v) => !v)}><i /></span>;
+// Sw/Seg support both an uncontrolled mode (self-state, for cosmetic mockup rows)
+// and a controlled mode (value + onChange, for persisted settings).
+function Sw({ on: init, locked, value, onChange }: { on?: boolean; locked?: boolean; value?: boolean; onChange?: (v: boolean) => void }) {
+  const [self, setSelf] = useState(!!init);
+  const on = onChange ? !!value : self;
+  const toggle = () => {
+    if (locked) return;
+    if (onChange) onChange(!on);
+    else setSelf((v) => !v);
+  };
+  return <span className={`sw${on ? " on" : ""}${locked ? " locked" : ""}`} onClick={toggle}><i /></span>;
 }
 function Seg({ opts, active, value, onChange }: { opts: string[]; active?: string; value?: string; onChange?: (v: string) => void }) {
   const [internal, setInternal] = useState(active ?? opts[0]);

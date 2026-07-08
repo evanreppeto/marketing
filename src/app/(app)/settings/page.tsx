@@ -1,10 +1,11 @@
-import { getSettingsTeamView } from "@/lib/auth/team-view";
+import { DEFAULT_MEDIA_CONFIG } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import { getSettingsUsageView } from "@/lib/ai-usage/settings-summary";
 import { getSettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { SettingsView } from "./_components/settings-view";
 import "./settings.css";
