@@ -300,7 +300,7 @@ export function StudioView({ brandName }: { brandName: string }) {
                   <h3 className="ph2">Export</h3>
                   <div className="exrow" data-soon="Auto-resizing for all platforms is coming soon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /></svg>Resize for all platforms <span style={{ marginLeft: "auto", fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>1:1 4:5 9:16 16:9</span></div>
                   <a className="exrow" href="/library"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" /></svg>Save to Library</a>
-                  <Link className="exrow gold" href="/campaigns/new"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to Storm-Season Reactivation</Link>
+                  <Link className="exrow gold" href="/campaigns"><svg viewBox="0 0 24 24"><path d="M4 5h16v6H4z" /><path d="M4 15h10v4H4z" /></svg>Add to Storm-Season Reactivation</Link>
                   <div className="exrow" data-soon="Download is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>Download (PNG / MP4)</div>
                 </div>
               </div>

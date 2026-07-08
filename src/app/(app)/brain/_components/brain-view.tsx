@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-import { rebuildBrainMemoryAction } from "../actions";
+import { decideBrainNode, rebuildBrainMemoryAction } from "../actions";
 import { KnowledgeGraph, type GraphEdge, type GraphNode } from "./knowledge-graph";
 
 export type FactVM = {

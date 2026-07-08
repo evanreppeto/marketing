@@ -110,7 +110,12 @@ const MEDIA_MODELS: Record<string, [string, string, string, number?][]> = {
 const PCOL: Record<string, string> = { Higgsfield: "#c8a24a", Google: "#5b8def", "Black Forest Labs": "#9678c8", OpenAI: "#7fb89a", xAI: "#aab2bd", Kling: "#E1306C", Bytedance: "#88b6d8", Recraft: "#c47055", "Tongyi-MAI": "#19c4cc", Inworld: "#9678c8", Mirelo: "#7fb89a", Sonilo: "#f3c64a", Hailuo: "#FF7A59", Wan: "#52BD94" };
 const pinit = (p: string) => { const w = p.split(/[\s-]+/); return (w.length > 1 ? w[0][0] + w[1][0] : p.slice(0, 2)).toUpperCase(); };
 
-export function SettingsView({ brandName, email, initialMediaConfig = DEFAULT_MEDIA_CONFIG }: { brandName: string; email: string; initialMediaConfig?: MediaConfig }) {
+const EMPTY_USAGE: SettingsUsageView = {
+  isDemo: false, configured: false, tokensLabel: "0", runsLabel: "0", costLabel: "$0.00",
+  capLabel: "$80", pctOfCap: 0, isNearCap: false, rangeLabel: "Last 30 days",
+};
+
+export function SettingsView({ brandName, email, team, usage, initialMediaConfig = DEFAULT_MEDIA_CONFIG }: { brandName: string; email: string; team: SettingsTeamView; usage: SettingsUsageView | null; initialMediaConfig?: MediaConfig }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
