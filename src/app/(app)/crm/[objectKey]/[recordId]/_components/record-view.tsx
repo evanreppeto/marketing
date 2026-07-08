@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 import { type CrmRecordData, type CrmRecordGraphNode, type CrmRecordRelationship } from "@/lib/crm/read-model";
 import { type NoteEntry, type TaskEntry, type TimelineEntry } from "@/lib/interactions/read-model";
 
-import { addRecordNote, addRecordTask, completeRecordTask } from "../actions";
+import { addRecordNote, addRecordTask, completeRecordTask, updateCrmRecord } from "../actions";
+import { EditRecordModal } from "./edit-record-modal";
 
 export type RecordActivity = {
   timeline: TimelineEntry[];
@@ -188,6 +189,21 @@ export function RecordView({ record, activity }: { record: CrmRecordData; activi
   const persona = humanizePersona(record.persona);
   const relCount = record.relationships.length;
 
+  // Editable header fields (persona / status) held locally so an edit reflects
+  // instantly; a real write also revalidates the server render.
+  const [editOpen, setEditOpen] = useState(false);
+  const [dispPersona, setDispPersona] = useState(persona);
+  const [dispStatus, setDispStatus] = useState(record.lifecycleStatus);
+
+  const handleEdit = async (value: { persona?: string; status?: string }): Promise<{ ok: boolean; error?: string }> => {
+    const res = await updateCrmRecord(record.key, record.id, value);
+    if (res.ok) {
+      if (value.persona) setDispPersona(value.persona.replace(/^persona_/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+      if (value.status) setDispStatus(value.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+    }
+    return res;
+  };
+
   // Activity is locally owned so operator adds appear instantly; the server
   // action persists (prod) or reports unpersisted (offline/demo). On failure we
   // revert the optimistic item and surface the error.
@@ -282,16 +298,16 @@ export function RecordView({ record, activity }: { record: CrmRecordData; activi
             <h1 className="rname">{record.name}</h1>
             {record.detail && <div className="rrole">{record.detail}</div>}
             <div className="idchips">
-              {persona && (
+              {dispPersona && (
                 <span className="chip persona">
                   <span className="pgd" />
-                  {persona}
+                  {dispPersona}
                 </span>
               )}
-              {record.lifecycleStatus && (
+              {dispStatus && (
                 <span className="pill active">
                   <span className="pd" />
-                  {record.lifecycleStatus}
+                  {dispStatus}
                 </span>
               )}
               <span className="chip ghost">
@@ -301,6 +317,10 @@ export function RecordView({ record, activity }: { record: CrmRecordData; activi
             </div>
           </div>
           <div className="idactions">
+            <button type="button" className="gbtn" onClick={() => setEditOpen(true)}>
+              {svg('<path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/>')}
+              Edit
+            </button>
             <a className="gbtn gold" href="/arc">
               {svg(ARC_IC)}
               Draft outreach
@@ -701,6 +721,16 @@ export function RecordView({ record, activity }: { record: CrmRecordData; activi
           )}
         </aside>
       </div>
+
+      <EditRecordModal
+        key={editOpen ? "open" : "closed"}
+        open={editOpen}
+        objectKey={record.key}
+        currentPersona={dispPersona}
+        currentStatus={dispStatus}
+        onClose={() => setEditOpen(false)}
+        onSubmit={handleEdit}
+      />
     </div>
   );
 }

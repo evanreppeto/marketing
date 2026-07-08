@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { entityTypeFromCrmObjectKey, parseNoteInput, parseTaskInput } from "@/domain";
+import { entityTypeFromCrmObjectKey, isOfficialPersonaMapping, parseNoteInput, parseTaskInput } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { updateCrmRecordFields } from "@/lib/crm/create";
+import { type CrmObjectKey } from "@/lib/crm/read-model";
 import { insertNote, insertTask, updateTaskStatus } from "@/lib/interactions/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -22,6 +24,25 @@ const VALID_KEYS = new Set(["companies", "contacts", "properties", "leads", "job
 async function currentScope() {
   const ctx = await getCurrentWorkspaceContext();
   return { orgId: ctx.orgId, workspaceId: ctx.workspaceId ?? undefined };
+}
+
+/** Edit a CRM record's persona and/or status (internal; never outbound). */
+export async function updateCrmRecord(
+  objectKey: string,
+  recordId: string,
+  patch: { persona?: string; status?: string },
+): Promise<WriteResult> {
+  await requireOperator();
+  if (!VALID_KEYS.has(objectKey)) return { ok: false, error: "Unknown record type." };
+  if (!patch.persona && !patch.status) return { ok: false, error: "Nothing to change." };
+  if (patch.persona && !isOfficialPersonaMapping(patch.persona)) return { ok: false, error: "Choose a valid persona." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const result = await updateCrmRecordFields(objectKey as CrmObjectKey, recordId, patch, (await currentScope()).orgId);
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath(`/crm/${objectKey}/${recordId}`);
+  return { ok: true, persisted: true, id: result.id };
 }
 
 export async function addRecordNote(objectKey: string, recordId: string, body: string): Promise<WriteResult> {

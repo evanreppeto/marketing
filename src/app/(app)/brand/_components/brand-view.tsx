@@ -4,6 +4,9 @@ import { useState } from "react";
 
 import type { BrandProfileView } from "@/lib/brand-kit/profile-view";
 
+import { updateBrandIdentity } from "../actions";
+import { EditIdentityModal } from "./edit-identity-modal";
+
 const PREVIEW_IMG = "https://d8j0ntlcm91z4.cloudfront.net/user_3FaOq1cCR2Izxa2haYxVnIrhIBK/hf_20260625_205928_16464999-955a-4ad8-9f7e-44da9947830a_min.webp";
 const STUDIO = "/studio";
 const BRAIN = "/brain";
@@ -29,6 +32,8 @@ export function BrandView({ view }: { view: BrandProfileView }) {
   const { identity, palette, tone, voiceGuidance, preferredPhrases, bannedPhrases, proofPoints, services, guardrails, sources } = view;
   const [active, setActive] = useState(0);
   const [aspect, setAspect] = useState(0);
+  const [editOpen, setEditOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
   const accent = palette[active]?.hex ?? palette[0]?.hex ?? "var(--accent)";
   const tagline = identity.tagline ?? "";
   const headingFont = view.headingFont ?? "Fraunces";
@@ -57,8 +62,8 @@ export function BrandView({ view }: { view: BrandProfileView }) {
         </div>
         <div className="bacts">
           <span className="gbtn sm" data-soon="Replacing your logo is coming soon"><svg viewBox="0 0 24 24"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M8 9l4-4 4 4M12 5v10" /></svg>Replace logo</span>
-          <span className="gbtn sm" data-soon="Editing brand identity is coming soon"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /><path d="M13 5l4 4" /></svg>Edit identity</span>
-          <span className="gbtn gold sm" data-soon="Saving brand changes is coming soon"><svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6" /></svg>Save</span>
+          {saved && <span className="bsaved">Saved ✓</span>}
+          <button type="button" className="gbtn gold sm" onClick={() => setEditOpen(true)}><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z" /><path d="M13 5l4 4" /></svg>Edit identity</button>
         </div>
       </div>
 
@@ -228,6 +233,26 @@ export function BrandView({ view }: { view: BrandProfileView }) {
           </div>
         </div>
       </div>
+
+      <EditIdentityModal
+        key={editOpen ? "open" : "closed"}
+        open={editOpen}
+        initial={{
+          displayName: identity.name,
+          tagline: identity.tagline ?? "",
+          websiteUrl: identity.website ?? "",
+          voiceGuidance: voiceGuidance ?? "",
+        }}
+        onClose={() => setEditOpen(false)}
+        onSubmit={async (value) => {
+          const res = await updateBrandIdentity(value);
+          if (res.ok) {
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+          }
+          return res;
+        }}
+      />
     </div>
   );
 }
