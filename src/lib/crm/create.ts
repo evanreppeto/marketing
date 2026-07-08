@@ -145,3 +145,33 @@ function buildInsert(
       };
   }
 }
+
+/**
+ * Update the editable fields of a CRM record (persona and/or status). Org-scoped;
+ * persona is only applied when it's an official mapping. Table name is the
+ * objectKey (companies/contacts/…). Returns the row id.
+ */
+export async function updateCrmRecordFields(
+  objectKey: CrmObjectKey,
+  recordId: string,
+  patch: { persona?: string; status?: string },
+  orgId?: string,
+): Promise<CreateCrmResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
+
+  const row: Record<string, unknown> = {};
+  if (patch.persona && isOfficialPersonaMapping(patch.persona)) row.persona = patch.persona;
+  if (patch.status?.trim()) row.status = patch.status.trim();
+  if (Object.keys(row).length === 0) return { ok: false, error: "Nothing to update." };
+
+  const scopedOrgId = orgId ?? (await getCurrentOrgId());
+  const { data, error } = await getSupabaseAdminClient()
+    .from(objectKey)
+    .update(row as never)
+    .eq("id", recordId)
+    .eq("org_id", scopedOrgId)
+    .select("id")
+    .single<{ id: string }>();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}

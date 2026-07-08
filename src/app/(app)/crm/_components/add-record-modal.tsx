@@ -41,13 +41,13 @@ const FORM: Record<CrmObjectKey, FieldConfig> = {
     nameLabel: "Company name",
     namePlaceholder: "Acme Restoration Co.",
     detail: { label: "Website", placeholder: "https://example.com", type: "url" },
-    status: { label: "Status", options: ["active", "prospect", "inactive"] },
+    status: { label: "Status", options: ["active", "inactive"] },
   },
   contacts: {
     nameLabel: "Full name",
     namePlaceholder: "Jane Doe",
     detail: { label: "Email", placeholder: "jane@company.com", type: "email" },
-    status: { label: "Status", options: ["active", "prospect", "inactive"] },
+    status: { label: "Status", options: ["active", "inactive", "do_not_contact"] },
   },
   properties: {
     nameLabel: "Street address",
