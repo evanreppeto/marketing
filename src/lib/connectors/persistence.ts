@@ -25,6 +25,23 @@ export async function setConnectorCredentialRef(
   assertOk("workspace_connectors credential upsert", error);
 }
 
+/**
+ * Disconnect a connector: drop its credential ref and disable it, so the read
+ * model computes `not_configured`. The Vault secret itself is left in place
+ * (unreferenced) — encrypted and harmless; a future sweep can reclaim it.
+ */
+export async function disconnectConnector(
+  client: SupabaseClient,
+  input: { workspaceId: string; connectorKey: string },
+): Promise<void> {
+  const { error } = await client
+    .from("workspace_connectors")
+    .update({ credential_ref: null, enabled: false })
+    .eq("workspace_id", input.workspaceId)
+    .eq("connector_key", input.connectorKey);
+  assertOk("workspace_connectors disconnect", error);
+}
+
 /** Flip the per-workspace enable switch. */
 export async function setConnectorEnabled(
   client: SupabaseClient,

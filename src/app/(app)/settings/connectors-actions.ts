@@ -1,0 +1,157 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { findConnector } from "@/domain";
+import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
+import { checkConnectorCredential } from "@/lib/connectors/health";
+import {
+  disconnectConnector as disconnectConnectorRow,
+  recordConnectorTest,
+  setConnectorCredentialRef,
+  setConnectorEnabled as setConnectorEnabledRow,
+} from "@/lib/connectors/persistence";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+import { type SupabaseClient } from "@supabase/supabase-js";
+
+import type { SettingsWriteResult } from "./actions";
+
+/**
+ * Operator-side connect flow for the real workspace connectors (Gemini research,
+ * Higgsfield). The credential (API key / token) is written to the Vault via
+ * create_secret; the workspace_connectors row stores only the returned ref +
+ * enable switch — the plaintext never touches the row and is never echoed to the
+ * browser. The runner later reads it through GET /api/v1/arc/connectors. Nothing
+ * here goes outbound; a connected connector still only acts under approval.
+ */
+export async function connectConnector(input: {
+  connectorKey: string;
+  credential: string;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const connector = findConnector(input.connectorKey);
+  if (!connector) return { ok: false, error: "Unknown connector." };
+  const credential = (input.credential ?? "").trim();
+  if (!credential) return { ok: false, error: "Paste a credential to connect." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId) return { ok: false, error: "No active workspace to connect into." };
+
+  try {
+    const client = getSupabaseAdminClient();
+    const credentialRef = await writeConnectorCredential(client, {
+      workspaceId: ctx.workspaceId,
+      connectorKey: connector.key,
+      plaintext: credential,
+    });
+    await setConnectorCredentialRef(client, {
+      workspaceId: ctx.workspaceId,
+      orgId: ctx.orgId ?? null,
+      connectorKey: connector.key,
+      credentialRef,
+    });
+    await setConnectorEnabledRow(client, { workspaceId: ctx.workspaceId, connectorKey: connector.key, enabled: true });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not connect." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true, message: `${connector.label} connected.` };
+}
+
+export async function disconnectConnector(input: { connectorKey: string }): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const connector = findConnector(input.connectorKey);
+  if (!connector) return { ok: false, error: "Unknown connector." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
+
+  try {
+    await disconnectConnectorRow(getSupabaseAdminClient(), { workspaceId: ctx.workspaceId, connectorKey: connector.key });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not disconnect." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true, message: `${connector.label} disconnected.` };
+}
+
+/**
+ * Test a connected connector: read its stored credential from the Vault, make a
+ * real minimal call to the provider (Higgsfield balance / Gemini models), and
+ * record the outcome on the row. ok:true = healthy; ok:false = failed/unavailable.
+ */
+export async function testConnector(input: { connectorKey: string }): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const connector = findConnector(input.connectorKey);
+  if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect this workspace to test the connection." };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
+  const workspaceId = ctx.workspaceId;
+
+  try {
+    const client = getSupabaseAdminClient();
+    const { data } = await (client as unknown as SupabaseClient)
+      .from("workspace_connectors")
+      .select("credential_ref")
+      .eq("workspace_id", workspaceId)
+      .eq("connector_key", connector.key)
+      .maybeSingle<{ credential_ref: string | null }>();
+    const ref = data?.credential_ref ?? null;
+    if (!ref) return { ok: false, error: "No credential to test — connect the connector first." };
+
+    const plaintext = await readConnectorCredential(client, ref);
+    if (!plaintext) return { ok: false, error: "Stored credential could not be read." };
+
+    const result = await checkConnectorCredential(connector.key, plaintext);
+    await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result });
+    revalidatePath("/settings");
+
+    return result.ok
+      ? { ok: true, persisted: true, message: `${connector.label} connection is healthy.` }
+      : { ok: false, error: `Test failed: ${result.error ?? "unknown error"}` };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not run the test." };
+  }
+}
+
+export async function toggleConnectorEnabled(input: {
+  connectorKey: string;
+  enabled: boolean;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const connector = findConnector(input.connectorKey);
+  if (!connector) return { ok: false, error: "Unknown connector." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
+
+  try {
+    await setConnectorEnabledRow(getSupabaseAdminClient(), {
+      workspaceId: ctx.workspaceId,
+      connectorKey: connector.key,
+      enabled: input.enabled,
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not update the connector." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true };
+}

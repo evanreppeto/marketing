@@ -160,6 +160,12 @@ html[data-density="compact"] {
   font-size: 15px;
 }
 
+/* The app shell (.arc-app) pins its own base font-size, so density has to be
+   re-applied at that scope to reach the signed-in screens. */
+html[data-density="compact"] .arc-app {
+  font-size: 13px;
+}
+
 html[data-density="compact"] .signal-panel {
   border-radius: 0.58rem;
 }

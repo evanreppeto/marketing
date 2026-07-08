@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return fail("rejected", "Request body must be valid JSON.", 400);
   }
   const body = payload as Record<string, unknown>;
-  const settings = await getAppSettings();
+  const settings = await getAppSettings(allowed.scope.orgId);
   // Precedence: Advanced override -> turn level (body.level) -> workspace default
   // level -> env/default. Computed each call; the poll request may omit body.level
   // (start already picked the model), so it falls back safely either way.

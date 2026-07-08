@@ -8,6 +8,15 @@
 .arc-settings .setsearch svg { width: 13px; height: 13px; stroke: var(--muted); fill: none; stroke-width: 1.8; }
 .arc-settings .setsearch input { flex: 1; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 12px; outline: none; }
 .arc-settings .setgrp { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; padding: 13px 10px 5px; }
+.arc-settings .searchres { display: flex; flex-direction: column; gap: 1px; padding-top: 4px; }
+.arc-settings .sr-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: 0.12s; }
+.arc-settings .sr-item:hover { background: rgba(255, 255, 255, 0.04); }
+.arc-settings .sr-item.on { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+.arc-settings .sr-label { font-size: 12.5px; font-weight: 500; color: var(--text-2); display: flex; align-items: center; gap: 5px; }
+.arc-settings .sr-item.on .sr-label, .arc-settings .sr-item:hover .sr-label { color: var(--text); }
+.arc-settings .sr-label b { font-weight: 600; color: var(--text); }
+.arc-settings .sr-sep { color: var(--line-3); }
+.arc-settings .sr-empty { font-size: 11.5px; color: var(--muted); padding: 10px; line-height: 1.5; }
 .arc-settings .setitem { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: var(--text-2); font-size: 12.5px; font-weight: 500; cursor: pointer; transition: 0.14s; }
 .arc-settings .setitem:hover { background: rgba(255, 255, 255, 0.035); color: var(--text); }
 .arc-settings .setitem.on { background: var(--accent-soft); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
@@ -19,6 +28,21 @@
 .arc-settings .sechead { margin-bottom: 18px; }
 .arc-settings .sechead h2 { font-family: var(--serif); font-weight: 500; font-size: 22px; letter-spacing: -0.02em; margin: 0; }
 .arc-settings .sechead p { font-size: 12.5px; color: var(--muted); margin: 5px 0 0; max-width: 66ch; line-height: 1.5; }
+
+/* Breadcrumb trail (Settings › Section › Sub-tab) */
+.arc-settings .crumbs { display: flex; align-items: center; gap: 6px; margin-bottom: 15px; font-size: 11.5px; }
+.arc-settings .crumbs button { font: inherit; font-size: 11.5px; color: var(--muted); background: transparent; border: 0; padding: 2px 5px; margin: -2px -1px; border-radius: 6px; cursor: pointer; transition: 0.14s; }
+.arc-settings .crumbs button:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.arc-settings .crumbs .sep { color: var(--line-3); font-size: 12px; }
+.arc-settings .crumbs .cur { color: var(--text-2); font-weight: 600; padding: 0 3px; }
+
+/* Section-level sub-tabs */
+.arc-settings .subtabs { display: flex; gap: 2px; margin: -2px 0 18px; border-bottom: 1px solid var(--line-2); }
+.arc-settings .subtabs button { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); background: transparent; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 14px; cursor: pointer; transition: 0.14s; display: inline-flex; align-items: center; gap: 7px; }
+.arc-settings .subtabs button:hover { color: var(--text-2); }
+.arc-settings .subtabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+.arc-settings .subtabs .sct { font-family: var(--mono); font-size: 10px; color: var(--muted); background: var(--inset); border-radius: 20px; padding: 0 6px; line-height: 15px; }
+.arc-settings .subtabs button.on .sct { color: var(--accent-contrast); background: var(--accent-soft); }
 
 .arc-settings .panel { border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); margin-bottom: 16px; overflow: hidden; }
 .arc-settings .panel-h { display: flex; align-items: center; gap: 9px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
@@ -117,6 +141,11 @@
 .arc-settings .cb-add:hover { filter: brightness(1.05); }
 .arc-settings .cb-mng { font-size: 11.5px; font-weight: 600; color: var(--text-2); background: transparent; border: 1px solid var(--line-2); border-radius: 7px; padding: 5px 11px; cursor: pointer; }
 .arc-settings .cb-mng:hover { border-color: var(--accent-border); color: var(--text); }
+.arc-settings .ccard-btn { cursor: pointer; outline: none; }
+.arc-settings .ccard-btn:focus-visible { border-color: var(--accent-border); box-shadow: 0 0 0 2px var(--accent-soft); }
+.arc-settings .cb-open { font-size: 11.5px; font-weight: 600; color: var(--accent-contrast); }
+.arc-settings .ccard-btn:hover .cb-open { color: var(--accent-hover); }
+.arc-settings .condetail-hd { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
 
 .arc-settings .ovgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(166px, 1fr)); gap: 11px; margin-bottom: 16px; }
 .arc-settings .ovcard { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); padding: 13px 14px; cursor: pointer; transition: 0.15s var(--ease); }
@@ -148,6 +177,45 @@
 .arc-settings .mrow .mn { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
 .arc-settings .mrow .mp { font-size: 10.5px; color: var(--muted); }
 .arc-settings .mbadge { font-size: 8px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 4px; padding: 1px 5px; }
+
+/* Roles & permissions guide */
+.arc-settings .roles { display: flex; flex-direction: column; gap: 9px; padding: 8px 0; }
+.arc-settings .rolecard { border: 1px solid var(--line-2); border-radius: 11px; background: var(--inset); padding: 12px 14px; }
+.arc-settings .rolehd { display: flex; align-items: center; gap: 9px; }
+.arc-settings .rolename { font-size: 13px; font-weight: 600; }
+.arc-settings .rolehd .badge { margin-left: auto; }
+.arc-settings .roledesc { font-size: 11.5px; color: var(--muted); margin: 5px 0 9px; line-height: 1.4; }
+.arc-settings .rolecaps { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.arc-settings .rolecaps li { position: relative; padding-left: 15px; font-size: 11.5px; color: var(--text-2); line-height: 1.4; }
+.arc-settings .rolecaps li::before { content: ""; position: absolute; left: 2px; top: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: 0.65; }
+
+/* Usage — cost-by-day chart */
+.arc-settings .daychart { display: flex; align-items: flex-end; gap: 3px; height: 132px; }
+.arc-settings .daybar { flex: 1; min-width: 0; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--accent-contrast), var(--accent)); opacity: 0.82; transition: opacity 0.14s; }
+.arc-settings .daybar:hover { opacity: 1; }
+.arc-settings .dayaxis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--muted); padding-top: 6px; }
+.arc-settings .daystat { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.arc-settings .daystat b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Usage — by-model + recent rows */
+.arc-settings .usagerow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.arc-settings .usagerow:last-child { border-bottom: 0; }
+.arc-settings .usagerow .ug-name { font-family: var(--mono); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.arc-settings .usagerow .ug-bar { flex: 1; height: 6px; border-radius: 99px; background: var(--inset); overflow: hidden; min-width: 36px; }
+.arc-settings .usagerow .ug-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-contrast)); }
+.arc-settings .usagerow .ug-meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.arc-settings .usagerow .ug-cost { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 56px; text-align: right; }
+.arc-settings .usagerow.rec .ug-time { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 60px; }
+.arc-settings .usagerow.rec .ug-model { flex: 1; min-width: 0; }
+.arc-settings .usagerow.rec .ug-sub { font-size: 10.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Activity log */
+.arc-settings .actrow { display: flex; gap: 11px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.arc-settings .actrow:last-child { border-bottom: 0; }
+.arc-settings .actdot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.arc-settings .actbody { flex: 1; min-width: 0; }
+.arc-settings .actsum { font-size: 12.5px; color: var(--text); line-height: 1.4; }
+.arc-settings .actmeta { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 @media (prefers-reduced-motion: no-preference) {
   .arc-settings .setmain-in > .sechead { animation: setRise 0.45s var(--ease) both; }
