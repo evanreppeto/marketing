@@ -2,13 +2,14 @@ import { GoogleGenAI } from "@google/genai";
 
 export const EMBEDDING_DIMS = 768;
 
-// Overridable via env so the embedding model can be switched WITHOUT a redeploy
-// (e.g. to "gemini-embedding-001" if a key doesn't have access to
-// text-embedding-004). The Brain "Refresh memory" probe reports exactly which
-// model/dimension works, so this can be set decisively. Whatever model is used,
-// outputDimensionality is pinned to EMBEDDING_DIMS so the vector always matches
-// the pgvector column — gemini-embedding-001 defaults to 3072 otherwise.
-const EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL?.trim() || "text-embedding-004";
+// Default to gemini-embedding-2 — the current GA embedding model. The old
+// text-embedding-004 was SHUT DOWN 2026-01-14 (calls now fail), and
+// gemini-embedding-001 retires 2026-07-14, so both are dead ends. Overridable
+// via env for a redeploy-free switch (the Brain "Refresh memory" probe reports
+// exactly which model/dimension works). outputDimensionality is pinned to
+// EMBEDDING_DIMS on every call because the gemini-embedding-* models default to
+// 3072 — the vector must match the pgvector(768) column.
+const EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-2";
 
 /**
  * Embed text with Gemini (768-dim). Returns null when the key is missing, the
