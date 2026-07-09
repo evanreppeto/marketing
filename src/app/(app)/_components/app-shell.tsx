@@ -9,6 +9,7 @@ import { ComingSoonToasts } from "./coming-soon";
 import { CommandPalette, type CommandItem } from "./command-palette";
 import { NavProgress } from "./nav-progress";
 import { RoutePrewarm } from "./route-prewarm";
+import { WorkspaceSwitcher, type WorkspaceOption } from "./workspace-switcher";
 
 function initials(name: string): string {
   return (
@@ -102,6 +103,9 @@ export function AppShell({
   orgName,
   userName,
   userEmail,
+  logoUrl = null,
+  avatarUrl = null,
+  workspaces = [],
   navBadges = {},
   children,
 }: {
@@ -109,6 +113,9 @@ export function AppShell({
   orgName: string;
   userName: string;
   userEmail: string;
+  logoUrl?: string | null;
+  avatarUrl?: string | null;
+  workspaces?: WorkspaceOption[];
   navBadges?: Record<string, number>;
   children: React.ReactNode;
 }) {
@@ -137,13 +144,7 @@ export function AppShell({
       <RoutePrewarm hrefs={PREWARM_HREFS} />
       <div className="app">
         <aside className="rail">
-          <div className="ws">
-            <span className="mk">{initials(orgName)}</span>
-            <div>
-              <div className="nm">{workspaceName}</div>
-              <div className="pl">{orgName}</div>
-            </div>
-          </div>
+          <WorkspaceSwitcher workspaceName={workspaceName} orgName={orgName} logoUrl={logoUrl} workspaces={workspaces} />
           <div className="indtag">
             <i />
             {orgName.split(/\s+/)[0]?.toUpperCase()} workspace
@@ -179,6 +180,7 @@ export function AppShell({
             displayName={displayName}
             email={userEmail}
             initials={initials(displayName)}
+            avatarUrl={avatarUrl}
             settingsHref="/settings"
           />
         </aside>
@@ -195,7 +197,14 @@ export function AppShell({
               Search or jump to…
               <span className="k">⌘K</span>
             </button>
-            <span className="topav">{initials(displayName)}</span>
+            <span className="topav">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- user-uploaded avatar; next/image would need per-host remotePatterns
+                <img src={avatarUrl} alt={displayName} />
+              ) : (
+                initials(displayName)
+              )}
+            </span>
           </header>
           <CommandPalette items={COMMAND_ITEMS} />
           {children}
