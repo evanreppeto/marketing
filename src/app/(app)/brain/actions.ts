@@ -41,12 +41,30 @@ export async function decideBrainNode(nodeId: string, decision: ApprovalDecision
 
 export type RebuildBrainResult = { ok: boolean; synced: number; embedded: number; message: string };
 
+// Nodes embedded per click. The full resync (~2 DB round-trips × every node) and
+// a large embedding backfill can't BOTH fit in one serverless invocation, so we
+// keep each click bounded and let the operator re-click (guided by the message)
+// until the backlog is drained. Small enough to finish well under maxDuration.
+const EMBED_BATCH = 150;
+
+async function resyncAll(orgId: string): Promise<number> {
+  const crm = await resyncCrmIntoBrain({ orgId });
+  const camp = await resyncCampaignsIntoBrain({ orgId });
+  const media = await resyncMediaIntoBrain({ orgId });
+  return crm.synced + camp.synced + media.synced;
+}
+
 /**
- * Operator-triggered Brain refresh: re-ingest CRM/campaigns/media into the graph,
- * then backfill semantic embeddings for any node missing one. The backfill is the
- * key part after setting GEMINI_API_KEY — it flips recall from keyword to semantic.
- * The result message tells the operator when embeddings were skipped (no key), so
- * the "why is recall keyword-only" state is self-explaining in the UI.
+ * Operator-triggered Brain refresh. Ordered so a single click always fits the
+ * function budget:
+ *   1. Probe embedding — surface the exact failure if it's off (still resync so
+ *      the graph stays current even without semantic recall).
+ *   2. Drain the embedding BACKLOG in bounded batches. These nodes already exist
+ *      in the graph, so no resync is needed; while a backlog remains we SKIP the
+ *      heavy resync (running it alongside a big backfill is what timed out).
+ *   3. Once the backlog is clear, resync CRM/campaigns/media to pull in anything
+ *      new, then embed just those new nodes.
+ * The backfill is what flips recall from keyword-only to semantic.
  */
 export async function rebuildBrainMemoryAction(): Promise<RebuildBrainResult> {
   await requireOperator();
@@ -55,19 +73,11 @@ export async function rebuildBrainMemoryAction(): Promise<RebuildBrainResult> {
   }
   try {
     const orgId = await getCurrentOrgId();
-    const [crm, camp, media] = [
-      await resyncCrmIntoBrain({ orgId }),
-      await resyncCampaignsIntoBrain({ orgId }),
-      await resyncMediaIntoBrain({ orgId }),
-    ];
-    const synced = crm.synced + camp.synced + media.synced;
 
-    // Self-diagnosing probe: does embedding actually work in THIS runtime? This is
-    // what flips recall from keyword-only to semantic. Surface the EXACT failure
-    // (missing key, model not enabled for the key, quota, wrong dims) instead of a
-    // guess, so the fix is obvious.
+    // 1. Does embedding actually work in THIS runtime? Surface the exact reason if not.
     const probe = await probeEmbedding();
     if (!probe.ok) {
+      const synced = await resyncAll(orgId);
       revalidatePath("/brain");
       return {
         ok: true,
@@ -77,19 +87,32 @@ export async function rebuildBrainMemoryAction(): Promise<RebuildBrainResult> {
       };
     }
 
-    const embed = await backfillMissingEmbeddings({ orgId });
+    // 2. Drain the embedding backlog first (the heavy, important part). No resync yet.
+    const embed = await backfillMissingEmbeddings({ orgId, budget: EMBED_BATCH });
+    if (embed.remaining) {
+      revalidatePath("/brain");
+      return {
+        ok: true,
+        synced: 0,
+        embedded: embed.embedded,
+        message: `Embedded ${embed.embedded} memories. More remain — click Refresh again to finish.`,
+      };
+    }
+
+    // 3. Backlog clear → resync to catch new records, then embed anything new.
+    const synced = await resyncAll(orgId);
+    const embedNew = await backfillMissingEmbeddings({ orgId, budget: EMBED_BATCH });
+    const embedded = embed.embedded + embedNew.embedded;
     revalidatePath("/brain");
-    const base = `Refreshed ${synced} records`;
     return {
       ok: true,
       synced,
-      embedded: embed.embedded,
-      message:
-        embed.embedded > 0
-          ? embed.remaining
-            ? `${base} · embedded ${embed.embedded} nodes. More remain — click Refresh again to finish.`
-            : `${base} · embedded ${embed.embedded} nodes. Semantic recall is ON.`
-          : `${base}. Semantic recall is ON — all nodes already embedded.`,
+      embedded,
+      message: embedNew.remaining
+        ? `Refreshed ${synced} records · embedded ${embedded} memories. More remain — click Refresh again.`
+        : embedded > 0
+          ? `Refreshed ${synced} records · embedded ${embedded} memories. Semantic recall is ON.`
+          : `Refreshed ${synced} records. Semantic recall is ON — everything's already embedded.`,
     };
   } catch (error) {
     return { ok: false, synced: 0, embedded: 0, message: error instanceof Error ? error.message : "Brain refresh failed." };
