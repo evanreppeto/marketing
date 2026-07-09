@@ -13,6 +13,7 @@ import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/s
 export type AppSettings = {
   workspaceName: string;
   workspaceProfile: WorkspaceProfile;
+  industry: string;
   productLabel: string;
   assistantName: string;
   assistantTone: AssistantTone;
@@ -42,6 +43,7 @@ export type ApprovalStrictness = "light" | "standard" | "strict";
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   workspaceName: "Arc",
   workspaceProfile: "company",
+  industry: "",
   productLabel: "Marketing",
   assistantName: "Arc",
   assistantTone: "direct",
@@ -182,6 +184,7 @@ export function mergeAppSettingsRows(rows: SettingRow[]): AppSettings {
   return {
     workspaceName: normalizeDisplayLabel(str("workspace_name", ""), DEFAULT_APP_SETTINGS.workspaceName),
     workspaceProfile: appWorkspaceProfile(map.get("workspace_profile")),
+    industry: normalizeDisplayLabel(str("industry", ""), DEFAULT_APP_SETTINGS.industry, 60),
     productLabel: normalizeDisplayLabel(str("product_label", ""), DEFAULT_APP_SETTINGS.productLabel, 42),
     assistantName: normalizeDisplayLabel(str("assistant_name", ""), DEFAULT_APP_SETTINGS.assistantName, 32),
     assistantTone: appAssistantTone(map.get("assistant_tone")),
@@ -214,15 +217,20 @@ export function getSupportContactEmail(
 }
 
 /**
- * Read app settings, merged over defaults. Degrades gracefully to defaults when
- * Supabase isn't configured or the table hasn't been migrated yet — never throws.
+ * Read one workspace's app settings, merged over defaults. Settings are
+ * org-scoped (PK is (org_id, key)); the service-role admin client bypasses RLS,
+ * so the org filter is applied explicitly here — mirroring the vault and other
+ * read-models. Degrades gracefully to defaults when there's no tenant in
+ * context, Supabase isn't configured, or the table hasn't been migrated yet —
+ * never throws.
  */
-async function readAppSettings(client?: SupabaseClient): Promise<AppSettings> {
+async function readAppSettings(orgId: string | null, client?: SupabaseClient): Promise<AppSettings> {
+  if (!orgId) return { ...DEFAULT_APP_SETTINGS };
   const supabase: SupabaseClient | null = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
   if (!supabase) return { ...DEFAULT_APP_SETTINGS };
 
   try {
-    const { data, error } = await supabase.from("app_settings").select("key,value");
+    const { data, error } = await supabase.from("app_settings").select("key,value").eq("org_id", orgId);
     if (error) {
       logAppSettingsFallback(error.message);
       return { ...DEFAULT_APP_SETTINGS };
@@ -235,24 +243,31 @@ async function readAppSettings(client?: SupabaseClient): Promise<AppSettings> {
   }
 }
 
-// Request-scoped dedup for the common no-arg read. The root layout reads settings
-// twice (generateMetadata + RootLayout), pages read it again, and the Settings
-// page fans out to ~7 panels — React cache() collapses all of those to ONE
-// app_settings SELECT per request. The client-injectable path stays uncached so
-// tests and server actions that pass an explicit client are unaffected.
-const getAppSettingsCached = cache((): Promise<AppSettings> => readAppSettings());
+// Request-scoped dedup, keyed by org: the root layout, pages, and the Settings
+// page's ~7 panels all read the same workspace's settings, so React cache()
+// collapses them to ONE app_settings SELECT per (request, org). The
+// client-injectable path stays uncached so tests and server actions that pass an
+// explicit client are unaffected.
+const getAppSettingsForOrg = cache((orgId: string): Promise<AppSettings> => readAppSettings(orgId));
 
 /**
- * Read app settings, merged over defaults. Degrades gracefully to defaults when
- * Supabase isn't configured or the table hasn't been migrated yet — never throws.
+ * Read a workspace's app settings, merged over defaults. Pass the current
+ * `orgId` (resolve via getCurrentOrgId in operator contexts, or the Arc token's
+ * scope in bearer contexts). No org → app defaults. Never throws.
  */
-export function getAppSettings(client?: SupabaseClient): Promise<AppSettings> {
-  return client ? readAppSettings(client) : getAppSettingsCached();
+export function getAppSettings(orgId?: string | null, client?: SupabaseClient): Promise<AppSettings> {
+  if (client) return readAppSettings(orgId ?? null, client);
+  if (!orgId) return Promise.resolve({ ...DEFAULT_APP_SETTINGS });
+  return getAppSettingsForOrg(orgId);
 }
 
-/** Upsert one or more settings keys. Values are stored as jsonb. */
-export async function saveAppSettings(client: SupabaseClient, entries: Record<string, unknown>): Promise<void> {
-  const rows = Object.entries(entries).map(([key, value]) => ({ key, value }));
-  const { error } = await client.from("app_settings").upsert(rows, { onConflict: "key" });
+/** Upsert one or more settings keys for a workspace. Values are stored as jsonb. */
+export async function saveAppSettings(
+  client: SupabaseClient,
+  orgId: string,
+  entries: Record<string, unknown>,
+): Promise<void> {
+  const rows = Object.entries(entries).map(([key, value]) => ({ key, value, org_id: orgId }));
+  const { error } = await client.from("app_settings").upsert(rows, { onConflict: "org_id,key" });
   if (error) throw new Error(`app_settings upsert: ${error.message}`);
 }

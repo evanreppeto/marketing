@@ -238,3 +238,46 @@ export async function removeWorkspaceMember(input: {
     return { ok: false, status: "failed", message: error instanceof Error ? error.message : "The member could not be removed." };
   }
 }
+
+/**
+ * Rename the active workspace (and its organization, which is the name shown
+ * across the app and used as Arc's outbound from-name). Owner/admin only. The
+ * organization + workspace rows carry the display identity that
+ * getCurrentWorkspaceContext() resolves, so both are kept in sync here.
+ */
+export async function renameWorkspace(input: {
+  workspaceId: string;
+  name: string;
+}): Promise<MemberMutationResult> {
+  const workspaceId = input.workspaceId.trim();
+  const name = input.name.trim().slice(0, 80);
+  if (!workspaceId) return { ok: false, status: "invalid_input", message: "A workspace is required." };
+  if (!name) return { ok: false, status: "invalid_input", message: "A workspace name is required." };
+
+  try {
+    const access = await requireWorkspaceAdmin(workspaceId);
+    if (!access.ok) return access;
+
+    const [{ error: orgError }, { error: wsError }] = await Promise.all([
+      access.client.from("organizations").update({ name }).eq("id", access.orgId),
+      access.client.from("workspaces").update({ name }).eq("id", workspaceId),
+    ]);
+    if (orgError) throw orgError;
+    if (wsError) throw wsError;
+
+    await recordWorkspaceAudit({
+      orgId: access.orgId,
+      workspaceId,
+      actorUserId: access.user.id,
+      action: "workspace.renamed",
+      summary: `Renamed the workspace to ${name}`,
+      subjectTable: "workspaces",
+      subjectId: workspaceId,
+      metadata: { name },
+    });
+
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, status: "failed", message: error instanceof Error ? error.message : "The workspace could not be renamed." };
+  }
+}

@@ -82,7 +82,8 @@
   --canvas: #16161a; --canvas-deep: #101013; --panel: #1c1c21; --inset: #202027; --raised: #26262d; --sidebar: #121316;
   --line: rgba(232, 224, 205, 0.08); --line-2: rgba(232, 224, 205, 0.12); --line-3: rgba(232, 224, 205, 0.20);
   --text: #f2eee4; --text-2: #b8b4aa; --muted: #777c80;
-  --accent: #c8a24a; --accent-soft: rgba(200, 162, 74, 0.12); --accent-border: rgba(200, 162, 74, 0.34); --accent-contrast: #ecd596;
+  /* --accent* intentionally inherit from html[data-accent] (globals.css) so the
+     Appearance setting re-skins the whole shell. Do not re-pin them here. */
   --ok: #7fb89a; --ok-soft: rgba(127, 184, 154, 0.14); --ok-text: #a3d0b8; --ok-border: rgba(127, 184, 154, 0.4);
   --warn: #d8b65e; --warn-soft: rgba(216, 182, 94, 0.14); --warn-text: #e6cf8e; --warn-border: rgba(216, 182, 94, 0.4);
   --red: #cc6666; --red-soft: rgba(204, 102, 102, 0.15); --red-text: #e0a3a3; --red-border: rgba(204, 102, 102, 0.42);
