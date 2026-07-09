@@ -4,6 +4,9 @@ import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
 import { enqueueArcChatTask } from "./enqueue";
 
+const { notifyArcWebhook } = vi.hoisted(() => ({ notifyArcWebhook: vi.fn() }));
+vi.mock("./notify", () => ({ notifyArcWebhook }));
+
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(async () => ({
     orgId: "org-1",
@@ -69,6 +72,50 @@ describe("enqueueArcChatTask", () => {
         outbound_locked: true,
       },
     });
+  });
+
+  // REGRESSION GUARD: the runner is webhook-only (no queue poll), so the enqueue
+  // MUST wake it — without this the message sits queued forever and Arc never replies.
+  it("wakes Arc's runner after queueing the message (push, not poll)", async () => {
+    notifyArcWebhook.mockClear();
+    const supabase = createSupabaseQueryMock({
+      agents: { data: { id: "agent-1" }, error: null },
+      agent_tasks: { data: { id: "task-1" }, error: null },
+      agent_task_inputs: { data: null, error: null },
+    });
+
+    await enqueueArcChatTask(
+      { conversationId: "conversation-1", messageId: "message-1", message: "Hi Arc", mentions: [], operator: "Operator" },
+      supabase,
+    );
+
+    expect(notifyArcWebhook).toHaveBeenCalledTimes(1);
+    expect(notifyArcWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conversation-1",
+        messageId: "message-1",
+        agentTaskId: "task-1",
+        message: "Hi Arc",
+        route: "fast",
+        mode: "act",
+      }),
+    );
+  });
+
+  it("still returns the task id when the wake fails — a wake error must not fail the send", async () => {
+    notifyArcWebhook.mockRejectedValueOnce(new Error("runner unreachable"));
+    const supabase = createSupabaseQueryMock({
+      agents: { data: { id: "agent-1" }, error: null },
+      agent_tasks: { data: { id: "task-1" }, error: null },
+      agent_task_inputs: { data: null, error: null },
+    });
+
+    const id = await enqueueArcChatTask(
+      { conversationId: "conversation-1", messageId: "message-1", message: "Hi Arc", mentions: [], operator: "Operator" },
+      supabase,
+    );
+
+    expect(id).toBe("task-1");
   });
 });
 

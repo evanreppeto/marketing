@@ -7,6 +7,7 @@ import { type ArcSkillId } from "@/lib/arc-skills/catalog";
 import { getCurrentAgentTaskTenantFields } from "../agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 import { markAgentKeys } from "./agent-config";
+import { notifyArcWebhook } from "./notify";
 import { type ArcAttachment } from "./persistence";
 
 export type EnqueueChatTaskInput = {
@@ -111,6 +112,34 @@ export async function enqueueArcChatTask(
     },
   });
   assertOk("agent_task_inputs insert", inputError);
+
+  // Wake Arc now (push, not poll) so it actually replies. The runner is
+  // webhook-only and never pulls this queue, so without this the message sits
+  // queued forever. Best-effort and fully isolated: a wake failure must never
+  // fail a message that's already persisted — the inbox route is the fallback.
+  // Mirrors enqueueOpportunityScanTask's enqueue→notify handoff.
+  try {
+    await notifyArcWebhook({
+      messageId: input.messageId,
+      conversationId: input.conversationId,
+      projectId: null,
+      campaignId: null,
+      agentTaskId: task.id,
+      message: input.message,
+      mentions: input.mentions,
+      operator: input.operator,
+      route: input.route ?? "fast",
+      mode: input.mode ?? "act",
+      command: input.command ?? null,
+      skillId: input.skillId ?? null,
+      attachments: input.attachments ?? [],
+      assistantTone: input.assistantTone,
+      assistantResponseStyle: input.assistantResponseStyle,
+      approvalStrictness: input.approvalStrictness,
+    });
+  } catch {
+    // Best-effort wake; the task is queued and the inbox route can still deliver it.
+  }
 
   return task.id;
 }
