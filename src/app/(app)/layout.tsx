@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getNavBadges } from "@/lib/workspace-summary/read-model";
 
@@ -34,6 +35,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Rail attention counts from the shared summary — same source the screens
   // render, so a badge never disagrees with the page it points at.
   const navBadges = await getNavBadges(ctx.orgId).catch(() => ({}));
+  // Workspaces the viewer can switch between — powers the rail's workspace menu.
+  const workspacesView = await getSettingsWorkspacesView().catch(() => ({ isDemo: false, workspaces: [] }));
 
   return (
     <AppShell
@@ -41,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       orgName={ctx.orgName}
       userName={userName}
       userEmail={user?.email ?? ""}
+      workspaces={workspacesView.workspaces}
       navBadges={navBadges}
     >
       {children}

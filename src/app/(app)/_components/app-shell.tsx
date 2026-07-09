@@ -9,6 +9,7 @@ import { ComingSoonToasts } from "./coming-soon";
 import { CommandPalette, type CommandItem } from "./command-palette";
 import { NavProgress } from "./nav-progress";
 import { RoutePrewarm } from "./route-prewarm";
+import { WorkspaceSwitcher, type WorkspaceOption } from "./workspace-switcher";
 
 function initials(name: string): string {
   return (
@@ -102,6 +103,7 @@ export function AppShell({
   orgName,
   userName,
   userEmail,
+  workspaces = [],
   navBadges = {},
   children,
 }: {
@@ -109,6 +111,7 @@ export function AppShell({
   orgName: string;
   userName: string;
   userEmail: string;
+  workspaces?: WorkspaceOption[];
   navBadges?: Record<string, number>;
   children: React.ReactNode;
 }) {
@@ -137,13 +140,7 @@ export function AppShell({
       <RoutePrewarm hrefs={PREWARM_HREFS} />
       <div className="app">
         <aside className="rail">
-          <div className="ws">
-            <span className="mk">{initials(orgName)}</span>
-            <div>
-              <div className="nm">{workspaceName}</div>
-              <div className="pl">{orgName}</div>
-            </div>
-          </div>
+          <WorkspaceSwitcher workspaceName={workspaceName} orgName={orgName} workspaces={workspaces} />
           <div className="indtag">
             <i />
             {orgName.split(/\s+/)[0]?.toUpperCase()} workspace
