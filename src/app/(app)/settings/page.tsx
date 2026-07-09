@@ -1,4 +1,6 @@
 import { DEFAULT_MEDIA_CONFIG } from "@/domain";
+import { getSettingsUsageView } from "@/lib/ai-usage/settings-summary";
+import { getSettingsTeamView } from "@/lib/auth/team-view";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import { getSettingsUsageView } from "@/lib/ai-usage/settings-summary";
@@ -25,5 +27,9 @@ export default async function SettingsPage() {
   ]);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
   const email = user?.email || "owner@bsr.test";
-  return <SettingsView brandName={brandName} email={email} team={team} usage={usage} settings={settings} connectors={connectors} workspaces={workspaces} />;
+  const mediaConfig =
+    ctx?.workspaceId && isSupabaseAdminConfigured()
+      ? await getWorkspaceMediaConfig(getSupabaseAdminClient(), ctx.workspaceId).catch(() => DEFAULT_MEDIA_CONFIG)
+      : DEFAULT_MEDIA_CONFIG;
+  return <SettingsView brandName={brandName} email={email} team={team} usage={usage} initialMediaConfig={mediaConfig} />;
 }
