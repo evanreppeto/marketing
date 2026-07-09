@@ -6,7 +6,7 @@ vi.mock("@google/genai", () => ({
     return { models: { embedContent } };
   }),
 }));
-import { embedText, EMBEDDING_DIMS } from "./gemini-embeddings";
+import { embedText, probeEmbedding, EMBEDDING_DIMS } from "./gemini-embeddings";
 
 const KEY = process.env.GEMINI_API_KEY;
 beforeEach(() => { embedContent.mockReset(); process.env.GEMINI_API_KEY = "k"; });
@@ -36,5 +36,31 @@ describe("embedText", () => {
   it("returns null on a wrong-sized vector", async () => {
     embedContent.mockResolvedValue({ embeddings: [{ values: vec(10) }] });
     expect(await embedText("x")).toBeNull();
+  });
+});
+
+describe("probeEmbedding", () => {
+  it("reports ok with the dimension on success", async () => {
+    embedContent.mockResolvedValue({ embeddings: [{ values: vec(EMBEDDING_DIMS) }] });
+    expect(await probeEmbedding()).toEqual({ ok: true, model: expect.any(String), dims: EMBEDDING_DIMS });
+  });
+  it("surfaces the real error (status + message) instead of collapsing to null", async () => {
+    embedContent.mockRejectedValue(Object.assign(new Error("permission denied"), { status: 403 }));
+    const r = await probeEmbedding();
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("status 403");
+    if (!r.ok) expect(r.error).toContain("permission denied");
+  });
+  it("flags a wrong dimensionality distinctly from a failure", async () => {
+    embedContent.mockResolvedValue({ embeddings: [{ values: vec(3072) }] });
+    const r = await probeEmbedding();
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("3072");
+  });
+  it("reports the missing key without calling the API", async () => {
+    delete process.env.GEMINI_API_KEY;
+    const r = await probeEmbedding();
+    expect(r.ok).toBe(false);
+    expect(embedContent).not.toHaveBeenCalled();
   });
 });

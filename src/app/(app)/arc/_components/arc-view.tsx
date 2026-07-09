@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, useTransition, type CSSProperties } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -63,18 +63,17 @@ function ShareDialog({ conversationId, onClose }: { conversationId: string | nul
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
-  const reload = () => {
-    if (!conversationId) {
-      setState({ visibility: "private", workspacePermission: "view", shared: [], addable: [] });
-      return;
-    }
+  // Async-only (no synchronous setState) so it's safe to run from an effect —
+  // the render already null-guards `state`, so the no-conversation case needs no reset.
+  const reload = useCallback(() => {
+    if (!conversationId) return;
     getChatSharingStateAction(conversationId).then((s) => {
       setState(s);
       setVisibility(s.visibility);
       setPermission(s.workspacePermission);
     });
-  };
-  useEffect(reload, [conversationId]);
+  }, [conversationId]);
+  useEffect(() => { reload(); }, [reload]);
 
   const saveVisibility = () =>
     conversationId &&

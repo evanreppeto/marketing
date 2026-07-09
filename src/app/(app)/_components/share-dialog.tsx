@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, useTransition, type CSSProperties } from "react";
 
 import type { SharePermission, ShareVisibility } from "@/domain";
 
@@ -41,18 +41,17 @@ export function ShareDialog({
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
-  const reload = () => {
-    if (!subjectId) {
-      setState({ visibility: "private", workspacePermission: "view", shared: [], addable: [] });
-      return;
-    }
+  // Async-only (no synchronous setState) so it's safe to run from an effect —
+  // the render already null-guards `state`, so the no-subject case needs no reset.
+  const reload = useCallback(() => {
+    if (!subjectId) return;
     load(subjectId).then((s) => {
       setState(s);
       setVisibility(s.visibility);
       setPermission(s.workspacePermission);
     });
-  };
-  useEffect(reload, [subjectId]);
+  }, [subjectId, load]);
+  useEffect(() => { reload(); }, [reload]);
 
   const saveVisibility = () =>
     subjectId &&

@@ -65,8 +65,14 @@ export function BrainView({ data }: { data: BrainData }) {
   const rebuild = () =>
     startRebuild(async () => {
       setRebuildMsg(null);
-      const r = await rebuildBrainMemoryAction();
-      setRebuildMsg(r.message);
+      try {
+        const r = await rebuildBrainMemoryAction();
+        setRebuildMsg(r.message);
+      } catch {
+        // A timeout or transport error must never leave the button stuck on
+        // "Refreshing…" — report it and let the operator retry.
+        setRebuildMsg("Refresh didn’t complete (it may have timed out). Give it a moment and try again.");
+      }
     });
   const [kind, setKind] = useState("all");
   // The review list is interactive (approve/reject the trust gate). Decided nodes

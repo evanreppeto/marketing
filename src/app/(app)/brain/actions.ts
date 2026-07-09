@@ -11,7 +11,7 @@ import {
   resyncCrmIntoBrain,
   resyncMediaIntoBrain,
 } from "@/lib/brain-ingestion/sync";
-import { embedText } from "@/lib/embeddings/gemini-embeddings";
+import { probeEmbedding } from "@/lib/embeddings/gemini-embeddings";
 import { decideNode } from "@/lib/knowledge-graph/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -62,39 +62,34 @@ export async function rebuildBrainMemoryAction(): Promise<RebuildBrainResult> {
     ];
     const synced = crm.synced + camp.synced + media.synced;
 
-    // Self-diagnosing: is the embeddings key reaching THIS runtime, and does it work?
-    // This is what makes recall semantic vs keyword-only — surface the exact state.
-    const keyPresent = Boolean((process.env.GEMINI_API_KEY ?? "").trim());
-    if (!keyPresent) {
+    // Self-diagnosing probe: does embedding actually work in THIS runtime? This is
+    // what flips recall from keyword-only to semantic. Surface the EXACT failure
+    // (missing key, model not enabled for the key, quota, wrong dims) instead of a
+    // guess, so the fix is obvious.
+    const probe = await probeEmbedding();
+    if (!probe.ok) {
       revalidatePath("/brain");
       return {
         ok: true,
         synced,
         embedded: 0,
-        message: `Refreshed ${synced} records. Semantic recall is OFF — GEMINI_API_KEY is not set in this (production) runtime.`,
-      };
-    }
-    const probe = await embedText("brain embedding connectivity probe");
-    if (!probe) {
-      revalidatePath("/brain");
-      return {
-        ok: true,
-        synced,
-        embedded: 0,
-        message: `Refreshed ${synced} records. GEMINI_API_KEY is set but the embedding call failed — check the key's Gemini API access, billing, and text-embedding-004 availability.`,
+        message: `Refreshed ${synced} records. Semantic recall is OFF — ${probe.error} (model "${probe.model}"; set GEMINI_EMBEDDING_MODEL to override).`,
       };
     }
 
     const embed = await backfillMissingEmbeddings({ orgId });
     revalidatePath("/brain");
+    const base = `Refreshed ${synced} records`;
     return {
       ok: true,
       synced,
       embedded: embed.embedded,
       message:
         embed.embedded > 0
-          ? `Refreshed ${synced} records · embedded ${embed.embedded} nodes. Semantic recall is ON.`
-          : `Refreshed ${synced} records. Semantic recall is ON — all nodes were already embedded.`,
+          ? embed.remaining
+            ? `${base} · embedded ${embed.embedded} nodes. More remain — click Refresh again to finish.`
+            : `${base} · embedded ${embed.embedded} nodes. Semantic recall is ON.`
+          : `${base}. Semantic recall is ON — all nodes already embedded.`,
     };
   } catch (error) {
     return { ok: false, synced: 0, embedded: 0, message: error instanceof Error ? error.message : "Brain refresh failed." };

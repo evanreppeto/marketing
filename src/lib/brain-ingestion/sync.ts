@@ -456,63 +456,83 @@ export async function resyncPerformanceIntoBrain(deps: SyncDeps = {}): Promise<B
   return { ok: true, synced, linked, errors, truncated };
 }
 
-export type EmbeddingBackfillResult = { ok: boolean; embedded: number; skipped: number; errors: number };
+export type EmbeddingBackfillResult = { ok: boolean; embedded: number; skipped: number; errors: number; remaining: boolean };
+
+// A single "Refresh memory" click embeds at most this many nodes, in parallel
+// batches of EMBED_CONCURRENCY. Bounding per-invocation keeps the server action
+// comfortably under the serverless function timeout even for large graphs; the
+// caller re-clicks (guided by `remaining`) to drain the rest.
+const EMBED_BACKFILL_BUDGET = 400;
+const EMBED_CONCURRENCY = 8;
 
 /**
  * Backfill semantic embeddings for existing Brain nodes that don't have one yet
  * (org-scoped). Nodes written while GEMINI_API_KEY was unset land with a null
- * embedding, so recall silently degrades to keyword-only; run this once the key is
- * live to make the whole graph semantically searchable.
+ * embedding, so recall silently degrades to keyword-only; run this once the key
+ * is live to make the graph semantically searchable.
  *
- * Re-reads the "first page of null-embedding nodes" each pass (the null set shrinks
- * as we embed), and STOPS if a pass makes zero progress — so with no key (embedText
- * returns null every time) it exits after one pass instead of looping forever.
+ * Bounded + parallel: pulls one page of up to `budget` null-embedding nodes and
+ * embeds them `concurrency` at a time, so a single call can't run past the
+ * function timeout. `remaining` is true when more null nodes exist beyond this
+ * batch (the UI surfaces "click Refresh again"). With embedding down (embedText
+ * returns null) nothing is written — the nodes stay keyword-only.
  */
-export async function backfillMissingEmbeddings(deps: SyncDeps = {}): Promise<EmbeddingBackfillResult> {
+export async function backfillMissingEmbeddings(
+  deps: SyncDeps & { budget?: number; concurrency?: number } = {},
+): Promise<EmbeddingBackfillResult> {
   let resolved;
   try { resolved = await resolve(deps); }
-  catch { return { ok: false, embedded: 0, skipped: 0, errors: 0 }; }
-  if (!resolved) return { ok: false, embedded: 0, skipped: 0, errors: 0 };
+  catch { return { ok: false, embedded: 0, skipped: 0, errors: 0, remaining: false }; }
+  if (!resolved) return { ok: false, embedded: 0, skipped: 0, errors: 0, remaining: false };
   const { client, orgId } = resolved;
+
+  const budget = Math.max(1, deps.budget ?? EMBED_BACKFILL_BUDGET);
+  const concurrency = Math.max(1, deps.concurrency ?? EMBED_CONCURRENCY);
+
+  // Pull one bounded page. Fetch budget+1 so we can tell the caller whether more
+  // remain (→ re-click) without a separate count query.
+  const { data, error } = await (
+    client as unknown as {
+      from(t: string): {
+        select(s: string): { eq(c: string, v: string): { is(c: string, v: null): { limit(n: number): PromiseLike<LooseResult> } } };
+      };
+    }
+  ).from("knowledge_nodes").select("id,label,summary,body").eq("org_id", orgId).is("embedding", null).limit(budget + 1);
+  if (error) return { ok: false, embedded: 0, skipped: 0, errors: 0, remaining: false };
+
+  const all = (data ?? []) as Array<{ id: string; label: string | null; summary: string | null; body: string | null }>;
+  const remaining = all.length > budget;
+  const rows = all.slice(0, budget);
 
   let embedded = 0;
   let skipped = 0;
   let errors = 0;
 
-  const maxPasses = Math.ceil(RESYNC_HARD_CAP / RESYNC_PAGE_SIZE);
-  for (let pass = 0; pass < maxPasses; pass++) {
-    const { data, error } = await (
-      client as unknown as {
-        from(t: string): {
-          select(s: string): { eq(c: string, v: string): { is(c: string, v: null): { limit(n: number): PromiseLike<LooseResult> } } };
-        };
-      }
-    ).from("knowledge_nodes").select("id,label,summary,body").eq("org_id", orgId).is("embedding", null).limit(RESYNC_PAGE_SIZE);
-    if (error) return { ok: false, embedded, skipped, errors };
-    const rows = (data ?? []) as Array<{ id: string; label: string | null; summary: string | null; body: string | null }>;
-    if (rows.length === 0) break;
-
-    let progressed = 0;
-    for (const row of rows) {
-      if (typeof row.id !== "string") { errors++; continue; }
-      const text = [row.label, row.summary, row.body].filter(Boolean).join("\n").trim();
-      if (!text) { skipped++; continue; }
-      let vec: number[] | null = null;
-      try { vec = await embedText(text); } catch { vec = null; }
-      if (!vec) { skipped++; continue; } // no key / embed failed — leave null (keyword recall)
-      const { error: upErr } = await (
-        client as unknown as {
-          from(t: string): { update(v: unknown): { eq(c: string, v: string): { eq(c: string, v: string): PromiseLike<{ error: { message: string } | null }> } } };
-        }
-      ).from("knowledge_nodes").update({ embedding: JSON.stringify(vec) }).eq("id", row.id).eq("org_id", orgId);
-      if (upErr) errors++;
-      else { embedded++; progressed++; }
+  for (let i = 0; i < rows.length; i += concurrency) {
+    const results = await Promise.all(
+      rows.slice(i, i + concurrency).map(async (row): Promise<"ok" | "skip" | "error"> => {
+        if (typeof row.id !== "string") return "error";
+        const text = [row.label, row.summary, row.body].filter(Boolean).join("\n").trim();
+        if (!text) return "skip";
+        let vec: number[] | null = null;
+        try { vec = await embedText(text); } catch { vec = null; }
+        if (!vec) return "skip"; // embed failed — leave null (keyword recall)
+        const { error: upErr } = await (
+          client as unknown as {
+            from(t: string): { update(v: unknown): { eq(c: string, v: string): { eq(c: string, v: string): PromiseLike<{ error: { message: string } | null }> } } };
+          }
+        ).from("knowledge_nodes").update({ embedding: JSON.stringify(vec) }).eq("id", row.id).eq("org_id", orgId);
+        return upErr ? "error" : "ok";
+      }),
+    );
+    for (const r of results) {
+      if (r === "ok") embedded++;
+      else if (r === "skip") skipped++;
+      else errors++;
     }
-    // No node got embedded this pass (e.g. GEMINI_API_KEY missing) — stop, don't spin.
-    if (progressed === 0) break;
   }
 
-  return { ok: true, embedded, skipped, errors };
+  return { ok: true, embedded, skipped, errors, remaining };
 }
 
 /**

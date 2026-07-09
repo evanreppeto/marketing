@@ -5,6 +5,11 @@ import type { GraphEdge, GraphNode } from "./_components/knowledge-graph";
 
 export const metadata = { title: "Brain — Arc" };
 
+// "Refresh memory" (rebuildBrainMemoryAction) resyncs CRM/campaigns/media and
+// backfills embeddings — network-heavy work. Give the server action headroom
+// over the default so a real refresh completes instead of hitting the timeout.
+export const maxDuration = 60;
+
 const KIND_COLOR: Record<string, string> = {
   arc: "#c8a24a",
   brand_fact: "#c47055",
