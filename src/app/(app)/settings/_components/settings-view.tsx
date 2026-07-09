@@ -212,9 +212,23 @@ const pinit = (p: string) => { const w = p.split(/[\s-]+/); return (w.length > 1
 const EMPTY_USAGE: SettingsUsageView = {
   isDemo: false, configured: false, tokensLabel: "0", runsLabel: "0", costLabel: "$0.00",
   capLabel: "$80", pctOfCap: 0, isNearCap: false, rangeLabel: "Last 30 days",
+  daily: [], recent: [], byModel: [],
 };
 
-export function SettingsView({ brandName, email, team, usage, initialMediaConfig = DEFAULT_MEDIA_CONFIG }: { brandName: string; email: string; team: SettingsTeamView; usage: SettingsUsageView | null; initialMediaConfig?: MediaConfig }) {
+// The 5 named accents from globals.css (html[data-accent="…"]). Swatch colors are
+// the representative --accent of each theme so the picker previews the real thing.
+const ACCENTS: { key: AppSettings["appearanceAccent"]; color: string }[] = [
+  { key: "gold", color: "#c8a24a" },
+  { key: "blue", color: "#5bb7e8" },
+  { key: "red", color: "#d98080" },
+  { key: "steel", color: "#aeb5c2" },
+  { key: "emerald", color: "#7fb89a" },
+];
+const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfortable: "Comfortable", compact: "Compact" };
+const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
+const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
+
+export function SettingsView({ brandName, email, team, usage, settings, connectors, workspaces }: { brandName: string; email: string; team: SettingsTeamView; usage: SettingsUsageView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
