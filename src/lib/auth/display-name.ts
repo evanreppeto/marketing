@@ -39,3 +39,31 @@ export const resolveViewerName = cache(async (
   }
   return "";
 });
+
+/**
+ * Profile photo URL for the current viewer, or null for initials. Prefers an
+ * OAuth-provider avatar (user_metadata.avatar_url) then the uploaded
+ * profiles.avatar_url. Unlike resolveViewerName there is NO owner fallback —
+ * a viewer only ever sees their own photo, never someone else's. Memoized per
+ * request so the layout + settings page share one lookup.
+ */
+export const getViewerAvatarUrl = cache(async (
+  user: { id?: string; user_metadata?: { avatar_url?: string } } | null,
+): Promise<string | null> => {
+  if (!user) return null;
+  const metaUrl = String(user.user_metadata?.avatar_url ?? "").trim();
+  if (metaUrl.startsWith("http")) return metaUrl;
+  if (!user.id) return null;
+  try {
+    const admin = getSupabaseAdminClient();
+    const { data } = await admin
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", user.id)
+      .maybeSingle<{ avatar_url: string | null }>();
+    const url = String(data?.avatar_url ?? "").trim();
+    return url.startsWith("http") ? url : null;
+  } catch {
+    return null;
+  }
+});

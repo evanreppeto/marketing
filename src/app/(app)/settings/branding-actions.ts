@@ -1,0 +1,82 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { uploadBrandingImage } from "@/lib/branding/images";
+import { saveAppSettings } from "@/lib/settings/store";
+import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+/**
+ * Image-upload actions for workspace + personal branding. Both persist a public
+ * image URL — the workspace logo to app_settings (org-scoped, rendered in the
+ * rail) and the user avatar to profiles.avatar_url (per-user, rendered app-wide).
+ * Operator-gated; revalidate the root layout so the shell picks up the new image
+ * on the next render. Nothing outbound.
+ */
+export type BrandingResult = { ok: true; url: string | null } | { ok: false; error: string };
+
+function file(formData: FormData): File | null {
+  const value = formData.get("file");
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
+export async function saveWorkspaceLogoAction(formData: FormData): Promise<BrandingResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect a workspace to upload a logo." };
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.orgId) return { ok: false, error: "No active workspace." };
+
+  const image = file(formData);
+  if (!image) return { ok: false, error: "Choose an image first." };
+
+  const uploaded = await uploadBrandingImage(`org/${ctx.orgId}`, image);
+  if (!uploaded.ok) return uploaded;
+
+  await saveAppSettings(getSupabaseAdminClient(), ctx.orgId, { brand_logo_url: uploaded.url });
+  revalidatePath("/", "layout");
+  return { ok: true, url: uploaded.url };
+}
+
+export async function removeWorkspaceLogoAction(): Promise<BrandingResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect a workspace first." };
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.orgId) return { ok: false, error: "No active workspace." };
+
+  await saveAppSettings(getSupabaseAdminClient(), ctx.orgId, { brand_logo_url: "" });
+  revalidatePath("/", "layout");
+  return { ok: true, url: null };
+}
+
+export async function saveUserAvatarAction(formData: FormData): Promise<BrandingResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect a workspace to set a photo." };
+  const user = await getSupabaseAuthenticatedUser();
+  if (!user?.id) return { ok: false, error: "Sign in to set a profile photo." };
+
+  const image = file(formData);
+  if (!image) return { ok: false, error: "Choose an image first." };
+
+  const uploaded = await uploadBrandingImage(`user/${user.id}`, image);
+  if (!uploaded.ok) return uploaded;
+
+  const { error } = await getSupabaseAdminClient().from("profiles").update({ avatar_url: uploaded.url }).eq("id", user.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, url: uploaded.url };
+}
+
+export async function removeUserAvatarAction(): Promise<BrandingResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect a workspace first." };
+  const user = await getSupabaseAuthenticatedUser();
+  if (!user?.id) return { ok: false, error: "Sign in first." };
+
+  const { error } = await getSupabaseAdminClient().from("profiles").update({ avatar_url: null }).eq("id", user.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, url: null };
+}

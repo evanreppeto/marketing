@@ -8,8 +8,14 @@ type AccountMenuProps = {
   displayName: string;
   email: string;
   initials: string;
+  avatarUrl?: string | null;
   settingsHref: string;
 };
+
+function Avatar({ url, initials, alt }: { url: string | null | undefined; initials: string; alt: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- user-uploaded avatar; next/image would need per-host remotePatterns
+  return <span className="av">{url ? <img src={url} alt={alt} /> : initials}</span>;
+}
 
 /**
  * The account control pinned to the bottom of the sidebar rail. Replaces the
@@ -17,7 +23,7 @@ type AccountMenuProps = {
  * settings, Sign out). Sign out is a real form POST to /api/auth/sign-out so it
  * works without JS and clears the Supabase session before redirecting to /login.
  */
-export function AccountMenu({ firstName, displayName, email, initials, settingsHref }: AccountMenuProps) {
+export function AccountMenu({ firstName, displayName, email, initials, avatarUrl, settingsHref }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +48,7 @@ export function AccountMenu({ firstName, displayName, email, initials, settingsH
       {open && (
         <div className="acct-menu" role="menu">
           <div className="acct-id">
-            <span className="av">{initials}</span>
+            <Avatar url={avatarUrl} initials={initials} alt={displayName} />
             <div className="acct-id-t">
               <div className="nm">{displayName}</div>
               {email && <div className="em">{email}</div>}
@@ -75,7 +81,7 @@ export function AccountMenu({ firstName, displayName, email, initials, settingsH
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="av">{initials}</span>
+        <Avatar url={avatarUrl} initials={initials} alt={displayName} />
         <span className="nm">{firstName}</span>
         <span className="cog" aria-hidden>
           <svg viewBox="0 0 24 24">

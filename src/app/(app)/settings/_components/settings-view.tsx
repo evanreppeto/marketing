@@ -24,7 +24,14 @@ import {
   saveRunnerDisplayName,
   switchWorkspace,
 } from "../actions";
+import {
+  removeUserAvatarAction,
+  removeWorkspaceLogoAction,
+  saveUserAvatarAction,
+  saveWorkspaceLogoAction,
+} from "../branding-actions";
 import { connectConnector, disconnectConnector, testConnector, toggleConnectorEnabled } from "../connectors-actions";
+import { ImageUploadField } from "./image-upload-field";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
 
 type SettingsWriteResult = { ok: true; persisted: boolean; message?: string } | { ok: false; error: string };
@@ -228,7 +235,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, team, usage, settings, connectors, workspaces }: { brandName: string; email: string; team: SettingsTeamView; usage: SettingsUsageView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, settings, connectors, workspaces }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -484,6 +491,15 @@ export function SettingsView({ brandName, email, team, usage, settings, connecto
         ) : (
           <Panel title="Operator" tag={TGEST}>
             <Row label="Signed in as"><span className="pillrow"><span style={{ display: "flex", alignItems: "center", gap: 9 }}><span style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", fontFamily: "var(--serif)", fontWeight: 600, color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)" }}>{(email || "O").charAt(0).toUpperCase()}</span><span><span style={{ fontSize: "12.5px", fontWeight: 600, display: "block" }}>{email.split("@")[0] || "Operator"}</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{email}</span></span></span><button className="btn sm">Edit</button></span></Row>
+            <Row label="Profile photo" desc="Shown on your account and across the app. Square works best.">
+              <ImageUploadField
+                currentUrl={avatarUrl}
+                fallback={(email || "O").charAt(0).toUpperCase()}
+                shape="circle"
+                uploadAction={saveUserAvatarAction}
+                removeAction={removeUserAvatarAction}
+              />
+            </Row>
             <Row label="Access gate" desc="OPERATOR_ACCESS_TOKEN protects the console."><span className="pillrow"><Pill kind="ok">Protected</Pill><button className="btn sm">Configure</button></span></Row>
           </Panel>
         )}
@@ -862,6 +878,14 @@ function GeneralPanel({ brandName, settings, domain }: { brandName: string; sett
   return (
       <Panel title="Workspace" tag={TGOK} foot="Renames the workspace + saves profile, industry, and support email">
         <Row label="Workspace name" desc="Shown across the app and in Arc’s outbound from-name."><input className="inp" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} /></Row>
+        <Row label="Workspace logo" desc="Shown in the sidebar in place of the initials. Square PNG or SVG works best.">
+          <ImageUploadField
+            currentUrl={settings.brandLogoUrl?.startsWith("http") ? settings.brandLogoUrl : null}
+            fallback={pinit(name || brandName)}
+            uploadAction={saveWorkspaceLogoAction}
+            removeAction={removeWorkspaceLogoAction}
+          />
+        </Row>
         <Row label="Account type" desc="How Arc frames personas, detectors, and templates."><Seg opts={["Individual", "Company", "Agency"]} value={PROFILE_LABEL[profile]} onChange={(v) => setProfile(v.toLowerCase() as AppSettings["workspaceProfile"])} /></Row>
         <Row label="Industry" desc="Stored on your workspace profile."><select className="sel" value={industry} onChange={(e) => setIndustry(e.target.value)}><option>Restoration &amp; home services</option><option>Roofing &amp; exteriors</option><option>General contracting</option></select></Row>
         <Row label="Support email" desc="Used as reply-to on transactional email."><input className="inp" value={email} onChange={(e) => setEmail(e.target.value)} /></Row>

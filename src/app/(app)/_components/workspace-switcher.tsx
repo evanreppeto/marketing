@@ -30,10 +30,12 @@ function initials(name: string): string {
 export function WorkspaceSwitcher({
   workspaceName,
   orgName,
+  logoUrl = null,
   workspaces,
 }: {
   workspaceName: string;
   orgName: string;
+  logoUrl?: string | null;
   workspaces: WorkspaceOption[];
 }) {
   const [open, setOpen] = useState(false);
@@ -59,7 +61,14 @@ export function WorkspaceSwitcher({
 
   const brand = (
     <>
-      <span className="mk">{initials(orgName)}</span>
+      <span className="mk">
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo; next/image would need per-host remotePatterns
+          <img src={logoUrl} alt={orgName} />
+        ) : (
+          initials(orgName)
+        )}
+      </span>
       <div>
         <div className="nm">{workspaceName}</div>
         <div className="pl">{orgName}</div>

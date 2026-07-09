@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 
-import { resolveViewerName } from "@/lib/auth/display-name";
+import { getViewerAvatarUrl, resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
+import { getAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getNavBadges } from "@/lib/workspace-summary/read-model";
 
@@ -37,6 +38,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const navBadges = await getNavBadges(ctx.orgId).catch(() => ({}));
   // Workspaces the viewer can switch between — powers the rail's workspace menu.
   const workspacesView = await getSettingsWorkspacesView().catch(() => ({ isDemo: false, workspaces: [] }));
+  // Branding: workspace logo (org-scoped) + the viewer's profile photo, rendered
+  // in the rail in place of the initials monograms when set.
+  const appSettings = await getAppSettings(ctx.orgId).catch(() => null);
+  const logoUrl = appSettings?.brandLogoUrl?.startsWith("http") ? appSettings.brandLogoUrl : null;
+  const avatarUrl = await getViewerAvatarUrl(user).catch(() => null);
 
   return (
     <AppShell
@@ -44,6 +50,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       orgName={ctx.orgName}
       userName={userName}
       userEmail={user?.email ?? ""}
+      logoUrl={logoUrl}
+      avatarUrl={avatarUrl}
       workspaces={workspacesView.workspaces}
       navBadges={navBadges}
     >

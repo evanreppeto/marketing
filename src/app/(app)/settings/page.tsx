@@ -1,3 +1,4 @@
+import { getViewerAvatarUrl } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSettingsTeamView } from "@/lib/auth/team-view";
 import { getSettingsWorkspacesView } from "@/lib/auth/workspaces-view";
@@ -24,5 +25,6 @@ export default async function SettingsPage() {
   ]);
   const brandName = ctx?.orgName?.trim() || "Big Shoulders Restoration";
   const email = user?.email || "owner@bsr.test";
-  return <SettingsView brandName={brandName} email={email} team={team} usage={usage} settings={settings} connectors={connectors} workspaces={workspaces} />;
+  const avatarUrl = await getViewerAvatarUrl(user);
+  return <SettingsView brandName={brandName} email={email} avatarUrl={avatarUrl} team={team} usage={usage} settings={settings} connectors={connectors} workspaces={workspaces} />;
 }
