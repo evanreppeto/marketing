@@ -1052,8 +1052,24 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
   const reg = findConnector(view.key);
   const pill = CONNECTOR_STATUS_PILL[view.status];
   const [credential, setCredential] = useState("");
-  const [status, setStatus] = useState<SaveStatus>(null);
+  // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
+  // Higgsfield redirects back with — computed at init so no setState-in-effect.
+  const [status, setStatus] = useState<SaveStatus>(() => {
+    if (typeof window === "undefined" || view.key !== "higgsfield") return null;
+    const hf = new URLSearchParams(window.location.search).get("hf");
+    if (!hf) return null;
+    return hf === "connected" ? { tone: "ok", text: "Higgsfield connected." } : { tone: "err", text: `Couldn’t connect Higgsfield (${hf.replace(/_/g, " ")}).` };
+  });
   const [pending, setPending] = useState(false);
+
+  // Strip the ?hf marker after mount so a refresh doesn't re-show it (no setState).
+  useEffect(() => {
+    if (view.key !== "higgsfield") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("hf")) return;
+    params.delete("hf");
+    window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
+  }, [view.key]);
 
   async function connect() {
     if (!credential.trim()) { setStatus({ tone: "err", text: "Paste a credential." }); return; }
@@ -1105,6 +1121,19 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
               <span className="pillrow">
                 <input className="inp" type="password" placeholder={`New ${meta.credLabel}`} value={credential} onChange={(e) => setCredential(e.target.value)} />
                 <button className="btn sm gold" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
+              </span>
+            </Row>
+          </>
+        ) : view.key === "higgsfield" ? (
+          <>
+            {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — connecting won’t persist here.</div>}
+            <Row label="Connect" desc="Sign in to your Higgsfield Ultra account. Arc gets its own credential scoped to this workspace and refreshes it automatically — no CLI, no token to copy.">
+              <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
+            </Row>
+            <Row label="Paste a token" desc="Advanced — paste an OAuth bundle captured elsewhere instead of signing in here.">
+              <span className="pillrow">
+                <input className="inp" type="password" placeholder="Paste token bundle" value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
+                <button className="btn sm" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
               </span>
             </Row>
           </>
