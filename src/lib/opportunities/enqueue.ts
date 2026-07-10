@@ -1,15 +1,26 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { type OpportunityPackageBrief } from "@/domain";
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { markAgentKeys } from "@/lib/arc-chat/agent-config";
 import { notifyOpportunityScan } from "@/lib/arc-chat/notify";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
-export type EnqueueOpportunityTaskInput = { opportunityId: string; objective: string; operator: string };
+export type EnqueueOpportunityTaskInput = {
+  opportunityId: string;
+  objective: string;
+  operator: string;
+  /** The draft campaign the run fills with a package. */
+  campaignId: string;
+  /** Deterministic brief the draft run turns into email/SMS/paid/landing copy. */
+  brief: OpportunityPackageBrief;
+};
 
 /**
  * Queue an opportunity draft as an agent_task for Arc. Mirrors the agent
  * resolution used by arc-chat/enqueue.ts (markAgentKeys). Outbound stays locked.
+ * The campaign id + brief ride in metadata so the draft executor (inline, or a
+ * runner/worker later) has everything it needs to generate the package.
  * Returns the new task id, or throws if no Arc agent is registered yet.
  */
 export async function enqueueArcOpportunityTask(
@@ -37,7 +48,14 @@ export async function enqueueArcOpportunityTask(
       task_type: "arc_opportunity_draft",
       source_type: "opportunity",
       source_id: input.opportunityId,
-      metadata: { requested_by: input.operator, source: "opportunity_inbox", outbound_locked: true },
+      campaign_id: input.campaignId,
+      metadata: {
+        requested_by: input.operator,
+        source: "opportunity_inbox",
+        outbound_locked: true,
+        campaign_id: input.campaignId,
+        brief: input.brief,
+      },
     })
     .select("id")
     .single<{ id: string }>();

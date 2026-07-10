@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
-import { draftCampaignFromOpportunityAction, scanForOpportunitiesAction } from "../actions";
-import { DraftCampaignModal } from "./draft-campaign-modal";
+import { askArcToDraftFromOpportunityAction, draftCampaignFromOpportunityAction, scanForOpportunitiesAction } from "../actions";
+import { DraftCampaignModal, type DraftMode } from "./draft-campaign-modal";
 
 export type OppSignal = { label: string; value: string };
 export type OppRouting = { step: string; note: string; done: boolean };
@@ -94,6 +94,7 @@ function ScanButton({ subtle }: { subtle?: boolean }) {
 export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
   const [cur, setCur] = useState(0);
   const [draftOpen, setDraftOpen] = useState(false);
+  const [mode, setMode] = useState<DraftMode>("operator");
   const [notice, setNotice] = useState<string | null>(null);
   const router = useRouter();
 
@@ -119,13 +120,18 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
     value: { name: string; persona: string; restorationFocus: string },
   ): Promise<{ ok: boolean; error?: string }> => {
     setNotice(null);
-    const res = await draftCampaignFromOpportunityAction({ opportunityId: o.id, ...value });
+    const action = mode === "arc" ? askArcToDraftFromOpportunityAction : draftCampaignFromOpportunityAction;
+    const res = await action({ opportunityId: o.id, ...value });
     if (!res.ok) return { ok: false, error: res.error };
     if (res.persisted && res.href) {
       router.push(res.href);
       return { ok: true };
     }
-    setNotice("Draft prepared. Connect a workspace to save and open it — nothing was sent.");
+    setNotice(
+      mode === "arc"
+        ? "Arc drafted the package. Connect a workspace to save and open it — nothing was sent."
+        : "Draft prepared. Connect a workspace to save and open it — nothing was sent.",
+    );
     return { ok: true };
   };
 
@@ -208,10 +214,24 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
                   </>
                 )}
                 <div className="racts">
-                  <button type="button" className="btn gold" onClick={() => setDraftOpen(true)}>
+                  <button
+                    type="button"
+                    className="btn gold"
+                    onClick={() => {
+                      setMode("operator");
+                      setDraftOpen(true);
+                    }}
+                  >
                     Create campaign
                   </button>
-                  <button type="button" className="btn ghost" onClick={() => setDraftOpen(true)}>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      setMode("arc");
+                      setDraftOpen(true);
+                    }}
+                  >
                     Ask Arc to draft
                   </button>
                   {o.recordHref && (
@@ -283,10 +303,11 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
       </section>
 
       <DraftCampaignModal
-        key={`${o.id}-${draftOpen ? "open" : "closed"}`}
+        key={`${o.id}-${mode}-${draftOpen ? "open" : "closed"}`}
         open={draftOpen}
         onClose={() => setDraftOpen(false)}
         opp={o}
+        mode={mode}
         onSubmit={handleDraft}
       />
     </div>
