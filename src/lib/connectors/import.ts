@@ -1,0 +1,148 @@
+import { type SupabaseClient } from "@supabase/supabase-js";
+
+import { type EnrichmentFields } from "@/domain";
+import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
+
+import {
+  asOfficialPersona,
+  importContactsFromSource,
+  type ImportRunResult,
+} from "@/lib/integrations/crm/import-run";
+import { hubspotCrmImportSource } from "@/lib/integrations/crm/hubspot";
+import { type EnrichmentLookupKeys, type EnrichmentProvider } from "@/lib/integrations/enrichment/provider";
+import { vendorEnrichmentProvider } from "@/lib/integrations/enrichment/vendor";
+
+import { getConnectorConfig } from "./config";
+import { readConnectorCredential } from "./credentials";
+import { meterConnectorCall } from "./metering";
+import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "./read-model";
+
+// ---------------------------------------------------------------------------
+// CRM import orchestrator (BSR-368). Import is modeled as the new `import_source`
+// connector kind: read-IN, writes ONLY CRM rows through the gated ingest path, and
+// runs as an EXPLICIT operator action — NOT on the automatic signal-detection loop
+// (runSignalSourceDetection). That separation is deliberate: signal sources stay
+// read-only (they only ever write `opportunities`), while a CRM import mutates CRM
+// records and therefore must be operator-triggered.
+//
+// This module resolves the enabled `hubspot-import` connector (credential + config),
+// builds the live HubSpot source, optionally layers the metered `lead-enrichment`
+// provider (each lookup guarded by the spend cap), and runs the provider-agnostic
+// import engine. No outbound, ever.
+// ---------------------------------------------------------------------------
+
+export const HUBSPOT_IMPORT_CONNECTOR_KEY = "hubspot-import";
+export const LEAD_ENRICHMENT_CONNECTOR_KEY = "lead-enrichment";
+
+export type RunCrmImportInput = {
+  workspaceId: string;
+  orgId: string;
+  client?: SupabaseClient;
+  now?: string;
+  maxPages?: number;
+  /** Per-org allowed persona keys; defaults to the official set inside the engine. */
+  allowedPersonaKeys?: readonly string[];
+};
+
+export type RunCrmImportResult =
+  | { ok: true; result: ImportRunResult; enrichmentEnabled: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Wrap an enrichment provider in the metered cost guard: every lookup is authorized
+ * against the workspace spend cap BEFORE it runs and its usage recorded after. A
+ * lookup that would breach the cap is refused — the provider returns null (no
+ * firmographics, no spend) and the import continues. `lead-enrichment` is a metered
+ * connector, so this is the ONLY way its provider should be called in production.
+ */
+export function meteredEnrichmentProvider(
+  base: EnrichmentProvider,
+  ctx: { client: SupabaseClient; orgId: string; workspaceId: string; connectorKey?: string },
+): EnrichmentProvider {
+  const connectorKey = ctx.connectorKey ?? LEAD_ENRICHMENT_CONNECTOR_KEY;
+  return {
+    async enrich(keys: EnrichmentLookupKeys): Promise<EnrichmentFields | null> {
+      const outcome = await meterConnectorCall<EnrichmentFields | null>(
+        ctx.client,
+        {
+          orgId: ctx.orgId,
+          workspaceId: ctx.workspaceId,
+          connectorKey,
+          estimatedUnits: 1,
+          context: { source: "crm_import_enrichment" },
+        },
+        () => base.enrich(keys),
+      );
+      return outcome.ok ? outcome.result : null;
+    },
+  };
+}
+
+/**
+ * Build the metered enrichment provider for a workspace when `lead-enrichment` is
+ * enabled + credentialed + has an endpoint configured; otherwise null (import runs
+ * without firmographics). Kept separate so the enrichment wiring is testable.
+ */
+async function resolveEnrichmentProvider(
+  client: SupabaseClient,
+  workspaceId: string,
+  orgId: string,
+): Promise<EnrichmentProvider | null> {
+  const ref = await resolveConnectorCredentialRef(client, workspaceId, LEAD_ENRICHMENT_CONNECTOR_KEY);
+  const apiKey = await readConnectorCredential(client, ref);
+  if (!apiKey) return null;
+  const config = await getConnectorConfig(client, workspaceId, LEAD_ENRICHMENT_CONNECTOR_KEY);
+  const endpoint = typeof config.endpoint === "string" && config.endpoint.trim() ? config.endpoint.trim() : null;
+  if (!endpoint) return null;
+  const base = vendorEnrichmentProvider(apiKey, { endpoint });
+  return meteredEnrichmentProvider(base, { client, orgId, workspaceId });
+}
+
+/**
+ * Run a CRM import for the workspace's enabled HubSpot connector. Resolves the
+ * OAuth token + config, builds the live source, layers metered enrichment if
+ * enabled, and imports idempotently. Returns a structured error (never throws for
+ * an expected "not connected" / "misconfigured" case) so a caller can surface it.
+ */
+export async function runCrmImport(input: RunCrmImportInput): Promise<RunCrmImportResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
+  const client = input.client ?? getSupabaseAdminClient();
+
+  const views = await listWorkspaceConnectors(client, input.workspaceId);
+  const importView = views.find((v) => v.key === HUBSPOT_IMPORT_CONNECTOR_KEY);
+  if (!importView || importView.status !== "connected") {
+    return { ok: false, error: "hubspot_import_not_connected" };
+  }
+
+  const ref = await resolveConnectorCredentialRef(client, input.workspaceId, HUBSPOT_IMPORT_CONNECTOR_KEY);
+  const token = await readConnectorCredential(client, ref);
+  if (!token) return { ok: false, error: "missing_credential" };
+
+  const config = await getConnectorConfig(client, input.workspaceId, HUBSPOT_IMPORT_CONNECTOR_KEY);
+  const defaultPersona = asOfficialPersona(config.defaultPersona);
+  if (!defaultPersona) return { ok: false, error: "missing_default_persona" };
+
+  const source = hubspotCrmImportSource(token, {
+    pageSize: typeof config.pageSize === "number" ? config.pageSize : undefined,
+    updatedAfter: typeof config.updatedAfter === "string" ? config.updatedAfter : undefined,
+  });
+
+  const enrichment = await resolveEnrichmentProvider(client, input.workspaceId, input.orgId);
+
+  const result = await importContactsFromSource({
+    client,
+    orgId: input.orgId,
+    source,
+    options: {
+      defaultPersona,
+      personaProperty: typeof config.personaProperty === "string" ? config.personaProperty : undefined,
+      source: typeof config.source === "string" ? config.source : "hubspot",
+    },
+    now: input.now,
+    enrichment: enrichment ?? undefined,
+    allowedPersonaKeys: input.allowedPersonaKeys,
+    maxPages: input.maxPages,
+  });
+
+  return { ok: true, result, enrichmentEnabled: Boolean(enrichment) };
+}

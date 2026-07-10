@@ -31,7 +31,7 @@ import {
   saveUserAvatarAction,
   saveWorkspaceLogoAction,
 } from "../branding-actions";
-import { connectConnector, disconnectConnector, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
+import { connectConnector, disconnectConnector, runConnectorImport, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
 import { setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
 import type { ConnectionView } from "@/lib/connections/read-model";
 import { setConnectorSpendCap } from "../spend-actions";
@@ -228,6 +228,18 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "",
     credHint: "No credential — the endpoint URL lives in config. Sends only from the human-approved path.",
   },
+  "hubspot-import": {
+    c: "#ff7a59",
+    l: "Hs",
+    credLabel: "HubSpot token",
+    credHint: "A HubSpot private-app token (or OAuth access token) with read-only contact scopes. Stored in your Vault; used read-only — it imports contacts and never writes back to HubSpot.",
+  },
+  "lead-enrichment": {
+    c: "#5b8def",
+    l: "En",
+    credLabel: "Enrichment vendor API key",
+    credHint: "From your firmographic data vendor. Stored in your Vault. Read-only; each lookup is metered against your spend cap.",
+  },
 };
 
 // costTier badge — HYBRID cost model (BSR-372 meters later; here we just label it).
@@ -241,6 +253,7 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
   mcp_tool: "Tool",
   signal_source: "Signal source",
   channel: "Channel",
+  import_source: "Import",
 };
 
 // Per-connector config editors (no-credential connectors). Each maps the flat
@@ -258,6 +271,18 @@ const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: s
     label: "Endpoint URL",
     placeholder: "https://example.com/hooks/arc",
     hint: "Approved messages POST here — only from the human-approved send path.",
+  },
+  "hubspot-import": {
+    key: "defaultPersona",
+    label: "Default persona",
+    placeholder: "persona_homeowner_emergency",
+    hint: "Official persona key assigned to imported contacts (there is no auto-classifier). A per-record override is set with the personaProperty config key.",
+  },
+  "lead-enrichment": {
+    key: "endpoint",
+    label: "Vendor endpoint URL",
+    placeholder: "https://api.vendor.example/v1/companies/find",
+    hint: "Your firmographic vendor's company-lookup endpoint. Each import looks up companies here (metered) to derive account tier.",
   },
 };
 const CONNECTOR_STATUS_PILL: Record<ConnectorStatus, { kind: string; label: string }> = {
@@ -1265,6 +1290,19 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
       )}
 
       <ConnectorConfigPanel view={view} configured={configured} />
+
+      {view.kind === "import_source" ? (
+        <Panel title="Run import" tag={TGOK} foot="explicit operator action · reads external records → writes CRM leads through the gated ingest path, idempotent on the external id">
+          <Row
+            label={view.status === "connected" ? "Ready" : "Not connected"}
+            desc="Imports run only on this deliberate click — never automatically. A re-run updates existing leads (deduped on the source id), never duplicates. Nothing goes outbound."
+          >
+            <button className="btn sm gold" disabled={pending || view.status !== "connected"} onClick={() => run(() => runConnectorImport({ connectorKey: view.key }), "Import complete.")}>
+              {pending ? "Importing…" : "Import now"}
+            </button>
+          </Row>
+        </Panel>
+      ) : null}
 
       <Panel title="Details" tag={TGOK}>
         <Row label="Kind" desc="What this connector plugs in — a tool, a read-only signal source, or an outbound channel."><span className="ptxt">{kindLabel}</span></Row>

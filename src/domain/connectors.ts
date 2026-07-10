@@ -20,8 +20,13 @@ export type ConnectorStatus = "not_configured" | "disabled" | "error" | "connect
  *                     feed the Opportunity inbox via upsertOpportunities.
  * - `channel`       — an outbound medium; exposes dispatch() called ONLY by the
  *                     approved-send path. Never auto-sends.
+ * - `import_source` — read-IN; pulls external records (CRM contacts, firmographic
+ *                     enrichment) and writes ONLY internal CRM rows through the
+ *                     gated lead-ingestion path. Runs as an EXPLICIT operator
+ *                     action (runCrmImport), never on the automatic detection loop,
+ *                     and never writes to the outside world. See docs/CONNECTORS.md.
  */
-export type ConnectorKind = "mcp_tool" | "signal_source" | "channel";
+export type ConnectorKind = "mcp_tool" | "signal_source" | "channel" | "import_source";
 
 /**
  * HYBRID cost model (BSR-372 governs metering later; this layer just carries the
@@ -58,6 +63,8 @@ export type ConnectorCapability = {
   channelMedium?: string;
   /** mcp_tool: tool namespaces the server exposes (mirrors toolNamespace). */
   toolNamespaces?: string[];
+  /** import_source: the CRM object types this connector writes (companies/contacts/leads). */
+  importsInto?: string[];
 };
 
 export type ConnectorRegistryEntry = {
@@ -274,6 +281,58 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     access: "read_only",
     mcpUrl: null,
     toolNamespace: "permit-data",
+  },
+  // --- import_source connectors (BSR-368). Read-IN: pull external records and
+  //     write ONLY internal CRM rows via the gated lead-ingestion path. Run as an
+  //     explicit operator action (runCrmImport), never on the auto-detection loop,
+  //     never outbound. Behaviour lives in src/lib/integrations/{crm,enrichment}/. ---
+  {
+    key: "hubspot-import",
+    kind: "import_source",
+    label: "HubSpot CRM Import",
+    description:
+      "Read-only import: pulls your HubSpot contacts into CRM leads — persona-mapped and deduped on the HubSpot " +
+      "record id (a re-import updates, never duplicates) — so Arc can work them. Uses your own HubSpot OAuth on " +
+      "read-only contact scopes; it never writes back to HubSpot and never contacts anyone.",
+    costTier: "byo_key",
+    verticals: [],
+    capability: {
+      summary: "Imports HubSpot contacts as persona-mapped CRM leads, idempotent on the external id.",
+      importsInto: ["companies", "contacts", "leads"],
+    },
+    credentialSchema: {
+      kind: "oauth",
+      label: "HubSpot account",
+      hint: "Connect HubSpot (OAuth, read-only contacts scope) or paste a private-app token. Stored encrypted in your Vault; used read-only.",
+    },
+    authKind: "oauth",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "hubspot-import",
+  },
+  {
+    key: "lead-enrichment",
+    kind: "import_source",
+    label: "Lead Enrichment",
+    description:
+      "Metered enrichment: augments imported companies with firmographics (employee count, revenue, industry) from " +
+      "a data vendor on your own vendor credential, feeding account tiering + scoring. Billable — each lookup is " +
+      "metered against your spend cap. Read-only: it only augments records, never contacts anyone.",
+    costTier: "metered",
+    verticals: [],
+    capability: {
+      summary: "Augments records with firmographic data used to tier + score accounts.",
+      importsInto: ["companies"],
+    },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Enrichment vendor API key",
+      hint: "From your firmographic data vendor. Stored encrypted in your Vault. Usage is billed per lookup — see Settings → Usage.",
+    },
+    authKind: "api_key",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "lead-enrichment",
   },
 ];
 

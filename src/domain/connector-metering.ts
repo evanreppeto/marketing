@@ -47,6 +47,9 @@ export const CONNECTOR_COST_RATES: Record<string, ConnectorCostRate> = {
   // Paid building-permit / property data vendor (stub today; real vendor swaps in
   // via BSR-368 enrichment). One paid lookup per watched municipality per scan.
   "permit-data": { centsPerUnit: 8, unitLabel: "lookup", disclosureUnits: 100 },
+  // Firmographic enrichment vendor (BSR-368). One paid lookup per company enriched
+  // during a CRM import; each call is guarded by the spend cap before it fires.
+  "lead-enrichment": { centsPerUnit: 2, unitLabel: "enrichment", disclosureUnits: 100 },
 };
 
 /** The pricing for a connector, or null when it is not a priced/metered connector. */

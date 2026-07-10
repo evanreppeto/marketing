@@ -6,13 +6,14 @@ behavioural kinds) backed by a runtime implementation. This doc is the recipe
 for adding one. It is deliberately vertical-neutral — Arc serves every company
 type, so connectors should too.
 
-## The three kinds
+## The connector kinds
 
-| kind            | what it does                                                     | how it's used                                                        | writes?                     |
-| --------------- | --------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------- |
-| `mcp_tool`      | a remote/native tool Arc can call (Higgsfield, Gemini research) | loaded into the runner in draft/act modes via a remote MCP endpoint | approval-gated draft output |
-| `signal_source` | proposes opportunities from a read-only signal                  | `detect()` → `OpportunityCandidate[]` → `upsertOpportunities`        | **only** `opportunities`    |
-| `channel`       | an outbound medium (email, SMS, webhook, …)                     | `dispatch()` called **only** by the approved-send path              | nothing until approved      |
+| kind            | what it does                                                     | how it's used                                                        | writes?                       |
+| --------------- | --------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------- |
+| `mcp_tool`      | a remote/native tool Arc can call (Higgsfield, Gemini research) | loaded into the runner in draft/act modes via a remote MCP endpoint | approval-gated draft output   |
+| `signal_source` | proposes opportunities from a read-only signal                  | `detect()` → `OpportunityCandidate[]` → `upsertOpportunities`        | **only** `opportunities`      |
+| `channel`       | an outbound medium (email, SMS, webhook, …)                     | `dispatch()` called **only** by the approved-send path              | nothing until approved        |
+| `import_source` | pulls external records IN (CRM contacts, firmographic enrichment) | `runCrmImport(...)` — an **explicit operator action** → gated ingest | **only** CRM rows (companies/contacts/leads) |
 
 ### Non-negotiable guardrails
 
@@ -22,6 +23,10 @@ type, so connectors should too.
 - **Channels never auto-send.** `dispatch()` runs solely through
   `dispatchThroughApprovedChannel()`, which refuses to proceed without an
   `approvalId`. There is no automatic caller anywhere in the repo.
+- **Import sources are read-IN only.** They pull from an external system and write
+  **only internal CRM rows**, through the existing gated lead-ingestion path
+  (`parseLeadIngestionPayload` → `persistLeadIngestion`), idempotently and
+  org-scoped. They never write back to the source and never send anything outbound.
 - **Credentials live only in the Vault.** The `workspace_connectors` row stores a
   `credential_ref` (a Vault secret id) and non-secret `config`. Plaintext is
   never stored on the row and never sent to the browser.
@@ -36,6 +41,8 @@ type, so connectors should too.
 | per-workspace state        | `src/lib/connectors/{persistence,config}.ts`     | enable switch, credential ref, `config` jsonb          |
 | read model                 | `src/lib/connectors/read-model.ts`               | catalog × workspace rows → views + API summary         |
 | signal orchestrator        | `src/lib/connectors/detection.ts`               | run enabled signal sources → `upsertOpportunities`     |
+| import orchestrator        | `src/lib/connectors/import.ts`                  | `runCrmImport()` — explicit action → gated CRM ingest  |
+| import engine + sources    | `src/lib/integrations/{crm,enrichment}/*`       | HubSpot source + enrichment provider (fixture + live)  |
 | approved-send path         | `src/lib/connectors/dispatch.ts`                | the ONLY caller of `channel.dispatch()`                |
 | operator UI                | `src/app/(app)/settings/_components/settings-view.tsx` | list / enable / credential / **Test** / costTier badge |
 | runner hand-off            | `GET /api/v1/arc/connectors`                     | remote-MCP list (with secrets) + `enabled` list (none) |
@@ -118,6 +125,49 @@ are set up by flipping the enable switch.
 
 4. Sends flow only through `dispatchThroughApprovedChannel()` from the
    approved-send path. **Do not** call `dispatch()` from anywhere else.
+
+## Recipe: add an `import_source` (BSR-368)
+
+**Why a new kind, and why an explicit action (the model decision).** CRM import and
+enrichment *write CRM rows*, so they do **not** fit `signal_source` — whose contract
+is "read-only, only ever writes `opportunities`". Overloading `signal_source` would
+break that guarantee. They are also not `channel` (nothing goes outbound) or
+`mcp_tool` (not an Arc tool call). So they get their own kind, `import_source`, with
+two deliberate properties:
+
+1. **It runs as an explicit operator action (`runCrmImport`), not on the automatic
+   detection loop.** `runSignalSourceDetection` auto-runs every enabled signal source
+   on a scan; an import mutates CRM records, so it must be a deliberate operator click
+   (Settings → the connector → **Import now**), never a background job.
+2. **It writes only through the existing gated ingest path.** `mapHubspotContacts` →
+   `parseLeadIngestionPayload` → `persistLeadIngestion`, idempotent on the source's
+   external id (`findExistingLeadByExternalId` resolves an existing lead so a re-import
+   updates instead of duplicating), and org-scoped.
+
+Steps:
+
+1. **Catalog entry** — add to `CONNECTOR_REGISTRY` with `kind: "import_source"`,
+   `access: "read_only"` (it never writes to the *source*), a `capability.importsInto`
+   listing the CRM objects it writes, and a `credentialSchema`. Pick a `costTier`:
+   `byo_key` when the workspace uses its own provider (HubSpot), `metered` for a paid
+   data vendor (enrichment) — the latter also needs a rate in `CONNECTOR_COST_RATES`.
+
+2. **Source / provider behind an injectable seam** — put the live client in
+   `src/lib/integrations/<area>/` behind an interface with a fixture impl, mirroring
+   `nwsWeatherEventSource`. CRM import uses `CrmImportSource.listContacts(cursor)`
+   (paged, incremental via `updatedAfter`); enrichment uses `EnrichmentProvider.enrich(keys)`.
+   Tests exercise the engine with the fixture — **no live network in tests**.
+
+3. **Map + persist** — the shared engine is `importContactsFromSource`
+   (`src/lib/integrations/crm/import-run.ts`): map → optional enrichment → validate →
+   idempotent persist, **best-effort per record** (one bad row is counted, not fatal).
+
+4. **Orchestrate** — `runCrmImport({ workspaceId, orgId })` resolves the enabled
+   connector's credential + config, builds the live source, and (when `lead-enrichment`
+   is enabled) layers a **metered** enrichment provider: every lookup passes through
+   `meterConnectorCall`, so a call that would breach the workspace spend cap is refused
+   (no firmographics, no spend) rather than overspending. Trigger it from an operator
+   server action (`runConnectorImport`) — never automatically.
 
 ## Per-workspace enable / config / credentials
 
