@@ -1,7 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+
+import { type DispatchStatus } from "@/lib/dispatch/status";
+
+import { transitionDispatchAction } from "../actions";
 
 export type OutboxChannel = "email" | "sms" | "social" | "other";
 
@@ -15,6 +19,7 @@ export type OutboxCardVM = {
   href: string;
   meta: string | null;
   action: string | null;
+  actionTo: DispatchStatus | null;
 };
 
 export type BoardCardVM = {
@@ -63,6 +68,25 @@ export function OutboxBoard({
   const router = useRouter();
   const [view, setView] = useState<"outbox" | "board">("outbox");
   const [channel, setChannel] = useState("all");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [failed, setFailed] = useState<{ id: string; message: string } | null>(null);
+  const [, startTransition] = useTransition();
+
+  function runAction(card: OutboxCardVM) {
+    if (!card.actionTo || busyId) return;
+    const to = card.actionTo;
+    setBusyId(card.id);
+    setFailed(null);
+    startTransition(async () => {
+      const res = await transitionDispatchAction(card.id, to);
+      setBusyId(null);
+      if (!res.ok) {
+        setFailed({ id: card.id, message: res.error });
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   const outboxCount = outboxLanes.reduce((n, l) => n + l.cards.length, 0);
   const boardCount = boardLanes.reduce((n, l) => n + l.cards.length, 0);
@@ -150,18 +174,30 @@ export function OutboxBoard({
                   <span className="en">Nothing here</span>
                 ) : (
                   lane.cards.map((c) => (
-                    <a className="card link" key={c.id} href={c.href}>
-                      <div className="crow">
-                        <span className={`chip-ch ch-${c.channel}`}>{CH_ICON[c.channel]}</span>
-                        <div style={{ minWidth: 0 }}>
-                          <div className="cdel">{c.title}</div>
-                          <div className="ccamp">{c.campaign}</div>
+                    <div className="card" key={c.id}>
+                      <a className="clink" href={c.href}>
+                        <div className="crow">
+                          <span className={`chip-ch ch-${c.channel}`}>{CH_ICON[c.channel]}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <div className="cdel">{c.title}</div>
+                            <div className="ccamp">{c.campaign}</div>
+                          </div>
                         </div>
-                      </div>
-                      {c.meta && <div className="cmeta">{c.meta}</div>}
-                      {c.note && <div className={`cnote${c.noteTone ? ` ${c.noteTone}` : ""}`}>{c.note}</div>}
-                      {c.action && <span className="caction">{c.action}</span>}
-                    </a>
+                        {c.meta && <div className="cmeta">{c.meta}</div>}
+                        {c.note && <div className={`cnote${c.noteTone ? ` ${c.noteTone}` : ""}`}>{c.note}</div>}
+                      </a>
+                      {failed?.id === c.id && <div className="cnote red">{failed.message}</div>}
+                      {c.action && c.actionTo && (
+                        <button
+                          type="button"
+                          className="caction"
+                          onClick={() => runAction(c)}
+                          disabled={busyId !== null}
+                        >
+                          {busyId === c.id ? "Working…" : c.action}
+                        </button>
+                      )}
+                    </div>
                   ))
                 )}
               </div>
