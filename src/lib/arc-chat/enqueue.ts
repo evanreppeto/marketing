@@ -8,7 +8,7 @@ import { getCurrentAgentTaskTenantFields } from "../agent-tasks/scope";
 import { getSupabaseAdminClient } from "../supabase/server";
 import { markAgentKeys } from "./agent-config";
 import { notifyArcWebhook } from "./notify";
-import { type ArcAttachment } from "./persistence";
+import { insertPendingArcMessage, type ArcAttachment } from "./persistence";
 
 export type EnqueueChatTaskInput = {
   conversationId: string;
@@ -112,6 +112,14 @@ export async function enqueueArcChatTask(
     },
   });
   assertOk("agent_task_inputs insert", inputError);
+
+  // Create the pending Arc reply bubble now, keyed to this task, BEFORE the wake.
+  // The runner streams its reply back into this row (POST /api/v1/arc/messages and
+  // its /body + /steps children), and every one of those routes matches on a
+  // `pending` arc_messages row for the task id — if the row didn't exist yet, a
+  // fast reply would 404 and be silently dropped, so the operator would wait on a
+  // "thinking" bubble forever. Must precede notifyArcWebhook. Mirrors queueCampaignTask.
+  await insertPendingArcMessage({ conversationId: input.conversationId, agentTaskId: task.id }, client);
 
   // Wake Arc now (push, not poll) so it actually replies. The runner is
   // webhook-only and never pulls this queue, so without this the message sits

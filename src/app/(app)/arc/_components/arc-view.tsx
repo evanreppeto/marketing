@@ -247,6 +247,26 @@ export function ArcView({
   const [asset, setAsset] = useState("ad");
   const active = ASSETS.find((a) => a.id === asset) ?? ASSETS[2];
 
+  // While a reply is still generating, refresh the server data so the pending
+  // "Arc is working…" bubble resolves into the answer without a manual reload.
+  // Bounded: runs only while a message is pending (mirrors LiveMessages' own
+  // pending test), and gives up after 2 minutes so a stuck runner can't poll
+  // forever — the server-side stale-reclaim eventually flips an abandoned turn
+  // to failed, which renders as a normal bubble and clears this condition.
+  const awaitingReply = live && messages.some((m) => m.status === "pending" || (m.role === "arc" && !m.body.trim()));
+  useEffect(() => {
+    if (!awaitingReply) return;
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      if (Date.now() - startedAt > 120_000) {
+        clearInterval(timer);
+        return;
+      }
+      router.refresh();
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [awaitingReply, router]);
+
   const submitDraft = () => {
     const body = draft.trim();
     if (!body || sending) return;

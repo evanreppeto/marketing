@@ -28,12 +28,26 @@ vi.mock("@/lib/agent/connection", () => ({
   }),
 }));
 
+// The row returned by the pending-bubble insert enqueue now makes before waking Arc.
+const PENDING_BUBBLE_ROW = {
+  id: "pending-1",
+  conversation_id: "conversation-1",
+  role: "arc",
+  body: "",
+  status: "pending",
+  agent_task_id: "task-1",
+  mentions: [],
+  metadata: {},
+  created_at: "2026-07-10T00:00:00.000Z",
+};
+
 describe("enqueueArcChatTask", () => {
   it("persists Arc defaults as worker metadata on the queued task", async () => {
     const supabase = createSupabaseQueryMock({
       agents: { data: { id: "agent-1" }, error: null },
       agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_inputs: { data: null, error: null },
+      arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
     });
 
     await enqueueArcChatTask(
@@ -82,6 +96,7 @@ describe("enqueueArcChatTask", () => {
       agents: { data: { id: "agent-1" }, error: null },
       agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_inputs: { data: null, error: null },
+      arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
     });
 
     await enqueueArcChatTask(
@@ -108,6 +123,7 @@ describe("enqueueArcChatTask", () => {
       agents: { data: { id: "agent-1" }, error: null },
       agent_tasks: { data: { id: "task-1" }, error: null },
       agent_task_inputs: { data: null, error: null },
+      arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
     });
 
     const id = await enqueueArcChatTask(
@@ -116,6 +132,42 @@ describe("enqueueArcChatTask", () => {
     );
 
     expect(id).toBe("task-1");
+  });
+
+  // REGRESSION GUARD: the reply route (POST /api/v1/arc/messages) 404s unless a
+  // `pending` arc_messages row already exists for the task — and it must be created
+  // BEFORE the runner is woken, or a fast reply races the insert and gets dropped.
+  it("creates the pending Arc reply bubble before waking the runner", async () => {
+    notifyArcWebhook.mockClear();
+    const supabase = createSupabaseQueryMock({
+      agents: { data: { id: "agent-1" }, error: null },
+      agent_tasks: { data: { id: "task-1" }, error: null },
+      agent_task_inputs: { data: null, error: null },
+      arc_messages: { data: PENDING_BUBBLE_ROW, error: null },
+    });
+
+    // Snapshot, at wake time, whether the pending bubble was already inserted.
+    let bubbleInsertedBeforeWake = false;
+    notifyArcWebhook.mockImplementationOnce(() => {
+      bubbleInsertedBeforeWake = supabase.calls.some(
+        (call) => call[0] === "insert" && isRecord(call[1]) && call[1].status === "pending" && call[1].role === "arc",
+      );
+    });
+
+    await enqueueArcChatTask(
+      { conversationId: "conversation-1", messageId: "message-1", message: "Hi Arc", mentions: [], operator: "Operator" },
+      supabase,
+    );
+
+    const bubbleInsert = supabase.calls.find(
+      (call) => call[0] === "insert" && isRecord(call[1]) && call[1].status === "pending" && call[1].role === "arc",
+    );
+    expect(bubbleInsert?.[1]).toMatchObject({
+      conversation_id: "conversation-1",
+      agent_task_id: "task-1",
+      status: "pending",
+    });
+    expect(bubbleInsertedBeforeWake).toBe(true);
   });
 });
 
