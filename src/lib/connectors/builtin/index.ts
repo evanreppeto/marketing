@@ -7,3 +7,4 @@
 export { weatherSignalConnector, detectWeatherOpportunities } from "./weather-signal";
 export { reviewsSignalConnector, detectReviewOpportunities } from "./reviews-signal";
 export { webhookChannelConnector, dispatchWebhook } from "./webhook-channel";
+export { permitDataConnector, detectPermitOpportunities, estimateBillableUnits } from "./permit-data";
