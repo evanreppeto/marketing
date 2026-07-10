@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { findConnector } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { setConnectorConfig } from "@/lib/connectors/config";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { checkConnectorCredential } from "@/lib/connectors/health";
 import {
@@ -12,6 +13,7 @@ import {
   recordConnectorTest,
   setConnectorCredentialRef,
   setConnectorEnabled as setConnectorEnabledRow,
+  upsertConnectorEnabled,
 } from "@/lib/connectors/persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -143,8 +145,11 @@ export async function toggleConnectorEnabled(input: {
   if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
 
   try {
-    await setConnectorEnabledRow(getSupabaseAdminClient(), {
+    // Upsert, not update: no-credential connectors (e.g. a public signal source)
+    // have no connect step to seed the row, so enabling must create it.
+    await upsertConnectorEnabled(getSupabaseAdminClient(), {
       workspaceId: ctx.workspaceId,
+      orgId: ctx.orgId ?? null,
       connectorKey: connector.key,
       enabled: input.enabled,
     });
@@ -153,5 +158,39 @@ export async function toggleConnectorEnabled(input: {
   }
 
   revalidatePath("/settings");
-  return { ok: true, persisted: true };
+  return { ok: true, persisted: true, message: input.enabled ? `${connector.label} enabled.` : `${connector.label} paused.` };
+}
+
+/**
+ * Save a connector's per-workspace config (e.g. a signal source's watched
+ * locations, a channel's endpoint). Config lives in workspace_connectors.config;
+ * no credential is involved, so this works for no-credential connectors too.
+ */
+export async function saveConnectorConfig(input: {
+  connectorKey: string;
+  config: Record<string, unknown>;
+}): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const connector = findConnector(input.connectorKey);
+  if (!connector) return { ok: false, error: "Unknown connector." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
+
+  try {
+    await setConnectorConfig(getSupabaseAdminClient(), {
+      workspaceId: ctx.workspaceId,
+      orgId: ctx.orgId ?? null,
+      connectorKey: connector.key,
+      config: input.config,
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save the connector config." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true, persisted: true, message: `${connector.label} settings saved.` };
 }

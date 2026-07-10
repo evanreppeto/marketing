@@ -3,29 +3,50 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import {
   CONNECTOR_REGISTRY,
   computeConnectorStatus,
+  connectorRequiresCredential,
   type ConnectorAccess,
   type ConnectorAuthKind,
+  type ConnectorCapability,
+  type ConnectorCostTier,
+  type ConnectorKind,
   type ConnectorStatus,
 } from "@/domain";
 
 export type ConnectorView = {
   key: string;
+  kind: ConnectorKind;
   label: string;
   description: string;
   authKind: ConnectorAuthKind;
   access: ConnectorAccess;
+  costTier: ConnectorCostTier;
   enabled: boolean;
   credentialPresent: boolean;
+  /** True when NO stored credential is needed (public signal source, etc). */
+  credentialOptional: boolean;
+  /** Non-secret per-workspace config (locations, endpoint URL, …). */
+  config: Record<string, unknown>;
   status: ConnectorStatus;
   lastTestedAt: string | null;
   lastTestOk: boolean | null;
   lastTestError: string | null;
 };
 
+/** Enabled-connector summary for GET /api/v1/arc/connectors (no secrets). */
+export type EnabledConnectorSummary = {
+  key: string;
+  kind: ConnectorKind;
+  costTier: ConnectorCostTier;
+  label: string;
+  access: ConnectorAccess;
+  capability: ConnectorCapability;
+};
+
 type ConnectorRow = {
   connector_key: string;
   enabled: boolean;
   credential_ref: string | null;
+  config: Record<string, unknown> | null;
   last_tested_at: string | null;
   last_test_ok: boolean | null;
   last_test_error: string | null;
@@ -35,7 +56,7 @@ type ConnectorRow = {
 export async function listWorkspaceConnectors(client: SupabaseClient, workspaceId: string): Promise<ConnectorView[]> {
   const { data, error } = await client
     .from("workspace_connectors")
-    .select("connector_key,enabled,credential_ref,last_tested_at,last_test_ok,last_test_error")
+    .select("connector_key,enabled,credential_ref,config,last_tested_at,last_test_ok,last_test_error")
     .eq("workspace_id", workspaceId);
 
   if (error) {
@@ -47,24 +68,51 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
   return CONNECTOR_REGISTRY.map((entry) => {
     const row = byKey.get(entry.key);
     const credentialPresent = Boolean(row?.credential_ref);
+    const requiresCredential = connectorRequiresCredential(entry);
     return {
       key: entry.key,
+      kind: entry.kind,
       label: entry.label,
       description: entry.description,
       authKind: entry.authKind,
       access: entry.access,
+      costTier: entry.costTier,
       enabled: row?.enabled ?? false,
       credentialPresent,
+      credentialOptional: !requiresCredential,
+      config: row?.config ?? {},
       status: computeConnectorStatus({
         credentialPresent,
         enabled: row?.enabled ?? false,
         lastTestOk: row?.last_test_ok ?? null,
+        requiresCredential,
       }),
       lastTestedAt: row?.last_tested_at ?? null,
       lastTestOk: row?.last_test_ok ?? null,
       lastTestError: row?.last_test_error ?? null,
     };
   });
+}
+
+/**
+ * Enabled connectors for this workspace, grouped-ready by kind + costTier, for
+ * the bearer-gated runner API. Enabled = status "connected" (switch on and any
+ * required credential present). No secrets/refs — capability metadata only.
+ */
+export async function listEnabledConnectorsForApi(
+  client: SupabaseClient,
+  workspaceId: string,
+): Promise<EnabledConnectorSummary[]> {
+  const views = await listWorkspaceConnectors(client, workspaceId);
+  const enabledKeys = new Set(views.filter((v) => v.status === "connected").map((v) => v.key));
+  return CONNECTOR_REGISTRY.filter((entry) => enabledKeys.has(entry.key)).map((entry) => ({
+    key: entry.key,
+    kind: entry.kind,
+    costTier: entry.costTier,
+    label: entry.label,
+    access: entry.access,
+    capability: entry.capability,
+  }));
 }
 
 /** The Vault ref for an ENABLED connector in this workspace, else null. */

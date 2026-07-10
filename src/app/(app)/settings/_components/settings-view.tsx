@@ -7,7 +7,7 @@ import { WORKSPACE_ROLES } from "@/lib/auth/workspace-roles";
 import type { SettingsWorkspace, SettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
 
-import { findConnector, type ConnectorStatus } from "@/domain";
+import { findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
@@ -30,7 +30,7 @@ import {
   saveUserAvatarAction,
   saveWorkspaceLogoAction,
 } from "../branding-actions";
-import { connectConnector, disconnectConnector, testConnector, toggleConnectorEnabled } from "../connectors-actions";
+import { connectConnector, disconnectConnector, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
 import { ImageUploadField } from "./image-upload-field";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
 
@@ -199,6 +199,49 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     l: "Hf",
     credLabel: "Higgsfield API token",
     credHint: "From your Higgsfield account. Stored in your Vault; the runner uses it only for approval-gated draft assets.",
+  },
+  "weather-signals": {
+    c: "#7fb89a",
+    l: "Wx",
+    credLabel: "",
+    credHint: "No credential — this signal source only reads and proposes opportunities. Configure the locations to watch.",
+  },
+  "webhook-dispatch": {
+    c: "#9aa0ac",
+    l: "Wh",
+    credLabel: "",
+    credHint: "No credential — the endpoint URL lives in config. Sends only from the human-approved path.",
+  },
+};
+
+// costTier badge — HYBRID cost model (BSR-372 meters later; here we just label it).
+const COST_TIER_BADGE: Record<ConnectorCostTier, { label: string; title: string }> = {
+  free: { label: "Free", title: "No cost — bypasses metering." },
+  byo_key: { label: "Your key", title: "Uses your own provider key/credits — bypasses metering." },
+  metered: { label: "Metered", title: "Billed through your Arc usage (BSR-372)." },
+};
+
+const CONNECTOR_KIND_LABEL: Record<string, string> = {
+  mcp_tool: "Tool",
+  signal_source: "Signal source",
+  channel: "Channel",
+};
+
+// Per-connector config editors (no-credential connectors). Each maps the flat
+// form field to/from the workspace_connectors.config jsonb.
+const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: string; hint: string; list?: boolean }> = {
+  "weather-signals": {
+    key: "locations",
+    label: "Locations to watch",
+    placeholder: "Chicago, Naperville, Evanston",
+    hint: "Comma-separated. Each flagged location proposes a storm-response opportunity.",
+    list: true,
+  },
+  "webhook-dispatch": {
+    key: "endpoint",
+    label: "Endpoint URL",
+    placeholder: "https://example.com/hooks/arc",
+    hint: "Approved messages POST here — only from the human-approved send path.",
   },
 };
 const CONNECTOR_STATUS_PILL: Record<ConnectorStatus, { kind: string; label: string }> = {
@@ -1028,17 +1071,21 @@ function MediaDefaultsPanel({ settings }: { settings: AppSettings }) {
 function ConnectorCard({ view, onOpen }: { view: ConnectorView; onOpen: () => void }) {
   const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
   const pill = CONNECTOR_STATUS_PILL[view.status];
+  const cost = COST_TIER_BADGE[view.costTier];
+  const kindLabel = CONNECTOR_KIND_LABEL[view.kind] ?? view.kind;
+  const cta = view.credentialPresent || view.enabled ? "Manage" : view.credentialOptional ? "Set up" : "Connect";
   return (
     <div className="ccard ccard-btn" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
       <div className="ct">
         <span className="clogo" style={{ background: `${meta.c}22`, border: `1px solid ${meta.c}55`, color: meta.c }}>{meta.l}</span>
-        <div><div className="cnm">{view.label}</div><div className="ccat">{view.authKind === "oauth" ? "Token" : "API key"} · {view.access === "read_only" ? "read-only" : "gated write"}</div></div>
+        <div><div className="cnm">{view.label}</div><div className="ccat">{kindLabel} · {view.access === "read_only" ? "read-only" : "gated write"}</div></div>
       </div>
       <div className="cdsc">{view.description}</div>
       <div className="cfoot">
         <Pill kind={pill.kind}>{pill.label}</Pill>
+        <span className="badge" title={cost.title}>{cost.label}</span>
         <span className="grow" />
-        <span className="cb-open">{view.credentialPresent ? "Manage" : "Connect"} →</span>
+        <span className="cb-open">{cta} →</span>
       </div>
     </div>
   );
@@ -1051,6 +1098,11 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
   const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
   const reg = findConnector(view.key);
   const pill = CONNECTOR_STATUS_PILL[view.status];
+  const cost = COST_TIER_BADGE[view.costTier];
+  const kindLabel = CONNECTOR_KIND_LABEL[view.kind] ?? view.kind;
+  // No-credential connectors (public signal source, config-only channel) have no
+  // Vault secret to store — they are set up by flipping the enable switch.
+  const noCredential = view.credentialOptional && view.authKind === "none";
   const [credential, setCredential] = useState("");
   // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
   // Higgsfield redirects back with — computed at init so no setState-in-effect.
@@ -1091,16 +1143,16 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
       <div className="condetail-hd">
         <span className="clogo" style={{ background: `${meta.c}22`, border: `1px solid ${meta.c}55`, color: meta.c, width: 46, height: 46 }}>{meta.l}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}><h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 21, margin: 0 }}>{view.label}</h2><Pill kind={pill.kind}>{pill.label}</Pill></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 21, margin: 0 }}>{view.label}</h2><Pill kind={pill.kind}>{pill.label}</Pill><span className="badge" title={cost.title}>{cost.label}</span><span className="badge">{kindLabel}</span></div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, lineHeight: 1.5 }}>{view.description}</div>
         </div>
       </div>
 
       <Panel title="Health" tag={TGOK} foot="workspace_connectors · a real provider probe records last_test_ok / last_test_error">
-        <Row label="Status" desc={view.lastTestedAt ? `Last tested ${relTime(view.lastTestedAt)}` : "Not tested yet."}>
+        <Row label="Status" desc={view.lastTestedAt ? `Last tested ${relTime(view.lastTestedAt)}` : noCredential ? "No credential to test — enable to use." : "Not tested yet."}>
           <span className="pillrow">
             <Pill kind={pill.kind}>{pill.label}</Pill>
-            <button className="btn sm" disabled={pending || !view.credentialPresent} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>{pending ? "Testing…" : "Test connection"}</button>
+            {!noCredential && <button className="btn sm" disabled={pending || !view.credentialPresent} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>{pending ? "Testing…" : "Test connection"}</button>}
           </span>
         </Row>
         {view.lastTestOk === false && view.lastTestError ? (
@@ -1108,6 +1160,15 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
         ) : null}
       </Panel>
 
+      {noCredential ? (
+        <Panel title="Availability" tag={TGOK} foot="workspace_connectors · enable to include this connector in Arc runs">
+          {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — changes won’t persist here.</div>}
+          <Row label={view.enabled ? "Enabled" : "Off"} desc="This connector needs no credential — switch it on to use it. Signal sources only propose; channels send only from the approved path.">
+            <button className="btn sm gold" disabled={pending} onClick={() => run(() => toggleConnectorEnabled({ connectorKey: view.key, enabled: !view.enabled }), view.enabled ? "Paused." : "Enabled.")}>{view.enabled ? "Pause" : "Enable"}</button>
+          </Row>
+          {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
+        </Panel>
+      ) : (
       <Panel title="Credential" tag={TGOK} foot="stored in your Vault (create_secret) · never rendered back, handed only to the runner">
         {view.credentialPresent ? (
           <>
@@ -1148,14 +1209,64 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
         )}
         {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
       </Panel>
+      )}
+
+      <ConnectorConfigPanel view={view} configured={configured} />
 
       <Panel title="Details" tag={TGOK}>
+        <Row label="Kind" desc="What this connector plugs in — a tool, a read-only signal source, or an outbound channel."><span className="ptxt">{kindLabel}</span></Row>
+        <Row label="Cost" desc={cost.title}><span className="ptxt">{cost.label}</span></Row>
+        {reg?.verticals.length ? <Row label="Best for"><span className="ptxt">{reg.verticals.join(", ")}</span></Row> : null}
         <Row label="Authentication"><span className="ptxt">{view.authKind === "oauth" ? "Bearer token" : view.authKind === "api_key" ? "API key" : "None"}</span></Row>
         <Row label="Access" desc="Read-only connectors can’t write; gated-write output stays approval-locked."><span className="ptxt">{view.access === "read_only" ? "Read-only" : "Gated write"}</span></Row>
-        {reg?.mcpUrl ? <Row label="MCP endpoint"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.mcpUrl}</span></Row> : <Row label="Integration"><span className="ptxt">Native (in-app)</span></Row>}
-        {reg?.toolNamespace ? <Row label="Tool namespace"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.toolNamespace}</span></Row> : null}
+        {reg?.mcpUrl ? <Row label="MCP endpoint"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.mcpUrl}</span></Row> : <Row label="Integration"><span className="ptxt">{view.kind === "mcp_tool" ? "Native (in-app)" : "In-app"}</span></Row>}
+        {reg && view.kind === "mcp_tool" ? <Row label="Tool namespace"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.toolNamespace}</span></Row> : null}
+        {reg?.capability.opportunityKinds?.length ? <Row label="Emits"><span className="ptxt" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{reg.capability.opportunityKinds.join(", ")}</span></Row> : null}
+        {reg?.capability.channelMedium ? <Row label="Medium"><span className="ptxt">{reg.capability.channelMedium}</span></Row> : null}
       </Panel>
     </>
+  );
+}
+
+// ---- Connector config (no-secret, per-workspace) ----
+// Renders a small config editor for connectors declared in CONFIG_FIELDS (a
+// signal source's watched locations, a channel's endpoint). Saves to
+// workspace_connectors.config. Nothing here is a secret.
+function configToInput(config: Record<string, unknown>, field: { key: string; list?: boolean }): string {
+  const v = config[field.key];
+  if (field.list) return Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : "";
+  return typeof v === "string" ? v : "";
+}
+
+function ConnectorConfigPanel({ view, configured }: { view: ConnectorView; configured: boolean }) {
+  const field = CONFIG_FIELDS[view.key];
+  const [value, setValue] = useState(() => (field ? configToInput(view.config, field) : ""));
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<SaveStatus>(null);
+  if (!field) return null;
+
+  async function save() {
+    if (!field) return;
+    setPending(true); setStatus(null);
+    const config: Record<string, unknown> = field.list
+      ? { [field.key]: value.split(",").map((s) => s.trim()).filter(Boolean) }
+      : { [field.key]: value.trim() };
+    const res = await saveConnectorConfig({ connectorKey: view.key, config });
+    setPending(false);
+    setStatus(toStatus(res, `${view.label} settings saved.`));
+  }
+
+  return (
+    <Panel title="Configuration" tag={TGOK} foot="workspace_connectors.config · non-secret settings">
+      {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — changes won’t persist here.</div>}
+      <Row label={field.label} desc={field.hint}>
+        <span className="pillrow">
+          <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
+          <button className="btn sm gold" disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</button>
+        </span>
+      </Row>
+      {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
+    </Panel>
   );
 }
 
