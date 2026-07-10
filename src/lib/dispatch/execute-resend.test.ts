@@ -14,6 +14,7 @@ const ENABLED_RESEND = { enabled: true, env_var: "RESEND_API_KEY", config: { fro
 function queuedDispatch(overrides: Record<string, unknown> = {}) {
   return {
     id: "d1",
+    org_id: "org-1",
     status: "queued",
     approval_item_id: "appr-1",
     channel: "email",

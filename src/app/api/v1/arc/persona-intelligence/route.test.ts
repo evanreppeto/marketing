@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/persona-intelligence/read-model", () => ({ getPersonaIntelligenceData: vi.fn() }));
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
+}));
 import { getPersonaIntelligenceData } from "@/lib/persona-intelligence/read-model";
 import { GET } from "./route";
 
@@ -16,11 +19,12 @@ describe("GET /api/v1/arc/persona-intelligence", () => {
     expect((await GET(req("Bearer wrong"))).status).toBe(401);
     expect(mock).not.toHaveBeenCalled();
   });
-  it("returns the persona-intelligence payload", async () => {
+  it("returns the persona-intelligence payload scoped to the token's org", async () => {
     configure();
     const res = await GET(req("Bearer secret"));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ ok: true, personaIntelligence: { snapshots: [] } });
+    expect(mock).toHaveBeenCalledWith("org-1");
   });
   it("502s when the read-model is unavailable", async () => {
     configure();

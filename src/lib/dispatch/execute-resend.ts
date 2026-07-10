@@ -34,6 +34,7 @@ export type ExecuteResendDeps = {
 
 type DispatchRow = {
   id: string;
+  org_id: string;
   status: string;
   approval_item_id: string | null;
   channel: string | null;
@@ -77,7 +78,7 @@ export async function executeResendDispatch(
 
   const { data: dispatch, error: dispatchError } = await client
     .from("campaign_dispatches")
-    .select("id,status,approval_item_id,channel,campaign_id,provider_message_id,payload")
+    .select("id,org_id,status,approval_item_id,channel,campaign_id,provider_message_id,payload")
     .eq("id", dispatchId)
     .maybeSingle<DispatchRow>();
   assertOk("campaign_dispatches lookup", dispatchError);
@@ -113,9 +114,13 @@ export async function executeResendDispatch(
     return { ok: false, message: "Resend isn't configured (RESEND_API_KEY is missing)." };
   }
 
+  // Scope the connection to THIS dispatch's org. On the RLS-bypassing admin
+  // client an unscoped `.eq("provider","resend")` would (with >1 org) either
+  // throw on multiple rows or grab another tenant's from-address/kill-switch.
   const { data: connection, error: connectionError } = await client
     .from("connections")
     .select("enabled,env_var,config")
+    .eq("org_id", dispatch.org_id)
     .eq("provider", "resend")
     .maybeSingle<{ enabled: boolean; env_var: string | null; config: Record<string, unknown> | null }>();
   assertOk("connections lookup", connectionError);
@@ -166,7 +171,7 @@ export async function executeResendDispatch(
     .eq("id", dispatchId);
   assertOk("campaign_dispatches sent update", updateError);
 
-  await recordConnectionUse(client, "resend");
+  await recordConnectionUse(client, dispatch.org_id, "resend");
   await logCampaignEvent(client, dispatch.campaign_id, "dispatch_sent", operator, `Sent via Resend (${providerMessageId}).`);
 
   return { ok: true, message: "Sent via Resend.", providerMessageId };

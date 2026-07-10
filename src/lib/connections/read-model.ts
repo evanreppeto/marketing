@@ -209,9 +209,15 @@ export async function getConnections(client?: SupabaseClient, options: GetConnec
   const supabase = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
   if (!supabase) return fallbackViews();
 
-  const { data, error } = await supabase
+  // Org-scope the list when an org is supplied. This runs on the admin client, so
+  // without the filter the Settings view would list every tenant's connections.
+  let query = supabase
     .from("connections")
-    .select("provider,kind,label,enabled,env_var,config,last_tested_at,last_test_ok,last_test_error,last_used_at")
+    .select("provider,kind,label,enabled,env_var,config,last_tested_at,last_test_ok,last_test_error,last_used_at");
+  if (options.orgId) {
+    query = query.eq("org_id", options.orgId);
+  }
+  const { data, error } = await query
     .order("kind", { ascending: true })
     .order("label", { ascending: true });
 
