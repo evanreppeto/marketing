@@ -2,7 +2,6 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { campaignDriver, deriveCampaignRollup, type CampaignDriver, type CampaignRollup, type ViralityScore } from "@/domain";
 import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
-import { crmRecordHref } from "@/lib/opportunities/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "../supabase/server";
 
 export const CAMPAIGN_SELECT =
@@ -270,35 +269,9 @@ export type CampaignLaunchState = {
   lifecycle: "Drafting" | "In review" | "Ready" | "Live";
 };
 
-/** One shaped evidence row from the source opportunity (label + human value). */
-export type CampaignProvenanceEvidence = { label: string; value: string };
-
-/**
- * Typed provenance for a campaign drafted from an opportunity, parsed from the
- * `source_signal` JSON the conversion writes (see createCampaignFromOpportunity).
- * `null` for any campaign not sourced from an opportunity — the UI guards on it.
- */
-export type CampaignOpportunityProvenance = {
-  authoredBy: string;
-  opportunityId: string;
-  opportunityHref: string;
-  subjectType: string;
-  subjectLabel: string;
-  subjectId: string;
-  subjectHref: string | null;
-  confidence: number | null;
-  urgency: string | null;
-  urgencyLabel: string | null;
-  angle: string;
-  recommendedCampaignType: string | null;
-  evidence: CampaignProvenanceEvidence[];
-};
-
 export type LiveCampaignWorkspace = {
   status: "live";
   campaign: CampaignWorkspaceMeta;
-  /** Present only when the campaign was drafted from an opportunity. */
-  provenance: CampaignOpportunityProvenance | null;
   assets: CampaignWorkspaceAsset[];
   groupedAssets: Record<CampaignWorkspaceAssetCategory, CampaignWorkspaceAsset[]>;
   approvals: CampaignWorkspaceApproval[];
@@ -942,7 +915,6 @@ function buildDemoCampaignWorkspaceDetail(campaign: DemoCampaign, agentName: str
       updatedAt: campaign.updatedAt,
       rollup,
     },
-    provenance: null,
     assets,
     groupedAssets,
     approvals,
@@ -1570,7 +1542,6 @@ export async function getCampaignWorkspaceDetail(
         updatedAt: formatDate(campaign.updated_at),
         rollup,
       },
-      provenance: buildOpportunityProvenance(campaign),
       assets: assetsView,
       groupedAssets: groupAssets(assetsView),
       approvals: approvals.map((approval) => mapApproval(approval, agentName)),
@@ -2190,62 +2161,6 @@ export function buildReasoning(campaign: CampaignRow, assets: CampaignAssetRow[]
     guardrailFlags: asStringArray(reasoning.guardrail_flags),
     toolsUsed,
     promptInputs: buildPromptInputs(assets),
-  };
-}
-
-/**
- * Parse opportunity provenance off a campaign row from the `source_signal` JSON
- * the conversion writes (createCampaignFromOpportunity). Returns null unless the
- * campaign was drafted from an opportunity (guards on `source_system` +
- * `source_signal.origin`), so non-opportunity campaigns render exactly as before.
- * Pure + I/O-free — unit-tested in read-model.test.ts. Evidence rows mirror the
- * shaping in the Opportunity Inbox (`opportunities/page.tsx` toVM).
- */
-/** Persona enum → readable label, stripping the `persona_` prefix (mirrors the
- *  Opportunity Inbox's humanizePersona so the brief reads identically). */
-function humanizePersonaLabel(persona: string): string {
-  const s = persona.replace(/^persona[\s_-]+/i, "").replace(/[_-]+/g, " ").trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
-}
-
-export function buildOpportunityProvenance(campaign: CampaignRow): CampaignOpportunityProvenance | null {
-  const signal = asObject(campaign.source_signal);
-  if (campaign.source_system !== "arc_opportunity" || getString(signal.origin) !== "opportunity") return null;
-  const opportunityId = getString(signal.opportunity_id);
-  if (!opportunityId) return null;
-
-  const subjectType = getString(signal.subject_type) ?? "";
-  const subjectId = getString(signal.subject_id) ?? "";
-  const evidence = asObject(signal.evidence);
-
-  const rows: CampaignProvenanceEvidence[] = [];
-  const leadScore = evidence.leadScore;
-  if (typeof leadScore === "number") rows.push({ label: "Lead score", value: `${Math.round(leadScore)} / 100` });
-  const daysCold = evidence.daysCold;
-  if (typeof daysCold === "number") rows.push({ label: "Inactivity", value: `${daysCold} days since last touch` });
-  const lastActivityAt = getString(evidence.lastActivityAt);
-  if (lastActivityAt) rows.push({ label: "Last activity", value: formatDate(lastActivityAt) });
-  const evPersona = getString(evidence.persona);
-  if (evPersona) rows.push({ label: "Persona match", value: humanizePersonaLabel(evPersona) });
-
-  const urgency = getString(signal.urgency);
-  const recommendedType = getString(signal.recommended_campaign_type);
-  const confidence = signal.confidence;
-
-  return {
-    authoredBy: humanize(getString(signal.authored_by) ?? "arc"),
-    opportunityId,
-    opportunityHref: "/opportunities",
-    subjectType,
-    subjectLabel: subjectType ? humanize(subjectType) : "",
-    subjectId,
-    subjectHref: crmRecordHref(subjectType, subjectId),
-    confidence: typeof confidence === "number" ? Math.round(confidence) : null,
-    urgency,
-    urgencyLabel: urgency ? humanize(urgency) : null,
-    angle: getString(campaign.objective) ?? getString(signal.recommended_action) ?? "",
-    recommendedCampaignType: recommendedType ? humanize(recommendedType) : null,
-    evidence: rows,
   };
 }
 

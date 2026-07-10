@@ -58,6 +58,7 @@ export * from "./higgsfield-models";
 export * from "./media-config";
 export * from "./email-templates";
 export * from "./crm-matching";
+export * from "./audience-resolution";
 
 export * from "./virality";
 

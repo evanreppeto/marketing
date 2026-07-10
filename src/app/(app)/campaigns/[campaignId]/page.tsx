@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { getCampaignAudiencePreview } from "@/lib/audience/campaign-audience";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getCampaignPerformancePanel } from "@/lib/performance/campaign-panel";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { CampaignDetailView } from "./_components/campaign-detail-view";
 import "./campaign.css";
@@ -31,6 +33,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   }
 
   const performance = await getCampaignPerformancePanel(decodeURIComponent(campaignId));
+  // Read-only preview of who this campaign would email — no dispatch rows, no send.
+  const audience =
+    orgId && isSupabaseAdminConfigured()
+      ? await getCampaignAudiencePreview({ campaignId: decodeURIComponent(campaignId), orgId }).catch(() => null)
+      : null;
 
-  return <CampaignDetailView detail={detail} performance={performance} />;
+  return <CampaignDetailView detail={detail} performance={performance} audience={audience} />;
 }
