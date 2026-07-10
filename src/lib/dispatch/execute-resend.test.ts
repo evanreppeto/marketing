@@ -53,6 +53,25 @@ describe("executeResendDispatch", () => {
     expect(findCalls(supabase, "insert")).toContainEqual(expect.objectContaining({ event_type: "dispatch_sent" }));
   });
 
+  it("sends a scheduled dispatch when the operator forces it (send now)", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-sched" });
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch({ status: "scheduled" }), error: null },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+      campaign_events: { data: null, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, {
+      apiKey: "re_test",
+      send,
+    });
+
+    expect(result).toMatchObject({ ok: true, providerMessageId: "resend-sched" });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(findCalls(supabase, "update")).toContainEqual(expect.objectContaining({ status: "sent" }));
+  });
+
   it("is idempotent — returns the existing id and never re-sends an already-dispatched row", async () => {
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({

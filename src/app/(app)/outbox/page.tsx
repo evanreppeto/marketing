@@ -37,14 +37,20 @@ const ACTION: Partial<Record<DispatchStatus, string>> = {
   failed: "Retry",
 };
 
-// Where each operator action moves the dispatch. The operator drives the
-// lifecycle by hand — the app records state and hands off; it never sends.
+// Where each operator action moves the dispatch. `queued`/`scheduled` are real
+// sends (the operator confirms; executeResendDispatch delivers and flips the row
+// to `sent`); the rest are after-the-fact lifecycle marks. `actionTo` is the
+// target state either way.
 const ACTION_TARGET: Partial<Record<DispatchStatus, DispatchStatus>> = {
   queued: "sent",
   scheduled: "sent",
   sent: "delivered",
   failed: "queued",
 };
+
+// Statuses whose operator action performs a real outbound send (a human confirm),
+// not just a lifecycle status stamp.
+const SEND_ACTIONS: ReadonlySet<DispatchStatus> = new Set<DispatchStatus>(["queued", "scheduled"]);
 
 function noteTone(status: DispatchStatus): OutboxCardVM["noteTone"] {
   if (status === "failed") return "red";
@@ -68,6 +74,7 @@ function toOutboxCard(d: DispatchView): OutboxCardVM & { status: DispatchStatus 
     meta,
     action: ACTION[d.status] ?? null,
     actionTo: ACTION_TARGET[d.status] ?? null,
+    actionKind: SEND_ACTIONS.has(d.status) ? "send" : "transition",
   };
 }
 

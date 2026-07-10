@@ -5,11 +5,13 @@ import { buildResendEmailPayload, type ResendEmailPayload } from "@/domain";
 import { recordConnectionUse } from "@/lib/connections/persistence";
 import { sendResendEmail } from "@/lib/connections/resend-client";
 
-// The ONLY place the app performs a real send. It operates on an already-queued,
-// approval-linked `campaign_dispatches` row — the single reconciled dispatch table
-// (BSR-370, see docs/dispatch-reconciliation.md) — and refuses anything that isn't
-// both queued and approved: the outbound-locked invariant ("the app never sends
-// unapproved content"). Idempotent: an already-sent row is never re-sent.
+// The ONLY place the app performs a real send. It operates on an already-queued
+// (or operator-forced "send now" scheduled) approval-linked `campaign_dispatches`
+// row — the single reconciled dispatch table (BSR-370, see
+// docs/dispatch-reconciliation.md) — and refuses anything that isn't both pre-send
+// and approved: the outbound-locked invariant ("the app never sends unapproved
+// content"). Only ever reached from an explicit operator confirm in the Outbox.
+// Idempotent: an already-sent row is never re-sent.
 
 function assertOk(label: string, error: { message: string } | null) {
   if (error) throw new Error(`${label}: ${error.message}`);
@@ -80,8 +82,8 @@ export async function executeResendDispatch(
       providerMessageId: dispatch.provider_message_id ?? undefined,
     };
   }
-  if (dispatch.status !== "queued") {
-    return { ok: false, message: `Dispatch is ${dispatch.status}; only queued dispatches can be sent.` };
+  if (dispatch.status !== "queued" && dispatch.status !== "scheduled") {
+    return { ok: false, message: `Dispatch is ${dispatch.status}; only queued or scheduled dispatches can be sent.` };
   }
   if (!dispatch.approval_item_id) {
     return { ok: false, message: "Dispatch is not linked to an approval, so it can't be sent." };
