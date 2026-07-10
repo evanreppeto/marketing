@@ -23,6 +23,7 @@
     "seed:brain": "node scripts/seed-brain.mjs",
     "seed:brand-kit-bsr": "node scripts/seed-bsr-brand-kit.mjs",
     "migrate:bsr-branding": "node scripts/migrate-bsr-branding.mjs",
+    "configure:resend": "node scripts/configure-resend.mjs",
     "diagnose:arc": "node scripts/diagnose-arc-connection.mjs",
     "backfill:embeddings": "node scripts/backfill-embeddings.mjs",
     "test": "vitest run",

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
@@ -24,9 +24,28 @@ function queuedDispatch(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Live sending is armed for the whole suite; the gate itself is covered by its
+// own test below.
+beforeEach(() => vi.stubEnv("ARC_SEND_ENABLED", "1"));
 afterEach(() => vi.unstubAllEnvs());
 
 describe("executeResendDispatch", () => {
+  it("refuses when live sending is not armed (ARC_SEND_ENABLED unset)", async () => {
+    vi.stubEnv("ARC_SEND_ENABLED", "");
+    const send = vi.fn();
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch(), error: null },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/ARC_SEND_ENABLED|turned off|armed/i);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("sends an approved queued dispatch, stamps the provider message id, and logs dispatch_sent", async () => {
     const send = vi.fn().mockResolvedValue({ id: "resend-123" });
     const supabase = createSupabaseQueryMock({

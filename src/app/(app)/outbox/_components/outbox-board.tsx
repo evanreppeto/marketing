@@ -72,6 +72,8 @@ export function OutboxBoard({
   const [view, setView] = useState<"outbox" | "board">("outbox");
   const [channel, setChannel] = useState("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  // A real send is a two-step confirm: the first click arms this, the second sends.
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [failed, setFailed] = useState<{ id: string; message: string } | null>(null);
   const [, startTransition] = useTransition();
 
@@ -86,6 +88,7 @@ export function OutboxBoard({
           ? await sendDispatchAction(card.id)
           : await transitionDispatchAction(card.id, card.actionTo!);
       setBusyId(null);
+      setConfirmId(null);
       if (!res.ok) {
         setFailed({ id: card.id, message: res.error });
         return;
@@ -194,14 +197,38 @@ export function OutboxBoard({
                       </a>
                       {failed?.id === c.id && <div className="cnote red">{failed.message}</div>}
                       {c.action && c.actionTo && (
-                        <button
-                          type="button"
-                          className="caction"
-                          onClick={() => runAction(c)}
-                          disabled={busyId !== null}
-                        >
-                          {busyId === c.id ? "Working…" : c.action}
-                        </button>
+                        c.actionKind === "send" && confirmId === c.id ? (
+                          <div className="caconfirm">
+                            <span className="cctext">Send this email for real — there’s no undo.</span>
+                            <div className="ccbtns">
+                              <button
+                                type="button"
+                                className="cccancel"
+                                onClick={() => setConfirmId(null)}
+                                disabled={busyId !== null}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                className="caction danger"
+                                onClick={() => runAction(c)}
+                                disabled={busyId !== null}
+                              >
+                                {busyId === c.id ? "Sending…" : "Send for real"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="caction"
+                            onClick={() => (c.actionKind === "send" ? setConfirmId(c.id) : runAction(c))}
+                            disabled={busyId !== null}
+                          >
+                            {busyId === c.id ? "Working…" : c.action}
+                          </button>
+                        )
                       )}
                     </div>
                   ))

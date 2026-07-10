@@ -5,6 +5,8 @@ import { buildResendEmailPayload, type ResendEmailPayload } from "@/domain";
 import { recordConnectionUse } from "@/lib/connections/persistence";
 import { sendResendEmail } from "@/lib/connections/resend-client";
 
+import { isLiveSendEnabled } from "./live-send";
+
 // The ONLY place the app performs a real send. It operates on an already-queued
 // (or operator-forced "send now" scheduled) approval-linked `campaign_dispatches`
 // row — the single reconciled dispatch table (BSR-370, see
@@ -65,6 +67,13 @@ export async function executeResendDispatch(
 ): Promise<ExecuteResendResult> {
   const { dispatchId, operator } = input;
   const send = deps.send ?? sendResendEmail;
+
+  // Master kill-switch: nothing leaves the building unless live sending has been
+  // deliberately armed. Checked before any read/write so a dark environment is
+  // provably inert — every earlier gate (approval, connection toggle) still applies.
+  if (!isLiveSendEnabled()) {
+    return { ok: false, message: "Live sending is turned off. Set ARC_SEND_ENABLED=1 to arm real sends." };
+  }
 
   const { data: dispatch, error: dispatchError } = await client
     .from("campaign_dispatches")
