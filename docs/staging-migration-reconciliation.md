@@ -1,6 +1,11 @@
 # Staging migration-history reconciliation
 
-**Status:** repair ready (not yet executed) · **Diagnosed:** 2026-07-10 · **Target:** `marketing-staging` (`zheuujpxsxmisnrlsriv`, org `dkpvddxxyxyniqlfubnf`)
+**Status:** ✅ reconciled 2026-07-10 (verified live) · **Target:** `marketing-staging` (`zheuujpxsxmisnrlsriv`, org `dkpvddxxyxyniqlfubnf`)
+
+> **Executed 2026-07-10.** The live ledger held two things the initial diagnosis didn't know about
+> (a 4th drifted row, and an orphan migration). Final state: staging's ledger equals the repo folder
+> (8 rows, all at repo versions), all DDL materialized. See **Execution log** at the bottom. The
+> runbook below is retained as the reusable procedure.
 
 ## Problem
 
@@ -185,3 +190,41 @@ in sync, and a fresh `db push` finds nothing to apply.
   DDL is idempotent, so that's harmless and self-healing; it will be recorded on that push.
 - `execute_sql` runs the whole block as one statement/transaction, so the `do $$…$$` guard and the
   `insert` commit together.
+
+## Execution log (2026-07-10)
+
+Run live against `zheuujpxsxmisnrlsriv` via the Supabase MCP. The read-only Step 0/1 surfaced two
+things beyond the original diagnosis:
+
+- **`reconcile_dispatch_tables` was also drifted** (`20260710155900` on staging vs repo
+  `20260710170000`) — realigned by name, same as the other three.
+- **An orphan on staging in no git ref:** `20260710160241_contact_email_consent`
+  (`add column contacts.email_unsubscribed_at` + partial `contacts_emailable_idx`). Not in this repo,
+  not on `origin/main`, referenced by no code. Worse, it was a **"ghost" ledger row**: recorded as
+  applied, but the column/index **did not exist** in the schema (DDL never materialized).
+- Separately, `origin/main` had advanced past this worktree and carried
+  `20260710180000_connector_cost_governance`, which staging lacked.
+
+**Decisions (delegated to me):** *adopt* the orphan (it's a real, additive, code-adjacent change whose
+file was lost — not a stray to destroy), and *fully sync* staging to `origin/main`.
+
+**Actions taken:**
+1. Realigned 4 drifted ledger versions to repo filenames (workspace_media_config, arc_conversation_summary,
+   campaign_tenancy_sharing, reconcile_dispatch_tables).
+2. Applied + recorded `app_settings_per_workspace` (`20260708163000`) — PK was confirmed `{key}`, so the
+   `DROP/ADD CONSTRAINT` ran; PK is now `{org_id,key}`.
+3. Applied + recorded `connector_cost_governance` (`20260710180000`) from `origin/main` (idempotent DDL:
+   two tables + RLS + drop/create policies).
+4. **Materialized** `contact_email_consent` — ran its idempotent DDL so the column + index now actually
+   exist (the ghost row is now true) — and **adopted** it into the repo as
+   `supabase/migrations/20260710160241_contact_email_consent.sql` (same version as the ledger row, so no
+   renumber needed).
+
+**Verified end state (8 rows, staging ledger == repo folder):** `00000000000000` · `20260708120000` ·
+`20260708130000` · `20260708140000` · `20260708163000` · `20260710160241` · `20260710170000` ·
+`20260710180000`. Plus: `app_settings` PK `{org_id,key}`; `connector_usage_events` +
+`connector_spend_budgets` present; `contacts.email_unsubscribed_at` + `contacts_emailable_idx` present.
+
+**Repo caveat:** this reconciliation branch was cut *behind* `origin/main`. `connector_cost_governance`
+already lives on `main`; the only repo change needed is the adopted `contact_email_consent` file (+ this
+doc). Rebase onto `main` before merge so the adopted file lands alongside main's newer migrations.
