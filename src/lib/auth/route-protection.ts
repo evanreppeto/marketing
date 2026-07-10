@@ -8,13 +8,6 @@ type WorkspaceAccessDecisionInput = {
 
 export type WorkspaceAccessDecision = { action: "allow" | "login" | "onboarding" | "app" };
 
-// The domain root serves the static mockup "home" (`/` rewrites to
-// build-home.html in next.config). A signed-in member should land on the real
-// app instead, so these front-door paths redirect to /home rather than
-// rendering the mockup. Deep mockup screens (e.g. /build-crm.html) stay
-// reachable — the real app still links to them until each is ported.
-const MOCKUP_FRONT_DOORS = new Set(["/", "/build-home.html"]);
-
 export function getWorkspaceAccessDecision(input: WorkspaceAccessDecisionInput): WorkspaceAccessDecision {
   // Accepting an invite is public: reachable signed-out (create an account that
   // joins the workspace) and signed-in without a workspace (accept to get one).
@@ -24,8 +17,9 @@ export function getWorkspaceAccessDecision(input: WorkspaceAccessDecisionInput):
   }
   if (!input.isSignedIn) return { action: "login" };
   if (input.hasWorkspace) {
-    // Signed-in member hitting the static front door → send them into the app.
-    if (MOCKUP_FRONT_DOORS.has(input.pathname)) return { action: "app" };
+    // A signed-in member hitting the root goes into the app (/home) rather than
+    // sitting on the bare redirect page.
+    if (input.pathname === "/") return { action: "app" };
     return { action: "allow" };
   }
   if (input.pathname === "/onboarding" || input.pathname.startsWith("/onboarding/")) return { action: "allow" };
@@ -35,28 +29,21 @@ export function getWorkspaceAccessDecision(input: WorkspaceAccessDecisionInput):
 const STATIC_ASSET_RE = /\.(?:js|mjs|css|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|map|json|txt|xml|webmanifest)$/i;
 
 /**
- * Which paths bypass the auth gate. The deployed front door is the static Arc
- * mockup served from `public/`: `/` rewrites to build-home.html, the screens are
- * reached directly as `/build-*.html`, and their scripts/styles are `/gallery-*`.
+ * Which paths bypass the auth gate.
  *
- * - Static assets (`/gallery-*` and anything with an asset extension) are ALWAYS
- *   public, so the login screen and the mockup can render their styles/scripts.
- * - In open / operator mode the whole gallery — including `/` and the app screens
- *   — stays public (the current no-login demo).
- * - In supabase mode NOTHING here is public: `/`, build-home, every `/build-*`
- *   screen and the real app routes all require a signed-in member. An
- *   unauthenticated visitor is therefore sent to the standalone `/login` page
- *   (the auth pages themselves — /login, /sign-up, /forgot-password,
- *   /reset-password — are exempted by the proxy matcher, not here). This is what
- *   makes the app "start on the login screen" rather than showing the mockup with
- *   login awkwardly embedded in the shell's crossfade iframe.
+ * - Static assets (anything with an asset extension) are ALWAYS public, so the
+ *   login screen can render its styles, scripts, and images.
+ * - In open / operator mode the root landing stays public (the no-login demo);
+ *   the rest of open mode is let through separately in `proxy.ts`.
+ * - In supabase mode nothing here is public: the root and every app route require
+ *   a signed-in member, so an unauthenticated visitor is sent to the standalone
+ *   `/login` page (the auth pages themselves — /login, /sign-up, /forgot-password,
+ *   /reset-password — are exempted by the proxy matcher, not here).
  *
  * Pure + edge-safe so `proxy.ts` can call it and it can be unit-tested.
  */
-export function isPublicMockupPath(pathname: string, authMode: AuthMode): boolean {
-  if (pathname.startsWith("/gallery-") || STATIC_ASSET_RE.test(pathname)) return true;
-  if (authMode !== "supabase") {
-    return pathname === "/" || pathname === "/build-home.html" || pathname.startsWith("/build-");
-  }
+export function isPublicPath(pathname: string, authMode: AuthMode): boolean {
+  if (STATIC_ASSET_RE.test(pathname)) return true;
+  if (authMode !== "supabase") return pathname === "/";
   return false;
 }

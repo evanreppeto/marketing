@@ -1,93 +1,69 @@
 import { describe, expect, it } from "vitest";
 
-import { getWorkspaceAccessDecision, isPublicMockupPath } from "./route-protection";
+import { getWorkspaceAccessDecision, isPublicPath } from "./route-protection";
 
 describe("getWorkspaceAccessDecision", () => {
   it("sends signed-in users without workspace access to onboarding", () => {
     expect(
-      getWorkspaceAccessDecision({
-        hasWorkspace: false,
-        isSignedIn: true,
-        pathname: "/arc",
-      }),
+      getWorkspaceAccessDecision({ hasWorkspace: false, isSignedIn: true, pathname: "/arc" }),
     ).toEqual({ action: "onboarding" });
   });
 
   it("allows onboarding while a signed-in user is still creating a workspace", () => {
     expect(
-      getWorkspaceAccessDecision({
-        hasWorkspace: false,
-        isSignedIn: true,
-        pathname: "/onboarding",
-      }),
+      getWorkspaceAccessDecision({ hasWorkspace: false, isSignedIn: true, pathname: "/onboarding" }),
     ).toEqual({ action: "allow" });
   });
 
   it("sends logged-out users to login", () => {
     expect(
-      getWorkspaceAccessDecision({
-        hasWorkspace: false,
-        isSignedIn: false,
-        pathname: "/arc",
-      }),
+      getWorkspaceAccessDecision({ hasWorkspace: false, isSignedIn: false, pathname: "/arc" }),
     ).toEqual({ action: "login" });
   });
 
-  it("sends a signed-in member off the mockup front door into the real app", () => {
-    for (const pathname of ["/", "/build-home.html"]) {
-      expect(
-        getWorkspaceAccessDecision({ hasWorkspace: true, isSignedIn: true, pathname }),
-      ).toEqual({ action: "app" });
-    }
+  it("sends a signed-in member from the root into the app", () => {
+    expect(
+      getWorkspaceAccessDecision({ hasWorkspace: true, isSignedIn: true, pathname: "/" }),
+    ).toEqual({ action: "app" });
   });
 
-  it("allows a signed-in member into real routes and still-mockup deep screens", () => {
-    for (const pathname of ["/home", "/campaigns", "/settings/team", "/build-crm.html"]) {
+  it("allows a signed-in member into app routes", () => {
+    for (const pathname of ["/home", "/campaigns", "/settings/team"]) {
       expect(
         getWorkspaceAccessDecision({ hasWorkspace: true, isSignedIn: true, pathname }),
       ).toEqual({ action: "allow" });
     }
   });
 
-  it("still sends a logged-out visitor on the front door to login (no app redirect)", () => {
+  it("still sends a logged-out visitor on the root to login (no app redirect)", () => {
     expect(
       getWorkspaceAccessDecision({ hasWorkspace: false, isSignedIn: false, pathname: "/" }),
     ).toEqual({ action: "login" });
   });
 });
 
-describe("isPublicMockupPath", () => {
+describe("isPublicPath", () => {
   it("keeps static assets public in every mode", () => {
     for (const mode of ["open", "operator", "supabase"] as const) {
-      expect(isPublicMockupPath("/gallery-nav.js", mode)).toBe(true);
-      expect(isPublicMockupPath("/gallery-fix.css", mode)).toBe(true);
-      expect(isPublicMockupPath("/some-logo.png", mode)).toBe(true);
+      expect(isPublicPath("/some-logo.png", mode)).toBe(true);
+      expect(isPublicPath("/icon-192.png", mode)).toBe(true);
+      expect(isPublicPath("/site.webmanifest", mode)).toBe(true);
+      expect(isPublicPath("/styles.css", mode)).toBe(true);
     }
   });
 
-  it("keeps the landing public in open/operator mode but gates it in supabase mode", () => {
+  it("keeps the root landing public in open/operator mode but gates it in supabase mode", () => {
     for (const mode of ["open", "operator"] as const) {
-      expect(isPublicMockupPath("/", mode)).toBe(true);
-      expect(isPublicMockupPath("/build-home.html", mode)).toBe(true);
+      expect(isPublicPath("/", mode)).toBe(true);
     }
-    // Supabase mode: the landing is gated so an unauthenticated visitor is sent
-    // to the standalone /login screen instead of the mockup home.
-    expect(isPublicMockupPath("/", "supabase")).toBe(false);
-    expect(isPublicMockupPath("/build-home.html", "supabase")).toBe(false);
+    // Supabase mode: the root is gated so an unauthenticated visitor is sent to
+    // the standalone /login screen.
+    expect(isPublicPath("/", "supabase")).toBe(false);
   });
 
-  it("leaves the whole gallery public in open/operator mode (current demo)", () => {
-    expect(isPublicMockupPath("/build-crm.html", "open")).toBe(true);
-    expect(isPublicMockupPath("/build-campaigns.html", "operator")).toBe(true);
-  });
-
-  it("gates the app screens in supabase mode", () => {
-    expect(isPublicMockupPath("/build-crm.html", "supabase")).toBe(false);
-    expect(isPublicMockupPath("/build-campaigns.html", "supabase")).toBe(false);
-  });
-
-  it("gates real (extensionless) app routes in supabase mode", () => {
-    expect(isPublicMockupPath("/crm", "supabase")).toBe(false);
-    expect(isPublicMockupPath("/arc", "supabase")).toBe(false);
+  it("gates real app routes in supabase mode", () => {
+    for (const pathname of ["/crm", "/arc", "/home"]) {
+      expect(isPublicPath(pathname, "supabase")).toBe(false);
+    }
   });
 });
