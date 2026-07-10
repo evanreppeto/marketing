@@ -10,12 +10,12 @@ const pageChecks = [
   {
     path: "/login?preview=auth",
     statuses: [200],
-    contains: ["Sign in to Arc", "Operator Access"],
+    contains: ["Sign in to review what Arc has prepared", "Work email"],
   },
   {
     path: "/sign-up?preview=auth",
     statuses: [200],
-    contains: ["Create your Arc account", "Join with code"],
+    contains: ["Create your workspace", "Work email"],
   },
   {
     path: "/arc",

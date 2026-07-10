@@ -32,6 +32,8 @@ import {
   saveWorkspaceLogoAction,
 } from "../branding-actions";
 import { connectConnector, disconnectConnector, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
+import { setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
+import type { ConnectionView } from "@/lib/connections/read-model";
 import { setConnectorSpendCap } from "../spend-actions";
 import { ImageUploadField } from "./image-upload-field";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
@@ -286,7 +288,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, settings, connectors, workspaces }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, settings, connectors, workspaces, emailConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -498,6 +500,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
             {recommendedConnectors.length > 0 && (
               <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", margin: "2px 2px 10px" }}>All connectors</div>
             )}
+            {emailConnection && <EmailConnectionCard view={emailConnection} />}
             <div className="conngrid">
               {connectors.connectors.map((v) => <ConnectorCard key={v.key} view={v} onOpen={() => openConnector(v.key)} />)}
             </div>
@@ -1307,6 +1310,56 @@ function ConnectorConfigPanel({ view, configured }: { view: ConnectorView; confi
         <span className="pillrow">
           <input className="inp" placeholder={field.placeholder} value={value} onChange={(e) => setValue(e.target.value)} />
           <button className="btn sm gold" disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</button>
+        </span>
+      </Row>
+      {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
+    </Panel>
+  );
+}
+
+// ---- Email delivery (Resend) — the outbound send gate ----
+// The one connection the send path actually reads. `executeResendDispatch` refuses
+// unless this row is enabled (gate 5) and has a from-address / RESEND_FROM (gate 6),
+// on top of the always-enforced approval gate. Enabling here upserts the row that
+// nothing else seeds, which is what makes a real send possible.
+const EMAIL_PILL: Record<ConnectionView["status"], { kind: string; label: string }> = {
+  connected: { kind: "ok", label: "Connected" },
+  disabled: { kind: "warn", label: "Disabled" },
+  not_configured: { kind: "warn", label: "Key missing" },
+  error: { kind: "err", label: "Error" },
+};
+
+function EmailConnectionCard({ view }: { view: ConnectionView }) {
+  const [from, setFrom] = useState(view.fromEmail ?? "");
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<SaveStatus>(null);
+  const pill = EMAIL_PILL[view.status];
+  const keyPresent = view.status !== "not_configured";
+
+  async function run(fn: () => Promise<SettingsWriteResult>, ok: string) {
+    setPending(true); setStatus(null);
+    setStatus(toStatus(await fn(), ok));
+    setPending(false);
+  }
+
+  return (
+    <Panel title="Email delivery (Resend)" tag={TGOK} foot="connections.resend · executeResendDispatch reads enabled + from as gate 5/6 of a real send — the linked approval must still be approved">
+      <Row label="Status" desc={keyPresent ? (view.lastTestedAt ? `Last tested ${relTime(view.lastTestedAt)}` : "Not tested yet.") : "Set RESEND_API_KEY on the deploy, then test."}>
+        <span className="pillrow">
+          <Pill kind={pill.kind}>{pill.label}</Pill>
+          <button className="btn sm" disabled={pending} onClick={() => run(() => testEmailConnection(), "Resend connection is healthy.")}>{pending ? "Testing…" : "Test connection"}</button>
+        </span>
+      </Row>
+      {view.lastTestOk === false && view.lastTestError ? (
+        <Row label="Last error"><span style={{ fontSize: 12, color: "var(--red-text)" }}>{view.lastTestError}</span></Row>
+      ) : null}
+      <Row label="Sending" desc="Turn on to let approved campaigns send via Resend. Off is a hard kill-switch — the send path refuses immediately.">
+        <button className="btn sm" disabled={pending} onClick={() => run(() => setEmailConnectionEnabled({ enabled: !view.enabled, fromEmail: from.trim() || undefined }), view.enabled ? "Resend disabled." : "Resend enabled.")}>{view.enabled ? "Disable" : "Enable"}</button>
+      </Row>
+      <Row label="From address" desc="Must be on a domain you’ve verified in Resend. Left blank, the send falls back to RESEND_FROM.">
+        <span className="pillrow">
+          <input className="inp" type="text" placeholder="Arc <hello@yourdomain.com>" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <button className="btn sm gold" disabled={pending || from.trim() === (view.fromEmail ?? "")} onClick={() => run(() => setEmailConnectionEnabled({ enabled: view.enabled, fromEmail: from.trim() || undefined }), "From address saved.")}>Save</button>
         </span>
       </Row>
       {status && <div style={{ padding: "10px 0 2px" }}><Status status={status} /></div>}
