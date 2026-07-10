@@ -13,6 +13,20 @@ type OpportunityEvidence = {
   leadScore?: number;
   lastActivityAt?: string;
   evidence_urls?: string[];
+  // Weather-event evidence (kind='weather_event').
+  eventType?: string;
+  area?: string;
+  severity?: string;
+  zipCodes?: string[];
+  startsAt?: string;
+  endsAt?: string;
+  // Competitor-signal evidence (kind='competitor_signal').
+  competitor?: string;
+  channel?: string;
+  activityLevel?: string;
+  creativeCount?: number;
+  keywords?: string[];
+  capturedAt?: string;
 };
 
 type OpportunityRecord = {

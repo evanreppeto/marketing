@@ -1,6 +1,15 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-import { detectColdLeadOpportunities, type ColdLeadInput } from "@/domain";
+import {
+  detectColdLeadOpportunities,
+  detectCompetitorOpportunities,
+  detectWeatherEventOpportunities,
+  type ColdLeadInput,
+  type CompetitorSignalInput,
+  type WeatherEventInput,
+  type WeatherSeverity,
+} from "@/domain";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { listLeads } from "@/lib/repos/leads";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -59,4 +68,200 @@ export async function runColdLeadDetection(
 
   const candidates = detectColdLeadOpportunities(inputs, { now });
   return upsertOpportunities(candidates, db);
+}
+
+// ---------------------------------------------------------------------------
+// Weather-event detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Injectable source of active weather alerts. The live NWS feed lands in BSR-364;
+ * keeping it behind this interface means the detector and the scan action never
+ * change when the feed is wired. The default reads the `weather_events` table
+ * (populated by the ingestion pipeline) — no live third-party API is called here.
+ */
+export type WeatherEventSource = {
+  listActiveEvents(now: string): Promise<WeatherEventInput[]>;
+};
+
+// weather_event_status values that represent a still-relevant alert.
+const ACTIVE_WEATHER_STATUSES = ["received", "qualified"];
+
+type WeatherRow = {
+  id: string;
+  alert_type: string | null;
+  severity: string | null;
+  zip_codes: string[] | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  raw_payload: Record<string, unknown> | null;
+};
+
+function readString(obj: Record<string, unknown>, key: string): string | undefined {
+  const v = obj[key];
+  return typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
+}
+
+/** Map NWS alert_type / CAP severity text onto the detector's normalized scale. */
+function normalizeWeatherSeverity(alertType: string | null, severity: string | null): WeatherSeverity {
+  const type = (alertType ?? "").toLowerCase();
+  if (type.includes("emergency")) return "emergency";
+  if (type.includes("warning")) return "warning";
+  if (type.includes("watch")) return "watch";
+  if (type.includes("advisory") || type.includes("statement")) return "advisory";
+  switch ((severity ?? "").toLowerCase()) {
+    case "extreme":
+      return "emergency";
+    case "severe":
+      return "warning";
+    case "moderate":
+      return "watch";
+    case "minor":
+      return "advisory";
+    default:
+      return "advisory";
+  }
+}
+
+/** Human coverage-area label: prefer NWS areaDesc, else the ZIP list. */
+function weatherArea(payload: Record<string, unknown>, zips: string[]): string {
+  const desc = readString(payload, "areaDesc") ?? readString(payload, "area");
+  if (desc) {
+    const parts = desc.split(";").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) return parts.slice(0, 2).join(" / ") + (parts.length > 2 ? ` +${parts.length - 2} more` : "");
+  }
+  const clean = zips.filter((z) => typeof z === "string" && z.trim().length > 0);
+  if (clean.length) return `ZIP ${clean.slice(0, 3).join(", ")}${clean.length > 3 ? ` +${clean.length - 3} more` : ""}`;
+  return "the coverage area";
+}
+
+/** Pull any http(s) evidence links out of the raw NWS payload. */
+function weatherSourceUrls(payload: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v === "string" && /^https?:\/\//i.test(v.trim())) out.push(v.trim());
+  };
+  push(payload["url"]);
+  push(payload["@id"]);
+  push(payload["id"]);
+  const urls = payload["sourceUrls"] ?? payload["urls"];
+  if (Array.isArray(urls)) urls.forEach(push);
+  return [...new Set(out)];
+}
+
+function mapWeatherRow(row: WeatherRow): WeatherEventInput | null {
+  if (!row?.id) return null;
+  const payload = (row.raw_payload ?? {}) as Record<string, unknown>;
+  const zips = (row.zip_codes ?? []).filter((z) => typeof z === "string" && z.trim().length > 0);
+  return {
+    id: row.id,
+    eventType: (row.alert_type ?? readString(payload, "event") ?? "Weather alert").trim(),
+    area: weatherArea(payload, zips),
+    severity: normalizeWeatherSeverity(row.alert_type, row.severity),
+    startsAt: row.starts_at ?? undefined,
+    endsAt: row.ends_at ?? undefined,
+    zipCodes: zips,
+    sourceUrls: weatherSourceUrls(payload),
+  };
+}
+
+/**
+ * Default weather source: normalized rows from the global `weather_events` table.
+ * Reading a DB table is not a live third-party call — the NWS fetch that fills the
+ * table is BSR-364. Expired alerts are pre-filtered (the detector also drops them).
+ */
+export function supabaseWeatherEventSource(db: SupabaseClient): WeatherEventSource {
+  return {
+    async listActiveEvents(now: string): Promise<WeatherEventInput[]> {
+      const { data } = await db
+        .from("weather_events")
+        .select("id, alert_type, severity, zip_codes, starts_at, ends_at, status, raw_payload")
+        .in("status", ACTIVE_WEATHER_STATUSES)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const nowMs = Date.parse(now);
+      return (data ?? [])
+        .map((row) => mapWeatherRow(row as WeatherRow))
+        .filter((ev): ev is WeatherEventInput => ev !== null)
+        .filter((ev) => !ev.endsAt || Number.isNaN(nowMs) || Date.parse(ev.endsAt) >= nowMs);
+    },
+  };
+}
+
+/**
+ * Run weather-event detection over the injected alert source and persist new
+ * opportunities for the current org. Read-only — surfaces a geo-targeted
+ * storm-response recommendation, never contacts anyone. The source defaults to
+ * the `weather_events` table; inject a fixture in tests / the live feed in BSR-364.
+ */
+export async function runWeatherEventDetection(
+  source?: WeatherEventSource,
+  client?: SupabaseClient,
+  now: string = new Date().toISOString(),
+): Promise<PersistResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
+  const db = client ?? getSupabaseAdminClient();
+  const src = source ?? supabaseWeatherEventSource(db);
+  const orgId = await getCurrentOrgId();
+
+  const events = await src.listActiveEvents(now);
+  if (events.length === 0) return { ok: true, count: 0 };
+
+  const candidates = detectWeatherEventOpportunities(events, { now });
+  return upsertOpportunities(candidates, db, { orgId });
+}
+
+// ---------------------------------------------------------------------------
+// Competitor-activity detection
+// ---------------------------------------------------------------------------
+
+type CompetitorRow = {
+  id: string;
+  competitor_name: string | null;
+  source: string | null;
+  status: string | null;
+  top_keywords: string[] | null;
+  ad_creatives: unknown[] | null;
+  persona: string | null;
+  captured_at: string | null;
+  competitor_url: string | null;
+};
+
+/**
+ * Run competitor-activity detection over captured `competitor_campaigns` intel
+ * for the current org and persist new opportunities. Read-only — surfaces a
+ * defensive-flight recommendation, drafts nothing. Org-scoped at the query.
+ */
+export async function runCompetitorSignalDetection(
+  client?: SupabaseClient,
+  now: string = new Date().toISOString(),
+): Promise<PersistResult> {
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "not_configured" };
+  const db = client ?? getSupabaseAdminClient();
+  const orgId = await getCurrentOrgId();
+
+  const { data, error } = await db
+    .from("competitor_campaigns")
+    .select("id, competitor_name, source, status, top_keywords, ad_creatives, persona, captured_at, competitor_url")
+    .eq("org_id", orgId)
+    .neq("status", "archived")
+    .order("captured_at", { ascending: false })
+    .limit(200);
+  if (error) return { ok: false, error: error.message };
+
+  const signals: CompetitorSignalInput[] = ((data ?? []) as CompetitorRow[]).map((row) => ({
+    id: row.id,
+    competitorName: row.competitor_name ?? "",
+    channel: row.source ?? "",
+    status: row.status ?? "needs_review",
+    keywords: row.top_keywords ?? [],
+    creativeCount: Array.isArray(row.ad_creatives) ? row.ad_creatives.length : 0,
+    persona: row.persona ?? undefined,
+    capturedAt: row.captured_at ?? undefined,
+    url: row.competitor_url ?? undefined,
+  }));
+  if (signals.length === 0) return { ok: true, count: 0 };
+
+  const candidates = detectCompetitorOpportunities(signals, { now });
+  return upsertOpportunities(candidates, db, { orgId });
 }

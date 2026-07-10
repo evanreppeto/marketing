@@ -18,6 +18,13 @@ function humanizePersona(persona: string): string {
 }
 
 function classify(text: string, subjectType: string): { icon: OpportunityVM["icon"]; typeLabel: string } {
+  // External-signal kinds carry a synthetic subject_type — key off it directly so
+  // classification never depends on a keyword happening to appear in the title
+  // (e.g. "Severe Thunderstorm Warning" has no bare "storm"/"wind" token).
+  const stExact = (subjectType || "").toLowerCase();
+  if (stExact === "weather_event") return { icon: "weather", typeLabel: "Weather event" };
+  if (stExact === "competitor_signal") return { icon: "comp", typeLabel: "Competitor move" };
+
   const t = text.toLowerCase();
   // Word-boundaried so company names like "Windy City" don't match "wind".
   if (/\b(partner|referral|co-?marketing)\b/.test(t)) return { icon: "comp", typeLabel: "Partner referral" };
@@ -65,15 +72,32 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     rec.subject_type === "lead" ? "lead" : rec.subject_type === "contact" ? "contact" : "company";
 
   const evidence: OpportunityVM["evidence"] = [];
+  // Weather-event signals (kind='weather_event').
+  if (ev.eventType) evidence.push({ label: "Alert", value: humanize(ev.severity ?? "") ? `${ev.eventType} (${humanize(ev.severity ?? "")})` : ev.eventType });
+  if (ev.area) evidence.push({ label: "Coverage area", value: ev.area });
+  if (Array.isArray(ev.zipCodes) && ev.zipCodes.length) evidence.push({ label: "ZIPs", value: ev.zipCodes.slice(0, 6).join(", ") });
+  // Competitor signals (kind='competitor_signal').
+  if (ev.competitor) evidence.push({ label: "Competitor", value: ev.competitor });
+  if (ev.channel) evidence.push({ label: "Channel", value: humanize(ev.channel) });
+  if (typeof ev.creativeCount === "number" && ev.creativeCount > 0) {
+    evidence.push({ label: "Active creatives", value: `${ev.creativeCount}${ev.activityLevel ? ` (${humanize(ev.activityLevel)} activity)` : ""}` });
+  }
+  if (Array.isArray(ev.keywords) && ev.keywords.length) evidence.push({ label: "Keywords", value: ev.keywords.slice(0, 4).join(", ") });
+  // Cold-lead / lifecycle signals.
   if (typeof ev.leadScore === "number") evidence.push({ label: "Lead score", value: `${Math.round(ev.leadScore)} / 100` });
   if (typeof ev.daysCold === "number") evidence.push({ label: "Inactivity", value: `${ev.daysCold} days since last touch` });
   if (ev.lastActivityAt) evidence.push({ label: "Last activity", value: formatDate(ev.lastActivityAt) });
   if (persona) evidence.push({ label: "Persona match", value: persona });
+  if (Array.isArray(ev.evidence_urls) && ev.evidence_urls.length) {
+    evidence.push({ label: "Sources", value: `${ev.evidence_urls.length} reference link${ev.evidence_urls.length === 1 ? "" : "s"}` });
+  }
 
   const impact: OpportunityVM["impact"] = [
     { label: "Urgency", value: urgencyLabel },
     { label: "Confidence", value: `${confidence}%` },
   ];
+  if (ev.severity) impact.push({ label: "Severity", value: humanize(ev.severity) });
+  if (ev.activityLevel) impact.push({ label: "Activity", value: humanize(ev.activityLevel) });
   if (typeof ev.leadScore === "number") impact.push({ label: "Lead score", value: `${Math.round(ev.leadScore)}` });
   if (typeof ev.daysCold === "number") impact.push({ label: "Days cold", value: `${ev.daysCold}` });
 

@@ -12,6 +12,7 @@ const SEEDS = [
   { script: "seed-bsr-brand-kit.mjs", label: "brand kit" },
   { script: "seed-personas.mjs", label: "personas" },
   { script: "seed-crm-demo-signals.mjs", label: "CRM records + signals" },
+  { script: "seed-opportunity-signals.mjs", label: "weather + competitor detector signals" },
   { script: "seed-arc-demo.mjs", label: "Arc tasks, opportunities, messages" },
   { script: "seed-test-campaign.mjs", label: "approval-gated campaign" },
   { script: "seed-media-campaign.mjs", label: "campaign with media assets" },

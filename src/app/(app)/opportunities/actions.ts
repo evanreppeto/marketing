@@ -11,7 +11,11 @@ import {
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { createCampaignFromOpportunity } from "@/lib/campaigns/create";
-import { runColdLeadDetection } from "@/lib/opportunities/detector";
+import {
+  runColdLeadDetection,
+  runCompetitorSignalDetection,
+  runWeatherEventDetection,
+} from "@/lib/opportunities/detector";
 import { executeOpportunityDraftTask } from "@/lib/opportunities/draft-package";
 import { enqueueArcOpportunityTask } from "@/lib/opportunities/enqueue";
 import { markOpportunityDrafted, markOpportunityDrafting } from "@/lib/opportunities/persistence";
@@ -19,19 +23,26 @@ import { getOpportunityForCampaign } from "@/lib/opportunities/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
- * Operator-triggered opportunity scan: runs the deterministic cold-lead detector
- * over the current workspace's CRM and persists any new source-backed
- * opportunities, then refreshes the inbox. Org-scoped through the authenticated
- * request context (detector → listLeads() applies the org filter). Read-only
+ * Operator-triggered opportunity scan: runs the deterministic detectors over the
+ * current workspace's signals and persists any new source-backed opportunities,
+ * then refreshes the inbox. Three sources today — cold CRM leads, active weather
+ * alerts (geo-targeted storm response), and captured competitor flights (defensive
+ * response). Org-scoped through the authenticated request context. Each detector
+ * is best-effort so one failing source can't sink the whole scan. Read-only
  * detection — nothing outbound, nothing drafted.
  */
 export async function scanForOpportunitiesAction(): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
-  // Ensures the caller is authenticated + establishes the org scope the detector reads.
+  // Ensures the caller is authenticated + establishes the org scope the detectors read.
   await getCurrentWorkspaceContext();
-  await runColdLeadDetection().catch(() => {
-    // Detection is best-effort; a failure just leaves the inbox unchanged.
-  });
+  const swallow = () => {
+    // Detection is best-effort; a failing source just leaves the inbox unchanged.
+  };
+  await Promise.all([
+    runColdLeadDetection().catch(swallow),
+    runWeatherEventDetection().catch(swallow),
+    runCompetitorSignalDetection().catch(swallow),
+  ]);
   revalidatePath("/opportunities");
 }
 
