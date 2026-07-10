@@ -68,6 +68,16 @@ function lifecycleTone(lifecycle: string): Tone {
   return "gray";
 }
 
+function urgencyTone(urgency: string | null): Tone {
+  if (urgency === "high") return "red";
+  if (urgency === "medium") return "amber";
+  return "gray";
+}
+
+// The package Arc builds out for an opportunity-sourced draft. Display-only
+// placeholders until Arc drafts the real (approval-gated) assets.
+const PACKAGE_SLOTS = ["Email", "SMS", "Paid social", "Landing page"] as const;
+
 function MediaTile({ media }: { media: CampaignMediaAsset }) {
   const bg = media.thumbnailUrl || (media.type === "image" ? media.url : null);
   return (
@@ -277,7 +287,7 @@ function provTone(source: string): string {
 }
 
 export function CampaignDetailView({ detail, performance }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel }) {
-  const { campaign, launchState, executiveOverview, reasoning, sources, approvalHistory, media } = detail;
+  const { campaign, provenance, launchState, executiveOverview, reasoning, sources, approvalHistory, media } = detail;
   const [assets, setAssets] = useState<CampaignWorkspaceAsset[]>(detail.assets);
   const [tab, setTab] = useState("deliverables");
   const [reviseFor, setReviseFor] = useState<string | null>(null);
@@ -394,6 +404,21 @@ export function CampaignDetailView({ detail, performance }: { detail: LiveCampai
                 </span>
               )}
             </div>
+            {provenance && (
+              <div className="cprov">
+                <span className="cprov-tag">
+                  {svg('<path d="M12 3l2.5 5.6L20.5 9l-4.3 4.1 1 6-5.2-2.9L6.8 19l1-6L3.5 9l6-.4z"/>', "cprov-i")}
+                  Drafted by {provenance.authoredBy} from an opportunity
+                </span>
+                {provenance.confidence != null && <span className="cprov-meta">{provenance.confidence}% confidence</span>}
+                {provenance.urgencyLabel && (
+                  <span className={`pill ${urgencyTone(provenance.urgency)}`}>
+                    <span className="pd" />
+                    {provenance.urgencyLabel} urgency
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="cstate">
             <div className="csrow">
@@ -425,9 +450,73 @@ export function CampaignDetailView({ detail, performance }: { detail: LiveCampai
             <p className="cerr">{err}</p>
           )}
 
+          {tab === "deliverables" && provenance && (
+            <div className="csec brief">
+              <h3 className="csh">
+                Brief <span className="est">Arc draft</span>
+              </h3>
+              {provenance.angle && <p className="briefangle">{provenance.angle}</p>}
+              <div className="briefgrid">
+                <div className="bfield">
+                  <span className="bk">Target persona</span>
+                  <span className="bv">{persona || provenance.subjectLabel || "—"}</span>
+                </div>
+                {provenance.recommendedCampaignType && (
+                  <div className="bfield">
+                    <span className="bk">Suggested type</span>
+                    <span className="bv">{provenance.recommendedCampaignType}</span>
+                  </div>
+                )}
+                {provenance.subjectHref ? (
+                  <div className="bfield">
+                    <span className="bk">Source record</span>
+                    <Link className="bv blink" href={provenance.subjectHref}>
+                      {provenance.subjectLabel || "Open record"} {svg('<path d="M7 17L17 7M9 7h8v8"/>', "blinki")}
+                    </Link>
+                  </div>
+                ) : (
+                  provenance.subjectLabel && (
+                    <div className="bfield">
+                      <span className="bk">Source</span>
+                      <span className="bv">{provenance.subjectLabel}</span>
+                    </div>
+                  )
+                )}
+                <div className="bfield">
+                  <span className="bk">Opportunity</span>
+                  <Link className="bv blink" href={provenance.opportunityHref}>
+                    View in inbox {svg('<path d="M7 17L17 7M9 7h8v8"/>', "blinki")}
+                  </Link>
+                </div>
+              </div>
+              {provenance.evidence.length > 0 && (
+                <div className="briefev">
+                  {provenance.evidence.map((e) => (
+                    <div className="evrow" key={e.label}>
+                      <span className="evk">{e.label}</span>
+                      <span className="evv">{e.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {assets.length === 0 && (
+                <div className="slotgrid">
+                  {PACKAGE_SLOTS.map((slot) => (
+                    <div className="slot" key={slot}>
+                      <span className="slotk">{slot}</span>
+                      <span className="slotv">Arc will draft this</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {tab === "deliverables" &&
             (grouped.length === 0 ? (
-              <p className="empty-note">No deliverables yet. Arc drafts approval-gated pieces here as it builds the package.</p>
+              provenance ? null : (
+                <p className="empty-note">No deliverables yet. Arc drafts approval-gated pieces here as it builds the package.</p>
+              )
             ) : (
               grouped.map(({ cat, items }) => (
                 <div className="csec" key={cat}>
