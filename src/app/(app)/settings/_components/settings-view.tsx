@@ -206,6 +206,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "",
     credHint: "No credential — reads live NWS/NOAA alerts (public API) and proposes storm-response opportunities. Configure the states to watch.",
   },
+  "reviews-signals": {
+    c: "#e0a94a",
+    l: "Rv",
+    credLabel: "Google Business Profile",
+    credHint: "Connect your Google Business Profile (and optionally Yelp) to pull recent reviews. Stored in your Vault; used read-only — it proposes opportunities and never replies.",
+  },
   "webhook-dispatch": {
     c: "#9aa0ac",
     l: "Wh",

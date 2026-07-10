@@ -5,4 +5,5 @@
 // runtime registry — the detection orchestrator, the dispatch path, the arc
 // connectors API — imports from here.
 export { weatherSignalConnector, detectWeatherOpportunities } from "./weather-signal";
+export { reviewsSignalConnector, detectReviewOpportunities } from "./reviews-signal";
 export { webhookChannelConnector, dispatchWebhook } from "./webhook-channel";
