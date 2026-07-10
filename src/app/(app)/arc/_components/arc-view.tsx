@@ -251,6 +251,7 @@ export function ArcView({
   const [threadSel, setThreadSel] = useState("Storm-damage homeowners");
   const [view, setView] = useState<"assets" | "audience">("assets");
   const [asset, setAsset] = useState("ad");
+  const [dismissedQid, setDismissedQid] = useState<string | null>(null);
   const active = ASSETS.find((a) => a.id === asset) ?? ASSETS[2];
 
   // While a reply is still generating, refresh the server data so the pending
@@ -338,6 +339,11 @@ export function ArcView({
       }
     });
   };
+
+  // Live quick-reply comes from a real structured question on Arc's latest reply
+  // (agent-provided). No question → no panel. The mock keeps its scripted one.
+  const liveQuestion = live ? [...messages].reverse().find((m) => m.role === "arc")?.questions?.[0] ?? null : null;
+  const showLiveQuestion = Boolean(liveQuestion) && dismissedQid !== liveQuestion?.id;
 
   return (
     <div
@@ -505,25 +511,46 @@ export function ArcView({
         {/* ── composer ── */}
         <div className="dock">
           <div className="wrap">
-            <div className="qpanel">
-              <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-              <div className="qc">
-                <div className="qq">Before I draft the landing page — which CTA should it push?</div>
-                <div className="qopts">
-                  <button className="qopt" data-soon="Replying to Arc is coming soon">Book a strategy call</button>
-                  <button className="qopt" data-soon="Replying to Arc is coming soon">Book a free inspection</button>
-                  <button className="qopt" data-soon="Replying to Arc is coming soon">See the storm-zone map</button>
-                  <button className="qopt txt" data-soon="Replying to Arc is coming soon">Type your own…</button>
+            {live ? (
+              showLiveQuestion && liveQuestion ? (
+                <div className="qpanel">
+                  <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
+                  <div className="qc">
+                    <div className="qq">{liveQuestion.prompt}</div>
+                    {liveQuestion.options.length > 0 ? (
+                      <div className="qopts">
+                        {liveQuestion.options.map((opt, i) => (
+                          <button key={i} className="qopt" onClick={() => setDraft(opt)}>{opt}</button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button className="qx" aria-label="Dismiss question" onClick={() => setDismissedQid(liveQuestion.id)}>{Ico.x}</button>
                 </div>
+              ) : null
+            ) : (
+              <div className="qpanel">
+                <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
+                <div className="qc">
+                  <div className="qq">Before I draft the landing page — which CTA should it push?</div>
+                  <div className="qopts">
+                    <button className="qopt" data-soon="Replying to Arc is coming soon">Book a strategy call</button>
+                    <button className="qopt" data-soon="Replying to Arc is coming soon">Book a free inspection</button>
+                    <button className="qopt" data-soon="Replying to Arc is coming soon">See the storm-zone map</button>
+                    <button className="qopt txt" data-soon="Replying to Arc is coming soon">Type your own…</button>
+                  </div>
+                </div>
+                <button className="qx" aria-label="Dismiss question" data-soon="Dismissing is coming soon">{Ico.x}</button>
               </div>
-              <button className="qx" aria-label="Dismiss question" data-soon="Dismissing is coming soon">{Ico.x}</button>
-            </div>
+            )}
 
             <div className="box">
-              <div className="ctxrow">
-                <span className="ctxchip"><span className="at">@Storm-damage homeowners</span><button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
-                <span className="ctxchip"><span className="thumb">IMG</span>brand-board.png<button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
-              </div>
+              {!live ? (
+                <div className="ctxrow">
+                  <span className="ctxchip"><span className="at">@Storm-damage homeowners</span><button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
+                  <span className="ctxchip"><span className="thumb">IMG</span>brand-board.png<button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
+                </div>
+              ) : null}
               {live ? (
                 <textarea
                   className="ta"
@@ -550,7 +577,9 @@ export function ArcView({
                   <span className="cdiv" aria-hidden="true" />
                   <button className="pill" data-soon="Switching Arc's model is coming soon"><span className="pic">{Ico.star}</span><span className="mlab">Auto ·</span> <span className="pval">Opus 4.8</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
                   <button className="pill mode" data-soon="Switching Arc's mode is coming soon"><span className="pic">{Ico.pencil}</span><span className="pval">Draft</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
-                  <button className="pill" data-soon="Choosing a project is coming soon"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  {!live ? (
+                    <button className="pill" data-soon="Choosing a project is coming soon"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  ) : null}
                   <button className="pill" onClick={() => setShareOpen(true)} aria-label="Share this chat"><span className="pic">{Ico.share}</span><span className="pval">Share</span></button>
                 </div>
                 <div className="fright">
@@ -570,6 +599,14 @@ export function ArcView({
 
       {/* ── cinematic canvas ── */}
       <section className="canvas" aria-label="Campaign canvas">
+        {live ? (
+          <div className="cvempty">
+            <span className="ci">{Ico.splitPane}</span>
+            <div className="cveh">Campaign canvas</div>
+            <div className="cves">When Arc drafts a campaign in this chat, its channel assets, audience, and approval state show up here — and nothing goes out until you approve it.</div>
+          </div>
+        ) : (
+          <>
         <div className="cvhdr">
           <span className="ci">{Ico.splitPane}</span>
           <div className="ctt">
@@ -681,6 +718,8 @@ export function ArcView({
           <button className="btn ghost sm" data-soon="Requesting a revision is coming soon">{Ico.pencil}Revise</button>
           <span className="lock">{Ico.lock}2 ready · 1 generating · 1 blocked</span>
         </div>
+          </>
+        )}
       </section>
 
       {/* ── resizable dividers + campaign-panel toggle ── */}
