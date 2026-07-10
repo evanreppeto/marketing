@@ -9,6 +9,7 @@ import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config"
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { checkConnectorCredential } from "@/lib/connectors/health";
 import { runCrmImport } from "@/lib/connectors/import";
+import { resolveConnectorAccessToken } from "@/lib/connectors/oauth-refresh";
 import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
 import {
@@ -152,9 +153,18 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
     if (!plaintext) return { ok: false, error: "Stored credential could not be read." };
 
     // CRM import: a real HubSpot probe that also reports how many contacts an
-    // import would see, so Test connection returns record counts (BSR-368).
+    // import would see, so Test connection returns record counts (BSR-368). Resolve
+    // the stored credential first — a one-click OAuth connection is a refresh bundle
+    // (auto-renewed to a fresh access token), a pasted token resolves to itself.
     if (connector.key === "hubspot-import") {
-      const hs = await checkHubspotConnection(plaintext);
+      const resolved = await resolveConnectorAccessToken(client, ref);
+      if (!resolved.ok) {
+        const err = resolved.reason === "needs_reconnect" ? "HubSpot sign-in expired — reconnect HubSpot." : "Stored credential could not be read.";
+        await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: false, error: err } });
+        revalidatePath("/settings");
+        return { ok: false, error: `Test failed: ${err}` };
+      }
+      const hs = await checkHubspotConnection(resolved.accessToken);
       await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: hs.ok, error: hs.error } });
       revalidatePath("/settings");
       if (!hs.ok) return { ok: false, error: `Test failed: ${hs.error ?? "HubSpot unreachable"}` };
@@ -277,6 +287,8 @@ function importErrorMessage(code: string): string {
       return "Connect + enable HubSpot CRM Import first.";
     case "missing_credential":
       return "No HubSpot credential stored — connect HubSpot first.";
+    case "needs_reconnect":
+      return "HubSpot sign-in expired — reconnect HubSpot.";
     case "missing_default_persona":
       return "Set a Default persona in the connector config before importing.";
     case "not_configured":

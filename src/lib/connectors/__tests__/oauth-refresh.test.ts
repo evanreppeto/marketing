@@ -1,12 +1,13 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { ensureFreshAccessToken } from "../oauth-refresh";
-import type { OAuthRefreshBundle } from "@/domain";
+import { ensureFreshAccessToken, resolveConnectorAccessToken } from "../oauth-refresh";
+import { serializeOAuthBundle, type OAuthRefreshBundle } from "@/domain";
 
 const credentials = vi.hoisted(() => ({
   // Typed signature (not named params) so mock.calls[0] destructures as a tuple.
   updateConnectorCredential: vi.fn<(client: unknown, ref: string | null, plaintext: string) => Promise<boolean>>(
     async () => true,
   ),
+  readConnectorCredential: vi.fn<(client: unknown, ref: string | null) => Promise<string | null>>(async () => null),
 }));
 vi.mock("../credentials", () => credentials);
 
@@ -22,6 +23,8 @@ const baseBundle: OAuthRefreshBundle = {
 afterEach(() => {
   vi.restoreAllMocks();
   credentials.updateConnectorCredential.mockClear();
+  credentials.readConnectorCredential.mockReset();
+  credentials.readConnectorCredential.mockResolvedValue(null);
 });
 
 describe("ensureFreshAccessToken", () => {
@@ -79,5 +82,48 @@ describe("ensureFreshAccessToken", () => {
     const res = await ensureFreshAccessToken({} as never, "ref-1", baseBundle);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.reason).toBe("needs_reconnect");
+  });
+});
+
+describe("resolveConnectorAccessToken", () => {
+  it("returns a bare (pasted) token as-is, with no refresh call", async () => {
+    credentials.readConnectorCredential.mockResolvedValueOnce("pat-abc123");
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const res = await resolveConnectorAccessToken({} as never, "ref-1");
+    expect(res).toEqual({ ok: true, accessToken: "pat-abc123" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns the access token from a fresh OAuth bundle without refreshing", async () => {
+    const fresh: OAuthRefreshBundle = { ...baseBundle, expiresAt: Date.now() + 3_600_000 };
+    credentials.readConnectorCredential.mockResolvedValueOnce(serializeOAuthBundle(fresh));
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const res = await resolveConnectorAccessToken({} as never, "ref-1");
+    expect(res).toEqual({ ok: true, accessToken: "oat_old" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a stale OAuth bundle and returns the new access token", async () => {
+    credentials.readConnectorCredential.mockResolvedValueOnce(serializeOAuthBundle(baseBundle)); // expiresAt 0 → stale
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ access_token: "oat_new", expires_in: 3600 }) })));
+    const res = await resolveConnectorAccessToken({} as never, "ref-1");
+    expect(res).toEqual({ ok: true, accessToken: "oat_new" });
+  });
+
+  it("returns needs_reconnect when a stale bundle can't be refreshed", async () => {
+    credentials.readConnectorCredential.mockResolvedValueOnce(serializeOAuthBundle(baseBundle));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 400, text: async () => "invalid_grant" })));
+    const res = await resolveConnectorAccessToken({} as never, "ref-1");
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("needs_reconnect");
+  });
+
+  it("returns missing when there is no stored credential", async () => {
+    credentials.readConnectorCredential.mockResolvedValueOnce(null);
+    const res = await resolveConnectorAccessToken({} as never, null);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("missing");
   });
 });

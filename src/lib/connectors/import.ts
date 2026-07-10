@@ -15,6 +15,7 @@ import { vendorEnrichmentProvider } from "@/lib/integrations/enrichment/vendor";
 import { getConnectorConfig } from "./config";
 import { readConnectorCredential } from "./credentials";
 import { meterConnectorCall } from "./metering";
+import { resolveConnectorAccessToken } from "./oauth-refresh";
 import { listWorkspaceConnectors, resolveConnectorCredentialRef } from "./read-model";
 
 // ---------------------------------------------------------------------------
@@ -115,8 +116,13 @@ export async function runCrmImport(input: RunCrmImportInput): Promise<RunCrmImpo
   }
 
   const ref = await resolveConnectorCredentialRef(client, input.workspaceId, HUBSPOT_IMPORT_CONNECTOR_KEY);
-  const token = await readConnectorCredential(client, ref);
-  if (!token) return { ok: false, error: "missing_credential" };
+  // A pasted token resolves to itself; a one-click OAuth connection is stored as a
+  // refresh bundle and is auto-renewed here to a fresh HubSpot access token.
+  const resolved = await resolveConnectorAccessToken(client, ref);
+  if (!resolved.ok) {
+    return { ok: false, error: resolved.reason === "needs_reconnect" ? "needs_reconnect" : "missing_credential" };
+  }
+  const token = resolved.accessToken;
 
   const config = await getConnectorConfig(client, input.workspaceId, HUBSPOT_IMPORT_CONNECTOR_KEY);
   const defaultPersona = asOfficialPersona(config.defaultPersona);

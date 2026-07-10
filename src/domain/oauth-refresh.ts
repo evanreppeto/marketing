@@ -13,6 +13,13 @@ export type OAuthRefreshBundle = {
   expiresAt: number; // epoch ms
   clientId: string;
   tokenEndpoint: string;
+  /**
+   * Optional client secret for CONFIDENTIAL OAuth clients (e.g. HubSpot), whose
+   * token endpoint requires `client_secret` on refresh. PUBLIC PKCE clients (e.g.
+   * Higgsfield) omit it entirely — the field is absent from their stored JSON and
+   * their refresh body is byte-for-byte unchanged.
+   */
+  clientSecret?: string;
 };
 
 export type ConnectorCredential = { kind: "bearer"; token: string } | OAuthRefreshBundle;
@@ -26,7 +33,7 @@ export function parseConnectorCredential(raw: string): ConnectorCredential {
   try {
     const o = JSON.parse(raw) as Record<string, unknown>;
     if (o && o.type === "oauth_refresh") {
-      return {
+      const bundle: OAuthRefreshBundle = {
         kind: "oauth_refresh",
         accessToken: String(o.accessToken ?? ""),
         refreshToken: String(o.refreshToken ?? ""),
@@ -34,6 +41,10 @@ export function parseConnectorCredential(raw: string): ConnectorCredential {
         clientId: String(o.clientId ?? ""),
         tokenEndpoint: String(o.tokenEndpoint ?? ""),
       };
+      // Confidential clients only — absent for public PKCE bundles, so the key is
+      // never added and those bundles round-trip identically.
+      if (typeof o.clientSecret === "string" && o.clientSecret) bundle.clientSecret = o.clientSecret;
+      return bundle;
     }
   } catch {
     // not JSON — fall through to bearer
@@ -45,16 +56,21 @@ export function isAccessTokenStale(c: { expiresAt: number }, nowMs: number, skew
   return c.expiresAt - nowMs <= skewMs;
 }
 
-export function buildRefreshRequest(c: Pick<OAuthRefreshBundle, "tokenEndpoint" | "refreshToken" | "clientId">): {
+export function buildRefreshRequest(
+  c: Pick<OAuthRefreshBundle, "tokenEndpoint" | "refreshToken" | "clientId" | "clientSecret">,
+): {
   url: string;
   body: string;
 } {
-  const body = new URLSearchParams({
+  const params = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: c.refreshToken,
     client_id: c.clientId,
-  }).toString();
-  return { url: c.tokenEndpoint, body };
+  });
+  // Confidential clients (HubSpot) require the secret on refresh; public PKCE
+  // clients (Higgsfield) have none set, so the body stays byte-identical.
+  if (c.clientSecret) params.set("client_secret", c.clientSecret);
+  return { url: c.tokenEndpoint, body: params.toString() };
 }
 
 export type OAuthTokenResponse = { access_token: string; expires_in?: number; refresh_token?: string };
@@ -70,12 +86,16 @@ export function applyRefreshResponse(prev: OAuthRefreshBundle, res: OAuthTokenRe
 
 /** Serialize a bundle back to the stored JSON shape (type tag included). */
 export function serializeOAuthBundle(b: OAuthRefreshBundle): string {
-  return JSON.stringify({
+  const payload: Record<string, unknown> = {
     type: "oauth_refresh",
     accessToken: b.accessToken,
     refreshToken: b.refreshToken,
     expiresAt: b.expiresAt,
     clientId: b.clientId,
     tokenEndpoint: b.tokenEndpoint,
-  });
+  };
+  // Emit clientSecret ONLY when present so public-client bundles serialize to the
+  // exact same JSON as before this field existed.
+  if (b.clientSecret) payload.clientSecret = b.clientSecret;
+  return JSON.stringify(payload);
 }

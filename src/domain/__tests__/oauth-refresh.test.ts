@@ -59,6 +59,58 @@ describe("parseConnectorCredential", () => {
     };
     expect(parseConnectorCredential(serializeOAuthBundle(inMemoryBundle))).toEqual(inMemoryBundle);
   });
+
+  it("round-trips a confidential bundle including clientSecret", () => {
+    const confidential = {
+      kind: "oauth_refresh" as const,
+      accessToken: "at_1",
+      refreshToken: "rt_1",
+      expiresAt: 2_000_000,
+      clientId: "hs_client",
+      tokenEndpoint: "https://api.hubapi.com/oauth/v1/token",
+      clientSecret: "sekret",
+    };
+    expect(parseConnectorCredential(serializeOAuthBundle(confidential))).toEqual(confidential);
+  });
+
+  it("parses a bundle with no clientSecret without adding the key", () => {
+    const parsed = parseConnectorCredential(
+      JSON.stringify({ type: "oauth_refresh", accessToken: "a", refreshToken: "r", expiresAt: 1, clientId: "c", tokenEndpoint: "t" }),
+    );
+    expect("clientSecret" in parsed).toBe(false);
+  });
+});
+
+describe("serializeOAuthBundle", () => {
+  // The public-client JSON must be byte-identical to the pre-clientSecret shape so
+  // existing stored Higgsfield credentials are untouched by this change.
+  it("omits clientSecret from the JSON for a public bundle", () => {
+    const json = serializeOAuthBundle(bundle);
+    expect(json).toBe(
+      JSON.stringify({
+        type: "oauth_refresh",
+        accessToken: "oat_old",
+        refreshToken: "rt_old",
+        expiresAt: 1_000_000,
+        clientId: "client_123",
+        tokenEndpoint: "https://mcp.higgsfield.ai/oauth2/token",
+      }),
+    );
+    expect(json).not.toContain("clientSecret");
+  });
+
+  it("includes clientSecret in the JSON for a confidential bundle", () => {
+    const json = serializeOAuthBundle({ ...bundle, clientSecret: "sekret" });
+    expect(JSON.parse(json).clientSecret).toBe("sekret");
+  });
+});
+
+describe("applyRefreshResponse (clientSecret preservation)", () => {
+  it("carries clientSecret through a refresh so subsequent refreshes stay authenticated", () => {
+    const confidential = { ...bundle, clientSecret: "sekret" };
+    const next = applyRefreshResponse(confidential, { access_token: "at_new", expires_in: 1800 }, 3_000_000);
+    expect(next.clientSecret).toBe("sekret");
+  });
 });
 
 describe("isAccessTokenStale", () => {
@@ -82,6 +134,26 @@ describe("buildRefreshRequest", () => {
     expect(params.get("refresh_token")).toBe("rt_old");
     expect(params.get("client_id")).toBe("client_123");
     expect(params.get("client_secret")).toBeNull();
+  });
+
+  // PUBLIC client (Higgsfield): no clientSecret → the refresh body must be
+  // BYTE-IDENTICAL to what it was before clientSecret existed. This guards the
+  // shared-path change from ever altering the existing public-client behavior.
+  it("keeps the public-client refresh body byte-identical (no client_secret key)", () => {
+    const req = buildRefreshRequest(bundle);
+    expect(req.body).toBe("grant_type=refresh_token&refresh_token=rt_old&client_id=client_123");
+  });
+
+  // CONFIDENTIAL client (HubSpot): clientSecret set → the refresh body MUST include
+  // client_secret (HubSpot's token endpoint requires it on refresh).
+  it("appends client_secret for a confidential client", () => {
+    const req = buildRefreshRequest({ ...bundle, tokenEndpoint: "https://api.hubapi.com/oauth/v1/token", clientSecret: "sekret" });
+    expect(req.url).toBe("https://api.hubapi.com/oauth/v1/token");
+    const params = new URLSearchParams(req.body);
+    expect(params.get("grant_type")).toBe("refresh_token");
+    expect(params.get("refresh_token")).toBe("rt_old");
+    expect(params.get("client_id")).toBe("client_123");
+    expect(params.get("client_secret")).toBe("sekret");
   });
 });
 

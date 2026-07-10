@@ -242,6 +242,27 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
   },
 };
 
+// Connectors with a one-click "Connect with X" OAuth flow. `authorize` is the
+// operator-gated route the button sends the browser to; `marker` is the query
+// param the callback round-trips its success/error result on. Every one of these
+// keeps a paste-a-token fallback (the OAuth bundle or a bare token both work).
+const OAUTH_CONNECT: Record<string, { authorize: string; marker: string; label: string; connectDesc: string }> = {
+  higgsfield: {
+    authorize: "/api/connectors/higgsfield/authorize",
+    marker: "hf",
+    label: "Higgsfield",
+    connectDesc:
+      "Sign in to your Higgsfield Ultra account. Arc gets its own credential scoped to this workspace and refreshes it automatically — no CLI, no token to copy.",
+  },
+  "hubspot-import": {
+    authorize: "/api/connectors/hubspot/authorize",
+    marker: "hs",
+    label: "HubSpot",
+    connectDesc:
+      "Sign in to HubSpot and grant read-only contact access. Arc gets its own credential scoped to this workspace and refreshes it automatically — no token to copy. It never writes back to HubSpot.",
+  },
+};
+
 // costTier badge — HYBRID cost model (BSR-372 meters later; here we just label it).
 const COST_TIER_BADGE: Record<ConnectorCostTier, { label: string; title: string }> = {
   free: { label: "Free", title: "No cost — bypasses metering." },
@@ -1182,22 +1203,28 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
   // weather source reports its active-alert count) get a Test connection button.
   const hasConnectivityTest = view.key === "weather-signals";
   const [credential, setCredential] = useState("");
-  // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
-  // Higgsfield redirects back with — computed at init so no setState-in-effect.
+  // One-click OAuth "Connect with X" descriptor for this connector (Higgsfield,
+  // HubSpot), or null. Stable per view.key (module-level record).
+  const oauthConnect = OAUTH_CONNECT[view.key] ?? null;
+  // Seed status from the OAuth round-trip marker (?<marker>=connected | <error-code>)
+  // the callback redirects back with — computed at init so no setState-in-effect.
   const [status, setStatus] = useState<SaveStatus>(() => {
-    if (typeof window === "undefined" || view.key !== "higgsfield") return null;
-    const hf = new URLSearchParams(window.location.search).get("hf");
-    if (!hf) return null;
-    return hf === "connected" ? { tone: "ok", text: "Higgsfield connected." } : { tone: "err", text: `Couldn’t connect Higgsfield (${hf.replace(/_/g, " ")}).` };
+    if (typeof window === "undefined" || !oauthConnect) return null;
+    const m = new URLSearchParams(window.location.search).get(oauthConnect.marker);
+    if (!m) return null;
+    return m === "connected"
+      ? { tone: "ok", text: `${oauthConnect.label} connected.` }
+      : { tone: "err", text: `Couldn’t connect ${oauthConnect.label} (${m.replace(/_/g, " ")}).` };
   });
   const [pending, setPending] = useState(false);
 
-  // Strip the ?hf marker after mount so a refresh doesn't re-show it (no setState).
+  // Strip the OAuth marker after mount so a refresh doesn't re-show it (no setState).
   useEffect(() => {
-    if (view.key !== "higgsfield") return;
+    const oc = OAUTH_CONNECT[view.key];
+    if (!oc) return;
     const params = new URLSearchParams(window.location.search);
-    if (!params.has("hf")) return;
-    params.delete("hf");
+    if (!params.has(oc.marker)) return;
+    params.delete(oc.marker);
     window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
   }, [view.key]);
 
@@ -1263,15 +1290,15 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
               </span>
             </Row>
           </>
-        ) : view.key === "higgsfield" ? (
+        ) : oauthConnect ? (
           <>
             {!configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — connecting won’t persist here.</div>}
-            <Row label="Connect" desc="Sign in to your Higgsfield Ultra account. Arc gets its own credential scoped to this workspace and refreshes it automatically — no CLI, no token to copy.">
-              <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = "/api/connectors/higgsfield/authorize"; }}>Connect with Higgsfield</button>
+            <Row label="Connect" desc={oauthConnect.connectDesc}>
+              <button className="btn gold" disabled={pending || !configured} onClick={() => { window.location.href = oauthConnect.authorize; }}>Connect with {oauthConnect.label}</button>
             </Row>
-            <Row label="Paste a token" desc="Advanced — paste an OAuth bundle captured elsewhere instead of signing in here.">
+            <Row label="Paste a token" desc="Advanced — paste a token or OAuth bundle captured elsewhere instead of signing in here.">
               <span className="pillrow">
-                <input className="inp" type="password" placeholder="Paste token bundle" value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
+                <input className="inp" type="password" placeholder={`Paste ${meta.credLabel}`} value={credential} onChange={(e) => setCredential(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") connect(); }} />
                 <button className="btn sm" disabled={pending || !credential.trim()} onClick={connect}>Save</button>
               </span>
             </Row>
