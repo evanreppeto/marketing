@@ -18,6 +18,7 @@ export * from "./arc-canvas";
 export * from "./competitor-intel";
 export * from "./attribution";
 export * from "./campaign-drafts";
+export * from "./campaign-from-opportunity";
 export * from "./campaign-assets";
 export * from "./agent-run-status";
 export * from "./connections";

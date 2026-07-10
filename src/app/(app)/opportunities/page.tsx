@@ -1,3 +1,4 @@
+import { buildCampaignSeedFromOpportunity } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { crmRecordHref, listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
 
@@ -76,6 +77,17 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
   if (typeof ev.leadScore === "number") impact.push({ label: "Lead score", value: `${Math.round(ev.leadScore)}` });
   if (typeof ev.daysCold === "number") impact.push({ label: "Days cold", value: `${ev.daysCold}` });
 
+  // Deterministic seed for the "Create campaign" confirm modal (persona enum,
+  // inferred focus, name). Computed server-side so the modal can pre-fill it.
+  const seed = buildCampaignSeedFromOpportunity({
+    title: rec.title,
+    summary: rec.summary,
+    recommendedAction: rec.recommended_action,
+    urgency: rec.urgency,
+    persona: ev.persona,
+    recommendedCampaignType: null,
+  });
+
   return {
     id: rec.id,
     name: shortName(rec.title),
@@ -100,6 +112,7 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
       { step: "You", note: "Reviewing now", done: true },
       { step: "Workspace approval", note: "Required before anything sends", done: false },
     ],
+    seed: { name: seed.name, persona: seed.persona, restorationFocus: seed.restorationFocus },
   };
 }
 
