@@ -65,6 +65,7 @@ function humanizeKey(key: string): string {
 type PreparedDraft =
   | { status: "error"; error: string }
   | { status: "offline" }
+  | { status: "existing"; campaignId: string }
   | {
       status: "created";
       campaignId: string;
@@ -108,6 +109,12 @@ async function createDraftCampaign(input: DraftCampaignFromOpportunityInput): Pr
   const ctx = await getCurrentWorkspaceContext();
   const opp = await getOpportunityForCampaign(input.opportunityId, ctx.orgId).catch(() => null);
   if (!opp) return { status: "error", error: "That opportunity is no longer available." };
+
+  // Idempotency: a drafted opportunity keeps showing in the inbox, so a re-submit
+  // (or double-click) would otherwise spawn a duplicate campaign — and, via "Ask
+  // Arc to draft", a second package run. If it already links to a campaign, route
+  // callers to that existing draft instead of creating another.
+  if (opp.campaignId) return { status: "existing", campaignId: opp.campaignId };
 
   try {
     const seed = buildCampaignSeedFromOpportunity({
@@ -164,6 +171,9 @@ export async function draftCampaignFromOpportunityAction(
   const prepared = await createDraftCampaign(input);
   if (prepared.status === "error") return { ok: false, error: prepared.error };
   if (prepared.status === "offline") return { ok: true, persisted: false };
+  if (prepared.status === "existing") {
+    return { ok: true, persisted: true, campaignId: prepared.campaignId, href: `/campaigns/${prepared.campaignId}` };
+  }
 
   // Link the campaign back + advance the opportunity so it reads as drafted.
   // Best-effort: the campaign already exists, so a link failure must not fail it.
@@ -187,6 +197,10 @@ export async function askArcToDraftFromOpportunityAction(
   const prepared = await createDraftCampaign(input);
   if (prepared.status === "error") return { ok: false, error: prepared.error };
   if (prepared.status === "offline") return { ok: true, persisted: false };
+  if (prepared.status === "existing") {
+    // Already converted — route to the existing draft rather than re-running Arc.
+    return { ok: true, persisted: true, campaignId: prepared.campaignId, href: `/campaigns/${prepared.campaignId}` };
+  }
 
   const { campaignId, ctx, actor, persona, focus, opp } = prepared;
   const brief: OpportunityPackageBrief = {
