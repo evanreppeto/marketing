@@ -16,6 +16,10 @@ export type Config = {
   webhookSecret: string | null;
   port: number;
   webhookPath: string;
+  /** Global cap on concurrent Arc runs on this instance (noisy-neighbor rail). */
+  maxConcurrentRuns: number;
+  /** Per-workspace cap on concurrent Arc runs, for cross-tenant fairness. */
+  maxConcurrentRunsPerWorkspace: number;
 };
 
 function required(name: string): string {
@@ -25,6 +29,13 @@ function required(name: string): string {
     process.exit(1);
   }
   return value;
+}
+
+function positiveInt(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
 export function loadConfig(): Config {
@@ -52,5 +63,7 @@ export function loadConfig(): Config {
     webhookSecret: process.env.ARC_WEBHOOK_SECRET?.trim() || null,
     port: Number(process.env.PORT) || 8788,
     webhookPath: process.env.WEBHOOK_PATH?.trim() || "/webhooks/growth-chat",
+    maxConcurrentRuns: positiveInt("ARC_MAX_CONCURRENT_RUNS", 4),
+    maxConcurrentRunsPerWorkspace: positiveInt("ARC_MAX_CONCURRENT_RUNS_PER_WORKSPACE", 2),
   };
 }

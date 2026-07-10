@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { Config } from "./config";
 import { createArcClient } from "./arc-client";
 import { handleCampaignTask, handleChatMessage, handleOpportunityDraft, handleOpportunityScan } from "./handler";
+import { createFairScheduler } from "./scheduler";
 import { verifySignature } from "./verify";
 import type { ArcCampaignTaskPayload, ArcOpportunityDraftPayload, ArcOpportunityScanPayload, MarkChatMessagePayload, WakePayload } from "./types";
 
@@ -21,12 +22,18 @@ function sendJson(res: ServerResponse, status: number, body: Record<string, unkn
 }
 
 export function createRunnerServer(config: Config) {
+  // Bounded, per-tenant-fair scheduler shared by every wake this instance handles.
+  const scheduler = createFairScheduler({
+    maxConcurrent: config.maxConcurrentRuns,
+    maxPerWorkspace: config.maxConcurrentRunsPerWorkspace,
+  });
+
   return createServer(async (req, res) => {
     const url = (req.url ?? "/").split("?")[0];
     const method = req.method ?? "GET";
 
     if (method === "GET" && (url === "/health" || url === "/")) {
-      sendJson(res, 200, { ok: true, service: "arc-runner" });
+      sendJson(res, 200, { ok: true, service: "arc-runner", scheduler: scheduler.stats() });
       return;
     }
 
@@ -61,31 +68,33 @@ export function createRunnerServer(config: Config) {
       // is scoped to the right workspace (see arc-client.ts / the app's arcGuard).
       const identity = payload as { orgId?: string; workspaceId?: string };
       const client = createArcClient(config, { orgId: identity.orgId, workspaceId: identity.workspaceId });
+      // Fairness/backpressure key: one workspace's flood can't starve the others.
+      const workspaceKey = identity.workspaceId ?? "default";
 
       if (payload.type === "arc_chat_message") {
-        // Ack the wake instantly (the app times out at ~6s), then run Arc and
-        // post the reply out-of-band. The /arc UI poll surfaces the reply when
-        // it lands.
+        // Ack the wake instantly (the app times out at ~6s), then run Arc through
+        // the bounded, per-tenant-fair scheduler and post the reply out-of-band.
+        // The /arc UI poll surfaces the reply when it lands.
         sendJson(res, 200, { ok: true, status: "accepted" });
-        void handleChatMessage(client, config, payload as MarkChatMessagePayload);
+        scheduler.schedule(workspaceKey, () => handleChatMessage(client, config, payload as MarkChatMessagePayload));
         return;
       }
 
       if (payload.type === "arc_opportunity_draft") {
         sendJson(res, 200, { ok: true, status: "accepted" });
-        void handleOpportunityDraft(client, config, payload as ArcOpportunityDraftPayload);
+        scheduler.schedule(workspaceKey, () => handleOpportunityDraft(client, config, payload as ArcOpportunityDraftPayload));
         return;
       }
 
       if (payload.type === "arc_opportunity_scan") {
         sendJson(res, 200, { ok: true, status: "accepted" });
-        void handleOpportunityScan(client, config, payload as ArcOpportunityScanPayload);
+        scheduler.schedule(workspaceKey, () => handleOpportunityScan(client, config, payload as ArcOpportunityScanPayload));
         return;
       }
 
       if (payload.type === "arc_campaign_task") {
         sendJson(res, 200, { ok: true, status: "accepted" });
-        void handleCampaignTask(client, config, payload as ArcCampaignTaskPayload);
+        scheduler.schedule(workspaceKey, () => handleCampaignTask(client, config, payload as ArcCampaignTaskPayload));
         return;
       }
 
