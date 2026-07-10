@@ -37,6 +37,15 @@ const ACTION: Partial<Record<DispatchStatus, string>> = {
   failed: "Retry",
 };
 
+// Where each operator action moves the dispatch. The operator drives the
+// lifecycle by hand — the app records state and hands off; it never sends.
+const ACTION_TARGET: Partial<Record<DispatchStatus, DispatchStatus>> = {
+  queued: "sent",
+  scheduled: "sent",
+  sent: "delivered",
+  failed: "queued",
+};
+
 function noteTone(status: DispatchStatus): OutboxCardVM["noteTone"] {
   if (status === "failed") return "red";
   if (status === "sent" || status === "scheduled") return "warn";
@@ -55,9 +64,10 @@ function toOutboxCard(d: DispatchView): OutboxCardVM & { status: DispatchStatus 
     campaign: d.campaignName,
     note: d.resultNote,
     noteTone: noteTone(d.status),
-    href: "/campaigns",
+    href: d.campaignId ? `/campaigns/${d.campaignId}` : "/campaigns",
     meta,
     action: ACTION[d.status] ?? null,
+    actionTo: ACTION_TARGET[d.status] ?? null,
   };
 }
 

@@ -13,7 +13,7 @@ import { LOCKED_CLAIMS, MEASUREMENT_PLAN } from "@/lib/performance/measurement-c
 import { type CampaignPerformancePanel, type PerformanceTrendPoint } from "@/lib/performance/campaign-panel";
 
 import { ShareDialog } from "../../../_components/share-dialog";
-import { decideCampaignAsset, requestCampaignRevision } from "../actions";
+import { decideCampaignAsset, launchCampaignAction, requestCampaignRevision } from "../actions";
 import {
   getCampaignSharingStateAction,
   setCampaignSharingAction,
@@ -284,6 +284,8 @@ export function CampaignDetailView({ detail, performance }: { detail: LiveCampai
   const [reviseText, setReviseText] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [confirmLaunch, setConfirmLaunch] = useState(false);
+  const [launchErr, setLaunchErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const persona = humanizePersona(campaign.persona);
@@ -324,6 +326,22 @@ export function CampaignDetailView({ detail, performance }: { detail: LiveCampai
         setAssetStatus(asset.id, prev);
         setErr(res.error);
       }
+    });
+  }
+
+  function doLaunch() {
+    if (pending) return;
+    setErr(null);
+    setLaunchErr(null);
+    startTransition(async () => {
+      const res = await launchCampaignAction(campaign.id);
+      if (!res.ok) {
+        setLaunchErr(res.error);
+        return;
+      }
+      // launchCampaignAction revalidates this path; the server re-renders with
+      // launch_locked cleared, so the launch control unmounts on its own.
+      setConfirmLaunch(false);
     });
   }
 
@@ -622,6 +640,36 @@ export function CampaignDetailView({ detail, performance }: { detail: LiveCampai
                   : "Approve the remaining deliverables to make this campaign launch-ready."}
               </div>
             </div>
+
+            {campaign.launchLocked && (
+              <div className="lctrl">
+                {launchErr && <div className="cerr" style={{ margin: 0 }}>{launchErr}</div>}
+                {confirmLaunch ? (
+                  <>
+                    <button className="cbtn gold" onClick={doLaunch} disabled={pending}>
+                      {svg('<path d="M5 12l4 4L19 6"/>')}
+                      {pending ? "Launching…" : "Confirm launch"}
+                    </button>
+                    <button className="cbtn ghost" onClick={() => setConfirmLaunch(false)} disabled={pending}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="cbtn gold"
+                    onClick={() => { setErr(null); setLaunchErr(null); setConfirmLaunch(true); }}
+                    disabled={!launchState.ready || pending}
+                    title={launchState.ready ? undefined : "Approve every gating deliverable first"}
+                  >
+                    {svg('<path d="M3 12l18-8-8 18-2-7z"/>')}
+                    Launch campaign
+                  </button>
+                )}
+                <div className="lchint">
+                  Launching unlocks approved deliverables for dispatch and opens the Outbox. Nothing sends automatically — you confirm each send there.
+                </div>
+              </div>
+            )}
           </div>
 
           {renderableMediaList.length > 0 && (
