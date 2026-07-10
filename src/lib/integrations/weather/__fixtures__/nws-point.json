@@ -1,0 +1,21 @@
+{
+  "@context": ["https://geojson.org/geojson-ld/geojson-context.jsonld"],
+  "id": "https://api.weather.gov/points/41.8781,-87.6298",
+  "type": "Feature",
+  "properties": {
+    "@id": "https://api.weather.gov/points/41.8781,-87.6298",
+    "@type": "wx:Point",
+    "cwa": "LOT",
+    "gridId": "LOT",
+    "gridX": 76,
+    "gridY": 73,
+    "forecast": "https://api.weather.gov/gridpoints/LOT/76,73/forecast",
+    "forecastHourly": "https://api.weather.gov/gridpoints/LOT/76,73/forecast/hourly",
+    "forecastGridData": "https://api.weather.gov/gridpoints/LOT/76,73",
+    "relativeLocation": {
+      "type": "Feature",
+      "properties": { "city": "Chicago", "state": "IL" }
+    },
+    "timeZone": "America/Chicago"
+  }
+}

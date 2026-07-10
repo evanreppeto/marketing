@@ -11,6 +11,7 @@ import {
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { createCampaignFromOpportunity } from "@/lib/campaigns/create";
+import { runSignalSourceDetection } from "@/lib/connectors/detection";
 import {
   runColdLeadDetection,
   runCompetitorSignalDetection,
@@ -25,16 +26,17 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 /**
  * Operator-triggered opportunity scan: runs the deterministic detectors over the
  * current workspace's signals and persists any new source-backed opportunities,
- * then refreshes the inbox. Three sources today — cold CRM leads, active weather
+ * then refreshes the inbox. Built-in sources — cold CRM leads, ingested weather
  * alerts (geo-targeted storm response), and captured competitor flights (defensive
- * response). Org-scoped through the authenticated request context. Each detector
- * is best-effort so one failing source can't sink the whole scan. Read-only
- * detection — nothing outbound, nothing drafted.
+ * response) — plus every ENABLED signal_source connector (e.g. live NWS/NOAA
+ * weather signals, BSR-364) via the connector orchestrator. Org-scoped through the
+ * authenticated request context. Each source is best-effort so one failing source
+ * can't sink the whole scan. Read-only detection — nothing outbound, nothing drafted.
  */
 export async function scanForOpportunitiesAction(): Promise<void> {
   if (!isSupabaseAdminConfigured()) return;
   // Ensures the caller is authenticated + establishes the org scope the detectors read.
-  await getCurrentWorkspaceContext();
+  const ctx = await getCurrentWorkspaceContext();
   const swallow = () => {
     // Detection is best-effort; a failing source just leaves the inbox unchanged.
   };
@@ -42,6 +44,11 @@ export async function scanForOpportunitiesAction(): Promise<void> {
     runColdLeadDetection().catch(swallow),
     runWeatherEventDetection().catch(swallow),
     runCompetitorSignalDetection().catch(swallow),
+    // Enabled signal_source connectors (live NWS weather, etc). Requires a
+    // workspace to scope + read the per-workspace connector config.
+    ctx.workspaceId
+      ? runSignalSourceDetection({ workspaceId: ctx.workspaceId, orgId: ctx.orgId }).catch(swallow)
+      : Promise.resolve(),
   ]);
   revalidatePath("/opportunities");
 }

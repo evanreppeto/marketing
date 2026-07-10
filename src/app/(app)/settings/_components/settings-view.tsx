@@ -204,7 +204,7 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     c: "#7fb89a",
     l: "Wx",
     credLabel: "",
-    credHint: "No credential — this signal source only reads and proposes opportunities. Configure the locations to watch.",
+    credHint: "No credential — reads live NWS/NOAA alerts (public API) and proposes storm-response opportunities. Configure the states to watch.",
   },
   "webhook-dispatch": {
     c: "#9aa0ac",
@@ -231,10 +231,10 @@ const CONNECTOR_KIND_LABEL: Record<string, string> = {
 // form field to/from the workspace_connectors.config jsonb.
 const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: string; hint: string; list?: boolean }> = {
   "weather-signals": {
-    key: "locations",
-    label: "Locations to watch",
-    placeholder: "Chicago, Naperville, Evanston",
-    hint: "Comma-separated. Each flagged location proposes a storm-response opportunity.",
+    key: "states",
+    label: "Service area (US states)",
+    placeholder: "IL, WI, IN",
+    hint: "Comma-separated two-letter US state codes. Active NWS/NOAA alerts in these states become storm-response opportunities. No API key needed.",
     list: true,
   },
   "webhook-dispatch": {
@@ -1103,6 +1103,9 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
   // No-credential connectors (public signal source, config-only channel) have no
   // Vault secret to store — they are set up by flipping the enable switch.
   const noCredential = view.credentialOptional && view.authKind === "none";
+  // No-credential connectors that still expose a live connectivity probe (the NWS
+  // weather source reports its active-alert count) get a Test connection button.
+  const hasConnectivityTest = view.key === "weather-signals";
   const [credential, setCredential] = useState("");
   // Seed status from the OAuth round-trip marker (?hf=connected | <error-code>)
   // Higgsfield redirects back with — computed at init so no setState-in-effect.
@@ -1149,10 +1152,10 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
       </div>
 
       <Panel title="Health" tag={TGOK} foot="workspace_connectors · a real provider probe records last_test_ok / last_test_error">
-        <Row label="Status" desc={view.lastTestedAt ? `Last tested ${relTime(view.lastTestedAt)}` : noCredential ? "No credential to test — enable to use." : "Not tested yet."}>
+        <Row label="Status" desc={view.lastTestedAt ? `Last tested ${relTime(view.lastTestedAt)}` : hasConnectivityTest ? "Test to fetch the current NWS/NOAA alert count for your service area." : noCredential ? "No credential to test — enable to use." : "Not tested yet."}>
           <span className="pillrow">
             <Pill kind={pill.kind}>{pill.label}</Pill>
-            {!noCredential && <button className="btn sm" disabled={pending || !view.credentialPresent} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>{pending ? "Testing…" : "Test connection"}</button>}
+            {(!noCredential || hasConnectivityTest) && <button className="btn sm" disabled={pending || (!hasConnectivityTest && !view.credentialPresent)} onClick={() => run(() => testConnector({ connectorKey: view.key }), `${view.label} connection is healthy.`)}>{pending ? "Testing…" : "Test connection"}</button>}
           </span>
         </Row>
         {view.lastTestOk === false && view.lastTestError ? (

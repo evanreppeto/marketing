@@ -136,22 +136,26 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     authHeader: "Authorization",
     toolNamespace: "higgsfield",
   },
-  // --- Stub connectors proving the two new kinds (BSR-363). Behaviour lives in
+  // --- signal_source + channel connectors. Behaviour lives in
   //     src/lib/connectors/builtin/ and is keyed back to these `key`s. ---
   {
     key: "weather-signals",
     kind: "signal_source",
-    label: "Weather Signals",
+    label: "Weather Signals (NWS/NOAA)",
     description:
-      "Read-only signal source: flags severe-weather events for configured locations and proposes " +
-      "storm-response opportunities to the inbox. Never contacts anyone — proposals only.",
+      "Read-only signal source: reads live active alerts from the National Weather Service / NOAA for " +
+      "your service area (US states or lat-lng points) and proposes geo-targeted storm-response " +
+      "opportunities to the inbox. No API key — NWS is public. Never contacts anyone — proposals only.",
     costTier: "free",
-    verticals: ["restoration", "home_services", "field_services", "insurance"],
+    verticals: ["restoration", "roofing", "hvac", "landscaping", "solar", "insurance", "property_management"],
     capability: {
-      summary: "Emits weather-event opportunities for configured locations.",
+      summary: "Emits weather-event opportunities from live NWS/NOAA alerts for the configured service area.",
       opportunityKinds: ["weather_event"],
     },
-    credentialSchema: { kind: "none", hint: "No credential — configure the locations to watch." },
+    credentialSchema: {
+      kind: "none",
+      hint: "No credential — NWS/NOAA is a public API. Configure the US states (or lat-lng points) to watch.",
+    },
     authKind: "none",
     access: "read_only",
     mcpUrl: null,
