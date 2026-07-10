@@ -1078,6 +1078,7 @@
 .arc-app .arc-opps .orow .pct { margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
 .arc-app .arc-opps .orow .om { font-size: 10.5px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 7px; }
 .arc-app .arc-opps .orow .src { border: 1px solid var(--line-2); background: var(--inset); border-radius: 5px; padding: 1px 6px; font-size: 9.5px; color: var(--text-2); }
+.arc-app .arc-opps .orow .ostat { border: 1px solid var(--accent-border); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; font-size: 9.5px; font-weight: 600; color: var(--accent-contrast); }
 .arc-app .arc-opps .odetail { min-width: 0; overflow: auto; padding: 30px clamp(22px, 3.2vw, 44px) 56px; }
 .arc-app .arc-opps .odetail .inner { max-width: 1000px; }
 .arc-app .arc-opps .metarow { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; flex-wrap: wrap; }
@@ -1088,6 +1089,7 @@
 .arc-app .arc-opps .upill.red { color: var(--red-text); background: var(--red-soft); border: 1px solid var(--red-border); }
 .arc-app .arc-opps .upill.amber { color: var(--warn-text); background: var(--warn-soft); border: 1px solid var(--warn-border); }
 .arc-app .arc-opps .upill.info { color: #a9cdea; background: rgba(136, 182, 216, .13); border: 1px solid rgba(136, 182, 216, .4); }
+.arc-app .arc-opps .sstat { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 6px; font-size: 10.5px; font-weight: 600; color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); }
 .arc-app .arc-opps .dttl { font-family: var(--serif); font-weight: 500; font-size: clamp(1.5rem, 2.5vw, 2.05rem); line-height: 1.1; letter-spacing: -.018em; margin: 0; }
 .arc-app .arc-opps .dgrid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 30px; margin-top: 24px; align-items: start; }
 @media (max-width: 1080px) { .arc-app .arc-opps .dgrid { grid-template-columns: 1fr; } }
@@ -1113,6 +1115,7 @@
 .arc-app .arc-opps .btn.gold:hover { transform: translateY(-1px); filter: brightness(1.03); }
 .arc-app .arc-opps .btn.ghost { border: 1px solid var(--line-2); background: transparent; color: var(--text-2); }
 .arc-app .arc-opps .btn.ghost:hover { border-color: var(--line-3); color: var(--text); }
+.arc-app .arc-opps .btn:disabled { opacity: .6; cursor: default; transform: none; filter: none; }
 .arc-app .arc-opps .side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
 .arc-app .arc-opps .card { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); padding: 16px; }
 .arc-app .arc-opps .card .cl { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }

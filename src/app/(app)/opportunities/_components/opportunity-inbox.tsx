@@ -31,6 +31,12 @@ export type OpportunityVM = {
   evidence: OppSignal[];
   impact: OppSignal[];
   routing: OppRouting[];
+  /** Lifecycle: "pending" | "drafting" | "drafted" (open states the inbox lists). */
+  status: string;
+  /** Chip label when Arc has begun/finished drafting; null while pending. */
+  statusLabel: string | null;
+  /** Link to the linked campaign draft once one exists; null otherwise. */
+  campaignHref: string | null;
   /** Pre-filled draft fields for the "Create campaign" confirm modal. */
   seed: { name: string; persona: string; restorationFocus: string };
 };
@@ -164,6 +170,7 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
                 </div>
                 <div className="om">
                   Confidence <span className="src">{it.sourceLabel}</span>
+                  {it.statusLabel && <span className="ostat">{it.statusLabel}</span>}
                 </div>
               </div>
             </button>
@@ -176,6 +183,7 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
           <div className="metarow">
             <span className="tchip"><i />{o.typeLabel}</span>
             <span className={`upill ${o.urgencyTone}`}>{o.urgencyLabel} urgency</span>
+            {o.statusLabel && <span className="sstat">{o.statusLabel}</span>}
             <span className="det">Surfaced by Arc</span>
           </div>
           <h1 className="dttl">{o.title}</h1>
@@ -214,26 +222,39 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
                   </>
                 )}
                 <div className="racts">
-                  <button
-                    type="button"
-                    className="btn gold"
-                    onClick={() => {
-                      setMode("operator");
-                      setDraftOpen(true);
-                    }}
-                  >
-                    Create campaign
-                  </button>
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    onClick={() => {
-                      setMode("arc");
-                      setDraftOpen(true);
-                    }}
-                  >
-                    Ask Arc to draft
-                  </button>
+                  {o.campaignHref ? (
+                    // Already converted — link to the draft instead of offering to
+                    // create another. The idempotency guard (PR #380) also blocks a
+                    // duplicate server-side; this keeps the UI from inviting one.
+                    <a className="btn gold" href={o.campaignHref}>Open campaign →</a>
+                  ) : o.status === "drafting" ? (
+                    <button type="button" className="btn gold" disabled aria-disabled="true">
+                      Drafting…
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn gold"
+                        onClick={() => {
+                          setMode("operator");
+                          setDraftOpen(true);
+                        }}
+                      >
+                        Create campaign
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => {
+                          setMode("arc");
+                          setDraftOpen(true);
+                        }}
+                      >
+                        Ask Arc to draft
+                      </button>
+                    </>
+                  )}
                   {o.recordHref && (
                     <a className="btn ghost" href={o.recordHref}>{o.recordLabel} →</a>
                   )}
