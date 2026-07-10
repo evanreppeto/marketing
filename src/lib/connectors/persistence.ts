@@ -55,6 +55,27 @@ export async function setConnectorEnabled(
   assertOk("workspace_connectors enable update", error);
 }
 
+/**
+ * Enable/disable a connector, creating the row if it does not exist yet. Used for
+ * no-credential connectors (e.g. a public signal source) that have no connect
+ * step to seed the row — the operator just flips the switch on.
+ */
+export async function upsertConnectorEnabled(
+  client: SupabaseClient,
+  input: { workspaceId: string; orgId: string | null; connectorKey: string; enabled: boolean },
+): Promise<void> {
+  const { error } = await client.from("workspace_connectors").upsert(
+    {
+      workspace_id: input.workspaceId,
+      org_id: input.orgId,
+      connector_key: input.connectorKey,
+      enabled: input.enabled,
+    },
+    { onConflict: "workspace_id,connector_key" },
+  );
+  assertOk("workspace_connectors enable upsert", error);
+}
+
 /** Record a connection-test outcome. */
 export async function recordConnectorTest(
   client: SupabaseClient,

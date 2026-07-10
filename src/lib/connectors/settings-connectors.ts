@@ -6,7 +6,7 @@
 // ConnectorView carries only presence + status.
 // ---------------------------------------------------------------------------
 
-import { CONNECTOR_REGISTRY, computeConnectorStatus } from "@/domain";
+import { CONNECTOR_REGISTRY, computeConnectorStatus, connectorRequiresCredential } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -19,19 +19,26 @@ export type SettingsConnectorsView = {
 
 /** Registry-only views (no workspace rows) — every connector "not configured". */
 function registryFallback(): ConnectorView[] {
-  return CONNECTOR_REGISTRY.map((entry) => ({
-    key: entry.key,
-    label: entry.label,
-    description: entry.description,
-    authKind: entry.authKind,
-    access: entry.access,
-    enabled: false,
-    credentialPresent: false,
-    status: computeConnectorStatus({ credentialPresent: false, enabled: false, lastTestOk: null }),
-    lastTestedAt: null,
-    lastTestOk: null,
-    lastTestError: null,
-  }));
+  return CONNECTOR_REGISTRY.map((entry) => {
+    const requiresCredential = connectorRequiresCredential(entry);
+    return {
+      key: entry.key,
+      kind: entry.kind,
+      label: entry.label,
+      description: entry.description,
+      authKind: entry.authKind,
+      access: entry.access,
+      costTier: entry.costTier,
+      enabled: false,
+      credentialPresent: false,
+      credentialOptional: !requiresCredential,
+      config: {},
+      status: computeConnectorStatus({ credentialPresent: false, enabled: false, lastTestOk: null, requiresCredential }),
+      lastTestedAt: null,
+      lastTestOk: null,
+      lastTestError: null,
+    };
+  });
 }
 
 export async function getSettingsConnectorsView(): Promise<SettingsConnectorsView> {
