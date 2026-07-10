@@ -162,6 +162,41 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "weather-signals",
   },
   {
+    key: "reviews-signals",
+    kind: "signal_source",
+    label: "Reviews & Reputation",
+    description:
+      "Read-only signal source: watches this workspace's Google Business Profile / Yelp reviews and proposes " +
+      "service-recovery opportunities (negative reviews) and referral/testimonial opportunities (positive reviews). " +
+      "Never replies — proposals only; any response stays an approval-gated draft.",
+    costTier: "byo_key",
+    verticals: [
+      "restoration",
+      "home_services",
+      "field_services",
+      "retail",
+      "restaurants",
+      "healthcare",
+      "professional_services",
+      "automotive",
+      "fitness",
+    ],
+    capability: {
+      summary: "Emits review_signal opportunities from recent reviews.",
+      opportunityKinds: ["review_signal"],
+    },
+    credentialSchema: {
+      kind: "oauth",
+      label: "Google Business Profile",
+      hint: "Connect your Google Business Profile (and optionally Yelp) to pull recent reviews. Stored encrypted in your Vault; used read-only.",
+      optional: true,
+    },
+    authKind: "oauth",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "reviews-signals",
+  },
+  {
     key: "webhook-dispatch",
     kind: "channel",
     label: "Outbound Webhook",
