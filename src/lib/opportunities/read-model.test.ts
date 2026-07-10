@@ -34,6 +34,19 @@ describe("opportunities demo fallback", () => {
     }
   });
 
+  it("threads campaign_id onto a drafted opportunity so the inbox can link it", async () => {
+    unconfigureSupabase();
+    vi.stubEnv("ARC_DEMO_DATA", "1");
+
+    const records = await listOpenOpportunities();
+    const drafted = records.find((r) => r.status === "drafted");
+
+    // A drafted opportunity is one that has already been converted, so it must
+    // carry the linked campaign id the UI turns into an "Open campaign →" CTA.
+    expect(drafted).toBeDefined();
+    expect(drafted?.campaign_id).toBeTruthy();
+  });
+
   it("keeps the home hero count and the pending count derived from one source", async () => {
     unconfigureSupabase();
     vi.stubEnv("ARC_DEMO_DATA", "1");

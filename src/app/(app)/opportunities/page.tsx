@@ -59,6 +59,38 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** Short chip label for opportunities Arc has already begun/finished drafting. */
+function statusLabel(status: string): string | null {
+  if (status === "drafting") return "Drafting…";
+  if (status === "drafted") return "Drafted";
+  return null;
+}
+
+/**
+ * Approval-routing timeline. Once a draft exists the first step reads as
+ * complete ("Draft created") and the pending gate becomes the human approval —
+ * keeping the card honest with the campaign's launch-locked state.
+ */
+function buildRouting(status: string): OpportunityVM["routing"] {
+  if (status === "drafting") {
+    return [
+      { step: "You", note: "Requested a draft", done: true },
+      { step: "Arc", note: "Preparing the campaign draft", done: false },
+      { step: "Workspace approval", note: "Required before anything sends", done: false },
+    ];
+  }
+  if (status === "drafted") {
+    return [
+      { step: "You", note: "Draft created", done: true },
+      { step: "Workspace approval", note: "Awaiting approval — nothing sends yet", done: false },
+    ];
+  }
+  return [
+    { step: "You", note: "Reviewing now", done: true },
+    { step: "Workspace approval", note: "Required before anything sends", done: false },
+  ];
+}
+
 function toVM(rec: OpportunityRecord): OpportunityVM {
   const ev = rec.evidence ?? {};
   const persona = humanizePersona(ev.persona ?? "");
@@ -132,10 +164,10 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
     campaignTypes: campaignTypes(rec.urgency),
     evidence,
     impact,
-    routing: [
-      { step: "You", note: "Reviewing now", done: true },
-      { step: "Workspace approval", note: "Required before anything sends", done: false },
-    ],
+    routing: buildRouting(rec.status),
+    status: rec.status,
+    statusLabel: statusLabel(rec.status),
+    campaignHref: rec.campaign_id ? `/campaigns/${rec.campaign_id}` : null,
     seed: { name: seed.name, persona: seed.persona, restorationFocus: seed.restorationFocus },
   };
 }

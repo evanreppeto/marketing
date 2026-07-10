@@ -100,6 +100,7 @@ export function buildDemoOpportunities(): OpportunityRecord[] {
       confidence: 69,
       urgency: "medium",
       status: "drafted",
+      campaign_id: "demo-emergency-water-response-2026",
       recommended_action: "Offer Lakeview an annual portfolio moisture-inspection package",
       evidence: {
         persona: "persona_property_manager",

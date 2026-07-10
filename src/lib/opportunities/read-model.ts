@@ -39,6 +39,8 @@ type OpportunityRecord = {
   urgency: "low" | "medium" | "high";
   status: string;
   recommended_action: string;
+  /** Set once the opportunity has been converted into a campaign draft. */
+  campaign_id?: string | null;
   evidence?: OpportunityEvidence | null;
 };
 
@@ -78,7 +80,7 @@ export async function listOpenOpportunities(
   const resolvedOrgId = orgId ?? handleOrgId ?? (await getCurrentOrgId());
   const { data, error } = await db
     .from("opportunities")
-    .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, evidence")
+    .select("id, subject_type, subject_id, title, summary, confidence, urgency, status, recommended_action, campaign_id, evidence")
     .eq("org_id", resolvedOrgId)
     .in("status", ["pending", "drafting", "drafted"])
     .order("created_at", { ascending: false });
