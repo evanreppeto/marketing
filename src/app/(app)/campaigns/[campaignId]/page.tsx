@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { resolveCampaignAudience } from "@/lib/campaigns/audience";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceDetail } from "@/lib/campaigns/read-model";
 import { getCampaignPerformancePanel } from "@/lib/performance/campaign-panel";
@@ -30,7 +31,10 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     );
   }
 
-  const performance = await getCampaignPerformancePanel(decodeURIComponent(campaignId));
+  const [performance, audience] = await Promise.all([
+    getCampaignPerformancePanel(decodeURIComponent(campaignId)),
+    resolveCampaignAudience(decodeURIComponent(campaignId), orgId),
+  ]);
 
-  return <CampaignDetailView detail={detail} performance={performance} />;
+  return <CampaignDetailView detail={detail} performance={performance} audience={audience} />;
 }

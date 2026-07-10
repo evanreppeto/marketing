@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
+import { type CampaignAudience } from "@/lib/campaigns/audience";
 import {
   type CampaignMediaAsset,
   type CampaignWorkspaceAsset,
@@ -276,7 +277,7 @@ function provTone(source: string): string {
   return "stock";
 }
 
-export function CampaignDetailView({ detail, performance }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel }) {
+export function CampaignDetailView({ detail, performance, audience }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel; audience: CampaignAudience }) {
   const { campaign, launchState, executiveOverview, reasoning, sources, approvalHistory, media } = detail;
   const [assets, setAssets] = useState<CampaignWorkspaceAsset[]>(detail.assets);
   const [tab, setTab] = useState("deliverables");
@@ -535,6 +536,50 @@ export function CampaignDetailView({ detail, performance }: { detail: LiveCampai
                     ))}
                 </div>
               </div>
+
+              {audience.status === "resolved" && (
+                <div className="csec">
+                  <h3 className="csh">Audience <span className="est">Preview · nothing sends</span></h3>
+                  <div className="card audcard">
+                    <div className="audhead">
+                      <div>
+                        <div className="audbig">{audience.sendable.toLocaleString()}</div>
+                        <div className="audsub">
+                          contacts would receive this — {persona || "this persona"} with an email on file
+                        </div>
+                      </div>
+                      {audience.matched > audience.sendable && (
+                        <div className="audnote">
+                          {(audience.matched - audience.sendable).toLocaleString()} more match this persona but have no email yet
+                        </div>
+                      )}
+                    </div>
+                    {audience.sample.length > 0 ? (
+                      <ul className="audlist">
+                        {audience.sample.map((c) => (
+                          <li className="audrow" key={c.id}>
+                            <span className="audname">{c.name}</span>
+                            <span className="audmail">{c.email}</span>
+                          </li>
+                        ))}
+                        {audience.sendable > audience.sample.length && (
+                          <li className="audrow audmore">
+                            +{(audience.sendable - audience.sample.length).toLocaleString()} more recipients
+                          </li>
+                        )}
+                      </ul>
+                    ) : (
+                      <p className="rbody" style={{ color: "var(--muted)" }}>
+                        No contacts with an email match this persona yet — add contacts in CRM to build the audience.
+                      </p>
+                    )}
+                    <div className="audgate">
+                      <i />
+                      Preview only — nothing is sent until you approve and launch.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="csec">
                 <h3 className="csh">Why Arc built this <span className="est">Arc reasoning</span></h3>

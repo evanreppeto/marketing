@@ -225,3 +225,19 @@
   .arc-campaign .perfkpis { grid-template-columns: repeat(2, 1fr); }
   .arc-campaign .lockgrid { grid-template-columns: 1fr; }
 }
+
+/* Audience preview (overview) — the concrete recipients a campaign would reach.
+   Read-only; the gate line reinforces that nothing sends here. */
+.arc-campaign .audcard { display: flex; flex-direction: column; gap: 14px; }
+.arc-campaign .audhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.arc-campaign .audbig { font-family: var(--serif); font-weight: 500; font-size: 30px; line-height: 1; letter-spacing: -0.02em; color: var(--text); }
+.arc-campaign .audsub { font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin-top: 6px; max-width: 44ch; }
+.arc-campaign .audnote { font-size: 11px; color: var(--muted); line-height: 1.45; border: 1px solid var(--line-2); border-radius: 9px; padding: 8px 11px; background: var(--inset); max-width: 26ch; }
+.arc-campaign .audlist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.arc-campaign .audrow { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+.arc-campaign .audrow:last-child { border-bottom: none; }
+.arc-campaign .audname { font-size: 12.5px; font-weight: 500; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-campaign .audmail { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.arc-campaign .audmore { color: var(--muted); font-style: italic; justify-content: flex-start; }
+.arc-campaign .audgate { display: flex; align-items: center; gap: 9px; font-size: 11.5px; color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 9px; padding: 9px 12px; }
+.arc-campaign .audgate i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }

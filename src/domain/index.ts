@@ -1,3 +1,4 @@
+export * from "./campaign-audience";
 export * from "./lead-ingestion";
 export * from "./loss-classification";
 export * from "./personas";
