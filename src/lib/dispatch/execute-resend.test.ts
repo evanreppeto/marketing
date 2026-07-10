@@ -30,7 +30,7 @@ describe("executeResendDispatch", () => {
   it("sends an approved queued dispatch, stamps the provider message id, and logs dispatch_sent", async () => {
     const send = vi.fn().mockResolvedValue({ id: "resend-123" });
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch(), error: null },
+      campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },
@@ -47,7 +47,7 @@ describe("executeResendDispatch", () => {
 
     const updates = findCalls(supabase, "update");
     expect(updates).toContainEqual(
-      expect.objectContaining({ status: "dispatched", provider: "resend", provider_message_id: "resend-123" }),
+      expect.objectContaining({ status: "sent", provider: "resend", provider_message_id: "resend-123" }),
     );
     expect(updates.some((u) => "dispatched_at" in u)).toBe(true);
     expect(findCalls(supabase, "insert")).toContainEqual(expect.objectContaining({ event_type: "dispatch_sent" }));
@@ -56,7 +56,7 @@ describe("executeResendDispatch", () => {
   it("is idempotent — returns the existing id and never re-sends an already-dispatched row", async () => {
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch({ status: "dispatched", provider_message_id: "resend-prior" }), error: null },
+      campaign_dispatches: { data: queuedDispatch({ status: "sent", provider_message_id: "resend-prior" }), error: null },
     });
 
     const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
@@ -68,7 +68,7 @@ describe("executeResendDispatch", () => {
   it("refuses a dispatch that is not queued", async () => {
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch({ status: "canceled" }), error: null },
+      campaign_dispatches: { data: queuedDispatch({ status: "canceled" }), error: null },
     });
 
     const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
@@ -81,7 +81,7 @@ describe("executeResendDispatch", () => {
   it("refuses when the dispatch has no linked approval", async () => {
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch({ approval_item_id: null }), error: null },
+      campaign_dispatches: { data: queuedDispatch({ approval_item_id: null }), error: null },
     });
 
     const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { apiKey: "re_test", send });
@@ -94,7 +94,7 @@ describe("executeResendDispatch", () => {
   it("refuses when the linked approval is not approved", async () => {
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch(), error: null },
+      campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: { status: "pending" }, error: null },
     });
 
@@ -109,7 +109,7 @@ describe("executeResendDispatch", () => {
     vi.stubEnv("RESEND_API_KEY", "");
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch(), error: null },
+      campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
     });
 
@@ -123,7 +123,7 @@ describe("executeResendDispatch", () => {
   it("refuses when the Resend connection is disabled (kill-switch off)", async () => {
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch(), error: null },
+      campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
       connections: { data: { ...ENABLED_RESEND, enabled: false }, error: null },
     });
@@ -138,7 +138,7 @@ describe("executeResendDispatch", () => {
   it("records a failure (status=failed, last_error) and logs dispatch_failed when Resend throws", async () => {
     const send = vi.fn().mockRejectedValue(new Error("Resend send failed (422): invalid from"));
     const supabase = createSupabaseQueryMock({
-      outbound_dispatches: { data: queuedDispatch(), error: null },
+      campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
       connections: { data: ENABLED_RESEND, error: null },
       campaign_events: { data: null, error: null },

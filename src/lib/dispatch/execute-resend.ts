@@ -6,13 +6,10 @@ import { recordConnectionUse } from "@/lib/connections/persistence";
 import { sendResendEmail } from "@/lib/connections/resend-client";
 
 // The ONLY place the app performs a real send. It operates on an already-queued,
-// approval-linked `outbound_dispatches` row and refuses anything that isn't both
-// queued and approved — the outbound-locked invariant ("the app never sends
-// unapproved content"). Idempotent: an already-dispatched row is never re-sent.
-//
-// NOTE (tech debt): this stands alone against `outbound_dispatches`. The simpler,
-// deliverable-level `campaign_dispatches`/launch.ts flow is not reconciled onto it
-// yet (see 20260605120000_campaign_dispatches.sql).
+// approval-linked `campaign_dispatches` row — the single reconciled dispatch table
+// (BSR-370, see docs/dispatch-reconciliation.md) — and refuses anything that isn't
+// both queued and approved: the outbound-locked invariant ("the app never sends
+// unapproved content"). Idempotent: an already-sent row is never re-sent.
 
 function assertOk(label: string, error: { message: string } | null) {
   if (error) throw new Error(`${label}: ${error.message}`);
@@ -68,15 +65,15 @@ export async function executeResendDispatch(
   const send = deps.send ?? sendResendEmail;
 
   const { data: dispatch, error: dispatchError } = await client
-    .from("outbound_dispatches")
+    .from("campaign_dispatches")
     .select("id,status,approval_item_id,channel,campaign_id,provider_message_id,payload")
     .eq("id", dispatchId)
     .maybeSingle<DispatchRow>();
-  assertOk("outbound_dispatches lookup", dispatchError);
+  assertOk("campaign_dispatches lookup", dispatchError);
 
   if (!dispatch) return { ok: false, message: "Dispatch not found." };
 
-  if (dispatch.status === "dispatched") {
+  if (dispatch.status === "sent") {
     return {
       ok: true,
       message: "Already sent — no re-send.",
@@ -147,16 +144,16 @@ export async function executeResendDispatch(
   }
 
   const { error: updateError } = await client
-    .from("outbound_dispatches")
+    .from("campaign_dispatches")
     .update({
-      status: "dispatched",
+      status: "sent",
       provider: "resend",
       provider_message_id: providerMessageId,
       dispatched_at: new Date().toISOString(),
       last_error: null,
     })
     .eq("id", dispatchId);
-  assertOk("outbound_dispatches dispatched update", updateError);
+  assertOk("campaign_dispatches sent update", updateError);
 
   await recordConnectionUse(client, "resend");
   await logCampaignEvent(client, dispatch.campaign_id, "dispatch_sent", operator, `Sent via Resend (${providerMessageId}).`);
@@ -172,9 +169,9 @@ async function markFailed(
   message: string,
 ) {
   const { error } = await client
-    .from("outbound_dispatches")
+    .from("campaign_dispatches")
     .update({ status: "failed", last_error: message })
     .eq("id", dispatchId);
-  assertOk("outbound_dispatches failed update", error);
+  assertOk("campaign_dispatches failed update", error);
   await logCampaignEvent(client, campaignId, "dispatch_failed", operator, message);
 }

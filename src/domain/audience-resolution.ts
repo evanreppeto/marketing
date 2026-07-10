@@ -1,6 +1,16 @@
 import { type Contact } from "./contacts";
 
 /**
+ * The minimal contact projection recipient resolution needs. A full CRM `Contact`
+ * satisfies it structurally, so callers can pass either — but the I/O layer can
+ * also select just these columns instead of hydrating the whole row.
+ */
+export type AudienceContact = Pick<
+  Contact,
+  "id" | "persona" | "status" | "email" | "phone" | "fullName" | "companyId"
+>;
+
+/**
  * Pure, deterministic audience resolution for a campaign send.
  *
  * Given a campaign's targeting (persona + optional specific contact/company) and
@@ -69,7 +79,7 @@ export type AudienceResolution = {
 // permissive: real bounce handling belongs to the provider, not this gate.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function suppressionForStatus(status: Contact["status"]): SuppressionReason | null {
+function suppressionForStatus(status: AudienceContact["status"]): SuppressionReason | null {
   switch (status) {
     case "do_not_contact":
       return "status_do_not_contact";
@@ -86,7 +96,7 @@ function suppressionForStatus(status: Contact["status"]): SuppressionReason | nu
 }
 
 /** Is this contact in the campaign's candidate set (before eligibility filtering)? */
-function isCandidate(contact: Contact, target: CampaignAudienceTarget): boolean {
+function isCandidate(contact: AudienceContact, target: CampaignAudienceTarget): boolean {
   if (target.contactId) return contact.id === target.contactId;
   if (contact.persona !== target.persona) return false;
   if (target.companyId && contact.companyId !== target.companyId) return false;
@@ -99,7 +109,7 @@ function isCandidate(contact: Contact, target: CampaignAudienceTarget): boolean 
  */
 export function resolveCampaignAudience(
   target: CampaignAudienceTarget,
-  contacts: readonly Contact[],
+  contacts: readonly AudienceContact[],
   channel: AudienceChannel = "email",
 ): AudienceResolution {
   const recipients: ResolvedRecipient[] = [];
@@ -150,7 +160,7 @@ export function resolveCampaignAudience(
 
 type AddressResult = { value: string; reason: null } | { value: null; reason: SuppressionReason };
 
-function resolveAddress(contact: Contact, channel: AudienceChannel): AddressResult {
+function resolveAddress(contact: AudienceContact, channel: AudienceChannel): AddressResult {
   if (channel === "sms") {
     const phone = (contact.phone ?? "").trim();
     if (!phone) return { value: null, reason: "missing_phone" };

@@ -8,36 +8,70 @@ function findCalls(supabase: { calls: Array<[string, ...unknown[]]> }, method: s
   return supabase.calls.filter(([m]) => m === method).map(([, arg]) => arg as Record<string, unknown>);
 }
 
-describe("enqueueDispatchesForAssets", () => {
-  it("inserts one queued dispatch per asset with channel + event", async () => {
-    const supabase = createSupabaseQueryMock({
-      campaign_assets: { data: [{ id: "a1", channel: "email", title: "Welcome" }], error: null },
-      campaign_dispatches: { data: null, error: null },
-      campaign_events: { data: null, error: null },
-    });
+const CAMPAIGN = { persona: "persona_homeowner_emergency", contact_id: null, company_id: null };
+const EMAIL_ASSET = { id: "a1", channel: "email", title: "Welcome", approved_body: "Hi there", edited_body: null, draft_body: null };
+const APPROVAL_A1 = { id: "ap1", campaign_asset_id: "a1", status: "approved" };
+const CONTACT = { id: "ct1", persona: "persona_homeowner_emergency", status: "active", email: "lead@example.com", phone: "3125550100", full_name: "Lead One", company_id: null };
+
+function emailCampaignMock(overrides: { contacts?: unknown[] } = {}) {
+  return createSupabaseQueryMock({
+    campaigns: { data: CAMPAIGN, error: null },
+    campaign_assets: { data: [EMAIL_ASSET], error: null },
+    approval_items: { data: [APPROVAL_A1], error: null },
+    contacts: { data: overrides.contacts ?? [CONTACT], error: null },
+    campaign_dispatches: { data: [], error: null },
+    campaign_events: { data: null, error: null },
+  });
+}
+
+describe("enqueueDispatchesForAssets (producer)", () => {
+  it("fans an email deliverable out to one approval-linked queued row per resolved recipient", async () => {
+    const supabase = emailCampaignMock();
 
     await enqueueDispatchesForAssets({ campaignId: "c1", assetIds: ["a1"], operator: "Operator", tenant: { org_id: "org-1", workspace_id: "workspace-1" } }, supabase);
 
     const inserts = findCalls(supabase, "insert");
     expect(inserts).toContainEqual(
-      expect.objectContaining({ campaign_id: "c1", campaign_asset_id: "a1", status: "queued", channel: "email", org_id: "org-1" }),
+      expect.objectContaining({
+        campaign_id: "c1",
+        campaign_asset_id: "a1",
+        status: "queued",
+        channel: "email",
+        org_id: "org-1",
+        contact_id: "ct1",
+        approval_item_id: "ap1",
+        idempotency_key: "c1:a1:email:ct1",
+      }),
     );
     expect(inserts).toContainEqual(expect.objectContaining({ event_type: "dispatch_queued", org_id: "org-1" }));
     expect(supabase.calls).toContainEqual(["eq", "org_id", "org-1"]);
   });
 
+  it("builds a to/subject/text payload from the approved asset body", async () => {
+    const supabase = emailCampaignMock();
+    await enqueueDispatchesForAssets({ campaignId: "c1", assetIds: ["a1"], operator: "Operator" }, supabase);
+
+    const dispatch = findCalls(supabase, "insert").find((row) => row.campaign_asset_id === "a1");
+    expect(dispatch?.payload).toMatchObject({ to: "lead@example.com", subject: "Welcome", text: "Hi there" });
+  });
+
+  it("suppresses opted-out contacts — no queued dispatch row, only the summary event", async () => {
+    const supabase = emailCampaignMock({ contacts: [{ ...CONTACT, status: "do_not_contact" }] });
+    await enqueueDispatchesForAssets({ campaignId: "c1", assetIds: ["a1"], operator: "Operator" }, supabase);
+
+    const inserts = findCalls(supabase, "insert");
+    expect(inserts.filter((row) => "campaign_asset_id" in row && row.status === "queued")).toHaveLength(0);
+    expect(inserts).toContainEqual(expect.objectContaining({ event_type: "dispatch_queued" }));
+  });
+
   it("does nothing for an empty asset list", async () => {
-    const supabase = createSupabaseQueryMock({ campaign_dispatches: { data: null, error: null } });
+    const supabase = createSupabaseQueryMock({ campaign_dispatches: { data: [], error: null } });
     await enqueueDispatchesForAssets({ campaignId: "c1", assetIds: [], operator: "Operator" }, supabase);
     expect(findCalls(supabase, "insert")).toHaveLength(0);
   });
 
   it("schedules dispatches (status + scheduled_for + dispatch_scheduled event) when scheduledFor is given", async () => {
-    const supabase = createSupabaseQueryMock({
-      campaign_assets: { data: [{ id: "a1", channel: "email", title: "Welcome" }], error: null },
-      campaign_dispatches: { data: null, error: null },
-      campaign_events: { data: null, error: null },
-    });
+    const supabase = emailCampaignMock();
 
     await enqueueDispatchesForAssets(
       { campaignId: "c1", assetIds: ["a1"], operator: "Operator", scheduledFor: "2026-07-01T09:00:00.000Z" },
@@ -45,32 +79,30 @@ describe("enqueueDispatchesForAssets", () => {
     );
 
     const inserts = findCalls(supabase, "insert");
-    expect(inserts).toContainEqual(
-      expect.objectContaining({ campaign_asset_id: "a1", status: "scheduled", scheduled_for: "2026-07-01T09:00:00.000Z" }),
-    );
+    expect(inserts).toContainEqual(expect.objectContaining({ campaign_asset_id: "a1", status: "scheduled", scheduled_for: "2026-07-01T09:00:00.000Z" }));
     expect(inserts).toContainEqual(expect.objectContaining({ event_type: "dispatch_scheduled" }));
   });
 
-  it("inserts a dispatch + event for each asset in a multi-asset list", async () => {
+  it("keeps non-addressable deliverables (SMS/social) as a single deliverable-level row", async () => {
     const supabase = createSupabaseQueryMock({
+      campaigns: { data: CAMPAIGN, error: null },
       campaign_assets: {
-        data: [
-          { id: "a1", channel: "email", title: "Welcome" },
-          { id: "a2", channel: "sms", title: "Reminder" },
-        ],
+        data: [EMAIL_ASSET, { id: "a2", channel: "sms", title: "Reminder", approved_body: "Ping", edited_body: null, draft_body: null }],
         error: null,
       },
-      campaign_dispatches: { data: null, error: null },
+      approval_items: { data: [APPROVAL_A1, { id: "ap2", campaign_asset_id: "a2", status: "approved" }], error: null },
+      contacts: { data: [CONTACT], error: null },
+      campaign_dispatches: { data: [], error: null },
       campaign_events: { data: null, error: null },
     });
 
     await enqueueDispatchesForAssets({ campaignId: "c1", assetIds: ["a1", "a2"], operator: "Operator" }, supabase);
 
     const inserts = findCalls(supabase, "insert");
-    // two deliverables → 2 dispatch rows + 2 event rows
+    // a1 email → 1 recipient row + event; a2 sms → 1 deliverable-level row + event = 4 inserts
     expect(inserts).toHaveLength(4);
-    expect(inserts).toContainEqual(expect.objectContaining({ campaign_asset_id: "a1", status: "queued" }));
-    expect(inserts).toContainEqual(expect.objectContaining({ campaign_asset_id: "a2", status: "queued" }));
+    expect(inserts).toContainEqual(expect.objectContaining({ campaign_asset_id: "a1", status: "queued", contact_id: "ct1" }));
+    expect(inserts).toContainEqual(expect.objectContaining({ campaign_asset_id: "a2", status: "queued", contact_id: null }));
   });
 });
 
