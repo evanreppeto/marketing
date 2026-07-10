@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const HOUSE = '<svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4654"/><stop offset="1" stop-color="#27303a"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><path d="M0 210 L150 120 L300 200 L450 110 L600 190 V300 H0 Z" fill="#2b343d"/><path d="M120 230 L300 130 L480 230 Z" fill="#4a5663"/><path d="M120 230 L300 130 L300 250 L120 250 Z" fill="#3d4854"/><rect x="180" y="230" width="240" height="70" fill="#323b45"/><rect x="210" y="248" width="34" height="34" fill="#566270"/><rect x="356" y="248" width="34" height="34" fill="#566270"/></svg>';
 const SC: Record<string, string> = {
@@ -13,7 +13,7 @@ const SC: Record<string, string> = {
   beforeafter: '<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="50" height="100" fill="#34302a"/><rect x="50" width="50" height="100" fill="#2a3b34"/><path d="M8 72 L25 56 L42 72 Z" fill="#4a443a"/><path d="M58 72 L75 56 L92 72 Z" fill="#3e5a4c"/><rect x="48" width="4" height="100" fill="rgba(200,162,74,.5)"/></svg>',
 };
 type Prov = "real" | "ai" | "comp" | "upload" | "stock";
-type Item = { s: string; l: string; p: Prov };
+export type Item = { s: string; l: string; p: Prov; url?: string };
 const PVLABEL: Record<Prov, string> = { real: "Real media", ai: "AI-generated", comp: "Composite", upload: "Imported", stock: "Stock" };
 const SRC: Record<string, { title: string; items: Item[] }> = {
   library: { title: "Approved media", items: [{ s: SC.roof, l: "Roof — exterior", p: "real" }, { s: SC.beforeafter, l: "Before / after", p: "real" }, { s: SC.roof, l: "Crew on site", p: "real" }, { s: SC.comp, l: "Logo lockup", p: "comp" }] },
@@ -24,6 +24,16 @@ const SRC: Record<string, { title: string; items: Item[] }> = {
 function provShort(p: Prov) { return p === "real" ? "Real" : p === "ai" ? "AI" : p === "upload" ? "Imported" : p === "comp" ? "Composite" : "Stock"; }
 
 const Raw = ({ html }: { html: string }) => <span style={{ position: "absolute", inset: 0 }} dangerouslySetInnerHTML={{ __html: html }} />;
+
+// Real library assets carry a `url` (image/video from media_assets); mock/demo
+// items carry an inline SVG in `s`. Render whichever is present.
+const ItemMedia = ({ item }: { item: Item }) =>
+  item.url ? (
+    // eslint-disable-next-line @next/next/no-img-element -- user media URL; next/image would need per-host remotePatterns
+    <img src={item.url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+  ) : (
+    <Raw html={item.s} />
+  );
 
 const TOOLS = {
   compose: [
@@ -64,10 +74,20 @@ const SESSION: { id: string; tag: string; item: Item }[] = [
   { id: "v4", tag: "9:16", item: { s: SC.video, l: "Crew 9:16", p: "real" } },
 ];
 
-export function StudioView({ brandName }: { brandName: string }) {
+export function StudioView({ brandName, libraryItems }: { brandName: string; libraryItems?: Item[] }) {
   const initial = "Storm season";
+  // The "Approved media" source shows the workspace's real media_assets when
+  // present (Studio composes over your real backgrounds); it falls back to the
+  // built-in samples offline / when the library is empty so the tool stays usable.
+  const sources = useMemo<Record<string, { title: string; items: Item[] }>>(
+    () => ({
+      ...SRC,
+      library: libraryItems && libraryItems.length ? { title: "Approved media", items: libraryItems } : SRC.library,
+    }),
+    [libraryItems],
+  );
   const [srcTab, setSrcTab] = useState("library");
-  const [bg, setBg] = useState<Item>(SRC.library.items[0]);
+  const [bg, setBg] = useState<Item>(sources.library.items[0]);
   const [selTile, setSelTile] = useState(-1);
   const [selSession, setSelSession] = useState("v0");
   const [fmt, setFmt] = useState(0);
@@ -92,7 +112,7 @@ export function StudioView({ brandName }: { brandName: string }) {
 
   const Tile = ({ item, i }: { item: Item; i: number }) => (
     <div className={`mtile${selTile === i ? " on" : ""}`} onClick={() => { setSelTile(i); setBg(item); }}>
-      <div className="mt"><Raw html={item.s} /><span className={`pv ${item.p}`}>{PVLABEL[item.p]}</span></div>
+      <div className="mt"><ItemMedia item={item} /><span className={`pv ${item.p}`}>{PVLABEL[item.p]}</span></div>
       <div className="ml">{item.l}</div>
     </div>
   );
@@ -127,8 +147,8 @@ export function StudioView({ brandName }: { brandName: string }) {
             ))}
           </div>
           <div className="drop" data-soon="Uploading & importing art is coming soon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 20h14" /></svg><div className="dt">Upload or import a URL</div><div className="dd">Bring in art from Canva, Midjourney, DALL·E — anything</div></div>
-          <div className="srchead"><span className="st">{SRC[srcTab].title}</span><span className="sc">{SRC[srcTab].items.length} items</span></div>
-          <div className="mgrid2">{SRC[srcTab].items.map((it, i) => <Tile key={i} item={it} i={i} />)}</div>
+          <div className="srchead"><span className="st">{sources[srcTab].title}</span><span className="sc">{sources[srcTab].items.length} items</span></div>
+          <div className="mgrid2">{sources[srcTab].items.map((it, i) => <Tile key={i} item={it} i={i} />)}</div>
           {srcTab === "ai" && (
             <div className="enginenote"><b>AI generation runs on Higgsfield.</b> Image, video, reframe, upscale, cut-out &amp; motion all come from the connected engine.<span className="ed"><i />Connector off — enable in Settings → Connectors</span></div>
           )}
@@ -174,7 +194,7 @@ export function StudioView({ brandName }: { brandName: string }) {
           <div className="stagewrap">
             <div className="artboard">
               <div className={`canvas${safe ? " szon" : ""}${mode === "video" ? " video" : ""}`} style={{ aspectRatio: FORMATS[fmt].ar }}>
-                <div className="cbg"><Raw html={bg.s} /></div>
+                <div className="cbg"><ItemMedia item={bg} /></div>
                 <div className="cveil" />
                 <div className="cplay"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></div>
                 <div className="clogo"><span className="lm" style={{ background: accent }}>{logoInitial}</span> {brandName}</div>
