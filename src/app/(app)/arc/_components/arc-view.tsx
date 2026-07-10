@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, useTransition, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -19,6 +19,12 @@ import {
   unshareChatMemberAction,
   type ChatSharingState,
 } from "../sharing-actions";
+
+// Resizable-panel bounds (px). Widths are drag-adjustable between min/max and
+// persisted per-browser; `def` is the SSR/first-render default.
+const RAIL_W = { min: 190, max: 440, def: 248 };
+const CANVAS_W = { min: 340, max: 760, def: 480 };
+const clampSize = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 /**
  * Context meter — how full this chat's working window is (Claude-style). As it
@@ -267,6 +273,59 @@ export function ArcView({
     return () => clearInterval(timer);
   }, [awaitingReply, router]);
 
+  // ── Resizable + collapsible panels ──────────────────────────────────────
+  // The conversation list and the campaign panel are drag-resizable, and the
+  // panel collapses to give the conversation full width. Sizes persist per
+  // browser; saved values are applied AFTER mount so SSR/hydration stay in sync.
+  const [railW, setRailW] = useState(RAIL_W.def);
+  const [canvasW, setCanvasW] = useState(CANVAS_W.def);
+  const [canvasOpen, setCanvasOpen] = useState(true);
+  const [dragTarget, setDragTarget] = useState<null | "rail" | "canvas">(null);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Intentional one-time restore
+     after mount: SSR and the first client render stay on defaults so hydration
+     matches, then the persisted sizes apply on the next commit. */
+  useEffect(() => {
+    try {
+      const r = Number(localStorage.getItem("arc.railW"));
+      const c = Number(localStorage.getItem("arc.canvasW"));
+      if (r) setRailW(clampSize(r, RAIL_W.min, RAIL_W.max));
+      if (c) setCanvasW(clampSize(c, CANVAS_W.min, CANVAS_W.max));
+      if (localStorage.getItem("arc.canvasOpen") === "0") setCanvasOpen(false);
+    } catch {
+      /* localStorage unavailable — keep defaults */
+    }
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    try {
+      localStorage.setItem("arc.railW", String(railW));
+      localStorage.setItem("arc.canvasW", String(canvasW));
+      localStorage.setItem("arc.canvasOpen", canvasOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [railW, canvasW, canvasOpen]);
+
+  const startResize = (target: "rail" | "canvas") => (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const chat = (e.currentTarget as HTMLElement).closest(".arc-chat");
+    if (!chat) return;
+    const rect = chat.getBoundingClientRect();
+    setDragTarget(target);
+    const onMove = (ev: globalThis.PointerEvent) => {
+      if (target === "rail") setRailW(clampSize(ev.clientX - rect.left, RAIL_W.min, RAIL_W.max));
+      else setCanvasW(clampSize(rect.right - ev.clientX, CANVAS_W.min, CANVAS_W.max));
+    };
+    const onUp = () => {
+      setDragTarget(null);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   const submitDraft = () => {
     const body = draft.trim();
     if (!body || sending) return;
@@ -281,7 +340,10 @@ export function ArcView({
   };
 
   return (
-    <div className="arc-chat">
+    <div
+      className={`arc-chat${canvasOpen ? "" : " canvas-collapsed"}${dragTarget ? " resizing" : ""}`}
+      style={{ "--arc-rail-w": `${railW}px`, "--arc-canvas-w": `${canvasOpen ? canvasW : 0}px` } as CSSProperties}
+    >
       {/* ── thread rail ── */}
       <aside className="threads" aria-label="Conversations">
         {live ? (
@@ -620,6 +682,33 @@ export function ArcView({
           <span className="lock">{Ico.lock}2 ready · 1 generating · 1 blocked</span>
         </div>
       </section>
+
+      {/* ── resizable dividers + campaign-panel toggle ── */}
+      <div
+        className={`arc-resize arc-resize-rail${dragTarget === "rail" ? " dragging" : ""}`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize conversation list"
+        onPointerDown={startResize("rail")}
+      />
+      {canvasOpen ? (
+        <div
+          className={`arc-resize arc-resize-canvas${dragTarget === "canvas" ? " dragging" : ""}`}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize campaign panel"
+          onPointerDown={startResize("canvas")}
+        />
+      ) : null}
+      <button
+        type="button"
+        className="arc-canvas-toggle"
+        onClick={() => setCanvasOpen((v) => !v)}
+        aria-label={canvasOpen ? "Hide campaign panel" : "Show campaign panel"}
+        title={canvasOpen ? "Hide campaign panel" : "Show campaign panel"}
+      >
+        {canvasOpen ? Ico.chevR : Ico.splitPane}
+      </button>
 
       {shareOpen ? <ShareDialog conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
     </div>

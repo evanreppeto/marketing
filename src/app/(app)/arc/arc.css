@@ -9,9 +9,22 @@
   --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 320ms; --dur-cine: 520ms;
   --t: var(--dur-base) var(--ease-out); --t-fast: var(--dur-fast) var(--ease-out);
   --red: #cc6666; --red-text: #e0a3a3; --red-soft: rgba(204, 102, 102, .12); --red-border: rgba(204, 102, 102, .42);
-  flex: 1; min-height: 0; position: relative; display: grid; grid-template-columns: 248px minmax(0, 1fr) clamp(420px, 34vw, 540px);
+  flex: 1; min-height: 0; position: relative; display: grid; grid-template-columns: var(--arc-rail-w, 248px) minmax(0, 1fr) var(--arc-canvas-w, 480px);
 }
-@media (max-width: 1200px) { .arc-chat { grid-template-columns: 220px minmax(0, 1fr); } .arc-chat .canvas { display: none; } }
+@media (max-width: 1200px) { .arc-chat { grid-template-columns: var(--arc-rail-w, 220px) minmax(0, 1fr); } .arc-chat .canvas, .arc-chat .arc-resize, .arc-chat .arc-canvas-toggle { display: none; } }
+
+/* resizable dividers + collapsible campaign panel */
+.arc-chat.canvas-collapsed .canvas { display: none; }
+.arc-chat.resizing { cursor: col-resize; user-select: none; }
+.arc-chat .arc-resize { position: absolute; top: 0; bottom: 0; width: 11px; z-index: 6; cursor: col-resize; touch-action: none; }
+.arc-chat .arc-resize::before { content: ""; position: absolute; inset: 0 5px; border-radius: 2px; transition: background var(--dur-fast) var(--ease-out); }
+.arc-chat .arc-resize:hover::before, .arc-chat .arc-resize.dragging::before { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+.arc-chat .arc-resize-rail { left: calc(var(--arc-rail-w, 248px) - 6px); }
+.arc-chat .arc-resize-canvas { right: calc(var(--arc-canvas-w, 480px) - 6px); }
+.arc-chat .arc-canvas-toggle { position: absolute; top: 13px; right: calc(var(--arc-canvas-w, 480px) + 12px); z-index: 7; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--inset); color: var(--text-2); cursor: pointer; transition: 0.2s; }
+.arc-chat .arc-canvas-toggle:hover { border-color: var(--accent-border); color: var(--text); background: var(--accent-soft); }
+.arc-chat .arc-canvas-toggle svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.arc-chat.canvas-collapsed .arc-canvas-toggle { right: 12px; }
 
 /* thread rail */
 .arc-chat .threads { min-width: 0; border-right: 1px solid var(--line); min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 14px 10px; background: color-mix(in srgb, var(--canvas-deep) 16%, transparent); }
