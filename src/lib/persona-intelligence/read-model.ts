@@ -172,31 +172,47 @@ type NextBestActionRow = {
   updated_at: string | null;
 };
 
-export async function getPersonaIntelligenceData(client?: SupabaseClient): Promise<PersonaIntelligenceData> {
+export async function getPersonaIntelligenceData(
+  orgId: string,
+  client?: SupabaseClient,
+): Promise<PersonaIntelligenceData> {
   if (!client && !isSupabaseAdminConfigured()) {
     return { status: "unavailable", message: "Supabase env vars are not configured." };
   }
+  if (!orgId) {
+    return { status: "unavailable", message: "An org is required to read persona intelligence." };
+  }
 
   try {
-    const supabase = client ?? getSupabaseAdminClient();
+    // Untyped view: the generated database.types.ts is stale for the persona
+    // tables (missing org_id), so we filter through the loosely-typed client —
+    // matching the connections/vault read-models. The org_id column exists in the
+    // schema; this only relaxes the compile-time column check.
+    const supabase = (client ?? getSupabaseAdminClient()) as SupabaseClient;
+    // Every query is org-scoped: this runs on the RLS-bypassing admin client, so
+    // the org_id filter is the only thing keeping one tenant's persona memory,
+    // knowledge, and guardrails out of another tenant's response.
     const [snapshots, knowledge, guardrails] = await Promise.all([
       supabase
         .from("persona_snapshots")
         .select(
           "id,persona,company_id,contact_id,property_id,lead_id,job_id,outcome_id,campaign_id,is_current,hyper_persona_summary,relationship_stage,value_tier,dominant_loss_pattern,preferred_channel,message_posture,recommended_offer,next_best_action,confidence_score,risk_flags,created_at,updated_at",
         )
+        .eq("org_id", orgId)
         .eq("is_current", true)
         .order("updated_at", { ascending: false })
         .limit(100),
       supabase
         .from("persona_knowledge_entries")
         .select("id,persona,section_key,entry_type,title,body,priority,status,source_reference,created_at,updated_at")
+        .eq("org_id", orgId)
         .eq("status", "active")
         .order("priority", { ascending: false })
         .limit(100),
       supabase
         .from("guardrail_rules")
         .select("id,rule_key,scope,severity,status,pattern,failure_message,created_at,updated_at")
+        .eq("org_id", orgId)
         .eq("status", "active")
         .order("updated_at", { ascending: false })
         .limit(50),
