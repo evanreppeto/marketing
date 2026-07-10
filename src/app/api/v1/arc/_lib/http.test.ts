@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/auth/api-token", () => ({ checkAgentBearer: vi.fn() }));
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(),
+  resolveWorkspaceScopeById: vi.fn(),
 }));
 vi.mock("@/lib/supabase/server", () => ({
   getSupabaseAdminClient: vi.fn(),
@@ -10,23 +11,32 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import { checkAgentBearer } from "@/lib/auth/api-token";
-import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getCurrentWorkspaceContext, resolveWorkspaceScopeById } from "@/lib/auth/workspace";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 import { arcGuard } from "./http";
 
 const checkAgentBearerMock = vi.mocked(checkAgentBearer);
 const getCurrentWorkspaceContextMock = vi.mocked(getCurrentWorkspaceContext);
+const resolveWorkspaceScopeByIdMock = vi.mocked(resolveWorkspaceScopeById);
 const getSupabaseAdminClientMock = vi.mocked(getSupabaseAdminClient);
 
 const request = new Request("http://localhost/api/v1/arc/brain/query", {
   headers: { authorization: "Bearer token" },
 });
 
+/** An env-token request that asserts a workspace via the runner headers. */
+function assertedRequest(headers: Record<string, string>) {
+  return new Request("http://localhost/api/v1/arc/brain/query", {
+    headers: { authorization: "Bearer token", ...headers },
+  });
+}
+
 describe("arcGuard", () => {
   beforeEach(() => {
     checkAgentBearerMock.mockReset();
     getCurrentWorkspaceContextMock.mockReset();
+    resolveWorkspaceScopeByIdMock.mockReset();
     getSupabaseAdminClientMock.mockReset();
     getCurrentWorkspaceContextMock.mockResolvedValue({
       orgId: "org-fallback",
@@ -107,5 +117,45 @@ describe("arcGuard", () => {
         source: "legacy-env-token",
       },
     });
+  });
+
+  it("scopes an env-token callback to the workspace the trusted runner asserts", async () => {
+    checkAgentBearerMock.mockResolvedValue({ ok: true, tokenSource: "env" });
+    resolveWorkspaceScopeByIdMock.mockResolvedValue({ orgId: "org-A", workspaceId: "ws-A" });
+
+    const result = await arcGuard(
+      assertedRequest({ "x-arc-workspace-id": "ws-A", "x-arc-org-id": "org-A" }),
+    );
+
+    expect(resolveWorkspaceScopeByIdMock).toHaveBeenCalledWith("ws-A");
+    expect(result).toEqual({
+      ok: true,
+      scope: { orgId: "org-A", workspaceId: "ws-A", source: "env-workspace-asserted" },
+    });
+    // The asserted path derives the workspace from the DB, not the default context.
+    expect(getCurrentWorkspaceContextMock).not.toHaveBeenCalled();
+  });
+
+  it("409s when the asserted workspace is unknown/inactive", async () => {
+    checkAgentBearerMock.mockResolvedValue({ ok: true, tokenSource: "env" });
+    resolveWorkspaceScopeByIdMock.mockResolvedValue(null);
+
+    const result = await arcGuard(assertedRequest({ "x-arc-workspace-id": "ws-missing" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.response.status).toBe(409);
+    expect(getCurrentWorkspaceContextMock).not.toHaveBeenCalled();
+  });
+
+  it("409s and refuses to widen scope when the asserted org doesn't match the workspace", async () => {
+    checkAgentBearerMock.mockResolvedValue({ ok: true, tokenSource: "env" });
+    resolveWorkspaceScopeByIdMock.mockResolvedValue({ orgId: "org-A", workspaceId: "ws-A" });
+
+    const result = await arcGuard(
+      assertedRequest({ "x-arc-workspace-id": "ws-A", "x-arc-org-id": "org-EVIL" }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.response.status).toBe(409);
   });
 });

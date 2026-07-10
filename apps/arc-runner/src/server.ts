@@ -21,8 +21,6 @@ function sendJson(res: ServerResponse, status: number, body: Record<string, unkn
 }
 
 export function createRunnerServer(config: Config) {
-  const client = createArcClient(config);
-
   return createServer(async (req, res) => {
     const url = (req.url ?? "/").split("?")[0];
     const method = req.method ?? "GET";
@@ -58,6 +56,11 @@ export function createRunnerServer(config: Config) {
         sendJson(res, 200, { ok: true, status: "pong" });
         return;
       }
+
+      // One client per wake, carrying this wake's tenant identity so every callback
+      // is scoped to the right workspace (see arc-client.ts / the app's arcGuard).
+      const identity = payload as { orgId?: string; workspaceId?: string };
+      const client = createArcClient(config, { orgId: identity.orgId, workspaceId: identity.workspaceId });
 
       if (payload.type === "arc_chat_message") {
         // Ack the wake instantly (the app times out at ~6s), then run Arc and
