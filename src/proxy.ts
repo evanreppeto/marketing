@@ -7,7 +7,7 @@ import {
   getSafeOperatorReturnPath,
   isValidOperatorValue,
 } from "@/lib/auth/operator-shared";
-import { getWorkspaceAccessDecision, isPublicMockupPath } from "@/lib/auth/route-protection";
+import { getWorkspaceAccessDecision, isPublicPath } from "@/lib/auth/route-protection";
 import { type Database } from "@/lib/supabase/database.types";
 
 async function getSupabaseProxySession(request: NextRequest) {
@@ -60,8 +60,7 @@ function redirectToOnboarding(request: NextRequest) {
   return NextResponse.redirect(url);
 }
 
-// A signed-in member landed on the static mockup front door → send them into
-// the real app (/home) instead of rendering the mockup.
+// A signed-in member landed on the root → send them into the app (/home).
 function redirectToApp(request: NextRequest) {
   return NextResponse.redirect(new URL("/home", request.url));
 }
@@ -69,10 +68,10 @@ function redirectToApp(request: NextRequest) {
 export async function proxy(request: NextRequest) {
   const authMode = getAuthMode();
 
-  // The static Arc mockup (public/) is the deployed front door. Which of its
-  // paths stay public depends on the auth mode — assets + landing are always
-  // public; in supabase mode the app screens move behind the gate.
-  if (isPublicMockupPath(request.nextUrl.pathname, authMode)) {
+  // Static assets are always public (so the login screen can load its styles and
+  // scripts); in open/operator mode the root landing is public too. In supabase
+  // mode everything else falls through to the gate below.
+  if (isPublicPath(request.nextUrl.pathname, authMode)) {
     return NextResponse.next();
   }
 
