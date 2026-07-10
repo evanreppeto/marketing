@@ -45,7 +45,7 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY (set them in .env.local or the environment).");
 
-const fromEmail = arg("--from", "arc@mail.bsr-restoration.com");
+const fromEmail = arg("--from", "Big Shoulders Restoration <arc@mail.bsr-restoration.com>");
 const enabled = !process.argv.includes("--disabled");
 const org = arg("--org", null);
 
