@@ -6,7 +6,7 @@
 // ConnectorView carries only presence + status.
 // ---------------------------------------------------------------------------
 
-import { CONNECTOR_REGISTRY, computeConnectorStatus, connectorRequiresCredential } from "@/domain";
+import { CONNECTOR_REGISTRY, computeConnectorStatus, connectorIsAvailable, connectorRequiresCredential } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -29,6 +29,8 @@ function registryFallback(): ConnectorView[] {
       authKind: entry.authKind,
       access: entry.access,
       costTier: entry.costTier,
+      verticals: entry.verticals,
+      available: connectorIsAvailable(entry),
       enabled: false,
       credentialPresent: false,
       credentialOptional: !requiresCredential,

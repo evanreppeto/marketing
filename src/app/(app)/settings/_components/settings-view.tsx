@@ -7,7 +7,7 @@ import { WORKSPACE_ROLES } from "@/lib/auth/workspace-roles";
 import type { SettingsWorkspace, SettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
 
-import { connectorMatchesIndustry, findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
+import { findConnector, INDUSTRY_OPTIONS } from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
@@ -31,6 +31,13 @@ import {
   saveWorkspaceLogoAction,
 } from "../branding-actions";
 import { connectConnector, disconnectConnector, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
+import {
+  ConnectorCatalog,
+  CONNECTOR_KIND_LABEL,
+  CONNECTOR_META,
+  CONNECTOR_STATUS_PILL,
+  COST_TIER_BADGE,
+} from "./connector-catalog";
 import { ImageUploadField } from "./image-upload-field";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
 
@@ -67,7 +74,6 @@ const DOTS: Record<string, string> = { connections: "var(--ok)", system: "var(--
 const SUBTABS: Record<string, string[]> = {
   general: ["Workspace", "Agent"],
   team: ["Members", "Invites", "Roles", "Activity"],
-  connections: ["Live", "Roadmap"],
   media: ["Defaults", "Roster"],
   account: ["Identity", "Sign-in"],
   usage: ["Overview", "By day", "By model", "Recent"],
@@ -161,77 +167,12 @@ function Crumbs({ trail }: { trail: Crumb[] }) {
 }
 
 // ---- connectors ----
-const DCAT: Record<string, string> = { Research: "Grounded web research + citations.", Creative: "Generate & round-trip creative assets.", "Email & SMS": "Sync lists and deliver approved campaigns.", Social: "Schedule approved posts, pull engagement signals.", "CRM & Sales": "Two-way sync of contacts, companies, and deals.", Analytics: "Pull performance back into the learning loop.", Productivity: "Route approvals, files, and alerts." };
-type Conn = { n: string; cat: string; c: string; l: string; d?: string; live?: number; note?: string; auth?: string };
-const CONNECTORS: Conn[] = [
-  { n: "Gemini Web Research", cat: "Research", c: "#88b6d8", l: "Gem", d: "Grounded web search + citations for scouting & brand research.", live: 1, note: "read-only" },
-  { n: "Higgsfield", cat: "Creative", c: "#c8a24a", l: "Hf", d: "Cinematic image + video, UGC, virality scoring. Drafts only.", live: 1, note: "Ultra" },
-  { n: "Resend", cat: "Email & SMS", c: "#9aa0ac", l: "Re", d: "Transactional + campaign email delivery.", live: 1, note: "email" },
-  { n: "Instagram", cat: "Social", c: "#E1306C", l: "Ig", auth: "oauth" }, { n: "Facebook", cat: "Social", c: "#1877F2", l: "Fb", auth: "oauth" },
-  { n: "LinkedIn", cat: "Social", c: "#0A66C2", l: "Li", auth: "oauth" }, { n: "X (Twitter)", cat: "Social", c: "#aab2bd", l: "X", auth: "oauth" },
-  { n: "TikTok", cat: "Social", c: "#9cc1e0", l: "Tk", auth: "oauth" }, { n: "YouTube", cat: "Social", c: "#FF5252", l: "Yt", auth: "oauth" },
-  { n: "Pinterest", cat: "Social", c: "#E60023", l: "Pin", auth: "oauth" }, { n: "Threads", cat: "Social", c: "#c9ccd1", l: "Th", auth: "oauth" },
-  { n: "Mailchimp", cat: "Email & SMS", c: "#f3c64a", l: "Mc", auth: "api key" }, { n: "Klaviyo", cat: "Email & SMS", c: "#7fb89a", l: "Kl", auth: "api key" },
-  { n: "Twilio", cat: "Email & SMS", c: "#F22F46", l: "Tw", d: "SMS delivery for approved campaigns.", auth: "api key" }, { n: "Customer.io", cat: "Email & SMS", c: "#9678c8", l: "Cio", auth: "api key" },
-  { n: "HubSpot", cat: "CRM & Sales", c: "#FF7A59", l: "Hs", auth: "oauth" }, { n: "Salesforce", cat: "CRM & Sales", c: "#36b3e8", l: "Sf", auth: "oauth" },
-  { n: "Pipedrive", cat: "CRM & Sales", c: "#7fb89a", l: "Pd", auth: "oauth" }, { n: "Attio", cat: "CRM & Sales", c: "#88b6d8", l: "At", auth: "oauth" },
-  { n: "Google Analytics", cat: "Analytics", c: "#E37400", l: "GA", auth: "oauth" }, { n: "Segment", cat: "Analytics", c: "#52BD94", l: "Sg", auth: "api key" },
-  { n: "Amplitude", cat: "Analytics", c: "#5b8def", l: "Am", auth: "api key" }, { n: "Meta Pixel", cat: "Analytics", c: "#1877F2", l: "Mp", auth: "oauth" },
-  { n: "Canva", cat: "Creative", c: "#19c4cc", l: "Cv", auth: "oauth" }, { n: "Figma", cat: "Creative", c: "#F24E1E", l: "Fg", auth: "oauth" },
-  { n: "Midjourney", cat: "Creative", c: "#c9ccd1", l: "Mj", d: "Import generated art into the Library.", auth: "import" },
-  { n: "Slack", cat: "Productivity", c: "#c089cf", l: "Sl", d: "Route approvals + alerts to a channel.", auth: "oauth" }, { n: "Notion", cat: "Productivity", c: "#d6d6d6", l: "No", auth: "oauth" },
-  { n: "Google Drive", cat: "Productivity", c: "#1FA463", l: "Dr", auth: "oauth" }, { n: "Zapier", cat: "Productivity", c: "#FF6A3D", l: "Zp", d: "Trigger 6,000+ apps from Arc events.", auth: "api key" },
-  { n: "Webhooks", cat: "Productivity", c: "#9aa0ac", l: "Wh", d: "Post Arc events to any endpoint.", auth: "secret" },
-];
-const CATS = ["All", "Social", "Email & SMS", "CRM & Sales", "Analytics", "Creative", "Productivity"];
-
-// Real connectors (CONNECTOR_REGISTRY) get functional cards; the rest of the
-// catalog below is an honest roadmap. Logo + credential copy per real key.
-const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; credHint: string }> = {
-  "gemini-research": {
-    c: "#88b6d8",
-    l: "Gem",
-    credLabel: "Gemini API key",
-    credHint: "From Google AI Studio. Stored encrypted in your Vault — never shown again, never sent to the browser.",
-  },
-  higgsfield: {
-    c: "#c8a24a",
-    l: "Hf",
-    credLabel: "Higgsfield API token",
-    credHint: "From your Higgsfield account. Stored in your Vault; the runner uses it only for approval-gated draft assets.",
-  },
-  "weather-signals": {
-    c: "#7fb89a",
-    l: "Wx",
-    credLabel: "",
-    credHint: "No credential — reads live NWS/NOAA alerts (public API) and proposes storm-response opportunities. Configure the states to watch.",
-  },
-  "reviews-signals": {
-    c: "#e0a94a",
-    l: "Rv",
-    credLabel: "Google Business Profile",
-    credHint: "Connect your Google Business Profile (and optionally Yelp) to pull recent reviews. Stored in your Vault; used read-only — it proposes opportunities and never replies.",
-  },
-  "webhook-dispatch": {
-    c: "#9aa0ac",
-    l: "Wh",
-    credLabel: "",
-    credHint: "No credential — the endpoint URL lives in config. Sends only from the human-approved path.",
-  },
-};
-
-// costTier badge — HYBRID cost model (BSR-372 meters later; here we just label it).
-const COST_TIER_BADGE: Record<ConnectorCostTier, { label: string; title: string }> = {
-  free: { label: "Free", title: "No cost — bypasses metering." },
-  byo_key: { label: "Your key", title: "Uses your own provider key/credits — bypasses metering." },
-  metered: { label: "Metered", title: "Billed through your Arc usage (BSR-372)." },
-};
-
-const CONNECTOR_KIND_LABEL: Record<string, string> = {
-  mcp_tool: "Tool",
-  signal_source: "Signal source",
-  channel: "Channel",
-};
+// The catalog (grid, cost badges, "Recommended for your business" rail, kind
+// grouping, "Coming soon") renders from CONNECTOR_REGISTRY via ConnectorCatalog
+// in ./connector-catalog — nothing about the connector list is hardcoded here.
+// The shared display maps (CONNECTOR_META / COST_TIER_BADGE / CONNECTOR_KIND_LABEL
+// / CONNECTOR_STATUS_PILL) live there too and are imported for the detail page.
+// (BSR-365's reviews-signals logo/copy is carried in that CONNECTOR_META map.)
 
 // Per-connector config editors (no-credential connectors). Each maps the flat
 // form field to/from the workspace_connectors.config jsonb.
@@ -250,13 +191,6 @@ const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: s
     hint: "Approved messages POST here — only from the human-approved send path.",
   },
 };
-const CONNECTOR_STATUS_PILL: Record<ConnectorStatus, { kind: string; label: string }> = {
-  connected: { kind: "ok", label: "Connected" },
-  not_configured: { kind: "off", label: "Not connected" },
-  disabled: { kind: "warn", label: "Paused" },
-  error: { kind: "err", label: "Error" },
-};
-
 const MEDIA_MODELS: Record<string, [string, string, string, number?][]> = {
   image: [["marketing_studio_image", "Marketing Studio Image", "Higgsfield", 1], ["ms_image", "DTC Ads", "Higgsfield"], ["soul_v2", "Higgsfield Soul 2.0", "Higgsfield"], ["soul_cast", "Soul Cast", "Higgsfield"], ["soul_cinematic", "Soul Cinema", "Higgsfield"], ["soul_location", "Soul Location", "Higgsfield"], ["cinematic_studio_2_5", "Cinema Studio Image 2.5", "Higgsfield"], ["image_auto", "Auto", "Higgsfield"], ["autosprite", "AutoSprite Animation", "Higgsfield"], ["flux_2", "Flux 2.0", "Black Forest Labs"], ["flux_kontext", "Flux Kontext Max", "Black Forest Labs"], ["gpt_image", "GPT Image 1.5", "OpenAI"], ["gpt_image_2", "GPT Image 2", "OpenAI"], ["grok_image", "Grok Imagine", "xAI"], ["nano_banana", "Nano Banana", "Google"], ["nano_banana_2", "Nano Banana 2", "Google"], ["nano_banana_pro", "Nano Banana Pro", "Google"], ["kling_omni_image", "Kling O1 Image", "Kling"], ["recraft-v4-1", "Recraft 4.1", "Recraft"], ["seedream_v4_5", "Seedream 4.5", "Bytedance"], ["seedream_v5_lite", "Seedream 5.0 Lite", "Bytedance"], ["z_image", "Z Image", "Tongyi-MAI"]],
   video: [["marketing_studio_video", "Marketing Studio", "Higgsfield", 1], ["cinematic_studio_video", "Cinema Studio Video", "Higgsfield"], ["cinematic_studio_3_0", "Cinema Studio Video 3.0", "Higgsfield"], ["higgsfield_preset", "Higgsfield Preset", "Higgsfield"], ["clipify", "Personal Clipper", "Higgsfield"], ["veo3", "Google Veo 3", "Google"], ["veo3_1", "Google Veo 3.1", "Google"], ["veo3_1_lite", "Google Veo 3.1 Lite", "Google"], ["grok_video", "Grok Imagine", "xAI"], ["grok_video_v15", "Grok Imagine 1.5", "xAI"], ["kling2_6", "Kling 2.6", "Kling"], ["kling3_0", "Kling 3.0", "Kling"], ["kling3_0_turbo", "Kling 3.0 Turbo", "Kling"], ["seedance_1_5", "Seedance 1.5 Pro", "Bytedance"], ["seedance_2_0", "Seedance 2.0", "Bytedance"], ["seedance_2_0_mini", "Seedance 2.0 Mini", "Bytedance"], ["minimax_hailuo", "Minimax Hailuo", "Hailuo"], ["wan2_6", "Wan 2.6", "Wan"], ["wan2_7", "Wan 2.7", "Wan"]],
@@ -290,9 +224,10 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   const pendingCount = team.invites.length;
   const usageView = usage ?? EMPTY_USAGE;
   const [navQ, setNavQ] = useState("");
-  const [connCat, setConnCat] = useState("All");
-  const [connQ, setConnQ] = useState("");
   const [mediaCat, setMediaCat] = useState<"image" | "video" | "audio">("image");
+  // Industry is lifted here so the "Recommended for your business" rail in
+  // Connections reacts live when it's changed in General (before/without a save).
+  const [industry, setIndustry] = useState(settings.industry);
   const [sub, setSub] = useState<Record<string, string>>({});
   const [connSel, setConnSel] = useState<string | null>(null);
   const domain = "bigshouldersrestoration.com";
@@ -352,6 +287,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
     }
   }
   for (const v of connectors.connectors) {
+    if (!v.available) continue; // coming-soon connectors have no detail page to open
     destinations.push({ label: "Connections", sub: v.label, keywords: `connections ${v.label} ${v.key} connector integration`, go: () => openConnector(v.key) });
   }
   const q = navQ.trim().toLowerCase();
@@ -372,7 +308,6 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   // Active in-section tab + the tab bar for the current section (null if none).
   const activeSub = SUBTABS[cur] ? sub[cur] ?? SUBTABS[cur][0] : null;
   const subCounts: Record<string, Record<string, number>> = {
-    connections: { Live: connectors.connectors.length },
     team: { Members: team.members.length, Invites: team.invites.length },
   };
   const subBar = SUBTABS[cur] ? (
@@ -385,12 +320,8 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
     </div>
   ) : null;
   const selectedConnector = connSel ? connectors.connectors.find((v) => v.key === connSel) ?? null : null;
-  // "Recommended for your business" — real connectors whose verticals match the
-  // workspace industry (BSR-371). Tailored, non-universal; empty when no industry set.
-  const workspaceIndustry = (settings.industry ?? "").trim();
-  const recommendedConnectors = workspaceIndustry
-    ? connectors.connectors.filter((v) => connectorMatchesIndustry(findConnector(v.key)?.verticals ?? [], workspaceIndustry))
-    : [];
+  // The "Recommended for your business" rail + kind grouping + Coming-soon now
+  // live inside <ConnectorCatalog>, driven by the live `industry` state below.
 
   const sections: Record<string, ReactNode> = {
     overview: (
@@ -408,7 +339,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         </Panel>
         <Panel title="Workspace" tag={TGOK}>
           <Row label="Plan"><span className="pillrow"><Pill kind="ok">Premium</Pill><button className="btn sm">Manage plan</button></span></Row>
-          <Row label="Business type"><span className="pillrow"><span className="ptxt">Company · Restoration &amp; home services</span><button className="btn sm" onClick={() => navTo("general")}>Change</button></span></Row>
+          <Row label="Business type"><span className="pillrow"><span className="ptxt">{PROFILE_LABEL[settings.workspaceProfile]}{industry ? ` · ${industry}` : ""}</span><button className="btn sm" onClick={() => navTo("general")}>Change</button></span></Row>
           <Row label="Team"><span className="pillrow"><span className="ptxt">{memberCount} {memberCount === 1 ? "member" : "members"}{pendingCount > 0 ? ` · ${pendingCount} pending` : ""}</span><button className="btn sm" onClick={() => navTo("team")}>Manage</button></span></Row>
         </Panel>
       </>
@@ -417,7 +348,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
       <>
         <Head t="General" d="Your workspace identity and how Arc is named — both apply across the app and Arc’s outbound from-name." />
         {subBar}
-        {activeSub === "Agent" ? <AgentIdentityPanel settings={settings} /> : <GeneralPanel brandName={brandName} settings={settings} domain={domain} />}
+        {activeSub === "Agent" ? <AgentIdentityPanel settings={settings} /> : <GeneralPanel brandName={brandName} settings={settings} domain={domain} industry={industry} onIndustryChange={setIndustry} />}
       </>
     ),
     appearance: (
@@ -451,56 +382,16 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
       <ConnectorDetail view={selectedConnector} configured={connectors.configured} onBack={closeConnector} />
     ) : (
       <>
-        <Head t="Connections" d="What Arc can reach. Live connectors are per-workspace and credential-based — the key is stored encrypted in your Vault and handed only to the runner, never the browser. Posting & sending always stay human-approved." />
-        {subBar}
-        {activeSub === "Roadmap" ? (
-          <>
-            <div style={{ fontSize: 11.5, color: "var(--muted)", margin: "0 2px 12px", lineHeight: 1.5 }}>More integrations are planned. They’re listed honestly — connecting from here isn’t available yet. Social posting & email sending will always stay human-approved.</div>
-            <div className="connhub-search"><Ic d='<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>' /><input value={connQ} onChange={(e) => setConnQ(e.target.value)} placeholder="Search planned integrations…" /></div>
-            <div className="catchips">{CATS.map((c) => <span key={c} className={`catchip${connCat === c ? " on" : ""}`} onClick={() => setConnCat(c)}>{c}</span>)}</div>
-            <div className="conngrid">
-              {CONNECTORS.filter((x) => x.n !== "Gemini Web Research" && x.n !== "Higgsfield").filter((x) => {
-                const okCat = connCat === "All" || x.cat === connCat;
-                const okQ = !connQ || x.n.toLowerCase().includes(connQ.toLowerCase());
-                return okCat && okQ;
-              }).map((x) => (
-                <div className="ccard" key={x.n} style={{ opacity: 0.72 }}>
-                  <div className="ct"><span className="clogo" style={{ background: `${x.c}22`, border: `1px solid ${x.c}55`, color: x.c }}>{x.l}</span><div><div className="cnm">{x.n}</div><div className="ccat">{x.cat}</div></div></div>
-                  <div className="cdsc">{x.d || DCAT[x.cat] || ""}</div>
-                  <div className="cfoot"><span className="badge">Planned</span><span className="grow" /><span style={{ fontSize: 11, color: "var(--muted)" }}>{x.auth || "oauth"}</span></div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            {!connectors.configured && (
-              <div className="cnote"><Ic d='<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>' /><div>You’re previewing without a connected workspace, so connectors read as <b>not connected</b> and changes won’t persist. These connectors are real — connect a workspace to store credentials for real.</div></div>
-            )}
-            {!workspaceIndustry ? (
-              <div className="cnote" style={{ marginBottom: 14 }}>
-                <Ic d='<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>' />
-                <div>Set your <b>industry</b> in <b>General</b> to get connector recommendations tailored to your business.</div>
-              </div>
-            ) : recommendedConnectors.length > 0 ? (
-              <div style={{ marginBottom: 22 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 9, margin: "2px 2px 12px" }}>
-                  <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, fontWeight: 500, color: "var(--text)" }}>Recommended for your business</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--accent-contrast)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)", borderRadius: 6, padding: "1px 8px" }}>{workspaceIndustry}</span>
-                </div>
-                <div className="conngrid">
-                  {recommendedConnectors.map((v) => <ConnectorCard key={`rec-${v.key}`} view={v} onOpen={() => openConnector(v.key)} />)}
-                </div>
-              </div>
-            ) : null}
-            {recommendedConnectors.length > 0 && (
-              <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", margin: "2px 2px 10px" }}>All connectors</div>
-            )}
-            <div className="conngrid">
-              {connectors.connectors.map((v) => <ConnectorCard key={v.key} view={v} onOpen={() => openConnector(v.key)} />)}
-            </div>
-          </>
+        <Head t="Connections" d="A marketplace of what Arc can plug into — signal sources that watch for opportunities, channels it can send through (always approval-gated), and tools it can use. Connectors are per-workspace and credential-based; keys are stored encrypted in your Vault and handed only to the runner, never the browser." />
+        {!connectors.configured && (
+          <div className="cnote"><Ic d='<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>' /><div>You’re previewing without a connected workspace, so connectors read as <b>not connected</b> and changes won’t persist. These connectors are real — connect a workspace to store credentials for real.</div></div>
         )}
+        <ConnectorCatalog
+          connectors={connectors.connectors}
+          industry={industry}
+          onOpen={openConnector}
+          onEditIndustry={() => navTo("general")}
+        />
       </>
     ),
     media: (
@@ -933,10 +824,9 @@ function WorkspacesSection({ view }: { view: SettingsWorkspacesView }) {
 // Workspace name renames the org + workspace identity (owner/admin gated);
 // account type, industry, and support email persist to app_settings. Offline the
 // action returns persisted:false and Status says so honestly.
-function GeneralPanel({ brandName, settings, domain }: { brandName: string; settings: AppSettings; domain: string }) {
+function GeneralPanel({ brandName, settings, domain, industry, onIndustryChange }: { brandName: string; settings: AppSettings; domain: string; industry: string; onIndustryChange: (value: string) => void }) {
   const [name, setName] = useState(brandName);
   const [profile, setProfile] = useState<AppSettings["workspaceProfile"]>(settings.workspaceProfile);
-  const [industry, setIndustry] = useState(settings.industry || "Restoration & home services");
   const [email, setEmail] = useState(settings.supportEmail || `support@${domain}`);
   const [status, setStatus] = useState<SaveStatus>(null);
   const [pending, setPending] = useState(false);
@@ -961,7 +851,7 @@ function GeneralPanel({ brandName, settings, domain }: { brandName: string; sett
           />
         </Row>
         <Row label="Account type" desc="How Arc frames personas, detectors, and templates."><Seg opts={["Individual", "Company", "Agency"]} value={PROFILE_LABEL[profile]} onChange={(v) => setProfile(v.toLowerCase() as AppSettings["workspaceProfile"])} /></Row>
-        <Row label="Industry" desc="Stored on your workspace profile."><select className="sel" value={industry} onChange={(e) => setIndustry(e.target.value)}><option>Restoration &amp; home services</option><option>Roofing &amp; exteriors</option><option>General contracting</option></select></Row>
+        <Row label="Industry" desc="Drives the “Recommended for your business” connectors and how Arc frames templates. Stored on your workspace profile."><select className="sel" value={industry || INDUSTRY_OPTIONS[0].label} onChange={(e) => onIndustryChange(e.target.value)}>{INDUSTRY_OPTIONS.map((o) => <option key={o.label} value={o.label}>{o.label}</option>)}</select></Row>
         <Row label="Support email" desc="Used as reply-to on transactional email."><input className="inp" value={email} onChange={(e) => setEmail(e.target.value)} /></Row>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0 4px" }}>
           <button className="btn gold" onClick={save} disabled={pending}>{pending ? "Saving…" : "Save changes"}</button>
@@ -1096,32 +986,6 @@ function MediaDefaultsPanel({ settings }: { settings: AppSettings }) {
   );
 }
 
-// ---- Connector card (launcher) ----
-// A summary card for each real connector; the whole card drills into the detail
-// page where connect / test / enable / disconnect live.
-function ConnectorCard({ view, onOpen }: { view: ConnectorView; onOpen: () => void }) {
-  const meta = CONNECTOR_META[view.key] ?? { c: "#9aa0ac", l: view.label.slice(0, 2), credLabel: "API key", credHint: "" };
-  const pill = CONNECTOR_STATUS_PILL[view.status];
-  const cost = COST_TIER_BADGE[view.costTier];
-  const kindLabel = CONNECTOR_KIND_LABEL[view.kind] ?? view.kind;
-  const cta = view.credentialPresent || view.enabled ? "Manage" : view.credentialOptional ? "Set up" : "Connect";
-  return (
-    <div className="ccard ccard-btn" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
-      <div className="ct">
-        <span className="clogo" style={{ background: `${meta.c}22`, border: `1px solid ${meta.c}55`, color: meta.c }}>{meta.l}</span>
-        <div><div className="cnm">{view.label}</div><div className="ccat">{kindLabel} · {view.access === "read_only" ? "read-only" : "gated write"}</div></div>
-      </div>
-      <div className="cdsc">{view.description}</div>
-      <div className="cfoot">
-        <Pill kind={pill.kind}>{pill.label}</Pill>
-        <span className="badge" title={cost.title}>{cost.label}</span>
-        <span className="grow" />
-        <span className="cb-open">{cta} →</span>
-      </div>
-    </div>
-  );
-}
-
 // ---- Connector detail (drill-down) ----
 // Full page for one connector: live status + health, the credential connect/test/
 // disconnect controls, and the registry metadata. Test runs a real provider probe.
@@ -1169,6 +1033,27 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
     setPending(true); setStatus(null);
     setStatus(toStatus(await fn(), ok));
     setPending(false);
+  }
+
+  // Registered-but-unbuilt connector reached via a deep link / search: show the
+  // honest "Coming soon" page — no connect, test, or enable controls to fake.
+  if (!view.available) {
+    return (
+      <>
+        <button className="btn sm" style={{ marginBottom: 14 }} onClick={onBack}>← All connections</button>
+        <div className="condetail-hd">
+          <span className="clogo" style={{ background: `${meta.c}22`, border: `1px solid ${meta.c}55`, color: meta.c, width: 46, height: 46 }}>{meta.l}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 21, margin: 0 }}>{view.label}</h2><Pill kind="off">Coming soon</Pill><span className="badge" title={cost.title}>{cost.label}</span><span className="badge">{kindLabel}</span></div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, lineHeight: 1.5 }}>{view.description}</div>
+          </div>
+        </div>
+        <Panel title="Coming soon" tag={TGOK} foot="registered in the catalog; the runtime impl ships in a later release">
+          <div style={{ padding: "8px 2px", fontSize: 12.5, color: "var(--muted)", lineHeight: 1.55 }}>This connector is on the roadmap — it’s listed so you can see what’s coming, but it can’t be connected yet. When it ships, it will follow the same rules as every other connector: {view.access === "read_only" ? "read-only, proposals only" : "outbound stays behind human approval"}.</div>
+          {reg?.verticals.length ? <Row label="Best for"><span className="ptxt">{reg.verticals.join(", ")}</span></Row> : null}
+        </Panel>
+      </>
+    );
   }
 
   return (

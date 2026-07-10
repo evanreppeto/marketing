@@ -1,3 +1,5 @@
+import { INDUSTRY_OPTIONS } from "@/domain";
+
 import { AuthBrandPanel } from "@/components/ui/auth-brand-panel";
 import { FormValidityMessages } from "@/components/ui/form-validity";
 
@@ -100,6 +102,23 @@ export default async function OnboardingPage({
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="industry" className={labelClass}>
+                Industry <span className="text-[var(--text-muted)]">(optional)</span>
+              </label>
+              <select id="industry" name="industry" defaultValue="" className={inputClass}>
+                <option value="">Choose your industry…</option>
+                {INDUSTRY_OPTIONS.map((option) => (
+                  <option key={option.label} value={option.label}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[0.75rem] text-[var(--text-muted)]">
+                Tunes which connectors and templates Arc recommends. You can change it later in Settings.
+              </p>
             </div>
 
             <button

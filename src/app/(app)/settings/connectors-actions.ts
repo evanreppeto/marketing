@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { findConnector, parseWeatherServiceArea } from "@/domain";
+import { connectorIsAvailable, findConnector, parseWeatherServiceArea } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
@@ -38,6 +38,7 @@ export async function connectConnector(input: {
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) return { ok: false, error: `${connector.label} isn't available yet.` };
   const credential = (input.credential ?? "").trim();
   if (!credential) return { ok: false, error: "Paste a credential to connect." };
 
@@ -102,6 +103,7 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) return { ok: false, error: `${connector.label} isn't available yet.` };
   if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect this workspace to test the connection." };
 
   const ctx = await getCurrentWorkspaceContext();
@@ -169,6 +171,7 @@ export async function toggleConnectorEnabled(input: {
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) return { ok: false, error: `${connector.label} isn't available yet.` };
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
@@ -205,6 +208,7 @@ export async function saveConnectorConfig(input: {
 
   const connector = findConnector(input.connectorKey);
   if (!connector) return { ok: false, error: "Unknown connector." };
+  if (!connectorIsAvailable(connector)) return { ok: false, error: `${connector.label} isn't available yet.` };
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 

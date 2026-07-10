@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import {
   CONNECTOR_REGISTRY,
   computeConnectorStatus,
+  connectorIsAvailable,
   connectorRequiresCredential,
   type ConnectorAccess,
   type ConnectorAuthKind,
@@ -20,6 +21,10 @@ export type ConnectorView = {
   authKind: ConnectorAuthKind;
   access: ConnectorAccess;
   costTier: ConnectorCostTier;
+  /** Industries this connector is most relevant to ([] = universal). Drives the catalog rail. */
+  verticals: string[];
+  /** False when registered-but-unbuilt — the catalog shows "Coming soon", no enable. */
+  available: boolean;
   enabled: boolean;
   credentialPresent: boolean;
   /** True when NO stored credential is needed (public signal source, etc). */
@@ -77,6 +82,8 @@ export async function listWorkspaceConnectors(client: SupabaseClient, workspaceI
       authKind: entry.authKind,
       access: entry.access,
       costTier: entry.costTier,
+      verticals: entry.verticals,
+      available: connectorIsAvailable(entry),
       enabled: row?.enabled ?? false,
       credentialPresent,
       credentialOptional: !requiresCredential,

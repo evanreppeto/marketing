@@ -7,6 +7,7 @@ import { getSafeOperatorReturnPath } from "@/lib/auth/operator-shared";
 import { redeemWorkspaceInviteCodeForUser } from "@/lib/auth/user-provisioning";
 import { ACTIVE_WORKSPACE_COOKIE } from "@/lib/auth/workspace";
 import { createWorkspaceForAuthenticatedUser } from "@/lib/auth/workspace-onboarding";
+import { DEFAULT_APP_SETTINGS, normalizeDisplayLabel, saveAppSettings } from "@/lib/settings/store";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
@@ -21,6 +22,18 @@ export async function createWorkspaceAction(formData: FormData) {
   });
 
   if (result.ok) {
+    // Persist the (optional) industry onto the new workspace's app_settings so the
+    // connector catalog can recommend for it from day one. Best-effort — never
+    // blocks onboarding if it fails.
+    const industry = normalizeDisplayLabel(String(formData.get("industry") ?? ""), DEFAULT_APP_SETTINGS.industry, 60);
+    if (industry && isSupabaseAdminConfigured()) {
+      try {
+        await saveAppSettings(getSupabaseAdminClient(), result.orgId, { industry });
+      } catch {
+        // ignore — the operator can set the industry later in Settings → General.
+      }
+    }
+
     // Pin the freshly created workspace as active so the resolver doesn't fall
     // back to an older membership.
     const cookieStore = await cookies();
