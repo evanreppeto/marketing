@@ -20,6 +20,7 @@ export * from "./attribution";
 export * from "./campaign-drafts";
 export * from "./campaign-from-opportunity";
 export * from "./opportunity-package";
+export * from "./opportunity-conversion";
 export * from "./campaign-assets";
 export * from "./agent-run-status";
 export * from "./connections";
