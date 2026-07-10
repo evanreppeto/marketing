@@ -1,6 +1,7 @@
 import { getRecentActivity, type ActivityEntry, type ActivityTone } from "@/lib/activity/read-model";
 import { getAnalyticsOverview } from "@/lib/analytics/overview";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getOpportunityConversion } from "@/lib/performance/opportunity-conversion";
 import { getPerformanceReadModel } from "@/lib/performance/read-model";
 
 import { AnalyticsView, type ActivityDayVM } from "./_components/analytics-view";
@@ -31,10 +32,11 @@ function toActivityRow(e: ActivityEntry) {
 
 export default async function AnalyticsPage() {
   const ctx = await getCurrentWorkspaceContext();
-  const [overview, activity, performance] = await Promise.all([
+  const [overview, activity, performance, conversion] = await Promise.all([
     getAnalyticsOverview(ctx.orgId).catch(() => null),
     getRecentActivity({}, undefined, ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
     getPerformanceReadModel().catch(() => ({ status: "unavailable" }) as const),
+    getOpportunityConversion(ctx.orgId).catch(() => ({ status: "unavailable" }) as const),
   ]);
 
   const campaignRows = performance.status === "live" ? (performance.campaignRows ?? []) : [];
@@ -70,6 +72,7 @@ export default async function AnalyticsPage() {
   return (
     <AnalyticsView
       overview={safeOverview}
+      conversion={conversion}
       activitySummary={activitySummary}
       activityDays={activityDays}
       campaignRows={campaignRows}

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { formatRate } from "@/domain";
 import type { AnalyticsOverview, TrendKey, TrendSeries } from "@/lib/analytics/overview";
+import type { OpportunityConversionReadModel } from "@/lib/performance/opportunity-conversion";
 import type { CampaignPerformanceRow, ChannelPerformance, PerformanceAnomaly, PerformanceNextMove } from "@/lib/performance/read-model";
 
 export type ActivityRowVM = { id: string; dot: string; title: string; detail: string; meta: string[]; time: string };
@@ -207,8 +209,75 @@ function SignalsBlock({ anomalies, nextMoves }: { anomalies: PerformanceAnomaly[
   );
 }
 
+const mono: React.CSSProperties = { fontFamily: "var(--mono)", color: "var(--muted)" };
+
+// "What converts" — the learning half of the loop: which opportunity kinds turn
+// into approved, booked campaigns. Read-only; advisory only. Honest empty states.
+function WhatConverts({ model }: { model: OpportunityConversionReadModel }) {
+  if (model.status !== "live") {
+    return (
+      <div className="blk" style={{ marginTop: 18 }}>
+        <h2>What converts <span className="tg wired">opportunity → booked</span></h2>
+        <div className="psub">
+          {model.status === "unavailable"
+            ? "Connect a workspace to see which opportunity types convert."
+            : "Not enough data yet — Arc learns which opportunity types convert as campaigns get approved and book work."}
+        </div>
+      </div>
+    );
+  }
+  const { overall, byKind } = model.conversion;
+  const max = Math.max(1, overall.surfaced);
+  const stages: [string, number][] = [
+    ["Surfaced", overall.surfaced],
+    ["Drafted", overall.drafted],
+    ["Approved", overall.approved],
+    ["Booked", overall.booked],
+  ];
+  return (
+    <div className="blk" style={{ marginTop: 18 }}>
+      <h2>What converts <span className="tg wired">opportunity → booked · {model.windowDays}d</span></h2>
+      <div className="funnel">
+        {stages.map(([label, count]) => (
+          <div className="fstage" key={label}>
+            <span className="fl">{label}</span>
+            <span className="ftrack"><i style={{ width: `${Math.round((count / max) * 100)}%` }} /></span>
+            <span className="fv"><b>{count.toLocaleString()}</b></span>
+          </div>
+        ))}
+      </div>
+      {byKind.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div className="psub" style={{ marginBottom: 8 }}>By opportunity kind · booked rate</div>
+          <div style={{ display: "grid", gap: 7 }}>
+            {byKind.map((r) => (
+              <div
+                key={r.key}
+                style={{ display: "grid", gridTemplateColumns: "minmax(110px, 1.4fr) repeat(4, 1fr) 58px", alignItems: "center", gap: 8, fontSize: 12 }}
+              >
+                <span style={{ color: "var(--text)", fontWeight: 600 }}>{r.label}</span>
+                <span style={mono}>{r.funnel.surfaced} surf</span>
+                <span style={mono}>{r.funnel.drafted} draft</span>
+                <span style={mono}>{r.funnel.approved} appr</span>
+                <span style={{ ...mono, color: "var(--text-2)" }}>{r.funnel.booked} book</span>
+                <span style={{ color: "var(--accent-contrast)", fontWeight: 700, textAlign: "right" }}>
+                  {formatRate(r.funnel.rates.bookedOfSurfaced)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div style={{ ...mono, fontSize: 9, marginTop: 12, lineHeight: 1.5 }}>
+        Surfaced → drafted → approved → booked, from real opportunities and outcomes. Advisory only — not an automated decision.
+      </div>
+    </div>
+  );
+}
+
 export function AnalyticsView({
   overview,
+  conversion,
   activitySummary,
   activityDays,
   campaignRows,
@@ -217,6 +286,7 @@ export function AnalyticsView({
   nextMoves,
 }: {
   overview: AnalyticsOverview;
+  conversion: OpportunityConversionReadModel;
   activitySummary: { label: string; value: number }[];
   activityDays: ActivityDayVM[];
   campaignRows: CampaignPerformanceRow[];
@@ -338,6 +408,8 @@ export function AnalyticsView({
                   </div>
                 </div>
               </div>
+
+              <WhatConverts model={conversion} />
 
               <CampaignTable rows={campaignRows} />
 
