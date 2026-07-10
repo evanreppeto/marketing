@@ -7,7 +7,7 @@ import { WORKSPACE_ROLES } from "@/lib/auth/workspace-roles";
 import type { SettingsWorkspace, SettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
 
-import { findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
+import { connectorMatchesIndustry, findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
@@ -379,6 +379,12 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
     </div>
   ) : null;
   const selectedConnector = connSel ? connectors.connectors.find((v) => v.key === connSel) ?? null : null;
+  // "Recommended for your business" — real connectors whose verticals match the
+  // workspace industry (BSR-371). Tailored, non-universal; empty when no industry set.
+  const workspaceIndustry = (settings.industry ?? "").trim();
+  const recommendedConnectors = workspaceIndustry
+    ? connectors.connectors.filter((v) => connectorMatchesIndustry(findConnector(v.key)?.verticals ?? [], workspaceIndustry))
+    : [];
 
   const sections: Record<string, ReactNode> = {
     overview: (
@@ -464,6 +470,25 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
           <>
             {!connectors.configured && (
               <div className="cnote"><Ic d='<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>' /><div>You’re previewing without a connected workspace, so connectors read as <b>not connected</b> and changes won’t persist. These connectors are real — connect a workspace to store credentials for real.</div></div>
+            )}
+            {!workspaceIndustry ? (
+              <div className="cnote" style={{ marginBottom: 14 }}>
+                <Ic d='<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>' />
+                <div>Set your <b>industry</b> in <b>General</b> to get connector recommendations tailored to your business.</div>
+              </div>
+            ) : recommendedConnectors.length > 0 ? (
+              <div style={{ marginBottom: 22 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 9, margin: "2px 2px 12px" }}>
+                  <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, fontWeight: 500, color: "var(--text)" }}>Recommended for your business</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--accent-contrast)", background: "var(--accent-soft)", border: "1px solid var(--accent-border)", borderRadius: 6, padding: "1px 8px" }}>{workspaceIndustry}</span>
+                </div>
+                <div className="conngrid">
+                  {recommendedConnectors.map((v) => <ConnectorCard key={`rec-${v.key}`} view={v} onOpen={() => openConnector(v.key)} />)}
+                </div>
+              </div>
+            ) : null}
+            {recommendedConnectors.length > 0 && (
+              <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", margin: "2px 2px 10px" }}>All connectors</div>
             )}
             <div className="conngrid">
               {connectors.connectors.map((v) => <ConnectorCard key={v.key} view={v} onOpen={() => openConnector(v.key)} />)}
