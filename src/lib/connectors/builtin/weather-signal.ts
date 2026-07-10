@@ -1,42 +1,39 @@
-import type { OpportunityCandidate } from "@/domain";
+import { detectWeatherEventOpportunities, parseWeatherServiceArea, type OpportunityCandidate } from "@/domain";
+import { nwsWeatherEventSource } from "@/lib/integrations/weather/nws-source";
+import type { WeatherEventSource } from "@/lib/opportunities/detector";
 
 import { registerSignalSource, type SignalDetectContext, type SignalSourceConnector } from "../registry";
 
 // ---------------------------------------------------------------------------
-// Stub `signal_source` connector proving the registry (BSR-363). Read-only: it
-// derives opportunity candidates deterministically from its per-workspace config
-// (the locations to watch) and makes NO external call and NO write. A production
-// build would swap detect() for a real weather API; the shape stays identical.
+// Real `weather-signals` signal_source connector (BSR-364), replacing the BSR-363
+// stub. Read-only: it parses the workspace's service area from its per-workspace
+// config, pulls active NWS/NOAA alerts for that area, and maps them to
+// `weather_event` opportunity candidates via the pure domain detector. It makes
+// NO write and nothing outbound — the orchestrator is the only writer, and only
+// to `opportunities` via upsertOpportunities.
 //
-// It emits `weather_event` candidates with a stable subjectId per location, so
-// upsertOpportunities' open-status dedup keeps re-scans from flooding the inbox.
+// subjectId is the CAP alert id, so upsertOpportunities' open-status dedup keeps
+// re-scans (and state/point overlap) from flooding the inbox. No credential is
+// needed — api.weather.gov is public (costTier: free).
 // ---------------------------------------------------------------------------
 
-function readLocations(config: Record<string, unknown>): string[] {
-  const raw = config.locations;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.trim());
-}
+export type WeatherDetectInput = Pick<SignalDetectContext, "config"> & {
+  now?: string;
+  /** Injected in tests with a fixture-backed source so no live network is hit. */
+  source?: WeatherEventSource;
+};
 
-export function detectWeatherOpportunities(ctx: Pick<SignalDetectContext, "config">): OpportunityCandidate[] {
-  return readLocations(ctx.config).map((location) => ({
-    kind: "weather_event",
-    subjectType: "geo",
-    subjectId: `weather:${location.toLowerCase()}`,
-    title: `Severe-weather watch — ${location}`,
-    summary:
-      `A storm signal was flagged for ${location}. Review nearby accounts for a proactive, ` +
-      `approval-gated storm-response campaign.`,
-    confidence: 60,
-    urgency: "medium",
-    evidence: {
-      source: "weather-signals (stub connector)",
-      location,
-      note: "Stub — replace detect() with a real weather API in production.",
-    },
-    recommendedAction: "Review affected accounts for a storm-response campaign",
-    recommendedCampaignType: "storm_response",
-  }));
+/**
+ * Detect storm-response opportunities from live NWS alerts. Best-effort: the
+ * source swallows fetch failures (returns no events), so an NWS outage yields
+ * zero candidates rather than breaking the scan.
+ */
+export async function detectWeatherOpportunities(input: WeatherDetectInput): Promise<OpportunityCandidate[]> {
+  const now = input.now ?? new Date().toISOString();
+  const area = parseWeatherServiceArea(input.config);
+  const source = input.source ?? nwsWeatherEventSource(area);
+  const events = await source.listActiveEvents(now);
+  return detectWeatherEventOpportunities(events, { now });
 }
 
 export const weatherSignalConnector: SignalSourceConnector = {

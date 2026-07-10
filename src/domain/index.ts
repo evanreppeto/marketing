@@ -45,6 +45,7 @@ export * from "./brand-design";
 export * from "./creative-templates";
 export * from "./dispatch-scheduling";
 export * from "./opportunity-detection";
+export * from "./nws-weather";
 export * from "./opportunity-proposal";
 export * from "./opportunity-briefing";
 export * from "./performance-slicing";

@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { findConnector } from "@/domain";
+import { findConnector, parseWeatherServiceArea } from "@/domain";
 import { requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
-import { setConnectorConfig } from "@/lib/connectors/config";
+import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { checkConnectorCredential } from "@/lib/connectors/health";
+import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
 import {
   disconnectConnector as disconnectConnectorRow,
   recordConnectorTest,
@@ -89,9 +90,12 @@ export async function disconnectConnector(input: { connectorKey: string }): Prom
 }
 
 /**
- * Test a connected connector: read its stored credential from the Vault, make a
- * real minimal call to the provider (Higgsfield balance / Gemini models), and
- * record the outcome on the row. ok:true = healthy; ok:false = failed/unavailable.
+ * Test a connected connector. Credentialed connectors read their stored Vault
+ * secret and make a real minimal provider call (Higgsfield balance / Gemini
+ * models). No-credential signal sources with a connectivity probe (weather-signals
+ * → live NWS/NOAA) instead hit the source with the workspace's configured service
+ * area and report the current active-alert count. Either way the outcome is
+ * recorded on the row. ok:true = healthy; ok:false = failed/unavailable.
  */
 export async function testConnector(input: { connectorKey: string }): Promise<SettingsWriteResult> {
   await requireOperator();
@@ -103,6 +107,33 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
   const ctx = await getCurrentWorkspaceContext();
   if (!ctx.workspaceId) return { ok: false, error: "No active workspace." };
   const workspaceId = ctx.workspaceId;
+
+  // No-credential connectivity probe: the NWS weather source. Reads the
+  // per-workspace service area and returns the live active-alert count.
+  if (connector.key === "weather-signals") {
+    try {
+      const client = getSupabaseAdminClient();
+      const config = await getConnectorConfig(client, workspaceId, connector.key);
+      const area = parseWeatherServiceArea(config);
+      const result = await checkNwsConnection(area);
+      await recordConnectorTest(client, {
+        workspaceId,
+        connectorKey: connector.key,
+        result: { ok: result.ok, error: result.error },
+      });
+      revalidatePath("/settings");
+      if (!result.ok) return { ok: false, error: `Test failed: ${result.error ?? "NWS unreachable"}` };
+      const areaLabel = area.states.length ? area.states.join(", ") : `${area.points.length} point(s)`;
+      const forecastNote = result.forecast ? ` · ${result.forecast}` : "";
+      return {
+        ok: true,
+        persisted: true,
+        message: `NWS reachable — ${result.count ?? 0} active alert(s) for ${areaLabel}${forecastNote}.`,
+      };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Could not run the test." };
+    }
+  }
 
   try {
     const client = getSupabaseAdminClient();

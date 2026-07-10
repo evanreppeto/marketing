@@ -4,10 +4,10 @@ import {
   detectColdLeadOpportunities,
   detectCompetitorOpportunities,
   detectWeatherEventOpportunities,
+  normalizeNwsSeverity,
   type ColdLeadInput,
   type CompetitorSignalInput,
   type WeatherEventInput,
-  type WeatherSeverity,
 } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { listLeads } from "@/lib/repos/leads";
@@ -102,27 +102,6 @@ function readString(obj: Record<string, unknown>, key: string): string | undefin
   return typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
 }
 
-/** Map NWS alert_type / CAP severity text onto the detector's normalized scale. */
-function normalizeWeatherSeverity(alertType: string | null, severity: string | null): WeatherSeverity {
-  const type = (alertType ?? "").toLowerCase();
-  if (type.includes("emergency")) return "emergency";
-  if (type.includes("warning")) return "warning";
-  if (type.includes("watch")) return "watch";
-  if (type.includes("advisory") || type.includes("statement")) return "advisory";
-  switch ((severity ?? "").toLowerCase()) {
-    case "extreme":
-      return "emergency";
-    case "severe":
-      return "warning";
-    case "moderate":
-      return "watch";
-    case "minor":
-      return "advisory";
-    default:
-      return "advisory";
-  }
-}
-
 /** Human coverage-area label: prefer NWS areaDesc, else the ZIP list. */
 function weatherArea(payload: Record<string, unknown>, zips: string[]): string {
   const desc = readString(payload, "areaDesc") ?? readString(payload, "area");
@@ -157,7 +136,7 @@ function mapWeatherRow(row: WeatherRow): WeatherEventInput | null {
     id: row.id,
     eventType: (row.alert_type ?? readString(payload, "event") ?? "Weather alert").trim(),
     area: weatherArea(payload, zips),
-    severity: normalizeWeatherSeverity(row.alert_type, row.severity),
+    severity: normalizeNwsSeverity(row.alert_type, row.severity),
     startsAt: row.starts_at ?? undefined,
     endsAt: row.ends_at ?? undefined,
     zipCodes: zips,
