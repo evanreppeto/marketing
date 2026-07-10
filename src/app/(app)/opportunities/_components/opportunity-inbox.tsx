@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 
-import { scanForOpportunitiesAction } from "../actions";
+import { draftCampaignFromOpportunityAction, scanForOpportunitiesAction } from "../actions";
+import { DraftCampaignModal } from "./draft-campaign-modal";
 
 export type OppSignal = { label: string; value: string };
 export type OppRouting = { step: string; note: string; done: boolean };
@@ -29,13 +31,9 @@ export type OpportunityVM = {
   evidence: OppSignal[];
   impact: OppSignal[];
   routing: OppRouting[];
+  /** Pre-filled draft fields for the "Create campaign" confirm modal. */
+  seed: { name: string; persona: string; restorationFocus: string };
 };
-
-// Create / draft flows open the real ported screens. "Create campaign" lands on
-// the campaigns board where the "New campaign" button opens the real create
-// modal — not the static /campaigns/new builder mockup.
-const CREATE_HREF = "/campaigns";
-const DRAFT_HREF = "/arc";
 
 const ICONS: Record<OpportunityVM["icon"], React.ReactNode> = {
   weather: (
@@ -95,6 +93,9 @@ function ScanButton({ subtle }: { subtle?: boolean }) {
 
 export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
   const [cur, setCur] = useState(0);
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const router = useRouter();
 
   if (opps.length === 0) {
     return (
@@ -111,6 +112,23 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
 
   const o = opps[Math.min(cur, opps.length - 1)];
 
+  // Convert this opportunity into an approval-gated campaign draft. When it
+  // persists, jump into the new draft's detail page; offline it confirms the
+  // draft was prepared without claiming a save. Failures surface in the modal.
+  const handleDraft = async (
+    value: { name: string; persona: string; restorationFocus: string },
+  ): Promise<{ ok: boolean; error?: string }> => {
+    setNotice(null);
+    const res = await draftCampaignFromOpportunityAction({ opportunityId: o.id, ...value });
+    if (!res.ok) return { ok: false, error: res.error };
+    if (res.persisted && res.href) {
+      router.push(res.href);
+      return { ok: true };
+    }
+    setNotice("Draft prepared. Connect a workspace to save and open it — nothing was sent.");
+    return { ok: true };
+  };
+
   return (
     <div className="arc-opps">
       <aside className="olist">
@@ -123,7 +141,15 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
         </form>
         <div>
           {opps.map((it, i) => (
-            <button key={it.id} type="button" className={`orow${i === cur ? " on" : ""}`} onClick={() => setCur(i)}>
+            <button
+              key={it.id}
+              type="button"
+              className={`orow${i === cur ? " on" : ""}`}
+              onClick={() => {
+                setCur(i);
+                setNotice(null);
+              }}
+            >
               <span className="ic">{ICONS[it.icon]}</span>
               <div style={{ minWidth: 0 }}>
                 <div className="ot">
@@ -182,12 +208,22 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
                   </>
                 )}
                 <div className="racts">
-                  <a className="btn gold" href={CREATE_HREF}>Create campaign</a>
-                  <a className="btn ghost" href={DRAFT_HREF}>Ask Arc to draft</a>
+                  <button type="button" className="btn gold" onClick={() => setDraftOpen(true)}>
+                    Create campaign
+                  </button>
+                  <button type="button" className="btn ghost" onClick={() => setDraftOpen(true)}>
+                    Ask Arc to draft
+                  </button>
                   {o.recordHref && (
                     <a className="btn ghost" href={o.recordHref}>{o.recordLabel} →</a>
                   )}
                 </div>
+                {notice && (
+                  <div className="opp-notice" role="status">
+                    <i />
+                    {notice}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -245,6 +281,14 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
           </div>
         </div>
       </section>
+
+      <DraftCampaignModal
+        key={`${o.id}-${draftOpen ? "open" : "closed"}`}
+        open={draftOpen}
+        onClose={() => setDraftOpen(false)}
+        opp={o}
+        onSubmit={handleDraft}
+      />
     </div>
   );
 }

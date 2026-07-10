@@ -175,6 +175,119 @@ export async function insertNoReturn(client: SupabaseClient, table: string, valu
   if (error) throw new Error(`${table} insert failed: ${error.message}`);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// CRM subject types that map to a typed FK column on `campaigns`. External
+// signals (weather/competitor) and demo ids have no CRM record, so we only set
+// the FK when the subject is a real CRM record with a UUID id — a non-UUID
+// (e.g. a demo/external subject id) would be rejected by the uuid column.
+const CAMPAIGN_SUBJECT_FK: Record<string, string> = {
+  lead: "lead_id",
+  company: "company_id",
+  contact: "contact_id",
+  property: "property_id",
+};
+
+function campaignSubjectFk(subjectType: string, subjectId: string): Record<string, string> {
+  const column = CAMPAIGN_SUBJECT_FK[subjectType];
+  if (!column || !UUID_RE.test((subjectId ?? "").trim())) return {};
+  return { [column]: subjectId.trim() };
+}
+
+export type OpportunityDraftContext = {
+  id: string;
+  subjectType: string;
+  subjectId: string;
+  confidence: number;
+  urgency: string;
+  recommendedAction: string;
+  recommendedCampaignType?: string | null;
+  evidence?: Record<string, unknown> | null;
+};
+
+export type CreateCampaignFromOpportunityInput = {
+  operator: string;
+  name: string;
+  /** Validated official persona mapping (the DB enum rejects anything else). */
+  persona: string;
+  /** Validated `restoration_focus` enum value. */
+  restorationFocus: string;
+  /** Message angle — carried onto the campaign's `objective`. */
+  objective: string;
+  audienceSummary?: string | null;
+  /** The source opportunity, tagged into `source_signal` as Arc provenance. */
+  opportunity: OpportunityDraftContext;
+  /** Configured agent display name, threaded from the caller for the audit-log detail. */
+  agentName?: string;
+  client?: SupabaseClient;
+  tenant?: AgentTaskTenantFields;
+};
+
+/**
+ * Persist a draft campaign seeded from a surfaced opportunity. Mirrors
+ * createCampaignShell (draft, launch-locked, approval-gated) but carries the
+ * opportunity's persona/evidence/recommended action and a provenance stamp so
+ * the campaign clearly reads as Arc-drafted from that opportunity. The subject
+ * CRM record is linked when it's a real UUID record.
+ *
+ * Draft only — nothing outbound. `launch_locked: true` keeps it in the approval
+ * gate; the operator (or Arc) builds out the assets on the detail page.
+ */
+export async function createCampaignFromOpportunity(
+  input: CreateCampaignFromOpportunityInput,
+): Promise<{ campaignId: string }> {
+  const client = input.client ?? getSupabaseAdminClient();
+  const agentName = input.agentName?.trim() || "Arc";
+  const opp = input.opportunity;
+
+  const campaignId = await insertOne(client, "campaigns", {
+    ...orgTenantFields(input.tenant),
+    name: input.name,
+    persona: input.persona,
+    restoration_focus: input.restorationFocus,
+    status: "draft",
+    launch_locked: true,
+    owner: input.operator,
+    source_system: "arc_opportunity",
+    objective: input.objective || null,
+    audience_summary: input.audienceSummary ?? null,
+    ...campaignSubjectFk(opp.subjectType, opp.subjectId),
+    source_signal: {
+      authored_by: "arc",
+      origin: "opportunity",
+      opportunity_id: opp.id,
+      subject_type: opp.subjectType,
+      subject_id: opp.subjectId,
+      confidence: opp.confidence,
+      urgency: opp.urgency,
+      recommended_action: opp.recommendedAction,
+      recommended_campaign_type: opp.recommendedCampaignType ?? null,
+      evidence: opp.evidence ?? {},
+      outbound_locked: true,
+    },
+  });
+
+  await insertNoReturn(client, "campaign_events", {
+    ...orgTenantFields(input.tenant),
+    campaign_id: campaignId,
+    event_type: "created",
+    actor: input.operator,
+    detail: `${agentName} drafted this from an opportunity: ${opp.recommendedAction}`,
+    payload: {
+      source: "arc_opportunity",
+      opportunity_id: opp.id,
+      subject_type: opp.subjectType,
+      subject_id: opp.subjectId,
+    },
+  });
+
+  // Best-effort brain mirror (re-reads the row + upserts graph nodes/edges) with
+  // no dependents — run it after the response so it doesn't serialize extra DB
+  // round-trips into the draft-create call.
+  deferAfterResponse(() => mirrorCampaignToBrain(client, campaignId, input.tenant));
+  return { campaignId };
+}
+
 export type CreateCampaignShellInput = {
   operator: string;
   name: string;

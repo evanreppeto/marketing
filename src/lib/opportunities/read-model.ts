@@ -97,6 +97,85 @@ export type OpportunityForDraft = {
   persona: string;
 };
 
+export type OpportunityForCampaign = {
+  id: string;
+  subjectType: string;
+  subjectId: string;
+  title: string;
+  summary: string;
+  confidence: number;
+  urgency: "low" | "medium" | "high";
+  recommendedAction: string;
+  recommendedCampaignType: string | null;
+  persona: string;
+  evidence: OpportunityEvidence | null;
+  status: string;
+  campaignId: string | null;
+};
+
+/**
+ * Load the authoritative opportunity (org-scoped) for converting it into a
+ * campaign draft. The server action reads this rather than trusting client
+ * input so the seeded persona/evidence/angle can't be forged. Returns null when
+ * the opportunity is missing or the workspace is unconfigured.
+ */
+export async function getOpportunityForCampaign(
+  id: string,
+  orgId?: string,
+  client?: SupabaseClient,
+): Promise<OpportunityForCampaign | null> {
+  if (!client && !isSupabaseAdminConfigured()) {
+    if (!isDemoDataEnabled()) return null;
+    const match = buildDemoOpportunities().find((o) => o.id === id);
+    if (!match) return null;
+    const ev = match.evidence ?? null;
+    return {
+      id: match.id,
+      subjectType: match.subject_type,
+      subjectId: match.subject_id,
+      title: match.title,
+      summary: match.summary,
+      confidence: match.confidence,
+      urgency: match.urgency,
+      recommendedAction: match.recommended_action,
+      recommendedCampaignType: null,
+      persona: typeof ev?.persona === "string" ? ev.persona : "",
+      evidence: ev,
+      status: match.status,
+      campaignId: null,
+    };
+  }
+  const { client: db, orgId: handleOrgId } = client
+    ? { client, orgId: null }
+    : await resolveTenantReadHandle();
+  const resolvedOrgId = orgId ?? handleOrgId ?? (await getCurrentOrgId());
+  const { data, error } = await db
+    .from("opportunities")
+    .select(
+      "id, subject_type, subject_id, title, summary, confidence, urgency, recommended_action, recommended_campaign_type, evidence, status, campaign_id",
+    )
+    .eq("org_id", resolvedOrgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  const ev = (data.evidence ?? null) as OpportunityEvidence | null;
+  return {
+    id: data.id,
+    subjectType: data.subject_type,
+    subjectId: data.subject_id,
+    title: data.title,
+    summary: data.summary,
+    confidence: data.confidence,
+    urgency: data.urgency,
+    recommendedAction: data.recommended_action,
+    recommendedCampaignType: data.recommended_campaign_type ?? null,
+    persona: typeof ev?.persona === "string" ? ev.persona : "",
+    evidence: ev,
+    status: data.status,
+    campaignId: data.campaign_id ?? null,
+  };
+}
+
 /** Load one opportunity (+ its persona from evidence) for the Draft-with-Arc flow. */
 export async function getOpportunityForDraft(
   id: string,
