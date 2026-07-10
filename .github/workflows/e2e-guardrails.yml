@@ -1,0 +1,57 @@
+name: E2E Guardrails (staging)
+
+# Continuously verifies the DEPLOYED staging app still works end to end:
+#   - the login wall holds (the public can't see the app),
+#   - a seeded operator can sign in and the tenant renders,
+#   - the Opportunity inbox is populated,
+#   - the campaign approval gate is present.
+#
+# This validates the live staging deploy (which tracks `main`), so it runs
+# AFTER merges to main (post-deploy health check) and on a schedule (drift
+# check), plus on demand. It is a deployed-app health guardrail — not a gate on
+# an individual PR's own code (that would require deploying + testing each PR's
+# preview, a later enhancement).
+#
+# Sign-in uses the seeded staging operator (owner@bsr.test), defaulted in
+# e2e/guardrails.spec.ts. To move the credentials into repo secrets instead,
+# add STAGING_E2E_EMAIL / STAGING_E2E_PASSWORD and set them as env on the run
+# step (E2E_EMAIL / E2E_PASSWORD).
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 8,20 * * *" # twice daily
+  workflow_dispatch:
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Guardrails against staging
+        run: pnpm test:e2e:staging
+
+      - name: Upload Playwright report on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardrails-report
+          path: playwright-report/
+          retention-days: 7
