@@ -8,6 +8,8 @@ import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getConnectorConfig, setConnectorConfig } from "@/lib/connectors/config";
 import { readConnectorCredential, writeConnectorCredential } from "@/lib/connectors/credentials";
 import { checkConnectorCredential } from "@/lib/connectors/health";
+import { runCrmImport } from "@/lib/connectors/import";
+import { checkHubspotConnection } from "@/lib/integrations/crm/hubspot";
 import { checkNwsConnection } from "@/lib/integrations/weather/nws-source";
 import {
   disconnectConnector as disconnectConnectorRow,
@@ -149,6 +151,17 @@ export async function testConnector(input: { connectorKey: string }): Promise<Se
     const plaintext = await readConnectorCredential(client, ref);
     if (!plaintext) return { ok: false, error: "Stored credential could not be read." };
 
+    // CRM import: a real HubSpot probe that also reports how many contacts an
+    // import would see, so Test connection returns record counts (BSR-368).
+    if (connector.key === "hubspot-import") {
+      const hs = await checkHubspotConnection(plaintext);
+      await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result: { ok: hs.ok, error: hs.error } });
+      revalidatePath("/settings");
+      if (!hs.ok) return { ok: false, error: `Test failed: ${hs.error ?? "HubSpot unreachable"}` };
+      const countNote = typeof hs.count === "number" ? `${hs.count} contact(s) available to import` : "contacts available to import";
+      return { ok: true, persisted: true, message: `HubSpot reachable — ${countNote}.` };
+    }
+
     const result = await checkConnectorCredential(connector.key, plaintext);
     await recordConnectorTest(client, { workspaceId, connectorKey: connector.key, result });
     revalidatePath("/settings");
@@ -224,4 +237,51 @@ export async function saveConnectorConfig(input: {
 
   revalidatePath("/settings");
   return { ok: true, persisted: true, message: `${connector.label} settings saved.` };
+}
+
+/**
+ * Explicit operator-triggered CRM import (BSR-368). Import is a read-IN action that
+ * writes CRM rows through the gated ingest path, so it runs ONLY on this deliberate
+ * operator click — never automatically. Idempotent on the HubSpot record id (a
+ * re-run updates, never duplicates), and org-scoped. Reports a per-run summary.
+ */
+export async function runConnectorImport(input: { connectorKey: string }): Promise<SettingsWriteResult> {
+  await requireOperator();
+
+  const connector = findConnector(input.connectorKey);
+  if (!connector || connector.kind !== "import_source") return { ok: false, error: "Not an import connector." };
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Connect this workspace to run an import." };
+
+  const ctx = await getCurrentWorkspaceContext();
+  if (!ctx.workspaceId || !ctx.orgId) return { ok: false, error: "No active workspace." };
+
+  try {
+    const outcome = await runCrmImport({ workspaceId: ctx.workspaceId, orgId: ctx.orgId });
+    if (!outcome.ok) return { ok: false, error: importErrorMessage(outcome.error) };
+    revalidatePath("/settings");
+    const r = outcome.result;
+    const enrichNote = outcome.enrichmentEnabled ? ` · ${r.enriched} enriched` : "";
+    return {
+      ok: true,
+      persisted: true,
+      message: `Import complete — ${r.imported} new, ${r.updated} updated, ${r.skipped} skipped${enrichNote}.`,
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not run the import." };
+  }
+}
+
+function importErrorMessage(code: string): string {
+  switch (code) {
+    case "hubspot_import_not_connected":
+      return "Connect + enable HubSpot CRM Import first.";
+    case "missing_credential":
+      return "No HubSpot credential stored — connect HubSpot first.";
+    case "missing_default_persona":
+      return "Set a Default persona in the connector config before importing.";
+    case "not_configured":
+      return "Connect this workspace to run an import.";
+    default:
+      return `Import failed: ${code}`;
+  }
 }
