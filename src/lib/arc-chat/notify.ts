@@ -6,6 +6,7 @@ import { type ApprovalStrictness, type AssistantResponseStyle, type AssistantTon
 import { resolveAgentConnection } from "@/lib/agent/connection";
 import { recordTestResult } from "@/lib/agent/health";
 import { resolveWebhookSecret } from "@/lib/agent/secret";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { ARC_SKILL_IDS, type ArcSkillId } from "@/lib/arc-skills/catalog";
 import { type ArcAttachment } from "./persistence";
 import { type WakeHistoryTurn } from "./history";
@@ -129,7 +130,15 @@ async function postArcWake(body: Record<string, unknown>): Promise<boolean> {
   if (!url) return false;
   if (!connection.enabled) return false;
 
-  const serialized = JSON.stringify(body);
+  // Stamp the wake with the authoritative tenant identity so a shared runner can
+  // echo it back on its callbacks (ARC_WORKSPACE_HEADER) and act as the right
+  // workspace, instead of collapsing every callback to the default one. Absent a
+  // resolvable context (offline/demo), the runner falls back to default (back-compat).
+  const context = await getCurrentWorkspaceContext().catch(() => null);
+  const identity =
+    context?.orgId && context?.workspaceId ? { orgId: context.orgId, workspaceId: context.workspaceId } : {};
+
+  const serialized = JSON.stringify({ ...body, ...identity });
   const headers: Record<string, string> = { "content-type": "application/json" };
 
   const secret = await resolveWebhookSecret(connection.webhookSecretRef);

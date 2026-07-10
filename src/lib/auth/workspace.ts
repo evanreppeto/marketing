@@ -114,6 +114,29 @@ async function fetchWorkspaceById(client: QueryClient, workspaceId: string): Pro
   return data ?? null;
 }
 
+/**
+ * Validate a workspace id and return its authoritative { orgId, workspaceId },
+ * or null if it doesn't exist / isn't active.
+ *
+ * Used by the trusted first-party Arc runner: a shared-env-token callback asserts
+ * which workspace it is acting for (echoed from the wake payload), and we derive
+ * the org from the DB here rather than trusting the asserted value — so a spoofed
+ * org can never widen scope.
+ */
+export async function resolveWorkspaceScopeById(
+  workspaceId: string,
+  client?: SupabaseClient,
+): Promise<{ orgId: string; workspaceId: string } | null> {
+  if (!client && !isSupabaseAdminConfigured()) return null;
+  const db = client ?? getSupabaseAdminClient();
+  try {
+    const row = await fetchWorkspaceById(db, workspaceId);
+    return row ? { orgId: row.org_id, workspaceId: row.id } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchDefaultWorkspace(client: QueryClient, org: OrgRow): Promise<WorkspaceContext> {
   const { data, error } = await client
     .from("workspaces")

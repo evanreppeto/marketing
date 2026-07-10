@@ -1,8 +1,14 @@
 import type { Config } from "./config";
+import type { WakeTenantIdentity } from "./types";
 
 /**
  * Thin client over the app's Arc Operations API (/api/v1/arc/*). The runner
  * never touches Supabase directly — this is its only seam into app state.
+ *
+ * A client is created per wake with that wake's tenant identity, which it echoes
+ * on every callback as X-Arc-Workspace-Id / X-Arc-Org-Id. The app's arcGuard
+ * validates the workspace and scopes the request to it, so a single shared runner
+ * writes back to the correct tenant instead of the app's default workspace.
  */
 
 export type ChatReplyInput = {
@@ -27,11 +33,13 @@ function toQuery(params: QueryParams | undefined): string {
   return s ? `?${s}` : "";
 }
 
-export function createArcClient(config: Config) {
-  const headers = {
+export function createArcClient(config: Config, identity?: WakeTenantIdentity) {
+  const headers: Record<string, string> = {
     "content-type": "application/json",
     authorization: `Bearer ${config.arcAgentApiToken}`,
   };
+  if (identity?.workspaceId) headers["x-arc-workspace-id"] = identity.workspaceId;
+  if (identity?.orgId) headers["x-arc-org-id"] = identity.orgId;
 
   /** Authenticated GET against the Operations API. Throws on non-2xx or { ok:false }. */
   async function apiGet<T = unknown>(path: string, params?: QueryParams): Promise<T> {

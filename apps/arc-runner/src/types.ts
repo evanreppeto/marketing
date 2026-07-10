@@ -6,6 +6,14 @@
 
 export type MarkMention = { type: string; id: string; label: string; href: string };
 
+/**
+ * Tenant identity stamped on every wake by the app (src/lib/arc-chat/notify.ts).
+ * The runner echoes it back on its callbacks (X-Arc-Workspace-Id / X-Arc-Org-Id)
+ * so a single shared runner acts as the correct workspace instead of collapsing
+ * to the app's default. Optional for back-compat with older wakes.
+ */
+export type WakeTenantIdentity = { orgId?: string; workspaceId?: string };
+
 export type ArcAttachment = { url: string; objectPath: string; contentType: string; name: string };
 
 /** One prior turn of the conversation, injected so Arc has memory. */
@@ -16,7 +24,7 @@ type ArcSkillSelection = {
   skillId?: string | null;
 };
 
-export type MarkChatMessagePayload = ArcSkillSelection & {
+export type MarkChatMessagePayload = ArcSkillSelection & WakeTenantIdentity & {
   type: "arc_chat_message";
   messageId: string;
   conversationId: string;
@@ -47,7 +55,7 @@ export type MarkPingPayload = { type: "ping"; workspaceId?: string; nonce?: stri
  * opportunity. `message` is a full briefing used verbatim as the prompt; the
  * draft is linked back via `opportunityId` (threaded into create_campaign_draft).
  */
-export type ArcOpportunityDraftPayload = ArcSkillSelection & {
+export type ArcOpportunityDraftPayload = ArcSkillSelection & WakeTenantIdentity & {
   type: "arc_opportunity_draft";
   opportunityId: string;
   agentTaskId: string;
@@ -56,14 +64,14 @@ export type ArcOpportunityDraftPayload = ArcSkillSelection & {
   operator: string;
 };
 
-export type ArcOpportunityScanPayload = ArcSkillSelection & {
+export type ArcOpportunityScanPayload = ArcSkillSelection & WakeTenantIdentity & {
   type: "arc_opportunity_scan";
   agentTaskId: string;
   message: string;
   operator: string;
 };
 
-export type ArcCampaignTaskPayload = ArcSkillSelection & {
+export type ArcCampaignTaskPayload = ArcSkillSelection & WakeTenantIdentity & {
   type: "arc_campaign_task";
   agentTaskId: string;
   campaignId: string;

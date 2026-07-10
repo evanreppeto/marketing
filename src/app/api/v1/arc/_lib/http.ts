@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { checkAgentBearer } from "@/lib/auth/api-token";
-import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getCurrentWorkspaceContext, resolveWorkspaceScopeById } from "@/lib/auth/workspace";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -43,8 +43,12 @@ export function supabaseGuard(): NextResponse | null {
 export type ArcWorkspaceScope = {
   orgId: string;
   workspaceId: string;
-  source: "agent-token" | "legacy-env-token";
+  source: "agent-token" | "env-workspace-asserted" | "legacy-env-token";
 };
+
+/** Header the trusted runner sets to declare which workspace a callback acts for. */
+export const ARC_WORKSPACE_HEADER = "x-arc-workspace-id";
+export const ARC_ORG_HEADER = "x-arc-org-id";
 
 export type ArcGuardResult =
   | { ok: true; scope: ArcWorkspaceScope }
@@ -115,6 +119,34 @@ export async function arcGuard(request: Request): Promise<ArcGuardResult> {
       };
     }
     return { ok: true, scope: { orgId: auth.orgId, workspaceId, source: "agent-token" } };
+  }
+
+  // Trusted first-party runner path. The shared env token proves "this is our
+  // runner"; a shared runner serving many tenants asserts which workspace it is
+  // acting for via the ARC_WORKSPACE_HEADER (echoed from the wake payload). We
+  // validate that workspace against the DB and derive the authoritative org, so a
+  // spoofed ARC_ORG_HEADER can't widen scope. Absent the header, keep the historic
+  // default-workspace resolution for single-runner / local back-compat.
+  const assertedWorkspaceId = request.headers.get(ARC_WORKSPACE_HEADER)?.trim();
+  if (assertedWorkspaceId) {
+    const resolved = await resolveWorkspaceScopeById(assertedWorkspaceId);
+    if (!resolved) {
+      return {
+        ok: false,
+        response: fail("workspace_required", "The asserted Arc workspace was not found or is inactive.", 409),
+      };
+    }
+    const assertedOrgId = request.headers.get(ARC_ORG_HEADER)?.trim();
+    if (assertedOrgId && assertedOrgId !== resolved.orgId) {
+      return {
+        ok: false,
+        response: fail("workspace_mismatch", "The asserted org does not match the workspace.", 409),
+      };
+    }
+    return {
+      ok: true,
+      scope: { orgId: resolved.orgId, workspaceId: resolved.workspaceId, source: "env-workspace-asserted" },
+    };
   }
 
   try {
