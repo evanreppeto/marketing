@@ -27,7 +27,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   };
 
   if (probe && isMediaGenEnabled()) {
-    const provider = getMediaProvider();
+    const provider = getMediaProvider(process.env.GEMINI_API_KEY?.trim() ?? null);
     report.imageProbe = await probeImage(provider);
     report.videoProbe = await probeVideoStart(provider);
   }

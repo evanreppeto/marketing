@@ -7,7 +7,9 @@ vi.mock("@/app/api/v1/arc/_lib/http", async (importOriginal) => {
     arcGuard: vi.fn(async () => ({ ok: true, scope: { orgId: "org-1", workspaceId: "ws-1", source: "agent-token" } })),
   };
 });
-vi.mock("@/lib/media", () => ({ isMediaGenEnabled: vi.fn(() => true) }));
+vi.mock("@/lib/media/access", () => ({
+  resolveWorkspaceMediaAccess: vi.fn(async () => ({ enabled: true, apiKey: "k", source: "workspace" })),
+}));
 vi.mock("@/lib/brand-kit/persistence", () => ({ getBusinessProfile: vi.fn(async () => null) }));
 vi.mock("@/lib/media/compose/renderer", () => ({
   renderCreative: vi.fn(async () => ({ bytes: Buffer.from("png-bytes"), contentType: "image/png" })),
@@ -15,7 +17,7 @@ vi.mock("@/lib/media/compose/renderer", () => ({
 vi.mock("@/lib/media/storage", () => ({ storeGeneratedMedia: vi.fn(async () => "https://cdn.example/composite.png") }));
 
 import { POST } from "./route";
-import { isMediaGenEnabled } from "@/lib/media";
+import { resolveWorkspaceMediaAccess } from "@/lib/media/access";
 
 const post = (body: unknown) =>
   POST(new Request("http://localhost/api/v1/arc/media/compose", { method: "POST", body: JSON.stringify(body) }));
@@ -44,7 +46,7 @@ describe("POST /api/v1/arc/media/compose", () => {
   });
 
   it("returns 503 when media gen is disabled", async () => {
-    vi.mocked(isMediaGenEnabled).mockReturnValueOnce(false);
+    vi.mocked(resolveWorkspaceMediaAccess).mockResolvedValueOnce({ enabled: false, apiKey: null, source: "none" });
     const res = await post({ background_url: "https://cdn.example/bg.png", headline: "Flooded?" });
     expect(res.status).toBe(503);
   });

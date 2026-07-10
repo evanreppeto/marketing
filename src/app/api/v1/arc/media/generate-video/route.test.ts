@@ -25,8 +25,14 @@ const storeGeneratedMedia = vi.hoisted(() =>
   }),
 );
 vi.mock("@/lib/media", () => ({
-  isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ startVideo, pollVideo }),
+}));
+vi.mock("@/lib/media/access", () => ({
+  resolveWorkspaceMediaAccess: async () => ({
+    enabled: process.env.ARC_MEDIA_ENABLED === "1",
+    apiKey: process.env.ARC_MEDIA_ENABLED === "1" ? "test-key" : null,
+    source: "env",
+  }),
 }));
 vi.mock("@/lib/media/storage", () => ({
   storeGeneratedMedia,

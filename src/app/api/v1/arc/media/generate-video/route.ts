@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { parseArcRoute } from "@/domain";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
-import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
+import { getMediaProvider } from "@/lib/media";
+import { resolveWorkspaceMediaAccess } from "@/lib/media/access";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedMedia } from "@/lib/media/storage";
@@ -20,8 +21,13 @@ import { recordUsageEvent } from "@/lib/ai-usage/persistence";
 export async function POST(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
-  if (!isMediaGenEnabled()) {
-    return fail("not_configured", "Video generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
+  const access = await resolveWorkspaceMediaAccess(allowed.scope.workspaceId);
+  if (!access.enabled) {
+    return fail(
+      "not_configured",
+      "Video generation isn't enabled. Connect a Gemini API key in Settings → Connectors, or set ARC_MEDIA_ENABLED + GEMINI_API_KEY.",
+      503,
+    );
   }
   const payload = await readJson(request);
   if (payload === INVALID_JSON || typeof payload !== "object" || payload === null) {
@@ -33,7 +39,7 @@ export async function POST(request: Request) {
   // level -> env/default. Computed each call; the poll request may omit body.level
   // (start already picked the model), so it falls back safely either way.
   const level = parseArcRoute(body.level ?? settings.markDefaultRoute);
-  const provider = getMediaProvider({ level, imageModel: settings.imageModel, videoModel: settings.videoModel });
+  const provider = getMediaProvider(access.apiKey, { level, imageModel: settings.imageModel, videoModel: settings.videoModel });
   if (!provider) return fail("not_configured", "Video generation isn't enabled.", 503);
 
   const operationName = typeof body.operation_name === "string" ? body.operation_name.trim() : "";

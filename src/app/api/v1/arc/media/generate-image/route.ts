@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { parseArcRoute } from "@/domain";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
-import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
+import { getMediaProvider } from "@/lib/media";
+import { resolveWorkspaceMediaAccess } from "@/lib/media/access";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
 import { storeGeneratedImage } from "@/lib/media/storage";
@@ -25,8 +26,15 @@ export async function POST(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
 
-  if (!isMediaGenEnabled()) {
-    return fail("not_configured", "Image generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
+  // Per-workspace media access: a tenant's own Gemini key (on its own billing) or
+  // the shared env key. `getMediaProvider` is then built from the resolved key.
+  const access = await resolveWorkspaceMediaAccess(allowed.scope.workspaceId);
+  if (!access.enabled) {
+    return fail(
+      "not_configured",
+      "Image generation isn't enabled. Connect a Gemini API key in Settings → Connectors, or set ARC_MEDIA_ENABLED + GEMINI_API_KEY.",
+      503,
+    );
   }
 
   const payload = await readJson(request);
@@ -45,7 +53,7 @@ export async function POST(request: Request) {
   // turn's level mapping, which beats the workspace default level, which beats
   // env/built-in default. The turn's level rides on body.level.
   const level = parseArcRoute(body.level ?? settings.markDefaultRoute);
-  const provider = getMediaProvider({ level, imageModel: settings.imageModel, videoModel: settings.videoModel });
+  const provider = getMediaProvider(access.apiKey, { level, imageModel: settings.imageModel, videoModel: settings.videoModel });
   if (!provider) return fail("not_configured", "Image generation isn't enabled.", 503);
 
   try {

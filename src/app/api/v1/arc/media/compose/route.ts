@@ -8,7 +8,7 @@ import {
   type CreativeCopy,
 } from "@/domain";
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
-import { isMediaGenEnabled } from "@/lib/media";
+import { resolveWorkspaceMediaAccess } from "@/lib/media/access";
 import { renderCreative } from "@/lib/media/compose/renderer";
 import { storeGeneratedMedia } from "@/lib/media/storage";
 import { getBusinessProfile } from "@/lib/brand-kit/persistence";
@@ -33,8 +33,13 @@ export async function POST(request: Request) {
   const allowed = await arcGuard(request);
   if (!allowed.ok) return allowed.response;
 
-  if (!isMediaGenEnabled()) {
-    return fail("not_configured", "Creative compositing isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
+  const access = await resolveWorkspaceMediaAccess(allowed.scope.workspaceId);
+  if (!access.enabled) {
+    return fail(
+      "not_configured",
+      "Creative compositing isn't enabled. Connect a Gemini API key in Settings → Connectors, or set ARC_MEDIA_ENABLED + GEMINI_API_KEY.",
+      503,
+    );
   }
 
   const payload = await readJson(request);

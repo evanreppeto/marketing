@@ -99,15 +99,20 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
   {
     key: "gemini-research",
     kind: "mcp_tool",
-    label: "Gemini Web Research",
-    description: "Grounded web search with citations, using this workspace's own Gemini API key.",
+    label: "Gemini (Google AI)",
+    description:
+      "This workspace's own Gemini API key. Powers grounded web research with citations AND image/video " +
+      "generation (Imagen/Veo) — media output always lands as an approval-gated draft asset on your own billing.",
     costTier: "byo_key",
     verticals: [],
-    capability: { summary: "Grounded web research with citations.", toolNamespaces: ["gemini"] },
+    capability: {
+      summary: "Grounded web research with citations, plus image/video generation on your own key.",
+      toolNamespaces: ["gemini"],
+    },
     credentialSchema: {
       kind: "api_key",
       label: "Gemini API key",
-      hint: "From Google AI Studio. Stored encrypted in your Vault — never shown again, never sent to the browser.",
+      hint: "From Google AI Studio. Powers research + media generation. Stored encrypted in your Vault — never shown again, never sent to the browser.",
     },
     authKind: "api_key",
     access: "read_only",

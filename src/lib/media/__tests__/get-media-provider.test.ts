@@ -34,28 +34,27 @@ function lastOpts(): { imageModel?: string; videoModel?: string } {
 }
 
 describe("getMediaProvider precedence", () => {
-  it("returns null when media gen is disabled", () => {
-    process.env.ARC_MEDIA_ENABLED = "0";
-    expect(getMediaProvider({ level: "standard" })).toBeNull();
+  it("returns null when no API key is available", () => {
+    expect(getMediaProvider(null, { level: "standard" })).toBeNull();
     expect(createGeminiMediaProvider).not.toHaveBeenCalled();
   });
 
   it("explicit Advanced override beats the level", () => {
-    getMediaProvider({ level: "standard", imageModel: "gemini-2.5-flash-image" });
+    getMediaProvider("k", { level: "standard", imageModel: "gemini-2.5-flash-image" });
     expect(lastOpts().imageModel).toBe("gemini-2.5-flash-image"); // override, not Studio's Pro
   });
 
   it("level maps to its media tier when there is no override", () => {
-    getMediaProvider({ level: "standard" });
+    getMediaProvider("k", { level: "standard" });
     expect(lastOpts().imageModel).toBe("gemini-3-pro-image");
     expect(lastOpts().videoModel).toBe("veo-3.1-generate-preview");
-    getMediaProvider({ level: "fast" });
+    getMediaProvider("k", { level: "fast" });
     expect(lastOpts().imageModel).toBe("gemini-3.1-flash-image");
     expect(lastOpts().videoModel).toBe("veo-3.1-fast-generate-preview");
   });
 
   it("passes undefined (provider falls back to env/default) with neither override nor level", () => {
-    getMediaProvider({});
+    getMediaProvider("k", {});
     expect(lastOpts().imageModel).toBeUndefined();
     expect(lastOpts().videoModel).toBeUndefined();
   });
