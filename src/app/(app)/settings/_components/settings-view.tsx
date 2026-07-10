@@ -6,8 +6,9 @@ import type { SettingsTeamInvite, SettingsTeamMember, SettingsTeamView, Workspac
 import { WORKSPACE_ROLES } from "@/lib/auth/workspace-roles";
 import type { SettingsWorkspace, SettingsWorkspacesView } from "@/lib/auth/workspaces-view";
 import type { SettingsUsageView } from "@/lib/ai-usage/settings-summary";
+import type { ConnectorSpendView } from "@/lib/connectors/spend-summary";
 
-import { connectorMatchesIndustry, findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
+import { connectorMatchesIndustry, describeConnectorCost, findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
@@ -33,6 +34,7 @@ import {
 import { connectConnector, disconnectConnector, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
 import { setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
 import type { ConnectionView } from "@/lib/connections/read-model";
+import { setConnectorSpendCap } from "../spend-actions";
 import { ImageUploadField } from "./image-upload-field";
 import { NewWorkspaceModal, type NewWorkspaceValue } from "./new-workspace-modal";
 
@@ -72,7 +74,7 @@ const SUBTABS: Record<string, string[]> = {
   connections: ["Live", "Roadmap"],
   media: ["Defaults", "Roster"],
   account: ["Identity", "Sign-in"],
-  usage: ["Overview", "By day", "By model", "Recent"],
+  usage: ["Overview", "Connectors", "By day", "By model", "Recent"],
 };
 const SECTION_LABEL: Record<string, string> = Object.fromEntries(NAVGROUPS.flatMap((g) => g.items.map((it) => [it[0], it[1]])));
 
@@ -208,6 +210,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "",
     credHint: "No credential — reads live NWS/NOAA alerts (public API) and proposes storm-response opportunities. Configure the states to watch.",
   },
+  "reviews-signals": {
+    c: "#e0a94a",
+    l: "Rv",
+    credLabel: "Google Business Profile",
+    credHint: "Connect your Google Business Profile (and optionally Yelp) to pull recent reviews. Stored in your Vault; used read-only — it proposes opportunities and never replies.",
+  },
   "webhook-dispatch": {
     c: "#9aa0ac",
     l: "Wh",
@@ -280,7 +288,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, settings, connectors, workspaces, emailConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, settings, connectors, workspaces, emailConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -580,7 +588,9 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
       <>
         <Head t="Usage & billing" d="What Arc has consumed this period — tokens, runs, and estimated cost, broken down by day and by model." />
         {subBar}
-        {activeSub === "By day" ? (
+        {activeSub === "Connectors" ? (
+          <ConnectorSpendPanel key={connectorSpend ? `cap-${connectorSpend.capDollars}` : "cap-none"} spend={connectorSpend} />
+        ) : activeSub === "By day" ? (
           <UsageByDay usage={usageView} />
         ) : activeSub === "By model" ? (
           <UsageByModel usage={usageView} />
@@ -1127,6 +1137,12 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
   const reg = findConnector(view.key);
   const pill = CONNECTOR_STATUS_PILL[view.status];
   const cost = COST_TIER_BADGE[view.costTier];
+  // Up-front cost disclosure for metered connectors — shown before you connect /
+  // enable (no surprise charges). Rate lives in src/domain/connector-metering.ts.
+  const costDisclosure = view.costTier === "metered" ? describeConnectorCost(view.key) : null;
+  const costDesc = costDisclosure
+    ? `${cost.title} ${costDisclosure} — billed against your workspace spend cap (Settings → Usage).`
+    : cost.title;
   const kindLabel = CONNECTOR_KIND_LABEL[view.kind] ?? view.kind;
   // No-credential connectors (public signal source, config-only channel) have no
   // Vault secret to store — they are set up by flipping the enable switch.
@@ -1174,7 +1190,7 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
       <div className="condetail-hd">
         <span className="clogo" style={{ background: `${meta.c}22`, border: `1px solid ${meta.c}55`, color: meta.c, width: 46, height: 46 }}>{meta.l}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 21, margin: 0 }}>{view.label}</h2><Pill kind={pill.kind}>{pill.label}</Pill><span className="badge" title={cost.title}>{cost.label}</span><span className="badge">{kindLabel}</span></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 21, margin: 0 }}>{view.label}</h2><Pill kind={pill.kind}>{pill.label}</Pill><span className="badge" title={costDesc}>{cost.label}</span><span className="badge">{kindLabel}</span></div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, lineHeight: 1.5 }}>{view.description}</div>
         </div>
       </div>
@@ -1246,7 +1262,7 @@ function ConnectorDetail({ view, configured, onBack }: { view: ConnectorView; co
 
       <Panel title="Details" tag={TGOK}>
         <Row label="Kind" desc="What this connector plugs in — a tool, a read-only signal source, or an outbound channel."><span className="ptxt">{kindLabel}</span></Row>
-        <Row label="Cost" desc={cost.title}><span className="ptxt">{cost.label}</span></Row>
+        <Row label="Cost" desc={costDesc}><span className="ptxt">{costDisclosure ? `${cost.label} · ${costDisclosure}` : cost.label}</span></Row>
         {reg?.verticals.length ? <Row label="Best for"><span className="ptxt">{reg.verticals.join(", ")}</span></Row> : null}
         <Row label="Authentication"><span className="ptxt">{view.authKind === "oauth" ? "Bearer token" : view.authKind === "api_key" ? "API key" : "None"}</span></Row>
         <Row label="Access" desc="Read-only connectors can’t write; gated-write output stays approval-locked."><span className="ptxt">{view.access === "read_only" ? "Read-only" : "Gated write"}</span></Row>
@@ -1476,5 +1492,76 @@ function UsageRecent({ usage }: { usage: SettingsUsageView }) {
         </div>
       ))}
     </Panel>
+  );
+}
+
+// ---- Metered-connector spend (BSR-372): per-connector spend, remaining budget,
+//      and the spend-cap editor. Raising the cap is the operator's explicit
+//      approval of more metered spend. free / byo_key connectors never appear here.
+// Keyed on the server cap (see call site) so a saved/revalidated cap re-seeds the
+// input via remount — no setState-in-effect (cascading-render lint rule).
+function ConnectorSpendPanel({ spend }: { spend: ConnectorSpendView | null }) {
+  const [cap, setCap] = useState(String(spend?.capDollars ?? 50));
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<SaveStatus>(null);
+
+  if (!spend) return <UsageEmpty label="Connector spend appears here once a metered connector is enabled." />;
+  const rows = spend.rows;
+  const maxCost = Math.max(...rows.map((r) => r.costCents), 1);
+  const barTone = spend.isOverCap ? "var(--red-text)" : spend.isNearCap ? "var(--warn)" : undefined;
+
+  async function save() {
+    setPending(true);
+    setStatus(null);
+    const res = await setConnectorSpendCap({ capDollars: Number(cap) });
+    setPending(false);
+    setStatus(toStatus(res, `Spend cap set to $${Number(cap || 0).toFixed(0)}.`));
+  }
+
+  return (
+    <>
+      <Panel title="Metered connector spend" tag={usageTag(spend.isDemo)} foot="connector_usage_events + connector_spend_budgets · this workspace · this month">
+        <div style={{ padding: 4 }}>
+          <div className="ukpis">
+            {[[spend.spentLabel, "Spent"], [spend.remainingLabel, "Remaining"], [spend.capLabel, "Spend cap"]].map(([v, l]) => (
+              <div className="ukpi" key={l}><div className="uv">{v}</div><div className="ul">{l}</div></div>
+            ))}
+          </div>
+          <div className="ubar"><i style={{ width: `${Math.min(spend.pctOfCap, 100)}%`, ...(barTone ? { background: barTone } : {}) }} /></div>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 7 }}>
+            {spend.pctOfCap}% of your {spend.capLabel} cap · {spend.periodLabel}
+            {spend.isOverCap ? " · cap reached — metered runs are refused until you raise it" : spend.isNearCap ? " · nearing your cap" : ""}
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title="Spend cap" tag={TGOK} foot="connector_spend_budgets · raising the cap approves more metered spend — a run over the cap is refused, never silently overspent">
+        {!spend.configured && <div style={{ fontSize: 11.5, color: "var(--muted)", padding: "10px 0 4px", lineHeight: 1.5 }}>You’re previewing without a connected workspace — changes won’t persist here.</div>}
+        <Row label="Monthly cap" desc="Metered data connectors (enrichment, permit / property data) may spend up to this per month. A run that would exceed it is refused; raising the cap is your approval of the extra spend.">
+          <span className="pillrow" style={{ alignItems: "center", gap: 8 }}>
+            <span style={{ color: "var(--muted)", fontSize: 13 }}>$</span>
+            <input className="inp" style={{ minWidth: 0, width: 96 }} type="number" min={0} step={5} value={cap} onChange={(e) => setCap(e.target.value)} />
+            <button className="btn sm gold" disabled={pending} onClick={save}>{pending ? "Saving…" : "Save cap"}</button>
+          </span>
+        </Row>
+        {status && <div style={{ padding: "8px 0 2px" }}><Status status={status} /></div>}
+      </Panel>
+
+      <Panel title="By connector" tag={usageTag(spend.isDemo)} foot="metered connectors only · free / your-key connectors never bill">
+        {rows.map((r) => (
+          <div className="usagerow" key={r.key}>
+            <div style={{ flex: "0 0 180px", minWidth: 0 }}>
+              <div className="ug-name" title={r.key}>{r.label}</div>
+              <div style={{ fontSize: 10.5, color: "var(--muted)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {r.disclosure ?? "metered"}
+              </div>
+            </div>
+            <div className="ug-bar"><i style={{ width: `${Math.max(4, (r.costCents / maxCost) * 100)}%` }} /></div>
+            <div className="ug-meta">{r.count ? `${r.count} run${r.count === 1 ? "" : "s"} · ${r.units.toLocaleString()} lookups` : "no spend yet"}</div>
+            <div className="ug-cost">{r.costLabel}</div>
+          </div>
+        ))}
+      </Panel>
+    </>
   );
 }

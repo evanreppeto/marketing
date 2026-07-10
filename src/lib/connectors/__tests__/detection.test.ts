@@ -72,7 +72,8 @@ describe("runSignalSourceDetection", () => {
 
     const res = await runSignalSourceDetection({ workspaceId: "ws-1", orgId: "org-1", client: mock, now: NOW });
 
-    expect(res).toEqual({ ok: true, bySource: { "weather-signals": 1 }, total: 1 });
+    // free connectors bypass cost metering, so `refused` stays empty (BSR-372).
+    expect(res).toEqual({ ok: true, bySource: { "weather-signals": 1 }, total: 1, refused: {} });
     expect(insertedRows(mock)[0]).toMatchObject({
       kind: "weather_event",
       subject_id: "urn:oid:warn-1",
@@ -102,7 +103,7 @@ describe("runSignalSourceDetection", () => {
 
     const res = await runSignalSourceDetection({ workspaceId: "ws-1", orgId: "org-1", client: mock, now: NOW });
 
-    expect(res).toEqual({ ok: true, bySource: {}, total: 0 });
+    expect(res).toEqual({ ok: true, bySource: {}, total: 0, refused: {} });
     expect(mock.calls.find((c) => c[0] === "insert")).toBeUndefined();
   });
 });
