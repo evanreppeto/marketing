@@ -231,3 +231,26 @@ export async function getConnections(client?: SupabaseClient, options: GetConnec
   const driveConnection = await getGoogleDriveStatusConnection(supabase, options, !client);
   return applyGoogleDriveConnectionStatus(views, driveConnection);
 }
+
+/**
+ * Focused read for the Settings email card: just the Resend row (or a registry
+ * fallback when it doesn't exist yet). Lighter than getConnections — no social /
+ * Google Drive lookups — since the email card only needs enable + from + last test.
+ */
+export async function getEmailConnection(client?: SupabaseClient): Promise<ConnectionView> {
+  const entry = CONNECTION_REGISTRY.find((e) => e.provider === "resend")!;
+  const supabase = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
+  if (!supabase) return fallbackViewFor(entry);
+
+  const { data, error } = await supabase
+    .from("connections")
+    .select("provider,kind,label,enabled,env_var,config,last_tested_at,last_test_ok,last_test_error,last_used_at")
+    .eq("provider", "resend")
+    .maybeSingle();
+
+  if (error) {
+    console.warn(`email connection lookup failed, using registry fallback: ${error.message}`);
+    return fallbackViewFor(entry);
+  }
+  return data ? rowToView(data as ConnectionRow) : fallbackViewFor(entry);
+}
