@@ -26,6 +26,7 @@ export * from "./campaign-assets";
 export * from "./agent-run-status";
 export * from "./connections";
 export * from "./connectors";
+export * from "./connector-metering";
 export * from "./companies";
 export * from "./contacts";
 export * from "./properties";

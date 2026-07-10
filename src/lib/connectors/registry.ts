@@ -37,6 +37,13 @@ export type SignalSourceConnector = {
   key: string;
   /** Propose opportunities. Pure/read-only — never writes, never sends. */
   detect(ctx: SignalDetectContext): Promise<OpportunityCandidate[]> | OpportunityCandidate[];
+  /**
+   * How many billable units a scan of this config will cost (metered connectors
+   * only). Priced up front so the run can be authorised against the spend cap
+   * BEFORE detect() fires. Omitted for free connectors; a metered source without
+   * one is charged a flat 1 unit per run. Must not do I/O.
+   */
+  estimateUnits?(config: Record<string, unknown>): number;
 };
 
 /** The approved message payload a channel is asked to dispatch. */

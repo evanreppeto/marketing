@@ -212,6 +212,34 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     mcpUrl: null,
     toolNamespace: "webhook-dispatch",
   },
+  // --- First `metered` connector: a paid third-party data vendor. It is GOVERNED
+  //     by the cost model (BSR-372) — every scan meters billable lookups against
+  //     the workspace spend cap. Stub today; the real vendor swaps in via BSR-368
+  //     enrichment. Pricing lives in src/domain/connector-metering.ts. ---
+  {
+    key: "permit-data",
+    kind: "signal_source",
+    label: "Permit & Property Data",
+    description:
+      "Metered signal source: pulls paid building-permit / property records for watched municipalities and " +
+      "proposes renovation & restoration opportunities. Billable — each municipality scanned is one paid lookup, " +
+      "metered against your spend cap. Read-only: it only proposes, never contacts anyone.",
+    costTier: "metered",
+    verticals: ["restoration", "home_services", "construction", "real_estate"],
+    capability: {
+      summary: "Emits permit-backed renovation/restoration opportunities for watched municipalities.",
+      opportunityKinds: ["permit_filed"],
+    },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Permit data API key",
+      hint: "From your permit-data vendor. Stored encrypted in your Vault. Usage is billed per lookup — see Settings → Usage.",
+    },
+    authKind: "api_key",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "permit-data",
+  },
 ];
 
 export function findConnector(key: string): ConnectorRegistryEntry | null {
