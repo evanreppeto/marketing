@@ -4,16 +4,21 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentAgentTaskTenantFields } from "@/lib/agent-tasks/scope";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
+import { executeResendDispatch } from "@/lib/dispatch/execute-resend";
 import { transitionDispatch } from "@/lib/dispatch/persistence";
 import { DISPATCH_STATUS_ORDER, type DispatchStatus } from "@/lib/dispatch/status";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
- * Operator-driven dispatch transitions from the Outbox — confirm a queued send,
- * mark a sent dispatch delivered, retry a failure, or cancel. These record real
- * `campaign_dispatches` state changes + a campaign event; the app never performs
- * the send itself (the outbound-locked posture — a human confirms every send).
- * Gated by requireOperator() and org-scoped. `persisted: false` is the honest
+ * Operator-driven dispatch controls from the Outbox. Two kinds:
+ *  - `sendDispatchAction` — the real outbound gate: a human confirms and the app
+ *    performs the actual Resend send via `executeResendDispatch`, which itself
+ *    refuses anything not queued/scheduled + approved and is idempotent. This is
+ *    the outbound-locked posture in practice — Arc never sends on its own; a human
+ *    confirms every send, and only then does mail leave the building.
+ *  - `transitionDispatchAction` — lifecycle bookkeeping after the fact (mark a sent
+ *    dispatch delivered, retry a failure back to queued, cancel). No send.
+ * Both are gated by requireOperator(). `persisted: false` is the honest
  * offline/demo signal.
  */
 export type OutboxActionResult =
@@ -38,5 +43,29 @@ export async function transitionDispatchAction(dispatchId: string, to: DispatchS
     return { ok: true, persisted: true, status: to };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not update the dispatch." };
+  }
+}
+
+/**
+ * The real send. A human clicked "Confirm send" / "Send now" on an approved,
+ * queued (or scheduled) dispatch. Delegates to `executeResendDispatch`, which
+ * re-checks the approval gate + Resend kill-switch and is idempotent, then marks
+ * the row `sent`. This — not a status stamp — is what actually delivers mail.
+ */
+export async function sendDispatchAction(dispatchId: string): Promise<OutboxActionResult> {
+  await requireOperator();
+
+  if (!dispatchId) return { ok: false, error: "Missing dispatch." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false, status: "sent" };
+
+  try {
+    const operator = await getOperatorActor();
+    const result = await executeResendDispatch({ dispatchId, operator }, getSupabaseAdminClient());
+    if (!result.ok) return { ok: false, error: result.message };
+    revalidatePath("/outbox");
+    return { ok: true, persisted: true, status: "sent" };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not send the dispatch." };
   }
 }

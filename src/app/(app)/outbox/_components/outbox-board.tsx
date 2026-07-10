@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 
 import { type DispatchStatus } from "@/lib/dispatch/status";
 
-import { transitionDispatchAction } from "../actions";
+import { sendDispatchAction, transitionDispatchAction } from "../actions";
 
 export type OutboxChannel = "email" | "sms" | "social" | "other";
 
@@ -20,6 +20,9 @@ export type OutboxCardVM = {
   meta: string | null;
   action: string | null;
   actionTo: DispatchStatus | null;
+  // "send" performs a real outbound send (human confirm); "transition" is a
+  // lifecycle status mark.
+  actionKind: "send" | "transition";
 };
 
 export type BoardCardVM = {
@@ -73,12 +76,15 @@ export function OutboxBoard({
   const [, startTransition] = useTransition();
 
   function runAction(card: OutboxCardVM) {
-    if (!card.actionTo || busyId) return;
-    const to = card.actionTo;
+    if (busyId) return;
+    if (card.actionKind === "transition" && !card.actionTo) return;
     setBusyId(card.id);
     setFailed(null);
     startTransition(async () => {
-      const res = await transitionDispatchAction(card.id, to);
+      const res =
+        card.actionKind === "send"
+          ? await sendDispatchAction(card.id)
+          : await transitionDispatchAction(card.id, card.actionTo!);
       setBusyId(null);
       if (!res.ok) {
         setFailed({ id: card.id, message: res.error });
@@ -102,7 +108,7 @@ export function OutboxBoard({
         <div className="otitle">
           <div>
             <h1 className="pt">Outbox</h1>
-            <div className="psub">Approved deliverables in flight. The app records state and hands off — it never sends on its own.</div>
+            <div className="psub">Approved deliverables in flight. Nothing goes out until you confirm — then it sends for real via Resend.</div>
           </div>
           <div style={{ display: "flex", gap: 9 }}>
             <button type="button" className="gbtn" onClick={() => router.refresh()}>
