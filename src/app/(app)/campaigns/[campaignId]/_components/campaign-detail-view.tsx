@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
+import { type AudienceResolution } from "@/domain";
 import {
   type CampaignMediaAsset,
   type CampaignWorkspaceAsset,
@@ -276,7 +277,7 @@ function provTone(source: string): string {
   return "stock";
 }
 
-export function CampaignDetailView({ detail, performance }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel }) {
+export function CampaignDetailView({ detail, performance, audience }: { detail: LiveCampaignWorkspace; performance: CampaignPerformancePanel; audience?: AudienceResolution | null }) {
   const { campaign, launchState, executiveOverview, reasoning, sources, approvalHistory, media } = detail;
   const [assets, setAssets] = useState<CampaignWorkspaceAsset[]>(detail.assets);
   const [tab, setTab] = useState("deliverables");
@@ -665,6 +666,12 @@ export function CampaignDetailView({ detail, performance }: { detail: LiveCampai
                     Launch campaign
                   </button>
                 )}
+                {audience ? (
+                  <div className={`lc-audience${audience.eligibleCount === 0 ? " empty" : ""}`}>
+                    <svg viewBox="0 0 24 24" aria-hidden dangerouslySetInnerHTML={{ __html: '<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>' }} />
+                    <span>Email audience — {audience.summary}</span>
+                  </div>
+                ) : null}
                 <div className="lchint">
                   Launching unlocks approved deliverables for dispatch and opens the Outbox. Nothing sends automatically — you confirm each send there.
                 </div>

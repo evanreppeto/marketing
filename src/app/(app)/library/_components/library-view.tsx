@@ -2,15 +2,17 @@
 
 import { useMemo, useRef, useState } from "react";
 
-import { createLibraryFolder } from "../actions";
+import { createLibraryFolder, uploadLibraryAsset } from "../actions";
 import { ImportUrlModal } from "./import-url-modal";
 import { NewFolderModal } from "./new-folder-modal";
 
 type Kind = "image" | "video" | "logo" | "document";
 type Prov = "real" | "ai" | "comp" | "upload" | "logo" | "doc";
 
-type Asset = {
+export type Asset = {
   id: number;
+  /** Real media_assets uuid when this asset came from the DB (absent for mock/session rows). */
+  rid?: string;
   nm: string;
   kind: Kind;
   pv: Prov;
@@ -31,7 +33,7 @@ type Asset = {
   uses: number;
 };
 
-type Folder = { f: string; name: string; color: string; icon: string; children?: Folder[] };
+export type Folder = { f: string; name: string; color: string; icon: string; children?: Folder[] };
 
 // Inline SVG placeholders (verbatim from the mockup) — used when no CDN image is set.
 const SC: Record<string, string> = {
@@ -168,7 +170,7 @@ function descKeys(key: string): string[] {
 const NEW_CAMPAIGN = "/campaigns";
 const STUDIO = "/studio";
 
-export function LibraryView() {
+export function LibraryView({ assets, folders, live = false }: { assets?: Asset[]; folders?: Folder[]; live?: boolean } = {}) {
   const [curFolder, setCurFolder] = useState("all");
   const [curKind, setCurKind] = useState("all");
   const [curColl, setCurColl] = useState("all");
@@ -183,7 +185,7 @@ export function LibraryView() {
   // Folders + uploads created this session. Folders persist via createLibraryFolder;
   // uploads are held client-side (real media-store persistence lands with the
   // real data feed). Both show instantly.
-  const [tree, setTree] = useState<Folder[]>(TREE);
+  const [tree, setTree] = useState<Folder[]>(folders ?? TREE);
   const [uploaded, setUploaded] = useState<Asset[]>([]);
   const [folderOpen, setFolderOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -191,7 +193,8 @@ export function LibraryView() {
   const fileRef = useRef<HTMLInputElement>(null);
   const uidRef = useRef(-1);
 
-  const allAssets = useMemo(() => [...uploaded, ...ALL_ASSETS], [uploaded]);
+  const baseAssets = assets ?? ALL_ASSETS;
+  const allAssets = useMemo(() => [...uploaded, ...baseAssets], [uploaded, baseAssets]);
 
   // Folder counts over the live asset set (base assets + this session's uploads).
   const rcountLive = (f: string): number => {
@@ -205,8 +208,38 @@ export function LibraryView() {
 
   function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
     if (files.length === 0) return;
     const targetFolder = curFolder === "all" ? "upload" : curFolder;
+
+    // Live (real backend): persist each file to media_assets, then show the
+    // stored asset (real URL). The mock/demo path keeps the client-only preview.
+    if (live) {
+      setNotice(`Uploading ${files.length} file${files.length === 1 ? "" : "s"}…`);
+      let done = 0;
+      let failed = 0;
+      files.forEach((file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        if (curFolder !== "all") formData.append("folderId", curFolder);
+        uploadLibraryAsset(formData)
+          .then((res) => {
+            if (res.ok && res.asset) setUploaded((prev) => [{ ...res.asset!, id: uidRef.current-- }, ...prev]);
+            else failed++;
+          })
+          .catch(() => { failed++; })
+          .finally(() => {
+            done++;
+            if (done === files.length) {
+              setNotice(failed
+                ? `${files.length - failed} uploaded · ${failed} failed. Held for provenance review before Arc may reuse.`
+                : `${files.length} file${files.length === 1 ? "" : "s"} uploaded — held for provenance review before Arc may reuse.`);
+            }
+          });
+      });
+      return;
+    }
+
     const newAssets: Asset[] = files.map((file) => ({
       id: uidRef.current--,
       nm: file.name,
@@ -231,7 +264,6 @@ export function LibraryView() {
     setNotice(
       `${files.length} file${files.length === 1 ? "" : "s"} added — held for provenance review before Arc may reuse.`,
     );
-    e.target.value = "";
   }
 
   async function handleCreateFolder(name: string): Promise<{ ok: boolean; error?: string }> {
@@ -434,7 +466,22 @@ export function LibraryView() {
           <div className="gridscroll">
             {arcSugg}
             {list.length === 0 ? (
-              <div style={{ padding: "44px 16px", textAlign: "center", color: "var(--muted)", fontSize: "12.5px" }}>No assets match “{q}”</div>
+              live && allAssets.length === 0 && !q ? (
+                <div style={{ padding: "56px 16px", textAlign: "center" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Your library is empty</div>
+                  <div style={{ color: "var(--muted)", fontSize: "12.5px", lineHeight: 1.6, maxWidth: 440, margin: "0 auto 16px" }}>
+                    Upload your real photos, videos, and docs — this is the authentic media Arc packages into campaigns. You mark what Arc may reuse per asset.
+                  </div>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid var(--accent-border)", background: "var(--accent-soft)", color: "var(--accent)", font: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Upload media
+                  </button>
+                </div>
+              ) : (
+                <div style={{ padding: "44px 16px", textAlign: "center", color: "var(--muted)", fontSize: "12.5px" }}>No assets match “{q}”</div>
+              )
             ) : viewMode === "grid" ? (
               <div className="agrid">
                 {list.map((a) => (

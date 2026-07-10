@@ -141,6 +141,10 @@
 .arc-campaign .lctrl { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 .arc-campaign .lctrl .cbtn { flex: 1 1 auto; }
 .arc-campaign .lchint { flex-basis: 100%; font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+.arc-campaign .lc-audience { flex-basis: 100%; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--text-2); padding: 8px 10px; border: 1px solid var(--accent-border); background: var(--accent-soft); border-radius: 8px; margin-bottom: 2px; }
+.arc-campaign .lc-audience svg { width: 15px; height: 15px; flex-shrink: 0; stroke: var(--accent); fill: none; stroke-width: 1.7; }
+.arc-campaign .lc-audience.empty { border-color: var(--line-2); background: var(--inset); color: var(--muted); }
+.arc-campaign .lc-audience.empty svg { stroke: var(--muted); }
 .arc-campaign .glance { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); overflow: hidden; }
 .arc-campaign .glance .gl { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .arc-campaign .glance .gl:last-child { border-bottom: none; }

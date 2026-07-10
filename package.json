@@ -27,6 +27,7 @@
     "backfill:embeddings": "node scripts/backfill-embeddings.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:staging": "E2E_BASE_URL=https://marketing-staging-big-shoulders-restoration.vercel.app playwright test e2e/guardrails.spec.ts",
     "sandbox": "node scripts/sandbox/dev.mjs",
     "sandbox:up": "node scripts/sandbox/bootstrap.mjs",
     "sandbox:seed": "node scripts/sandbox/seed-all.mjs",
