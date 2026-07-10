@@ -20,6 +20,33 @@ function focusLabel(key: string): string {
 }
 
 /**
+ * Which flow the confirm modal drives:
+ * - `operator` — "Create campaign": an operator-owned draft shell.
+ * - `arc` — "Ask Arc to draft": also runs Arc to draft the full package.
+ */
+export type DraftMode = "operator" | "arc";
+
+const MODE_COPY: Record<
+  DraftMode,
+  { title: string; description: string; submit: string; submitting: string }
+> = {
+  operator: {
+    title: "Draft campaign from opportunity",
+    description:
+      "Arc seeds an approval-gated draft from this opportunity's evidence. Everything stays launch-locked — nothing sends until you approve it.",
+    submit: "Create draft",
+    submitting: "Creating draft…",
+  },
+  arc: {
+    title: "Ask Arc to draft a package",
+    description:
+      "Arc will draft a full starter package — email, SMS, paid, and landing copy — from this opportunity's evidence. Every piece lands approval-gated and launch-locked; nothing sends until you approve it.",
+    submit: "Ask Arc to draft",
+    submitting: "Arc is drafting…",
+  },
+};
+
+/**
  * Confirm/preview before converting an opportunity into a campaign draft. Shows
  * the read-only evidence Arc carries over (message angle, signals, subject
  * record) and lets the operator confirm/adjust the seeded name, persona, and
@@ -29,16 +56,19 @@ export function DraftCampaignModal({
   open,
   onClose,
   opp,
+  mode = "operator",
   onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
   opp: OpportunityVM;
+  mode?: DraftMode;
   /** Returns the outcome so the modal can surface an error and stay open on failure. */
   onSubmit: (
     value: Omit<DraftCampaignFromOpportunityInput, "opportunityId">,
   ) => Promise<{ ok: boolean; error?: string }>;
 }) {
+  const copy = MODE_COPY[mode];
   const [name, setName] = useState(opp.seed.name);
   const [persona, setPersona] = useState(opp.seed.persona);
   const [focus, setFocus] = useState(opp.seed.restorationFocus);
@@ -65,8 +95,8 @@ export function DraftCampaignModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Draft campaign from opportunity"
-      description="Arc seeds an approval-gated draft from this opportunity's evidence. Everything stays launch-locked — nothing sends until you approve it."
+      title={copy.title}
+      description={copy.description}
       width={620}
       footer={
         <>
@@ -74,7 +104,7 @@ export function DraftCampaignModal({
             Cancel
           </button>
           <button type="submit" form="draft-from-opp-form" className="mbtn gold" disabled={!canSubmit}>
-            {pending ? "Creating draft…" : "Create draft"}
+            {pending ? copy.submitting : copy.submit}
           </button>
         </>
       }

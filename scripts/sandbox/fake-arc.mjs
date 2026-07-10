@@ -136,6 +136,23 @@ async function handle(msg) {
   }
 }
 
+// Execute one queued "Ask Arc to draft" run: the endpoint claims the next queued
+// arc_opportunity_draft task and generates its approval-gated package (email /
+// SMS / paid / landing). Structurally can't send — assets land pending_approval.
+async function tickDraftPackages() {
+  let res;
+  try {
+    res = await api("/api/v1/arc/opportunities/draft-package", "POST", {});
+  } catch {
+    return; // app down — the chat tick already warns
+  }
+  if (res.status >= 300) return; // 401/403/502 — stay quiet
+  if (res.json?.status === "drafted") {
+    const n = res.json.assetIds?.length ?? 0;
+    log(paint("cyan", `  ↳ drafted a ${n}-asset package (pending approval) for campaign ${res.json.campaignId}`));
+  }
+}
+
 let warnedDown = false;
 async function tick() {
   let res;
@@ -169,6 +186,7 @@ async function main() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     await tick();
+    await tickDraftPackages();
     await sleep(POLL_MS);
   }
 }
