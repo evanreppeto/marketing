@@ -141,6 +141,10 @@
 .arc-campaign .lctrl { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 .arc-campaign .lctrl .cbtn { flex: 1 1 auto; }
 .arc-campaign .lchint { flex-basis: 100%; font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+.arc-campaign .lc-audience { flex-basis: 100%; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--text-2); padding: 8px 10px; border: 1px solid var(--accent-border); background: var(--accent-soft); border-radius: 8px; margin-bottom: 2px; }
+.arc-campaign .lc-audience svg { width: 15px; height: 15px; flex-shrink: 0; stroke: var(--accent); fill: none; stroke-width: 1.7; }
+.arc-campaign .lc-audience.empty { border-color: var(--line-2); background: var(--inset); color: var(--muted); }
+.arc-campaign .lc-audience.empty svg { stroke: var(--muted); }
 .arc-campaign .glance { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); overflow: hidden; }
 .arc-campaign .glance .gl { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .arc-campaign .glance .gl:last-child { border-bottom: none; }
@@ -216,32 +220,6 @@
 .arc-campaign .lockt { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text); }
 .arc-campaign .lockt svg { width: 13px; height: 13px; stroke: var(--muted); fill: none; stroke-width: 1.8; }
 .arc-campaign .lockd { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 7px; }
-
-/* Opportunity provenance banner + seeded brief (BSR-358) */
-.arc-campaign .cprov { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.arc-campaign .cprov-tag { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--accent-contrast); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 999px; padding: 4px 11px; }
-.arc-campaign .cprov-i { width: 13px; height: 13px; fill: var(--accent); stroke: none; }
-.arc-campaign .cprov-meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
-
-.arc-campaign .brief { border: 1px solid var(--accent-border); background: var(--accent-soft); border-radius: 14px; padding: 16px 18px; }
-.arc-campaign .briefangle { font-size: 13.5px; color: var(--text); line-height: 1.55; margin: 0 0 14px; max-width: 68ch; }
-.arc-campaign .briefgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; }
-.arc-campaign .bfield { display: flex; flex-direction: column; gap: 3px; }
-.arc-campaign .bk { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-.arc-campaign .bv { font-size: 13px; font-weight: 500; color: var(--text); }
-.arc-campaign .bv.blink { display: inline-flex; align-items: center; gap: 4px; color: var(--accent-contrast); text-decoration: none; width: fit-content; }
-.arc-campaign .bv.blink:hover { text-decoration: underline; }
-.arc-campaign .blinki { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
-
-.arc-campaign .briefev { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.arc-campaign .evrow { display: inline-flex; align-items: baseline; gap: 6px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 10px; }
-.arc-campaign .evk { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-.arc-campaign .evv { font-size: 12px; font-weight: 600; color: var(--text); }
-
-.arc-campaign .slotgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 16px; }
-.arc-campaign .slot { border: 1px dashed var(--line-2); border-radius: 11px; background: var(--panel); padding: 12px 13px; display: flex; flex-direction: column; gap: 4px; }
-.arc-campaign .slotk { font-size: 12.5px; font-weight: 600; color: var(--text-2); }
-.arc-campaign .slotv { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 
 @media (max-width: 1040px) {
   .arc-campaign .crow { flex-direction: column; }
