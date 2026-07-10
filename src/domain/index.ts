@@ -49,6 +49,7 @@ export * from "./dispatch-scheduling";
 export * from "./opportunity-detection";
 export * from "./nws-weather";
 export * from "./review-signals";
+export * from "./competitor-ads";
 export * from "./opportunity-proposal";
 export * from "./opportunity-briefing";
 export * from "./performance-slicing";

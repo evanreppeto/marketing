@@ -214,6 +214,12 @@ const CONNECTOR_META: Record<string, { c: string; l: string; credLabel: string; 
     credLabel: "Google Business Profile",
     credHint: "Connect your Google Business Profile (and optionally Yelp) to pull recent reviews. Stored in your Vault; used read-only — it proposes opportunities and never replies.",
   },
+  "competitor-ads": {
+    c: "#c47f7f",
+    l: "Ad",
+    credLabel: "Ad library API access token",
+    credHint: "Meta Ad Library / Google Ads Transparency access, stored in your Vault. Read-only competitive intel from official APIs — it proposes defensive opportunities and never contacts anyone.",
+  },
   "webhook-dispatch": {
     c: "#9aa0ac",
     l: "Wh",

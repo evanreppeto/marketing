@@ -197,6 +197,41 @@ export const CONNECTOR_REGISTRY: ConnectorRegistryEntry[] = [
     toolNamespace: "reviews-signals",
   },
   {
+    key: "competitor-ads",
+    kind: "signal_source",
+    label: "Competitor Ad Intel",
+    description:
+      "Read-only signal source: watches competitor advertising in the public ad libraries (Meta Ad Library / " +
+      "Google Ads Transparency) for your market and proposes defensive / contested-territory opportunities, with " +
+      "the competitor's keywords and creative intel attached. Never contacts anyone — proposals only.",
+    costTier: "byo_key",
+    verticals: [
+      "home_services",
+      "restoration",
+      "retail",
+      "ecommerce",
+      "healthcare",
+      "legal",
+      "financial_services",
+      "saas",
+      "agencies",
+    ],
+    capability: {
+      summary: "Emits competitor_signal opportunities from competitor ad-library activity.",
+      opportunityKinds: ["competitor_signal"],
+    },
+    credentialSchema: {
+      kind: "api_key",
+      label: "Ad library API access token",
+      hint: "Meta Ad Library API token and/or Google Ads Transparency access. Stored encrypted in your Vault; used read-only. Official APIs only — no scraping.",
+      optional: true,
+    },
+    authKind: "api_key",
+    access: "read_only",
+    mcpUrl: null,
+    toolNamespace: "competitor-ads",
+  },
+  {
     key: "webhook-dispatch",
     kind: "channel",
     label: "Outbound Webhook",
