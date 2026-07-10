@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock } from "@/lib/repos/__tests__/test-helpers";
 
-import { buildReasoning, getCampaignWorkspaceDetail, getCampaignWorkspaceList, listCampaignNames } from "./read-model";
+import { buildOpportunityProvenance, buildReasoning, getCampaignWorkspaceDetail, getCampaignWorkspaceList, listCampaignNames, type CampaignRow } from "./read-model";
 
 // buildReasoning only reads a handful of fields; cast minimal fixtures to the
 // row shapes to keep the test focused on the distillation logic.
@@ -501,5 +501,70 @@ describe("listCampaignNames", () => {
     await listCampaignNames(undefined, supabase);
 
     expect(supabase.calls.some((call) => call[0] === "eq" && call[1] === "org_id")).toBe(false);
+  });
+});
+
+// Only the fields buildOpportunityProvenance reads; cast a minimal fixture.
+function oppCampaign(overrides: Partial<CampaignRow> = {}): CampaignRow {
+  return {
+    objective: "Send a vendor packet and book a walkthrough",
+    source_system: "arc_opportunity",
+    source_signal: {
+      authored_by: "arc",
+      origin: "opportunity",
+      opportunity_id: "opp-1",
+      subject_type: "lead",
+      subject_id: "lead-9",
+      confidence: 82.4,
+      urgency: "high",
+      recommended_action: "Send a vendor packet and book a walkthrough",
+      recommended_campaign_type: "vendor_packet",
+      evidence: { persona: "persona_property_manager", leadScore: 71.6, daysCold: 34, lastActivityAt: "2026-05-01T00:00:00Z" },
+      outbound_locked: true,
+    },
+    ...overrides,
+  } as unknown as CampaignRow;
+}
+
+describe("buildOpportunityProvenance", () => {
+  it("parses provenance + shaped evidence from an opportunity-sourced source_signal", () => {
+    const p = buildOpportunityProvenance(oppCampaign());
+    expect(p).not.toBeNull();
+    expect(p!.authoredBy).toBe("Arc");
+    expect(p!.opportunityId).toBe("opp-1");
+    expect(p!.opportunityHref).toBe("/opportunities");
+    expect(p!.subjectLabel).toBe("Lead");
+    expect(p!.subjectHref).toBe("/crm/leads/lead-9");
+    expect(p!.confidence).toBe(82); // rounded from 82.4
+    expect(p!.urgency).toBe("high");
+    expect(p!.urgencyLabel).toBe("High");
+    expect(p!.angle).toBe("Send a vendor packet and book a walkthrough");
+    expect(p!.recommendedCampaignType).toBe("Vendor Packet");
+    expect(p!.evidence).toEqual([
+      { label: "Lead score", value: "72 / 100" },
+      { label: "Inactivity", value: "34 days since last touch" },
+      { label: "Last activity", value: expect.any(String) },
+      { label: "Persona match", value: "Property manager" },
+    ]);
+  });
+
+  it("returns null for a non-opportunity campaign (source_system guard)", () => {
+    expect(buildOpportunityProvenance(oppCampaign({ source_system: "operator" }))).toBeNull();
+  });
+
+  it("returns null when source_signal.origin is not 'opportunity'", () => {
+    expect(buildOpportunityProvenance(oppCampaign({ source_signal: { origin: "saved" } }))).toBeNull();
+  });
+
+  it("returns null when opportunity_id is missing", () => {
+    expect(buildOpportunityProvenance(oppCampaign({ source_signal: { origin: "opportunity" } }))).toBeNull();
+  });
+
+  it("has no CRM link for a non-record (external) subject", () => {
+    const p = buildOpportunityProvenance(
+      oppCampaign({ source_signal: { origin: "opportunity", opportunity_id: "opp-2", subject_type: "weather", subject_id: "storm-1" } }),
+    );
+    expect(p).not.toBeNull();
+    expect(p!.subjectHref).toBeNull();
   });
 });
