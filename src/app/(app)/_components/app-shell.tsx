@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { AccountMenu } from "./account-menu";
 import { ComingSoonToasts } from "./coming-soon";
@@ -120,6 +120,11 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  // Mobile nav drawer. Below the shell breakpoint the rail is an off-canvas
+  // drawer toggled from the top bar; on desktop `navOpen` is inert (the rail is
+  // always visible). Tapping a destination closes it (see the nav links), and
+  // so does the backdrop.
+  const [navOpen, setNavOpen] = useState(false);
   const displayName = userName || orgName;
   // No signed-in user (local/demo, open mode) → a neutral label instead of a
   // bare "there". Prod shows the real viewer's first name.
@@ -142,8 +147,17 @@ export function AppShell({
     <div className={embedded ? "arc-app is-embedded" : "arc-app"}>
       <NavProgress />
       <RoutePrewarm hrefs={PREWARM_HREFS} />
-      <div className="app">
-        <aside className="rail">
+      <div className="app" data-nav-open={navOpen}>
+        {/* Backdrop behind the mobile drawer — tap to dismiss. Inert on desktop
+            (the rail is docked, so this never covers content there). */}
+        <button
+          type="button"
+          className="rail-scrim"
+          aria-hidden={!navOpen}
+          tabIndex={-1}
+          onClick={() => setNavOpen(false)}
+        />
+        <aside className="rail" data-open={navOpen}>
           <WorkspaceSwitcher workspaceName={workspaceName} orgName={orgName} logoUrl={logoUrl} workspaces={workspaces} />
           <div className="indtag">
             <i />
@@ -160,7 +174,12 @@ export function AppShell({
                     // Default prefetch is ON: with (app)/loading.tsx each route has a
                     // loading boundary, so prefetch only fetches the cheap skeleton shell
                     // (no DB reads) and clicks resolve to instant feedback + a crossfade.
-                    <Link key={it.label} href={it.href} className={`nav${active ? " on" : ""}`}>
+                    <Link
+                      key={it.label}
+                      href={it.href}
+                      className={`nav${active ? " on" : ""}`}
+                      onClick={() => setNavOpen(false)}
+                    >
                       {active && <span className="tick" />}
                       {it.icon}
                       {it.label}
@@ -187,6 +206,17 @@ export function AppShell({
 
         <div className="main">
           <header className="top">
+            {/* Hamburger — opens the nav drawer. Shown only below the shell
+                breakpoint (CSS); on desktop the docked rail makes it redundant. */}
+            <button
+              type="button"
+              className="menubtn"
+              aria-label="Open navigation"
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((v) => !v)}
+            >
+              <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+            </button>
             <span className="crumb">{crumb}</span>
             <button
               type="button"

@@ -245,6 +245,10 @@ export function ArcView({
   const [threadSel, setThreadSel] = useState("Storm-damage homeowners");
   const [view, setView] = useState<"assets" | "audience">("assets");
   const [asset, setAsset] = useState("ad");
+  // Mobile-only pane switch. The three columns (threads / conversation / canvas)
+  // can't sit side-by-side on a phone, so below the Arc breakpoint we show one at
+  // a time and this segmented control swaps between them. Inert on desktop.
+  const [mobilePane, setMobilePane] = useState<"threads" | "chat" | "canvas">("chat");
   const active = ASSETS.find((a) => a.id === asset) ?? ASSETS[2];
 
   // While a reply is still generating, refresh the server data so the pending
@@ -281,7 +285,13 @@ export function ArcView({
   };
 
   return (
-    <div className="arc-chat">
+    <div className="arc-chat" data-mpane={mobilePane}>
+      {/* ── mobile pane switch (hidden on desktop) ── */}
+      <div className="arc-mtabs" role="tablist" aria-label="Arc panels">
+        <button type="button" role="tab" aria-selected={mobilePane === "threads"} className={mobilePane === "threads" ? "on" : ""} onClick={() => setMobilePane("threads")}>Chats</button>
+        <button type="button" role="tab" aria-selected={mobilePane === "chat"} className={mobilePane === "chat" ? "on" : ""} onClick={() => setMobilePane("chat")}>Chat</button>
+        <button type="button" role="tab" aria-selected={mobilePane === "canvas"} className={mobilePane === "canvas" ? "on" : ""} onClick={() => setMobilePane("canvas")}>Canvas</button>
+      </div>
       {/* ── thread rail ── */}
       <aside className="threads" aria-label="Conversations">
         {live ? (
