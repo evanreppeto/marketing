@@ -252,6 +252,8 @@
   & .metric .mrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: 7px; }
   & .metric .mv { font-size: 23px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   & .metric .delta { font-family: var(--mono); font-size: 10.5px; margin-top: 5px; color: var(--ok-text); }
+  & .metric .delta.dn { color: var(--red-text); }
+  & .metric .delta.flat { color: var(--muted); }
 
   /* opportunities */
   & .opps { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
