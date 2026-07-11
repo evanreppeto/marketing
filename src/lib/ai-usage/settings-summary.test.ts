@@ -7,12 +7,13 @@ import { toUsageView } from "./settings-summary";
 describe("toUsageView", () => {
   it("formats a usage card into the Settings summary labels", () => {
     const card: UsageSummaryCard = { totalCostCents: 4880, totalTokens: 1_842_000, totalRuns: 312, pctOfCap: 61, isNearCap: false };
-    const view = toUsageView(card, false, true);
+    const view = toUsageView(card, false, true, [], [], [], 8000, "Pro");
 
     expect(view.tokensLabel).toBe("1.84M");
     expect(view.runsLabel).toBe("312");
     expect(view.costLabel).toBe("$48.80");
-    expect(view.capLabel).toBe("$80");
+    expect(view.capLabel).toBe("$80"); // resolved plan cap now flows in explicitly
+    expect(view.planLabel).toBe("Pro");
     expect(view.pctOfCap).toBe(61);
     expect(view.configured).toBe(true);
     expect(view.rangeLabel).toBe("Last 30 days");

@@ -28,6 +28,12 @@ vi.mock("@/lib/media", () => ({
   isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ startVideo, pollVideo }),
 }));
+vi.mock("@/lib/billing/entitlements", () => ({
+  checkUsageAllowed: async () => ({
+    allowed: true, enforced: false, tier: "free", usedCents: 0, capCents: 1000, remainingCents: 1000, overCap: false,
+  }),
+  formatCentsUsd: (c: number) => `$${(c / 100).toFixed(0)}`,
+}));
 vi.mock("@/lib/media/storage", () => ({
   storeGeneratedMedia,
 }));

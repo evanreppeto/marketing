@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { parseArcRoute } from "@/domain";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
+import { checkUsageAllowed, formatCentsUsd } from "@/lib/billing/entitlements";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
@@ -65,6 +66,12 @@ export async function POST(request: Request) {
     }
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) return fail("rejected", "prompt is required to start a video.", 400);
+    // Gate only the START of a new video (polls of in-flight jobs always finish —
+    // that cost is already incurred). Non-blocking until enforcement is armed.
+    const gate = await checkUsageAllowed(allowed.scope.orgId);
+    if (!gate.allowed) {
+      return fail("plan_limit", `This month's plan limit (${formatCentsUsd(gate.capCents)}) is reached. Upgrade or wait for the next cycle.`, 402);
+    }
     const aspectRatio =
       typeof body.aspect_ratio === "string" && body.aspect_ratio.trim() ? body.aspect_ratio.trim() : "16:9";
     const durationSeconds = typeof body.duration_seconds === "number" ? body.duration_seconds : undefined;

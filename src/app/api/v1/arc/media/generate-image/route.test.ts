@@ -27,6 +27,13 @@ vi.mock("@/lib/media", () => ({
   isMediaGenEnabled: () => process.env.ARC_MEDIA_ENABLED === "1",
   getMediaProvider: () => ({ generateImage }),
 }));
+const checkUsageAllowed = vi.fn(async () => ({
+  allowed: true, enforced: false, tier: "free", usedCents: 0, capCents: 1000, remainingCents: 1000, overCap: false,
+}));
+vi.mock("@/lib/billing/entitlements", () => ({
+  checkUsageAllowed: (...a: unknown[]) => checkUsageAllowed(...(a as [])),
+  formatCentsUsd: (c: number) => `$${(c / 100).toFixed(0)}`,
+}));
 vi.mock("@/lib/media/storage", () => ({
   storeGeneratedImage,
 }));
@@ -106,6 +113,16 @@ describe("POST /api/v1/arc/media/generate-image", () => {
     configure();
     const res = await POST(req("Bearer secret", {}));
     expect(res.status).toBe(400);
+  });
+
+  it("402 when the org is over its plan quota (enforcement armed)", async () => {
+    configure();
+    checkUsageAllowed.mockResolvedValueOnce({
+      allowed: false, enforced: true, tier: "free", usedCents: 1200, capCents: 1000, remainingCents: 0, overCap: true,
+    });
+    const res = await POST(req("Bearer secret", { prompt: "x" }));
+    expect(res.status).toBe(402);
+    expect(generateImage).not.toHaveBeenCalled();
   });
 
   it("201 with provenance-tagged media on success", async () => {

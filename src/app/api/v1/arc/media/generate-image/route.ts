@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { parseArcRoute } from "@/domain";
 
 import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/http";
+import { checkUsageAllowed, formatCentsUsd } from "@/lib/billing/entitlements";
 import { getMediaProvider, isMediaGenEnabled } from "@/lib/media";
 import { hardenImagePrompt } from "@/lib/media/prompt";
 import { deriveImageRiskFlags } from "@/lib/media/risk";
@@ -27,6 +28,12 @@ export async function POST(request: Request) {
 
   if (!isMediaGenEnabled()) {
     return fail("not_configured", "Image generation isn't enabled (needs ARC_MEDIA_ENABLED and GEMINI_API_KEY).", 503);
+  }
+
+  // Pre-flight plan/quota gate (non-blocking until ARC_BILLING_ENFORCEMENT is armed).
+  const gate = await checkUsageAllowed(allowed.scope.orgId);
+  if (!gate.allowed) {
+    return fail("plan_limit", `This month's plan limit (${formatCentsUsd(gate.capCents)}) is reached. Upgrade or wait for the next cycle.`, 402);
   }
 
   const payload = await readJson(request);
