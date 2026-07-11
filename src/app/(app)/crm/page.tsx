@@ -143,7 +143,7 @@ export default async function CrmPage() {
     const wonStage = overview.funnel.find((f) => f.label === "Won");
     if (leadsK)
       kpis.push({
-        label: "Leads",
+        label: "New leads · 30d",
         value: leadsK.value,
         delta: { label: leadsK.deltaLabel, dir: leadsK.dir },
         spark: { points: overview.trend.leads.cur, up: leadsK.dir === "up" },
