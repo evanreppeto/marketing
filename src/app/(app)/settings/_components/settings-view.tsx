@@ -11,7 +11,10 @@ import type { ConnectorSpendView } from "@/lib/connectors/spend-summary";
 import { connectorMatchesIndustry, describeConnectorCost, findConnector, type ConnectorCostTier, type ConnectorStatus } from "@/domain";
 import type { ConnectorView } from "@/lib/connectors/read-model";
 import type { SettingsConnectorsView } from "@/lib/connectors/settings-connectors";
+import type { SettingsBillingView } from "@/lib/billing/settings-billing";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
+
+import { updateOrgPlanAction } from "../billing-actions";
 
 import {
   cancelInvite,
@@ -319,7 +322,7 @@ const DENSITY_LABEL: Record<AppSettings["appearanceDensity"], string> = { comfor
 const MOTION_LABEL: Record<AppSettings["appearanceMotion"], string> = { standard: "Standard", reduced: "Reduced" };
 const PROFILE_LABEL: Record<AppSettings["workspaceProfile"], string> = { individual: "Individual", company: "Company", agency: "Agency" };
 
-export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, settings, connectors, workspaces, emailConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null }) {
+export function SettingsView({ brandName, email, avatarUrl = null, team, usage, connectorSpend = null, billing = null, settings, connectors, workspaces, emailConnection = null }: { brandName: string; email: string; avatarUrl?: string | null; team: SettingsTeamView; usage: SettingsUsageView | null; connectorSpend?: ConnectorSpendView | null; billing?: SettingsBillingView | null; settings: AppSettings; connectors: SettingsConnectorsView; workspaces: SettingsWorkspacesView; emailConnection?: ConnectionView | null }) {
   const [cur, setCur] = useState("overview");
   const memberCount = team.members.length;
   const pendingCount = team.invites.length;
@@ -638,7 +641,8 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
               </div>
               <div className="panel-f"><Ic d={CHECK} />loadWorkspaceUsage → summarizeUsageForSettings · scoped to this workspace</div>
             </div>
-            <div style={{ display: "flex", gap: 9 }}><button className="btn gold"><Ic d='<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6"/>' />Open full usage report</button><button className="btn">Manage plan</button></div>
+            <BillingPlanControl billing={billing} />
+            <div style={{ display: "flex", gap: 9 }}><button className="btn gold"><Ic d='<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6"/>' />Open full usage report</button></div>
           </>
         )}
       </>
@@ -721,6 +725,61 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         </div>
       </div>
     </div>
+  );
+}
+
+// ---- Plan (Usage & billing, wired) ----
+// Owner/admin plan picker wired to updateOrgPlanAction; offline resolves
+// optimistically (persisted:false). Mirrors the TeamMembers select pattern.
+function BillingPlanControl({ billing }: { billing: SettingsBillingView | null }) {
+  const [tier, setTier] = useState<string>(billing?.tier ?? "free");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  if (!billing) return null;
+  const current = billing.options.find((o) => o.tier === tier) ?? billing.options[0];
+
+  async function change(next: string) {
+    const prev = tier;
+    setTier(next);
+    setBusy(true);
+    setStatus(null);
+    const res = await updateOrgPlanAction({ tier: next });
+    setBusy(false);
+    if (!res.ok) {
+      setTier(prev);
+      setStatus({ tone: "err", text: res.error });
+    } else if (res.persisted) {
+      const label = billing!.options.find((o) => o.tier === next)?.label ?? next;
+      setStatus({ tone: "ok", text: `Plan updated to ${label}.` });
+    }
+  }
+
+  return (
+    <Panel title="Plan" tag={TGOK} foot="org_plans · monthly cap enforced against metered usage">
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontWeight: 600 }}>{current.label}</div>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>{current.capLabel} monthly cap</div>
+        </div>
+        <select
+          className="sel"
+          style={{ minWidth: 170 }}
+          value={tier}
+          disabled={!billing.canManage || busy}
+          onChange={(e) => change(e.target.value)}
+        >
+          {billing.options.map((o) => (
+            <option key={o.tier} value={o.tier}>{o.label} — {o.capLabel}</option>
+          ))}
+        </select>
+      </div>
+      {!billing.canManage && (
+        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>Only owners and admins can change the plan.</div>
+      )}
+      {status && (
+        <div style={{ fontSize: 12.5, padding: "8px 2px 0", color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</div>
+      )}
+    </Panel>
   );
 }
 
