@@ -2,7 +2,10 @@ import Link from "next/link";
 
 import { resolveViewerName } from "@/lib/auth/display-name";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
+import { getAnalyticsOverview, type OverviewKpi, type TrendKey } from "@/lib/analytics/overview";
 import { type OpportunityEvidence } from "@/lib/opportunities/read-model";
+
+import { Sparkline } from "../_components/sparkline";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getWorkspaceSummary } from "@/lib/workspace-summary/read-model";
 
@@ -57,7 +60,10 @@ export default async function HomePage() {
   // One consistent snapshot for the whole screen: the hero line, the "waiting on
   // you" queue, the metrics, and the campaign rows all read from the same summary
   // so they can't disagree with each other.
-  const summary = await getWorkspaceSummary(ctx.orgId);
+  const [summary, overview] = await Promise.all([
+    getWorkspaceSummary(ctx.orgId),
+    getAnalyticsOverview(ctx.orgId),
+  ]);
   const approvals = summary.approvals;
   const campaigns = summary.campaigns.slice(0, 5);
   const openOppCount = summary.opportunities.length;
@@ -84,11 +90,16 @@ export default async function HomePage() {
   const dateLabel = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase();
   const liveCampaigns = summary.campaignTotals.live;
 
-  const metrics = [
-    { label: "Campaigns", value: summary.campaignTotals.total },
-    { label: "Leads", value: summary.crm.leads },
-    { label: "Companies", value: summary.crm.companies },
-  ];
+  // Lead the home with real business-outcome KPIs — the same wired numbers the
+  // Analytics screen shows (won revenue, booked jobs, leads), each with its
+  // 30-day trend — instead of raw object counts. Reply rate / cost-per-job are
+  // intentionally omitted until send + spend feeds exist (they'd read "—").
+  const HOME_KPI_LABELS = ["Won revenue", "Booked jobs", "Leads"] as const;
+  const metrics: OverviewKpi[] = HOME_KPI_LABELS.map((label) =>
+    overview.kpis.find((k) => k.label === label),
+  ).filter((k): k is OverviewKpi => Boolean(k));
+  // Each KPI's 30-day trend series drives its inline sparkline.
+  const KPI_TREND: Record<string, TrendKey> = { "Won revenue": "revenue", "Booked jobs": "bookings", Leads: "leads" };
 
   return (
     <div className="scroll">
@@ -154,14 +165,25 @@ export default async function HomePage() {
         )}
 
         <div className="metrics">
-          {metrics.map((m) => (
-            <div className="metric" key={m.label}>
-              <div className="ml">{m.label}</div>
-              <div className="mrow">
-                <span className="mv">{m.value}</span>
+          {metrics.map((m) => {
+            const series = overview.trend[KPI_TREND[m.label]]?.cur ?? [];
+            return (
+              <div className="metric" key={m.label}>
+                <div className="ml">{m.label}</div>
+                <div className="mrow">
+                  <span className="mv">{m.value}</span>
+                  {m.deltaLabel && m.deltaLabel !== "—" ? (
+                    <span className={`delta ${m.dir}`} title={m.prevLabel}>{m.deltaLabel}</span>
+                  ) : null}
+                </div>
+                {series.length > 1 ? (
+                  <div className="spark">
+                    <Sparkline points={series} up={m.dir === "up"} />
+                  </div>
+                ) : null}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="sech">

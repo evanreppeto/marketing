@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, useTransition, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -19,6 +19,12 @@ import {
   unshareChatMemberAction,
   type ChatSharingState,
 } from "../sharing-actions";
+
+// Resizable-panel bounds (px). Widths are drag-adjustable between min/max and
+// persisted per-browser; `def` is the SSR/first-render default.
+const RAIL_W = { min: 190, max: 440, def: 248 };
+const CANVAS_W = { min: 340, max: 760, def: 480 };
+const clampSize = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 /**
  * Context meter — how full this chat's working window is (Claude-style). As it
@@ -245,6 +251,7 @@ export function ArcView({
   const [threadSel, setThreadSel] = useState("Storm-damage homeowners");
   const [view, setView] = useState<"assets" | "audience">("assets");
   const [asset, setAsset] = useState("ad");
+  const [dismissedQid, setDismissedQid] = useState<string | null>(null);
   // Mobile-only pane switch. The three columns (threads / conversation / canvas)
   // can't sit side-by-side on a phone, so below the Arc breakpoint we show one at
   // a time and this segmented control swaps between them. Inert on desktop.
@@ -271,6 +278,59 @@ export function ArcView({
     return () => clearInterval(timer);
   }, [awaitingReply, router]);
 
+  // ── Resizable + collapsible panels ──────────────────────────────────────
+  // The conversation list and the campaign panel are drag-resizable, and the
+  // panel collapses to give the conversation full width. Sizes persist per
+  // browser; saved values are applied AFTER mount so SSR/hydration stay in sync.
+  const [railW, setRailW] = useState(RAIL_W.def);
+  const [canvasW, setCanvasW] = useState(CANVAS_W.def);
+  const [canvasOpen, setCanvasOpen] = useState(true);
+  const [dragTarget, setDragTarget] = useState<null | "rail" | "canvas">(null);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Intentional one-time restore
+     after mount: SSR and the first client render stay on defaults so hydration
+     matches, then the persisted sizes apply on the next commit. */
+  useEffect(() => {
+    try {
+      const r = Number(localStorage.getItem("arc.railW"));
+      const c = Number(localStorage.getItem("arc.canvasW"));
+      if (r) setRailW(clampSize(r, RAIL_W.min, RAIL_W.max));
+      if (c) setCanvasW(clampSize(c, CANVAS_W.min, CANVAS_W.max));
+      if (localStorage.getItem("arc.canvasOpen") === "0") setCanvasOpen(false);
+    } catch {
+      /* localStorage unavailable — keep defaults */
+    }
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    try {
+      localStorage.setItem("arc.railW", String(railW));
+      localStorage.setItem("arc.canvasW", String(canvasW));
+      localStorage.setItem("arc.canvasOpen", canvasOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [railW, canvasW, canvasOpen]);
+
+  const startResize = (target: "rail" | "canvas") => (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const chat = (e.currentTarget as HTMLElement).closest(".arc-chat");
+    if (!chat) return;
+    const rect = chat.getBoundingClientRect();
+    setDragTarget(target);
+    const onMove = (ev: globalThis.PointerEvent) => {
+      if (target === "rail") setRailW(clampSize(ev.clientX - rect.left, RAIL_W.min, RAIL_W.max));
+      else setCanvasW(clampSize(rect.right - ev.clientX, CANVAS_W.min, CANVAS_W.max));
+    };
+    const onUp = () => {
+      setDragTarget(null);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   const submitDraft = () => {
     const body = draft.trim();
     if (!body || sending) return;
@@ -284,8 +344,17 @@ export function ArcView({
     });
   };
 
+  // Live quick-reply comes from a real structured question on Arc's latest reply
+  // (agent-provided). No question → no panel. The mock keeps its scripted one.
+  const liveQuestion = live ? [...messages].reverse().find((m) => m.role === "arc")?.questions?.[0] ?? null : null;
+  const showLiveQuestion = Boolean(liveQuestion) && dismissedQid !== liveQuestion?.id;
+
   return (
-    <div className="arc-chat" data-mpane={mobilePane}>
+    <div
+      className={`arc-chat${canvasOpen ? "" : " canvas-collapsed"}${dragTarget ? " resizing" : ""}`}
+      data-mpane={mobilePane}
+      style={{ "--arc-rail-w": `${railW}px`, "--arc-canvas-w": `${canvasOpen ? canvasW : 0}px` } as CSSProperties}
+    >
       {/* ── mobile pane switch (hidden on desktop) ── */}
       <div className="arc-mtabs" role="tablist" aria-label="Arc panels">
         <button type="button" role="tab" aria-selected={mobilePane === "threads"} className={mobilePane === "threads" ? "on" : ""} onClick={() => setMobilePane("threads")}>Chats</button>
@@ -453,25 +522,46 @@ export function ArcView({
         {/* ── composer ── */}
         <div className="dock">
           <div className="wrap">
-            <div className="qpanel">
-              <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-              <div className="qc">
-                <div className="qq">Before I draft the landing page — which CTA should it push?</div>
-                <div className="qopts">
-                  <button className="qopt" data-soon="Replying to Arc is coming soon">Book a strategy call</button>
-                  <button className="qopt" data-soon="Replying to Arc is coming soon">Book a free inspection</button>
-                  <button className="qopt" data-soon="Replying to Arc is coming soon">See the storm-zone map</button>
-                  <button className="qopt txt" data-soon="Replying to Arc is coming soon">Type your own…</button>
+            {live ? (
+              showLiveQuestion && liveQuestion ? (
+                <div className="qpanel">
+                  <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
+                  <div className="qc">
+                    <div className="qq">{liveQuestion.prompt}</div>
+                    {liveQuestion.options.length > 0 ? (
+                      <div className="qopts">
+                        {liveQuestion.options.map((opt, i) => (
+                          <button key={i} className="qopt" onClick={() => setDraft(opt)}>{opt}</button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button className="qx" aria-label="Dismiss question" onClick={() => setDismissedQid(liveQuestion.id)}>{Ico.x}</button>
                 </div>
+              ) : null
+            ) : (
+              <div className="qpanel">
+                <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
+                <div className="qc">
+                  <div className="qq">Before I draft the landing page — which CTA should it push?</div>
+                  <div className="qopts">
+                    <button className="qopt" data-soon="Replying to Arc is coming soon">Book a strategy call</button>
+                    <button className="qopt" data-soon="Replying to Arc is coming soon">Book a free inspection</button>
+                    <button className="qopt" data-soon="Replying to Arc is coming soon">See the storm-zone map</button>
+                    <button className="qopt txt" data-soon="Replying to Arc is coming soon">Type your own…</button>
+                  </div>
+                </div>
+                <button className="qx" aria-label="Dismiss question" data-soon="Dismissing is coming soon">{Ico.x}</button>
               </div>
-              <button className="qx" aria-label="Dismiss question" data-soon="Dismissing is coming soon">{Ico.x}</button>
-            </div>
+            )}
 
             <div className="box">
-              <div className="ctxrow">
-                <span className="ctxchip"><span className="at">@Storm-damage homeowners</span><button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
-                <span className="ctxchip"><span className="thumb">IMG</span>brand-board.png<button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
-              </div>
+              {!live ? (
+                <div className="ctxrow">
+                  <span className="ctxchip"><span className="at">@Storm-damage homeowners</span><button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
+                  <span className="ctxchip"><span className="thumb">IMG</span>brand-board.png<button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
+                </div>
+              ) : null}
               {live ? (
                 <textarea
                   className="ta"
@@ -498,7 +588,9 @@ export function ArcView({
                   <span className="cdiv" aria-hidden="true" />
                   <button className="pill" data-soon="Switching Arc's model is coming soon"><span className="pic">{Ico.star}</span><span className="mlab">Auto ·</span> <span className="pval">Opus 4.8</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
                   <button className="pill mode" data-soon="Switching Arc's mode is coming soon"><span className="pic">{Ico.pencil}</span><span className="pval">Draft</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
-                  <button className="pill" data-soon="Choosing a project is coming soon"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  {!live ? (
+                    <button className="pill" data-soon="Choosing a project is coming soon"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
+                  ) : null}
                   <button className="pill" onClick={() => setShareOpen(true)} aria-label="Share this chat"><span className="pic">{Ico.share}</span><span className="pval">Share</span></button>
                 </div>
                 <div className="fright">
@@ -518,6 +610,14 @@ export function ArcView({
 
       {/* ── cinematic canvas ── */}
       <section className="canvas" aria-label="Campaign canvas">
+        {live ? (
+          <div className="cvempty">
+            <span className="ci">{Ico.splitPane}</span>
+            <div className="cveh">Campaign canvas</div>
+            <div className="cves">When Arc drafts a campaign in this chat, its channel assets, audience, and approval state show up here — and nothing goes out until you approve it.</div>
+          </div>
+        ) : (
+          <>
         <div className="cvhdr">
           <span className="ci">{Ico.splitPane}</span>
           <div className="ctt">
@@ -629,7 +729,36 @@ export function ArcView({
           <button className="btn ghost sm" data-soon="Requesting a revision is coming soon">{Ico.pencil}Revise</button>
           <span className="lock">{Ico.lock}2 ready · 1 generating · 1 blocked</span>
         </div>
+          </>
+        )}
       </section>
+
+      {/* ── resizable dividers + campaign-panel toggle ── */}
+      <div
+        className={`arc-resize arc-resize-rail${dragTarget === "rail" ? " dragging" : ""}`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize conversation list"
+        onPointerDown={startResize("rail")}
+      />
+      {canvasOpen ? (
+        <div
+          className={`arc-resize arc-resize-canvas${dragTarget === "canvas" ? " dragging" : ""}`}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize campaign panel"
+          onPointerDown={startResize("canvas")}
+        />
+      ) : null}
+      <button
+        type="button"
+        className="arc-canvas-toggle"
+        onClick={() => setCanvasOpen((v) => !v)}
+        aria-label={canvasOpen ? "Hide campaign panel" : "Show campaign panel"}
+        title={canvasOpen ? "Hide campaign panel" : "Show campaign panel"}
+      >
+        {canvasOpen ? Ico.chevR : Ico.splitPane}
+      </button>
 
       {shareOpen ? <ShareDialog conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
     </div>

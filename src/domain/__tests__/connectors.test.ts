@@ -40,7 +40,7 @@ describe("connector registry", () => {
 
   it("every entry declares the full metadata descriptor (kind, costTier, verticals, capability, credentialSchema)", () => {
     for (const entry of CONNECTOR_REGISTRY) {
-      expect(["mcp_tool", "signal_source", "channel"]).toContain(entry.kind);
+      expect(["mcp_tool", "signal_source", "channel", "import_source"]).toContain(entry.kind);
       expect(["free", "byo_key", "metered"]).toContain(entry.costTier);
       expect(Array.isArray(entry.verticals)).toBe(true);
       expect(entry.capability.summary.length).toBeGreaterThan(0);
@@ -60,6 +60,20 @@ describe("connector registry", () => {
 
     const webhook = findConnector("webhook-dispatch");
     expect(webhook?.capability.channelMedium).toBe("webhook");
+  });
+
+  it("registers the CRM import_source connectors (BSR-368) as read-in, never outbound", () => {
+    const imports = listConnectorsByKind("import_source");
+    expect(imports.map((c) => c.key)).toEqual(expect.arrayContaining(["hubspot-import", "lead-enrichment"]));
+
+    const hubspot = findConnector("hubspot-import");
+    expect(hubspot?.access).toBe("read_only"); // never writes back to the source
+    expect(hubspot?.costTier).toBe("byo_key"); // uses the workspace's own HubSpot
+    expect(hubspot?.capability.importsInto).toContain("leads");
+
+    const enrichment = findConnector("lead-enrichment");
+    expect(enrichment?.access).toBe("read_only");
+    expect(enrichment?.costTier).toBe("metered"); // governed by the spend cap
   });
 });
 
