@@ -1,5 +1,8 @@
+import { getAnalyticsOverview } from "@/lib/analytics/overview";
+import { getCurrentOrgId } from "@/lib/auth/org";
 import { getCrmMentionSamples, getCrmNavCounts, type CrmObjectKey, type CrmObjectRow } from "@/lib/crm/read-model";
 
+import { type KpiCell } from "../_components/kpi-strip";
 import { CrmBoard, type CrmObjectVM, type CrmRowVM } from "./_components/crm-board";
 
 export const metadata = { title: "CRM — Arc" };
@@ -120,12 +123,40 @@ function toRow(row: CrmObjectRow): CrmRowVM {
 }
 
 export default async function CrmPage() {
-  const [samples, navCounts] = await Promise.all([
+  const orgId = await getCurrentOrgId().catch(() => "");
+  const [samples, navCounts, overview] = await Promise.all([
     getCrmMentionSamples().catch(() => ({}) as Partial<Record<CrmObjectKey, CrmObjectRow[]>>),
     getCrmNavCounts().catch(() => ({ status: "unavailable" }) as const),
+    orgId ? getAnalyticsOverview(orgId).catch(() => null) : Promise.resolve(null),
   ]);
 
   const counts = navCounts.status === "live" ? navCounts.counts : null;
+
+  // Real KPI strip for the CRM header — leads volume, lead→won conversion, and
+  // won revenue — from the same wired analytics computation the Analytics screen
+  // uses (demo-safe; the strip is omitted entirely when unavailable).
+  const kpis: KpiCell[] = [];
+  if (overview) {
+    const byLabel = (l: string) => overview.kpis.find((k) => k.label === l);
+    const leadsK = byLabel("Leads");
+    const revK = byLabel("Won revenue");
+    const wonStage = overview.funnel.find((f) => f.label === "Won");
+    if (leadsK)
+      kpis.push({
+        label: "Leads",
+        value: leadsK.value,
+        delta: { label: leadsK.deltaLabel, dir: leadsK.dir },
+        spark: { points: overview.trend.leads.cur, up: leadsK.dir === "up" },
+      });
+    if (wonStage) kpis.push({ label: "Lead → won", value: wonStage.note });
+    if (revK)
+      kpis.push({
+        label: "Won revenue",
+        value: revK.value,
+        delta: { label: revK.deltaLabel, dir: revK.dir },
+        spark: { points: overview.trend.revenue.cur, up: revK.dir === "up" },
+      });
+  }
 
   const rowsByKey: Record<string, CrmRowVM[]> = {};
   const objects: CrmObjectVM[] = OBJECT_META.map((meta) => {
@@ -142,5 +173,5 @@ export default async function CrmPage() {
     };
   });
 
-  return <CrmBoard objects={objects} rowsByKey={rowsByKey} defaultKey="contacts" />;
+  return <CrmBoard objects={objects} rowsByKey={rowsByKey} defaultKey="contacts" kpis={kpis} />;
 }

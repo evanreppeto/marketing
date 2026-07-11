@@ -6,6 +6,7 @@ import { type CrmObjectKey } from "@/lib/crm/read-model";
 
 import { createCrmRecord } from "../actions";
 import { AddRecordModal, type AddRecordValue, type LinkOption } from "./add-record-modal";
+import { KpiStrip, type KpiCell } from "../../_components/kpi-strip";
 
 type FilterOption = { value: string; label: string; count: number };
 
@@ -306,10 +307,12 @@ export function CrmBoard({
   objects,
   rowsByKey,
   defaultKey,
+  kpis,
 }: {
   objects: CrmObjectVM[];
   rowsByKey: Record<string, CrmRowVM[]>;
   defaultKey: string;
+  kpis?: KpiCell[];
 }) {
   const [activeKey, setActiveKey] = useState(defaultKey);
   const [q, setQ] = useState("");
@@ -445,6 +448,8 @@ export function CrmBoard({
           </button>
         </div>
       </div>
+
+      {kpis && kpis.length > 0 ? <KpiStrip items={kpis} /> : null}
 
       {error && (
         <div className="crm-error" role="alert">

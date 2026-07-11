@@ -141,12 +141,19 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
     return { ok: true };
   };
 
+  // Real header stats for the inbox — how many need fast action and the average
+  // confidence of the queue, from the opportunities already loaded.
+  const highCount = opps.filter((o) => o.urgencyTone === "red").length;
+  const avgConf = opps.length ? Math.round(opps.reduce((s, o) => s + o.confidence, 0) / opps.length) : 0;
+
   return (
     <div className="arc-opps">
       <aside className="olist">
         <div className="olisthd">
           <span className="h">OPEN OPPORTUNITIES</span>
-          <span className="c">{opps.length} open</span>
+          <span className="c">
+            {opps.length} open{highCount > 0 ? ` · ${highCount} high` : ""} · {avgConf}% avg
+          </span>
         </div>
         <form action={scanForOpportunitiesAction} style={{ padding: "2px 4px 12px" }}>
           <ScanButton />
