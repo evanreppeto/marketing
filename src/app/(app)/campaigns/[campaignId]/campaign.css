@@ -228,4 +228,13 @@
   .arc-campaign .csnap { display: none; }
   .arc-campaign .perfkpis { grid-template-columns: repeat(2, 1fr); }
   .arc-campaign .lockgrid { grid-template-columns: 1fr; }
+  /* Let the whole page scroll instead of trapping deliverables in a short inner
+     pane below a tall stacked header. The perf tables keep their own horizontal
+     scroll so a narrow screen can't break the page width. */
+  .arc-campaign { overflow-y: auto; }
+  .arc-campaign .cbody { display: block; overflow: visible; }
+  .arc-campaign .cscroll { overflow: visible; padding-bottom: 40px; }
+  .arc-campaign .pchan, .arc-campaign .passets { overflow-x: auto; }
+  .arc-campaign .pchead, .arc-campaign .pcrow { min-width: 420px; }
+  .arc-campaign .pahead, .arc-campaign .parow { min-width: 520px; }
 }

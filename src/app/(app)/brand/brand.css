@@ -26,6 +26,14 @@
 .arc-brand .bmeta a { color: var(--blue-text); }
 .arc-brand .bmeta .dot { opacity: 0.5; }
 .arc-brand .bacts { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+/* Phones: stack the hero (logo → identity → actions) so the name/tagline get
+   full-width lines instead of being crushed between the logo and buttons. */
+@media (max-width: 640px) {
+  .arc-brand .brandhero { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .arc-brand .bid { width: 100%; }
+  .arc-brand .bname { font-size: 25px; flex-wrap: wrap; gap: 10px; }
+  .arc-brand .bacts { margin-left: 0; width: 100%; flex-wrap: wrap; }
+}
 
 /* body grid */
 .arc-brand .bbody { display: grid; grid-template-columns: minmax(0, 1fr) 354px; gap: 20px; padding: 20px clamp(20px, 2.6vw, 30px) 40px; align-items: start; }
@@ -176,6 +184,11 @@
 .arc-brand .bc-miss a:hover { color: var(--accent-contrast); }
 .arc-brand .sources { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; padding: 14px 18px 16px; }
 @media (max-width: 1080px) { .arc-brand .sources { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) {
+  .arc-brand .intakehead { flex-wrap: wrap; align-items: flex-start; }
+  .arc-brand .ih-prog { margin-left: 0; }
+  .arc-brand .sources { grid-template-columns: 1fr; }
+}
 .arc-brand .isrc { border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); padding: 13px; display: flex; flex-direction: column; gap: 10px; min-height: 128px; transition: 0.16s var(--ease); position: relative; }
 .arc-brand .isrc:hover { border-color: var(--accent-border); transform: translateY(-2px); box-shadow: 0 16px 36px -24px rgba(0, 0, 0, 0.8); }
 .arc-brand .isrc .si { display: flex; align-items: flex-start; gap: 10px; }

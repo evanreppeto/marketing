@@ -29,6 +29,14 @@
 .arc-record .gbtn.gold:hover { transform: translateY(-1px); filter: brightness(1.04); }
 .arc-record .gbtn.gold svg { stroke: #201808; }
 .arc-record .gbtn.ico { width: 34px; padding: 0; }
+/* Phones: the identity row (avatar · name/role/chips · actions) can't fit in one
+   line — the name gets crushed to ~30px and wraps letter-by-letter. Drop the
+   action buttons to their own full-width row so the name/role get real space. */
+@media (max-width: 640px) {
+  .arc-record .idrow { flex-wrap: wrap; gap: 12px; }
+  .arc-record .idmain { flex: 1 1 60%; }
+  .arc-record .idactions { order: 3; flex-basis: 100%; }
+}
 .arc-record .mstrip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 18px; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; background: var(--panel); }
 .arc-record .mcell { padding: 13px 16px; border-right: 1px solid var(--line); }
 .arc-record .mcell:last-child { border-right: none; }
@@ -44,7 +52,20 @@
 .arc-record .rectab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
 .arc-record .rectab .cnt { font-family: var(--mono); font-size: 9.5px; color: var(--muted); background: var(--inset); border: 1px solid var(--line-2); border-radius: 5px; padding: 0 5px; line-height: 15px; }
 .arc-record .recbody { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 318px; overflow: hidden; }
-@media (max-width: 820px) { .arc-record .recbody { grid-template-columns: 1fr; } }
+@media (max-width: 820px) {
+  /* Stack the record + snapshot columns into one page-scrolling flow. Keeping
+     the grid + `overflow:hidden` would trap two independent scroll regions in a
+     fixed height and clip everything below the fold; scrolling the root instead
+     lets the header scroll away and gives the body the full screen. */
+  .arc-record { overflow-y: auto; }
+  .arc-record .recbody { display: block; overflow: visible; }
+  .arc-record .recscroll { overflow: visible; padding: 20px 16px 20px; }
+  .arc-record .snap { border-left: 0; border-top: 1px solid var(--line-2); overflow: visible; padding: 20px 16px 40px; }
+}
+@media (max-width: 560px) {
+  .arc-record .mstrip { grid-template-columns: repeat(2, 1fr); }
+  .arc-record .egrid { grid-template-columns: repeat(2, 1fr); }
+}
 .arc-record .recscroll { min-width: 0; overflow: auto; padding: 22px clamp(22px, 3vw, 38px) 44px; }
 .arc-record .snap { border-left: 1px solid var(--line); overflow: auto; padding: 20px 20px 40px; background: color-mix(in srgb, var(--canvas-deep) 18%, transparent); }
 .arc-record .sh { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin: 0 0 12px; display: flex; align-items: center; gap: 9px; }

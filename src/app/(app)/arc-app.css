@@ -180,6 +180,14 @@
   & .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   & .top { display: flex; align-items: center; gap: 14px; padding: 11px 22px; border-bottom: 1px solid var(--line-2); background: color-mix(in srgb, var(--canvas-deep) 60%, transparent); }
   & .top .crumb { font-size: 13px; font-weight: 600; }
+
+  /* Mobile nav affordances — inert on desktop (the rail is docked). The
+     hamburger and backdrop only become visible/active inside the shell
+     breakpoint media query below. */
+  & .menubtn { display: none; width: 34px; height: 34px; flex-shrink: 0; margin-left: -4px; border: 1px solid var(--line-2); border-radius: 8px; background: transparent; color: var(--text-2); place-items: center; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+  & .menubtn:hover { border-color: var(--accent-border); color: var(--text); }
+  & .menubtn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  & .rail-scrim { display: none; }
   & .search { margin: 0 auto; display: flex; align-items: center; gap: 9px; width: 340px; max-width: 38vw; height: 32px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 8px; background: color-mix(in srgb, var(--inset) 70%, transparent); color: var(--muted); font-size: 12.5px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
   & .search:hover { border-color: var(--accent-border); color: var(--text-2); }
   & .search svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.7; }
@@ -296,11 +304,57 @@
 
   @media (max-width: 900px) {
     & .app { grid-template-columns: 1fr; }
-    & .rail { display: none; }
+
+    /* Rail → off-canvas drawer. Reuses the exact rail markup; only its
+       positioning changes. Slides in from the left over a backdrop. */
+    &:not(.is-embedded) .rail {
+      position: fixed; top: 0; bottom: 0; left: 0; z-index: 60;
+      width: min(84vw, 300px);
+      transform: translateX(-100%);
+      transition: transform 0.28s var(--ease);
+      box-shadow: 0 24px 70px -12px rgba(0, 0, 0, 0.7);
+      will-change: transform;
+    }
+    &:not(.is-embedded) .rail[data-open="true"] { transform: none; }
+
+    & .rail-scrim {
+      display: block; position: fixed; inset: 0; z-index: 55;
+      border: 0; padding: 0; cursor: default;
+      background: rgba(0, 0, 0, 0.5);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.24s var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    & .app[data-nav-open="true"] .rail-scrim { opacity: 1; pointer-events: auto; }
+
+    & .menubtn { display: inline-grid; }
+
+    /* Top bar tightens; the search collapses to an icon that still opens ⌘K. */
+    & .top { gap: 10px; padding: 10px 14px; }
+    & .top .search { margin: 0 0 0 auto; width: 36px; max-width: none; padding: 0; justify-content: center; font-size: 0; gap: 0; }
+    & .top .search svg { width: 16px; height: 16px; }
+    & .top .search .k { display: none; }
+
     & .scroll { grid-template-columns: 1fr; }
-    & .col-r { border-left: 0; border-top: 1px solid var(--line); }
+    & .content { padding: 20px 16px 40px; }
+    & .col-r { border-left: 0; border-top: 1px solid var(--line); padding: 22px 16px 40px; }
     & .opps { grid-template-columns: 1fr; }
     & .metrics { grid-template-columns: 1fr; }
+
+    /* Home hero + section headers scale down so nothing overflows. */
+    & h1.greet { font-size: 27px; }
+    & .focal { padding: 16px 15px; }
+    /* Focal top row: let the title own its own line; citations + confidence
+       wrap beneath it instead of colliding with the wrapping headline. */
+    & .focal .row1 { flex-wrap: wrap; }
+    & .focal .row1 h2 { flex: 1 1 100%; }
+    & .focal .conf { margin-left: 0; }
+
+    /* "Waiting on you" rows: too narrow for pill + title + persona chip + time.
+       Drop the secondary persona chip (shown elsewhere) and keep the time on one
+       line so the title gets the room. */
+    & .task .chip { display: none; }
+    & .task .ago { width: auto; white-space: nowrap; }
   }
 }
 
@@ -518,6 +572,14 @@
 .arc-app .arc-outbox .lanecards { display: flex; flex-direction: column; gap: 9px; overflow-y: auto; padding: 2px; min-height: 40px; }
 .arc-app .arc-outbox .lane.empty .lanecards { border: 1px dashed var(--line-2); border-radius: 11px; align-items: center; justify-content: center; padding: 18px 10px; }
 .arc-app .arc-outbox .lane.empty .lanecards .en { font-size: 10.5px; color: var(--muted); text-align: center; }
+/* Phones: stack the lanes into one page-scrolling column instead of a cramped
+   horizontal-scroll strip below a tall header. */
+@media (max-width: 760px) {
+  .arc-app .arc-outbox { overflow-y: auto; }
+  .arc-app .arc-outbox .lanes { flex-direction: column; overflow: visible; padding: 14px 16px 40px; }
+  .arc-app .arc-outbox .lane { flex: 0 0 auto; min-width: 0; max-width: none; width: 100%; max-height: none; }
+  .arc-app .arc-outbox .lanecards { overflow-y: visible; }
+}
 
 /* cards */
 .arc-app .arc-outbox .card { border: 1px solid var(--line-2); border-radius: 11px; background: var(--panel); padding: 11px 12px; transition: .15s var(--ease); }
@@ -762,7 +824,14 @@
 .arc-app .arc-personas .miniabtn.ghost { color: var(--muted); border-color: var(--line-2); background: transparent; }
 .arc-app .arc-personas .miniabtn.ghost:hover { color: var(--text-2); }
 @keyframes personasHeaderIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@media (max-width: 720px) { .arc-app .arc-personas .pstats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) {
+  .arc-app .arc-personas .pstats { grid-template-columns: repeat(2, 1fr); }
+  /* Alert banner: let text keep its own lines and drop the action buttons to
+     a full-width row beneath, instead of squeezing the copy to one word/line. */
+  .arc-app .arc-personas .arcalert { flex-wrap: wrap; align-items: flex-start; }
+  .arc-app .arc-personas .arcalert .at { flex: 1 1 180px; }
+  .arc-app .arc-personas .arcalert .ab { margin-left: 0; width: 100%; }
+}
 .arc-app .arc-personas .segbar { display: flex; align-items: center; gap: 12px; padding: 14px clamp(20px, 2.6vw, 30px); border-bottom: 1px solid var(--line-2); flex-shrink: 0; flex-wrap: wrap; }
 .arc-app .arc-personas .vtog { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--inset); }
 .arc-app .arc-personas .vtog button { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--muted); background: none; border: none; border-radius: 7px; cursor: pointer; transition: .14s; font-family: inherit; }

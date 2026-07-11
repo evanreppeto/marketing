@@ -26,6 +26,11 @@
 .arc-chat .arc-canvas-toggle svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
 .arc-chat.canvas-collapsed .arc-canvas-toggle { right: 12px; }
 
+/* Mobile pane switch — hidden until the single-column breakpoint. The mobile
+   layout rules live at the END of this file so they win on source order over
+   the per-pane base `display` declarations above. */
+.arc-chat .arc-mtabs { display: none; }
+
 /* thread rail */
 .arc-chat .threads { min-width: 0; border-right: 1px solid var(--line); min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 14px 10px; background: color-mix(in srgb, var(--canvas-deep) 16%, transparent); }
 .arc-chat .newchat { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r-md); color: var(--text-2); background: transparent; font-size: 12.5px; font-weight: 500; cursor: pointer; margin-bottom: 11px; width: 100%; text-align: left; transition: 0.15s; }
@@ -390,3 +395,38 @@
 .arc-chat .arc .body.md-body h2 { font-size: 16px; }
 .arc-chat .arc .body.md-body h3 { font-size: 14px; }
 .arc-chat .arc .body.md-body blockquote { margin: 11px 0; padding: 2px 0 2px 13px; border-left: 2px solid var(--line-2); color: var(--muted); }
+
+/* ══ Phones: one pane at a time, chosen by the segmented control. ══════════════
+   Placed last so these `display` rules win on source order over the per-pane
+   base declarations (`.arc-chat .convo { display:flex }` etc.) above. */
+@media (max-width: 760px) {
+  .arc-chat {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .arc-chat .arc-mtabs {
+    display: flex; gap: 3px; grid-column: 1; grid-row: 1;
+    padding: 8px 12px; border-bottom: 1px solid var(--line-2);
+    background: color-mix(in srgb, var(--canvas-deep) 40%, transparent);
+  }
+  .arc-chat .arc-mtabs button {
+    flex: 1; height: 34px; border: 1px solid var(--line-2); border-radius: 8px;
+    background: transparent; color: var(--text-2); font: inherit; font-size: 12.5px;
+    font-weight: 600; cursor: pointer; transition: 0.15s;
+  }
+  .arc-chat .arc-mtabs button.on {
+    color: var(--accent-contrast); border-color: var(--accent-border); background: var(--accent-soft);
+  }
+  /* All three panes share row 2 / col 1; only the selected one renders. */
+  .arc-chat > .threads,
+  .arc-chat > .convo,
+  .arc-chat > .canvas {
+    grid-column: 1; grid-row: 2; min-width: 0; border-right: 0; display: none;
+  }
+  .arc-chat[data-mpane="threads"] > .threads { display: flex; }
+  .arc-chat[data-mpane="chat"] > .convo { display: flex; }
+  .arc-chat[data-mpane="canvas"] > .canvas { display: flex; }
+  /* Tighter message gutters on a narrow screen. */
+  .arc-chat .msgs { padding: 20px 16px 8px; }
+  .arc-chat .op .bub { max-width: 88%; }
+}
