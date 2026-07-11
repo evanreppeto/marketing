@@ -14,7 +14,7 @@ import type { SettingsConnectorsView } from "@/lib/connectors/settings-connector
 import type { SettingsBillingView } from "@/lib/billing/settings-billing";
 import { IMAGE_MODELS, VIDEO_MODELS, type AppSettings } from "@/lib/settings/store";
 
-import { updateOrgPlanAction } from "../billing-actions";
+import { createBillingPortalAction, createCheckoutSessionAction, updateOrgPlanAction } from "../billing-actions";
 
 import {
   cancelInvite,
@@ -733,11 +733,14 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
 // optimistically (persisted:false). Mirrors the TeamMembers select pattern.
 function BillingPlanControl({ billing }: { billing: SettingsBillingView | null }) {
   const [tier, setTier] = useState<string>(billing?.tier ?? "free");
+  const [checkoutTier, setCheckoutTier] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   if (!billing) return null;
   const current = billing.options.find((o) => o.tier === tier) ?? billing.options[0];
+  const optionFor = (t: string) => billing.options.find((o) => o.tier === t);
 
+  // Manual override (no Stripe): set the tier directly via org_plans.
   async function change(next: string) {
     const prev = tier;
     setTier(next);
@@ -749,29 +752,68 @@ function BillingPlanControl({ billing }: { billing: SettingsBillingView | null }
       setTier(prev);
       setStatus({ tone: "err", text: res.error });
     } else if (res.persisted) {
-      const label = billing!.options.find((o) => o.tier === next)?.label ?? next;
-      setStatus({ tone: "ok", text: `Plan updated to ${label}.` });
+      setStatus({ tone: "ok", text: `Plan updated to ${optionFor(next)?.label ?? next}.` });
     }
   }
+
+  // Stripe path: redirect to hosted Checkout / Customer Portal.
+  async function checkout(next: string) {
+    if (!next) return;
+    setBusy(true);
+    setStatus(null);
+    const res = await createCheckoutSessionAction({ tier: next });
+    if (res.ok) {
+      window.location.href = res.url;
+      return;
+    }
+    setBusy(false);
+    setStatus({ tone: "err", text: res.error });
+  }
+  async function portal() {
+    setBusy(true);
+    setStatus(null);
+    const res = await createBillingPortalAction();
+    if (res.ok) {
+      window.location.href = res.url;
+      return;
+    }
+    setBusy(false);
+    setStatus({ tone: "err", text: res.error });
+  }
+
+  const statusSuffix = billing.subscriptionStatus ? ` · ${billing.subscriptionStatus}` : "";
 
   return (
     <Panel title="Plan" tag={TGOK} foot="org_plans · monthly cap enforced against metered usage">
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 180 }}>
-          <div style={{ fontWeight: 600 }}>{current.label}</div>
+          <div style={{ fontWeight: 600 }}>{current.label}{statusSuffix}</div>
           <div style={{ fontSize: 12, color: "var(--muted)" }}>{current.capLabel} monthly cap</div>
         </div>
-        <select
-          className="sel"
-          style={{ minWidth: 170 }}
-          value={tier}
-          disabled={!billing.canManage || busy}
-          onChange={(e) => change(e.target.value)}
-        >
-          {billing.options.map((o) => (
-            <option key={o.tier} value={o.tier}>{o.label} — {o.capLabel}</option>
-          ))}
-        </select>
+        {billing.stripeConfigured ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <select className="sel" value={checkoutTier} disabled={!billing.canManage || busy} onChange={(e) => setCheckoutTier(e.target.value)}>
+              <option value="">Choose a plan…</option>
+              {billing.purchasableTiers.map((t) => (
+                <option key={t} value={t}>{optionFor(t)?.label} — {optionFor(t)?.capLabel}</option>
+              ))}
+            </select>
+            <button className="btn gold" disabled={!billing.canManage || busy || !checkoutTier} onClick={() => checkout(checkoutTier)}>Subscribe / Upgrade</button>
+            <button className="btn" disabled={!billing.canManage || busy} onClick={portal}>Manage billing</button>
+          </div>
+        ) : (
+          <select
+            className="sel"
+            style={{ minWidth: 170 }}
+            value={tier}
+            disabled={!billing.canManage || busy}
+            onChange={(e) => change(e.target.value)}
+          >
+            {billing.options.map((o) => (
+              <option key={o.tier} value={o.tier}>{o.label} — {o.capLabel}</option>
+            ))}
+          </select>
+        )}
       </div>
       {!billing.canManage && (
         <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>Only owners and admins can change the plan.</div>
