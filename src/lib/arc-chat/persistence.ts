@@ -81,6 +81,8 @@ export type ArcMessage = {
    *  reuse the original settings instead of a default. Absent on older rows. */
   mode?: ArcMode;
   route?: ArcRoute;
+  /** Workspace sources the operator explicitly selected for this turn. */
+  contextScopes?: string[];
   command?: string | null;
   skillId?: ArcSkillId | null;
   createdAt: string;
@@ -245,6 +247,7 @@ function toMessage(row: MessageRow): ArcMessage {
     attachments: parseAttachments((row.metadata as { attachments?: unknown } | null)?.attachments),
     mode: parseOptionalMode((row.metadata as { mode?: unknown } | null)?.mode),
     route: parseOptionalRoute((row.metadata as { route?: unknown } | null)?.route),
+    contextScopes: parseContextScopes((row.metadata as { context_scopes?: unknown } | null)?.context_scopes),
     command: parseOptionalString((row.metadata as { command?: unknown } | null)?.command) ?? null,
     skillId: parseOptionalSkillId((row.metadata as { skill_id?: unknown } | null)?.skill_id) ?? null,
     createdAt: row.created_at,
@@ -262,6 +265,11 @@ function parseOptionalRoute(value: unknown): ArcRoute | undefined {
 function parseOptionalString(value: unknown): string | undefined {
   const str = typeof value === "string" ? value.trim() : "";
   return str || undefined;
+}
+function parseContextScopes(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const allowed = new Set(["workspace", "brand", "crm", "campaigns"]);
+  return [...new Set(value.filter((scope): scope is string => typeof scope === "string" && allowed.has(scope)))];
 }
 function parseOptionalSkillId(value: unknown): ArcSkillId | undefined {
   const id = parseOptionalString(value);
@@ -669,6 +677,7 @@ export async function insertOperatorMessage(
     route?: ArcRoute;
     command?: string | null;
     skillId?: ArcSkillId | null;
+    contextScopes?: string[];
     author_user_id?: string | null;
   },
   client: SupabaseClient = getSupabaseAdminClient(),
@@ -679,6 +688,7 @@ export async function insertOperatorMessage(
   if (input.route) metadata.route = input.route;
   if (input.command) metadata.command = input.command;
   if (input.skillId) metadata.skill_id = input.skillId;
+  if (input.contextScopes && input.contextScopes.length > 0) metadata.context_scopes = input.contextScopes;
   const { data, error } = await client
     .from("arc_messages")
     .insert({
@@ -1039,6 +1049,20 @@ export async function getMessageConversationId(
     .maybeSingle<{ conversation_id: string }>();
   assertOk("arc_messages conversation lookup", error);
   return data?.conversation_id ?? null;
+}
+
+/** Fetch one message for operator-side interactions such as save and feedback. */
+export async function getArcMessage(
+  messageId: string,
+  client: SupabaseClient = getSupabaseAdminClient(),
+): Promise<ArcMessage | null> {
+  const { data, error } = await client
+    .from("arc_messages")
+    .select(MESSAGE_COLUMNS)
+    .eq("id", messageId)
+    .maybeSingle<MessageRow>();
+  assertOk("arc_messages get", error);
+  return data ? toMessage(data) : null;
 }
 
 export async function setArcMessageFeedback(

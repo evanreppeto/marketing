@@ -65,6 +65,8 @@ function toSaved(row: SavedRow): SavedItem {
 
 export type SaveItemInput = {
   operator: string;
+  orgId?: string | null;
+  workspaceId?: string | null;
   kind: SavedKind;
   title?: string | null;
   body?: string | null;
@@ -85,6 +87,8 @@ export async function saveItem(
     .from("arc_saved_items")
     .insert({
       operator: input.operator,
+      ...(input.orgId != null ? { org_id: input.orgId } : {}),
+      ...(input.workspaceId != null ? { workspace_id: input.workspaceId } : {}),
       kind: input.kind,
       title: input.title ?? null,
       body: input.body ?? null,

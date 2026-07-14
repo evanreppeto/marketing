@@ -1,17 +1,92 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import CircularProgress from "@mui/material/CircularProgress";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import {
+  ArrowRight,
+  ArrowUp,
+  AtSign,
+  Bookmark,
+  Brain,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  ClipboardCheck,
+  Copy,
+  Database,
+  FileText,
+  LoaderCircle,
+  LayoutTemplate,
+  LockKeyhole,
+  Mail,
+  Menu,
+  Megaphone,
+  MessageSquareText,
+  PanelRightClose,
+  PanelRightOpen,
+  Paperclip,
+  Pin,
+  Plus,
+  Search,
+  Share2,
+  ShieldCheck,
+  Slash,
+  Sparkles,
+  Smartphone,
+  Square,
+  Target,
+  ThumbsDown,
+  ThumbsUp,
+  Users,
+  Wrench,
+  X,
+  Zap,
+} from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type { SharePermission, ShareVisibility } from "@/domain";
-import { contextUsage } from "@/lib/arc-chat/context-usage";
-import type { ArcMessage } from "@/lib/arc-chat/persistence";
+import type {
+  ArcActionCard,
+  ArcMention,
+  ArcMode,
+  ArcQuestion,
+  ArcRoute,
+  SharePermission,
+  ShareVisibility,
+} from "@/domain";
+import { CONTEXT_WINDOW_TOKENS, contextUsage } from "@/lib/arc-chat/context-usage";
+import type {
+  ArcAttachment,
+  ArcMessage,
+  ArcStep,
+  ArcToolCall,
+} from "@/lib/arc-chat/persistence";
+import type { MentionGroup } from "@/lib/arc-chat/mention-search";
 import type { ArcThreadGroupVM } from "@/lib/arc-chat/read-model";
+import { filterThreadGroups } from "@/lib/arc-chat/thread-filter";
+import { buildArcRunContract, type ArcRunContract } from "@/lib/arc-chat/run-contract";
+import { buildArcRunProfile } from "@/lib/arc-chat/run-profile";
 
-import { sendArcMessageAction } from "../actions";
+import {
+  cancelArcRunAction,
+  saveArcMessageAction,
+  sendArcMessageAction,
+  setArcMessageFeedbackAction,
+  uploadArcAttachmentAction,
+} from "../actions";
 import {
   getChatSharingStateAction,
   setChatSharingAction,
@@ -20,216 +95,841 @@ import {
   type ChatSharingState,
 } from "../sharing-actions";
 
-// Resizable-panel bounds (px). Widths are drag-adjustable between min/max and
-// persisted per-browser; `def` is the SSR/first-render default.
-const RAIL_W = { min: 190, max: 440, def: 248 };
-const CANVAS_W = { min: 340, max: 760, def: 480 };
-const clampSize = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const DEMO_THREADS = [
+  {
+    group: "Today",
+    items: [
+      { id: "storm", title: "Storm-damage homeowners", when: "9:38 AM", active: true, pinned: true },
+      { id: "past", title: "Past-customer outreach", when: "8:12 AM", active: false, pinned: false },
+    ],
+  },
+  {
+    group: "Yesterday",
+    items: [
+      { id: "property", title: "Property-manager list", when: "4:46 PM", active: false, pinned: false },
+      { id: "noaa", title: "NOAA hail report read", when: "2:10 PM", active: false, pinned: false },
+    ],
+  },
+  {
+    group: "Previous 7 days",
+    items: [
+      { id: "inspection", title: "Inspection page rewrite", when: "Jul 10", active: false, pinned: false },
+      { id: "adjuster", title: "Adjuster follow-ups", when: "Jul 8", active: false, pinned: false },
+    ],
+  },
+] satisfies ArcThreadGroupVM[];
 
-/**
- * Context meter — how full this chat's working window is (Claude-style). As it
- * approaches the window, Arc keeps recent turns verbatim and compacts older ones
- * into a rolling summary; the meter turns amber near the top, red once compaction
- * engages. Estimate is client-side over message bodies (see context-usage.ts).
- */
-function ContextMeter({ messages }: { messages: ArcMessage[] }) {
-  if (messages.length === 0) return null;
-  const { pct, level } = contextUsage(messages.map((m) => m.body ?? ""));
-  const color = level === "full" ? "var(--danger, #c0453b)" : level === "warn" ? "var(--warn)" : "var(--ok)";
-  const title =
-    level === "full"
-      ? "Context full — Arc summarizes earlier turns to keep the thread going"
-      : level === "warn"
-        ? `Context ${pct}% — Arc will soon summarize earlier turns`
-        : `Context ${pct}% of this chat's working window`;
+const DEMO_STEPS: ArcStep[] = [
+  { label: "Read the Naperville storm brief", status: "done", at: "9:38 AM", kind: "think" },
+  { label: "Matched recent hail exposure to CRM properties", status: "done", at: "9:38 AM", kind: "match" },
+  { label: "Ranked homeowners by inspection urgency", status: "done", at: "9:38 AM", kind: "search" },
+  { label: "Prepared a review-safe campaign package", status: "done", at: "9:38 AM", kind: "draft" },
+];
+
+const DEMO_TOOLS: ArcToolCall[] = [
+  { name: "weather.lookup", status: "complete", output: "Naperville hail swath" },
+  { name: "crm.search", status: "complete", output: "142 matched properties" },
+  { name: "audience.score", status: "complete", output: "$1.4M estimated opportunity" },
+];
+
+type DemoTurn = { id: string; role: "operator" | "arc"; body: string; outcome?: "complete" | "canceled"; mode?: ArcMode; command?: string | null };
+type ComposerMenu = "tools" | "model" | "mode" | "context" | "mentions" | "commands" | null;
+type ArtifactTab = "audience" | "email" | "sms" | "social" | "landing";
+type ArtifactReviewState = "ready" | "revising" | "approved";
+type RunKind = "think" | "search" | "match" | "draft" | "media" | "tool";
+type RunRow = {
+  id: string;
+  label: string;
+  detail?: string;
+  result?: string;
+  isTool?: boolean;
+  status: "queued" | "running" | "done" | "error";
+  kind: RunKind;
+};
+
+const MODEL_OPTIONS: Array<{ id: ArcRoute; label: string; description: string }> = [
+  { id: "fast", label: "Fast", description: "Quick answers and everyday work" },
+  { id: "standard", label: "Deep", description: "Complex planning and careful reasoning" },
+];
+
+const ARTIFACT_TABS: Array<{ id: ArtifactTab; label: string; icon: typeof Target }> = [
+  { id: "audience", label: "Audience", icon: Target },
+  { id: "email", label: "Email", icon: Mail },
+  { id: "sms", label: "SMS", icon: Smartphone },
+  { id: "social", label: "Social", icon: Megaphone },
+  { id: "landing", label: "Landing page", icon: LayoutTemplate },
+];
+
+const MODE_OPTIONS: Array<{ id: ArcMode; label: string; description: string }> = [
+  { id: "ask", label: "Ask", description: "Answer without changing workspace data" },
+  { id: "draft", label: "Draft", description: "Prepare work and keep it behind approval" },
+  { id: "act", label: "Act", description: "Use workspace tools; outbound remains locked" },
+];
+
+const CONTEXT_OPTIONS = [
+  { id: "workspace", label: "Workspace knowledge", icon: Brain },
+  { id: "brand", label: "Brand profile", icon: Bookmark },
+  { id: "crm", label: "CRM records", icon: Users },
+  { id: "campaigns", label: "Campaigns and assets", icon: MessageSquareText },
+] as const;
+
+const COMMAND_OPTIONS: Array<{ id: string; label: string; description: string; mode: ArcMode }> = [
+  { id: "find-leads", label: "Find leads", description: "Search and rank opportunities", mode: "act" },
+  { id: "draft-email", label: "Draft email", description: "Prepare an approval-safe email", mode: "draft" },
+  { id: "draft-campaign", label: "Draft campaign", description: "Build a multi-channel package", mode: "draft" },
+  { id: "summarize", label: "Summarize", description: "Condense the selected context", mode: "ask" },
+];
+
+function formatToolName(name: string) {
+  return name.replace(/[._-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getToolKind(name: string): RunKind {
+  const normalized = name.toLowerCase();
+  if (/(image|video|media|render|asset|thumbnail)/.test(normalized)) return "media";
+  if (/(search|lookup|weather|browse|fetch)/.test(normalized)) return "search";
+  if (/(crm|audience|score|match|record|database)/.test(normalized)) return "match";
+  if (/(draft|compose|campaign|email|sms|update)/.test(normalized)) return "draft";
+  return "tool";
+}
+
+function formatMessageTime(iso: string) {
+  const value = new Date(iso);
+  if (!Number.isFinite(value.getTime())) return "";
+  return value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function RunIcon({ kind, size = 15 }: { kind: RunKind; size?: number }) {
+  if (kind === "search") return <Search size={size} />;
+  if (kind === "match") return <Database size={size} />;
+  if (kind === "draft") return <FileText size={size} />;
+  if (kind === "media") return <LayoutTemplate size={size} />;
+  if (kind === "tool") return <Wrench size={size} />;
+  return <Brain size={size} />;
+}
+
+function formatWorkingTime(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder > 0 ? `${minutes}m ${remainder}s` : `${minutes}m`;
+}
+
+function buildDemoLiveWork(request?: string | null): { commentary: string; rows: RunRow[] } {
+  const normalized = request?.trim().toLowerCase() ?? "";
+
+  if (/(email|sms|campaign|draft|write|create|landing)/.test(normalized)) {
+    return {
+      commentary: "I’m reading the approved Storm Rapid Response package and brand profile before I draft. I’ll keep the message inspection-first, use only approved claims, and leave outbound locked for review.",
+      rows: [
+        { id: "demo-campaign", label: "Read Storm Rapid Response campaign package", detail: "4 approved channel assets", status: "queued", kind: "draft" },
+        { id: "demo-brand", label: "Loaded Big Shoulders brand voice", detail: "Approved proof points and messaging rules", status: "queued", kind: "tool" },
+        { id: "demo-audience", label: "Reading the 142-home approved audience", detail: "Naperville hailstorm segment", status: "queued", kind: "match" },
+        { id: "demo-draft", label: "Drafting the inspection-first message", detail: "Outbound remains locked", status: "queued", kind: "draft" },
+      ],
+    };
+  }
+
+  if (/(search|find|look up|research|which|who|audience|lead)/.test(normalized)) {
+    return {
+      commentary: "I’m checking the selected workspace sources against the request now. I’ll show each source as it is used and separate confirmed matches from anything that still needs review.",
+      rows: [
+        { id: "demo-crm", label: "Searching CRM property records", detail: "Naperville storm footprint", status: "queued", kind: "search" },
+        { id: "demo-weather", label: "Reading the hail exposure model", detail: "Severity and address confidence", status: "queued", kind: "search" },
+        { id: "demo-history", label: "Checking inspection and claim history", detail: "Approved workspace records", status: "queued", kind: "match" },
+        { id: "demo-rank", label: "Ranking matching homeowners", detail: "Urgency and data confidence", status: "queued", kind: "match" },
+      ],
+    };
+  }
+
+  return {
+    commentary: "I’m reading the active campaign, audience, and conversation context so I can answer from the current workspace instead of guessing. I’ll keep each source and action visible as I use it.",
+    rows: [
+      { id: "demo-context", label: "Reading active campaign context", detail: "Storm Rapid Response", status: "queued", kind: "think" },
+      { id: "demo-sources", label: "Loading selected workspace sources", detail: "Brand, CRM, and campaigns", status: "queued", kind: "tool" },
+      { id: "demo-answer", label: "Preparing a source-backed response", status: "queued", kind: "draft" },
+    ],
+  };
+}
+
+function RunContract({ contract, pending, outcome = "complete" }: { contract: ArcRunContract; pending: boolean; outcome?: "complete" | "failed" | "canceled" }) {
+  const title = pending ? "Run plan" : outcome === "canceled" ? "Canceled receipt" : outcome === "failed" ? "Failed receipt" : "Run receipt";
+  const sourceLabel = contract.readScopes.length === 1 ? "1 source" : `${contract.readScopes.length} sources`;
+  const contractGrid = (
+    <div className="arc-run-contract-grid">
+      <div><span>Reads</span><b>{contract.readScopes.length > 0 ? contract.readScopes.join(" · ") : "Conversation only"}</b></div>
+      <div><span>Workspace effect</span><b>{contract.workspaceEffect}</b></div>
+      <div><span>External effect</span><b>{contract.externalEffect}</b></div>
+      <div><span>{pending ? "Approval" : "Recorded output"}</span><b>{pending ? contract.approval : contract.outputSummary}</b></div>
+    </div>
+  );
+
+  if (pending) {
+    return (
+      <details className="arc-run-contract arc-run-contract-compact" data-state="planned">
+        <summary>
+          <ShieldCheck size={14} />
+          <span><b>{contract.modeLabel}</b><small>{sourceLabel} · Outbound locked</small></span>
+          <ChevronDown size={14} />
+        </summary>
+        {contractGrid}
+      </details>
+    );
+  }
+
   return (
-    <span className="ctxmeter" title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-      <span
-        aria-hidden
-        style={{ width: 44, height: 4, borderRadius: 2, background: "var(--line, rgba(255,255,255,.14))", overflow: "hidden", display: "inline-block" }}
-      >
-        <span style={{ display: "block", height: "100%", width: `${Math.max(3, pct)}%`, background: color, transition: "width .3s ease" }} />
-      </span>
-      <span style={{ opacity: 0.75 }}>Context {pct}%</span>
+    <div className="arc-run-contract" data-state={outcome}>
+      <div className="arc-run-contract-head">
+        {outcome === "complete" ? <ClipboardCheck size={15} /> : <X size={15} />}
+        <span><b>{title}</b><small>{contract.modeLabel} · {contract.modelLabel}</small></span>
+        {contract.receiptId ? <code>#{contract.receiptId}</code> : null}
+      </div>
+      {contractGrid}
+    </div>
+  );
+}
+
+function RunTrace({
+  pending,
+  liveText,
+  reasoning,
+  steps = [],
+  toolCalls = [],
+  contract,
+  onStop,
+  stopping = false,
+  outcome = "complete",
+  demoRows = [],
+}: {
+  pending: boolean;
+  liveText?: string | null;
+  reasoning?: string | null;
+  steps?: ArcStep[];
+  toolCalls?: ArcToolCall[];
+  contract?: ArcRunContract;
+  onStop?: () => void;
+  stopping?: boolean;
+  outcome?: "complete" | "failed" | "canceled";
+  demoRows?: RunRow[];
+}) {
+  const reduceMotion = useReducedMotion();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const sourceRows: RunRow[] = [
+    ...steps.map((step, index) => ({
+      id: `step-${index}`,
+      label: step.label,
+      detail: step.detail?.join(" · "),
+      status: step.status === "done" ? "done" as const : "running" as const,
+      kind: (step.kind ?? "think") as RunKind,
+    })),
+    ...toolCalls.map((tool, index) => ({
+      id: `tool-${index}`,
+      label: tool.name,
+      detail: tool.input ?? `Running ${formatToolName(tool.name).toLowerCase()}`,
+      result: tool.output,
+      isTool: true,
+      status: tool.status === "complete" ? "done" as const : tool.status === "error" ? "error" as const : "running" as const,
+      kind: getToolKind(tool.name),
+    })),
+  ];
+  const rows = sourceRows.length > 0 ? sourceRows : demoRows;
+
+  useEffect(() => {
+    if (!pending || reduceMotion || sourceRows.length > 0 || demoRows.length === 0) return;
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => Math.min(current + 1, rows.length - 1));
+    }, 1350);
+    return () => window.clearInterval(interval);
+  }, [demoRows.length, pending, reduceMotion, rows.length, sourceRows.length]);
+
+  useEffect(() => {
+    if (!pending) return;
+    const startedAt = Date.now();
+    const interval = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [pending]);
+
+  if (!pending) {
+    if (!reasoning && sourceRows.length === 0 && !contract) return null;
+    const completeCount = sourceRows.filter((row) => row.status === "done").length;
+    const activityCount = sourceRows.length;
+    const activityLabel = activityCount === 1 ? "activity" : "activities";
+    const summaryLabel = outcome === "canceled"
+      ? activityCount > 0 ? `Stopped after ${activityCount} ${activityLabel}` : "Run stopped"
+      : outcome === "failed"
+        ? activityCount > 0 ? `Failed after ${activityCount} ${activityLabel}` : "Run failed"
+        : activityCount > 0 ? `Completed ${completeCount || activityCount} ${activityLabel}` : "Run complete";
+    return (
+      <details className="arc-run-summary" data-outcome={outcome}>
+        <summary>
+          <span className="arc-run-summary-main">{outcome === "complete" ? <CheckCircle2 size={15} /> : outcome === "canceled" ? <Square size={13} /> : <X size={15} />}{summaryLabel}</span>
+          <span className="arc-run-summary-meta">View details <ChevronRight size={14} /></span>
+        </summary>
+        <div className="arc-run-details">
+          {contract ? <RunContract contract={contract} pending={false} outcome={outcome} /> : null}
+          {reasoning ? (
+            <div className="arc-reasoning-summary">
+              <Sparkles size={15} />
+              <div><b>Work summary</b><p>{reasoning}</p></div>
+            </div>
+          ) : null}
+          <div className="arc-run-rows">
+            {sourceRows.map((row) => (
+              <div className={`arc-run-row is-${row.status}`} key={row.id}>
+                <span className="arc-run-kind"><RunIcon kind={row.kind} /></span>
+                <span className="arc-run-copy"><b>{row.label}</b>{row.detail || row.result ? <small>{[row.detail, row.result].filter(Boolean).join(" · ")}</small> : null}</span>
+                {row.status === "error" ? <X size={14} className="arc-run-state" aria-label="Failed" /> : <Check size={14} className="arc-run-state" aria-label="Complete" />}
+              </div>
+            ))}
+          </div>
+        </div>
+      </details>
+    );
+  }
+
+  const liveRows = rows.map((row, index) => {
+    if (sourceRows.length > 0) return row;
+    if (index < activeIndex) return { ...row, status: "done" as const };
+    if (index === activeIndex) return { ...row, status: "running" as const };
+    return row;
+  }).filter((row) => sourceRows.length > 0 || row.status !== "queued");
+  const hasError = liveRows.some((row) => row.status === "error");
+  const hasReportedWork = liveRows.length > 0 || Boolean(liveText?.trim());
+  const elapsedLabel = formatWorkingTime(elapsedSeconds);
+
+  return (
+    <motion.div
+      className="arc-run-live"
+      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      data-state={stopping ? "stopping" : hasError ? "error" : "running"}
+    >
+      <div className="arc-run-live-head">
+        <span className="arc-run-spinner arc-luma" aria-hidden="true"><span /><span /></span>
+        <span><b aria-hidden="true">{stopping ? "Stopping safely…" : hasError ? `Needs attention after ${elapsedLabel}` : `Working for ${elapsedLabel}`}</b><span className="sr-only" role="status" aria-live="polite">{stopping ? "Arc is stopping safely" : hasError ? "Arc needs attention" : "Arc is working"}</span></span>
+        <button type="button" className="arc-stop" aria-label="Stop Arc" onClick={onStop} disabled={!onStop || stopping}><Square size={11} /> {stopping ? "Stopping…" : "Stop"}</button>
+      </div>
+      <div className="arc-run-divider" />
+      <div className="arc-live-worklog">
+        {liveText?.trim() ? (
+          <motion.div className="arc-live-commentary arc-markdown" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{liveText}</ReactMarkdown>
+          </motion.div>
+        ) : null}
+        <div className="arc-live-events" role="list" aria-label="Live activity">
+        {!hasReportedWork ? (
+          <div className="arc-live-event is-running" role="listitem" aria-current="step">
+            <span className="arc-live-event-icon"><LoaderCircle size={15} /></span>
+            <span className="arc-live-event-copy"><b>Starting the run…</b><small>Waiting for the first reported activity</small></span>
+          </div>
+        ) : null}
+        {liveRows.map((row, index) => (
+          <motion.div
+            className={`arc-live-event is-${row.status}`}
+            key={row.id}
+            initial={reduceMotion ? false : { opacity: 0, y: 5 }}
+            animate={{ opacity: row.status === "queued" ? 0.62 : 1, y: 0 }}
+            transition={{ delay: reduceMotion ? 0 : index * 0.08 }}
+            role="listitem"
+            aria-current={row.status === "running" ? "step" : undefined}
+          >
+            <span className="arc-live-event-icon"><RunIcon kind={row.kind} size={15} /></span>
+            <span className="arc-live-event-copy">
+              <b data-tool={row.isTool ? "true" : undefined}>{row.label}</b>
+              {row.detail ? <small>{row.detail}</small> : null}
+              {row.result ? <small className="arc-live-event-result">{row.result}</small> : null}
+            </span>
+            <span className="arc-live-event-state">
+              {row.status === "done" ? <Check size={14} aria-label="Complete" /> : null}
+              {row.status === "running" ? <LoaderCircle size={15} aria-label="Active" /> : null}
+              {row.status === "queued" ? <Circle size={10} aria-label="Queued" /> : null}
+              {row.status === "error" ? <X size={14} aria-label="Needs attention" /> : null}
+            </span>
+          </motion.div>
+        ))}
+        </div>
+      </div>
+      {contract ? <RunContract contract={contract} pending /> : null}
+    </motion.div>
+  );
+}
+
+function ArcAvatar() {
+  return (
+    <span className="arc-avatar">
+      <Image src="/brand/arc-mark.png" alt="" width={30} height={30} priority />
     </span>
   );
 }
 
-/**
- * Share dialog — chats are per-person (private by default). The owner can open a
- * chat to the whole workspace (view or collaborate) or share it with specific
- * members. Wraps the sharing server actions; loads current state on open. In
- * offline/open mode it renders with defaults and the actions no-op (enforcement
- * lives in supabase auth mode).
- */
+function OperatorMessage({ body, time }: { body: string; time?: string }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.div
+      className="arc-operator-message"
+      initial={reduceMotion ? false : { opacity: 0, y: 7 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      {time ? <span className="arc-message-time">{time}</span> : null}
+      <div>{body}</div>
+    </motion.div>
+  );
+}
+
+function AssistantMessage({
+  time,
+  children,
+}: {
+  time?: string;
+  children: React.ReactNode;
+}) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.article
+      className="arc-assistant-message"
+      initial={reduceMotion ? false : { opacity: 0, y: 9 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <ArcAvatar />
+      <div className="arc-assistant-content">
+        <div className="arc-assistant-meta"><b>Arc</b>{time ? <span>{time}</span> : null}</div>
+        {children}
+      </div>
+    </motion.article>
+  );
+}
+
+function CampaignPackageCard({ onReview, reviewState }: { onReview: () => void; reviewState: ArtifactReviewState }) {
+  const channels = ["Email", "SMS", "Paid Social", "Landing Page"];
+  const status = reviewState === "approved" ? "Approved" : reviewState === "revising" ? "Revising" : "Ready";
+  const action = reviewState === "approved" ? "View approved" : reviewState === "revising" ? "View progress" : "Review package";
+  return (
+    <div className="arc-package" data-status={reviewState}>
+      <div className="arc-package-kicker">Campaign package</div>
+      <div className="arc-package-row">
+        <span className="arc-package-icon"><MessageSquareText size={18} /></span>
+        <span className="arc-package-title"><b>Storm Rapid Response</b><small>4 assets · Naperville, IL</small></span>
+        <div className="arc-package-channels">
+          {channels.map((channel) => <span key={channel}><i />{channel}<small>{status}</small></span>)}
+        </div>
+        <button type="button" className="arc-review-button" data-arc-campaign-trigger="true" onClick={onReview}>
+          {action} <PanelRightOpen size={15} />
+        </button>
+      </div>
+      <div className="arc-package-sources">Sources · Hail model · CRM properties · Inspection history · Prior claim activity</div>
+    </div>
+  );
+}
+
+function ArtifactWorkspace({
+  activeTab,
+  reviewState,
+  notice,
+  busy,
+  onSelect,
+  onApprove,
+  onSubmitRevision,
+  onClose,
+}: {
+  activeTab: ArtifactTab;
+  reviewState: ArtifactReviewState;
+  notice: string | null;
+  busy: boolean;
+  onSelect: (tab: ArtifactTab) => void;
+  onApprove: () => void;
+  onSubmitRevision: (request: string, tab: ArtifactTab) => void;
+  onClose: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const [revisionOpen, setRevisionOpen] = useState(false);
+  const [revisionRequest, setRevisionRequest] = useState("");
+  const approved = reviewState === "approved";
+  const revising = reviewState === "revising";
+  const activeLabel = ARTIFACT_TABS.find((tab) => tab.id === activeTab)?.label ?? "asset";
+  const submitRevision = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const request = revisionRequest.trim();
+    if (!request || busy) return;
+    onSubmitRevision(request, activeTab);
+    setRevisionRequest("");
+    setRevisionOpen(false);
+  };
+  return (
+    <motion.aside
+      className="arc-artifact-workspace"
+      aria-label="Campaign workspace"
+      initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={reduceMotion ? undefined : { opacity: 0, x: 18 }}
+      transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <header className="arc-artifact-header">
+        <div><span>Campaign workspace</span><h2>Storm Rapid Response</h2><p>4 assets · Naperville, IL</p></div>
+        <button type="button" onClick={onClose} aria-label="Close campaign workspace"><PanelRightClose size={17} /></button>
+      </header>
+      <div className="arc-artifact-shell">
+        <div className="arc-artifact-tabs" role="tablist" aria-label="Campaign artifacts">
+          {ARTIFACT_TABS.map((tab) => {
+            const Icon = tab.icon;
+            return <button type="button" role="tab" id={`arc-artifact-tab-${tab.id}`} aria-controls="arc-artifact-panel" aria-selected={activeTab === tab.id} key={tab.id} className={activeTab === tab.id ? "is-active" : ""} onClick={() => onSelect(tab.id)}><Icon size={17} /><span>{tab.label}</span></button>;
+          })}
+        </div>
+        <div className="arc-artifact-content">
+          <div className="arc-artifact-status" aria-live="polite"><span className={approved ? "is-approved" : revising ? "is-revising" : ""}><CheckCircle2 size={14} />{approved ? "Approved" : revising ? `Revising ${activeLabel}` : "Ready for review"}</span><span><LockKeyhole size={13} />Outbound locked</span></div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={activeTab} id="arc-artifact-panel" role="tabpanel" aria-labelledby={`arc-artifact-tab-${activeTab}`} className="arc-artifact-view" initial={reduceMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
+              {activeTab === "audience" ? <AudienceArtifact /> : null}
+              {activeTab === "email" ? <EmailArtifact /> : null}
+              {activeTab === "sms" ? <SmsArtifact /> : null}
+              {activeTab === "social" ? <SocialArtifact /> : null}
+              {activeTab === "landing" ? <LandingArtifact /> : null}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+      <footer className="arc-artifact-footer" aria-busy={busy || revising}>
+        {revisionOpen ? (
+          <form className="arc-revision-form" onSubmit={submitRevision}>
+            <label htmlFor="arc-revision-request">What should Arc change in the {activeLabel.toLowerCase()}?</label>
+            <textarea id="arc-revision-request" autoFocus value={revisionRequest} onChange={(event) => setRevisionRequest(event.target.value)} placeholder="Describe the change…" rows={2} />
+            <div><button type="button" onClick={() => { setRevisionOpen(false); setRevisionRequest(""); }}>Cancel</button><button type="submit" className="is-primary" disabled={!revisionRequest.trim() || busy}>Send revision</button></div>
+          </form>
+        ) : (
+          <>
+            <div role="status" aria-live="polite">{notice ?? (approved ? "Approved for use. Outbound remains locked until send approval." : revising ? "Arc is updating the selected asset. Nothing can send while it works." : "Review the assets, request changes, or approve them for use. Sending stays locked.")}</div>
+            <button type="button" onClick={() => setRevisionOpen(true)} disabled={busy || revising}>Revise</button>
+            <button type="button" className="is-primary" onClick={onApprove} disabled={approved || busy || revising}><Check size={14} />{approved ? "Approved" : revising ? "Revising…" : "Approve ready"}</button>
+          </>
+        )}
+      </footer>
+    </motion.aside>
+  );
+}
+
+function AudienceArtifact() {
+  const segments = [
+    ["Insured · fresh damage", "64 homes", 45],
+    ["Aging roof · out-of-pocket", "41 homes", 29],
+    ["Property manager · multi-unit", "37 homes", 26],
+  ] as const;
+  return <><div className="arc-artifact-title"><span>Audience</span><h3>142 priority homes</h3><p>Ranked from hail exposure, inspection status, roof age, and prior claim activity.</p></div><div className="arc-audience-stats"><div><b>142</b><span>target homes</span></div><div><b>$1.4M</b><span>estimated value</span></div><div><b>23%</b><span>of storm zone</span></div></div><section className="arc-artifact-section"><h4>Persona mix</h4>{segments.map(([name, count, pct]) => <div className="arc-audience-row" key={name}><div><b>{name}</b><span>{count}</span></div><div className="arc-audience-bar"><i style={{ width: `${pct}%` }} /></div></div>)}</section><section className="arc-artifact-note"><Brain size={15} /><div><b>Why this audience</b><p>No inspection booked after the storm, with older-roof and claim signals weighted highest.</p></div></section></>;
+}
+
+function EmailArtifact() {
+  return <><div className="arc-artifact-title"><span>Email</span><h3>Inspection follow-up</h3><p>Approval-safe draft for the highest-priority homeowners.</p></div><div className="arc-email-preview"><div><span>From</span><b>Big Shoulders Restoration</b></div><div><span>Subject</span><b>Your roof may have hidden hail damage</b></div><p>Hi {"{first_name}"}, the recent Naperville hailstorm hit your block harder than most. We’re offering a free, no-pressure inspection this week—and if there’s claimable damage, we can help coordinate the insurance process.</p></div><ArtifactChecks /> </>;
+}
+
+function SmsArtifact() {
+  return <><div className="arc-artifact-title"><span>SMS</span><h3>Warm inspection check-in</h3><p>152 characters · one segment · personalized at send time</p></div><div className="arc-sms-preview"><p>Hi {"{first_name}"} — it’s the BSR crew. We’re checking roofs near you after the Naperville hail, no charge and no pressure. Want us to stop by?</p><span>152 / 160</span></div><ArtifactChecks /></>;
+}
+
+function SocialArtifact() {
+  return <><div className="arc-artifact-title"><span>Paid social</span><h3>Naperville storm awareness</h3><p>Localized lead campaign · homeowner audience</p></div><div className="arc-copy-preview"><label>Primary text</label><p>Naperville got hit hard. Hidden hail damage can become a much bigger repair if it sits—book a free roof inspection while our crews are nearby.</p><label>Headline</label><b>See what the storm left behind</b><label>Call to action</label><b>Book now</b></div><ArtifactChecks /></>;
+}
+
+function LandingArtifact() {
+  return <><div className="arc-artifact-title"><span>Landing page</span><h3>Storm inspection page</h3><p>Campaign-matched destination · mobile ready</p></div><div className="arc-landing-preview"><span>Naperville storm zone</span><h4>Free roof inspection for storm-hit homes</h4><p>See whether your roof has claimable damage before the next storm rolls through.</p><button type="button">Book a free inspection</button></div><ArtifactChecks /></>;
+}
+
+function ArtifactChecks() {
+  return <section className="arc-artifact-section"><h4>Checks</h4><div className="arc-check-grid"><span><CheckCircle2 size={14} />Brand voice</span><span><CheckCircle2 size={14} />Claims language</span><span><CheckCircle2 size={14} />Audience match</span><span><CheckCircle2 size={14} />Outbound locked</span></div></section>;
+}
+
+function StructuredActionCard({ card }: { card: ArcActionCard }) {
+  const destination = card.appState?.href ?? card.href;
+  const content = (
+    <>
+      <span className="arc-package-icon"><FileText size={17} /></span>
+      <span className="arc-package-title"><b>{card.title}</b><small>{card.channel ?? card.kind}</small></span>
+      {card.flags.slice(0, 2).map((flag, index) => <span className={`arc-action-flag is-${flag.tone}`} key={`${flag.label}-${index}`}>{flag.label}</span>)}
+      <span className="arc-action-open">Open <ArrowRight size={14} /></span>
+    </>
+  );
+  return destination?.startsWith("/") ? <Link className="arc-action-card" href={destination}>{content}</Link> : <div className="arc-action-card">{content}</div>;
+}
+
+function QuestionPrompt({ question, onChoose, onDismiss }: { question: ArcQuestion; onChoose: (value: string) => void; onDismiss: () => void }) {
+  return (
+    <div className="arc-question">
+      <ArcAvatar />
+      <div><b>{question.prompt}</b><div className="arc-question-options">{question.options.map((option, index) => <button type="button" key={`${option}-${index}`} onClick={() => onChoose(option)}>{option}</button>)}</div></div>
+      <button type="button" className="arc-icon-button" onClick={onDismiss} aria-label="Dismiss question"><X size={15} /></button>
+    </div>
+  );
+}
+
+function MessageActions({ message }: { message: ArcMessage }) {
+  const [feedback, setFeedback] = useState<"up" | "down" | null>(message.feedback);
+  const [saved, setSaved] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, startAction] = useTransition();
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.body);
+      setNotice("Copied");
+    } catch {
+      setNotice("Copy failed");
+    }
+  };
+
+  const rate = (value: "up" | "down") => {
+    const previous = feedback;
+    const next = feedback === value ? null : value;
+    setFeedback(next);
+    setNotice(null);
+    startAction(async () => {
+      const result = await setArcMessageFeedbackAction({ messageId: message.id, value: next });
+      if (!result.ok) {
+        setFeedback(previous);
+        setNotice(result.error);
+      } else {
+        setNotice(next ? "Feedback saved" : "Feedback cleared");
+      }
+    });
+  };
+
+  const save = () => startAction(async () => {
+    const result = await saveArcMessageAction(message.id);
+    setSaved(result.ok);
+    setNotice(result.ok ? "Saved to your Arc library" : result.error);
+  });
+
+  return (
+    <div className="arc-message-action-row">
+      <div className="arc-message-actions">
+        <button type="button" aria-label="Copy response" title="Copy response" onClick={copy}><Copy size={15} /></button>
+        <button type="button" aria-label="Good response" title="Good response" aria-pressed={feedback === "up"} className={feedback === "up" ? "is-active" : ""} onClick={() => rate("up")} disabled={busy}><ThumbsUp size={15} /></button>
+        <button type="button" aria-label="Bad response" title="Bad response" aria-pressed={feedback === "down"} className={feedback === "down" ? "is-active" : ""} onClick={() => rate("down")} disabled={busy}><ThumbsDown size={15} /></button>
+        <button type="button" aria-label={saved ? "Response saved" : "Save response"} title={saved ? "Saved" : "Save response"} aria-pressed={saved} className={saved ? "is-active" : ""} onClick={save} disabled={busy || saved}><Bookmark size={15} /></button>
+      </div>
+      <span className="arc-message-action-notice" role="status" aria-live="polite">{notice}</span>
+    </div>
+  );
+}
+
+function operatorMessageBefore(messages: ArcMessage[], index: number): ArcMessage | null {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (messages[cursor]?.role === "operator") return messages[cursor] ?? null;
+  }
+  return null;
+}
+
+function LiveConversation({
+  messages,
+  brandName,
+  onSuggestion,
+  onCancelRun,
+  stoppingTaskId,
+}: {
+  messages: ArcMessage[];
+  brandName: string;
+  onSuggestion: (value: string) => void;
+  onCancelRun: (taskId: string, conversationId: string) => void;
+  stoppingTaskId: string | null;
+}) {
+  if (messages.length === 0) {
+    return (
+      <div className="arc-empty-chat">
+        <ArcAvatar />
+        <h2>How can I help, {brandName}?</h2>
+        <p>Ask me to find an audience, draft a campaign, or check a signal. I’ll show the work that matters, and nothing goes out until you approve it.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {messages.map((message, index) => {
+        if (message.role === "operator") return <OperatorMessage key={message.id} body={message.body} time={formatMessageTime(message.createdAt)} />;
+        const pending = message.status === "pending" || (message.role === "arc" && !message.body.trim());
+        const operatorMessage = operatorMessageBefore(messages, index);
+        const contract = buildArcRunContract({
+          mode: operatorMessage?.mode,
+          route: operatorMessage?.route,
+          contextScopes: operatorMessage?.contextScopes,
+          actionCount: message.actions.length,
+          toolCount: message.toolCalls?.length ?? 0,
+          agentTaskId: message.agentTaskId,
+        });
+        return (
+          <AssistantMessage key={message.id} time={formatMessageTime(message.createdAt)}>
+            <RunTrace pending={pending} liveText={pending ? message.body : null} reasoning={message.reasoning} steps={message.steps} toolCalls={message.toolCalls} contract={contract} onStop={pending && message.agentTaskId ? () => onCancelRun(message.agentTaskId as string, message.conversationId) : undefined} stopping={stoppingTaskId === message.agentTaskId} outcome={message.status === "failed" ? (message.body.startsWith("Stopped by you") ? "canceled" : "failed") : "complete"} />
+            {!pending ? <div className="arc-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{message.body}</ReactMarkdown></div> : null}
+            {!pending && message.recall?.length ? (
+              <div className="arc-recall"><span><Brain size={14} /> Recalled</span>{message.recall.map((item, index) => <button type="button" key={`${item.label}-${index}`}>{item.label}{item.confidence != null ? <small>{Math.round(item.confidence * 100)}%</small> : null}</button>)}</div>
+            ) : null}
+            {!pending && message.actions.length ? <div className="arc-action-list">{message.actions.map((card, index) => <StructuredActionCard card={card} key={`${card.title}-${index}`} />)}</div> : null}
+            {!pending && message.suggestions.length ? <div className="arc-suggestions">{message.suggestions.map((suggestion, index) => <button type="button" key={`${suggestion}-${index}`} onClick={() => onSuggestion(suggestion)}>{suggestion}</button>)}</div> : null}
+            {!pending ? <MessageActions message={message} /> : null}
+          </AssistantMessage>
+        );
+      })}
+    </>
+  );
+}
+
+function DemoConversation({
+  turns,
+  pending,
+  reviewState,
+  pendingContract,
+  onReviewPackage,
+  onStop,
+}: {
+  turns: DemoTurn[];
+  pending: boolean;
+  reviewState: ArtifactReviewState;
+  pendingContract: ArcRunContract;
+  onReviewPackage: () => void;
+  onStop: () => void;
+}) {
+  const pendingTurn = [...turns].reverse().find((turn) => turn.role === "operator");
+  const demoLiveWork = buildDemoLiveWork(pendingTurn?.body);
+
+  return (
+    <>
+      <div className="arc-day"><span>July 14, 2026</span></div>
+      <OperatorMessage time="9:35 AM" body="Which homeowners should we reach first after the Naperville hailstorm?" />
+      <AssistantMessage time="9:38 AM">
+        <div className="arc-answer">
+          <h2>142 homes took the heaviest hail and still haven’t booked an inspection.</h2>
+          <p>That’s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</p>
+          <ul><li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li><li>No inspection booked in the six days since the storm</li><li>Roof age 8+ years or prior claim history</li></ul>
+        </div>
+        <RunTrace pending={false} reasoning="I combined the storm footprint with property condition and recent CRM activity, then favored an inspection-first message because it performed better than discount-led outreach." steps={DEMO_STEPS} toolCalls={DEMO_TOOLS} contract={buildArcRunContract({ mode: "ask", route: "standard", contextScopes: ["workspace", "crm", "campaigns"], toolCount: DEMO_TOOLS.length, agentTaskId: "DEMO-142-HOMES" })} />
+      </AssistantMessage>
+      <AssistantMessage time="9:42 AM">
+        <div className="arc-answer"><p>I built the Storm Rapid Response package for the 142 highest-urgency homes.</p></div>
+        <CampaignPackageCard onReview={onReviewPackage} reviewState={reviewState} />
+      </AssistantMessage>
+      <OperatorMessage time="9:44 AM" body="Looks good. Draft the email." />
+      {turns.map((turn, index) => {
+        if (turn.role === "operator") return <OperatorMessage key={turn.id} body={turn.body} />;
+        const operatorTurn = [...turns.slice(0, index)].reverse().find((candidate) => candidate.role === "operator");
+        const turnContract = buildArcRunContract({ mode: turn.mode, route: "fast", contextScopes: ["workspace", "brand", "crm", "campaigns"], agentTaskId: turn.id });
+        const turnProfile = buildArcRunProfile({ request: operatorTurn?.body, mode: turn.mode, command: turn.command, sources: turnContract.readScopes });
+        const completedSteps: ArcStep[] = turn.outcome === "canceled"
+          ? [{ label: "Stopped before remaining work was applied", status: "done", at: "now", kind: "think" }]
+          : turnProfile.phases.map((phase) => ({ label: phase.label, detail: [phase.detail], status: "done", at: "now", kind: phase.kind }));
+        return (
+          <AssistantMessage key={turn.id} time="now">
+            <RunTrace
+              pending={false}
+              outcome={turn.outcome ?? "complete"}
+              reasoning={turn.outcome === "canceled" ? "The run ended at your request. Completed work remains visible, and no outbound action was taken." : turnProfile.completedSummary}
+              steps={completedSteps}
+              contract={turnContract}
+            />
+            <div className="arc-answer"><p>{turn.body}</p></div>
+          </AssistantMessage>
+        );
+      })}
+      {pending ? <AssistantMessage time="now"><RunTrace pending liveText={demoLiveWork.commentary} demoRows={demoLiveWork.rows} contract={pendingContract} onStop={onStop} /></AssistantMessage> : null}
+    </>
+  );
+}
+
+function ThreadDrawer({
+  live,
+  groups,
+  activeConversationId,
+  selectedDemoId,
+  onSelectDemo,
+  onClose,
+}: {
+  live: boolean;
+  groups: ArcThreadGroupVM[];
+  activeConversationId: string | null;
+  selectedDemoId: string;
+  onSelectDemo: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const sourceGroups = live ? groups : DEMO_THREADS;
+  const visibleGroups = filterThreadGroups(sourceGroups, query);
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
+
+  return (
+    <motion.aside className="arc-history" initial={{ x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -24, opacity: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} aria-label="Conversation history">
+      <div className="arc-history-head"><div><h2>Conversations</h2><p>Pick up where you left off.</p></div><button type="button" className="arc-icon-button" onClick={onClose} aria-label="Close history"><X size={17} /></button></div>
+      {live ? <Link href="/arc?new=1" className="arc-new-chat"><Plus size={16} /> New conversation</Link> : <button type="button" className="arc-new-chat" onClick={() => onSelectDemo("new")}><Plus size={16} /> New conversation</button>}
+      <label className="arc-history-search"><Search size={15} /><input ref={searchInputRef} autoFocus type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={(event) => setQuery(event.target.value)} /><kbd aria-hidden="true">⌘K</kbd></label>
+      <div className="arc-history-list">
+        {visibleGroups.map((group) => (
+          <div className="arc-history-group" key={group.group}>
+            <h3>{group.group}</h3>
+            {group.items.map((thread) => {
+              const active = live ? thread.id === activeConversationId : thread.id === selectedDemoId;
+              const content = <><span><b>{thread.title}</b><small>{thread.when}</small></span>{thread.pinned ? <Pin size={13} /> : null}</>;
+              return live ? <Link href={`/arc?c=${thread.id}`} className={active ? "is-active" : ""} key={thread.id} onClick={onClose}>{content}</Link> : <button type="button" className={active ? "is-active" : ""} key={thread.id} onClick={() => onSelectDemo(thread.id)}>{content}</button>;
+            })}
+          </div>
+        ))}
+        {visibleGroups.length === 0 ? <div className="arc-history-empty"><Search size={17} /><b>No conversations found</b><span>Try a different title or date.</span></div> : null}
+      </div>
+    </motion.aside>
+  );
+}
+
 function ShareDialog({ conversationId, onClose }: { conversationId: string | null; onClose: () => void }) {
   const [state, setState] = useState<ChatSharingState | null>(null);
   const [visibility, setVisibility] = useState<ShareVisibility>("private");
   const [permission, setPermission] = useState<SharePermission>("view");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, start] = useTransition();
-
-  // Async-only (no synchronous setState) so it's safe to run from an effect —
-  // the render already null-guards `state`, so the no-conversation case needs no reset.
   const reload = useCallback(() => {
     if (!conversationId) return;
-    getChatSharingStateAction(conversationId).then((s) => {
-      setState(s);
-      setVisibility(s.visibility);
-      setPermission(s.workspacePermission);
+    getChatSharingStateAction(conversationId).then((next) => {
+      setState(next);
+      setVisibility(next.visibility);
+      setPermission(next.workspacePermission);
     });
   }, [conversationId]);
   useEffect(() => { reload(); }, [reload]);
 
-  const saveVisibility = () =>
-    conversationId &&
-    start(async () => {
-      const r = await setChatSharingAction({ conversationId, visibility, workspacePermission: permission });
-      setNotice(r.ok ? "Sharing updated" : r.error);
-    });
-  const add = (userId: string, perm: SharePermission) =>
-    conversationId &&
-    start(async () => {
-      await shareChatWithMemberAction({ conversationId, userId, permission: perm });
-      reload();
-    });
-  const remove = (userId: string) =>
-    conversationId &&
-    start(async () => {
-      await unshareChatMemberAction({ conversationId, userId });
-      reload();
-    });
-
-  const overlay: CSSProperties = {
-    position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", display: "flex",
-    alignItems: "center", justifyContent: "center", zIndex: 100,
-  };
-  const card: CSSProperties = {
-    width: "min(460px, 92vw)", maxHeight: "82vh", overflow: "auto", background: "var(--panel, #1a1c22)",
-    border: "1px solid var(--line, rgba(255,255,255,.12))", borderRadius: 14, padding: 18,
-    boxShadow: "0 20px 60px rgba(0,0,0,.5)",
-  };
-  const seg = (active: boolean): CSSProperties => ({
-    padding: "5px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13,
-    border: `1px solid ${active ? "var(--gold, #c8a24a)" : "var(--line, rgba(255,255,255,.14))"}`,
-    background: active ? "var(--gold, #c8a24a)22" : "transparent",
-    color: active ? "var(--gold, #c8a24a)" : "inherit",
+  const save = () => conversationId && start(async () => {
+    const result = await setChatSharingAction({ conversationId, visibility, workspacePermission: permission });
+    setNotice(result.ok ? "Sharing updated" : result.error);
+  });
+  const add = (userId: string, nextPermission: SharePermission) => conversationId && start(async () => {
+    await shareChatWithMemberAction({ conversationId, userId, permission: nextPermission });
+    reload();
+  });
+  const remove = (userId: string) => conversationId && start(async () => {
+    await unshareChatMemberAction({ conversationId, userId });
+    reload();
   });
 
   return (
-    <div style={overlay} onClick={onClose} role="dialog" aria-label="Share chat" aria-modal="true">
-      <div className="sharecard" style={card} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Share chat</h3>
-          <button className="btn sm" style={{ marginLeft: "auto" }} onClick={onClose} aria-label="Close">Done</button>
-        </div>
-
-        {!conversationId ? (
-          <p style={{ opacity: 0.7, fontSize: 13 }}>Open or start a conversation to share it.</p>
-        ) : null}
-
-        <div style={{ marginBottom: 8, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", opacity: 0.6 }}>Who can access</div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          <button style={seg(visibility === "private")} onClick={() => setVisibility("private")}>Private (just you)</button>
-          <button style={seg(visibility === "workspace")} onClick={() => setVisibility("workspace")}>Everyone in workspace</button>
-        </div>
-        {visibility === "workspace" ? (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontSize: 13, opacity: 0.7 }}>They can</span>
-            <button style={seg(permission === "view")} onClick={() => setPermission("view")}>View</button>
-            <button style={seg(permission === "collaborate")} onClick={() => setPermission("collaborate")}>Collaborate</button>
-          </div>
-        ) : null}
-        <button className="btn gold" onClick={saveVisibility} disabled={busy || !conversationId} style={{ marginBottom: 16 }}>
-          {busy ? "Saving…" : "Save access"}
-        </button>
-
-        <div style={{ marginBottom: 8, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", opacity: 0.6 }}>Shared with specific people</div>
-        {state && state.shared.length > 0 ? (
-          state.shared.map((m) => (
-            <div key={m.userId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13 }}>
-              <span>{m.email ?? m.userId}</span>
-              <span style={{ opacity: 0.6 }}>· {m.permission}</span>
-              <button className="btn sm" style={{ marginLeft: "auto" }} onClick={() => remove(m.userId)} disabled={busy}>Remove</button>
-            </div>
-          ))
-        ) : (
-          <p style={{ opacity: 0.55, fontSize: 13, margin: "2px 0 8px" }}>Not shared with anyone specific yet.</p>
-        )}
-
-        {state && state.addable.length > 0 ? (
-          <>
-            <div style={{ marginTop: 10, marginBottom: 6, fontSize: 12, opacity: 0.6 }}>Add a member</div>
-            {state.addable.map((m) => (
-              <div key={m.userId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 13 }}>
-                <span>{m.email ?? m.userId}</span>
-                <button className="btn sm" style={{ marginLeft: "auto" }} onClick={() => add(m.userId, "view")} disabled={busy}>+ View</button>
-                <button className="btn sm" onClick={() => add(m.userId, "collaborate")} disabled={busy}>+ Collaborate</button>
-              </div>
-            ))}
-          </>
-        ) : null}
-
-        {notice ? <p style={{ marginTop: 12, fontSize: 12, opacity: 0.75 }}>{notice}</p> : null}
-      </div>
-    </div>
+    <motion.div className="arc-modal-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} role="presentation">
+      <motion.div className="arc-share-dialog" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.99 }} role="dialog" aria-modal="true" aria-labelledby="arc-share-title" onClick={(event) => event.stopPropagation()}>
+        <div className="arc-share-head"><div><h2 id="arc-share-title">Share conversation</h2><p>Private by default. Choose who can view or collaborate.</p></div><button type="button" className="arc-icon-button" onClick={onClose} aria-label="Close share dialog"><X size={17} /></button></div>
+        {!conversationId ? <p className="arc-share-empty">Start a real conversation before sharing it.</p> : null}
+        <fieldset disabled={busy || !conversationId}><legend>Who can access</legend><div className="arc-segment"><button type="button" className={visibility === "private" ? "is-active" : ""} onClick={() => setVisibility("private")}>Private</button><button type="button" className={visibility === "workspace" ? "is-active" : ""} onClick={() => setVisibility("workspace")}>Workspace</button></div></fieldset>
+        {visibility === "workspace" ? <fieldset disabled={busy || !conversationId}><legend>Workspace permission</legend><div className="arc-segment"><button type="button" className={permission === "view" ? "is-active" : ""} onClick={() => setPermission("view")}>Can view</button><button type="button" className={permission === "collaborate" ? "is-active" : ""} onClick={() => setPermission("collaborate")}>Can collaborate</button></div></fieldset> : null}
+        <button type="button" className="arc-primary-button" onClick={save} disabled={busy || !conversationId}>{busy ? "Saving…" : "Save access"}</button>
+        <div className="arc-share-people"><h3>People with access</h3>{state?.shared.length ? state.shared.map((member) => <div key={member.userId}><span><Users size={15} /><b>{member.email ?? member.userId}</b><small>{member.permission}</small></span><button type="button" onClick={() => remove(member.userId)}>Remove</button></div>) : <p>No one has been added yet.</p>}{state?.addable.slice(0, 3).map((member) => <div key={member.userId}><span><Users size={15} /><b>{member.email ?? member.userId}</b></span><button type="button" onClick={() => add(member.userId, "view")}>Add</button></div>)}</div>
+        {notice ? <p className="arc-share-notice">{notice}</p> : null}
+      </motion.div>
+    </motion.div>
   );
 }
-
-/* ── icon set (ported verbatim from build-arc-v2.html) ── */
-const Ico = {
-  plus: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>,
-  search: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>,
-  pin: <svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6L12 17l-5.3 2.6 1.1-6L3.4 9.4l6-.8z" /></svg>,
-  pencil: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>,
-  brain: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a4 4 0 00-4 4 3 3 0 00-1 6 3 3 0 003 3 3 3 0 006 0 3 3 0 003-3 3 3 0 00-1-6 4 4 0 00-4-4z" /></svg>,
-  arrow: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>,
-  chevR: <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>,
-  chevD: <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>,
-  canvas: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M14 4v16" /></svg>,
-  down: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" /></svg>,
-  copy: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>,
-  regen: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" /></svg>,
-  save: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1z" /></svg>,
-  star: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12 21l-5-2.7 1-5.5-4-4 5.5-.8z" /></svg>,
-  folder: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z" /></svg>,
-  share: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>,
-  mic: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
-  send: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>,
-  x: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>,
-  splitPane: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z" /><path d="M4 9h16M9 5v14" /></svg>,
-  lock: <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>,
-  check: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>,
-  people: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="2.5" /><circle cx="16" cy="9" r="2.5" /><path d="M3 19c0-3 2-4.5 5-4.5M21 19c0-3-2-4.5-5-4.5M9 19c0-2 1.5-3 3-3s3 1 3 3" /></svg>,
-  stop: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>,
-};
-
-const DotRing = ({ sm }: { sm?: boolean }) => (
-  <span className={sm ? "dotring sm" : "dotring"} aria-hidden="true">
-    {Array.from({ length: 8 }, (_, i) => <span key={i} />)}
-  </span>
-);
-
-const THREADS: { group: string; items: { title: string; cur?: boolean; two?: boolean; meta?: string; pin?: boolean; done?: boolean }[] }[] = [
-  { group: "Pinned", items: [
-    { title: "Storm Response brief", pin: true },
-    { title: "Storm-damage homeowners", cur: true, two: true, meta: "Active now · 3 drafts pending", pin: true },
-  ] },
-  { group: "Today", items: [
-    { title: "Past-customer outreach", done: true },
-    { title: "Property-manager list", done: true },
-  ] },
-  { group: "Yesterday", items: [{ title: "NOAA hail report read" }] },
-  { group: "Previous 7 days", items: [{ title: "Inspection page rewrite" }, { title: "Adjuster follow-ups" }] },
-];
-
-type Asset = { id: string; name: string; tab: string; dot: string; status: [string, string]; };
-const ASSETS: Asset[] = [
-  { id: "email", name: "Email draft", tab: "Email", dot: "ready", status: ["appr", "Ready"] },
-  { id: "sms", name: "SMS draft", tab: "SMS", dot: "ready", status: ["appr", "Ready"] },
-  { id: "ad", name: "Paid Social ad", tab: "Paid Social", dot: "gen", status: ["gen", "Generating"] },
-  { id: "lp", name: "Landing page", tab: "Landing Page", dot: "blocked", status: ["err", "Blocked"] },
-];
 
 export function ArcView({
   brandName,
@@ -237,740 +937,412 @@ export function ArcView({
   threadGroups = [],
   messages = [],
   activeConversationId = null,
+  mentionGroups = [],
 }: {
   brandName: string;
   live?: boolean;
   threadGroups?: ArcThreadGroupVM[];
   messages?: ArcMessage[];
   activeConversationId?: string | null;
+  mentionGroups?: MentionGroup[];
 }) {
   const router = useRouter();
-  const [sending, startSend] = useTransition();
+  const [isSending, startSend] = useTransition();
   const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState<ArcMode>("ask");
+  const [route, setRoute] = useState<ArcRoute>("fast");
+  const [composerMenu, setComposerMenu] = useState<ComposerMenu>(null);
+  const [selectedMentions, setSelectedMentions] = useState<ArcMention[]>([]);
+  const [attachments, setAttachments] = useState<ArcAttachment[]>([]);
+  const [command, setCommand] = useState<string | null>(null);
+  const [contextScopes, setContextScopes] = useState<string[]>(["workspace", "brand", "crm", "campaigns"]);
+  const [uploading, setUploading] = useState(false);
+  const [composerNotice, setComposerNotice] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [threadSel, setThreadSel] = useState("Storm-damage homeowners");
-  const [view, setView] = useState<"assets" | "audience">("assets");
-  const [asset, setAsset] = useState("ad");
-  const [dismissedQid, setDismissedQid] = useState<string | null>(null);
-  // Mobile-only pane switch. The three columns (threads / conversation / canvas)
-  // can't sit side-by-side on a phone, so below the Arc breakpoint we show one at
-  // a time and this segmented control swaps between them. Inert on desktop.
-  const [mobilePane, setMobilePane] = useState<"threads" | "chat" | "canvas">("chat");
-  const active = ASSETS.find((a) => a.id === asset) ?? ASSETS[2];
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [activeArtifact, setActiveArtifact] = useState<ArtifactTab>("audience");
+  const [artifactReviewState, setArtifactReviewState] = useState<ArtifactReviewState>("ready");
+  const [artifactNotice, setArtifactNotice] = useState<string | null>(null);
+  const [selectedDemoId, setSelectedDemoId] = useState("storm");
+  const [dismissedQuestionId, setDismissedQuestionId] = useState<string | null>(null);
+  const [demoTurns, setDemoTurns] = useState<DemoTurn[]>([]);
+  const [demoPending, setDemoPending] = useState(false);
+  const [stoppingTaskId, setStoppingTaskId] = useState<string | null>(null);
+  const demoTimer = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const composerMenuRef = useRef<HTMLDivElement | null>(null);
+  const composerMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
+  const awaitingReply = live && messages.some((message) => message.status === "pending" || (message.role === "arc" && !message.body.trim()));
 
-  // While a reply is still generating, refresh the server data so the pending
-  // "Arc is working…" bubble resolves into the answer without a manual reload.
-  // Bounded: runs only while a message is pending (mirrors LiveMessages' own
-  // pending test), and gives up after 2 minutes so a stuck runner can't poll
-  // forever — the server-side stale-reclaim eventually flips an abandoned turn
-  // to failed, which renders as a normal bubble and clears this condition.
-  const awaitingReply = live && messages.some((m) => m.status === "pending" || (m.role === "arc" && !m.body.trim()));
   useEffect(() => {
     if (!awaitingReply) return;
     const startedAt = Date.now();
-    const timer = setInterval(() => {
-      if (Date.now() - startedAt > 120_000) {
-        clearInterval(timer);
-        return;
-      }
+    const interval = window.setInterval(() => {
+      if (Date.now() - startedAt > 120_000) return window.clearInterval(interval);
       router.refresh();
     }, 2500);
-    return () => clearInterval(timer);
+    return () => window.clearInterval(interval);
   }, [awaitingReply, router]);
 
-  // ── Resizable + collapsible panels ──────────────────────────────────────
-  // The conversation list and the campaign panel are drag-resizable, and the
-  // panel collapses to give the conversation full width. Sizes persist per
-  // browser; saved values are applied AFTER mount so SSR/hydration stay in sync.
-  const [railW, setRailW] = useState(RAIL_W.def);
-  const [canvasW, setCanvasW] = useState(CANVAS_W.def);
-  const [canvasOpen, setCanvasOpen] = useState(true);
-  const [dragTarget, setDragTarget] = useState<null | "rail" | "canvas">(null);
-
-  /* eslint-disable react-hooks/set-state-in-effect -- Intentional one-time restore
-     after mount: SSR and the first client render stay on defaults so hydration
-     matches, then the persisted sizes apply on the next commit. */
   useEffect(() => {
-    try {
-      const r = Number(localStorage.getItem("arc.railW"));
-      const c = Number(localStorage.getItem("arc.canvasW"));
-      if (r) setRailW(clampSize(r, RAIL_W.min, RAIL_W.max));
-      if (c) setCanvasW(clampSize(c, CANVAS_W.min, CANVAS_W.max));
-      if (localStorage.getItem("arc.canvasOpen") === "0") setCanvasOpen(false);
-    } catch {
-      /* localStorage unavailable — keep defaults */
-    }
+    if (!demoPending && demoTurns.length === 0 && !awaitingReply) return;
+    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [awaitingReply, demoPending, demoTurns.length]);
+
+  useEffect(() => () => {
+    if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    try {
-      localStorage.setItem("arc.railW", String(railW));
-      localStorage.setItem("arc.canvasW", String(canvasW));
-      localStorage.setItem("arc.canvasOpen", canvasOpen ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [railW, canvasW, canvasOpen]);
 
-  const startResize = (target: "rail" | "canvas") => (e: ReactPointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const chat = (e.currentTarget as HTMLElement).closest(".arc-chat");
-    if (!chat) return;
-    const rect = chat.getBoundingClientRect();
-    setDragTarget(target);
-    const onMove = (ev: globalThis.PointerEvent) => {
-      if (target === "rail") setRailW(clampSize(ev.clientX - rect.left, RAIL_W.min, RAIL_W.max));
-      else setCanvasW(clampSize(rect.right - ev.clientX, CANVAS_W.min, CANVAS_W.max));
+  useEffect(() => {
+    if (!composerMenu || !composerMenuTriggerRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      composerMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]')?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [composerMenu]);
+
+  useEffect(() => {
+    if (!composerMenu && !workspaceOpen) return;
+
+    const dismissOpenSurface = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      if (composerMenu && !target.closest(".arc-composer-menu") && !target.closest('[aria-controls="arc-composer-menu"]')) {
+        setComposerMenu(null);
+      }
+
+      if (workspaceOpen && !target.closest(".arc-artifact-workspace") && !target.closest('[data-arc-campaign-trigger="true"]')) {
+        setWorkspaceOpen(false);
+      }
     };
-    const onUp = () => {
-      setDragTarget(null);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+
+    document.addEventListener("pointerdown", dismissOpenSurface);
+    return () => document.removeEventListener("pointerdown", dismissOpenSurface);
+  }, [composerMenu, workspaceOpen]);
+
+  const activeThread = threadGroups.flatMap((group) => group.items).find((thread) => thread.id === activeConversationId);
+  const selectedDemoThread = DEMO_THREADS.flatMap((group) => group.items).find((thread) => thread.id === selectedDemoId);
+  const title = live ? activeThread?.title ?? "New conversation" : selectedDemoId === "storm" ? "Storm Rapid Response" : selectedDemoThread?.title ?? "New conversation";
+  const latestQuestion = live ? [...messages].reverse().find((message) => message.role === "arc")?.questions?.[0] ?? null : null;
+  const visibleQuestion = latestQuestion && latestQuestion.id !== dismissedQuestionId ? latestQuestion : null;
+  const contextState = messages.length > 0
+    ? contextUsage(messages.map((message) => message.body ?? ""))
+    : { tokens: 4_320, pct: 18, level: "ok" as const };
+  const mentionItems = mentionGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label }))).slice(0, 12);
+  const currentModel = MODEL_OPTIONS.find((option) => option.id === route) ?? MODEL_OPTIONS[0];
+  const currentMode = MODE_OPTIONS.find((option) => option.id === mode) ?? MODE_OPTIONS[0];
+
+  const closeComposerMenu = (restoreFocus = false) => {
+    setComposerMenu(null);
+    if (restoreFocus) window.requestAnimationFrame(() => composerMenuTriggerRef.current?.focus());
+  };
+
+  const toggleComposerMenu = (menu: Exclude<ComposerMenu, null>, trigger: HTMLButtonElement) => {
+    composerMenuTriggerRef.current = trigger;
+    setComposerMenu((current) => current === menu ? null : menu);
+    setComposerNotice(null);
+  };
+
+  const handleComposerMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]')).filter((item) => !item.disabled);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeComposerMenu(true);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      const activeItem = document.activeElement as HTMLButtonElement | null;
+      if (activeItem && items.includes(activeItem)) {
+        event.preventDefault();
+        activeItem.click();
+      }
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) || items.length === 0) return;
+    event.preventDefault();
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : event.key === "ArrowDown" ? (currentIndex + 1 + items.length) % items.length : (currentIndex - 1 + items.length) % items.length;
+    items[nextIndex]?.focus();
+  };
+
+  const chooseMention = (mention: ArcMention) => {
+    setSelectedMentions((current) => current.some((item) => item.type === mention.type && item.id === mention.id) ? current : [...current, mention]);
+    setDraft((current) => current.replace(/@\s*$/, ""));
+    closeComposerMenu(true);
+  };
+
+  const chooseCommand = (nextCommand: (typeof COMMAND_OPTIONS)[number]) => {
+    setCommand(nextCommand.id);
+    setMode(nextCommand.mode);
+    setDraft((current) => current.replace(/^\s*\/\s*$/, ""));
+    closeComposerMenu(true);
+  };
+
+  const toggleContextScope = (scope: string) => {
+    setContextScopes((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope]);
+  };
+
+  const handleAttachmentFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length === 0) return;
+    setComposerMenu(null);
+    setComposerNotice(null);
+
+    if (!live) {
+      setAttachments((current) => [
+        ...current,
+        ...files.map((file, index) => ({
+          url: `demo://attachment/${Date.now()}-${index}`,
+          objectPath: `demo/${file.name}`,
+          contentType: file.type || "application/octet-stream",
+          name: file.name,
+        })),
+      ]);
+      return;
+    }
+
+    setUploading(true);
+    const results = await Promise.all(files.map(async (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return uploadArcAttachmentAction(formData);
+    }));
+    const uploaded = results.flatMap((result) => result.ok ? [result.attachment] : []);
+    const firstError = results.find((result) => !result.ok);
+    if (uploaded.length > 0) setAttachments((current) => [...current, ...uploaded]);
+    setComposerNotice(firstError && !firstError.ok ? firstError.error : `${uploaded.length} file${uploaded.length === 1 ? "" : "s"} attached`);
+    setUploading(false);
   };
 
   const submitDraft = () => {
     const body = draft.trim();
-    if (!body || sending) return;
+    if (!body || isSending || demoPending || uploading) return;
+    setComposerMenu(null);
+    setComposerNotice(null);
+    if (!live) {
+      const demoContract = buildArcRunContract({ mode, route, contextScopes });
+      const demoProfile = buildArcRunProfile({ request: body, mode, command, sources: demoContract.readScopes });
+      const operatorTurn: DemoTurn = { id: `operator-${Date.now()}`, role: "operator", body, mode, command };
+      setDemoTurns((current) => [...current, operatorTurn]);
+      setDraft("");
+      setSelectedMentions([]);
+      setAttachments([]);
+      setCommand(null);
+      setDemoPending(true);
+      demoTimer.current = window.setTimeout(() => {
+        setDemoPending(false);
+        setDemoTurns((current) => [...current, {
+          id: `arc-${Date.now()}`,
+          role: "arc",
+          body: demoProfile.completedSummary,
+          mode,
+          command,
+        }]);
+      }, 6000);
+      return;
+    }
     startSend(async () => {
-      const result = await sendArcMessageAction({ conversationId: activeConversationId, body });
-      if (result.ok) {
-        setDraft("");
-        router.push(`/arc?c=${result.conversationId}`);
-        router.refresh();
+      const result = await sendArcMessageAction({
+        conversationId: activeConversationId,
+        body,
+        mentions: selectedMentions,
+        attachments,
+        mode,
+        route,
+        command,
+        contextScopes,
+      });
+      if (!result.ok) {
+        setComposerNotice(result.error);
+        return;
       }
+      setDraft("");
+      setSelectedMentions([]);
+      setAttachments([]);
+      setCommand(null);
+      router.push(`/arc?c=${result.conversationId}`);
+      router.refresh();
     });
   };
 
-  // Live quick-reply comes from a real structured question on Arc's latest reply
-  // (agent-provided). No question → no panel. The mock keeps its scripted one.
-  const liveQuestion = live ? [...messages].reverse().find((m) => m.role === "arc")?.questions?.[0] ?? null : null;
-  const showLiveQuestion = Boolean(liveQuestion) && dismissedQid !== liveQuestion?.id;
+  const selectDemoThread = (id: string) => {
+    setSelectedDemoId(id);
+    setHistoryOpen(false);
+    setWorkspaceOpen(false);
+    setDemoTurns([]);
+    setDemoPending(false);
+    setArtifactReviewState("ready");
+    setArtifactNotice(null);
+  };
+
+  const openCampaignWorkspace = (tab: ArtifactTab = "audience") => {
+    setActiveArtifact(tab);
+    setComposerMenu(null);
+    setArtifactNotice(null);
+    setWorkspaceOpen(true);
+  };
+
+  const submitArtifactRevision = (request: string, tab: ArtifactTab) => {
+    if (demoPending) return;
+    const tabLabel = ARTIFACT_TABS.find((item) => item.id === tab)?.label ?? "asset";
+    const now = Date.now();
+    setArtifactReviewState("revising");
+    setArtifactNotice(`Arc is revising the ${tabLabel.toLowerCase()}. Outbound remains locked.`);
+    setDemoTurns((current) => [...current, { id: `operator-revision-${now}`, role: "operator", body: `Revise the ${tabLabel.toLowerCase()}: ${request}`, mode: "draft", command: `draft-${tab}` }]);
+    setDemoPending(true);
+    demoTimer.current = window.setTimeout(() => {
+      setDemoPending(false);
+      setArtifactReviewState("ready");
+      setArtifactNotice(`${tabLabel} updated and ready for another review. Outbound remains locked.`);
+      setDemoTurns((current) => [...current, {
+        id: `arc-revision-${Date.now()}`,
+        role: "arc",
+        body: `I updated the ${tabLabel.toLowerCase()} from your revision request. The new version is ready for review, and outbound is still locked.`,
+        mode: "draft",
+        command: `draft-${tab}`,
+      }]);
+    }, 2800);
+  };
+
+  const stopDemoRun = () => {
+    if (demoTimer.current != null) window.clearTimeout(demoTimer.current);
+    demoTimer.current = null;
+    setDemoPending(false);
+    setDemoTurns((current) => {
+      const latestOperator = [...current].reverse().find((turn) => turn.role === "operator");
+      return [...current, {
+        id: `arc-stopped-${Date.now()}`,
+        role: "arc",
+        outcome: "canceled",
+        body: "Stopped. No remaining work was applied, and nothing was sent.",
+        mode: latestOperator?.mode,
+        command: latestOperator?.command,
+      }];
+    });
+    setComposerNotice("Run stopped. Its receipt is preserved in this conversation.");
+  };
+
+  const stopLiveRun = async (taskId: string, conversationId: string) => {
+    if (stoppingTaskId) return;
+    setStoppingTaskId(taskId);
+    setComposerNotice(null);
+    const result = await cancelArcRunAction({ taskId, conversationId });
+    setStoppingTaskId(null);
+    setComposerNotice(result.ok ? "Run stopped. Its receipt remains in the conversation." : result.error);
+    router.refresh();
+  };
 
   return (
-    <div
-      className={`arc-chat${canvasOpen ? "" : " canvas-collapsed"}${dragTarget ? " resizing" : ""}`}
-      data-mpane={mobilePane}
-      style={{ "--arc-rail-w": `${railW}px`, "--arc-canvas-w": `${canvasOpen ? canvasW : 0}px` } as CSSProperties}
-    >
-      {/* ── mobile pane switch (hidden on desktop) ── */}
-      <div className="arc-mtabs" role="tablist" aria-label="Arc panels">
-        <button type="button" role="tab" aria-selected={mobilePane === "threads"} className={mobilePane === "threads" ? "on" : ""} onClick={() => setMobilePane("threads")}>Chats</button>
-        <button type="button" role="tab" aria-selected={mobilePane === "chat"} className={mobilePane === "chat" ? "on" : ""} onClick={() => setMobilePane("chat")}>Chat</button>
-        <button type="button" role="tab" aria-selected={mobilePane === "canvas"} className={mobilePane === "canvas" ? "on" : ""} onClick={() => setMobilePane("canvas")}>Canvas</button>
-      </div>
-      {/* ── thread rail ── */}
-      <aside className="threads" aria-label="Conversations">
-        {live ? (
-          <Link href="/arc?new=1" className="newchat"><span>{Ico.plus}</span>New chat</Link>
-        ) : (
-          <button className="newchat" data-soon="Starting a new Arc chat is coming soon"><span>{Ico.plus}</span>New chat</button>
-        )}
-        <button className="tsearch" data-soon="Search & commands is coming soon">{Ico.search}Search &amp; commands<span className="k">⌘K</span></button>
-        <div className="tscroll">
-          {live ? (
-            threadGroups.length === 0 ? (
-              <div className="tgrp" style={{ opacity: 0.65 }}>No chats yet — start one below.</div>
-            ) : (
-              threadGroups.map((g) => (
-                <div key={g.group}>
-                  <div className="tgrp">{g.group}</div>
-                  {g.items.map((t) => (
-                    <Link
-                      key={t.id}
-                      href={`/arc?c=${t.id}`}
-                      className={`thread${t.active ? " cur" : ""}`}
-                      aria-current={t.active ? "true" : undefined}
-                    >
-                      <span className="tt">{t.title}</span>
-                      {t.pinned && <span className="pin" aria-hidden="true">{Ico.pin}</span>}
-                    </Link>
-                  ))}
-                </div>
-              ))
-            )
-          ) : (
-            THREADS.map((g) => (
-              <div key={g.group}>
-                <div className="tgrp">{g.group}</div>
-                {g.items.map((t) => {
-                  const on = threadSel === t.title;
-                  return (
-                    <button
-                      key={t.title}
-                      className={`thread${t.two ? " two" : ""}${on ? " cur" : ""}`}
-                      aria-current={on ? "true" : undefined}
-                      onClick={() => setThreadSel(t.title)}
-                    >
-                      {t.two ? (
-                        <>
-                          <span className="trow"><span className="tt">{t.title}</span>{t.pin && <span className="pin" aria-hidden="true">{Ico.pin}</span>}</span>
-                          {t.meta && <span className="tmeta"><b>{t.meta.split(" · ")[0]}</b>{t.meta.includes(" · ") ? ` · ${t.meta.split(" · ").slice(1).join(" · ")}` : ""}</span>}
-                        </>
-                      ) : (
-                        <>
-                          <span className="tt">{t.title}</span>
-                          {t.pin && <span className="pin" aria-hidden="true">{Ico.pin}</span>}
-                          {t.done && <span className="donep" aria-hidden="true" />}
-                        </>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ))
-          )}
+    <div className="arc-chat" data-workspace-open={workspaceOpen ? "true" : "false"}>
+      <header className="arc-conversation-header">
+        <button type="button" className="arc-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><Menu size={17} /><span>History</span></button>
+        <div className="arc-conversation-title"><h1>{title}</h1><p>{live ? "Private conversation" : "Storm-damage homeowners · 4 assets · Naperville, IL"}</p></div>
+        <div className="arc-conversation-actions">
+          {!live && selectedDemoId === "storm" ? <button type="button" className="arc-header-artifact" data-status={artifactReviewState} data-arc-campaign-trigger="true" aria-label={workspaceOpen ? "Close campaign workspace" : "Open campaign workspace"} aria-expanded={workspaceOpen} onClick={() => workspaceOpen ? setWorkspaceOpen(false) : openCampaignWorkspace(activeArtifact)}><MessageSquareText size={15} /><span>Campaign</span><i aria-hidden="true" /></button> : null}
+          <button type="button" onClick={() => setShareOpen(true)} disabled={!activeConversationId} title={!activeConversationId ? "Start a real conversation before sharing" : "Share conversation"}><Share2 size={15} /> Share</button>
+          <span className="arc-lock"><LockKeyhole size={14} /> Outbound locked</span>
         </div>
-      </aside>
+      </header>
 
-      {/* ── conversation ── */}
-      <section className="convo" aria-label="Conversation">
-        <div className="msgs" id="arcMsgs">
-          <div className="inner">
-            {live ? (
-              <LiveMessages messages={messages} brandName={brandName} />
-            ) : (
-              <>
-            <div className="daydiv">Today</div>
-
-            <div className="op">
-              <button className="editbtn" aria-label="Edit message" data-soon="Editing a message is coming soon">{Ico.pencil}</button>
-              <div className="bub">Which homeowners should we reach first after the Naperville hailstorm?</div>
-            </div>
-
-            <div className="arc">
-              <div className="a"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-              <div className="col">
-                <div className="who"><span className="t">9:38 AM</span><span className="mb"><i aria-hidden="true" />Opus 4.8</span></div>
-                <div className="body"><span className="hero">142 homes took the heaviest hail and still haven&apos;t booked an inspection.</span>That&apos;s 23% of the storm zone and about $1.4M in estimated restoration work. The clearest urgency signals across them:</div>
-                <ul className="md">
-                  <li>Sit in the <b>worst-hit hail swath</b>, with no inspection on file — <b>3.1× more likely</b> to have hidden damage</li>
-                  <li>No <span className="ic">inspection</span> booked in the 6 days since the storm</li>
-                  <li>Older roof — most likely to need a full insurance claim</li>
-                </ul>
-                <div className="recall">
-                  <span className="lbl">{Ico.brain}Recalled from memory</span>
-                  <button className="mchip" data-soon="Memory recall is coming soon">Storm-response playbook <span className="conf">94%</span></button>
-                  <button className="mchip" data-soon="Memory recall is coming soon">Inspection-first beat discounts last spring <span className="conf">88%</span></button>
-                </div>
-                <button className="reslink" data-soon="Opening this segment in CRM is coming soon">
-                  <div className="meta"><div className="h">142 storm-zone homes</div><div className="s">Saved segment · CRM · refreshed 9:38 AM</div></div>
-                  <div className="stat"><div><div className="v">142</div><div className="k">homes</div></div><div><div className="v gold">$1.4M</div><div className="k">est. project value</div></div></div>
-                  <div className="go">Open in CRM {Ico.arrow}</div>
-                </button>
-                <div className="msgactions">
-                  <button className="ma" aria-label="Copy" data-soon="Copying is coming soon">{Ico.copy}</button>
-                  <button className="ma" aria-label="Regenerate" data-soon="Regenerating is coming soon">{Ico.regen}</button>
-                  <button className="ma" aria-label="Save to Brain" data-soon="Saving to Brain is coming soon">{Ico.save}</button>
-                </div>
-              </div>
-            </div>
-
-            <div className="op">
-              <button className="editbtn" aria-label="Edit message" data-soon="Editing a message is coming soon">{Ico.pencil}</button>
-              <div className="bub">Draft a full storm-response package — email, SMS, a paid-social ad, and a landing page.</div>
-            </div>
-
-            <div className="arc">
-              <div className="a"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-              <div className="col">
-                <div className="who"><span className="t">9:41 AM</span><span className="mb"><i aria-hidden="true" />Opus 4.8</span></div>
-                <div className="body">On it. I&apos;m assembling a <b>storm-response package</b> across four channels — a free-inspection angle tied to each home&apos;s storm exposure, no discount gimmick. You can watch it build on the right; outbound stays locked until you approve.</div>
-                <details className="trace">
-                  <summary><span className="lead"><span className="cx" aria-hidden="true">{Ico.chevR}</span> Thought for 4s</span><span className="tk">4 steps · 3 sources</span></summary>
-                  <div className="steps">
-                    <div className="step">Pulled the 142 hardest-hit homes and grouped them by insurance-claim readiness.</div>
-                    <div className="step">Compared discount vs. inspection-first response from last spring — inspection-first booked 2.4× more jobs.<span className="src">[1]</span></div>
-                    <div className="step">Chose a free-inspection angle and outlined four channel variants.</div>
-                    <div className="step">Checked claims against the NOAA hail report before drafting.<span className="src">[2]</span></div>
-                  </div>
-                </details>
-                <button className="canvaslink" onClick={() => setView("assets")}>
-                  <span className="cli">{Ico.canvas}</span>
-                  <span className="clt">
-                    <span className="clh">Storm-response package</span>
-                    <span className="cls"><span className="live"><DotRing sm /> Building 4 assets</span> · $1.4M reach</span>
-                  </span>
-                  <span className="go">Open canvas {Ico.arrow}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="op"><div className="bub">Looks good — make the SMS a little warmer.</div></div>
-
-            <div className="arc">
-              <div className="a"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-              <div className="col">
-                <div className="who"><span className="t">9:43 AM</span></div>
-                <div className="pending">
-                  <DotRing />
-                  <div className="pmeta" role="status" aria-live="polite">
-                    <span className="pverb">Generating the paid-social ad…</span>
-                    <span className="ptimer">0:06</span>
-                    <button className="stopb" aria-label="Stop generating" data-soon="Stopping generation is coming soon">{Ico.stop}Stop</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-              </>
-            )}
-          </div>
+      <main className="arc-conversation-scroll">
+        <div className="arc-conversation-column">
+          {live ? <LiveConversation messages={messages} brandName={brandName} onSuggestion={setDraft} onCancelRun={stopLiveRun} stoppingTaskId={stoppingTaskId} /> : selectedDemoId === "new" ? <div className="arc-empty-chat"><ArcAvatar /><h2>What should we work on?</h2><p>Start with an audience, a signal, or a draft. Arc will keep the work visible and the send path locked.</p></div> : <DemoConversation turns={demoTurns} pending={demoPending} reviewState={artifactReviewState} pendingContract={buildArcRunContract({ mode, route, contextScopes, agentTaskId: "DEMO-RUNNING" })} onReviewPackage={() => openCampaignWorkspace("email")} onStop={stopDemoRun} />}
+          <div ref={endRef} />
         </div>
+      </main>
 
-        {/* ── composer ── */}
-        <div className="dock">
-          <div className="wrap">
-            {live ? (
-              showLiveQuestion && liveQuestion ? (
-                <div className="qpanel">
-                  <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-                  <div className="qc">
-                    <div className="qq">{liveQuestion.prompt}</div>
-                    {liveQuestion.options.length > 0 ? (
-                      <div className="qopts">
-                        {liveQuestion.options.map((opt, i) => (
-                          <button key={i} className="qopt" onClick={() => setDraft(opt)}>{opt}</button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                  <button className="qx" aria-label="Dismiss question" onClick={() => setDismissedQid(liveQuestion.id)}>{Ico.x}</button>
-                </div>
-              ) : null
-            ) : (
-              <div className="qpanel">
-                <div className="qa"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-                <div className="qc">
-                  <div className="qq">Before I draft the landing page — which CTA should it push?</div>
-                  <div className="qopts">
-                    <button className="qopt" data-soon="Replying to Arc is coming soon">Book a strategy call</button>
-                    <button className="qopt" data-soon="Replying to Arc is coming soon">Book a free inspection</button>
-                    <button className="qopt" data-soon="Replying to Arc is coming soon">See the storm-zone map</button>
-                    <button className="qopt txt" data-soon="Replying to Arc is coming soon">Type your own…</button>
-                  </div>
-                </div>
-                <button className="qx" aria-label="Dismiss question" data-soon="Dismissing is coming soon">{Ico.x}</button>
-              </div>
-            )}
+      <footer className="arc-composer-dock">
+        <div className="arc-composer-column">
+          {visibleQuestion ? <QuestionPrompt question={visibleQuestion} onChoose={(value) => { setDraft(value); setDismissedQuestionId(visibleQuestion.id); }} onDismiss={() => setDismissedQuestionId(visibleQuestion.id)} /> : null}
+          <div className="arc-composer" data-busy={isSending || demoPending ? "true" : "false"}>
+            <input ref={fileInputRef} type="file" hidden multiple accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain,text/markdown,text/csv" onChange={handleAttachmentFiles} />
 
-            <div className="box">
-              {!live ? (
-                <div className="ctxrow">
-                  <span className="ctxchip"><span className="at">@Storm-damage homeowners</span><button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
-                  <span className="ctxchip"><span className="thumb">IMG</span>brand-board.png<button className="x" aria-label="Remove" data-soon="Editing chat context is coming soon">{Ico.x}</button></span>
-                </div>
-              ) : null}
-              {live ? (
-                <textarea
-                  className="ta"
-                  aria-label="Message Arc"
-                  placeholder="Ask anything, or describe what to draft…"
-                  value={draft}
-                  rows={1}
-                  disabled={sending}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      submitDraft();
-                    }
-                  }}
-                  style={{ resize: "none", background: "transparent", border: "none", outline: "none", width: "100%", font: "inherit", color: "inherit" }}
-                />
-              ) : (
-                <div className="ta" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="Message Arc" data-ph="Ask anything, or describe what to draft…" />
-              )}
-              <div className="footer">
-                <div className="fleft">
-                  <button className="cbtn" aria-label="Attach, commands and tools" data-soon="Attachments, commands & tools are coming soon">{Ico.plus}</button>
-                  <span className="cdiv" aria-hidden="true" />
-                  <button className="pill" data-soon="Switching Arc's model is coming soon"><span className="pic">{Ico.star}</span><span className="mlab">Auto ·</span> <span className="pval">Opus 4.8</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
-                  <button className="pill mode" data-soon="Switching Arc's mode is coming soon"><span className="pic">{Ico.pencil}</span><span className="pval">Draft</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
-                  {!live ? (
-                    <button className="pill" data-soon="Choosing a project is coming soon"><span className="pic">{Ico.folder}</span><span className="pval">Storm-damage homeowners</span> <span className="cv" aria-hidden="true">{Ico.chevD}</span></button>
-                  ) : null}
-                  <button className="pill" onClick={() => setShareOpen(true)} aria-label="Share this chat"><span className="pic">{Ico.share}</span><span className="pval">Share</span></button>
-                </div>
-                <div className="fright">
-                  <button className="cbtn" aria-label="Voice input" data-soon="Voice input is coming soon">{Ico.mic}</button>
-                  {live ? (
-                    <button className="sendb" aria-label="Send message" onClick={submitDraft} disabled={sending || !draft.trim()}>{Ico.send}</button>
-                  ) : (
-                    <button className="sendb" aria-label="Send message" data-soon="Sending messages to Arc is coming soon">{Ico.send}</button>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="khint"><span><b>↵</b> send</span><span><b>⇧↵</b> new line</span><span><b>@</b> mention · <b>/</b> commands</span><ContextMeter messages={messages} /></div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── cinematic canvas ── */}
-      <section className="canvas" aria-label="Campaign canvas">
-        {live ? (
-          <div className="cvempty">
-            <span className="ci">{Ico.splitPane}</span>
-            <div className="cveh">Campaign canvas</div>
-            <div className="cves">When Arc drafts a campaign in this chat, its channel assets, audience, and approval state show up here — and nothing goes out until you approve it.</div>
-          </div>
-        ) : (
-          <>
-        <div className="cvhdr">
-          <span className="ci">{Ico.splitPane}</span>
-          <div className="ctt">
-            <div className="ct">Storm Rapid Response</div>
-            <div className="cs">Storm-damage homeowners · 4 assets · <span className="lock">{Ico.lock}outbound locked</span></div>
-          </div>
-          <div className="cvviews" role="tablist" aria-label="Canvas view">
-            <button className={`cvview${view === "assets" ? " active" : ""}`} onClick={() => setView("assets")} role="tab" aria-selected={view === "assets"}>Assets</button>
-            <button className={`cvview${view === "audience" ? " active" : ""}`} onClick={() => setView("audience")} role="tab" aria-selected={view === "audience"}>Audience</button>
-          </div>
-        </div>
-
-        {view === "assets" ? (
-          <div className="cvassets">
-            <div className="orchestra">
-              <div className="orchhdr">
-                <div className="ol"><b>Arc is orchestrating</b> · 4 channel variants</div>
-                <div className="opct" role="status" aria-live="polite">2 of 4 ready</div>
-              </div>
-              <div className="obar"><i style={{ width: "50%" }} /></div>
-            </div>
-
-            <div className="cvtabs" role="tablist" aria-label="Campaign assets">
-              {ASSETS.map((a) => (
-                <button key={a.id} className={`cvtab${asset === a.id ? " active" : ""}`} onClick={() => setAsset(a.id)} role="tab" aria-selected={asset === a.id}>
-                  <span className={`dot ${a.dot}`} />{a.tab}
-                </button>
-              ))}
-            </div>
-
-            <div className="stage" key={active.id}>
-              <div className="stagehd">
-                <span className="sn">{active.name}</span>
-                <div className="sright">
-                  {active.id === "ad" ? (
+            <AnimatePresence>
+              {composerMenu ? (
+                <motion.div ref={composerMenuRef} id="arc-composer-menu" className="arc-composer-menu" data-menu={composerMenu} role="menu" aria-label={`${composerMenu} menu`} onKeyDown={handleComposerMenuKeyDown} initial={{ opacity: 0, y: 7, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 5, scale: 0.99 }} transition={{ duration: 0.16 }}>
+                  {composerMenu === "tools" ? (
                     <>
-                      <span className="jstat pend">83%</span>
-                      <button className="verchip" data-soon="Version history is coming soon">v3 {Ico.chevD}</button>
+                      <div className="arc-composer-menu-head"><b>Add to this message</b><button type="button" onClick={() => closeComposerMenu(true)} aria-label="Close message tools"><X size={14} /></button></div>
+                      <button type="button" role="menuitem" onClick={() => { closeComposerMenu(); fileInputRef.current?.click(); }}><Paperclip size={16} /><span><b>Upload a file</b><small>Images, PDFs, text, Markdown, or CSV</small></span></button>
+                      <button type="button" role="menuitem" onClick={() => setComposerMenu("mentions")}><AtSign size={16} /><span><b>Mention workspace item</b><small>Campaigns, contacts, properties, and more</small></span></button>
+                      <button type="button" role="menuitem" onClick={() => setComposerMenu("commands")}><Slash size={16} /><span><b>Use a command</b><small>Start a structured Arc workflow</small></span></button>
                     </>
-                  ) : (
-                    <span className={`jstat ${active.status[0]}`}>
-                      {active.status[0] === "appr" ? Ico.check : active.status[0] === "err" ? Ico.lock : null}
-                      {active.status[1]}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {renderStage(active.id)}
-            </div>
+                  ) : null}
 
-            <div className="activity">
-              <div className="acthdr"><DotRing sm /><b>Live activity</b></div>
-              <div className="actlog" role="log" aria-live="polite">
-                <div className="logline done"><span className="lt">9:41:02</span><span className="lx"><span className="lc">Email draft passed 4/4 guardrails.</span></span></div>
-                <div className="logline done"><span className="lt">9:41:48</span><span className="lx"><span className="lc">SMS rewritten in a warmer register · 152 chars.</span></span></div>
-                <div className="logline"><span className="lt">9:42:10</span><span className="lx">Selected approved BSR field photo as the ad base.<span className="src">[3]</span></span></div>
+                  {composerMenu === "model" ? (
+                    <>
+                      <div className="arc-composer-menu-head"><b>Response model</b><small>Choose speed or deeper reasoning</small></div>
+                      {MODEL_OPTIONS.map((option) => <button type="button" role="menuitemradio" aria-checked={route === option.id} key={option.id} onClick={() => { setRoute(option.id); closeComposerMenu(true); }}>{option.id === "fast" ? <Zap size={16} /> : <Brain size={16} />}<span><b>{option.label}</b><small>{option.description}</small></span>{route === option.id ? <Check size={15} /> : null}</button>)}
+                    </>
+                  ) : null}
+
+                  {composerMenu === "mode" ? (
+                    <>
+                      <div className="arc-composer-menu-head"><b>Mode</b><small>Outbound always stays behind approval</small></div>
+                      {MODE_OPTIONS.map((option) => <button type="button" role="menuitemradio" aria-checked={mode === option.id} key={option.id} onClick={() => { setMode(option.id); closeComposerMenu(true); }}><FileText size={16} /><span><b>{option.label}</b><small>{option.description}</small></span>{mode === option.id ? <Check size={15} /> : null}</button>)}
+                    </>
+                  ) : null}
+
+                  {composerMenu === "context" ? (
+                    <>
+                      <div className="arc-composer-menu-head"><b>Context</b><small>{contextState.pct}% of this conversation window used</small></div>
+                      {CONTEXT_OPTIONS.map((option) => {
+                        const Icon = option.icon;
+                        const active = contextScopes.includes(option.id);
+                        return <button type="button" role="menuitemcheckbox" aria-checked={active} key={option.id} onClick={() => toggleContextScope(option.id)}><Icon size={16} /><span><b>{option.label}</b><small>{active ? "Included for this turn" : "Not included"}</small></span>{active ? <Check size={15} /> : <Circle size={14} />}</button>;
+                      })}
+                      <div className="arc-composer-menu-foot">≈{(contextState.tokens / 1_000).toFixed(1)}k of {(CONTEXT_WINDOW_TOKENS / 1_000).toFixed(0)}k tokens · {selectedMentions.length} pinned · {attachments.length} attached</div>
+                    </>
+                  ) : null}
+
+                  {composerMenu === "mentions" ? (
+                    <>
+                      <div className="arc-composer-menu-head"><b>Mention</b><small>Pin a workspace item to this turn</small></div>
+                      {mentionItems.length > 0 ? mentionItems.map((mention) => <button type="button" role="menuitem" key={`${mention.type}-${mention.id}`} onClick={() => chooseMention(mention)}><AtSign size={16} /><span><b>{mention.label}</b><small>{mention.group}</small></span></button>) : <div className="arc-composer-menu-empty">No workspace items are available yet.</div>}
+                    </>
+                  ) : null}
+
+                  {composerMenu === "commands" ? (
+                    <>
+                      <div className="arc-composer-menu-head"><b>Commands</b><small>Start a focused workflow</small></div>
+                      {COMMAND_OPTIONS.map((option) => <button type="button" role="menuitem" key={option.id} onClick={() => chooseCommand(option)}><Slash size={16} /><span><b>/{option.id}</b><small>{option.description}</small></span></button>)}
+                    </>
+                  ) : null}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            {selectedMentions.length > 0 || attachments.length > 0 || command || composerNotice ? (
+              <div className="arc-composer-chips">
+                {command ? <span className="arc-composer-chip is-command"><Slash size={12} />{command}<button type="button" onClick={() => setCommand(null)} aria-label={`Remove ${command} command`}><X size={11} /></button></span> : null}
+                {selectedMentions.map((mention) => <span className="arc-composer-chip" key={`${mention.type}-${mention.id}`}><AtSign size={12} />{mention.label}<button type="button" onClick={() => setSelectedMentions((current) => current.filter((item) => !(item.type === mention.type && item.id === mention.id)))} aria-label={`Remove ${mention.label}`}><X size={11} /></button></span>)}
+                {attachments.map((attachment) => <span className="arc-composer-chip" key={attachment.objectPath}><Paperclip size={12} />{attachment.name}<button type="button" onClick={() => setAttachments((current) => current.filter((item) => item.objectPath !== attachment.objectPath))} aria-label={`Remove ${attachment.name}`}><X size={11} /></button></span>)}
+                {composerNotice ? <span className="arc-composer-notice">{composerNotice}</span> : null}
               </div>
+            ) : null}
+
+            <textarea aria-label="Message Arc" placeholder={command ? `Tell Arc what to do with /${command}…` : "Message Arc…"} value={draft} rows={2} disabled={isSending || demoPending} onChange={(event) => { const value = event.target.value; setDraft(value); if (value.endsWith("@")) { composerMenuTriggerRef.current = null; setComposerMenu("mentions"); } else if (value.trim() === "/") { composerMenuTriggerRef.current = null; setComposerMenu("commands"); } }} onKeyDown={(event) => { if (event.key === "Escape") closeComposerMenu(); if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submitDraft(); } }} />
+            <div className="arc-composer-toolbar">
+              <div className="arc-composer-tools">
+                <button type="button" className="arc-composer-add" aria-label="Add attachment, mention, or command" aria-haspopup="menu" aria-controls={composerMenu === "tools" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "tools"} onClick={(event) => toggleComposerMenu("tools", event.currentTarget)}><Plus size={18} /></button>
+                <button type="button" className="arc-composer-pill arc-model-button" aria-label={`Model: ${currentModel.label}`} aria-haspopup="menu" aria-controls={composerMenu === "model" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "model"} onClick={(event) => toggleComposerMenu("model", event.currentTarget)}>{route === "fast" ? <Zap size={14} /> : <Brain size={14} />}<span>{currentModel.label}</span><ChevronDown size={12} /></button>
+                <button type="button" className="arc-context-button" data-level={contextState.level} data-tooltip={`Context ${contextState.pct}% used`} aria-label={`Context: ${contextState.pct}% used`} title={`Context · ${contextState.pct}% used`} aria-haspopup="menu" aria-controls={composerMenu === "context" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "context"} onClick={(event) => toggleComposerMenu("context", event.currentTarget)}><CircularProgress className="arc-context-progress" variant="determinate" value={contextState.pct} size={30} thickness={2.4} role="presentation" aria-hidden="true" /><Brain size={14} /></button>
+              </div>
+              <div className="arc-composer-send"><button type="button" className="arc-composer-pill" aria-label={`Mode: ${currentMode.label}`} aria-haspopup="menu" aria-controls={composerMenu === "mode" ? "arc-composer-menu" : undefined} aria-expanded={composerMenu === "mode"} onClick={(event) => toggleComposerMenu("mode", event.currentTarget)}><FileText size={14} /><span>{currentMode.label}</span><ChevronDown size={13} /></button><button type="button" className="arc-send-button" onClick={submitDraft} disabled={!draft.trim() || isSending || demoPending || uploading} aria-label="Send message">{isSending || demoPending || uploading ? <LoaderCircle size={18} className="is-spinning" /> : <ArrowUp size={18} />}</button></div>
             </div>
           </div>
-        ) : (
-          <div className="audpanel">
-            <div className="audstat">
-              <div className="as"><div className="v">142</div><div className="k">target homes</div></div>
-              <div className="as"><div className="v gold">$1.4M</div><div className="k">est. project value</div></div>
-              <div className="as"><div className="v">23%</div><div className="k">of storm zone</div></div>
-            </div>
-            <div className="audsec">
-              <div className="ah">Persona mix</div>
-              <div className="audrow">
-                <div className="arh"><span className="nm">Insured · fresh damage</span><span className="ct">64 · 45%</span></div>
-                <div className="audbar"><i style={{ width: "45%" }} /></div>
-                <div className="ang"><b>Angle:</b> free inspection now, we coordinate the whole insurance claim</div>
-              </div>
-              <div className="audrow">
-                <div className="arh"><span className="nm">Aging roof · out-of-pocket</span><span className="ct">41 · 29%</span></div>
-                <div className="audbar"><i style={{ width: "29%" }} /></div>
-                <div className="ang"><b>Angle:</b> workmanship warranty + a clear, no-pressure estimate</div>
-              </div>
-              <div className="audrow">
-                <div className="arh"><span className="nm">Property manager · multi-unit</span><span className="ct">37 · 26%</span></div>
-                <div className="audbar"><i style={{ width: "26%" }} /></div>
-                <div className="ang"><b>Angle:</b> fast local crews to inspect every building before the next storm</div>
-              </div>
-            </div>
-            <div className="audsec">
-              <div className="ah">Why they haven&apos;t booked yet</div>
-              <div className="audrow"><div className="arh"><span className="nm">No inspection booked since the storm</span><span className="ct">142</span></div><div className="audbar"><i className="soft" style={{ width: "100%" }} /></div></div>
-              <div className="audrow"><div className="arh"><span className="nm">Unsure if the damage is claim-worthy</span><span className="ct">89</span></div><div className="audbar"><i className="soft" style={{ width: "63%" }} /></div></div>
-              <div className="audrow"><div className="arh"><span className="nm">Worried about out-of-pocket cost</span><span className="ct">71</span></div><div className="audbar"><i className="soft" style={{ width: "50%" }} /></div></div>
-              <div className="audrow"><div className="arh"><span className="nm">Waiting on their insurance adjuster</span><span className="ct">34</span></div><div className="audbar"><i className="soft" style={{ width: "24%" }} /></div></div>
-            </div>
-            <button className="canvaslink" style={{ marginTop: 4 }} data-soon="Reviewing lookalike homes is coming soon">
-              <span className="cli">{Ico.people}</span>
-              <span className="clt">
-                <span className="clh">58 lookalike homes found</span>
-                <span className="cls">Same storm swath + roof profile as your best past jobs — not yet in the segment</span>
-              </span>
-              <span className="go">Review {Ico.arrow}</span>
-            </button>
-            <div className="recall" style={{ marginTop: 18 }}>
-              <span className="lbl">{Ico.brain}Recalled from memory</span>
-              <button className="mchip" data-soon="Memory recall is coming soon">Storm-zone persona angles <span className="conf">91%</span></button>
-            </div>
-          </div>
-        )}
-
-        <div className="cvfoot">
-          <button className="btn app" data-soon="Approving assets is coming soon">{Ico.check}Approve all ready</button>
-          <button className="btn ghost sm" data-soon="Requesting a revision is coming soon">{Ico.pencil}Revise</button>
-          <span className="lock">{Ico.lock}2 ready · 1 generating · 1 blocked</span>
         </div>
-          </>
-        )}
-      </section>
+      </footer>
 
-      {/* ── resizable dividers + campaign-panel toggle ── */}
-      <div
-        className={`arc-resize arc-resize-rail${dragTarget === "rail" ? " dragging" : ""}`}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize conversation list"
-        onPointerDown={startResize("rail")}
-      />
-      {canvasOpen ? (
-        <div
-          className={`arc-resize arc-resize-canvas${dragTarget === "canvas" ? " dragging" : ""}`}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize campaign panel"
-          onPointerDown={startResize("canvas")}
-        />
-      ) : null}
-      <button
-        type="button"
-        className="arc-canvas-toggle"
-        onClick={() => setCanvasOpen((v) => !v)}
-        aria-label={canvasOpen ? "Hide campaign panel" : "Show campaign panel"}
-        title={canvasOpen ? "Hide campaign panel" : "Show campaign panel"}
-      >
-        {canvasOpen ? Ico.chevR : Ico.splitPane}
-      </button>
-
-      {shareOpen ? <ShareDialog conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
+      <AnimatePresence>
+        {workspaceOpen ? <ArtifactWorkspace key="campaign-workspace" activeTab={activeArtifact} reviewState={artifactReviewState} notice={artifactNotice} busy={demoPending} onSelect={setActiveArtifact} onApprove={() => { setArtifactReviewState("approved"); setArtifactNotice("All campaign assets are approved for use. Outbound remains locked until send approval."); }} onSubmitRevision={submitArtifactRevision} onClose={() => setWorkspaceOpen(false)} /> : null}
+        {historyOpen ? <Fragment key="conversation-history"><motion.button type="button" className="arc-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryOpen(false)} aria-label="Close conversation history" /><ThreadDrawer live={live} groups={threadGroups} activeConversationId={activeConversationId} selectedDemoId={selectedDemoId} onSelectDemo={selectDemoThread} onClose={() => setHistoryOpen(false)} /></Fragment> : null}
+        {shareOpen ? <ShareDialog key="share-dialog" conversationId={activeConversationId} onClose={() => setShareOpen(false)} /> : null}
+      </AnimatePresence>
     </div>
-  );
-}
-
-function renderStage(id: string) {
-  if (id === "email") {
-    return (
-      <>
-        <div className="emailframe">
-          <div className="emhead">
-            <div className="emrow"><span className="eml">From</span><b>Big Shoulders Restoration</b></div>
-            <div className="emrow"><span className="eml">Subj</span><b>We inspected 142 roofs after the Naperville storm — yours may be next</b></div>
-          </div>
-          <div className="embody">Hi {"{first_name}"}, the June 14 hailstorm hit your block harder than most. We&apos;re offering storm-zone homeowners a free, no-pressure roof inspection this week — and if there&apos;s claimable damage, we coordinate the whole insurance process for you. Two spots left near you Thursday.</div>
-        </div>
-        <div className="insp">
-          <div className="ih">Provenance</div>
-          <div className="provgrid">
-            <div className="pr"><span className="pk">Source</span><span className="pv">Storm-response playbook</span></div>
-            <div className="pr"><span className="pk">Model</span><span className="pv">Opus 4.8 · Draft</span></div>
-            <div className="pr"><span className="pk">Persona</span><span className="pv">Insured · fresh damage</span></div>
-            <div className="pr"><span className="pk">Format</span><span className="pv">Email · HTML</span></div>
-          </div>
-        </div>
-        <Guards ok={4} />
-      </>
-    );
-  }
-  if (id === "sms") {
-    return (
-      <>
-        <div className="smsframe">
-          <div className="smsbubble">Hi {"{first_name}"} — it&apos;s the BSR crew. After last week&apos;s Naperville hail we&apos;re checking roofs on your street, no charge and no pressure. Want us to swing by and take a look? Reply YES and we&apos;ll find a time.</div>
-          <div className="smsmeta">152 characters · 1 segment · warmer register</div>
-        </div>
-        <div className="insp">
-          <div className="ih">Provenance</div>
-          <div className="provgrid">
-            <div className="pr"><span className="pk">Source</span><span className="pv">Storm-response playbook</span></div>
-            <div className="pr"><span className="pk">Model</span><span className="pv">Opus 4.8 · Draft</span></div>
-            <div className="pr"><span className="pk">Persona</span><span className="pv">Aging roof · out-of-pocket</span></div>
-            <div className="pr"><span className="pk">Format</span><span className="pv">SMS · 152 chars</span></div>
-          </div>
-        </div>
-        <Guards ok={4} />
-      </>
-    );
-  }
-  if (id === "lp") {
-    return (
-      <>
-        <div className="lpblock">Landing page is blocked — waiting on the CTA decision above before Arc drafts the hero.</div>
-        <div className="lpframe">
-          <div className="lphero">
-            <span className="lpkick">Naperville storm zone</span>
-            <span className="lph">Free roof inspection for storm-hit homes</span>
-            <span className="lpsub">We&apos;ve already inspected 142 roofs on your side of town. See if yours has claimable damage before the next storm.</span>
-            <span className="lpcta">Book a free inspection</span>
-          </div>
-          <div className="lprows"><span /><span className="short" /><span /></div>
-        </div>
-        <Guards ok={2} pend={2} />
-      </>
-    );
-  }
-  // paid-social ad (generating)
-  return (
-    <>
-      <div className="stagemedia gen">
-        <div className="adcreative">
-          <div className="scene" />
-          <div className="horizon" />
-          <div className="scrim" />
-          <div className="adlogo"><b />BSR</div>
-          <div className="adhl">Naperville got hit. Your roof deserves a look.</div>
-          <div className="adcta">Book a free inspection</div>
-        </div>
-        <span className="prov"><i />Approved BSR field photo · composite</span>
-      </div>
-      <div className="stagebar"><i style={{ width: "68%" }} /></div>
-      <div className="stagesubj"><span className="lab">Primary text</span>142 homes near you took the worst of the hail. We&apos;ll inspect yours free — and handle the claim if there&apos;s damage.</div>
-      <div className="insp">
-        <div className="ih">Provenance</div>
-        <div className="provgrid">
-          <div className="pr"><span className="pk">Source</span><span className="pv">Composite · BSR proof + AI</span></div>
-          <div className="pr"><span className="pk">Base photo</span><span className="pv">approved BSR field photo [3]</span></div>
-          <div className="pr"><span className="pk">Model</span><span className="pv">Higgsfield</span></div>
-          <div className="pr"><span className="pk">Aspect</span><span className="pv">1080×1350 · 4:5</span></div>
-        </div>
-      </div>
-      <div className="insp">
-        <div className="ih">Guardrails</div>
-        <div className="guards">
-          <div className="guard ok"><span className="gi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg></span>Embedded text legible</div>
-          <div className="guard ok"><span className="gi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg></span>Logo placement</div>
-          <div className="guard ok"><span className="gi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg></span>Claim risk checked</div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function Guards({ ok, pend = 0 }: { ok: number; pend?: number }) {
-  const labels = ["No embedded text or logo issues", "Scene reads as realistic", "No privacy / redaction risk", "No unsupported claims"];
-  return (
-    <div className="guards">
-      {labels.map((l, i) => {
-        const isOk = i < ok;
-        return (
-          <div key={l} className={`guard${isOk ? " ok" : " pend"}`}>
-            <span className="gi">{isOk ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg> : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v6l4 2" /></svg>}</span>
-            {l}{!isOk && pend > 0 ? " — checking…" : ""}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function formatMsgTime(iso: string): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
-
-/**
- * Renders a real Arc conversation from persisted `arc_messages`. Reuses the exact
- * markup/classes the mock uses (`.op`, `.arc`, `.trace`, `.mchip`, `.pending`) so
- * a live thread looks identical to the design. An empty thread shows a welcome.
- */
-function LiveMessages({ messages, brandName }: { messages: ArcMessage[]; brandName: string }) {
-  if (messages.length === 0) {
-    return (
-      <div className="arc">
-        <div className="a"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-        <div className="col">
-          <div className="body">
-            <span className="hero">How can I help, {brandName}?</span>
-            Ask me to find leads, draft a campaign, or check a signal — I&rsquo;ll show my work, and nothing goes
-            out until you approve it.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {messages.map((m) =>
-        m.role === "operator" ? (
-          <div className="op" key={m.id}>
-            <div className="bub" style={{ whiteSpace: "pre-wrap" }}>{m.body}</div>
-          </div>
-        ) : (
-          <div className="arc" key={m.id}>
-            <div className="a"><img src="/brand/arc-mark.png" alt="Arc" /></div>
-            <div className="col">
-              <div className="who"><span className="t">{formatMsgTime(m.createdAt)}</span></div>
-              {m.status === "pending" || (m.role === "arc" && !m.body.trim()) ? (
-                <div className="pending">
-                  <DotRing />
-                  <div className="pmeta" role="status" aria-live="polite">
-                    <span className="pverb">Arc is working…</span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {(m.reasoning || m.steps.length > 0) && (
-                    <details className="trace">
-                      <summary>
-                        <span className="lead">
-                          <span className="cx" aria-hidden="true">{Ico.chevR}</span> Thought
-                        </span>
-                        {m.steps.length > 0 && <span className="tk">{m.steps.length} steps</span>}
-                      </summary>
-                      <div className="steps">
-                        {m.reasoning && <div className="step">{m.reasoning}</div>}
-                        {m.steps.map((s, i) => (
-                          <div className="step" key={i}>{s.label}</div>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                  <div className="body md-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.body}</ReactMarkdown>
-                  </div>
-                  {m.recall && m.recall.length > 0 && (
-                    <div className="recall">
-                      <span className="lbl">{Ico.brain}Recalled from memory</span>
-                      {m.recall.map((r, i) => (
-                        <span className="mchip" key={i}>
-                          {r.label}
-                          {r.confidence != null && <span className="conf">{Math.round(r.confidence)}%</span>}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {m.suggestions.length > 0 && (
-                    <div className="msgactions">
-                      {m.suggestions.map((s, i) => (
-                        <button className="ma" key={i} data-soon="Follow-up suggestions are coming soon">{s}</button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        ),
-      )}
-    </>
   );
 }

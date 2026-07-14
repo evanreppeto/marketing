@@ -1,47 +1,39 @@
-**Findings**
-- [P0] Visual comparison capture unavailable
-  Location: Product Design QA gate for `/campaigns` and `/campaigns/10000000-0000-4000-8000-000000000021`.
-  Evidence: source ImageGen files are available, and both implementation routes return HTTP 200 on `http://127.0.0.1:3010`, but the in-app Browser screenshot tool was not exposed in this turn. Product Design QA requires source and implementation screenshots in the same comparison input before passing.
-  Impact: cannot honestly certify visual fidelity against the source mockups, even though code, build, and route checks pass.
-  Fix: capture desktop screenshots of both routes with Browser tooling, compare them against the source ImageGen mockups, then update this report to `final result: passed` if no P0/P1/P2 issues remain.
+# Arc live work log QA
 
-**Open Questions**
-- The source mockups use small inline UI icons. The current implementation follows existing project patterns instead of introducing a new icon package during this pass.
+## Reference and intended state
 
-**Implementation Checklist**
-- Capture `/campaigns` at the same desktop viewport as the source campaign library mockup.
-- Capture `/campaigns/10000000-0000-4000-8000-000000000021` at the same desktop viewport as the source campaign packet mockup.
-- Compare typography, spacing, color tokens, copy clarity, package content density, and responsive behavior.
-- Fix any P0/P1/P2 visual drift found in screenshot comparison.
+- User-selected reference: `/var/folders/2g/05frnm2118b30sj5k5_zmcqm0000gn/T/codex-clipboard-6c5d6bac-42c9-4474-b195-716b09601a22.png`
+- Target: a chronological, readable work log with elapsed time, normal commentary text, and compact activity rows that name the source or tool actually being used.
+- The reference and implementation source were reviewed together. A new browser-rendered capture could not be produced because control of the existing local preview tab was blocked during this iteration; the earlier captures in `output/` predate this change and are not treated as current evidence.
 
-**Follow-up Polish**
-- Consider replacing the remaining inline SVG chevrons and tab glyphs with a real icon library if the app adopts one globally.
+## Implemented fidelity
 
-source visual truth path:
-- `C:\Users\evanr\.codex\generated_images\019ecba3-ca4d-7f91-9d28-e019f2aae410\ig_00694c681d046260016a30154c2b9881969b695e22ed31c12a.png`
-- `C:\Users\evanr\.codex\generated_images\019ecba3-ca4d-7f91-9d28-e019f2aae410\ig_00694c681d046260016a30159ec0748196b76b64b3509590ca.png`
+- Header: the live state now says `Working for 12s` or `Working for 1m 9s` instead of using intent labels such as `Analyzing` or `Creating`.
+- Commentary: the pending assistant body is no longer hidden. Runner-streamed text appears as normal Markdown in the conversation while work continues.
+- Activity: runner-reported steps and tool calls render in their reported order with their exact labels, details, outputs, and status.
+- Empty state: before Arc reports text or activity, the UI shows only `Starting the run…`; it does not invent an understand/search/verify checklist.
+- Demo behavior: search, audience-analysis, creation, and general requests use different request-specific examples so the preview demonstrates the intended data model without implying every real run follows one process.
+- Completed state: finished work still collapses into a durable receipt. The former `Reasoning summary` label is now `Work summary` to avoid implying private chain-of-thought is exposed.
+- Safeguards: Stop and the compact run plan remain available without competing with the work log.
 
-implementation screenshot path:
-- blocked: Browser screenshot capture tooling was not exposed in this turn.
+## Motion and accessibility
 
-viewport:
-- intended desktop comparison, source mockup proportions; implementation routes verified at `http://127.0.0.1:3010`.
+- The original Arc Luma spinner remains the restrained running indicator.
+- Newly reported activity fades upward into place; the active event spins and completed events settle to checks.
+- Future demo activity stays hidden until it begins, matching the reference's progressive transcript rather than revealing a generic plan.
+- The visible timer does not announce every second to screen readers. State changes use a short polite announcement, and reduced-motion preferences disable nonessential entry motion.
 
-state:
-- Campaign library default state at `/campaigns`.
-- Individual campaign packet state at `/campaigns/10000000-0000-4000-8000-000000000021`.
+## Validation
 
-full-view comparison evidence:
-- blocked: source files exist, implementation routes are live, but implementation screenshots could not be captured.
+- `pnpm exec vitest run src/lib/arc-chat`: 17 files and 113 tests passed.
+- `pnpm typecheck`: passed.
+- Scoped ESLint for `arc-view.tsx`: passed without warnings after cleanup.
+- `pnpm build`: passed with Next.js 16.2.6; `/arc` was generated as a dynamic route.
+- `git diff --check`: passed.
+- The running development server compiled the edited Arc files and returned `HEAD /arc 200`.
 
-focused region comparison evidence:
-- blocked: focused region screenshots could not be captured.
+## Remaining QA gate
 
-patches made since previous QA pass:
-- Reworked campaign library into a clearer campaign workbench with multi-campaign totals, filtered rows, and a selected campaign packet preview.
-- Added list-level campaign content pieces so the library can show emails, SMS, media, drafts, and review state per campaign.
-- Reworked individual campaign detail into a campaign packet with top facts, review callout, package tabs, readable piece bodies, piece details, audience/lead context, linked records, checklist, and simplified decision actions.
-- Added package summary model coverage for readable counts and destination labels.
-- Verified `pnpm lint`, targeted campaign tests, `pnpm build`, and HTTP 200 checks for both campaign routes on port 3010.
+- P2: capture and inspect the active-run state in the local preview at desktop and mobile widths once browser control is available. Confirm commentary wrapping, long tool-label wrapping, composer clearance, and the elapsed-time header against the selected reference.
 
-final result: blocked
+final result: blocked on browser-rendered visual verification
