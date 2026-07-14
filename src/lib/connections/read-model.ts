@@ -22,6 +22,8 @@ export type ConnectionView = {
   requiredEnvVars: string[];
   enabled: boolean;
   status: ConnectionStatus;
+  /** True when this workspace has its own key stored in the Vault (vs. the env). */
+  credentialPresent: boolean;
   fromEmail: string | null;
   lastTestedAt: string | null;
   lastTestOk: boolean | null;
@@ -36,11 +38,15 @@ type ConnectionRow = {
   enabled: boolean;
   env_var: string | null;
   config: Record<string, unknown> | null;
+  credential_ref: string | null;
   last_tested_at: string | null;
   last_test_ok: boolean | null;
   last_test_error: string | null;
   last_used_at: string | null;
 };
+
+const CONNECTION_COLUMNS =
+  "provider,kind,label,enabled,env_var,config,credential_ref,last_tested_at,last_test_ok,last_test_error,last_used_at";
 
 type GoogleDriveConnectionStatusRow = {
   connected_by: string;
@@ -78,6 +84,7 @@ function requiredEnvVarsFor(provider: ConnectionProvider): string[] {
 
 function rowToView(row: ConnectionRow): ConnectionView {
   const config = row.config ?? {};
+  const credentialPresent = Boolean(row.credential_ref);
   return {
     provider: row.provider,
     kind: row.kind,
@@ -86,10 +93,13 @@ function rowToView(row: ConnectionRow): ConnectionView {
     requiredEnvVars: requiredEnvVarsFor(row.provider),
     enabled: row.enabled,
     status: computeConnectionStatus({
-      envPresent: isConfigured(row.provider),
+      // A key is available from either the env var OR this workspace's stored
+      // secret — the send path prefers the stored one and falls back to the env.
+      envPresent: isConfigured(row.provider) || credentialPresent,
       enabled: row.enabled,
       lastTestOk: row.last_test_ok,
     }),
+    credentialPresent,
     fromEmail: typeof config.fromEmail === "string" ? config.fromEmail : null,
     lastTestedAt: row.last_tested_at,
     lastTestOk: row.last_test_ok,
@@ -108,6 +118,7 @@ function fallbackViews(): ConnectionView[] {
     requiredEnvVars: entry.requiredEnvVars,
     enabled: false,
     status: computeConnectionStatus({ envPresent: isConfigured(entry.provider), enabled: false, lastTestOk: null }),
+    credentialPresent: false,
     fromEmail: null,
     lastTestedAt: null,
     lastTestOk: null,
@@ -192,6 +203,7 @@ function fallbackViewFor(entry: (typeof CONNECTION_REGISTRY)[number]): Connectio
     requiredEnvVars: entry.requiredEnvVars,
     enabled: false,
     status: computeConnectionStatus({ envPresent: isConfigured(entry.provider), enabled: false, lastTestOk: null }),
+    credentialPresent: false,
     fromEmail: null,
     lastTestedAt: null,
     lastTestOk: null,
@@ -213,7 +225,7 @@ export async function getConnections(client?: SupabaseClient, options: GetConnec
   // without the filter the Settings view would list every tenant's connections.
   let query = supabase
     .from("connections")
-    .select("provider,kind,label,enabled,env_var,config,last_tested_at,last_test_ok,last_test_error,last_used_at");
+    .select(CONNECTION_COLUMNS);
   if (options.orgId) {
     query = query.eq("org_id", options.orgId);
   }
@@ -239,24 +251,45 @@ export async function getConnections(client?: SupabaseClient, options: GetConnec
 }
 
 /**
- * Focused read for the Settings email card: just the Resend row (or a registry
- * fallback when it doesn't exist yet). Lighter than getConnections — no social /
- * Google Drive lookups — since the email card only needs enable + from + last test.
+ * Focused read for the Settings email card: just this workspace's Resend row (or a
+ * registry fallback when it doesn't exist yet). Lighter than getConnections — no
+ * social / Google Drive lookups — since the email card only needs enable + from +
+ * stored-key presence + last test. Org-scoped: the row is keyed (org_id, provider),
+ * and the admin client bypasses RLS, so an unscoped read would trip `.maybeSingle`
+ * on multiple tenants' rows (or return another tenant's).
  */
-export async function getEmailConnection(client?: SupabaseClient): Promise<ConnectionView> {
+export async function getEmailConnection(client?: SupabaseClient, options: { orgId?: string } = {}): Promise<ConnectionView> {
   const entry = CONNECTION_REGISTRY.find((e) => e.provider === "resend")!;
   const supabase = client ?? (isSupabaseAdminConfigured() ? getSupabaseAdminClient() : null);
   if (!supabase) return fallbackViewFor(entry);
 
-  const { data, error } = await supabase
-    .from("connections")
-    .select("provider,kind,label,enabled,env_var,config,last_tested_at,last_test_ok,last_test_error,last_used_at")
-    .eq("provider", "resend")
-    .maybeSingle();
+  // Resolve the active org when a caller-supplied client didn't pin one (the same
+  // request-scope resolution getConnections uses for its Drive lookup).
+  const orgId = options.orgId ?? (!client ? await getCurrentOrgId().catch(() => null) : null);
+
+  let query = supabase.from("connections").select(CONNECTION_COLUMNS).eq("provider", "resend");
+  if (orgId) query = query.eq("org_id", orgId);
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.warn(`email connection lookup failed, using registry fallback: ${error.message}`);
     return fallbackViewFor(entry);
   }
   return data ? rowToView(data as ConnectionRow) : fallbackViewFor(entry);
+}
+
+/** The Vault ref for a provider's per-workspace secret in one org, else null. */
+export async function getConnectionCredentialRef(
+  client: SupabaseClient,
+  orgId: string,
+  provider: ConnectionProvider,
+): Promise<string | null> {
+  const { data, error } = await client
+    .from("connections")
+    .select("credential_ref")
+    .eq("org_id", orgId)
+    .eq("provider", provider)
+    .maybeSingle<{ credential_ref: string | null }>();
+  if (error || !data) return null;
+  return data.credential_ref ?? null;
 }

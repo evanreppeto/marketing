@@ -144,12 +144,13 @@ describe("executeResendDispatch", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("refuses when RESEND_API_KEY is absent", async () => {
+  it("refuses when no workspace key is stored and RESEND_API_KEY is absent", async () => {
     vi.stubEnv("RESEND_API_KEY", "");
     const send = vi.fn();
     const supabase = createSupabaseQueryMock({
       campaign_dispatches: { data: queuedDispatch(), error: null },
       approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null },
     });
 
     const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { send });
@@ -157,6 +158,42 @@ describe("executeResendDispatch", () => {
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/RESEND_API_KEY|configured/i);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("prefers the workspace's stored Resend key over the deployment env var", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_env_deployment");
+    const send = vi.fn().mockResolvedValue({ id: "resend-ws" });
+    const readCredential = vi.fn().mockResolvedValue("re_workspace_stored");
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch(), error: null },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: { ...ENABLED_RESEND, credential_ref: "vault-ref-1" }, error: null },
+      campaign_events: { data: null, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { send, readCredential });
+
+    expect(result).toMatchObject({ ok: true, providerMessageId: "resend-ws" });
+    expect(readCredential).toHaveBeenCalledWith("vault-ref-1");
+    expect(send).toHaveBeenCalledWith("re_workspace_stored", expect.anything());
+  });
+
+  it("falls back to RESEND_API_KEY when the workspace has no stored key", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_env_deployment");
+    const send = vi.fn().mockResolvedValue({ id: "resend-env" });
+    const readCredential = vi.fn();
+    const supabase = createSupabaseQueryMock({
+      campaign_dispatches: { data: queuedDispatch(), error: null },
+      approval_items: { data: APPROVED, error: null },
+      connections: { data: ENABLED_RESEND, error: null }, // no credential_ref
+      campaign_events: { data: null, error: null },
+    });
+
+    const result = await executeResendDispatch({ dispatchId: "d1", operator: "Operator" }, supabase, { send, readCredential });
+
+    expect(result).toMatchObject({ ok: true, providerMessageId: "resend-env" });
+    expect(readCredential).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith("re_env_deployment", expect.anything());
   });
 
   it("refuses when the Resend connection is disabled (kill-switch off)", async () => {

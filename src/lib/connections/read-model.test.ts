@@ -41,6 +41,26 @@ describe("getConnections", () => {
     expect(resend.status).toBe("not_configured");
   });
 
+  it("counts a stored workspace key as configured even when the env var is absent", async () => {
+    vi.stubEnv("RESEND_API_KEY", "");
+    const supabase = createSupabaseQueryMock({
+      connections: { data: [row({ credential_ref: "vault-ref-1" })], error: null },
+    });
+
+    const [resend] = await getConnections(supabase);
+
+    expect(resend).toMatchObject({ provider: "resend", status: "connected", credentialPresent: true });
+  });
+
+  it("marks credentialPresent false when only the env var backs the connection", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_live");
+    const supabase = createSupabaseQueryMock({ connections: { data: [row()], error: null } });
+
+    const [resend] = await getConnections(supabase);
+
+    expect(resend).toMatchObject({ status: "connected", credentialPresent: false });
+  });
+
   it("reports disabled when configured but the operator switch is off", async () => {
     vi.stubEnv("RESEND_API_KEY", "re_live");
     const supabase = createSupabaseQueryMock({ connections: { data: [row({ enabled: false })], error: null } });

@@ -3,9 +3,11 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { CONNECTION_REGISTRY, type ConnectionProvider } from "@/domain";
 
 // Persistence for the connections registry. Writes operator-controlled state and
-// telemetry only — never secrets (those stay in env vars). Untyped SupabaseClient
-// param, matching the vault/dispatch layers (the `connections` table is not in the
-// generated database.types yet).
+// telemetry only. The secret itself is never stored on the row: a per-workspace
+// key lives in the Vault and the row holds just its `credential_ref` (uuid), the
+// same shape workspace_connectors uses for Gemini/Higgsfield. Untyped
+// SupabaseClient param, matching the vault/dispatch layers (the `connections`
+// table is not in the generated database.types yet).
 //
 // Every mutation runs on the RLS-bypassing admin client and is keyed by
 // (org_id, provider) — the table's uniqueness scope — so one operator flipping a
@@ -64,6 +66,52 @@ export async function upsertConnection(
 
   const { error } = await client.from("connections").upsert(row, { onConflict: "org_id,provider" });
   assertOk("connections upsert", error);
+}
+
+/**
+ * Store the Vault ref for a provider's per-workspace secret (currently Resend's
+ * API key), creating the row on first use. Deliberately omits `enabled` from the
+ * payload so saving/rotating a key never flips the sending kill-switch — on INSERT
+ * the DB default (false) applies, on CONFLICT the existing switch is left
+ * untouched. kind/label/env_var come from the registry so a first-time row still
+ * matches the UI. The plaintext lives only in the Vault; this row holds the ref.
+ */
+export async function setConnectionCredentialRef(
+  client: SupabaseClient,
+  orgId: string,
+  provider: ConnectionProvider,
+  credentialRef: string,
+): Promise<void> {
+  const entry = CONNECTION_REGISTRY.find((e) => e.provider === provider);
+  if (!entry) throw new Error(`setConnectionCredentialRef: unknown provider ${provider}`);
+
+  const { error } = await client.from("connections").upsert(
+    {
+      org_id: orgId,
+      provider,
+      kind: entry.kind,
+      label: entry.label,
+      env_var: entry.envVar,
+      credential_ref: credentialRef,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "org_id,provider" },
+  );
+  assertOk("connections credential upsert", error);
+}
+
+/** Drop a provider's stored per-workspace secret ref (falls back to the env key). */
+export async function clearConnectionCredentialRef(
+  client: SupabaseClient,
+  orgId: string,
+  provider: ConnectionProvider,
+): Promise<void> {
+  const { error } = await client
+    .from("connections")
+    .update({ credential_ref: null })
+    .eq("org_id", orgId)
+    .eq("provider", provider);
+  assertOk("connections credential clear", error);
 }
 
 /** Record the outcome of a connection test, scoped to one org. */
