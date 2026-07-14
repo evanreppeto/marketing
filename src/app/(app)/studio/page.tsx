@@ -38,5 +38,9 @@ export default async function StudioPage() {
     }
   }
 
-  return <StudioView brandName={brandName} libraryItems={libraryItems} />;
+  // `live` = a real backend is present, so the Arc composer can start a real
+  // conversation. Offline (backend-less preview) it stays inert with a note.
+  const live = Boolean(ctx?.orgId) && isSupabaseAdminConfigured();
+
+  return <StudioView brandName={brandName} libraryItems={libraryItems} live={live} />;
 }

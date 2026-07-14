@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+
+import { sendArcMessageAction } from "../../arc/actions";
 
 const HOUSE = '<svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4654"/><stop offset="1" stop-color="#27303a"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><path d="M0 210 L150 120 L300 200 L450 110 L600 190 V300 H0 Z" fill="#2b343d"/><path d="M120 230 L300 130 L480 230 Z" fill="#4a5663"/><path d="M120 230 L300 130 L300 250 L120 250 Z" fill="#3d4854"/><rect x="180" y="230" width="240" height="70" fill="#323b45"/><rect x="210" y="248" width="34" height="34" fill="#566270"/><rect x="356" y="248" width="34" height="34" fill="#566270"/></svg>';
 const SC: Record<string, string> = {
@@ -74,7 +77,7 @@ const SESSION: { id: string; tag: string; item: Item }[] = [
   { id: "v4", tag: "9:16", item: { s: SC.video, l: "Crew 9:16", p: "real" } },
 ];
 
-export function StudioView({ brandName, libraryItems }: { brandName: string; libraryItems?: Item[] }) {
+export function StudioView({ brandName, libraryItems, live = false }: { brandName: string; libraryItems?: Item[]; live?: boolean }) {
   const initial = "Storm season";
   // The "Approved media" source shows the workspace's real media_assets when
   // present (Studio composes over your real backgrounds); it falls back to the
@@ -103,6 +106,31 @@ export function StudioView({ brandName, libraryItems }: { brandName: string; lib
   const [traceOpen, setTraceOpen] = useState(false);
   const [tmpl, setTmpl] = useState(0);
   const [cmode, setCmode] = useState("Draft");
+  const [msg, setMsg] = useState("");
+  const [sendErr, setSendErr] = useState<string | null>(null);
+  const [sending, startSend] = useTransition();
+  const router = useRouter();
+
+  // The composer hands the operator's creative request to Arc: it starts a real
+  // Arc conversation (outbound-locked like every Arc turn), seeded with the
+  // current Studio context (mode/format/headline), then drops them into the live
+  // thread where Arc's reply + drafts stream in. Offline it stays an inert note.
+  const askArc = () => {
+    const text = msg.trim();
+    if (!text || sending || !live) return;
+    setSendErr(null);
+    const context = `\n\n(From Studio · ${cmode} · ${mode} · ${FORMATS[fmt].r}${headline ? ` · headline: "${headline}"` : ""})`;
+    startSend(async () => {
+      const result = await sendArcMessageAction({ conversationId: null, body: text + context });
+      if (result.ok) {
+        setMsg("");
+        router.push(`/arc?c=${result.conversationId}`);
+        router.refresh();
+      } else {
+        setSendErr(result.error);
+      }
+    });
+  };
 
   const pickTool = (t: (typeof TOOLS)[keyof typeof TOOLS][number]) => {
     setTool(t.t);
@@ -235,7 +263,7 @@ export function StudioView({ brandName, libraryItems }: { brandName: string; lib
             {SESSION.slice(3).map((v) => (
               <span key={v.id} className={`vthumb${selSession === v.id ? " on" : ""}`} onClick={() => { setSelSession(v.id); setBg(v.item); }}><Raw html={v.item.s} /><span className="vtag">{v.tag}</span></span>
             ))}
-            <button className="vgen" onClick={() => setTab("arc")}><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg>Ask Arc for variations</button>
+            <button className="vgen" onClick={() => { setTab("arc"); setMsg((m) => m || "Make a few on-brand variations of this creative."); }}><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10z" /></svg>Ask Arc for variations</button>
           </div>
         </section>
 
@@ -358,7 +386,26 @@ export function StudioView({ brandName, libraryItems }: { brandName: string; lib
                 </div>
                 <div className="composer">
                   <div className="modes">{["Ask", "Act", "Draft"].map((m) => <span key={m} className={`mode${cmode === m ? " on" : ""}`} onClick={() => setCmode(m)}>{m}</span>)}</div>
-                  <div className="cbox"><textarea rows={1} placeholder="Ask Arc to edit, generate, or repackage this creative…" /><button className="csend" data-soon="Sending messages to Arc is coming soon"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg></button></div>
+                  <div className="cbox">
+                    <textarea
+                      rows={1}
+                      value={msg}
+                      onChange={(e) => setMsg(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askArc(); } }}
+                      placeholder={live ? "Ask Arc to edit, generate, or repackage this creative…" : "Connect a backend to chat with Arc"}
+                      disabled={!live || sending}
+                    />
+                    <button
+                      className="csend"
+                      onClick={askArc}
+                      disabled={!live || sending || !msg.trim()}
+                      title={live ? "Send to Arc" : "Arc chat needs a connected backend"}
+                      {...(!live ? { "data-soon": "Connect a backend to chat with Arc" } : {})}
+                    >
+                      <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                    </button>
+                  </div>
+                  {sendErr ? <div role="alert" style={{ margin: "6px 2px 0", fontSize: 11, color: "#cc6666", lineHeight: 1.4 }}>{sendErr}</div> : null}
                   <div className="clock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></svg>Drafts only — nothing sends until you approve.</div>
                 </div>
               </div>
