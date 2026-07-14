@@ -98,7 +98,7 @@ export async function listPersonas(): Promise<Persona[]> {
     const orgId = await getCurrentOrgId();
     // `personas` isn't in the generated types yet — use an untyped client.
     const supabase = getSupabaseAdminClient() as unknown as SupabaseClient;
-    const { data, error } = await supabase.from("personas").select(COLUMNS).eq("org_id", orgId).order("score", { ascending: false });
+    const { data, error } = await supabase.from("personas").select(COLUMNS).eq("org_id", orgId).eq("is_active", true).order("score", { ascending: false });
     if (error) throw error;
     if (!data || data.length === 0) {
       if (isDemoDataEnabled()) return DEMO_PERSONAS;

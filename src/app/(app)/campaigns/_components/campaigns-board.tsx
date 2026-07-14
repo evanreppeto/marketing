@@ -81,9 +81,12 @@ function buildOptimisticCampaign(id: string, v: NewCampaignInput): CampaignRow {
 export function CampaignsBoard({
   rows,
   arcNote,
+  personaOptions,
 }: {
   rows: CampaignRow[];
   arcNote: string;
+  /** The org's own personas for the New-campaign picker. */
+  personaOptions?: { key: string; label: string }[];
 }) {
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
@@ -279,6 +282,7 @@ export function CampaignsBoard({
       <NewCampaignModal
         key={newOpen ? "open" : "closed"}
         open={newOpen}
+        personaOptions={personaOptions}
         onClose={() => setNewOpen(false)}
         onSubmit={handleCreate}
       />

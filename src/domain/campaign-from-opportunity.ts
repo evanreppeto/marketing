@@ -1,5 +1,5 @@
 import { type RestorationFocus } from "./campaign-drafts";
-import { isOfficialPersonaMapping } from "./personas";
+import { isAllowedPersona, OFFICIAL_PERSONA_MAPPINGS } from "./personas";
 
 /**
  * Pure mapping from a surfaced opportunity to the seed fields for an
@@ -97,8 +97,11 @@ function suggestCampaignType(
  * `restorationFocus` come back as "" when the opportunity gives no confident
  * value, so the confirm modal can require the operator to choose.
  */
-export function buildCampaignSeedFromOpportunity(input: OpportunitySeedInput): CampaignSeed {
-  const persona = isOfficialPersonaMapping(input.persona) ? input.persona : "";
+export function buildCampaignSeedFromOpportunity(
+  input: OpportunitySeedInput,
+  allowedPersonaKeys: readonly string[] = OFFICIAL_PERSONA_MAPPINGS,
+): CampaignSeed {
+  const persona = isAllowedPersona(input.persona, allowedPersonaKeys) ? input.persona : "";
   const restorationFocus = inferRestorationFocus(
     `${input.title} ${input.summary} ${input.recommendedAction}`,
   );

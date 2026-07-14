@@ -24,12 +24,14 @@ function personaLabel(key: string): string {
 }
 
 export type EditRecordValue = { persona?: string; status?: string };
+export type PersonaOption = { key: string; label: string };
 
 export function EditRecordModal({
   open,
   objectKey,
   currentPersona,
   currentStatus,
+  personaOptions,
   onClose,
   onSubmit,
 }: {
@@ -37,6 +39,8 @@ export function EditRecordModal({
   objectKey: string;
   currentPersona: string;
   currentStatus: string;
+  /** The org's own personas. Falls back to the BSR demo set when not provided. */
+  personaOptions?: PersonaOption[];
   onClose: () => void;
   onSubmit: (value: EditRecordValue) => Promise<{ ok: boolean; error?: string }>;
 }) {
@@ -46,6 +50,8 @@ export function EditRecordModal({
   const [error, setError] = useState<string | null>(null);
 
   const statusOptions = STATUS_OPTIONS[objectKey] ?? [];
+  const personaChoices =
+    personaOptions?.length ? personaOptions : OFFICIAL_PERSONA_MAPPINGS.map((key) => ({ key, label: personaLabel(key) }));
   const canSubmit = (persona || status) && !pending;
 
   async function submit(event: React.FormEvent) {
@@ -87,9 +93,9 @@ export function EditRecordModal({
           </span>
           <select value={persona} onChange={(e) => setPersona(e.target.value)}>
             <option value="">Keep current</option>
-            {OFFICIAL_PERSONA_MAPPINGS.map((key) => (
-              <option key={key} value={key}>
-                {personaLabel(key)}
+            {personaChoices.map((opt) => (
+              <option key={opt.key} value={opt.key}>
+                {opt.label}
               </option>
             ))}
           </select>

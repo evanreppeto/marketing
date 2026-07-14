@@ -41,7 +41,9 @@ function driverText(drivers: string[], value: number, kind: "engagement" | "fit"
   }[kind];
   return value >= 70 ? fallback[0] : fallback[1];
 }
-// Persona slug (homeowner-emergency) → lead/outcome persona enum (persona_homeowner_emergency).
+// Legacy BSR bridge: the demo tenant's persona slug (homeowner-emergency) maps to
+// its records' persona key (persona_homeowner_emergency). Per-org personas store
+// the slug AS the record key, so perf lookup tries the slug directly first.
 const personaEnum = (slug: string) => `persona_${slug.replace(/-/g, "_")}`;
 
 async function personaPerf(orgId: string): Promise<Map<string, PerfRow>> {
@@ -74,7 +76,7 @@ function toVM(p: Persona, perf: Map<string, PerfRow>): PersonaVM {
   const stage = STAGE_COLOR[p.stage] ?? { color: "#b8b4aa", bg: "rgba(255,255,255,.04)" };
   const share = Math.round(p.audienceShare > 1 ? p.audienceShare : p.audienceShare * 100);
   const radar = p.signals;
-  const pr = perf.get(personaEnum(p.slug)) ?? { leads: 0, jobs: 0, revenueCents: 0 };
+  const pr = perf.get(p.slug) ?? perf.get(personaEnum(p.slug)) ?? { leads: 0, jobs: 0, revenueCents: 0 };
   return {
     slug: p.slug,
     name: p.name,

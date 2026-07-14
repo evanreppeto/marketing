@@ -1,5 +1,6 @@
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCampaignWorkspaceList, type CampaignWorkspaceListItem } from "@/lib/campaigns/read-model";
+import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 
 import { CampaignsBoard, type CampaignRow, type CampaignTone } from "./_components/campaigns-board";
 
@@ -104,9 +105,10 @@ function toRow(item: CampaignWorkspaceListItem): CampaignRow {
 
 export default async function CampaignsPage() {
   const ctx = await getCurrentWorkspaceContext();
-  const list = await getCampaignWorkspaceList(undefined, "Arc", ctx.orgId).catch(
-    () => ({ status: "unavailable" } as const),
-  );
+  const [list, personaOptions] = await Promise.all([
+    getCampaignWorkspaceList(undefined, "Arc", ctx.orgId).catch(() => ({ status: "unavailable" } as const)),
+    getOrgPersonaOptions(ctx.orgId).catch(() => []),
+  ]);
   const rows = list.status === "live" ? list.campaigns.map(toRow) : [];
 
   const pendingTotal = rows.reduce((sum, r) => sum + (r.nextTone === "go" && /Approve/.test(r.next) ? 1 : 0), 0);
@@ -115,5 +117,5 @@ export default async function CampaignsPage() {
       ? `Arc has ${pendingTotal} package${pendingTotal === 1 ? "" : "s"} awaiting your approval`
       : "Arc drafts approval-gated packages here as opportunities come in";
 
-  return <CampaignsBoard rows={rows} arcNote={arcNote} />;
+  return <CampaignsBoard rows={rows} arcNote={arcNote} personaOptions={personaOptions} />;
 }

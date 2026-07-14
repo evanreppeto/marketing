@@ -1,8 +1,9 @@
 /**
- * BSR default/seed persona taxonomy. This is the product's *default* set and the
+ * BSR demo/seed persona taxonomy. This is a demo-tenant seed set and the offline
  * fallback for callers that have not been made org-aware — it is NOT the global
- * validation authority. Per-org validity comes from `persona_definitions` rows
- * loaded via `src/lib/personas/read-model.ts`.
+ * validation authority. Per-org validity comes from each org's active
+ * `personas.slug` rows, loaded via `getOrgPersonaKeys` in
+ * `src/lib/personas/read-model.ts`. `unassigned_persona` stays internal-only.
  */
 export const OFFICIAL_PERSONA_MAPPINGS = [
   "persona_homeowner_emergency",

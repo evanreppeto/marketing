@@ -2306,20 +2306,11 @@ export type Database = {
       };
     };
     Enums: {
-      persona_mapping:
-        | "persona_homeowner_emergency"
-        | "persona_homeowner_preventative"
-        | "persona_homeowner_rebuild"
-        | "persona_landlord"
-        | "persona_hoa_board"
-        | "persona_property_manager"
-        | "persona_insurance_agent"
-        | "persona_listing_agent"
-        | "persona_buyers_agent"
-        | "persona_plumbing_partner"
-        | "persona_hvac_roof_electrical_partner"
-        | "persona_gc_remodeler_partner"
-        | "unassigned_persona";
+      // Persona is now per-org `text` (migration 20260713120000): the valid set is
+      // each org's `personas.slug` rows, not a fixed enum. Typed as `string` so
+      // records can be tagged with tenant-defined personas. `unassigned_persona`
+      // remains a reserved internal sentinel enforced by DB checks + ingest.
+      persona_mapping: string;
       knowledge_trust_tier: "observed" | "proposed" | "trusted" | "rejected" | "archived";
       company_status: "active" | "inactive" | "archived";
       contact_status: "active" | "inactive" | "do_not_contact" | "archived";

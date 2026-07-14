@@ -308,11 +308,14 @@ export function CrmBoard({
   rowsByKey,
   defaultKey,
   kpis,
+  personaOptions,
 }: {
   objects: CrmObjectVM[];
   rowsByKey: Record<string, CrmRowVM[]>;
   defaultKey: string;
   kpis?: KpiCell[];
+  /** The org's own personas for the Add-record picker. */
+  personaOptions?: { key: string; label: string }[];
 }) {
   const [activeKey, setActiveKey] = useState(defaultKey);
   const [q, setQ] = useState("");
@@ -623,6 +626,7 @@ export function CrmBoard({
         objectKey={active.key as CrmObjectKey}
         singular={active.addLabel.replace(/^Add\s+/i, "")}
         linkOptions={linkOptions}
+        personaOptions={personaOptions}
         onClose={() => setAddOpen(false)}
         onSubmit={handleCreate}
       />

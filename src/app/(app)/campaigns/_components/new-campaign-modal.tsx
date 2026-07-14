@@ -27,16 +27,23 @@ const FOCUS_OPTIONS: { value: string; label: string }[] = [
   { value: "fire", label: "Fire" },
 ];
 
+export type PersonaOption = { key: string; label: string };
+
 export function NewCampaignModal({
   open,
+  personaOptions,
   onClose,
   onSubmit,
 }: {
   open: boolean;
+  /** The org's own personas. Falls back to the BSR demo set when not provided. */
+  personaOptions?: PersonaOption[];
   onClose: () => void;
   /** Returns the outcome so the modal can surface an error and stay open on failure. */
   onSubmit: (value: NewCampaignInput) => Promise<{ ok: boolean; error?: string }>;
 }) {
+  const personaChoices =
+    personaOptions?.length ? personaOptions : OFFICIAL_PERSONA_MAPPINGS.map((key) => ({ key, label: personaLabel(key) }));
   const [name, setName] = useState("");
   const [persona, setPersona] = useState("");
   const [focus, setFocus] = useState("");
@@ -95,9 +102,9 @@ export function NewCampaignModal({
               <option value="" disabled>
                 Choose a persona…
               </option>
-              {OFFICIAL_PERSONA_MAPPINGS.map((key) => (
-                <option key={key} value={key}>
-                  {personaLabel(key)}
+              {personaChoices.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
                 </option>
               ))}
             </select>

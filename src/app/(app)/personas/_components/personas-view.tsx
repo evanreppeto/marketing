@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-import { createPersona, type NewPersonaInput } from "../actions";
+import { archivePersona, createPersona, editPersona, type EditPersonaInput, type NewPersonaInput } from "../actions";
+import { EditPersonaModal } from "./edit-persona-modal";
 import { NewPersonaModal } from "./new-persona-modal";
 
 export type PersonaVM = {
@@ -115,9 +116,21 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   // Personas created this session, shown until a real write revalidates.
   const [localPersonas, setLocalPersonas] = useState<PersonaVM[]>([]);
   const [newOpen, setNewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<PersonaVM | null>(null);
+  const [archivedSlugs, setArchivedSlugs] = useState<Set<string>>(new Set());
+  const [edits, setEdits] = useState<Record<string, Partial<PersonaVM>>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const allPersonas = useMemo(() => [...localPersonas, ...personas], [localPersonas, personas]);
+  // Apply optimistic edits and hide optimistically-archived personas until the
+  // revalidated server render catches up.
+  const allPersonas = useMemo(
+    () =>
+      [...localPersonas, ...personas]
+        .filter((p) => !archivedSlugs.has(p.slug))
+        .map((p) => (edits[p.slug] ? { ...p, ...edits[p.slug] } : p)),
+    [localPersonas, personas, archivedSlugs, edits],
+  );
 
   const handleCreate = async (value: NewPersonaInput): Promise<{ ok: boolean; error?: string }> => {
     setError(null);
@@ -137,6 +150,51 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
       if (res.slug) setSlug(res.slug);
     }
     return { ok: true };
+  };
+
+  const openEdit = (p: PersonaVM) => {
+    setEditTarget(p);
+    setEditOpen(true);
+  };
+
+  const handleEdit = async (value: EditPersonaInput): Promise<{ ok: boolean; error?: string }> => {
+    setError(null);
+    const patch: Partial<PersonaVM> = {
+      name: value.name,
+      segment: value.segment as PersonaVM["segment"],
+      segmentLabel: value.segment.charAt(0).toUpperCase() + value.segment.slice(1),
+      stage: value.stage ?? "New",
+      angle: value.angle ?? "",
+      audience: value.audience ?? "",
+      cta: value.cta ?? "",
+      channel: value.channel ?? "",
+    };
+    setEdits((prev) => ({ ...prev, [value.slug]: patch }));
+    const res = await editPersona(value);
+    if (!res.ok) {
+      setEdits((prev) => {
+        const next = { ...prev };
+        delete next[value.slug];
+        return next;
+      });
+      setError(res.error);
+      return { ok: false, error: res.error };
+    }
+    return { ok: true };
+  };
+
+  const handleArchive = async (slug: string) => {
+    setError(null);
+    setArchivedSlugs((prev) => new Set(prev).add(slug));
+    const res = await archivePersona(slug);
+    if (!res.ok) {
+      setArchivedSlugs((prev) => {
+        const next = new Set(prev);
+        next.delete(slug);
+        return next;
+      });
+      setError(res.error);
+    }
   };
 
   const headStats = useMemo(() => {
@@ -174,7 +232,19 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
   if (allPersonas.length === 0) {
     return (
       <div className="arc-personas">
-        <div className="empty">No personas yet. Arc builds persona intelligence here as it learns your audience.</div>
+        <div className="empty">
+          <p>No personas yet. Personas are the playbooks that power your CRM, targeting, and campaigns — define your own for how your business sees its audience.</p>
+          <button type="button" className="gbtn" onClick={() => setNewOpen(true)} style={{ marginTop: 14 }}>
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            Create your first persona
+          </button>
+        </div>
+        <NewPersonaModal
+          key={newOpen ? "open" : "closed"}
+          open={newOpen}
+          onClose={() => setNewOpen(false)}
+          onSubmit={handleCreate}
+        />
       </div>
     );
   }
@@ -267,7 +337,13 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
             </aside>
 
             <section className="detail">
-              {selected && <PersonaDetail p={selected} />}
+              {selected && (
+                <PersonaDetail
+                  p={selected}
+                  onEdit={() => openEdit(selected)}
+                  onArchive={() => handleArchive(selected.slug)}
+                />
+              )}
             </section>
           </>
         ) : (
@@ -334,6 +410,14 @@ export function PersonasView({ personas }: { personas: PersonaVM[] }) {
         onClose={() => setNewOpen(false)}
         onSubmit={handleCreate}
       />
+
+      <EditPersonaModal
+        key={editTarget ? `edit-${editTarget.slug}` : "edit-closed"}
+        open={editOpen}
+        persona={editTarget}
+        onClose={() => setEditOpen(false)}
+        onSubmit={handleEdit}
+      />
     </div>
   );
 }
@@ -372,7 +456,7 @@ function Radar({ sig }: { sig: { engagement: number; fit: number; intent: number
   );
 }
 
-function PersonaDetail({ p }: { p: PersonaVM }) {
+function PersonaDetail({ p, onEdit, onArchive }: { p: PersonaVM; onEdit: () => void; onArchive: () => void }) {
   const up = p.scoreTrend.length >= 2 && p.scoreTrend[p.scoreTrend.length - 1] >= p.scoreTrend[0];
   return (
     <>
@@ -390,6 +474,10 @@ function PersonaDetail({ p }: { p: PersonaVM }) {
               {p.quote && <> <span className="q">&ldquo;{p.quote}&rdquo;</span></>}
             </p>
           )}
+          <div className="dactions" style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button type="button" className="miniabtn" onClick={onEdit}>Edit persona</button>
+            <button type="button" className="miniabtn ghost" onClick={onArchive}>Archive</button>
+          </div>
         </div>
         <div className="dconf">
           <div className="cl">Lead score</div>

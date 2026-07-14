@@ -97,7 +97,14 @@ function ScanButton({ subtle }: { subtle?: boolean }) {
   );
 }
 
-export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
+export function OpportunityInbox({
+  opps,
+  personaOptions,
+}: {
+  opps: OpportunityVM[];
+  /** The org's own personas for the draft-campaign picker. */
+  personaOptions?: { key: string; label: string }[];
+}) {
   const [cur, setCur] = useState(0);
   const [draftOpen, setDraftOpen] = useState(false);
   const [mode, setMode] = useState<DraftMode>("operator");
@@ -336,6 +343,7 @@ export function OpportunityInbox({ opps }: { opps: OpportunityVM[] }) {
         onClose={() => setDraftOpen(false)}
         opp={o}
         mode={mode}
+        personaOptions={personaOptions}
         onSubmit={handleDraft}
       />
     </div>
