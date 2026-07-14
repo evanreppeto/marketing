@@ -831,108 +831,114 @@ function BillingPlanControl({ billing }: { billing: SettingsBillingView | null }
 }
 
 // ---- Team members (wired) ----
-// Real member list from listWorkspaceTeamAccess (demo fallback offline). Role
-// changes + removal go through changeMemberRole / removeMember; offline they
-// resolve optimistically (persisted:false) without claiming a real write.
+// Real member list from listWorkspaceTeamAccess (demo fallback offline). Clicking a
+// member opens a popup to change their role or remove them (changeMemberRole /
+// removeMember); offline they resolve optimistically (persisted:false).
 function TeamMembers({ team }: { team: SettingsTeamView }) {
   const [members, setMembers] = useState<SettingsTeamMember[]>(team.members);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [selId, setSelId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const wsId = team.workspaceId ?? "";
   const initial = (e: string) => (e.trim()[0] || "?").toUpperCase();
+  const selected = selId ? members.find((m) => m.id === selId) ?? null : null;
 
-  async function changeRole(m: SettingsTeamMember, label: string) {
-    const prev = members;
-    setMembers((ms) => ms.map((x) => (x.id === m.id ? { ...x, roleLabel: label, role: label.toLowerCase() } : x)));
-    setBusy(m.id);
-    setStatus(null);
-    const res = await changeMemberRole({ workspaceId: wsId, membershipId: m.id, role: label });
-    setBusy(null);
-    if (!res.ok) {
-      setMembers(prev);
-      setStatus({ tone: "err", text: res.error });
-    } else if (res.persisted) {
-      setStatus({ tone: "ok", text: `Updated ${m.email} to ${label}.` });
-    }
+  return (
+    <>
+      <Panel title={<>Members <span className="ph-d" style={{ marginLeft: 6 }}>{members.length}</span></>} tag={TGOK}>
+        {members.length === 0 ? (
+          <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No members yet.</div>
+        ) : (
+          members.map((m) => (
+            <div className="mem mem-btn" key={m.id} role="button" tabIndex={0} onClick={() => setSelId(m.id)} onKeyDown={(e) => { if (e.key === "Enter") setSelId(m.id); }}>
+              <span className="ma">{initial(m.email)}</span>
+              <div className="mi"><div className="mn">{m.email}</div><div className="me">{m.roleLabel}{m.pending ? " · invited" : ""}</div></div>
+              {m.isOwner && <Pill kind="off">Owner</Pill>}
+              <span className="mem-go">Manage →</span>
+            </div>
+          ))
+        )}
+        {status && <div style={{ fontSize: 12.5, padding: "8px 2px 0", color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</div>}
+      </Panel>
+      {selected && (
+        <MemberModal
+          member={selected}
+          workspaceId={wsId}
+          onClose={() => setSelId(null)}
+          onRoleChanged={(label) => setMembers((ms) => ms.map((x) => (x.id === selected.id ? { ...x, roleLabel: label, role: label.toLowerCase() } : x)))}
+          onRemoved={() => { setMembers((ms) => ms.filter((x) => x.id !== selected.id)); setStatus({ tone: "ok", text: `Removed ${selected.email}.` }); setSelId(null); }}
+        />
+      )}
+    </>
+  );
+}
+
+function MemberModal({ member, workspaceId, onClose, onRoleChanged, onRemoved }: {
+  member: SettingsTeamMember;
+  workspaceId: string;
+  onClose: () => void;
+  onRoleChanged: (label: string) => void;
+  onRemoved: () => void;
+}) {
+  const [role, setRole] = useState(member.roleLabel);
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<SaveStatus>(null);
+
+  async function saveRole() {
+    if (role === member.roleLabel) return;
+    setPending(true); setStatus(null);
+    const res = await changeMemberRole({ workspaceId, membershipId: member.id, role });
+    setPending(false);
+    if (!res.ok) { setStatus({ tone: "err", text: res.error }); return; }
+    onRoleChanged(role);
+    setStatus({ tone: "ok", text: res.persisted ? `Role updated to ${role}.` : `Role set to ${role} — connect your workspace to save it.` });
   }
 
-  async function remove(m: SettingsTeamMember) {
-    const prev = members;
-    setMembers((ms) => ms.filter((x) => x.id !== m.id));
-    setBusy(m.id);
-    setStatus(null);
-    const res = await removeMember({ workspaceId: wsId, membershipId: m.id });
-    setBusy(null);
-    if (!res.ok) {
-      setMembers(prev);
-      setStatus({ tone: "err", text: res.error });
-    } else if (res.persisted) {
-      setStatus({ tone: "ok", text: `Removed ${m.email}.` });
-    }
+  async function remove() {
+    setPending(true); setStatus(null);
+    const res = await removeMember({ workspaceId, membershipId: member.id });
+    setPending(false);
+    if (!res.ok) { setStatus({ tone: "err", text: res.error }); return; }
+    onRemoved();
   }
 
   return (
-    <Panel title={<>Members <span className="ph-d" style={{ marginLeft: 6 }}>{members.length}</span></>} tag={TGOK}>
-      {members.length === 0 ? (
-        <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No members yet.</div>
-      ) : (
-        members.map((m) => (
-          <div className="mem" key={m.id}>
-            <span className="ma">{initial(m.email)}</span>
-            <div className="mi"><div className="mn">{m.email}</div><div className="me">{m.roleLabel}{m.pending ? " · invited" : ""}</div></div>
-            <select className="sel" style={{ minWidth: 120 }} value={m.roleLabel} disabled={m.isOwner || busy === m.id} onChange={(e) => changeRole(m, e.target.value)}>
+    <Modal open onClose={onClose} width={440} title="Team member" description={member.email}>
+      <div className="cxm">
+        {member.isOwner && <div className="cxm-note">This member is the workspace owner — their role can’t be changed and they can’t be removed.</div>}
+        <div className="cxm-sec">
+          <div className="cxm-label">Role</div>
+          <p className="cxm-hint">Controls what they can do across the workspace — approve, draft, or view.</p>
+          <div className="cxm-field">
+            <select className="sel" value={role} disabled={member.isOwner || pending} onChange={(e) => setRole(e.target.value)}>
               {ROLE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
             </select>
-            {!m.isOwner && <button className="btn sm danger" disabled={busy === m.id} onClick={() => remove(m)}>Remove</button>}
+            <button className="btn gold" disabled={member.isOwner || pending || role === member.roleLabel} onClick={saveRole}>{pending ? "Saving…" : "Save"}</button>
           </div>
-        ))
-      )}
-      {status && <div style={{ fontSize: 12.5, padding: "8px 2px 0", color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</div>}
-    </Panel>
+        </div>
+        {!member.isOwner && (
+          <div className="cxm-sec">
+            <div className="cxm-label">Remove access</div>
+            <p className="cxm-hint">{member.email} loses access to this workspace immediately. You can invite them again later.</p>
+            <button className="btn danger" disabled={pending} onClick={remove}>Remove from workspace</button>
+          </div>
+        )}
+        {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+      </div>
+    </Modal>
   );
 }
 
 // ---- Team invites (wired) ----
 // Real invite creation via createInvite; the pending list is seeded from real
-// workspace invites. Offline (persisted:false) items resolve optimistically.
+// workspace invites. The invite form lives in a popup (matching New workspace).
+// Offline (persisted:false) items resolve optimistically.
 type PendingInvite = { id: string; email: string; role: string; note: string };
 
 function TeamInvites({ workspaceId, seedInvites }: { workspaceId: string | null; seedInvites: SettingsTeamInvite[] }) {
   const [invites, setInvites] = useState<PendingInvite[]>(seedInvites);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("Marketer");
-  const [expires, setExpires] = useState("14 days");
-  const [pending, setPending] = useState(false);
+  const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const wsId = workspaceId ?? "";
-
-  async function send() {
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setStatus({ tone: "err", text: "Enter an email address." });
-      return;
-    }
-    const days = parseInt(expires, 10) || 14;
-    const tempId = `local-${crypto.randomUUID()}`;
-    setInvites((prev) => [{ id: tempId, email: trimmed, role, note: `${role} · just now` }, ...prev]);
-    setStatus(null);
-    setPending(true);
-
-    const res = await createInvite({ email: trimmed, role, expiresInDays: days });
-    setPending(false);
-    if (!res.ok) {
-      setInvites((prev) => prev.filter((i) => i.id !== tempId));
-      setStatus({ tone: "err", text: res.error });
-      return;
-    }
-    setEmail("");
-    setStatus({
-      tone: "ok",
-      text: res.persisted
-        ? res.message ?? "Invite sent."
-        : "Invite added — connect your workspace (Supabase) to send it for real.",
-    });
-  }
 
   async function revoke(inv: PendingInvite) {
     const prev = invites;
@@ -946,9 +952,9 @@ function TeamInvites({ workspaceId, seedInvites }: { workspaceId: string | null;
 
   return (
     <>
-      <Panel title="Pending invites" tag={TGOK}>
+      <Panel title={<>Pending invites <span className="ph-d" style={{ marginLeft: 6 }}>{invites.length}</span></>} tag={TGOK}>
         {invites.length === 0 ? (
-          <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No pending invites.</div>
+          <div className="me" style={{ padding: "6px 2px", color: "var(--muted)" }}>No pending invites — invite a teammate below.</div>
         ) : (
           invites.map((inv) => (
             <div className="mem" key={inv.id}>
@@ -960,30 +966,77 @@ function TeamInvites({ workspaceId, seedInvites }: { workspaceId: string | null;
           ))
         )}
       </Panel>
-      <Panel title="Invite a teammate" tag={TGOK} foot="workspace_invites · issueWorkspaceInviteCode → sendBrandedEmail">
-        <Row label="Email" desc="They’ll get a branded invite with a single-use code.">
-          <input className="inp" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </Row>
-        <Row label="Role" desc="Roles map to capabilities (approve, draft, view).">
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button className="btn gold" onClick={() => setOpen(true)}><Ic d='<path d="M3 12l18-8-8 18-2-7z"/>' />Invite a teammate</button>
+        {status && <span style={{ fontSize: 12.5, color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</span>}
+      </div>
+      {open && (
+        <InviteModal
+          onClose={() => setOpen(false)}
+          onCreated={(inv, message) => { setInvites((prev) => [inv, ...prev]); setStatus({ tone: "ok", text: message }); }}
+        />
+      )}
+    </>
+  );
+}
+
+function InviteModal({ onClose, onCreated }: { onClose: () => void; onCreated: (inv: PendingInvite, message: string) => void }) {
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Marketer");
+  const [expires, setExpires] = useState("14 days");
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<SaveStatus>(null);
+
+  async function send() {
+    const trimmed = email.trim();
+    if (!trimmed) { setStatus({ tone: "err", text: "Enter an email address." }); return; }
+    const days = parseInt(expires, 10) || 14;
+    setPending(true); setStatus(null);
+    const res = await createInvite({ email: trimmed, role, expiresInDays: days });
+    setPending(false);
+    if (!res.ok) { setStatus({ tone: "err", text: res.error }); return; }
+    onCreated(
+      { id: `local-${crypto.randomUUID()}`, email: trimmed, role, note: `${role} · just now` },
+      res.persisted ? res.message ?? "Invite sent." : "Invite added — connect your workspace (Supabase) to send it for real.",
+    );
+    onClose();
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      width={460}
+      title="Invite a teammate"
+      description="They’ll get a branded invite email with a single-use code."
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={pending}>Cancel</button>
+          <button className="btn gold" onClick={send} disabled={pending}>{pending ? "Sending…" : "Send invite"}</button>
+        </>
+      }
+    >
+      <div className="cxm">
+        <div className="cxm-sec">
+          <div className="cxm-label">Email</div>
+          <input className="inp" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }} />
+        </div>
+        <div className="cxm-sec">
+          <div className="cxm-label">Role</div>
+          <p className="cxm-hint">Roles map to what they can do — approve, draft, view.</p>
           <select className="sel" value={role} onChange={(e) => setRole(e.target.value)}>
             <option>Admin</option><option>Marketer</option><option>Reviewer</option><option>Member</option><option>Viewer</option>
           </select>
-        </Row>
-        <Row label="Expires">
-          <select className="sel" style={{ minWidth: 110 }} value={expires} onChange={(e) => setExpires(e.target.value)}>
+        </div>
+        <div className="cxm-sec">
+          <div className="cxm-label">Expires</div>
+          <select className="sel" value={expires} onChange={(e) => setExpires(e.target.value)}>
             <option>7 days</option><option>14 days</option><option>30 days</option><option>60 days</option>
           </select>
-        </Row>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0 4px" }}>
-          <button className="btn gold" onClick={send} disabled={pending}>
-            <Ic d='<path d="M3 12l18-8-8 18-2-7z"/>' />{pending ? "Sending…" : "Send invite"}
-          </button>
-          {status && (
-            <span style={{ fontSize: 12.5, color: status.tone === "ok" ? "var(--ok-text)" : "var(--red-text)" }}>{status.text}</span>
-          )}
         </div>
-      </Panel>
-    </>
+        {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+      </div>
+    </Modal>
   );
 }
 
