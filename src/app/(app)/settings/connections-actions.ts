@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireOperator } from "@/lib/auth/operator";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { recordConnectionTest, upsertConnection } from "@/lib/connections/persistence";
 import { testResendConnection } from "@/lib/connections/resend-client";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -25,8 +26,11 @@ export async function setEmailConnectionEnabled(input: {
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
+  const ctx = await getCurrentWorkspaceContext().catch(() => null);
+  if (!ctx?.orgId) return { ok: false, error: "No active org to update." };
+
   try {
-    await upsertConnection(getSupabaseAdminClient(), "resend", {
+    await upsertConnection(getSupabaseAdminClient(), ctx.orgId, "resend", {
       enabled: input.enabled,
       fromEmail: input.fromEmail ?? null,
     });
@@ -53,7 +57,8 @@ export async function testEmailConnection(): Promise<SettingsWriteResult> {
 
   if (isSupabaseAdminConfigured()) {
     try {
-      await recordConnectionTest(getSupabaseAdminClient(), "resend", result);
+      const ctx = await getCurrentWorkspaceContext();
+      if (ctx.orgId) await recordConnectionTest(getSupabaseAdminClient(), ctx.orgId, "resend", result);
     } catch {
       // Telemetry is best-effort; never fail the test on a record error.
     }

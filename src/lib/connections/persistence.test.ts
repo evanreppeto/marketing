@@ -11,14 +11,15 @@ function upsertArgs(supabase: MockSupabase): { row: Record<string, unknown>; opt
 }
 
 describe("upsertConnection", () => {
-  it("creates/enables the resend row keyed on provider, with registry-derived kind/label/env_var", async () => {
+  it("creates/enables the resend row keyed on (org_id, provider), with registry-derived kind/label/env_var", async () => {
     const supabase = createSupabaseQueryMock({ connections: { data: null, error: null } });
 
-    await upsertConnection(supabase, "resend", { enabled: true });
+    await upsertConnection(supabase, "org-1", "resend", { enabled: true });
 
     const args = upsertArgs(supabase);
     expect(args).not.toBeNull();
     expect(args!.row).toMatchObject({
+      org_id: "org-1",
       provider: "resend",
       kind: "email",
       label: "Resend",
@@ -26,8 +27,8 @@ describe("upsertConnection", () => {
       enabled: true,
     });
     expect(args!.row).toHaveProperty("updated_at");
-    // Conflict target must be the provider UNIQUE constraint so an existing row updates in place.
-    expect(args!.opts).toEqual({ onConflict: "provider" });
+    // Conflict target is the per-org UNIQUE (org_id, provider) so an existing row updates in place.
+    expect(args!.opts).toEqual({ onConflict: "org_id,provider" });
     // A plain enable/disable must NOT write config — otherwise it would clobber a saved from-address.
     expect(args!.row).not.toHaveProperty("config");
   });
@@ -35,16 +36,16 @@ describe("upsertConnection", () => {
   it("disables without touching config", async () => {
     const supabase = createSupabaseQueryMock({ connections: { data: null, error: null } });
 
-    await upsertConnection(supabase, "resend", { enabled: false });
+    await upsertConnection(supabase, "org-1", "resend", { enabled: false });
 
-    expect(upsertArgs(supabase)!.row).toMatchObject({ provider: "resend", enabled: false });
+    expect(upsertArgs(supabase)!.row).toMatchObject({ org_id: "org-1", provider: "resend", enabled: false });
     expect(upsertArgs(supabase)!.row).not.toHaveProperty("config");
   });
 
   it("writes a trimmed config.fromEmail when a from-address is supplied", async () => {
     const supabase = createSupabaseQueryMock({ connections: { data: null, error: null } });
 
-    await upsertConnection(supabase, "resend", { enabled: true, fromEmail: "  Arc <hi@bsr.com>  " });
+    await upsertConnection(supabase, "org-1", "resend", { enabled: true, fromEmail: "  Arc <hi@bsr.com>  " });
 
     expect(upsertArgs(supabase)!.row.config).toEqual({ fromEmail: "Arc <hi@bsr.com>" });
   });
@@ -53,7 +54,7 @@ describe("upsertConnection", () => {
     const supabase = createSupabaseQueryMock({});
 
     await expect(
-      upsertConnection(supabase, "nope" as unknown as ConnectionProvider, { enabled: true }),
+      upsertConnection(supabase, "org-1", "nope" as unknown as ConnectionProvider, { enabled: true }),
     ).rejects.toThrow(/unknown provider/i);
     expect(supabase.calls).toHaveLength(0);
   });

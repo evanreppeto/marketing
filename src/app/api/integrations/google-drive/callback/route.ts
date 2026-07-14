@@ -41,6 +41,7 @@ export async function GET(request: Request) {
   }
 
   const client = getSupabaseAdminClient();
+  const orgId = await getCurrentOrgId();
   try {
     const tokenSet = await exchangeGoogleDriveCode({
       code,
@@ -48,12 +49,11 @@ export async function GET(request: Request) {
       clientSecret: config.clientSecret,
       redirectUri: config.redirectUri,
     });
-    const orgId = await getCurrentOrgId();
     await saveGoogleDriveConnection({ orgId, connectedBy: await getOperatorIntegrationKey(), tokenSet, client });
-    await recordConnectionTest(client, "google_drive", { ok: true });
+    await recordConnectionTest(client, orgId, "google_drive", { ok: true });
     return redirectToLibrary(origin, "connected");
   } catch (error) {
-    await recordConnectionTest(client, "google_drive", {
+    await recordConnectionTest(client, orgId, "google_drive", {
       ok: false,
       error: error instanceof Error ? error.message : "Google Drive OAuth failed.",
     }).catch(() => undefined);
