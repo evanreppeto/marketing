@@ -4,6 +4,7 @@ import { buildResendEmailPayload, type ResendEmailPayload } from "@/domain";
 
 import { recordConnectionUse } from "@/lib/connections/persistence";
 import { sendResendEmail } from "@/lib/connections/resend-client";
+import { readConnectorCredential } from "@/lib/connectors/credentials";
 
 import { isLiveSendEnabled } from "./live-send";
 
@@ -28,8 +29,10 @@ export type ExecuteResendResult = {
 export type ExecuteResendDeps = {
   /** Injected for tests; defaults to the real Resend HTTP client. */
   send?: (apiKey: string, payload: ResendEmailPayload) => Promise<{ id: string }>;
-  /** Override the resolved key (tests); defaults to process.env.RESEND_API_KEY. */
+  /** Override the resolved key (tests). Wins over stored + env when provided. */
   apiKey?: string;
+  /** Read a Vault secret by ref (tests); defaults to the real vault reader. */
+  readCredential?: (ref: string) => Promise<string | null>;
 };
 
 type DispatchRow = {
@@ -109,23 +112,32 @@ export async function executeResendDispatch(
     return { ok: false, message: "The linked approval isn't approved yet." };
   }
 
-  const apiKey = deps.apiKey || process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    return { ok: false, message: "Resend isn't configured (RESEND_API_KEY is missing)." };
-  }
-
   // Scope the connection to THIS dispatch's org. On the RLS-bypassing admin
   // client an unscoped `.eq("provider","resend")` would (with >1 org) either
   // throw on multiple rows or grab another tenant's from-address/kill-switch.
   const { data: connection, error: connectionError } = await client
     .from("connections")
-    .select("enabled,env_var,config")
+    .select("enabled,env_var,config,credential_ref")
     .eq("org_id", dispatch.org_id)
     .eq("provider", "resend")
-    .maybeSingle<{ enabled: boolean; env_var: string | null; config: Record<string, unknown> | null }>();
+    .maybeSingle<{
+      enabled: boolean;
+      env_var: string | null;
+      config: Record<string, unknown> | null;
+      credential_ref: string | null;
+    }>();
   assertOk("connections lookup", connectionError);
   if (!connection?.enabled) {
     return { ok: false, message: "Resend is connected but disabled. Enable it in Settings → Connections." };
+  }
+
+  // Prefer this workspace's own Resend key (Vault secret referenced by the row)
+  // over the shared deployment env var. A test override wins over both.
+  const readCredential = deps.readCredential ?? ((ref: string) => readConnectorCredential(client, ref));
+  const storedKey = connection.credential_ref ? await readCredential(connection.credential_ref).catch(() => null) : null;
+  const apiKey = deps.apiKey || storedKey || process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { ok: false, message: "Resend isn't configured (no workspace key stored and RESEND_API_KEY is missing)." };
   }
 
   const config = connection.config ?? {};

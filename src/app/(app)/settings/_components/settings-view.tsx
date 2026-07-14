@@ -35,7 +35,7 @@ import {
   saveWorkspaceLogoAction,
 } from "../branding-actions";
 import { connectConnector, disconnectConnector, runConnectorImport, saveConnectorConfig, testConnector, toggleConnectorEnabled } from "../connectors-actions";
-import { setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
+import { removeResendKey, saveResendKey, setEmailConnectionEnabled, testEmailConnection } from "../connections-actions";
 import type { ConnectionView } from "@/lib/connections/read-model";
 import { setConnectorSpendCap } from "../spend-actions";
 import { Modal } from "../../_components/modal";
@@ -1528,9 +1528,9 @@ function ConnectorConfigSection({ view, field }: { view: ConnectorView; field: {
 // ---- Email delivery (Resend) — a connector card + popup, like the rest ----
 // The one connection the send path actually reads: `executeResendDispatch` refuses
 // unless this is enabled with a from-address, on top of the always-enforced approval
-// gate. The Resend API key is a deployment secret (RESEND_API_KEY), so the popup
-// exposes the per-workspace controls (enable + from + test) and states the key
-// plainly instead of pretending to collect it here.
+// gate. The Resend API key is stored per workspace in the Vault (like Gemini /
+// Higgsfield) and the send path prefers it, falling back to the deployment
+// RESEND_API_KEY — so the popup collects the key, plus enable + from + test.
 const EMAIL_PILL: Record<ConnectionView["status"], { kind: string; label: string }> = {
   connected: { kind: "ok", label: "Connected" },
   disabled: { kind: "warn", label: "Off" },
@@ -1541,6 +1541,11 @@ const EMAIL_PILL: Record<ConnectionView["status"], { kind: string; label: string
 function ResendCard({ view, onOpen }: { view: ConnectionView; onOpen: () => void }) {
   const pill = EMAIL_PILL[view.status];
   const cta = view.status === "not_configured" ? "Set up" : "Manage";
+  const keyBadge = view.credentialPresent
+    ? { label: "Workspace key", title: "Uses this workspace's own Resend key." }
+    : view.status !== "not_configured"
+      ? { label: "Deployment key", title: "Falls back to the deployment RESEND_API_KEY." }
+      : null;
   return (
     <div className="ccard ccard-btn" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
       <div className="ct">
@@ -1550,7 +1555,7 @@ function ResendCard({ view, onOpen }: { view: ConnectionView; onOpen: () => void
       <div className="cdsc">Send approved campaign &amp; transactional email. Sending stays off until you turn it on.</div>
       <div className="cfoot">
         <Pill kind={pill.kind}>{pill.label}</Pill>
-        <span className="badge" title="Uses your Resend account.">Your key</span>
+        {keyBadge ? <span className="badge" title={keyBadge.title}>{keyBadge.label}</span> : null}
         <span className="grow" />
         <span className="cb-open">{cta} →</span>
       </div>
@@ -1560,14 +1565,28 @@ function ResendCard({ view, onOpen }: { view: ConnectionView; onOpen: () => void
 
 function ResendModal({ view, onClose }: { view: ConnectionView; onClose: () => void }) {
   const [from, setFrom] = useState(view.fromEmail ?? "");
+  const [apiKey, setApiKey] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<SaveStatus>(null);
   const pill = EMAIL_PILL[view.status];
   const keyPresent = view.status !== "not_configured";
+  // A stored workspace key vs. falling back to the deployment env key — the send
+  // path prefers the stored one, so say plainly which is in effect.
+  const workspaceKey = view.credentialPresent;
+  const envFallback = keyPresent && !workspaceKey;
 
   async function run(fn: () => Promise<SettingsWriteResult>, ok: string) {
     setPending(true); setStatus(null);
     setStatus(toStatus(await fn(), ok));
+    setPending(false);
+  }
+
+  async function saveKey() {
+    if (!apiKey.trim()) return;
+    setPending(true); setStatus(null);
+    const res = await saveResendKey({ apiKey: apiKey.trim() });
+    setStatus(toStatus(res, "Resend key saved."));
+    if (res.ok) setApiKey("");
     setPending(false);
   }
 
@@ -1584,9 +1603,34 @@ function ResendModal({ view, onClose }: { view: ConnectionView; onClose: () => v
           <div className="cxm-sub">Last tested {relTime(view.lastTestedAt)}.</div>
         ) : null}
 
-        {!keyPresent && (
-          <div className="cxm-note">Your Resend API key is set on the deployment (<code>RESEND_API_KEY</code>). Add it there, then test the connection here.</div>
-        )}
+        {/* API key — stored per workspace in the Vault (never shown again). */}
+        <div className="cxm-sec">
+          <div className="cxm-label">API key</div>
+          {workspaceKey ? (
+            <>
+              <p className="cxm-hint">This workspace uses its own Resend key. Paste a new key to rotate it, or remove it to fall back to the deployment key. Your key is stored encrypted and never shown again.</p>
+              <div className="cxm-field">
+                <input className="inp" type="password" placeholder="New Resend API key (re_…)" value={apiKey} onChange={(e) => setApiKey(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveKey(); }} />
+                <button className="btn gold" disabled={pending || !apiKey.trim()} onClick={saveKey}>Save</button>
+              </div>
+              <div className="cxm-actions">
+                <button className="btn sm danger" disabled={pending} onClick={() => run(() => removeResendKey(), "Resend key removed.")}>Remove key</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="cxm-hint">
+                {envFallback
+                  ? "This workspace is using the deployment key (RESEND_API_KEY). Paste a key to use a dedicated Resend account for this workspace instead."
+                  : "Paste your Resend API key to connect this workspace's own Resend account. Stored encrypted and never shown again."}
+              </p>
+              <div className="cxm-field">
+                <input className="inp" type="password" placeholder="Resend API key (re_…)" value={apiKey} onChange={(e) => setApiKey(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveKey(); }} />
+                <button className="btn gold" disabled={pending || !apiKey.trim()} onClick={saveKey}>{pending ? "Saving…" : "Connect"}</button>
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="cxm-sec">
           <div className="cxm-label">Sending</div>
