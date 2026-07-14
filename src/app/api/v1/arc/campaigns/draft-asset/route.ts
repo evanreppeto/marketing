@@ -5,11 +5,12 @@ import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/ht
 import {
   CAMPAIGN_ASSET_TYPE_VALUES,
   RESTORATION_FOCUS_VALUES,
-  isOfficialPersonaMapping,
+  isAllowedPersona,
   normalizeCampaignAssetType,
   normalizeRestorationFocus,
 } from "@/domain";
 import { linkConversationToCampaign } from "@/lib/arc-chat/persistence";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { CampaignResolutionError, promoteAssetToCampaign, resolveOrCreateCampaign } from "@/lib/campaigns/create";
 import { markOpportunityDrafted } from "@/lib/opportunities/persistence";
 
@@ -82,8 +83,8 @@ export async function POST(request: Request) {
   let restorationFocus = str(body.restoration_focus);
   if (!campaignIdIn) {
     const personaIn = str(body.persona);
-    if (personaIn && !isOfficialPersonaMapping(personaIn)) {
-      return fail("rejected", `Unknown persona "${personaIn}".`, 400);
+    if (personaIn && !isAllowedPersona(personaIn, await getOrgPersonaKeys(allowed.scope.orgId))) {
+      return fail("rejected", `Unknown persona "${personaIn}" for this workspace.`, 400);
     }
     if (restorationFocus) {
       const normalizedFocus = normalizeRestorationFocus(restorationFocus);

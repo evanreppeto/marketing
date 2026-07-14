@@ -5,12 +5,21 @@ vi.mock("@/lib/campaigns/create", () => ({
   promoteAssetToCampaign: vi.fn(),
 }));
 vi.mock("@/lib/media-library/arc-handoff", () => ({ resolveAvailableArcMediaAsset: vi.fn() }));
+vi.mock("@/lib/personas/read-model", () => ({
+  getOrgPersonaKeys: vi.fn(async () => [
+    "persona_homeowner_emergency", "persona_homeowner_preventative", "persona_homeowner_rebuild",
+    "persona_landlord", "persona_hoa_board", "persona_property_manager", "persona_insurance_agent",
+    "persona_listing_agent", "persona_buyers_agent", "persona_plumbing_partner",
+    "persona_hvac_roof_electrical_partner", "persona_gc_remodeler_partner",
+  ]),
+}));
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "workspace-1" })),
 }));
 
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { resolveAvailableArcMediaAsset } from "@/lib/media-library/arc-handoff";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 
 import { POST } from "./route";
 
@@ -81,6 +90,17 @@ describe("POST /api/v1/arc/library/attach", () => {
       (await POST(req("Bearer secret", { library_asset_id: "lib-1", title: "x", name: "N", persona: "persona_landlord", restoration_focus: "lava" }))).status,
     ).toBe(400);
     expect(shellMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a custom org-defined persona that isn't in the BSR set", async () => {
+    configure();
+    // This org's taxonomy is entirely non-restoration.
+    vi.mocked(getOrgPersonaKeys).mockResolvedValueOnce(["wedding_lead"]);
+    const res = await POST(
+      req("Bearer secret", { library_asset_id: "lib-1", title: "x", name: "N", persona: "wedding_lead", restoration_focus: "flood" }),
+    );
+    expect(res.status).toBe(201);
+    expect(shellMock).toHaveBeenCalledWith(expect.objectContaining({ persona: "wedding_lead" }));
   });
 
   it("normalizes restoration_focus water -> water_backup on the shell", async () => {

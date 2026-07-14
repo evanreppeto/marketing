@@ -8,6 +8,7 @@ import { Modal } from "../../_components/modal";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 
 export type LinkOption = { type: string; id: string; label: string };
+export type PersonaOption = { key: string; label: string };
 
 export type AddRecordValue = {
   name: string;
@@ -90,6 +91,7 @@ export function AddRecordModal({
   objectKey,
   singular,
   linkOptions = [],
+  personaOptions,
   onClose,
   onSubmit,
 }: {
@@ -98,11 +100,15 @@ export function AddRecordModal({
   singular: string;
   /** Parent records a lead/outcome can link to (built by the board from loaded rows). */
   linkOptions?: LinkOption[];
+  /** The org's own personas. Falls back to the BSR demo set when not provided. */
+  personaOptions?: PersonaOption[];
   onClose: () => void;
   /** Returns the outcome so the modal can surface an error and stay open on failure. */
   onSubmit: (value: AddRecordValue) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const cfg = FORM[objectKey];
+  const personaChoices =
+    personaOptions?.length ? personaOptions : OFFICIAL_PERSONA_MAPPINGS.map((key) => ({ key, label: personaLabel(key) }));
   const [name, setName] = useState("");
   const [detail, setDetail] = useState("");
   const [city, setCity] = useState("");
@@ -236,9 +242,9 @@ export function AddRecordModal({
             </span>
             <select value={persona} onChange={(e) => setPersona(e.target.value)} required={cfg.personaRequired}>
               <option value="">{cfg.personaRequired ? "Choose a persona…" : "No persona yet"}</option>
-              {OFFICIAL_PERSONA_MAPPINGS.map((key) => (
-                <option key={key} value={key}>
-                  {personaLabel(key)}
+              {personaChoices.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
                 </option>
               ))}
             </select>

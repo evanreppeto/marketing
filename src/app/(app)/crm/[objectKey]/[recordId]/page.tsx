@@ -5,6 +5,7 @@ import { entityTypeFromCrmObjectKey } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { getCrmRecordData, type CrmObjectKey } from "@/lib/crm/read-model";
 import { getRecordNotes, getRecordTasks, getRecordTimeline } from "@/lib/interactions/read-model";
+import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 
 import { RecordView, type RecordActivity } from "./_components/record-view";
 import "./record.css";
@@ -58,5 +59,7 @@ export default async function CrmRecordPage({
     };
   }
 
-  return <RecordView record={record} activity={activity} />;
+  const personaOptions = await getOrgPersonaOptions().catch(() => []);
+
+  return <RecordView record={record} activity={activity} personaOptions={personaOptions} />;
 }

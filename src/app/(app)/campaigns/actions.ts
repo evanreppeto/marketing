@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { isOfficialPersonaMapping } from "@/domain";
+import { isAllowedPersona } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { createCampaignShell } from "@/lib/campaigns/create";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -40,7 +41,7 @@ export async function createCampaign(input: NewCampaignInput): Promise<CreateCam
   const persona = input.persona?.trim();
   const focus = input.restorationFocus?.trim();
   if (!name) return { ok: false, error: "A campaign name is required." };
-  if (!persona || !isOfficialPersonaMapping(persona)) return { ok: false, error: "Choose a persona for this campaign." };
+  if (!persona) return { ok: false, error: "Choose a persona for this campaign." };
   if (!focus || !RESTORATION_FOCUS.has(focus)) return { ok: false, error: "Choose a focus for this campaign." };
 
   const actor = await getOperatorActor();
@@ -50,6 +51,9 @@ export async function createCampaign(input: NewCampaignInput): Promise<CreateCam
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
   const ctx = await getCurrentWorkspaceContext();
+  if (!isAllowedPersona(persona, await getOrgPersonaKeys(ctx.orgId))) {
+    return { ok: false, error: "Choose a persona for this campaign." };
+  }
   try {
     const { campaignId } = await createCampaignShell({
       operator: actor,

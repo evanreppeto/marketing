@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireOperator } from "@/lib/auth/operator";
 import { type PersonaSegmentKey, type PersonaStage } from "@/lib/personas/demo-personas";
-import { insertPersona } from "@/lib/personas/persistence";
+import { insertPersona, setPersonaActive, updatePersona } from "@/lib/personas/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 /**
@@ -45,5 +45,78 @@ export async function createPersona(input: NewPersonaInput): Promise<CreatePerso
     return { ok: true, persisted: true, slug };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not create the persona." };
+  }
+}
+
+export type PersonaMutationResult =
+  | { ok: true; persisted: boolean }
+  | { ok: false; error: string };
+
+export type EditPersonaInput = {
+  slug: string;
+  name: string;
+  segment: string;
+  stage?: string;
+  angle?: string;
+  audience?: string;
+  cta?: string;
+  channel?: string;
+};
+
+/** Edit an existing persona in place (slug is immutable). */
+export async function editPersona(input: EditPersonaInput): Promise<PersonaMutationResult> {
+  await requireOperator();
+
+  const name = input.name?.trim();
+  if (!input.slug) return { ok: false, error: "Missing persona." };
+  if (!name) return { ok: false, error: "A persona name is required." };
+  if (!SEGMENTS.has(input.segment)) return { ok: false, error: "Choose a segment." };
+
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  try {
+    await updatePersona(input.slug, {
+      name,
+      segment: input.segment as PersonaSegmentKey,
+      stage: (input.stage as PersonaStage) || undefined,
+      angle: input.angle?.trim() ?? "",
+      audience: input.audience?.trim() ?? "",
+      cta: input.cta?.trim() ?? "",
+      channel: input.channel?.trim() || undefined,
+    });
+    revalidatePath("/personas");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not update the persona." };
+  }
+}
+
+/** Archive (soft-delete) a persona — hides it from the roster + pickers. */
+export async function archivePersona(slug: string): Promise<PersonaMutationResult> {
+  await requireOperator();
+  if (!slug) return { ok: false, error: "Missing persona." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  try {
+    await setPersonaActive(slug, false);
+    revalidatePath("/personas");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not archive the persona." };
+  }
+}
+
+/** Restore a previously archived persona. */
+export async function restorePersona(slug: string): Promise<PersonaMutationResult> {
+  await requireOperator();
+  if (!slug) return { ok: false, error: "Missing persona." };
+  if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
+
+  try {
+    await setPersonaActive(slug, true);
+    revalidatePath("/personas");
+    return { ok: true, persisted: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not restore the persona." };
   }
 }

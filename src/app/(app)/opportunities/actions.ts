@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 
 import {
   buildCampaignSeedFromOpportunity,
-  isOfficialPersonaMapping,
+  isAllowedPersona,
   type OpportunityPackageBrief,
   RESTORATION_FOCUS_VALUES,
 } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { createCampaignFromOpportunity } from "@/lib/campaigns/create";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { runSignalSourceDetection } from "@/lib/connectors/detection";
 import {
   runColdLeadDetection,
@@ -103,7 +104,7 @@ async function createDraftCampaign(input: DraftCampaignFromOpportunityInput): Pr
   const persona = input.persona?.trim();
   const focus = input.restorationFocus?.trim();
   if (!name) return { status: "error", error: "A campaign name is required." };
-  if (!persona || !isOfficialPersonaMapping(persona)) {
+  if (!persona) {
     return { status: "error", error: "Choose a persona for this campaign." };
   }
   if (!focus || !(RESTORATION_FOCUS_VALUES as readonly string[]).includes(focus)) {
@@ -114,6 +115,10 @@ async function createDraftCampaign(input: DraftCampaignFromOpportunityInput): Pr
   if (!isSupabaseAdminConfigured()) return { status: "offline" };
 
   const ctx = await getCurrentWorkspaceContext();
+  const allowedPersonaKeys = await getOrgPersonaKeys(ctx.orgId);
+  if (!isAllowedPersona(persona, allowedPersonaKeys)) {
+    return { status: "error", error: "Choose a persona for this campaign." };
+  }
   const opp = await getOpportunityForCampaign(input.opportunityId, ctx.orgId).catch(() => null);
   if (!opp) return { status: "error", error: "That opportunity is no longer available." };
 
@@ -124,14 +129,17 @@ async function createDraftCampaign(input: DraftCampaignFromOpportunityInput): Pr
   if (opp.campaignId) return { status: "existing", campaignId: opp.campaignId };
 
   try {
-    const seed = buildCampaignSeedFromOpportunity({
-      title: opp.title,
-      summary: opp.summary,
-      recommendedAction: opp.recommendedAction,
-      urgency: opp.urgency,
-      persona: opp.persona,
-      recommendedCampaignType: opp.recommendedCampaignType,
-    });
+    const seed = buildCampaignSeedFromOpportunity(
+      {
+        title: opp.title,
+        summary: opp.summary,
+        recommendedAction: opp.recommendedAction,
+        urgency: opp.urgency,
+        persona: opp.persona,
+        recommendedCampaignType: opp.recommendedCampaignType,
+      },
+      allowedPersonaKeys,
+    );
 
     const { campaignId } = await createCampaignFromOpportunity({
       operator: actor,

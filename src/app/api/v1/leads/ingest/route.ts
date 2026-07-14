@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { checkBearerToken } from "@/lib/auth/api-token";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { parseLeadIngestionPayload } from "@/domain";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { persistLeadIngestion } from "@/lib/lead-ingestion/persistence";
 import { persistPersonaIntelligenceForLead } from "@/lib/persona-intelligence/persistence";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -52,7 +53,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = parseLeadIngestionPayload(payload);
+  // Validate persona against the org's own taxonomy when persisting; local
+  // no-Supabase mode keeps the built-in default so the dev contract still holds.
+  const result = persistenceConfigured
+    ? parseLeadIngestionPayload(payload, undefined, await getOrgPersonaKeys())
+    : parseLeadIngestionPayload(payload);
 
   if (!result.ok) {
     return NextResponse.json(result, { status: result.httpStatus });

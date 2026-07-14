@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { getSupabaseAuthenticatedUser } from "@/lib/supabase/auth-server";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured, type TypedSupabaseClient } from "@/lib/supabase/server";
 import { seedDefaultMediaFolders } from "@/lib/media-library/persistence";
+import { seedDefaultPersonas } from "@/lib/personas/persistence";
 
 type WorkspaceType = "individual" | "company" | "agency";
 
@@ -301,6 +302,7 @@ async function createWorkspaceDefaults(client: TypedSupabaseClient, org: Organiz
   );
 
   await seedDefaultMediaFolders({ orgId: org.id, client });
+  await seedDefaultPersonas({ orgId: org.id, client });
 
   await client.from("audit_events").insert({
     org_id: org.id,

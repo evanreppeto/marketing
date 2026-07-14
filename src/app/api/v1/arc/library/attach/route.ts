@@ -4,12 +4,13 @@ import { INVALID_JSON, arcGuard, fail, readJson } from "@/app/api/v1/arc/_lib/ht
 import {
   CAMPAIGN_ASSET_TYPE_VALUES,
   RESTORATION_FOCUS_VALUES,
-  isOfficialPersonaMapping,
+  isAllowedPersona,
   normalizeCampaignAssetType,
   normalizeRestorationFocus,
 } from "@/domain";
 import { createCampaignShell, promoteAssetToCampaign } from "@/lib/campaigns/create";
 import { resolveAvailableArcMediaAsset } from "@/lib/media-library/arc-handoff";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 
 /**
  * Attach a REAL Library asset (available_to_arc) to a campaign as an
@@ -67,9 +68,10 @@ export async function POST(request: Request) {
           400,
         );
       }
-      // campaigns.persona / campaigns.restoration_focus are Postgres enums; validate first.
-      if (!isOfficialPersonaMapping(persona)) {
-        return fail("rejected", `Unknown persona "${persona}". Use an official persona key.`, 400);
+      // Validate persona against the workspace's own taxonomy; restoration_focus
+      // stays a Postgres enum check below.
+      if (!isAllowedPersona(persona, await getOrgPersonaKeys(allowed.scope.orgId))) {
+        return fail("rejected", `Unknown persona "${persona}" for this workspace.`, 400);
       }
       const restorationFocus = normalizeRestorationFocus(restorationFocusIn);
       if (!restorationFocus) {

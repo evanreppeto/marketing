@@ -17,6 +17,14 @@ const OPP = {
 vi.mock("@/lib/auth/operator", () => ({ requireOperator: vi.fn(async () => {}), getOperatorActor: vi.fn(async () => "evan") }));
 vi.mock("@/lib/auth/workspace", () => ({ getCurrentWorkspaceContext: vi.fn(async () => ({ orgId: "org-1", workspaceId: "ws-1" })) }));
 vi.mock("@/lib/supabase/server", () => ({ isSupabaseAdminConfigured: vi.fn(() => true) }));
+vi.mock("@/lib/personas/read-model", () => ({
+  getOrgPersonaKeys: vi.fn(async () => [
+    "persona_homeowner_emergency", "persona_homeowner_preventative", "persona_homeowner_rebuild",
+    "persona_landlord", "persona_hoa_board", "persona_property_manager", "persona_insurance_agent",
+    "persona_listing_agent", "persona_buyers_agent", "persona_plumbing_partner",
+    "persona_hvac_roof_electrical_partner", "persona_gc_remodeler_partner",
+  ]),
+}));
 vi.mock("@/lib/campaigns/create", () => ({ createCampaignFromOpportunity: vi.fn(async () => ({ campaignId: "camp-1" })) }));
 vi.mock("@/lib/opportunities/read-model", () => ({ getOpportunityForCampaign: vi.fn(async () => OPP) }));
 vi.mock("@/lib/opportunities/enqueue", () => ({ enqueueArcOpportunityTask: vi.fn(async () => "task-1") }));

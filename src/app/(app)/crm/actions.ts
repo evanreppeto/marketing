@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 
-import { isOfficialPersonaMapping } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { type CreateCrmInput, insertCrmRecord } from "@/lib/crm/create";
@@ -41,7 +40,9 @@ export async function createCrmRecord(input: CreateCrmInput): Promise<CreateResu
 
   // Enforce the object's DB-required columns / check constraints up front (they'd
   // otherwise fail the real insert after the optimistic row).
-  if (input.objectKey === "leads" && !isOfficialPersonaMapping(input.persona)) {
+  // A lead requires a persona (NOT NULL). Validity against the org's taxonomy is
+  // enforced in insertCrmRecord, which has the org scope to check it.
+  if (input.objectKey === "leads" && !input.persona?.trim()) {
     return { ok: false, error: "A lead needs a persona." };
   }
   if (input.objectKey === "properties" && !(input.city?.trim() && input.state?.trim() && input.postalCode?.trim())) {

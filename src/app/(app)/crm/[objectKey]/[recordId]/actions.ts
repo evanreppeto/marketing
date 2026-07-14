@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { entityTypeFromCrmObjectKey, isOfficialPersonaMapping, parseNoteInput, parseTaskInput } from "@/domain";
+import { entityTypeFromCrmObjectKey, isAllowedPersona, parseNoteInput, parseTaskInput } from "@/domain";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { updateCrmRecordFields } from "@/lib/crm/create";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { type CrmObjectKey } from "@/lib/crm/read-model";
 import { insertNote, insertTask, updateTaskStatus } from "@/lib/interactions/persistence";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
@@ -35,11 +36,15 @@ export async function updateCrmRecord(
   await requireOperator();
   if (!VALID_KEYS.has(objectKey)) return { ok: false, error: "Unknown record type." };
   if (!patch.persona && !patch.status) return { ok: false, error: "Nothing to change." };
-  if (patch.persona && !isOfficialPersonaMapping(patch.persona)) return { ok: false, error: "Choose a valid persona." };
 
   if (!isSupabaseAdminConfigured()) return { ok: true, persisted: false };
 
-  const result = await updateCrmRecordFields(objectKey as CrmObjectKey, recordId, patch, (await currentScope()).orgId);
+  const scope = await currentScope();
+  if (patch.persona && !isAllowedPersona(patch.persona, await getOrgPersonaKeys(scope.orgId))) {
+    return { ok: false, error: "Choose a valid persona." };
+  }
+
+  const result = await updateCrmRecordFields(objectKey as CrmObjectKey, recordId, patch, scope.orgId);
   if (!result.ok) return { ok: false, error: result.error };
   revalidatePath(`/crm/${objectKey}/${recordId}`);
   return { ok: true, persisted: true, id: result.id };

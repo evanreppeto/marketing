@@ -1,6 +1,7 @@
 import { getAnalyticsOverview } from "@/lib/analytics/overview";
 import { getCurrentOrgId } from "@/lib/auth/org";
 import { getCrmMentionSamples, getCrmNavCounts, type CrmObjectKey, type CrmObjectRow } from "@/lib/crm/read-model";
+import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 
 import { type KpiCell } from "../_components/kpi-strip";
 import { CrmBoard, type CrmObjectVM, type CrmRowVM } from "./_components/crm-board";
@@ -124,10 +125,11 @@ function toRow(row: CrmObjectRow): CrmRowVM {
 
 export default async function CrmPage() {
   const orgId = await getCurrentOrgId().catch(() => "");
-  const [samples, navCounts, overview] = await Promise.all([
+  const [samples, navCounts, overview, personaOptions] = await Promise.all([
     getCrmMentionSamples().catch(() => ({}) as Partial<Record<CrmObjectKey, CrmObjectRow[]>>),
     getCrmNavCounts().catch(() => ({ status: "unavailable" }) as const),
     orgId ? getAnalyticsOverview(orgId).catch(() => null) : Promise.resolve(null),
+    getOrgPersonaOptions(orgId || undefined).catch(() => []),
   ]);
 
   const counts = navCounts.status === "live" ? navCounts.counts : null;
@@ -173,5 +175,5 @@ export default async function CrmPage() {
     };
   });
 
-  return <CrmBoard objects={objects} rowsByKey={rowsByKey} defaultKey="contacts" kpis={kpis} />;
+  return <CrmBoard objects={objects} rowsByKey={rowsByKey} defaultKey="contacts" kpis={kpis} personaOptions={personaOptions} />;
 }

@@ -183,7 +183,16 @@ const TABS = [
   ["related", "Related", '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 8l3 8M16.5 8l-3 8"/>'],
 ] as const;
 
-export function RecordView({ record, activity }: { record: CrmRecordData; activity: RecordActivity }) {
+export function RecordView({
+  record,
+  activity,
+  personaOptions,
+}: {
+  record: CrmRecordData;
+  activity: RecordActivity;
+  /** The org's own personas for the edit picker. */
+  personaOptions?: { key: string; label: string }[];
+}) {
   const [tab, setTab] = useState<string>("overview");
   const [actView, setActView] = useState<"timeline" | "tasks" | "notes">("timeline");
   const persona = humanizePersona(record.persona);
@@ -728,6 +737,7 @@ export function RecordView({ record, activity }: { record: CrmRecordData; activi
         objectKey={record.key}
         currentPersona={dispPersona}
         currentStatus={dispStatus}
+        personaOptions={personaOptions}
         onClose={() => setEditOpen(false)}
         onSubmit={handleEdit}
       />

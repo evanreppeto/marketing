@@ -7,6 +7,14 @@ vi.mock("@/lib/campaigns/create", async (orig) => ({
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/personas/read-model", () => ({
+  getOrgPersonaKeys: vi.fn(async () => [
+    "persona_homeowner_emergency", "persona_homeowner_preventative", "persona_homeowner_rebuild",
+    "persona_landlord", "persona_hoa_board", "persona_property_manager", "persona_insurance_agent",
+    "persona_listing_agent", "persona_buyers_agent", "persona_plumbing_partner",
+    "persona_hvac_roof_electrical_partner", "persona_gc_remodeler_partner",
+  ]),
+}));
 vi.mock("@/lib/opportunities/persistence", () => ({ markOpportunityDrafted: vi.fn(async () => ({ ok: true })) }));
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspaceContext: vi.fn(async () => ({

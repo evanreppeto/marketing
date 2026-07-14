@@ -1,5 +1,6 @@
-import { isOfficialPersonaMapping } from "@/domain";
+import { isAllowedPersona } from "@/domain";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import { getSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 import { type CrmObjectKey } from "./read-model";
@@ -42,16 +43,23 @@ const NOT_CONFIGURED = "Supabase is not configured, so nothing was written.";
  * Insert a new operator-created CRM record. Mirrors src/lib/interactions
  * persistence: self-guards on isSupabaseAdminConfigured(), org-scopes the write,
  * and stamps origin:'operator' so the record reads as human- (not Arc-) created.
- * Persona is only written when it's an official mapping — never the internal
- * `unassigned_persona`, which the DB check constraint rejects. Column sets are
- * kept to the fields the CRM read-model already selects.
+ * Persona is only written when it belongs to the org's own taxonomy (its active
+ * personas) — never the internal `unassigned_persona`, which the DB check
+ * constraint rejects. Column sets are kept to the fields the read-model selects.
  */
 export async function insertCrmRecord(input: CreateCrmInput, orgId?: string): Promise<CreateCrmResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
 
   const scopedOrgId = orgId ?? (await getCurrentOrgId());
   const supabase = getSupabaseAdminClient();
-  const persona = input.persona && isOfficialPersonaMapping(input.persona) ? input.persona : null;
+  // Persona is validated against the org's own taxonomy (its active personas),
+  // not a fixed BSR set — an unknown/foreign key drops to null.
+  const allowedKeys = await getOrgPersonaKeys(scopedOrgId);
+  const persona = input.persona && isAllowedPersona(input.persona, allowedKeys) ? input.persona : null;
+  // Leads carry a NOT NULL persona with no default, so they need a real one.
+  if (input.objectKey === "leads" && !persona) {
+    return { ok: false, error: "Choose a persona defined for your workspace." };
+  }
   const metadata: Record<string, unknown> = input.owner ? { owner: input.owner } : {};
   const detail = input.detail?.trim() || null;
 
@@ -148,8 +156,8 @@ function buildInsert(
 
 /**
  * Update the editable fields of a CRM record (persona and/or status). Org-scoped;
- * persona is only applied when it's an official mapping. Table name is the
- * objectKey (companies/contacts/…). Returns the row id.
+ * persona is only applied when it belongs to the org's own taxonomy. Table name
+ * is the objectKey (companies/contacts/…). Returns the row id.
  */
 export async function updateCrmRecordFields(
   objectKey: CrmObjectKey,
@@ -159,12 +167,12 @@ export async function updateCrmRecordFields(
 ): Promise<CreateCrmResult> {
   if (!isSupabaseAdminConfigured()) return { ok: false, error: NOT_CONFIGURED };
 
+  const scopedOrgId = orgId ?? (await getCurrentOrgId());
   const row: Record<string, unknown> = {};
-  if (patch.persona && isOfficialPersonaMapping(patch.persona)) row.persona = patch.persona;
+  if (patch.persona && isAllowedPersona(patch.persona, await getOrgPersonaKeys(scopedOrgId))) row.persona = patch.persona;
   if (patch.status?.trim()) row.status = patch.status.trim();
   if (Object.keys(row).length === 0) return { ok: false, error: "Nothing to update." };
 
-  const scopedOrgId = orgId ?? (await getCurrentOrgId());
   const { data, error } = await getSupabaseAdminClient()
     .from(objectKey)
     .update(row as never)

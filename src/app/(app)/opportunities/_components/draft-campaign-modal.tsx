@@ -52,23 +52,30 @@ const MODE_COPY: Record<
  * record) and lets the operator confirm/adjust the seeded name, persona, and
  * focus. Submit creates an approval-gated draft — nothing sends.
  */
+export type PersonaOption = { key: string; label: string };
+
 export function DraftCampaignModal({
   open,
   onClose,
   opp,
   mode = "operator",
+  personaOptions,
   onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
   opp: OpportunityVM;
   mode?: DraftMode;
+  /** The org's own personas. Falls back to the BSR demo set when not provided. */
+  personaOptions?: PersonaOption[];
   /** Returns the outcome so the modal can surface an error and stay open on failure. */
   onSubmit: (
     value: Omit<DraftCampaignFromOpportunityInput, "opportunityId">,
   ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const copy = MODE_COPY[mode];
+  const personaChoices =
+    personaOptions?.length ? personaOptions : OFFICIAL_PERSONA_MAPPINGS.map((key) => ({ key, label: personaLabel(key) }));
   const [name, setName] = useState(opp.seed.name);
   const [persona, setPersona] = useState(opp.seed.persona);
   const [focus, setFocus] = useState(opp.seed.restorationFocus);
@@ -147,9 +154,9 @@ export function DraftCampaignModal({
               <option value="" disabled>
                 Choose a persona…
               </option>
-              {OFFICIAL_PERSONA_MAPPINGS.map((key) => (
-                <option key={key} value={key}>
-                  {personaLabel(key)}
+              {personaChoices.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
                 </option>
               ))}
             </select>

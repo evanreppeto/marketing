@@ -2,6 +2,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 import { isOfficialPersonaMapping, normalizePhoneKey, parseLeadIngestionPayload } from "@/domain";
 import { syncRecordToBrain } from "@/lib/brain-ingestion/sync";
+import { getOrgPersonaKeys } from "@/lib/personas/read-model";
 import {
   persistLeadIngestion,
   type LeadProvenance,
@@ -160,7 +161,11 @@ export async function createArcLead(params: {
   reviewStatus: LeadProvenance["reviewStatus"];
   agentConfidence?: number | null;
 }): Promise<CreateArcLeadResult> {
-  const result = parseLeadIngestionPayload(params.payload);
+  const result = parseLeadIngestionPayload(
+    params.payload,
+    undefined,
+    await getOrgPersonaKeys(params.orgId),
+  );
   if (!result.ok) {
     return { ok: false, httpStatus: result.httpStatus, errors: result.errors };
   }

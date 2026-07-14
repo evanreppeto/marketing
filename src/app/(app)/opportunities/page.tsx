@@ -1,6 +1,7 @@
 import { buildCampaignSeedFromOpportunity } from "@/domain";
 import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { crmRecordHref, listOpenOpportunities, type OpportunityRecord } from "@/lib/opportunities/read-model";
+import { getOrgPersonaOptions } from "@/lib/personas/read-model";
 
 import { OpportunityInbox, type OpportunityVM } from "./_components/opportunity-inbox";
 
@@ -174,8 +175,11 @@ function toVM(rec: OpportunityRecord): OpportunityVM {
 
 export default async function OpportunitiesPage() {
   const ctx = await getCurrentWorkspaceContext();
-  const records = await listOpenOpportunities(undefined, ctx.orgId).catch(() => [] as OpportunityRecord[]);
+  const [records, personaOptions] = await Promise.all([
+    listOpenOpportunities(undefined, ctx.orgId).catch(() => [] as OpportunityRecord[]),
+    getOrgPersonaOptions(ctx.orgId).catch(() => []),
+  ]);
   const opps = records.map(toVM);
 
-  return <OpportunityInbox opps={opps} />;
+  return <OpportunityInbox opps={opps} personaOptions={personaOptions} />;
 }
