@@ -2,6 +2,9 @@ import { createHmac } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/auth/workspace", () => ({ getCurrentWorkspaceContext: vi.fn() }));
+
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { notifyArcCampaignTask, notifyArcOpportunityDraft, notifyArcWebhook, notifyOpportunityScan } from "./notify";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -28,6 +31,9 @@ const basePayload = {
 
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
+  // Default: no resolvable workspace (offline/demo) — wakes carry no identity, so
+  // the existing assertions below are unaffected. Overridden in the identity test.
+  vi.mocked(getCurrentWorkspaceContext).mockRejectedValue(new Error("no workspace"));
 });
 
 afterEach(() => {
@@ -102,6 +108,23 @@ describe("notifyArcWebhook", () => {
       conversationId: "c1",
       route: "fast",
     });
+  });
+
+  it("stamps the wake with the resolved tenant identity so the runner can act as that workspace", async () => {
+    process.env.ARC_RUNNER_URL = "https://arc.example/webhooks/runner";
+    delete process.env.ARC_WEBHOOK_URL;
+    delete process.env.ARC_WEBHOOK_SECRET;
+    vi.mocked(getCurrentWorkspaceContext).mockResolvedValue({
+      orgId: "org-9",
+      workspaceId: "ws-9",
+    } as never);
+    const fetchMock = mockFetch();
+
+    await notifyArcWebhook(basePayload);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({ type: "arc_chat_message", orgId: "org-9", workspaceId: "ws-9" });
   });
 
   it("signs the raw body with ARC_WEBHOOK_SECRET via the x-webhook-signature header", async () => {
