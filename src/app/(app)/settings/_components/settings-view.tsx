@@ -303,6 +303,14 @@ const MEDIA_MODELS: Record<string, [string, string, string, number?][]> = {
 };
 const PCOL: Record<string, string> = { Higgsfield: "#c8a24a", Google: "#5b8def", "Black Forest Labs": "#9678c8", OpenAI: "#7fb89a", xAI: "#aab2bd", Kling: "#E1306C", Bytedance: "#88b6d8", Recraft: "#c47055", "Tongyi-MAI": "#19c4cc", Inworld: "#9678c8", Mirelo: "#7fb89a", Sonilo: "#f3c64a", Hailuo: "#FF7A59", Wan: "#52BD94" };
 const pinit = (p: string) => { const w = p.split(/[\s-]+/); return (w.length > 1 ? w[0][0] + w[1][0] : p.slice(0, 2)).toUpperCase(); };
+// One roster model, captured on card click for the detail popup.
+type RosterModel = { id: string; label: string; prov: string; rec?: number; cat: "image" | "video" | "audio" };
+const MODEL_CAT_LABEL: Record<RosterModel["cat"], string> = { image: "Image", video: "Video", audio: "Audio" };
+const MODEL_CAT_OUTPUT: Record<RosterModel["cat"], string> = {
+  image: "still images — ads, hero shots, product frames",
+  video: "short video — reels, UGC, and cinematic spots",
+  audio: "voiceover, music, and sound effects",
+};
 
 const EMPTY_USAGE: SettingsUsageView = {
   isDemo: false, configured: false, tokensLabel: "0", runsLabel: "0", costLabel: "$0.00",
@@ -332,6 +340,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
   const [connCat, setConnCat] = useState("All");
   const [connQ, setConnQ] = useState("");
   const [mediaCat, setMediaCat] = useState<"image" | "video" | "audio">("image");
+  const [modelSel, setModelSel] = useState<RosterModel | null>(null);
   const [sub, setSub] = useState<Record<string, string>>({});
   const [connSel, setConnSel] = useState<string | null>(null);
   const domain = "bigshouldersrestoration.com";
@@ -557,10 +566,12 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
               <div className="modellist">
                 {MEDIA_MODELS[mediaCat].map((m) => {
                   const [id, label, prov, rec] = m; const col = PCOL[prov] || "#9aa0ac";
+                  const open = () => setModelSel({ id, label, prov, rec, cat: mediaCat });
                   return (
-                    <div className="mrow" key={id}>
+                    <div className="mrow mrow-btn" key={id} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === "Enter") open(); }}>
                       <span className="mlogo" style={{ background: `${col}22`, border: `1px solid ${col}55`, color: col }}>{pinit(prov)}</span>
                       <div className="mi"><div className="mn">{label}{rec ? <span className="mbadge">Arc’s pick</span> : null}</div><div className="mp">{prov}</div></div>
+                      <span className="mrow-go" aria-hidden="true">→</span>
                     </div>
                   );
                 })}
@@ -729,6 +740,7 @@ export function SettingsView({ brandName, email, avatarUrl = null, team, usage, 
         <ConnectorModal view={selectedConnector} configured={connectors.configured} onClose={closeConnector} />
       )}
       {resendModalOpen && emailConnection && <ResendModal view={emailConnection} onClose={closeConnector} />}
+      {modelSel && <ModelModal model={modelSel} onClose={() => setModelSel(null)} />}
     </div>
   );
 }
@@ -1594,6 +1606,45 @@ function ResendModal({ view, onClose }: { view: ConnectionView; onClose: () => v
         </div>
 
         {status ? <div className="cxm-statusline"><Status status={status} /></div> : null}
+      </div>
+    </Modal>
+  );
+}
+
+// ---- Media roster model detail (read-only) ----
+// A model card opens this popup. The roster is Arc's auto-pick pool (no per-
+// generation choice), so this is informational — provider, output, whether it's
+// Arc's default pick, and how Arc uses it. Data is what the catalog actually
+// carries (id/label/provider/category/recommended) — no invented capabilities.
+function ModelModal({ model, onClose }: { model: RosterModel; onClose: () => void }) {
+  const col = PCOL[model.prov] || "#9aa0ac";
+  const catLabel = MODEL_CAT_LABEL[model.cat];
+  const isPick = Boolean(model.rec);
+  return (
+    <Modal open onClose={onClose} width={440} title={model.label} description={`${model.prov} · ${catLabel.toLowerCase()} model`}>
+      <div className="cxm">
+        <div className="cxm-status">
+          <span className="pillrow">
+            <span className="mlogo" style={{ background: `${col}22`, border: `1px solid ${col}55`, color: col, width: 30, height: 30 }}>{pinit(model.prov)}</span>
+            <span className="badge">{catLabel}</span>
+            {isPick ? <Pill kind="ok">Arc’s pick</Pill> : <Pill kind="off">In roster</Pill>}
+          </span>
+        </div>
+
+        <div className="cxm-sec">
+          <div className="cxm-label">About this model</div>
+          <dl className="cxm-about">
+            <div><dt>Provider</dt><dd>{model.prov}</dd></div>
+            <div><dt>Output</dt><dd>{MODEL_CAT_OUTPUT[model.cat]}</dd></div>
+            <div><dt>Role</dt><dd>{isPick ? `Arc’s default ${catLabel.toLowerCase()} pick` : "In the auto-pick roster"}</dd></div>
+            <div><dt>Model ID</dt><dd style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{model.id}</dd></div>
+          </dl>
+        </div>
+
+        <div className="cxm-sec">
+          <div className="cxm-label">How Arc uses it</div>
+          <p className="cxm-hint">Arc auto-picks the best model per task from this roster — you don’t choose one per generation. Everything it makes is an approval-gated, provenance-tagged draft; nothing goes out until you approve it.</p>
+        </div>
       </div>
     </Modal>
   );
