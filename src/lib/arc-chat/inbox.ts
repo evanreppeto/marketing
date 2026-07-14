@@ -37,6 +37,10 @@ type TaskRow = {
 
 export type ArcChatTaskScope = { orgId: string; workspaceId: string };
 
+export type CancelChatTaskResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "already_finished" };
+
 function assertOk(label: string, error: { message: string } | null) {
   if (error) throw new Error(`${label} failed: ${error.message}`);
 }
@@ -116,6 +120,96 @@ export async function claimChatTask(
     .maybeSingle<{ id: string }>();
   assertOk("agent_tasks claim", error);
   return Boolean(data);
+}
+
+/**
+ * Cancel an in-flight Arc chat turn. The task transition is compare-and-set so
+ * a late operator click cannot rewrite a task that already finished. The
+ * pending bubble is closed at the same time; runner delivery routes only accept
+ * pending bubbles, so a late worker response cannot overwrite the cancellation.
+ */
+export async function cancelChatTask(
+  input: { agentTaskId: string; conversationId: string; canceledBy: string },
+  client: SupabaseClient = getSupabaseAdminClient(),
+  scope?: ArcChatTaskScope,
+): Promise<CancelChatTaskResult> {
+  const { data: row, error: readError } = await applyScope(
+    client
+      .from("agent_tasks")
+      .select("id,status,agent_id,metadata")
+      .eq("id", input.agentTaskId)
+      .eq("task_type", "arc_chat_message")
+      .eq("source_type", "arc_conversation")
+      .eq("source_id", input.conversationId),
+    scope,
+  ).maybeSingle<{
+    id: string;
+    status: string;
+    agent_id: string;
+    metadata: Record<string, unknown> | null;
+  }>();
+  assertOk("agent_tasks cancel lookup", readError);
+  if (!row) return { ok: false, reason: "not_found" };
+  if (row.status !== "queued" && row.status !== "running") {
+    return { ok: false, reason: "already_finished" };
+  }
+
+  const at = new Date().toISOString();
+  const metadata = {
+    ...(row.metadata ?? {}),
+    canceled_by: input.canceledBy,
+    canceled_at: at,
+    cancellation_source: "arc_chat",
+  };
+  const { data: canceled, error: cancelError } = await applyScope(
+    client
+      .from("agent_tasks")
+      .update({ status: "canceled", completed_at: at, metadata })
+      .eq("id", input.agentTaskId)
+      .in("status", ["queued", "running"]),
+    scope,
+  )
+    .select("id")
+    .maybeSingle<{ id: string }>();
+  assertOk("agent_tasks cancel", cancelError);
+  if (!canceled) return { ok: false, reason: "already_finished" };
+
+  const { data: pendingMessage, error: messageReadError } = await client
+    .from("arc_messages")
+    .select("id,metadata")
+    .eq("agent_task_id", input.agentTaskId)
+    .eq("conversation_id", input.conversationId)
+    .eq("status", "pending")
+    .maybeSingle<{ id: string; metadata: Record<string, unknown> | null }>();
+  assertOk("arc_messages cancel lookup", messageReadError);
+  if (pendingMessage) {
+    const { error: messageError } = await client
+      .from("arc_messages")
+      .update({
+        status: "failed",
+        body: "Stopped by you. Completed tool steps remain visible in the run receipt, and nothing else will be applied by this run.",
+        metadata: {
+          ...(pendingMessage.metadata ?? {}),
+          canceled: true,
+          canceled_at: at,
+          canceled_by: input.canceledBy,
+        },
+      })
+      .eq("id", pendingMessage.id)
+      .eq("status", "pending");
+    assertOk("arc_messages cancel", messageError);
+  }
+
+  const { error: logError } = await client.from("agent_run_logs").insert({
+    task_id: input.agentTaskId,
+    agent_id: row.agent_id,
+    run_status: "canceled",
+    reasoning_summary: "Operator stopped this Arc chat run.",
+    metadata: { source: "arc_chat", canceled_by: input.canceledBy },
+  });
+  if (logError) console.warn(`cancel run-log insert failed (task already canceled): ${logError.message}`);
+
+  return { ok: true };
 }
 
 /**

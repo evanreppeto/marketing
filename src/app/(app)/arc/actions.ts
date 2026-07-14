@@ -1,25 +1,55 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 
+import {
+  parseArcMode,
+  parseArcRoute,
+  parseMentions,
+  type ArcMention,
+  type ArcMode,
+  type ArcRoute,
+} from "@/domain";
 import { getArcDisplayName } from "@/lib/arc-chat/agent-config";
+import { isAcceptedAttachment } from "@/lib/arc-chat/attachment-types";
 import { enqueueArcChatTask } from "@/lib/arc-chat/enqueue";
+import { cancelChatTask } from "@/lib/arc-chat/inbox";
 import {
   createConversation,
+  getArcMessage,
+  getMessageConversationId,
   insertOperatorMessage,
+  parseArcAttachmentsJson,
+  setArcMessageFeedback,
   touchConversation,
+  type ArcAttachment,
 } from "@/lib/arc-chat/persistence";
+import { saveItem } from "@/lib/arc-chat/saved";
+import { assertConversationAccess } from "@/lib/arc-chat/sharing";
+import { skillIdForArcCommand } from "@/lib/arc-skills/catalog";
 import { getCreationTenancy } from "@/lib/arc-chat/sharing";
 import { getOperatorActor, requireOperator } from "@/lib/auth/operator";
 import { getCurrentOrgId } from "@/lib/auth/org";
+import { getCurrentWorkspaceContext } from "@/lib/auth/workspace";
 import { checkUsageAllowed, formatCentsUsd } from "@/lib/billing/entitlements";
+import { storeGeneratedMedia } from "@/lib/media/storage";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/server";
 
 const MAX_MESSAGE_LENGTH = 8000;
+const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+const CONTEXT_SCOPES = new Set(["workspace", "brand", "crm", "campaigns"]);
 
 export type SendArcMessageResult =
   | { ok: true; conversationId: string }
   | { ok: false; error: string };
+
+export type UploadArcAttachmentResult =
+  | { ok: true; attachment: ArcAttachment }
+  | { ok: false; error: string };
+
+export type ArcInteractionResult = { ok: true } | { ok: false; error: string };
 
 /**
  * Send an operator chat message to Arc. Persists the operator turn and enqueues
@@ -31,6 +61,12 @@ export type SendArcMessageResult =
 export async function sendArcMessageAction(input: {
   conversationId: string | null;
   body: string;
+  mentions?: ArcMention[];
+  attachments?: ArcAttachment[];
+  mode?: ArcMode;
+  route?: ArcRoute;
+  command?: string | null;
+  contextScopes?: string[];
 }): Promise<SendArcMessageResult> {
   await requireOperator();
   if (!isSupabaseAdminConfigured()) {
@@ -55,6 +91,13 @@ export async function sendArcMessageAction(input: {
 
   try {
     const operator = await getOperatorActor();
+    const mentions = parseMentions(input.mentions);
+    const attachments = parseArcAttachmentsJson(JSON.stringify(input.attachments ?? []));
+    const mode = parseArcMode(input.mode);
+    const route = parseArcRoute(input.route);
+    const command = typeof input.command === "string" ? input.command.trim().replace(/^\//, "") || null : null;
+    const skillId = skillIdForArcCommand(command);
+    const contextScopes = (input.contextScopes ?? []).filter((scope) => CONTEXT_SCOPES.has(scope));
 
     let conversationId = input.conversationId;
     if (!conversationId) {
@@ -69,13 +112,29 @@ export async function sendArcMessageAction(input: {
       conversationId = conversation.id;
     }
 
-    const message = await insertOperatorMessage({ conversationId, body, mentions: [] });
+    const message = await insertOperatorMessage({
+      conversationId,
+      body,
+      mentions,
+      attachments,
+      mode,
+      route,
+      command,
+      skillId,
+      contextScopes,
+    });
     await enqueueArcChatTask({
       conversationId,
       messageId: message.id,
       message: body,
-      mentions: [],
+      mentions,
+      attachments,
       operator,
+      mode,
+      route,
+      command,
+      skillId,
+      contextScopes,
       agentName: await getArcDisplayName(),
     });
     await touchConversation(conversationId);
@@ -87,5 +146,99 @@ export async function sendArcMessageAction(input: {
       ok: false,
       error: error instanceof Error ? error.message : "Couldn't send that message.",
     };
+  }
+}
+
+export async function uploadArcAttachmentAction(formData: FormData): Promise<UploadArcAttachmentResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) {
+    return { ok: false, error: "Attachments need a connected workspace." };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a file first." };
+  if (file.size > MAX_ATTACHMENT_BYTES) return { ok: false, error: "Keep attachments under 15 MB." };
+  if (!isAcceptedAttachment(file.type)) return { ok: false, error: "Use an image, PDF, text, Markdown, or CSV file." };
+
+  try {
+    const context = await getCurrentWorkspaceContext();
+    const extension = file.name.includes(".") ? file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "").toLowerCase() : "";
+    const objectPath = `arc-attachments/${context.orgId}/${context.workspaceId ?? "default"}/${randomUUID()}${extension ? `.${extension}` : ""}`;
+    const url = await storeGeneratedMedia(objectPath, Buffer.from(await file.arrayBuffer()), file.type);
+    return { ok: true, attachment: { url, objectPath, contentType: file.type, name: file.name } };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't upload that attachment." };
+  }
+}
+
+export async function cancelArcRunAction(input: {
+  taskId: string;
+  conversationId: string;
+}): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Stopping runs needs a connected backend." };
+  if (!input.taskId.trim() || !input.conversationId.trim()) return { ok: false, error: "This run is missing its receipt id." };
+
+  try {
+    await assertConversationAccess(input.conversationId, "collaborate");
+    const context = await getCurrentWorkspaceContext();
+    if (!context.workspaceId) return { ok: false, error: "No active workspace is available." };
+    const result = await cancelChatTask({
+      agentTaskId: input.taskId,
+      conversationId: input.conversationId,
+      canceledBy: await getOperatorActor(),
+    }, undefined, { orgId: context.orgId, workspaceId: context.workspaceId });
+    if (!result.ok) {
+      return { ok: false, error: result.reason === "already_finished" ? "That run already finished." : "That run could not be found." };
+    }
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't stop that run." };
+  }
+}
+
+export async function setArcMessageFeedbackAction(input: {
+  messageId: string;
+  value: "up" | "down" | null;
+}): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Feedback needs a connected backend." };
+  try {
+    const conversationId = await getMessageConversationId(input.messageId);
+    if (!conversationId) return { ok: false, error: "That response could not be found." };
+    await assertConversationAccess(conversationId, "collaborate");
+    await setArcMessageFeedback(input.messageId, input.value);
+    revalidatePath("/arc");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't save that feedback." };
+  }
+}
+
+export async function saveArcMessageAction(messageId: string): Promise<ArcInteractionResult> {
+  await requireOperator();
+  if (!isSupabaseAdminConfigured()) return { ok: false, error: "Saving responses needs a connected backend." };
+  try {
+    const message = await getArcMessage(messageId);
+    if (!message || message.role !== "arc" || !message.body.trim()) {
+      return { ok: false, error: "That response cannot be saved." };
+    }
+    await assertConversationAccess(message.conversationId, "view");
+    const context = await getCurrentWorkspaceContext();
+    await saveItem({
+      operator: await getOperatorActor(),
+      orgId: context.orgId,
+      workspaceId: context.workspaceId,
+      kind: message.actions.some((action) => action.kind === "draft") ? "draft" : "angle",
+      title: message.body.split("\n").find((line) => line.trim())?.replace(/^#+\s*/, "").slice(0, 90) ?? "Arc response",
+      body: message.body,
+      sourceConversationId: message.conversationId,
+      sourceMessageId: message.id,
+      note: "Saved from Arc chat",
+    });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Couldn't save that response." };
   }
 }

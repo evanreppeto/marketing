@@ -30,6 +30,8 @@ export type EnqueueChatTaskInput = {
   approvalStrictness?: ApprovalStrictness;
   /** Operator-uploaded reference images (GCS, signed read URLs) for Arc to use. */
   attachments?: ArcAttachment[];
+  /** Operator-selected workspace sources to emphasize for this turn. */
+  contextScopes?: string[];
   /** Configured agent display name, for operator-facing not-connected messaging. */
   agentName?: string;
 };
@@ -82,6 +84,7 @@ export async function enqueueArcChatTask(
         command: input.command ?? null,
         skill_id: input.skillId ?? null,
         attachments: input.attachments ?? [],
+        context_scopes: input.contextScopes ?? [],
         source: "arc_chat",
         model_route: input.route ?? "fast",
         mode: input.mode ?? "act",
@@ -109,6 +112,7 @@ export async function enqueueArcChatTask(
       command: input.command ?? null,
       skill_id: input.skillId ?? null,
       attachments: input.attachments ?? [],
+      context_scopes: input.contextScopes ?? [],
     },
   });
   assertOk("agent_task_inputs insert", inputError);
@@ -141,6 +145,7 @@ export async function enqueueArcChatTask(
       command: input.command ?? null,
       skillId: input.skillId ?? null,
       attachments: input.attachments ?? [],
+      contextScopes: input.contextScopes ?? [],
       assistantTone: input.assistantTone,
       assistantResponseStyle: input.assistantResponseStyle,
       approvalStrictness: input.approvalStrictness,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSupabaseQueryMock, type MockSupabase } from "@/lib/repos/__tests__/test-helpers";
 
-import { claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "./inbox";
+import { cancelChatTask, claimChatTask, listQueuedChatTasks, reclaimStaleChatTasks, settleChatTask } from "./inbox";
 
 function calls(supabase: MockSupabase, method: string): Array<Record<string, unknown>> {
   return supabase.calls.filter(([m]) => m === method).map(([, arg]) => arg as Record<string, unknown>);
@@ -42,6 +42,38 @@ describe("claimChatTask", () => {
     const claimed = await claimChatTask("t1", supabase);
 
     expect(claimed).toBe(false);
+  });
+});
+
+describe("cancelChatTask", () => {
+  it("cancels only an in-flight scoped run and closes its pending message", async () => {
+    const row = { id: "t1", status: "running", agent_id: "agent-1", metadata: { source: "arc_chat" } };
+    const supabase = createSupabaseQueryMock({
+      agent_tasks: [{ data: row, error: null }, { data: { id: "t1" }, error: null }],
+      arc_messages: [
+        { data: { id: "m1", metadata: { steps: [{ label: "Searched CRM", status: "done" }] } }, error: null },
+        { data: null, error: null },
+      ],
+      agent_run_logs: { data: null, error: null },
+    });
+
+    const result = await cancelChatTask(
+      { agentTaskId: "t1", conversationId: "c1", canceledBy: "Operator" },
+      supabase,
+      { orgId: "org-1", workspaceId: "workspace-1" },
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(calls(supabase, "update")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: "canceled" }),
+      expect.objectContaining({
+        status: "failed",
+        metadata: expect.objectContaining({ steps: [{ label: "Searched CRM", status: "done" }], canceled: true }),
+      }),
+    ]));
+    expect(eqCalls(supabase)).toContainEqual(["eq", "source_id", "c1"]);
+    expect(eqCalls(supabase)).toContainEqual(["eq", "org_id", "org-1"]);
+    expect(eqCalls(supabase)).toContainEqual(["eq", "workspace_id", "workspace-1"]);
   });
 });
 

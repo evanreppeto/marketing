@@ -42,6 +42,8 @@ export type ArcNotifyPayload = {
   skillId?: ArcSkillId | null;
   /** Operator-uploaded reference images (GCS signed read URLs) for Arc to use. */
   attachments?: ArcAttachment[];
+  /** Workspace source groups the operator selected in the composer. */
+  contextScopes?: string[];
   /** Bounded prior turns (oldest → newest), excluding the current message. */
   history?: WakeHistoryTurn[];
 };
