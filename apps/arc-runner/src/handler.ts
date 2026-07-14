@@ -108,8 +108,21 @@ export async function handleOpportunityScan(
       actorUser: payload.operator ?? null,
       taskId: payload.agentTaskId,
     });
+    // Settle the agent_task so the scan doesn't sit in the inbox as `queued`
+    // forever (the proposed opportunities are the real outcome). Lifecycle-only —
+    // `/complete` never unlocks outbound. Mirrors handleCampaignTask's background
+    // (no-conversation) branch.
+    await client.apiPost(`/api/v1/arc/tasks/${payload.agentTaskId}/complete`, {
+      summary: `Opportunity scan complete — proposed ${result.actions.length} opportunity(ies).`,
+      outputs: { actions: result.actions },
+    });
   } catch (error) {
     console.error(`[arc-runner] opportunity-scan run failed (task ${payload.agentTaskId}):`, error);
+    await client
+      .apiPost(`/api/v1/arc/tasks/${payload.agentTaskId}/block`, {
+        reason: "Arc hit an error running the opportunity scan. Check the runner logs.",
+      })
+      .catch(() => undefined);
   }
 }
 
