@@ -14,8 +14,9 @@ import { isDemoDataEnabled } from "@/lib/demo/demo-mode";
 import { loadWorkspaceUsage, type RecentUsageRow } from "./read-model";
 
 // Illustrative cap for the offline demo card only; the live path uses the org's
-// real plan cap resolved from org_plans (see @/lib/billing/entitlements).
-const DEMO_CAP_CENTS = 8000;
+// real plan cap resolved from org_plans (see @/lib/billing/entitlements). Kept in
+// step with the demo billing view (Starter / $100) so both panels agree offline.
+const DEMO_CAP_CENTS = 10_000;
 
 export type UsageDailyPoint = { date: string; costCents: number };
 export type UsageRecentRow = { occurredAt: string; actor: string; model: string; service: string; tokens: number; costCents: number };
@@ -125,9 +126,9 @@ function demoByModel(): UsageModelRow[] {
 }
 
 function demoUsageView(now: Date): SettingsUsageView {
-  // Believable BSR month: ~1.84M tokens, 312 agent runs, $48.80 → 61% of the $80 cap.
-  const card: UsageSummaryCard = { totalCostCents: 4880, totalTokens: 1_842_000, totalRuns: 312, pctOfCap: 61, isNearCap: false };
-  return toUsageView(card, true, true, demoDaily(now), demoRecent(now), demoByModel(), DEMO_CAP_CENTS, "Pro");
+  // Believable BSR month: ~1.84M tokens, 312 agent runs, $48.80 → 49% of the $100 Starter cap.
+  const card: UsageSummaryCard = { totalCostCents: 4880, totalTokens: 1_842_000, totalRuns: 312, pctOfCap: 49, isNearCap: false };
+  return toUsageView(card, true, true, demoDaily(now), demoRecent(now), demoByModel(), DEMO_CAP_CENTS, "Starter");
 }
 
 export async function getSettingsUsageView(): Promise<SettingsUsageView> {
